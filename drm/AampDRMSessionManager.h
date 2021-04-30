@@ -156,6 +156,7 @@ private:
 #ifdef USE_SECMANAGER
 	int64_t mSessionId;
 #endif
+	int mMaxDRMSessions;
 
 	AampDRMSessionManager(const AampDRMSessionManager &) = delete;
 	AampDRMSessionManager& operator=(const AampDRMSessionManager &) = delete;
@@ -166,7 +167,7 @@ private:
 			double dlnow, double ultotal, double ulnow );
 public:
 
-	AampDRMSessionManager();
+	AampDRMSessionManager(int maxDrmSessions);
 
 	void initializeDrmSessions();
 
@@ -205,7 +206,7 @@ public:
 
 	void setLicenseRequestAbort(bool isAbort);
 
-	const char* getAccessToken(int &tokenLength, long &error_code);
+	const char* getAccessToken(int &tokenLength, long &error_code ,bool bSslPeerVerify);
 
 	KeyState getDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int &selectedSlot, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance, bool isPrimarySession = false);
 

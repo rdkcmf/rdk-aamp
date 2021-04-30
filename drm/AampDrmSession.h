@@ -31,7 +31,7 @@
 #include <gst/gst.h>
 
 #include "AampDRMutils.h"
-#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 
 using namespace std;
 
@@ -76,6 +76,7 @@ protected:
 #ifdef USE_SECMANAGER
 	int64_t mSessionId;
 #endif
+	bool m_OutputProtectionEnabled;
 public:
 
 	/**
@@ -162,6 +163,12 @@ public:
 	 */
 	string getKeySystem();
 
+	/**
+	 * @brief Set the OutputProtection for DRM Session
+	 * @param bValue : Enable/Disable flag
+	 * @retval void
+	 */
+	void setOutputProtection(bool bValue) { m_OutputProtectionEnabled = bValue;}
 #if defined(USE_OPENCDM_ADAPTER)
 	virtual void setKeyId(const std::vector<uint8_t>& keyId) {};
 #endif

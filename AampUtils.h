@@ -60,9 +60,10 @@ std::string aamp_getHostFromURL(std::string url);
  * @param[out] dst - Created URL
  * @param[in] base - Base URL
  * @param[in] uri - File path
+ * @param[in] propagateUriParams - flag to use base uri params
  * @retval void
  */
-void aamp_ResolveURL(std::string& dst, std::string base, const char *uri);
+void aamp_ResolveURL(std::string& dst, std::string base, const char *uri , bool bPropagateUriParams);
 
 /**
  * @brief Check if string start with a prefix
@@ -141,9 +142,10 @@ std::string aamp_PostJsonRPC( std::string id, std::string method, std::string pa
 /**
  * @brief To get the preferred iso639mapped language code
  * @param[in] lang
+ * @param[LangCodePreference] preferFormat
  * @retval[out] preferred iso639 mapped language.
  */
-std::string Getiso639map_NormalizeLanguageCode(std::string  lang );
+std::string Getiso639map_NormalizeLanguageCode(std::string  lang, LangCodePreference preferFormat );
 
 /**
  * @brief To get the timespec
@@ -160,6 +162,16 @@ struct timespec aamp_GetTimespec(int timeInMs);
  * @param media type of file
  * @param count for manifest or playlist update
  */
-void aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count);
-
+bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count,const char *prefix);
+/**
+ * @brief Get harvest config corresponds to Media type
+ * @param fileType meida file type
+ * @return harvestType
+ */
+int getHarvestConfigForMedia(MediaType fileType);
+/**
+ * @brief Get harvest path to dump the files
+ * @return harvest path
+ */
+std::string getDefaultHarvestPath();
 #endif  /* __AAMP_UTILS_H__ */

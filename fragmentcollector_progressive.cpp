@@ -151,7 +151,7 @@ void StreamAbstractionAAMP_PROGRESSIVE::FetcherLoop()
     std::string effectiveUrl;
     long http_error;
     
-    if(gpGlobalConfig->useAppSrcForProgressivePlayback)
+    if(ISCONFIGSET(eAAMPConfig_UseAppSrcForProgressivePlayback))
     {
 	    StreamFile( contentUrl.c_str(), &http_error );
     }

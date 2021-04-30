@@ -551,7 +551,7 @@ void StreamAbstractionAAMP_OTA::GetAudioTracks()
         }
 
         std::string languageCode;
-        languageCode = Getiso639map_NormalizeLanguageCode(audioData["language"].String());
+        languageCode = Getiso639map_NormalizeLanguageCode(audioData["language"].String(),aamp->GetLangCodePreference());
         aTracks.push_back(AudioTrackInfo(index, /*idx*/ languageCode, /*lang*/ audioData["name"].String(), /*name*/ audioData["type"].String(), /*codecStr*/ (int)audioData["pk"].Number(), /*primaryKey*/ audioData["contentType"].String(), /*contentType*/ audioData["mixType"].String() /*mixType*/));
     }
 
@@ -678,7 +678,7 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 			std::string index = std::to_string(ccIndex++);
 			std::string serviceNo;
 			int ccServiceNumber = -1;
-			std::string languageCode = Getiso639map_NormalizeLanguageCode(textData["language"].String());
+			std::string languageCode = Getiso639map_NormalizeLanguageCode(textData["language"].String(),aamp->GetLangCodePreference());
 
 			ccServiceNumber = textData["ccServiceNumber"].Number();
 			/*Plugin info : ccServiceNumber	int Set to 1-63 for 708 CC Subtitles and 0 for 608*/

@@ -141,8 +141,6 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 
 static bool activeInterfaceWifi = false;
 
-GlobalConfigAAMP *gpGlobalConfig;
-
 /**
  * @struct ChannelInfo 
  * @brief Holds information of a channel
@@ -818,822 +816,7 @@ static int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& va
 	return ret;
 }
 
-/**
- * @brief Process config entries,i and update gpGlobalConfig params
- *        based on the config setting.
- * @param cfg config to process
- */
-static void ProcessConfigEntry(std::string cfg)
-{
-	if (!cfg.empty() && cfg.at(0) != '#')
-	{ // ignore comments
-		//Removing unnecessary spaces and newlines
-		trim(cfg);
 
-		//CID:98018- Remove the seconds variable which is declared but not used
-		double inputTimeout;
-		int value;
-		char * tmpValue = NULL;
-		if(ReadConfigStringHelper(cfg, "map-mpd=", (const char**)&gpGlobalConfig->mapMPD))
-		{
-			logprintf("map-mpd=%s", gpGlobalConfig->mapMPD);
-		}
-		else if(ReadConfigStringHelper(cfg, "map-m3u8=", (const char**)&gpGlobalConfig->mapM3U8))
-		{
-			logprintf("map-m3u8=%s", gpGlobalConfig->mapM3U8);
-		}
-		else if (ReadConfigNumericHelper(cfg, "fragmp4-license-prefetch=", value) == 1)
-		{
-			gpGlobalConfig->fragmp4LicensePrefetch = (value != 0);
-			logprintf("fragmp4-license-prefetch=%d", gpGlobalConfig->fragmp4LicensePrefetch);
-		}
-		else if (ReadConfigNumericHelper(cfg, "enable_videoend_event=", value) == 1)
-		{
-			gpGlobalConfig->mEnableVideoEndEvent = (value==1);
-			logprintf("enable_videoend_event=%d", gpGlobalConfig->mEnableVideoEndEvent);
-		}
-		else if (ReadConfigNumericHelper(cfg, "fog=", value) == 1)
-		{
-			gpGlobalConfig->noFog = (value==0);
-			logprintf("fog=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "harvest-count-limit=", gpGlobalConfig->harvestCountLimit) == 1)
-		{
-			logprintf("harvest-count-limit=%d", gpGlobalConfig->harvestCountLimit);
-		}
-		else if (ReadConfigNumericHelper(cfg, "harvest-config=", gpGlobalConfig->harvestConfig) == 1)
-		{
-			logprintf("harvest-config=%d", gpGlobalConfig->harvestConfig);
-		}
-		else if (ReadConfigStringHelper(cfg, "harvest-path=", (const char**)&gpGlobalConfig->harvestPath))
-		{
-				logprintf("harvest-path=%s\n", gpGlobalConfig->harvestPath);
-		}
-		else if (ReadConfigNumericHelper(cfg, "forceEC3=", value) == 1)
-		{
-			gpGlobalConfig->forceEC3 = (TriState)(value != 0);
-			logprintf("forceEC3=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "disableEC3=", value) == 1)
-		{
-			gpGlobalConfig->disableEC3 = (TriState)(value != 0);
-			logprintf("disableEC3=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "disableATMOS=", value) == 1)
-		{
-			gpGlobalConfig->disableATMOS = (TriState)(value != 0);
-			logprintf("disableATMOS=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "cdvrlive-offset=", gpGlobalConfig->cdvrliveOffset) == 1)
-		{
-                        VALIDATE_INT("cdvrlive-offset", gpGlobalConfig->cdvrliveOffset, AAMP_CDVR_LIVE_OFFSET)
-			logprintf("cdvrlive-offset=%d", gpGlobalConfig->cdvrliveOffset);
-		}
-		else if (ReadConfigNumericHelper(cfg, "live-offset=", gpGlobalConfig->liveOffset) == 1)
-		{
-                        VALIDATE_INT("live-offset", gpGlobalConfig->liveOffset, AAMP_LIVE_OFFSET)
-			logprintf("live-offset=%d", gpGlobalConfig->liveOffset);
-		}
-		else if (ReadConfigNumericHelper(cfg, "disablePlaylistIndexEvent=", gpGlobalConfig->disablePlaylistIndexEvent) == 1)
-		{
-			logprintf("disablePlaylistIndexEvent=%d", gpGlobalConfig->disablePlaylistIndexEvent);
-		}
-		else if (cfg.compare("enableSubscribedTags") == 0)
-		{
-			gpGlobalConfig->enableSubscribedTags = true;
-			logprintf("enableSubscribedTags set");
-		}
-		else if (cfg.compare("disableSubscribedTags") == 0)
-		{
-			gpGlobalConfig->enableSubscribedTags = false;
-			logprintf("disableSubscribedTags set");
-		}
-		else if (ReadConfigNumericHelper(cfg, "enableSubscribedTags=", gpGlobalConfig->enableSubscribedTags) == 1)
-		{
-			logprintf("enableSubscribedTags=%d", gpGlobalConfig->enableSubscribedTags);
-		}
-		else if (ReadConfigNumericHelper(cfg, "networkTimeout=", inputTimeout) == 1)
-		{
-			VALIDATE_DOUBLE("networkTimeout", inputTimeout, CURL_FRAGMENT_DL_TIMEOUT)
-			gpGlobalConfig->networkTimeoutMs = (long)CONVERT_SEC_TO_MS(inputTimeout);
-			logprintf("networkTimeout=%ld", gpGlobalConfig->networkTimeoutMs);
-		}
-		else if (ReadConfigNumericHelper(cfg, "manifestTimeout=", inputTimeout) == 1)
-		{
-			VALIDATE_DOUBLE("manifestTimeout", inputTimeout, CURL_FRAGMENT_DL_TIMEOUT)
-			gpGlobalConfig->manifestTimeoutMs = (long)CONVERT_SEC_TO_MS(inputTimeout);
-			logprintf("manifestTimeout=%ld ms", gpGlobalConfig->manifestTimeoutMs);
-		}
-		else if (ReadConfigNumericHelper(cfg, "playlistTimeout=", inputTimeout) == 1)
-		{
-			VALIDATE_DOUBLE("playlist", inputTimeout, CURL_FRAGMENT_DL_TIMEOUT)
-			gpGlobalConfig->playlistTimeoutMs = (long)CONVERT_SEC_TO_MS(inputTimeout);
-			logprintf("playlistTimeout=%ld ms", gpGlobalConfig->playlistTimeoutMs);
-		}
-		else if (cfg.compare("dash-ignore-base-url-if-slash") == 0)
-		{
-			gpGlobalConfig->dashIgnoreBaseURLIfSlash = true;
-			logprintf("dash-ignore-base-url-if-slash set");
-		}
-		else if (cfg.compare("license-anonymous-request") == 0)
-		{
-			gpGlobalConfig->licenseAnonymousRequest = true;
-			logprintf("license-anonymous-request set");
-		}
-		else if (cfg.compare("useLinearSimulator") == 0)
-		{
-			gpGlobalConfig->useLinearSimulator = true;
-			logprintf("useLinearSimulator set");
-		}
-		else if ((cfg.compare("info") == 0) && (!gpGlobalConfig->logging.debug))
-		{
-			gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
-			gpGlobalConfig->logging.info = true;
-			logprintf("info logging %s", gpGlobalConfig->logging.info ? "on" : "off");
-		}
-		else if (cfg.compare("stream") == 0) 
-		{
-			gpGlobalConfig->logging.stream = true;
-			logprintf("stream logging %s", gpGlobalConfig->logging.stream ? "on" : "off");
-		}
-		else if (cfg.compare("failover") == 0)
-		{
-			gpGlobalConfig->logging.failover = true;
-			logprintf("failover logging %s", gpGlobalConfig->logging.failover ? "on" : "off");
-		}
-		else if (cfg.compare("curlHeader") == 0)
-		{
-			gpGlobalConfig->logging.curlHeader = true;
-			logprintf("curlHeader logging %s", gpGlobalConfig->logging.curlHeader ? "on" : "off");
-		}
-		else if (cfg.compare("curlLicense") == 0)
-                {
-                        gpGlobalConfig->logging.curlLicense = true;
-                        logprintf("curlLicense logging %s", gpGlobalConfig->logging.curlLicense ? "on" : "off");
-                }
-		else if(cfg.compare("logMetadata") == 0)
-		{
-			gpGlobalConfig->logging.logMetadata = true;
-			logprintf("logMetadata logging %s", gpGlobalConfig->logging.logMetadata ? "on" : "off");
-		}
-		else if (ReadConfigStringHelper(cfg, "customHeader=", (const char**)&tmpValue))
-		{
-			if (tmpValue)
-			{
-				gpGlobalConfig->customHeaderStr.push_back(tmpValue);
-				logprintf("customHeader = %s", tmpValue);
-
-				free(tmpValue);
-				tmpValue = NULL;
-			}
-		}
-		else if (ReadConfigStringHelper(cfg, "uriParameter=", (const char**)&gpGlobalConfig->uriParameter))
-		{
-			logprintf("uriParameter = %s", gpGlobalConfig->uriParameter);
-		}
-		else if (cfg.compare("gst") == 0)
-		{
-			gpGlobalConfig->logging.gst = !gpGlobalConfig->logging.gst;
-			logprintf("gst logging %s", gpGlobalConfig->logging.gst ? "on" : "off");
-		}
-		else if (cfg.compare("progress") == 0)
-		{
-			gpGlobalConfig->logging.progress = !gpGlobalConfig->logging.progress;
-			logprintf("progress logging %s", gpGlobalConfig->logging.progress ? "on" : "off");
-		}
-		else if (cfg.compare("debug") == 0)
-		{
-			gpGlobalConfig->logging.info = false;
-			gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_TRACE);
-			gpGlobalConfig->logging.debug = true;
-			logprintf("debug logging %s", gpGlobalConfig->logging.debug ? "on" : "off");
-		}
-		else if (cfg.compare("trace") == 0)
-		{
-			gpGlobalConfig->logging.trace = !gpGlobalConfig->logging.trace;
-			logprintf("trace logging %s", gpGlobalConfig->logging.trace ? "on" : "off");
-		}
-		else if (cfg.compare("curl") == 0)
-		{
-			gpGlobalConfig->logging.curl = !gpGlobalConfig->logging.curl;
-			logprintf("curl logging %s", gpGlobalConfig->logging.curl ? "on" : "off");
-		}
-		else if (cfg.compare("id3") == 0)
-		{
-			gpGlobalConfig->logging.id3 = !gpGlobalConfig->logging.id3;
-			logprintf("ID3 logging %s", gpGlobalConfig->logging.id3 ? "on" : "off");
-		}
-		else if (ReadConfigNumericHelper(cfg, "default-bitrate=", gpGlobalConfig->defaultBitrate) == 1)
-		{
-			VALIDATE_LONG("default-bitrate",gpGlobalConfig->defaultBitrate, DEFAULT_INIT_BITRATE)
-			logprintf("aamp default-bitrate: %ld", gpGlobalConfig->defaultBitrate);
-		}
-		else if (ReadConfigNumericHelper(cfg, "default-bitrate-4k=", gpGlobalConfig->defaultBitrate4K) == 1)
-		{
-			VALIDATE_LONG("default-bitrate-4k", gpGlobalConfig->defaultBitrate4K, DEFAULT_INIT_BITRATE_4K)
-			logprintf("aamp default-bitrate-4k: %ld", gpGlobalConfig->defaultBitrate4K);
-		}
-		else if (cfg.compare("abr") == 0)
-		{
-			gpGlobalConfig->bEnableABR = !gpGlobalConfig->bEnableABR;
-			logprintf("abr %s", gpGlobalConfig->bEnableABR ? "on" : "off");
-		}
-		else if (ReadConfigNumericHelper(cfg, "disableUnderflow=", value) == 1)
-		{
-			gpGlobalConfig->bDisableUnderflow = value;
-			logprintf("disableUnderflow %s", gpGlobalConfig->bDisableUnderflow ? "on" : "off");
-		}
-		else if (ReadConfigNumericHelper(cfg, "abr-cache-life=", gpGlobalConfig->abrCacheLife) == 1)
-		{
-			gpGlobalConfig->abrCacheLife *= 1000;
-			logprintf("aamp abr cache lifetime: %ldmsec", gpGlobalConfig->abrCacheLife);
-		}
-		else if (ReadConfigNumericHelper(cfg, "abr-cache-length=", gpGlobalConfig->abrCacheLength) == 1)
-		{
-			VALIDATE_INT("abr-cache-length", gpGlobalConfig->abrCacheLength, DEFAULT_ABR_CACHE_LENGTH)
-			logprintf("aamp abr cache length: %ld", gpGlobalConfig->abrCacheLength);
-		}
-		else if (ReadConfigNumericHelper(cfg, "useNewABR=", value) == 1)
-		{
-			gpGlobalConfig->abrBufferCheckEnabled  = (TriState)(value != 0);
-			logprintf("useNewABR =%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "useNewAdBreaker=", value) == 1)
-		{
-			gpGlobalConfig->useNewDiscontinuity  = (TriState)(value != 0);
-			logprintf("useNewAdBreaker =%d", value);
-		}
-		else if (cfg.compare("reportvideopts") == 0)
-		{
-			gpGlobalConfig->bReportVideoPTS = eTrueState;
-			logprintf("reportvideopts:%s", gpGlobalConfig->bReportVideoPTS ? "on" : "off");
-		}
-		else if (cfg.compare("decoderunavailablestrict") == 0)
-		{
-			gpGlobalConfig->decoderUnavailableStrict = true;
-			logprintf("decoderunavailablestrict:%s", gpGlobalConfig->decoderUnavailableStrict ? "on" : "off");
-		}
-//		else if( cfg.compare("descriptiveaudiotrack") == 0 )
-//		{
-//			gpGlobalConfig->bDescriptiveAudioTrack  = true;
-//			logprintf("descriptiveaudiotrack:%s", gpGlobalConfig->bDescriptiveAudioTrack ? "on" : "off");
-//		}
-		else if( ReadConfigNumericHelper( cfg, "langcodepref=", value) == 1 )
-		{
-			const char *langCodePrefName[] =
-			{
-				"ISO639_NO_LANGCODE_PREFERENCE",
-				"ISO639_PREFER_3_CHAR_BIBLIOGRAPHIC_LANGCODE",
-				"ISO639_PREFER_3_CHAR_TERMINOLOGY_LANGCODE",
-				"ISO639_PREFER_2_CHAR_LANGCODE"
-			};
-			if( value>=0 && value<4 )
-			{
-				gpGlobalConfig->langCodePreference = (LangCodePreference)value;
-				logprintf("langcodepref:%s\n", langCodePrefName[gpGlobalConfig->langCodePreference] );
-			}
-		}
-		else if (cfg.compare("appSrcForProgressivePlayback") == 0)
-		{
-			gpGlobalConfig->useAppSrcForProgressivePlayback = true;
-			logprintf("appSrcForProgressivePlayback:%s\n", gpGlobalConfig->useAppSrcForProgressivePlayback ? "on" : "off");
-		}
-		else if (ReadConfigNumericHelper(cfg, "abr-cache-outlier=", gpGlobalConfig->abrOutlierDiffBytes) == 1)
-		{
-			VALIDATE_INT("abr-cache-outlier", gpGlobalConfig->abrOutlierDiffBytes, DEFAULT_ABR_OUTLIER)
-			logprintf("aamp abr outlier in bytes: %ld", gpGlobalConfig->abrOutlierDiffBytes);
-		}
-		else if (ReadConfigNumericHelper(cfg, "abr-skip-duration=", gpGlobalConfig->abrSkipDuration) == 1)
-		{
-			VALIDATE_INT("abr-skip-duration",gpGlobalConfig->abrSkipDuration, DEFAULT_ABR_SKIP_DURATION)
-			logprintf("aamp abr skip duration: %d", gpGlobalConfig->abrSkipDuration);
-		}
-		else if (ReadConfigNumericHelper(cfg, "abr-nw-consistency=", gpGlobalConfig->abrNwConsistency) == 1)
-		{
-			VALIDATE_INT("abr-nw-consistency", gpGlobalConfig->abrNwConsistency, DEFAULT_ABR_NW_CONSISTENCY_CNT)
-			logprintf("aamp abr NetworkConsistencyCnt: %d", gpGlobalConfig->abrNwConsistency);
-		}
-		else if (ReadConfigNumericHelper(cfg, "min-buffer-rampdown=", gpGlobalConfig->minABRBufferForRampDown) == 1)
-		{
-			VALIDATE_INT("min-buffer-rampdown", gpGlobalConfig->minABRBufferForRampDown, AAMP_LOW_BUFFER_BEFORE_RAMPDOWN)
-			logprintf("aamp abr low buffer for rampdown: %d", gpGlobalConfig->minABRBufferForRampDown);
-		}
-		else if (ReadConfigNumericHelper(cfg, "max-buffer-rampup=", gpGlobalConfig->maxABRBufferForRampUp) == 1)
-		{
-			logprintf("aamp abr high buffer for rampup: %d", gpGlobalConfig->maxABRBufferForRampUp);
-		}
-		else if (ReadConfigNumericHelper(cfg, "flush=", gpGlobalConfig->gPreservePipeline) == 1)
-		{
-			logprintf("aamp flush=%d", gpGlobalConfig->gPreservePipeline);
-		}
-		else if (ReadConfigNumericHelper(cfg, "demux-hls-audio-track=", gpGlobalConfig->gAampDemuxHLSAudioTsTrack) == 1)
-		{ // default 1, set to 0 for hw demux audio ts track
-			logprintf("demux-hls-audio-track=%d", gpGlobalConfig->gAampDemuxHLSAudioTsTrack);
-		}
-		else if (ReadConfigNumericHelper(cfg, "demux-hls-video-track=", gpGlobalConfig->gAampDemuxHLSVideoTsTrack) == 1)
-		{ // default 1, set to 0 for hw demux video ts track
-			logprintf("demux-hls-video-track=%d", gpGlobalConfig->gAampDemuxHLSVideoTsTrack);
-		}
-		else if (ReadConfigNumericHelper(cfg, "demux-hls-video-track-tm=", gpGlobalConfig->demuxHLSVideoTsTrackTM) == 1)
-		{ // default 0, set to 1 to demux video ts track during trickmodes
-			logprintf("demux-hls-video-track-tm=%d", gpGlobalConfig->demuxHLSVideoTsTrackTM);
-		}
-		else if (ReadConfigNumericHelper(cfg, "demuxed-audio-before-video=", gpGlobalConfig->demuxedAudioBeforeVideo) == 1)
-		{ // default 0, set to 1 to send audio es before video in case of s/w demux.
-			logprintf("demuxed-audio-before-video=%d", gpGlobalConfig->demuxedAudioBeforeVideo);
-		}
-		else if (ReadConfigNumericHelper(cfg, "throttle=", gpGlobalConfig->gThrottle) == 1)
-		{ // default is true; used with restamping?
-			logprintf("aamp throttle=%d", gpGlobalConfig->gThrottle);
-		}
-		else if (ReadConfigNumericHelper(cfg, "min-init-cache=", gpGlobalConfig->minInitialCacheSeconds) == 1)
-		{ // override for initial cache
-			VALIDATE_INT("min-init-cache", gpGlobalConfig->minInitialCacheSeconds, DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
-			logprintf("min-init-cache=%d", gpGlobalConfig->minInitialCacheSeconds);
-		}
-		else if (ReadConfigNumericHelper(cfg, "buffer-health-monitor-delay=", gpGlobalConfig->bufferHealthMonitorDelay) == 1)
-		{ // override for buffer health monitor delay after tune/ seek
-			VALIDATE_INT("buffer-health-monitor-delay", gpGlobalConfig->bufferHealthMonitorDelay, DEFAULT_BUFFER_HEALTH_MONITOR_DELAY)
-			logprintf("buffer-health-monitor-delay=%d", gpGlobalConfig->bufferHealthMonitorDelay);
-		}
-		else if (ReadConfigNumericHelper(cfg, "buffer-health-monitor-interval=", gpGlobalConfig->bufferHealthMonitorInterval) == 1)
-		{ // override for buffer health monitor interval
-			VALIDATE_INT("buffer-health-monitor-interval", gpGlobalConfig->bufferHealthMonitorInterval, DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL)
-			logprintf("buffer-health-monitor-interval=%d", gpGlobalConfig->bufferHealthMonitorInterval);
-		}
-		else if (ReadConfigNumericHelper(cfg, "preferred-drm=", value) == 1)
-		{ // override for preferred drm value
-			if(value <= eDRM_NONE || value > eDRM_PlayReady)
-			{
-				logprintf("preferred-drm=%d is unsupported", value);
-			}
-			else
-			{
-				gpGlobalConfig->isUsingLocalConfigForPreferredDRM = true;
-				gpGlobalConfig->isPreferredDRMConfigured = true;
-				gpGlobalConfig->preferredDrm = (DRMSystems) value;
-			}
-			logprintf("preferred-drm=%s", GetDrmSystemName(gpGlobalConfig->preferredDrm));
-		}
-		else if (ReadConfigNumericHelper(cfg, "playready-output-protection=", value) == 1)
-		{
-			gpGlobalConfig->enablePROutputProtection = (value != 0);
-			logprintf("playready-output-protection is %s", (value ? "on" : "off"));
-		}
-		else if (ReadConfigNumericHelper(cfg, "live-tune-event=", value) == 1)
-                { // default is 0; set 1 for sending tuned for live
-                        logprintf("live-tune-event = %d", value);
-                        if (value >= 0 && value < eTUNED_EVENT_MAX)
-                        {
-                                gpGlobalConfig->tunedEventConfigLive = (TunedEventConfig)(value);
-                        }
-                }
-                else if (ReadConfigNumericHelper(cfg, "vod-tune-event=", value) == 1)
-                { // default is 0; set 1 for sending tuned event for vod
-                        logprintf("vod-tune-event = %d", value);
-                        if (value >= 0 && value < eTUNED_EVENT_MAX)
-                        {
-                                gpGlobalConfig->tunedEventConfigVOD = (TunedEventConfig)(value);
-                        }
-                }
-		else if (ReadConfigNumericHelper(cfg, "playlists-parallel-fetch=", value) == 1)
-		{
-			gpGlobalConfig->playlistsParallelFetch = (TriState)(value != 0);
-			logprintf("playlists-parallel-fetch=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "useDashParallelFragDownload=", value) == 1)
-		{
-			gpGlobalConfig->dashParallelFragDownload = (TriState)(value != 0);
-			logprintf("useDashParallelFragDownload=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "parallelPlaylistRefresh=", value) == 1)
-		{
-			gpGlobalConfig->parallelPlaylistRefresh  = (TriState)(value != 0);
-			logprintf("parallelPlaylistRefresh =%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "bulk-timedmeta-report=", value) == 1)
-		{
-			gpGlobalConfig->enableBulkTimedMetaReport = (TriState)(value != 0);
-			logprintf("bulk-timedmeta-report=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "useRetuneForUnpairedDiscontinuity=", value) == 1)
-		{
-			gpGlobalConfig->useRetuneForUnpairedDiscontinuity = (TriState)(value != 0);
-			logprintf("useRetuneForUnpairedDiscontinuity=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "useRetuneForGstInternalError=", value) == 1)
-		{
-			gpGlobalConfig->useRetuneForGSTInternalError = (TriState)(value != 0);
-			logprintf("useRetuneForGstInternalError=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "async-tune=", value) == 1)
-		{
-			gpGlobalConfig->mAsyncTuneConfig = (TriState)(value != 0);
-			logprintf("async-tune=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "useWesterosSink=", value) == 1)
-		{
-			gpGlobalConfig->mWesterosSinkConfig = (TriState)(value != 0);
-			logprintf("useWesterosSink=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "setLicenseCaching=", value) == 1)
-		{
-			gpGlobalConfig->licenseCaching = (TriState)(value != 0);
-			logprintf("setLicenseCaching=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "propagateUriParameters=", value) == 1)
-                {
-			gpGlobalConfig->mPropagateUriParameters = (TriState)(value);
-			logprintf("PropagateUriParameters = %d", (TriState) gpGlobalConfig->mPropagateUriParameters);
-		}
-		else if (ReadConfigNumericHelper(cfg, "pre-fetch-iframe-playlist=", value) == 1)
-		{
-			gpGlobalConfig->prefetchIframePlaylist = (value != 0);
-			logprintf("pre-fetch-iframe-playlist=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "hls-av-sync-use-start-time=", value) == 1)
-		{
-			gpGlobalConfig->hlsAVTrackSyncUsingStartTime = (value != 0);
-			logprintf("hls-av-sync-use-start-time=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "mpd-discontinuity-handling=", value) == 1)
-		{
-			gpGlobalConfig->mpdDiscontinuityHandling = (value != 0);
-			logprintf("mpd-discontinuity-handling=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "mpd-discontinuity-handling-cdvr=", value) == 1)
-		{
-			gpGlobalConfig->mpdDiscontinuityHandlingCdvr = (value != 0);
-			logprintf("mpd-discontinuity-handling-cdvr=%d", value);
-		}
-		else if(ReadConfigStringHelper(cfg, "ck-license-server-url=", (const char**)&gpGlobalConfig->ckLicenseServerURL))
-		{
-			logprintf("Clear Key license-server-url=%s", gpGlobalConfig->ckLicenseServerURL);
-		}
-		else if(ReadConfigStringHelper(cfg, "license-server-url=", (const char**)&gpGlobalConfig->licenseServerURL))
-		{
-			gpGlobalConfig->licenseServerLocalOverride = true;
-			logprintf("license-server-url=%s", gpGlobalConfig->licenseServerURL);
-		}
-		else if(ReadConfigNumericHelper(cfg, "vod-trickplay-fps=", gpGlobalConfig->vodTrickplayFPS) == 1)
-		{
-			VALIDATE_INT("vod-trickplay-fps", gpGlobalConfig->vodTrickplayFPS, TRICKPLAY_NETWORK_PLAYBACK_FPS)
-			if(gpGlobalConfig->vodTrickplayFPS != TRICKPLAY_NETWORK_PLAYBACK_FPS)
-				gpGlobalConfig->vodTrickplayFPSLocalOverride = true;
-			logprintf("vod-trickplay-fps=%d", gpGlobalConfig->vodTrickplayFPS);
-		}
-		else if(ReadConfigNumericHelper(cfg, "linear-trickplay-fps=", gpGlobalConfig->linearTrickplayFPS) == 1)
-		{
-			VALIDATE_INT("linear-trickplay-fps", gpGlobalConfig->linearTrickplayFPS, TRICKPLAY_TSB_PLAYBACK_FPS)
-			if (gpGlobalConfig->linearTrickplayFPS != TRICKPLAY_TSB_PLAYBACK_FPS)
-				gpGlobalConfig->linearTrickplayFPSLocalOverride = true;
-			logprintf("linear-trickplay-fps=%d", gpGlobalConfig->linearTrickplayFPS);
-		}
-		else if (ReadConfigNumericHelper(cfg, "report-progress-interval=", gpGlobalConfig->reportProgressInterval) == 1)
-		{
-			// Progress report input in milliSec 
-			VALIDATE_INT("report-progress-interval", gpGlobalConfig->reportProgressInterval, DEFAULT_REPORT_PROGRESS_INTERVAL)
-			logprintf("report-progress-interval=%d", gpGlobalConfig->reportProgressInterval);
-		}
-		else if (ReadConfigStringHelper(cfg, "http-proxy=", (const char**)&gpGlobalConfig->httpProxy))
-		{
-			logprintf("http-proxy=%s", gpGlobalConfig->httpProxy);
-		}
-		else if (cfg.compare("force-http") == 0)
-		{
-			gpGlobalConfig->bForceHttp = !gpGlobalConfig->bForceHttp;
-			logprintf("force-http: %s", gpGlobalConfig->bForceHttp ? "on" : "off");
-		}
-		else if (ReadConfigNumericHelper(cfg, "internal-retune=", value) == 1)
-		{
-			gpGlobalConfig->internalReTune = (value != 0);
-			logprintf("internal-retune=%d", (int)value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "gst-buffering-before-play=", value) == 1)
-		{
-			gpGlobalConfig->gstreamerBufferingBeforePlay = (value != 0);
-			logprintf("gst-buffering-before-play=%d", (int)gpGlobalConfig->gstreamerBufferingBeforePlay);
-		}
-		else if (ReadConfigNumericHelper(cfg, "re-tune-on-buffering-timeout=", value) == 1)
-		{
-			gpGlobalConfig->reTuneOnBufferingTimeout = (value != 0);
-			logprintf("re-tune-on-buffering-timeout=%d", (int)gpGlobalConfig->reTuneOnBufferingTimeout);
-		}
-		else if (ReadConfigNumericHelper(cfg, "iframe-default-bitrate=", gpGlobalConfig->iframeBitrate) == 1)
-		{
-			VALIDATE_LONG("iframe-default-bitrate",gpGlobalConfig->iframeBitrate, 0)
-			logprintf("aamp iframe-default-bitrate: %ld", gpGlobalConfig->iframeBitrate);
-		}
-		else if (ReadConfigNumericHelper(cfg, "iframe-default-bitrate-4k=", gpGlobalConfig->iframeBitrate4K) == 1)
-		{
-			VALIDATE_LONG("iframe-default-bitrate-4k",gpGlobalConfig->iframeBitrate4K, 0)
-			logprintf("aamp iframe-default-bitrate-4k: %ld", gpGlobalConfig->iframeBitrate4K);
-		}
-		else if (cfg.compare("aamp-audio-only-playback") == 0)
-		{
-			gpGlobalConfig->bAudioOnlyPlayback = true;
-			logprintf("aamp-audio-only-playback is %s", gpGlobalConfig->bAudioOnlyPlayback ? "enabled" : "disabled");
-		}
-		else if (ReadConfigNumericHelper(cfg, "license-retry-wait-time=", gpGlobalConfig->licenseRetryWaitTime) == 1)
-		{
-			logprintf("license-retry-wait-time: %d", gpGlobalConfig->licenseRetryWaitTime);
-		}
-		else if (ReadConfigNumericHelper(cfg, "fragment-cache-length=", gpGlobalConfig->maxCachedFragmentsPerTrack) == 1)
-		{
-			VALIDATE_INT("fragment-cache-length", gpGlobalConfig->maxCachedFragmentsPerTrack, DEFAULT_CACHED_FRAGMENTS_PER_TRACK)
-			logprintf("aamp fragment cache length: %d", gpGlobalConfig->maxCachedFragmentsPerTrack);
-		}
-		else if (ReadConfigNumericHelper(cfg, "pts-error-threshold=", gpGlobalConfig->ptsErrorThreshold) == 1)
-		{
-			VALIDATE_INT("pts-error-threshold", gpGlobalConfig->ptsErrorThreshold, MAX_PTS_ERRORS_THRESHOLD)
-			logprintf("aamp pts-error-threshold: %d", gpGlobalConfig->ptsErrorThreshold);
-		}
-		else if (ReadConfigNumericHelper(cfg, "enable_setvideorectangle=", value) == 1)
-		{
-			gpGlobalConfig->mEnableRectPropertyCfg = (TriState)(value != 0);
-			logprintf("AAMP Rectangle property for sink element: %d\n", value);
-		}
-		else if(ReadConfigNumericHelper(cfg, "max-playlist-cache=", gpGlobalConfig->gMaxPlaylistCacheSize) == 1)
-		{
-			// Read value in KB , convert it to bytes
-			gpGlobalConfig->gMaxPlaylistCacheSize = gpGlobalConfig->gMaxPlaylistCacheSize * 1024;
-			VALIDATE_INT("max-playlist-cache", gpGlobalConfig->gMaxPlaylistCacheSize, MAX_PLAYLIST_CACHE_SIZE);
-			logprintf("aamp max-playlist-cache: %ld", gpGlobalConfig->gMaxPlaylistCacheSize);
-		}
-		else if(sscanf(cfg.c_str(), "dash-max-drm-sessions=%d", &gpGlobalConfig->dash_MaxDRMSessions) == 1)
-		{
-			// Read value in KB , convert it to bytes
-			if(gpGlobalConfig->dash_MaxDRMSessions < MIN_DASH_DRM_SESSIONS || gpGlobalConfig->dash_MaxDRMSessions > MAX_DASH_DRM_SESSIONS)
-			{
-				logprintf("Out of range value for dash-max-drm-sessions, setting to %d;Expected Range (%d - %d)",
-						MIN_DASH_DRM_SESSIONS, MIN_DASH_DRM_SESSIONS, MAX_DASH_DRM_SESSIONS);
-				gpGlobalConfig->dash_MaxDRMSessions = MIN_DASH_DRM_SESSIONS;
-			}
-			logprintf("aamp dash-max-drm-sessions: %d", gpGlobalConfig->dash_MaxDRMSessions);
-		}
-		else if (ReadConfigStringHelper(cfg, "user-agent=", (const char**)&tmpValue))
-		{
-			if(tmpValue)
-			{
-				if(strlen(tmpValue) < AAMP_USER_AGENT_MAX_CONFIG_LEN)
-				{
-					logprintf("user-agent=%s", tmpValue);
-					gpGlobalConfig->setBaseUserAgentString(tmpValue);
-				}
-				else
-				{
-					logprintf("user-agent len is more than %d , Hence Ignoring ", AAMP_USER_AGENT_MAX_CONFIG_LEN);
-				}
- 
-				free(tmpValue);
-				tmpValue = NULL;
-			}
-		}
-		else if (ReadConfigNumericHelper(cfg, "wait-time-before-retry-http-5xx-ms=", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS) == 1)
-		{
-			VALIDATE_INT("wait-time-before-retry-http-5xx-ms", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS, DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS);
-			logprintf("aamp wait-time-before-retry-http-5xx-ms: %d", gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
-		}
-		else if (ReadConfigNumericHelper(cfg, "preplaybuffercount=", gpGlobalConfig->preplaybuffercount) == 1)
-		{
-			VALIDATE_INT("preplaybuffercount", gpGlobalConfig->preplaybuffercount, 10);
-			logprintf("preplaybuffercount : %d ",gpGlobalConfig->preplaybuffercount);
-		}
-		else if (ReadConfigNumericHelper(cfg, "sslverifypeer=", value) == 1)
-		{
-			gpGlobalConfig->sslVerifyPeer = (TriState)(value == 1);
-			logprintf("ssl verify peer is %s", gpGlobalConfig->sslVerifyPeer? "disabled" : "enabled");
-		}
-		else if (ReadConfigNumericHelper(cfg, "curl-stall-timeout=", gpGlobalConfig->curlStallTimeout) == 1)
-		{
-			//Not calling VALIDATE_LONG since zero is supported
-			logprintf("aamp curl-stall-timeout: %ld", gpGlobalConfig->curlStallTimeout);
-		}
-		else if (ReadConfigNumericHelper(cfg, "curl-download-start-timeout=", gpGlobalConfig->curlDownloadStartTimeout) == 1)
-		{
-			//Not calling VALIDATE_LONG since zero is supported
-			logprintf("aamp curl-download-start-timeout: %ld", gpGlobalConfig->curlDownloadStartTimeout);
-		}
-		else if (ReadConfigNumericHelper(cfg, "discontinuity-timeout=", gpGlobalConfig->discontinuityTimeout) == 1)
-		{
-			//Not calling VALIDATE_LONG since zero is supported
-			logprintf("aamp discontinuity-timeout: %ld", gpGlobalConfig->discontinuityTimeout);
-		}
-		else if (ReadConfigNumericHelper(cfg, "client-dai=", value) == 1)
-		{
-			gpGlobalConfig->enableClientDai = (value == 1);
-			logprintf("Client side DAI: %s", gpGlobalConfig->enableClientDai ? "ON" : "OFF");
-		}
-		else if (ReadConfigNumericHelper(cfg, "ad-from-cdn-only=", value) == 1)
-		{
-			gpGlobalConfig->playAdFromCDN = (value == 1);
-			logprintf("Ad playback from CDN only: %s", gpGlobalConfig->playAdFromCDN ? "ON" : "OFF");
-		}
-		else if (ReadConfigNumericHelper(cfg, "aamp-abr-threshold-size=", gpGlobalConfig->aampAbrThresholdSize) == 1)
-                {
-                        VALIDATE_INT("aamp-abr-threshold-size", gpGlobalConfig->aampAbrThresholdSize, DEFAULT_AAMP_ABR_THRESHOLD_SIZE);
-                        logprintf("aamp aamp-abr-threshold-size: %d\n", gpGlobalConfig->aampAbrThresholdSize);
-                }
-
-		else if(ReadConfigStringHelper(cfg, "subtitle-language=", (const char**)&tmpValue))
-		{
-			if(tmpValue)
-			{
-				if(strlen(tmpValue) < MAX_LANGUAGE_TAG_LENGTH)
-				{
-					logprintf("subtitle-language=%s", tmpValue);
-					gpGlobalConfig->mSubtitleLanguage = std::string(tmpValue);
-				}
-				else
-				{
-					logprintf("subtitle-language len is more than %d , Hence Ignoring ", MAX_LANGUAGE_TAG_LENGTH);
-				}
-				free(tmpValue);
-				tmpValue = NULL;
-			}
-		}
-		else if (ReadConfigNumericHelper(cfg, "reportbufferevent=", value) == 1)
-		{
-			gpGlobalConfig->reportBufferEvent = (value != 0);
-			logprintf("reportbufferevent=%d", (int)gpGlobalConfig->reportBufferEvent);
-		}
-		else if (ReadConfigNumericHelper(cfg, "enable-tune-profiling=", value) == 1)
-		{
-			gpGlobalConfig->enableMicroEvents = (value!=0);
-			logprintf( "enable-tune-profiling=%d", value );
-		}
-		else if (ReadConfigNumericHelper(cfg, "gst-position-query-enable=", value) == 1)
-		{
-			gpGlobalConfig->bPositionQueryEnabled = (value == 1);
-			logprintf("Position query based progress events: %s", gpGlobalConfig->bPositionQueryEnabled ? "ON" : "OFF");
-		}
-		else if (ReadConfigNumericHelper(cfg, "use-matching-baseurl=", value) == 1)
-		{
-			gpGlobalConfig->useMatchingBaseUrl = (TriState) (value == 1);
-			logprintf("use-matching-baseurl: %d", gpGlobalConfig->useMatchingBaseUrl);
-		}
-		else if (ReadConfigNumericHelper(cfg, "remove_Persistent=", gpGlobalConfig->aampRemovePersistent) == 1)
-		{
-			logprintf("remove_Persistent=%d", gpGlobalConfig->aampRemovePersistent);
-		}
-		else if (ReadConfigNumericHelper(cfg, "avgbwforABR=", value) == 1)
-		{
-			gpGlobalConfig->mUseAverageBWForABR= (TriState)(value != 0);
-			logprintf("avgbwforABR=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "preCachePlaylistTime=", value) == 1)
-		{	
-			// time window in Minutes			
-			gpGlobalConfig->mPreCacheTimeWindow= value;
-			logprintf("preCachePlaylistTime=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "fragmentRetryLimit=", value) == 1)
-		{
-			gpGlobalConfig->rampdownLimit = value;
-			logprintf("fragmentRetryLimit=%d", value);
-		}
-		else if (ReadConfigNumericHelper(cfg, "segmentInjectFailThreshold=", gpGlobalConfig->segInjectFailCount) == 1)
-		{
-			VALIDATE_INT("segmentInjectFailThreshold", gpGlobalConfig->segInjectFailCount, MAX_SEG_INJECT_FAIL_COUNT);
-			logprintf("segmentInjectFailThreshold=%d", gpGlobalConfig->segInjectFailCount);
-		}
-		else if (ReadConfigNumericHelper(cfg, "drmDecryptFailThreshold=", gpGlobalConfig->drmDecryptFailCount) ==1)
-		{
-			VALIDATE_INT("drmDecryptFailThreshold", gpGlobalConfig->drmDecryptFailCount, MAX_SEG_DRM_DECRYPT_FAIL_COUNT);
-			logprintf("drmDecryptFailThreshold=%d", gpGlobalConfig->drmDecryptFailCount);
-		}
-		else if (ReadConfigNumericHelper(cfg, "minBitrate=", gpGlobalConfig->minBitrate) ==1)
-		{
-			VALIDATE_LONG("minBitrate", gpGlobalConfig->minBitrate, 0);
-			logprintf("minBitrate=%d", gpGlobalConfig->minBitrate);
-		}
-		else if (ReadConfigNumericHelper(cfg, "maxBitrate=", gpGlobalConfig->maxBitrate) ==1)
-		{
-			VALIDATE_LONG("maxBitrate", gpGlobalConfig->maxBitrate, LONG_MAX);
-			logprintf("maxBitrate=%d", gpGlobalConfig->maxBitrate);
-		}
-		else if (ReadConfigNumericHelper(cfg, "initFragmentRetryCount=", gpGlobalConfig->initFragmentRetryCount) == 1)
-		{
-			logprintf("initFragmentRetryCount=%d", gpGlobalConfig->initFragmentRetryCount);
-		}
-		else if (ReadConfigNumericHelper(cfg, "enable-native-cc=", value) == 1)
-		{
-			gpGlobalConfig->nativeCCRendering = (value == 1);
-			logprintf("Native CC rendering support: %s", gpGlobalConfig->nativeCCRendering ? "ON" : "OFF");
-		}
-		else if (cfg.compare("disableSubtec") == 0)
-		{
-			gpGlobalConfig->bEnableSubtec = false;
-			logprintf("Subtec subtitles disabled");
-		}
-		else if (cfg.compare("disableWebVttNative") == 0)
-		{
-			gpGlobalConfig->bWebVttNative = false;
-			logprintf("Native WebVTT processing disabled");
-		}
-		else if (cfg.compare("useBasePts") == 0)
-		{
-			gpGlobalConfig->bUseBasePts = true;
-			logprintf("Native WebVTT processing enabled");
-		}
-		else if (ReadConfigNumericHelper(cfg, "preferred-cea-708=", value) == 1)
-		{
-			gpGlobalConfig->preferredCEA708 = (value == 1) ? eTrueState : eFalseState;
-			logprintf("CEA 708 is preferred format: %s", (gpGlobalConfig->preferredCEA708 == eTrueState) ? "TRUE" : "FALSE");
-		}
-		else if(ReadConfigNumericHelper(cfg, "initRampdownLimit=", value))
-		{
-			if (value >= 0){
-				gpGlobalConfig->mInitRampdownLimit = value;
-				logprintf("initRampdownLimit=%d", (int)gpGlobalConfig->mInitRampdownLimit);
-			}
-		}
-		else if(ReadConfigNumericHelper(cfg, "enableSeekableRange=", value))
-		{
-			gpGlobalConfig->mEnableSeekableRange = (TriState) (value == 1);
-			logprintf("Seekable range reporting: %d", gpGlobalConfig->mEnableSeekableRange);
-		}
-		else if(ReadConfigNumericHelper(cfg, "maxTimeoutForSourceSetup=", gpGlobalConfig->mTimeoutForSourceSetup) == 1)
-		{
-			logprintf("Timeout for source setup = %ld", gpGlobalConfig->mTimeoutForSourceSetup);
-		}
-		else if (cfg.at(0) == '*')
-		{
-			std::size_t pos = cfg.find_first_of(' ');
-			if (pos != std::string::npos)
-			{
-				//Populate channel map from aamp.cfg
-				// new wildcard matching for overrides - allows *HBO to remap any url including "HBO"
-				logprintf("aamp override:\n%s\n", cfg.c_str());
-				ChannelInfo channelInfo;
-				std::stringstream iss(cfg.substr(1));
-				std::string token;
-				while (getline(iss, token, ' '))
-				{
-					if (token.compare(0,4,"http") == 0)
-						channelInfo.uri = token;
-					else
-						channelInfo.name = token;
-				}
-				mChannelOverrideMap.push_back(channelInfo);
-			}
-		}
-		else if (ReadConfigNumericHelper(cfg, "disableMidFragmentSeek=", value) == 1)
-		{
-			gpGlobalConfig->midFragmentSeekEnabled = (value!=1);
-			logprintf("%s Mid-Fragment Seek",gpGlobalConfig->midFragmentSeekEnabled?"Enabled":"Disabled");
-		}
-		else if (ReadConfigNumericHelper(cfg, "disableWifiCurlHeader=", value) == 1)
-                {
-                        gpGlobalConfig->wifiCurlHeaderEnabled = (value!=1);
-                        logprintf("%s Wifi curl custom header",gpGlobalConfig->wifiCurlHeaderEnabled?"Enabled":"Disabled");
-                }
-		else if (ReadConfigNumericHelper(cfg, "persistBitRateOverSeek=", value))
-		{
-			gpGlobalConfig->mPersistBitRateOverSeek = (TriState) (value == 1);
-			logprintf("Persist ABR Profile over seek: %d", gpGlobalConfig->mPersistBitRateOverSeek);
-		}
-		else if (ReadConfigNumericHelper(cfg, "downloadDelay=", value))
-		{
-			if(value <= MAX_DOWNLOAD_DELAY_LIMIT_MS)
-			{
-				gpGlobalConfig->mDownloadDelayInMs = value;
-				logprintf("Apply download delay: %u ms", gpGlobalConfig->mDownloadDelayInMs);
-			}
-			else
-			{
-				logprintf("Apply delay in download out of range, expected 0 to 30000 ms");
-			}
-		}
-		else if(ReadConfigNumericHelper(cfg, "limitResolution=", value) == 1)
-		{
-			gpGlobalConfig->bLimitResolution= (TriState) (value==1);
-			logprintf("limitResolution :%s", gpGlobalConfig->bLimitResolution ? "Enabled" : "Disabled");
-		}
-		else if (ReadConfigNumericHelper(cfg, "livePauseBehavior=", value))
-		{
-			if(value >= 0 && value < ePAUSED_BEHAVIOR_MAX)
-			{
-				gpGlobalConfig->mPausedBehavior = (PausedBehavior) value;
-				logprintf("Live pause behavior: %d", gpGlobalConfig->mPausedBehavior);
-			}
-		}
-		//DELIA-49735 - Report Progress report position based on Availability Start Time
-		else if (ReadConfigNumericHelper(cfg, "useAbsoluteTimeline=", value) == 1)
-		{
-			 gpGlobalConfig->mUseAbsoluteTimeline = (TriState)(value == 1);
-			 logprintf("UseAbsoluteTimeline: %s", gpGlobalConfig->mUseAbsoluteTimeline? "Enabled" : "Disabled");
-		}
-		else
-		{
-			std::size_t pos = cfg.find_first_of('=');
-			std::string key = cfg.substr(0, pos);
-			std::string value = cfg.substr(pos+1, cfg.size());
-			gpGlobalConfig->unknownValues.insert(std::make_pair(key, value));
-			logprintf("Added unknown key %s with value %s", key.c_str(), value.c_str());
-		}
-	}
-}
 // End of helper functions for loading configuration
 
 // Curl callback functions
@@ -1760,11 +943,12 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		// The Content-Encoding entity header incidcates media is compressed
 		context->downloadIsEncoded = true;
 	}
-	else if (context->aamp->mOutputResolutionCheckEnabled && context->aamp->IsFirstRequestToFog() && STARTS_WITH_IGNORE_CASE(ptr, CAPPED_PROFILE_STRING ))
-	{
-		startPos = STRLEN_LITERAL(CAPPED_PROFILE_STRING);
-		isProfileCapHeader = true;
-	}
+	else if (context->aamp->mConfig->IsConfigSet(eAAMPConfig_LimitResolution) && context->aamp->IsFirstRequestToFog() && STARTS_WITH_IGNORE_CASE(ptr, CAPPED_PROFILE_STRING ))
+        {
+                startPos = STRLEN_LITERAL(CAPPED_PROFILE_STRING);
+                isProfileCapHeader = true;
+        }
+
 	else if (0 == context->buffer->avail)
 	{
 		if (STARTS_WITH_IGNORE_CASE(ptr, CONTENTLENGTH_STRING))
@@ -1792,6 +976,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		{ // strip leading whitespace
 			startPos++;
 		}
+
 		if(isBitrateHeader)
 		{
 			const char * strBitrate = ptr + startPos;
@@ -1808,7 +993,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 			const char * strProfileCap = ptr + startPos;
 			context->aamp->mProfileCappedStatus = atol(strProfileCap)? true : false;
 			AAMPLOG_TRACE("Parsed Profile-Capped Header : %d", context->aamp->mProfileCappedStatus);
-                }
+		}
 		else
 		{
 			httpHeader->data = string( ptr + startPos, endPos - startPos );
@@ -1977,7 +1162,7 @@ static void curl_unlock_callback(CURL *curl, curl_lock_data data, curl_lock_acce
 /**
  * @brief PrivateInstanceAAMP Constructor
  */
-PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexAttr(),
+PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData(), mLock(), mMutexAttr(),
 	mpStreamAbstractionAAMP(NULL), mInitSuccess(false), mVideoFormat(FORMAT_INVALID), mAudioFormat(FORMAT_INVALID), mDownloadsDisabled(),
 	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN), mSetOnTuneRateRequested(AAMP_RATE_INVALID), mOnTuneRate(AAMP_RATE_INVALID),
 	mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET), mNewLiveOffsetflag(false),
@@ -2011,7 +1196,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mEnableRectPropertyEnabled(true), waitforplaystart(), mLicenseCaching(true), mOutputResolutionCheckEnabled(false)
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_GST_PLAYING), mTuneEventConfigVod(eTUNED_EVENT_ON_GST_PLAYING)
 	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false), mDashParallelFragDownload(true)
-	,mRampDownLimit(-1), mMinBitrate(0), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
+	,mRampDownLimit(-1), mMaxBitrate(LONG_MAX), mSegInjectFailCount(MAX_SEG_INJECT_FAIL_COUNT), mDrmDecryptFailCount(MAX_SEG_DRM_DECRYPT_FAIL_COUNT)
 	,mPlaylistTimeoutMs(-1)
 	,mMutexPlaystart()
 	,mCurlShared(NULL)
@@ -2028,7 +1213,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mABRBufferCheckEnabled(true), mNewAdBreakerEnabled(false), mProgressReportFromProcessDiscontinuity(false), mUseRetuneForUnpairedDiscontinuity(true)
 	, prevPositionMiliseconds(-1), mInitFragmentRetryCount(-1), mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
 	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS), mUseRetuneForGSTInternalError(true)
-	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
+	//, mLicenseServerUrls()
+	, mFragmentCachingRequired(false), mFragmentCachingLock()
 	, mPauseOnFirstVideoFrameDisp(false)
 	, /* mPreferredAudioTrack(), */ mPreferredTextTrack(), midFragmentSeekCache(false), mFirstVideoFrameDisplayedEnabled(false)
 	, mSessionToken(), mAuxFormat(FORMAT_INVALID), mAuxAudioLanguage()
@@ -2048,17 +1234,17 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mUseAbsoluteTimeline(false), mProgressReportOffset(0.0)
 	, mMediaDownloadsEnabled()
 	, mStreamLock()
+	, mConfig (config),mSubLanguage(), mHarvestCountLimit(0), mHarvestConfig(0)
 {
-	LazilyLoadConfigIfNeeded();
+	//LazilyLoadConfigIfNeeded();
+	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
+	int maxDrmSession;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxDASHDRMSessions,maxDrmSession);
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
-	mDRMSessionManager = new AampDRMSessionManager();
+	mDRMSessionManager = new AampDRMSessionManager(maxDrmSession);
 #endif
 	pthread_cond_init(&mDownloadsDisabled, NULL);
-//	strcpy(language,"en");
-//	iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
-    
-	memset(mSubLanguage, '\0', MAX_LANGUAGE_TAG_LENGTH);
-	if (!gpGlobalConfig->mSubtitleLanguage.empty()) strncpy(mSubLanguage, gpGlobalConfig->mSubtitleLanguage.c_str(), MAX_LANGUAGE_TAG_LENGTH - 1);
+   	GETCONFIGVALUE_PRIV(eAAMPConfig_SubTitleLanguage,mSubLanguage); 
 	pthread_mutexattr_init(&mMutexAttr);
 	pthread_mutexattr_settype(&mMutexAttr, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutex_init(&mLock, &mMutexAttr);
@@ -2098,7 +1284,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	pthread_mutex_unlock(&gMutex);
 	mPendingAsyncEvents.clear();
 
-	if (gpGlobalConfig->wifiCurlHeaderEnabled) {
+	if (ISCONFIGSET_PRIV(eAAMPConfig_WifiCurlHeader)) {
 		if (true == IsActiveStreamingInterfaceWifi()) {
 			mCustomHeaders["Wifi:"] = std::vector<std::string> { "1" };
 			activeInterfaceWifi = true;
@@ -2113,13 +1299,15 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mCustomHeaders["Connection:"] = std::vector<std::string> { "Keep-Alive" };
 	pthread_cond_init(&mCondDiscontinuity, NULL);
 	pthread_cond_init(&waitforplaystart, NULL);
-	pthread_mutex_init(&mMutexPlaystart, NULL);
-	ConfigureWithLocalOptions();
+	pthread_mutex_init(&mMutexPlaystart, NULL);	
 	preferredLanguagesList.push_back("en");
 #ifdef AAMP_HLS_DRM
 	memset(&aesCtrAttrDataList, 0, sizeof(aesCtrAttrDataList));
 	pthread_mutex_init(&drmParserMutex, NULL);
 #endif
+	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
+	profiler.SetMicroEventFlag(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents));
 }
 
 /**
@@ -2149,16 +1337,6 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 			delete pListener;
 		}
 	}
-	if (mNetworkProxy)
-	{
-		free(mNetworkProxy);
-	}
-
-	if (mLicenseProxy)
-	{
-		free(mLicenseProxy);
-	}
-
 #ifdef SESSION_STATS
 	if (mVideoEnd)
 	{
@@ -2238,7 +1416,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		// If tsb is not available for linear send -1  for start and end
 		// so that xre detect this as tsbless playabck
 		// Override above logic if mEnableSeekableRange is set, used by third-party apps
-		if (!mEnableSeekableRange && (mContentType == ContentType_LINEAR && !mTSBEnabled))
+		if (!ISCONFIGSET_PRIV(eAAMPConfig_EnableSeekRange) && (mContentType == ContentType_LINEAR && !mTSBEnabled))
 		{
 			start = -1;
 			end = -1;
@@ -2247,7 +1425,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		{	//DELIA-49735 - Report Progress report position based on Availability Start Time
 			start = 0;
 			if( mContentType == ContentType_LINEAR && eMEDIAFORMAT_DASH == mMediaFormat
-					&& mUseAbsoluteTimeline && mpStreamAbstractionAAMP )
+					&& ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && mpStreamAbstractionAAMP )
 			{
 				start = mProgressReportOffset*1000;
 				position += start;
@@ -2267,7 +1445,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 			}
 		}
 
-		if(mReportVideoPTS)
+		if(ISCONFIGSET_PRIV(eAAMPConfig_ReportVideoPTS))
 		{
 				/*For HLS, tsprocessor.cpp removes the base PTS value and sends to gstreamer.
 				**In order to report PTS of video currently being played out, we add the base PTS
@@ -2739,7 +1917,7 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		{
 			if (tuneFailure == AAMP_TUNE_PLAYBACK_STALLED)
 			{ // allow config override for stall detection error code
-				code = gpGlobalConfig->stallErrorCode;
+				GETCONFIGVALUE_PRIV(eAAMPConfig_StallErrorCode,code);
 			}
 			else
 			{
@@ -2959,7 +2137,7 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 	}
 
 #ifdef AAMP_CC_ENABLED
-	if (gpGlobalConfig->nativeCCRendering)
+	if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 	{
 		if (rate == AAMP_NORMAL_PLAY_RATE)
 		{
@@ -3046,7 +2224,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 			// GStreamer position reporting is taken care of.
 			// BCOM-4765: Set seek_pos_seconds to injected position only in case of westerossink. In cases with
 			// brcmvideodecoder, we have noticed a drift of 500ms for HLS-TS assets (due to PTS restamping
-			if (injectedPosition != 0 && (fabs(injectedPosition - newPosition) < 5.0) && mWesterosSinkEnabled)
+			if (injectedPosition != 0 && (fabs(injectedPosition - newPosition) < 5.0) && ISCONFIGSET_PRIV(eAAMPConfig_UseWesterosSink))
 			{
 				seek_pos_seconds = injectedPosition;
 			}
@@ -3063,7 +2241,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		SyncEnd();
 
 		// To notify app of discontinuity processing complete
-		ReportProgress(!mAsyncTuneEnabled);
+		ReportProgress(!GetAsyncTuneConfig());
 
 		// There is a chance some other operation maybe invoked from JS/App because of the above ReportProgress
 		// Make sure we have still mDiscontinuityTuneOperationInProgress set
@@ -3226,7 +2404,10 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 		char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
 		profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
 		SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
-		if(gpGlobalConfig->enableMicroEvents) sendTuneMetrics(success);
+		if(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents))
+		{
+			sendTuneMetrics(success);
+		}
 		mTuneCompleted = true;
 		mFirstTune = false;
 
@@ -3415,6 +2596,8 @@ void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int peri
 void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int instanceCount, const char *proxy)
 {
 	int instanceEnd = startIdx + instanceCount;
+	std::string UserAgentString;
+	UserAgentString=mConfig->GetUserAgentString();
 	assert (instanceEnd <= eCURLINSTANCE_MAX);
 	for (unsigned int i = startIdx; i < instanceEnd; i++)
 	{
@@ -3435,7 +2618,8 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 			curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 			curl_easy_setopt(curl[i], CURLOPT_FOLLOWLOCATION, 1L);
 			curl_easy_setopt(curl[i], CURLOPT_NOPROGRESS, 0L); // enable progress meter (off by default)
-			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, gpGlobalConfig->pUserAgentString);
+			
+			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, UserAgentString.c_str());
 			curl_easy_setopt(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_DATA, this);
@@ -3444,13 +2628,6 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 			curl_easy_setopt(curl[i], CURLOPT_SHARE, mCurlShared);
 
 			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT * 1000;
-
-
-			// dev override in cfg file takes priority to App Setting 
-			if(gpGlobalConfig->httpProxy != NULL)
-			{
-				proxy = gpGlobalConfig->httpProxy;				
-			}
 
 			if (proxy != NULL)
 			{
@@ -3599,7 +2776,7 @@ AampCurlInstance PrivateInstanceAAMP::GetPlaylistCurlInstance(MediaType type, bo
 	//	  for refresh
 	// c. If respective configuration is enabled , then associate separate curl for each track type
 	// d. If parallel fetch is disabled , then single curl instance is used to fetch all playlist(eCURLINSTANCE_MANIFEST_MAIN)
-	if(!isInitialDownload || mParallelFetchPlaylist)
+	if(!isInitialDownload || ISCONFIGSET_PRIV(eAAMPConfig_PlaylistParallelFetch))
 	{
 		switch(type)
 		{
@@ -3659,11 +2836,14 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 	std::vector< long> tmpData;
 	std::vector< long>::iterator tmpDataIter;
 	long long presentTime = aamp_GetCurrentTimeMS();
+	int  abrCacheLife,abrOutlierDiffBytes;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheLife,abrCacheLife); 
+
 	pthread_mutex_lock(&mLock);
 	for (bitrateIter = mAbrBitrateData.begin(); bitrateIter != mAbrBitrateData.end();)
 	{
 		//logprintf("[%s][%d] Sz[%d] TimeCheck Pre[%lld] Sto[%lld] diff[%lld] bw[%ld] ",__FUNCTION__,__LINE__,mAbrBitrateData.size(),presentTime,(*bitrateIter).first,(presentTime - (*bitrateIter).first),(long)(*bitrateIter).second);
-		if ((bitrateIter->first <= 0) || (presentTime - bitrateIter->first > gpGlobalConfig->abrCacheLife))
+        	if ((bitrateIter->first <= 0) || (presentTime - bitrateIter->first > abrCacheLife))
 		{
 			//logprintf("[%s][%d] Threadshold time reached , removing bitrate data ",__FUNCTION__,__LINE__);
 			bitrateIter = mAbrBitrateData.erase(bitrateIter);
@@ -3694,12 +2874,13 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 	
 		long diffOutlier = 0;
 		avg = 0;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheOutlier,abrOutlierDiffBytes);
 		for (tmpDataIter = tmpData.begin();tmpDataIter != tmpData.end();)
 		{
 			diffOutlier = (*tmpDataIter) > medianbps ? (*tmpDataIter) - medianbps : medianbps - (*tmpDataIter);
-			if (diffOutlier > gpGlobalConfig->abrOutlierDiffBytes)
+			if (diffOutlier > abrOutlierDiffBytes)
 			{
-				//logprintf("[%s][%d] Outlier found[%ld]>[%ld] erasing ....",__FUNCTION__,__LINE__,diffOutlier,gpGlobalConfig->abrOutlierDiffBytes);
+				//logprintf("[%s][%d] Outlier found[%ld]>[%ld] erasing ....",__FUNCTION__,__LINE__,diffOutlier,abrOutlierDiffBytes);
 				tmpDataIter = tmpData.erase(tmpDataIter);
 			}
 			else
@@ -3796,9 +2977,13 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 	struct curl_slist* httpHeaders = NULL;
 	CURLcode res = CURLE_OK;
 	int fragmentDurationMs = (int)(fragmentDurationSeconds*1000);/*convert to MS */
+	int insertDownloadDelay=0;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_DownloadDelay,insertDownloadDelay);
 	if (simType == eMEDIATYPE_INIT_VIDEO || simType == eMEDIATYPE_INIT_AUDIO || simType == eMEDIATYPE_INIT_AUX_AUDIO)
 	{
-		maxDownloadAttempt += mInitFragmentRetryCount;
+		int InitFragmentRetryCount;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_InitFragmentRetryCount,InitFragmentRetryCount); 
+		maxDownloadAttempt += InitFragmentRetryCount;
 	}
 	else
 	{
@@ -3821,15 +3006,17 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		CurlAbortReason abortReason = eCURL_ABORT_REASON_NONE;
 		double connectTime = 0;
 		pthread_mutex_unlock(&mLock);
-
+		std::string uriParameter;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_URIParameter,uriParameter);
 		// append custom uri parameter with remoteUrl at the end before curl request if curlHeader logging enabled.
-		if (gpGlobalConfig->logging.curlHeader && gpGlobalConfig->uriParameter && simType == eMEDIATYPE_MANIFEST )
+		if (gpGlobalConfig->logging.curlHeader && (!uriParameter.empty()) && simType == eMEDIATYPE_MANIFEST)
 		{
 			if (remoteUrl.find("?") == std::string::npos)
 			{
-				gpGlobalConfig->uriParameter[0] = '?';
+				uriParameter[0] = '?';				
 			}
-			remoteUrl.append(gpGlobalConfig->uriParameter);
+			
+			remoteUrl.append(uriParameter.c_str());
 			//printf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
 		}
 
@@ -3846,7 +3033,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
 			curl_easy_setopt(curl, CURLOPT_HEADERDATA, &context);
-			if(!gpGlobalConfig->sslVerifyPeer)
+			if(!ISCONFIGSET_PRIV(eAAMPConfig_SslVerifyPeer))
 			{
 				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
@@ -3860,21 +3047,21 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			progressCtx.aamp = this;
 			progressCtx.fileType = simType;
 			//Disable download stall detection checks for FOG playback done by JS PP
-			if(simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_PLAYLIST_VIDEO || 
+			if(simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_PLAYLIST_VIDEO ||
 				simType == eMEDIATYPE_PLAYLIST_AUDIO || simType == eMEDIATYPE_PLAYLIST_SUBTITLE ||
 				simType == eMEDIATYPE_PLAYLIST_IFRAME || simType == eMEDIATYPE_PLAYLIST_AUX_AUDIO)
-			{	
+			{
 				// For Manifest file : Set starttimeout to 0 ( no wait for first byte). Playlist/Manifest with DAI
-				// contents take more time , hence to avoid frequent timeout, its set as 0			
+				// contents take more time , hence to avoid frequent timeout, its set as 0
 				progressCtx.startTimeout = 0;
 			}
 			else
 			{
 				// for Video/Audio segments , set the start timeout as configured by Application
-				progressCtx.startTimeout = gpGlobalConfig->curlDownloadStartTimeout;
+				GETCONFIGVALUE_PRIV(eAAMPConfig_CurlDownloadStartTimeout,progressCtx.startTimeout);
 			}
-			progressCtx.stallTimeout = gpGlobalConfig->curlStallTimeout;
-                  
+			GETCONFIGVALUE_PRIV(eAAMPConfig_CurlStallTimeout,progressCtx.stallTimeout);
+
 			// note: win32 curl lib doesn't support multi-part range
 			curl_easy_setopt(curl, CURLOPT_RANGE, range);
 
@@ -3934,7 +3121,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					customHeader.append(headerValue);
 					httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
 				}
-				if (mOutputResolutionCheckEnabled && mIsFirstRequestToFOG && mTSBEnabled && eMEDIATYPE_MANIFEST == simType)
+				if (ISCONFIGSET_PRIV(eAAMPConfig_LimitResolution) && mIsFirstRequestToFOG && mTSBEnabled && eMEDIATYPE_MANIFEST == simType)
 				{
 					std::string customHeader;
 					customHeader.clear();
@@ -3945,16 +3132,14 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
 				}
 
-				if (gpGlobalConfig->logging.curlHeader && (eMEDIATYPE_VIDEO == simType || eMEDIATYPE_PLAYLIST_VIDEO == simType))
+				if (ISCONFIGSET_PRIV(eAAMPConfig_CurlHeader) && (eMEDIATYPE_VIDEO == simType || eMEDIATYPE_PLAYLIST_VIDEO == simType))
 				{
-					int size = gpGlobalConfig->customHeaderStr.size();
-					for (int i=0; i < size; i++)
-					{
-						if (!gpGlobalConfig->customHeaderStr.at(i).empty())
-						{
-							//logprintf ("Custom Header Data: Index( %d ) Data( %s )", i, gpGlobalConfig->customHeaderStr.at(i).c_str());
-							httpHeaders = curl_slist_append(httpHeaders, gpGlobalConfig->customHeaderStr.at(i).c_str());
-						}
+					std::string customheaderstr;
+					GETCONFIGVALUE_PRIV(eAAMPConfig_CustomHeader,customheaderstr);					
+					if(!customheaderstr.empty())
+					{				
+						//logprintf ("Custom Header Data: Index( %d ) Data( %s )", i, &customheaderstr.at(i));
+						httpHeaders = curl_slist_append(httpHeaders, customheaderstr.c_str());					
 					}
 				}
 
@@ -3984,10 +3169,10 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				CURLcode res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
 
 				/* optionally locally induce extra per-download latency */
-                                if( gpGlobalConfig->mDownloadDelayInMs > 0 )
-                                {
-                                        InterruptableMsSleep( gpGlobalConfig->mDownloadDelayInMs );
-                                }
+		if( insertDownloadDelay > 0 )
+		{
+			InterruptableMsSleep( insertDownloadDelay );
+		}
 
 				long long tEndTime = NOW_STEADY_TS_MS;
 				downloadAttempt++;
@@ -4014,7 +3199,9 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 						if((http_code >= 500 && http_code != 502) && downloadAttempt < maxDownloadAttempt)
 						{
-							InterruptableMsSleep(gpGlobalConfig->waitTimeBeforeRetryHttp5xxMS);
+                                                        int waitTimeBeforeRetryHttp5xxMSValue;
+                                                        GETCONFIGVALUE_PRIV(eAAMPConfig_Http5XXRetryWaitInterval,waitTimeBeforeRetryHttp5xxMSValue);
+							InterruptableMsSleep(waitTimeBeforeRetryHttp5xxMSValue);
 							logprintf("Download failed due to Server error. Retrying Attempt:%d!", downloadAttempt);
 							loopAgain = true;
 						}
@@ -4158,7 +3345,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					#endif
 				}
 
-				if(gpGlobalConfig->enableMicroEvents && fileType != eMEDIATYPE_DEFAULT) //Unknown filetype
+				if(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents) && fileType != eMEDIATYPE_DEFAULT) //Unknown filetype
 				{
 					profiler.addtuneEvent(mediaType2Bucket(fileType),tStartTime,downloadTimeMS,(int)(http_code));
 				}
@@ -4217,7 +3404,9 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && CheckABREnabled())
 			{
-				if(buffer->len > gpGlobalConfig->aampAbrThresholdSize)
+				int  AbrThresholdSize;
+				GETCONFIGVALUE_PRIV(eAAMPConfig_ABRThresholdSize,AbrThresholdSize);	
+				if(buffer->len > AbrThresholdSize)
 				{
 					long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
 					long currentProfilebps  = mpStreamAbstractionAAMP->GetVideoBitrate();
@@ -4230,8 +3419,10 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					
 					pthread_mutex_lock(&mLock);
 					mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,downloadbps));
-					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),gpGlobalConfig->abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
-					if(mAbrBitrateData.size() > gpGlobalConfig->abrCacheLength)
+					int  abrCacheLength;
+					GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheLength,abrCacheLength); 
+					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
+					if(mAbrBitrateData.size() > abrCacheLength)
 						mAbrBitrateData.erase(mAbrBitrateData.begin());
 					pthread_mutex_unlock(&mLock);
 				}
@@ -4239,16 +3430,24 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		}
 		if (http_code == 200 || http_code == 206)
 		{
-			if( gpGlobalConfig->harvestCountLimit > 0 )
+			if((mHarvestCountLimit > 0) && (mHarvestConfig & getHarvestConfigForMedia(fileType)))
 			{
-				logprintf("aamp harvestCountLimit: %d", gpGlobalConfig->harvestCountLimit);
+				logprintf("aamp harvestCountLimit: %d", mHarvestCountLimit);
 				/* Avoid chance of overwriting , in case of manifest and playlist, name will be always same */
 				if(fileType == eMEDIATYPE_MANIFEST || fileType == eMEDIATYPE_PLAYLIST_AUDIO || fileType == eMEDIATYPE_PLAYLIST_AUX_AUDIO
 				|| fileType == eMEDIATYPE_PLAYLIST_IFRAME || fileType == eMEDIATYPE_PLAYLIST_SUBTITLE || fileType == eMEDIATYPE_PLAYLIST_VIDEO )
 				{
 					mManifestRefreshCount++;
 				}
-				aamp_WriteFile(remoteUrl, buffer->ptr, buffer->len, fileType, mManifestRefreshCount);
+				std::string harvestPath;
+				GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestPath,harvestPath);
+				if(harvestPath.empty() )
+				{
+					harvestPath = getDefaultHarvestPath();
+					AAMPLOG_WARN("Harvest path has not configured, taking default path %s", harvestPath.c_str());
+				}
+				if(aamp_WriteFile(remoteUrl, buffer->ptr, buffer->len, fileType, mManifestRefreshCount,harvestPath.c_str()))
+					mHarvestCountLimit--;
 			}
 			double expectedContentLength = 0;
 			if ((!context.downloadIsEncoded) && CURLE_OK==curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD, &expectedContentLength) && ((int)expectedContentLength>0) && ((int)expectedContentLength != (int)buffer->len))
@@ -4399,7 +3598,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		mIsFirstRequestToFOG = false;
 	}
 
-    if (gpGlobalConfig->useLinearSimulator)
+    if (ISCONFIGSET_PRIV(eAAMPConfig_EnableLinearSimulator))
 	{
 		// NEW! note that for simulated playlists, ideally we'd not bother re-downloading playlist above
 
@@ -4566,7 +3765,7 @@ bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, Growa
 		curl_easy_setopt(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
 		curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-		if(!gpGlobalConfig->sslVerifyPeer){
+		if(!ISCONFIGSET_PRIV(eAAMPConfig_SslVerifyPeer)){
 			curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 		}
 		curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
@@ -4599,166 +3798,6 @@ bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, Growa
 	return ret;
 }
 
-
-/**
- * @brief Load AAMP configuration file
- */
-void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
-{
-	std::string cfgPath = "";
-	if (!gpGlobalConfig)
-	{
-#ifdef AAMP_BUILD_INFO
-		std::string tmpstr = MACRO_TO_STRING(AAMP_BUILD_INFO);
-		logprintf(" AAMP_BUILD_INFO: %s",tmpstr.c_str());
-#endif
-		gpGlobalConfig = new GlobalConfigAAMP();
-#ifdef IARM_MGR 
-		logprintf("LazilyLoadConfigIfNeeded calling  GetTR181AAMPConfig  ");
-		size_t iConfigLen = 0;
-		char * cloudConf = GetTR181AAMPConfig("Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.AAMP_CFG.b64Config", iConfigLen);
-		if(cloudConf && (iConfigLen > 0))
-		{
-			bool bCharCompliant = true;
-			for (int i = 0; i < iConfigLen; i++)
-			{
-				if (!( cloudConf[i] == 0xD || cloudConf[i] == 0xA) && // ignore LF and CR chars
-					((cloudConf[i] < 0x20) || (cloudConf[i] > 0x7E)))
-				{
-					bCharCompliant = false;
-					logprintf("LazilyLoadConfigIfNeeded Non Compliant char[0x%X] found, Ignoring whole config  ",cloudConf[i]);
-					break;
-				}
-			}
-
-			if (bCharCompliant)
-			{
-				std::string strCfg(cloudConf,iConfigLen);
-				std::istringstream iSteam(strCfg);
-				std::string line;
-				while (std::getline(iSteam, line)) {
-				if (line.length() > 0)
-				{
-					//ProcessConfigEntry takes char * and line.c_str() returns const string hence copy of line is created
-					logprintf("LazilyLoadConfigIfNeeded aamp-cmd:[%s]", line.c_str());
-					ProcessConfigEntry(line);
-				}
-			}
-		}
-		free(cloudConf); // allocated by base64_Decode in GetTR181AAMPConfig
-	}
-#endif
-
-#ifdef WIN32
-		AampLogManager mLogManager;
-		cfgPath.assign(mLogManager.getAampCfgPath());
-#elif defined(__APPLE__)
-		std::string cfgPath(getenv("HOME"));
-		cfgPath += "/aamp.cfg";
-#else
-
-#ifdef AAMP_CPC
-        // AAMP_ENABLE_OPT_OVERRIDE is only added for PROD builds.
-        const char *env_aamp_enable_opt = getenv("AAMP_ENABLE_OPT_OVERRIDE");
-#else
-        const char *env_aamp_enable_opt = "true";
-#endif
-
-        if(env_aamp_enable_opt)
-        {
-            cfgPath = "/opt/aamp.cfg";
-        }
-#endif
-		if (!cfgPath.empty())
-		{
-			std::ifstream f(cfgPath, std::ifstream::in | std::ifstream::binary);
-			if (f.good())
-			{
-				logprintf("opened aamp.cfg");
-				std::string buf;
-				while (f.good())
-				{
-					std::getline(f, buf);
-					ProcessConfigEntry(buf);
-				}
-				f.close();
-			}
-		}
-
-		const char *env_aamp_force_aac = getenv("AAMP_FORCE_AAC");
-		if(env_aamp_force_aac)
-		{
-			logprintf("AAMP_FORCE_AAC present: Changing preference to AAC over ATMOS & DD+");
-			gpGlobalConfig->disableEC3 = eTrueState;
-			gpGlobalConfig->disableATMOS = eTrueState;
-		}
-
-		const char *env_aamp_force_info = getenv("AAMP_FORCE_INFO");
-		if(env_aamp_force_info)
-		{
-			logprintf("AAMP_FORCE_INFO present: Changing debug levels");
-			gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
-			gpGlobalConfig->logging.debug = false;
-			gpGlobalConfig->logging.info = true;
-		}
-
-		const char *env_aamp_force_debug = getenv("AAMP_FORCE_DEBUG");
-		if(env_aamp_force_debug)
-		{
-			logprintf("AAMP_FORCE_DEBUG present: Changing debug levels");
-			gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_TRACE);
-			gpGlobalConfig->logging.debug = true;
-			gpGlobalConfig->logging.info = false;
-		}
-
-		const char *env_aamp_min_init_cache = getenv("AAMP_MIN_INIT_CACHE");
-		if(env_aamp_min_init_cache
-				&& gpGlobalConfig->minInitialCacheSeconds == MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
-		{
-			int minInitCache = 0;
-			if(sscanf(env_aamp_min_init_cache,"%d",&minInitCache)
-					&& minInitCache >= 0)
-			{
-				logprintf("AAMP_MIN_INIT_CACHE present: Changing min initial cache to %d seconds",minInitCache);
-				mMinInitialCacheSeconds = minInitCache;
-			}
-		}
-
-		const char *env_enable_micro_events = getenv("TUNE_MICRO_EVENTS");
-		if(env_enable_micro_events)
-		{
-			logprintf("TUNE_MICRO_EVENTS present: Enabling TUNE_MICRO_EVENTS.");
-			gpGlobalConfig->enableMicroEvents = true;
-		}
-
-		const char *env_enable_cdai = getenv("CLIENT_SIDE_DAI");
-		if(env_enable_cdai)
-		{
-			logprintf("CLIENT_SIDE_DAI present: Enabling CLIENT_SIDE_DAI.");
-			gpGlobalConfig->enableClientDai = true;
-		}
-
-		const char *env_enable_westoros_sink = getenv("AAMP_ENABLE_WESTEROS_SINK");
-
-		if(env_enable_westoros_sink)
-		{
-			int iValue = atoi(env_enable_westoros_sink);
-			bool bValue = (strcasecmp(env_enable_westoros_sink,"true") == 0);
-
-			logprintf("AAMP_ENABLE_WESTEROS_SINK present, Value = %d", (bValue ? bValue : (iValue ? iValue : 0)));
-
-			if(iValue || bValue)
-			{
-				mWesterosSinkEnabled = true;
-			}
-		}
-
-		if(gpGlobalConfig->minInitialCacheSeconds != MINIMUM_INIT_CACHE_NOT_OVERRIDDEN)
-		{
-			mMinInitialCacheSeconds = gpGlobalConfig->minInitialCacheSeconds;
-		}
-	}
-}
 
 /**
  * @brief Executes tear down sequence
@@ -4823,10 +3862,10 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 #ifdef AAMP_STOP_SINK_ON_SEEK
 		const bool forceStop = true;
 		// Don't send event if nativeCCRendering is ON
-		if (!gpGlobalConfig->nativeCCRendering)
+		if (!ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			CCHandleEventPtr event = std::make_shared<CCHandleEvent>(0);
-			if (!mAsyncTuneEnabled)
+			if (!GetAsyncTuneConfig())
 			{
 				SendEventSync(event);
 			}
@@ -4839,7 +3878,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 #else
 		const bool forceStop = false;
 #endif
-		if (!forceStop && ((!newTune && gpGlobalConfig->gAampDemuxHLSVideoTsTrack) || gpGlobalConfig->gPreservePipeline))
+		if (!forceStop && ((!newTune && ISCONFIGSET_PRIV(eAAMPConfig_DemuxVideoHLSTrack)) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline)))
 		{
 			mStreamSink->Flush(0, rate);
 		}
@@ -4996,11 +4035,12 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	{
 		lastUnderFlowTimeMs[i] = 0;
 	}
-	LazilyLoadConfigIfNeeded();
 	EnableAllMediaDownloads();
+	//LazilyLoadConfigIfNeeded();
 	mFragmentCachingRequired = false;
 	mPauseOnFirstVideoFrameDisp = false;
 	mFirstVideoFrameDisplayedEnabled = false;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_OnTuneRate,mSetOnTuneRateRequested);
 	if(tuneType == eTUNETYPE_NEW_NORMAL && mSetOnTuneRateRequested != AAMP_RATE_INVALID)
 	{
 		mOnTuneRate = mSetOnTuneRateRequested;
@@ -5037,7 +4077,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		// send previouse tune VideoEnd Metrics data
 		// this is done here because events are cleared on stop and there is chance that event may not get sent
 		// check for mEnableVideoEndEvent and call SendVideoEndEvent ,object mVideoEnd is created inside SendVideoEndEvent
-		if(gpGlobalConfig->mEnableVideoEndEvent 
+		if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent)
 			&& (mTuneAttempts == 1)) // only for first attempt, dont send event when JSPP retunes. 
 		{
 			SendVideoEndEvent();
@@ -5106,7 +4146,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 
 	case eMEDIAFORMAT_HLS:
 	case eMEDIAFORMAT_HLS_MP4:
-		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate, gpGlobalConfig->gThrottle );
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_HLS(this, playlistSeekPos, rate);
 		break;
 
 	case eMEDIAFORMAT_PROGRESSIVE:
@@ -5207,7 +4247,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 
 		// Enable fragment initial caching. Retune not supported
 		if(tuneType != eTUNETYPE_RETUNE
-			&& mMinInitialCacheSeconds > 0
+			&& GetInitialBufferDuration() > 0
 			&& rate == AAMP_NORMAL_PLAY_RATE
 			&& mpStreamAbstractionAAMP->IsInitialCachingSupported())
 		{
@@ -5227,7 +4267,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		if (mMediaFormat == eMEDIAFORMAT_HLS)
 		{
 			//Live adjust or syncTrack occurred, sent an updated flush event
-			if ((!newTune && gpGlobalConfig->gAampDemuxHLSVideoTsTrack) || gpGlobalConfig->gPreservePipeline)
+			if ((!newTune && ISCONFIGSET_PRIV(eAAMPConfig_DemuxVideoHLSTrack)) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline))
 			{
 				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
 			}
@@ -5295,43 +4335,32 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
  */
 void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID,bool audioDecoderStreamSync)
 {
+	int iCacheMaxSize = 0;
+	int maxDrmSession = 1;
+	double tmpVar=0;
+	
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
-	ConfigureNetworkTimeout();
-	ConfigureManifestTimeout();
-	ConfigurePlaylistTimeout();
-	ConfigureParallelFetch();
-	ConfigureDashParallelFragmentDownload();
-	ConfigureBulkTimedMetadata();
-	ConfigureRetuneForUnpairedDiscontinuity();
-	ConfigureRetuneForGSTInternalError();
-	ConfigureWesterosSink();
-	ConfigureLicenseCaching();
-	ConfigurePreCachePlaylist();
-	ConfigureInitFragTimeoutRetryCount();
-	if(ePAUSED_BEHAVIOR_MAX != gpGlobalConfig->mPausedBehavior)
-	{
-		mPausedBehavior = gpGlobalConfig->mPausedBehavior;
-	}
-	mSeekFromPausedState = false;
-	mJumpToLiveFromPause = false;
-	mABREnabled = gpGlobalConfig->bEnableABR;
-	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_DRMDecryptThreshold,mDrmDecryptFailCount);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreCachePlaylistTime,mPreCacheDnldTimeWindow);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_SessionToken,mSessionToken);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_SubTitleLanguage,mSubLanguage);
+	profiler.SetMicroEventFlag(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents));
+	GETCONFIGVALUE_PRIV(eAAMPConfig_NetworkTimeout,tmpVar);
+	mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(tmpVar);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_ManifestTimeout,tmpVar);
+	mManifestTimeoutMs = (long)CONVERT_SEC_TO_MS(tmpVar);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PlaylistTimeout,tmpVar);
+	mPlaylistTimeoutMs = (long)CONVERT_SEC_TO_MS(tmpVar);
+	if(mPlaylistTimeoutMs <= 0) mPlaylistTimeoutMs = mManifestTimeoutMs;
+	
 	mLogTimetoTopProfile = true;
 	// Reset mProgramDateTime to 0 , to avoid spill over to next tune if same session is 
 	// reused 
 	mProgramDateTime = 0;
-	if(gpGlobalConfig->mUseAverageBWForABR != eUndefinedState)
-	{
-		mUseAvgBandwidthForABR = (bool)gpGlobalConfig->mUseAverageBWForABR;
-	}
-
-	if (gpGlobalConfig->sslVerifyPeer == eUndefinedState){
-		/* Disable ssl verification by default */
-		gpGlobalConfig->sslVerifyPeer = eFalseState;
-		AAMPLOG_INFO("%s:%d : SSL Verification has not configured , default is False", __FUNCTION__,__LINE__);
-	}
 
 	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
@@ -5341,9 +4370,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			mAampCacheHandler = new AampCacheHandler();
 		}
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
+		// read the configured max drm session
+		GETCONFIGVALUE_PRIV(eAAMPConfig_MaxDASHDRMSessions,maxDrmSession);
 		if(NULL == mDRMSessionManager)
 		{
-			mDRMSessionManager = new AampDRMSessionManager();
+			mDRMSessionManager = new AampDRMSessionManager(maxDrmSession);
 		}
 #endif
 	}
@@ -5352,15 +4383,17 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mManifestRefreshCount = 0;
 	
 	// For PreCaching of playlist , no max limit set as size will vary for each playlist length
-	if(mCacheMaxSize != 0)
-        {
-                getAampCacheHandler()->SetMaxPlaylistCacheSize(mCacheMaxSize);
-        }
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxPlaylistCacheSize,iCacheMaxSize);
+	if(iCacheMaxSize != 0)
+	{
+		getAampCacheHandler()->SetMaxPlaylistCacheSize(iCacheMaxSize*1024); // convert KB inputs to bytes
+	}
 	else if(mPreCacheDnldTimeWindow > 0)
 	{
+		// if precaching enabled, then set cache to infinite
+		// support download of all the playlist files
 		getAampCacheHandler()->SetMaxPlaylistCacheSize(PLAYLIST_CACHE_SIZE_UNLIMITED);
 	}
-
 	mAudioDecoderStreamSync = audioDecoderStreamSync;
 	if (NULL == mStreamSink)
 	{
@@ -5432,48 +4465,17 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		mIscDVR = true;
 	}
 
+	UpdateLiveOffset();
 #ifdef AAMP_CC_ENABLED
 	if (eMEDIAFORMAT_OTA == mMediaFormat)
 	{
-		if (gpGlobalConfig->nativeCCRendering)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			AampCCManager::GetInstance()->SetParentalControlStatus(false);
 		}
 	}
 #endif
-	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
-	{
-		// DELIA-30843/DELIA-31379. for CDVR/IVod, offset is set to higher value
-		// need to adjust the liveoffset on trickplay for ivod/cdvr with 30sec
-
-		// Priority of setting:  (1) aampcfg (user override) (2) App Config (3) AAMP Default value 
-		if(gpGlobalConfig->cdvrliveOffset != -1)
-		{
-			// if aamp cfg has override that will be set 		
-			mLiveOffset	=	gpGlobalConfig->cdvrliveOffset;
-		}
-                else if(!mNewLiveOffsetflag)
-		{
-			// if App has not set the value , set it to default		
-			mLiveOffset	=	AAMP_CDVR_LIVE_OFFSET;
-		}
-	}
-	else
-	{
-		// will be used only for live
-		// Priority of setting:  (1) aampcfg (user override) (2) App Config (3) AAMP Default value 
-		if(gpGlobalConfig->liveOffset != -1)
-		{
-			// if aamp cfg has override that will be set 
-			mLiveOffset	=	gpGlobalConfig->liveOffset;
-		}
-                else if(!mNewLiveOffsetflag)
-		{
-			// if App has not set the value , set it to default 
-			mLiveOffset	=	AAMP_LIVE_OFFSET;
-		}
-	}
-
+	
 	if(bFirstAttempt)
 	{
 		mTuneAttempts = 1;	//Only the first attempt is xreInitiated.
@@ -5488,19 +4490,22 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 
 	if( !remapUrl )
 	{
-		if (gpGlobalConfig->mapMPD && mMediaFormat == eMEDIAFORMAT_HLS && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
+		std::string mapMPDStr, mapM3U8Str;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_MapMPD,mapMPDStr);
+		GETCONFIGVALUE_PRIV(eAAMPConfig_MapM3U8,mapM3U8Str);
+		if (!mapMPDStr.empty() && mMediaFormat == eMEDIAFORMAT_HLS && (mContentType != ContentType_EAS)) //Don't map, if it is dash and dont map if it is EAS
 		{
 			std::string hostName = aamp_getHostFromURL(mManifestUrl);
-			if((hostName.find(gpGlobalConfig->mapMPD) != std::string::npos) || (mTSBEnabled && mManifestUrl.find(gpGlobalConfig->mapMPD) != std::string::npos))
+			if((hostName.find(mapMPDStr) != std::string::npos) || (mTSBEnabled && mManifestUrl.find(mapMPDStr) != std::string::npos))
 			{
 				replace(mManifestUrl, ".m3u8", ".mpd");
 				mMediaFormat = eMEDIAFORMAT_DASH;
 			}
 		}
-		else if (gpGlobalConfig->mapM3U8 && mMediaFormat == eMEDIAFORMAT_DASH)
+		else if (!mapM3U8Str.empty() && mMediaFormat == eMEDIAFORMAT_DASH)
 		{
 			std::string hostName = aamp_getHostFromURL(mManifestUrl);
-			if((hostName.find(gpGlobalConfig->mapM3U8) != std::string::npos) || (mTSBEnabled && mManifestUrl.find(gpGlobalConfig->mapM3U8) != std::string::npos))
+			if((hostName.find(mapM3U8Str) != std::string::npos) || (mTSBEnabled && mManifestUrl.find(mapM3U8Str) != std::string::npos))
 			{
 				replace(mManifestUrl, ".mpd" , ".m3u8");
 				mMediaFormat = eMEDIAFORMAT_HLS;
@@ -5508,21 +4513,21 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		}
 		//DELIA-47890 Fog can be disable by  having option fog=0 option in aamp.cfg,based on  that gpGlobalConfig->noFog is updated
 		//Removed variable gpGlobalConfig->fogSupportsDash as it has similar usage
-		if (gpGlobalConfig->noFog)
+		if(!ISCONFIGSET_PRIV(eAAMPConfig_Fog))
 		{
 			DeFog(mManifestUrl);
 		}
 
-		if (mForceEC3)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_ForceEC3))
 		{
 			replace(mManifestUrl,".m3u8", "-eac3.m3u8");
 		}
-		if (mDisableEC3)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_DisableEC3))
 		{
 			replace(mManifestUrl, "-eac3.m3u8", ".m3u8");
 		}
 
-		if(gpGlobalConfig->bForceHttp)
+		if(ISCONFIGSET_PRIV(eAAMPConfig_ForceHttp))
 		{
 			replace(mManifestUrl, "https://", "http://");
 		}
@@ -5581,6 +4586,17 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		this->mTraceUUID = "unknown";
 	}
+}
+/**
+         *   @brief Get Language preference from aamp.cfg.
+         *
+         *   @return enum type
+         */
+LangCodePreference PrivateInstanceAAMP::GetLangCodePreference()
+{
+	int langCodePreference;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_LanguageCodePreference,langCodePreference);
+	return (LangCodePreference)langCodePreference;
 }
 
 /**
@@ -5734,9 +4750,11 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 void PrivateInstanceAAMP::CheckForDiscontinuityStall(MediaType mediaType)
 {
 	AAMPLOG_TRACE("%s:%d : Enter mediaType %d", __FUNCTION__, __LINE__, mediaType);
-	if(!(mStreamSink->CheckForPTSChangeWithTimeout(gpGlobalConfig->discontinuityTimeout)))
+	long discontinuityTimeoutValue;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_DiscontinuityTimeout,discontinuityTimeoutValue);
+	if(!(mStreamSink->CheckForPTSChangeWithTimeout(discontinuityTimeoutValue)))
 	{
-		AAMPLOG_INFO("%s:%d : No change in PTS for more than %ld ms, schedule retune!",__FUNCTION__, __LINE__, gpGlobalConfig->discontinuityTimeout);
+		AAMPLOG_INFO("%s:%d : No change in PTS for more than %ld ms, schedule retune!",__FUNCTION__, __LINE__, discontinuityTimeoutValue);
 		ResetDiscontinuityInTracks();
 		ResetTrackDiscontinuityIgnoredStatus();
 		ScheduleRetune(eSTALL_AFTER_DISCONTINUITY, mediaType);
@@ -6024,7 +5042,7 @@ void PrivateInstanceAAMP::detach()
 		mpStreamAbstractionAAMP->StopInjection();
 #ifdef AAMP_CC_ENABLED
 		// Stop CC when pipeline is stopped
-		if (gpGlobalConfig->nativeCCRendering)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			AampCCManager::GetInstance()->Release();
 		}
@@ -6044,50 +5062,7 @@ AampCacheHandler * PrivateInstanceAAMP::getAampCacheHandler()
 	return mAampCacheHandler;
 }
 
-/**
- * @brief Set profile ramp down limit.
- * @param limit rampdown limit
- */
-void PrivateInstanceAAMP::SetRampDownLimit(int limit)
-{
-	if (gpGlobalConfig->rampdownLimit >= 0)
-	{
-		mRampDownLimit = gpGlobalConfig->rampdownLimit;
-		AAMPLOG_INFO("%s:%d Setting limit from configuration file: %d", __FUNCTION__, __LINE__, gpGlobalConfig->rampdownLimit);
-	}
-	else
-	{
-		if (limit >= 0)
-		{
-			AAMPLOG_INFO("%s:%d Setting Rampdown limit : %d", __FUNCTION__, __LINE__, limit);
-			mRampDownLimit = limit;
-		}
-		else
-		{
-			AAMPLOG_WARN("%s:%d Invalid limit value %d", __FUNCTION__,__LINE__, limit);
-		}
-	}
-}
 
-/**
- * @brief Set minimum bitrate value.
- *
- */
-void PrivateInstanceAAMP::SetMinimumBitrate(long bitrate)
-{
-	mMinBitrate = bitrate;
-}
-
-/**
- * @brief Set maximum bitrate value.
- */
-void PrivateInstanceAAMP::SetMaximumBitrate(long bitrate)
-{
-	if (bitrate > 0)
-	{
-		mMaxBitrate = bitrate;
-	}
-}
 
 /**
  * @brief Get maximum bitrate value.
@@ -6095,16 +5070,65 @@ void PrivateInstanceAAMP::SetMaximumBitrate(long bitrate)
  */
 long PrivateInstanceAAMP::GetMaximumBitrate()
 {
-	return mMaxBitrate;
+	long lMaxBitrate;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxBitrate,lMaxBitrate);
+	return lMaxBitrate;
 }
 
 /**
- * @brief Set maximum bitrate value.
+ * @brief Get minimum bitrate value.
  * @return minimum bitrate value
  */
 long PrivateInstanceAAMP::GetMinimumBitrate()
 {
-	return mMinBitrate;
+	long lMinBitrate;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MinBitrate,lMinBitrate);
+	return lMinBitrate;
+}
+
+
+/**
+ * @brief Get Default bitrate value.
+ * @return default bitrate value
+ */
+long PrivateInstanceAAMP::GetDefaultBitrate()
+{
+	long defaultBitRate;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_DefaultBitrate,defaultBitRate);
+	return defaultBitRate;
+}
+
+/**
+ * @brief Get Default bitrate for 4K
+ * @return default bitrate 4K value
+ */
+long PrivateInstanceAAMP::GetDefaultBitrate4K()
+{
+	long defaultBitRate;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_DefaultBitrate4K,defaultBitRate);
+	return defaultBitRate;
+}
+
+/**
+ * @brief Get Default Iframe bitrate value.
+ * @return default iframe bitrate value
+ */
+long PrivateInstanceAAMP::GetIframeBitrate()
+{
+	long defaultIframeBitRate;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_IFrameDefaultBitrate,defaultIframeBitRate);
+	return defaultIframeBitRate;
+}
+
+/**
+ * @brief Get Default Iframe bitrate 4K value.
+ * @return default iframe bitrate 4K value
+ */
+long PrivateInstanceAAMP::GetIframeBitrate4K()
+{
+	long defaultIframeBitRate4K;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_IFrameDefaultBitrate4K,defaultIframeBitRate4K);
+	return defaultIframeBitRate4K;
 }
 
 /**
@@ -6243,34 +5267,6 @@ std::shared_ptr<AampDrmHelper> PrivateInstanceAAMP::GetCurrentDRM(void)
 }
 
 /**
- *   @brief Set a preferred bitrate for video.
- *
- *   @param[in] preferred bitrate.
- */
-void PrivateInstanceAAMP::SetVideoBitrate(long bitrate)
-{
-	if (bitrate == 0)
-	{
-		mABREnabled = true;
-	}
-	else
-	{
-		mABREnabled = false;
-		mUserRequestedBandwidth = bitrate;
-	}
-}
-
-/**
- *   @brief Get preferred bitrate for video.
- *
- *   @return preferred bitrate.
- */
-long PrivateInstanceAAMP::GetVideoBitrate()
-{
-	return mUserRequestedBandwidth;
-}
-
-/**
  *   @brief Get available thumbnail tracks.
  *
  *   @return string of available thumbnail tracks.
@@ -6374,30 +5370,18 @@ std::string PrivateInstanceAAMP::GetThumbnails(double tStart, double tEnd)
 	return rc;
 }
 
-/**
- *   @brief To set the vod-tune-event according to the player.
- *
- *   @param[in] preferred tune event type
- */
-void PrivateInstanceAAMP::SetTuneEventConfig( TunedEventConfig tuneEventType)
+TunedEventConfig PrivateInstanceAAMP::GetTuneEventConfig(bool isLive)
 {
-	if(gpGlobalConfig->tunedEventConfigVOD == eTUNED_EVENT_MAX)
+	int tunedEventConfig;			
+	if(isLive)
 	{
-		mTuneEventConfigVod = tuneEventType;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_LiveTuneEvent,tunedEventConfig);
 	}
 	else
 	{
-		mTuneEventConfigVod = gpGlobalConfig->tunedEventConfigVOD;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_VODTuneEvent,tunedEventConfig);
 	}
-
-	if(gpGlobalConfig->tunedEventConfigLive == eTUNED_EVENT_MAX)
-	{
-                mTuneEventConfigLive = tuneEventType;
-	}
-	else
-	{
-		mTuneEventConfigLive = gpGlobalConfig->tunedEventConfigLive;
-	}
+	return (TunedEventConfig)tunedEventConfig;
 }
 
 /**
@@ -6406,11 +5390,16 @@ void PrivateInstanceAAMP::SetTuneEventConfig( TunedEventConfig tuneEventType)
  *
  *   @return void
  */
-void PrivateInstanceAAMP::SetAsyncTuneConfig(bool bValue)
+void PrivateInstanceAAMP::SetEventPriorityAsyncTune(bool bValue)
 {
-	mAsyncTuneEnabled = bValue;
-	mEventPriority = AAMP_MAX_EVENT_PRIORITY;
-	AAMPLOG_INFO("%s:%d Async Tune Config : %s ",__FUNCTION__,__LINE__,(mAsyncTuneEnabled)?"True":"False");
+	if(bValue)
+	{
+		mEventPriority = AAMP_MAX_EVENT_PRIORITY;
+	}
+	else
+	{
+		mEventPriority = G_PRIORITY_DEFAULT_IDLE;
+	}	
 }
 
 /**
@@ -6420,184 +5409,7 @@ void PrivateInstanceAAMP::SetAsyncTuneConfig(bool bValue)
  */
 bool PrivateInstanceAAMP::GetAsyncTuneConfig()
 {
-        return mAsyncTuneEnabled;
-}
-
-/**
- *   @brief Set Matching BaseUrl Config Configuration
- *
- *   @param[in] bValue - true if Matching BaseUrl enabled
- *   @return void
- */
-void PrivateInstanceAAMP::SetMatchingBaseUrlConfig(bool bValue)
-{
-	// app can set only if curr state is eUndefinedState
-	if(eUndefinedState == gpGlobalConfig->useMatchingBaseUrl)
-	{
-		gpGlobalConfig->useMatchingBaseUrl = (TriState) bValue;
-	}
-	else
-	{
-		AAMPLOG_WARN("%s : Ignoring app setting[%d] already set value:%d", __FUNCTION__, bValue ,gpGlobalConfig->useMatchingBaseUrl );
-	}
-}
-
-/**
- *   @brief to configure propagate URI parameters for fragment download
- *
- *   @param[in] bValue - true to enable
- *   @return void
- */
-
-void PrivateInstanceAAMP::SetPropagateUriParameters(bool bValue)
-{
-	gpGlobalConfig->mPropagateUriParameters = (TriState)bValue;
-	logprintf("%s:%d Propagate URIparameters : %s ",__FUNCTION__,__LINE__,(gpGlobalConfig->mPropagateUriParameters)?"True":"False");
-}
-
-/**
- *   @brief to optionally configure simulated per-download network latency for negative testing
- *
- *   @param[in] DownloadDelayInMs - extra millisecond delay added in each download
- *   @return void
- */
-void PrivateInstanceAAMP::ApplyArtificialDownloadDelay(unsigned int DownloadDelayInMs)
-{
-	if( DownloadDelayInMs <= MAX_DOWNLOAD_DELAY_LIMIT_MS )
-	{
-		gpGlobalConfig->mDownloadDelayInMs = DownloadDelayInMs;
-		logprintf("%s:%d Apply delay in each download : %u ms ",__FUNCTION__,__LINE__,DownloadDelayInMs);
-	}
-	else
-	{
-		logprintf("%s:%d Apply delay in download out of range : %u ms, expected 0 to 30000 ms ",__FUNCTION__,__LINE__,DownloadDelayInMs);
-	}
-}
-
-/**
- *   @brief to disable SSL verify peer 
- *
- *   @param[in] bValue - true to enable the configuration
- *   @return void
- */
-
-void PrivateInstanceAAMP::SetSslVerifyPeerConfig(bool bValue)
-{
-	if (gpGlobalConfig->sslVerifyPeer == eUndefinedState)
-	{
-		gpGlobalConfig->sslVerifyPeer = (TriState)bValue;
-	}
-	logprintf("%s:%d Disable Ssl Verify Peer : %s ",__FUNCTION__,__LINE__,(gpGlobalConfig->sslVerifyPeer)?"True":"False");
-}
-
-
-/**
- *   @brief Set Westeros sink Configuration
- *   @param[in] bValue - true if westeros sink enabled
- *
- *   @return void
- */
-void PrivateInstanceAAMP::SetWesterosSinkConfig(bool bValue)
-{
-	if(gpGlobalConfig->mWesterosSinkConfig == eUndefinedState)
-	{
-		mWesterosSinkEnabled = bValue;
-	}
-	else
-	{
-		mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
-	}
-	AAMPLOG_INFO("%s:%d Westeros Sink Config : %s ",__FUNCTION__,__LINE__,(mWesterosSinkEnabled)?"True":"False");
-}
-
-/**
- *   @brief Set license caching
- *   @param[in] bValue - true/false to enable/disable license caching
- *
- *   @return void
- */
-void PrivateInstanceAAMP::SetLicenseCaching(bool bValue)
-{
-	if(gpGlobalConfig->licenseCaching == eUndefinedState)
-	{
-		mLicenseCaching = bValue;
-	}
-	else
-	{
-		mLicenseCaching = (bool)gpGlobalConfig->licenseCaching;
-	}
-
-	AAMPLOG_INFO("%s:%d License Caching is : %s ",__FUNCTION__, __LINE__, (mLicenseCaching ? "True" : "False"));
-}
-
-/**
- *   @brief Set license caching
- *   @param[in] bValue - true/false to enable/disable license caching
- *
- *   @return void
- */
-void PrivateInstanceAAMP::SetOutputResolutionCheck(bool bValue)
-{
-        if(gpGlobalConfig->bLimitResolution == eUndefinedState)
-        {
-                mOutputResolutionCheckEnabled = bValue;
-        }
-        else
-        {
-                mOutputResolutionCheckEnabled = (bool)gpGlobalConfig->bLimitResolution;
-        }
-        AAMPLOG_INFO("%s:%d Display Resolution check is : %s ",__FUNCTION__, __LINE__, (mOutputResolutionCheckEnabled ? "True" : "False"));
-}
-
-/**
- *   @brief Configure New ABR Enable/Disable
- *   @param[in] bValue - true if new ABR enabled
- *
- *   @return void
- */
-void PrivateInstanceAAMP::SetNewABRConfig(bool bValue)
-{
-	if(gpGlobalConfig->abrBufferCheckEnabled == eUndefinedState)
-	{
-		mABRBufferCheckEnabled = bValue;
-	}
-	else
-	{
-		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
-	}
-	AAMPLOG_INFO("%s:%d New ABR Config : %s ",__FUNCTION__,__LINE__,(mABRBufferCheckEnabled)?"True":"False");
-
-	// temp code until its enabled in Peacock App - Remove it later.
-	if(gpGlobalConfig->useNewDiscontinuity == eUndefinedState)
-	{
-		mNewAdBreakerEnabled = bValue;
-		gpGlobalConfig->hlsAVTrackSyncUsingStartTime = bValue;	
-	}
-	else
-	{
-		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;		
-	}
-	AAMPLOG_INFO("%s:%d New AdBreaker Config : %s ",__FUNCTION__,__LINE__,(mNewAdBreakerEnabled)?"True":"False");
-}
-
-/**
- *   @brief Configure New AdBreaker Enable/Disable
- *   @param[in] bValue - true if new ABR enabled
- *
- *   @return void
- */
-void PrivateInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
-{
-	if(gpGlobalConfig->useNewDiscontinuity == eUndefinedState)
-	{
-		mNewAdBreakerEnabled = bValue;
-		gpGlobalConfig->hlsAVTrackSyncUsingStartTime = bValue;
-	}
-	else
-	{
-		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;
-	}
-	AAMPLOG_INFO("%s:%d New AdBreaker Config : %s ",__FUNCTION__,__LINE__,(mNewAdBreakerEnabled)?"True":"False");
+        return ISCONFIGSET_PRIV(eAAMPConfig_AsyncTune);
 }
 
 /**
@@ -6746,7 +5558,6 @@ long long PrivateInstanceAAMP::GetPositionMs()
 {
 	return (prevPositionMiliseconds!=-1) ? prevPositionMiliseconds : GetPositionMilliseconds();
 }
-
 /**
  * @brief Get current stream position
  * @retval current stream position in ms
@@ -6757,8 +5568,8 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 	if (trickStartUTCMS >= 0)
 	{
 		//DELIA-39530 - Audio only playback is un-tested. Hence disabled for now
-		if (gpGlobalConfig->bPositionQueryEnabled && !gpGlobalConfig->bAudioOnlyPlayback)
-		{
+		if (ISCONFIGSET_PRIV(eAAMPConfig_EnableGstPositionQuery) && !ISCONFIGSET_PRIV(eAAMPConfig_AudioOnlyPlayback))
+                {
 			positionMiliseconds += mStreamSink->GetPositionMilliseconds();
 		}
 		else
@@ -6984,10 +5795,12 @@ void PrivateInstanceAAMP::Stop()
 		mCdaiObject = NULL;
 	}
 
+#if 0
 	/* Clear the session data*/
 	if(!mSessionToken.empty()){
 		mSessionToken.clear();
 	}
+#endif
 
 	EnableDownloads();
 }
@@ -7009,7 +5822,7 @@ void PrivateInstanceAAMP::SaveTimedMetadata(long long timeMilliseconds, const ch
 void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 {
 	std::vector<TimedMetadata>::iterator iter;
-	if(gpGlobalConfig->enableSubscribedTags && timedMetadata.size())
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableSubscribedTags) && timedMetadata.size())
 	{
 		AAMPLOG_INFO("%s:%d Sending bulk Timed Metadata",__FUNCTION__,__LINE__);
 
@@ -7039,7 +5852,7 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 				}
 				// Sending BulkTimedMetaData event as synchronous event.
 				// SCTE35 events are async events in TimedMetadata, and this event is sending only from HLS
-				if (!mAsyncTuneEnabled)
+				if (!GetAsyncTuneConfig())
 				{
 					SendEventSync(eventData);
 				}
@@ -7130,7 +5943,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 		}
 
 
-		if ((eventData->getName() == "SCTE35") || !bSyncCall || mAsyncTuneEnabled)
+		if ((eventData->getName() == "SCTE35") || !bSyncCall || GetAsyncTuneConfig())
 		{
 			SendEventAsync(eventData);
 		}
@@ -7155,8 +5968,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 	pthread_cond_broadcast(&waitforplaystart);
 	pthread_mutex_unlock(&mMutexPlaystart);
 
-	TunedEventConfig tunedEventConfig = IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
-	if (eTUNED_EVENT_ON_GST_PLAYING == tunedEventConfig)
+	if (eTUNED_EVENT_ON_GST_PLAYING == GetTuneEventConfig(IsLive()))
 	{
 		// This is an idle callback, so we can sent event synchronously
 		if (SendTunedEvent(!mAsyncTuneEnabled))
@@ -7175,7 +5987,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 	if (mStreamSink != NULL)
 	{
 #ifdef AAMP_CC_ENABLED
-		if (gpGlobalConfig->nativeCCRendering)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			AampCCManager::GetInstance()->Init((void *)mStreamSink->getCCDecoderHandle());
 		}
@@ -7270,7 +6082,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			pthread_mutex_unlock(&mStreamLock);
 			return;
 		}
-		else if (!gpGlobalConfig->internalReTune)
+		else if (!ISCONFIGSET_PRIV(eAAMPConfig_InternalReTune))
 		{
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune as disabled in configuration", __FUNCTION__, __LINE__);
 			pthread_mutex_unlock(&mStreamLock);
@@ -7278,7 +6090,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		}
 		pthread_mutex_unlock(&mStreamLock);
 
-		if((gpGlobalConfig->reportBufferEvent) && (errorType == eGST_ERROR_UNDERFLOW) && (trackType == eMEDIATYPE_VIDEO))
+		if((ISCONFIGSET_PRIV(eAAMPConfig_ReportBufferEvent)) && (errorType == eGST_ERROR_UNDERFLOW) && (trackType == eMEDIATYPE_VIDEO))
 		{
 			SendBufferChangeEvent(true);  // Buffer state changed, buffer Under flow started
 			if ( false == pipeline_paused )
@@ -7298,6 +6110,8 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"), errorString);
 		bool activeAAMPFound = false;
 		pthread_mutex_lock(&gMutex);
+                int ptsErrorThresholdValue;
+                GETCONFIGVALUE_PRIV(eAAMPConfig_PTSErrorThreshold,ptsErrorThresholdValue);
 		for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
 		{
 			if (this == iter->pAAMP)
@@ -7321,8 +6135,8 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 							{
 								gAAMPInstance->numPtsErrors++;
 								logprintf("PrivateInstanceAAMP::%s:%d: numPtsErrors %d, ptsErrorThreshold %d",
-									__FUNCTION__, __LINE__, gAAMPInstance->numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
-								if (gAAMPInstance->numPtsErrors >= gpGlobalConfig->ptsErrorThreshold)
+									__FUNCTION__, __LINE__, gAAMPInstance->numPtsErrors, ptsErrorThresholdValue);
+								if (gAAMPInstance->numPtsErrors >= ptsErrorThresholdValue)
 								{
 									gAAMPInstance->numPtsErrors = 0;
 									gAAMPInstance->reTune = true;
@@ -7336,7 +6150,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 								gAAMPInstance->numPtsErrors = 0;
 								logprintf("PrivateInstanceAAMP::%s:%d: Not scheduling reTune since (diff %lld > threshold %lld) numPtsErrors %d, ptsErrorThreshold %d.",
 									__FUNCTION__, __LINE__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS,
-									gAAMPInstance->numPtsErrors, gpGlobalConfig->ptsErrorThreshold);
+									gAAMPInstance->numPtsErrors, ptsErrorThresholdValue);
 							}
 						}
 						else
@@ -7599,7 +6413,7 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 void PrivateInstanceAAMP::UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height)
 {
 #ifdef SESSION_STATS
-	if(gpGlobalConfig->mEnableVideoEndEvent) // avoid mutex mLock lock if disabled.
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent)) // avoid mutex mLock lock if disabled.
 	{
 		pthread_mutex_lock(&mLock);
 		if(mVideoEnd)
@@ -7639,7 +6453,7 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 {
 #ifdef SESSION_STATS
-	if(gpGlobalConfig->mEnableVideoEndEvent) // avoid mutex mLock lock if disabled.
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent)) // avoid mutex mLock lock if disabled.
 	{
 		pthread_mutex_lock(&mLock);
 		if(mVideoEnd)
@@ -7661,7 +6475,7 @@ void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 void PrivateInstanceAAMP::UpdateProfileCappedStatus(void)
 {
 #ifdef SESSION_STATS
-	if(gpGlobalConfig->mEnableVideoEndEvent)
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent))
 	{
 		pthread_mutex_lock(&mLock);
 		if(mVideoEnd)
@@ -7685,7 +6499,7 @@ void PrivateInstanceAAMP::UpdateProfileCappedStatus(void)
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, double curlDownloadTime, bool keyChanged, bool isEncrypted)
 {
 #ifdef SESSION_STATS
-	if(gpGlobalConfig->mEnableVideoEndEvent)
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent))
 	{
 		int audioIndex = 1;
 		// ignore for write and aborted errors
@@ -7866,7 +6680,7 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
 {
 #ifdef SESSION_STATS
-	if(gpGlobalConfig->mEnableVideoEndEvent)
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent))
 	{
 		//only for Ramp down case
 		if(info.desiredProfileIndex < info.currentProfileIndex)
@@ -8014,172 +6828,18 @@ void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vecto
 }
 
 /**
- *   @brief Set License Server URL.
+ *   @brief UpdateLiveOffset live offset [Sec]
  *
- *   @param  url - URL of the server to be used for license requests
- *   @param  type - DRM Type(PR/WV) for which the server URL should be used, global by default
  */
-void PrivateInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
+void PrivateInstanceAAMP::UpdateLiveOffset()
 {
-	// Local aamp.cfg config trumps JS PP config
-	if (gpGlobalConfig->licenseServerLocalOverride)
+	if(!IsLiveAdjustRequired()) /* Ideally checking the content is either "ivod/cdvr" to adjust the liveoffset on trickplay. */
 	{
-		AAMPLOG_INFO("PrivateInstanceAAMP::%s - aamp cfg overrides, so license url - %s for type - %d is ignored", __FUNCTION__, url, type);
-		return;
-	}
-
-	if (type == eDRM_MAX_DRMSystems)
-	{
-
-		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(url);
-	}
-	else if (type == eDRM_PlayReady || type == eDRM_WideVine || type == eDRM_ClearKey)
-	{
-		mLicenseServerUrls[type] = std::string(url);
+		GETCONFIGVALUE_PRIV(eAAMPConfig_CDVRLiveOffset,mLiveOffset);
 	}
 	else
 	{
-		AAMPLOG_ERR("PrivateInstanceAAMP::%s - invalid drm type(%d) received.", __FUNCTION__, type);
-		return;
-	}
-
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s - set license url - %s for type - %d", __FUNCTION__, url, type);
-}
-
-/**
- *   @brief Indicates if session token has to be used with license request or not.
- *
- *   @param  isAnonymous - True if session token should be blank and false otherwise.
- */
-void PrivateInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
-{
-	gpGlobalConfig->licenseAnonymousRequest = isAnonymous;
-}
-
-/**
- *   @brief Indicates average BW to be used for ABR Profiling.
- *
- *   @param  useAvgBW - Flag for true / false
- */
-void PrivateInstanceAAMP::SetAvgBWForABR(bool useAvgBW)
-{
-	mUseAvgBandwidthForABR = useAvgBW;
-}
-
-/**
- *   @brief Set Max TimeWindow for PreCaching Playlist
- *
- *   @param  maxTime - Time for PreCaching in Minutes
- */
-void PrivateInstanceAAMP::SetPreCacheTimeWindow(int nTimeWindow)
-{
-	if(nTimeWindow > 0)
-	{
-		mPreCacheDnldTimeWindow = nTimeWindow;
-		AAMPLOG_WARN("%s Playlist PreCaching enabled with timewindow:%d",__FUNCTION__,nTimeWindow);
-	}
-}
-
-/**
- *   @brief Set VOD Trickplay FPS.
- *
- *   @param  vodTrickplayFPS - FPS to be used for VOD Trickplay
- */
-void PrivateInstanceAAMP::SetVODTrickplayFPS(int vodTrickplayFPS)
-{
-	// Local aamp.cfg config trumps JS PP config
-	if (gpGlobalConfig->vodTrickplayFPSLocalOverride)
-	{
-		return;
-	}
-	gpGlobalConfig->vodTrickplayFPS = vodTrickplayFPS;
-	logprintf("PrivateInstanceAAMP::%s(), vodTrickplayFPS %d", __FUNCTION__, vodTrickplayFPS);
-}
-
-/**
- *   @brief Set Linear Trickplay FPS.
- *
- *   @param  linearTrickplayFPS - FPS to be used for Linear Trickplay
- */
-void PrivateInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
-{
-	// Local aamp.cfg config trumps JS PP config
-	if (gpGlobalConfig->linearTrickplayFPSLocalOverride)
-	{
-		return;
-	}
-	gpGlobalConfig->linearTrickplayFPS = linearTrickplayFPS;
-	logprintf("PrivateInstanceAAMP::%s(), linearTrickplayFPS %d", __FUNCTION__, linearTrickplayFPS);
-}
-
-/**
- *   @brief Set live offset [Sec]
- *
- *   @param SetLiveOffset - Live Offset
- */
-void PrivateInstanceAAMP::SetLiveOffset(int liveoffset)
-{
-	if(liveoffset > 0 )
-	{
-		mLiveOffset = liveoffset;
-		mNewLiveOffsetflag = true;
-		logprintf("PrivateInstanceAAMP::%s(), liveoffset %d", __FUNCTION__, liveoffset);
-	}
-	else
-	{
-		logprintf("PrivateInstanceAAMP::%s(), liveoffset beyond limits %d", __FUNCTION__, liveoffset);
-	}
-}
-
-/**
- *   @brief To set the error code to be used for playback stalled error.
- *
- *   @param  errorCode - error code for playback stall errors.
- */
-void PrivateInstanceAAMP::SetStallErrorCode(int errorCode)
-{
-	gpGlobalConfig->stallErrorCode = errorCode;
-}
-
-/**
- *   @brief To set the timeout value to be used for playback stall detection.
- *
- *   @param  timeoutMS - timeout in milliseconds for playback stall detection.
- */
-void PrivateInstanceAAMP::SetStallTimeout(int timeoutMS)
-{
-	gpGlobalConfig->stallTimeoutInMS = timeoutMS;
-}
-
-/**
- *   @brief To set the Playback Position reporting interval.
- *
- *   @param  reportIntervalMS - playback reporting interval in milliseconds.
- */
-void PrivateInstanceAAMP::SetReportInterval(int reportIntervalMS)
-{
-	if(gpGlobalConfig->reportProgressInterval != 0)
-	{
-		mReportProgressInterval = gpGlobalConfig->reportProgressInterval;
-	}
-	else
-	{
-		mReportProgressInterval = reportIntervalMS;
-	}
-	AAMPLOG_WARN("%s Progress Interval configured %d",__FUNCTION__,mReportProgressInterval);		
-}
-
-/**
- *   @brief To set the max retry attempts for init frag curl timeout failures
- *
- *   @param  count - max attempt for timeout retry count
- */
-void PrivateInstanceAAMP::SetInitFragTimeoutRetryCount(int count)
-{
-	if(-1 == gpGlobalConfig->initFragmentRetryCount)
-	{
-		mInitFragmentRetryCount = count;
-		AAMPLOG_WARN("%s Init frag timeout retry count configured %d", __FUNCTION__, mInitFragmentRetryCount);
+		GETCONFIGVALUE_PRIV(eAAMPConfig_LiveOffset,mLiveOffset);
 	}
 }
 
@@ -8199,7 +6859,9 @@ void PrivateInstanceAAMP::SendStalledErrorEvent(bool isStalledBeforePlay)
 	}
 	else if (!isStalledBeforePlay)
 	{
-		snprintf(description, (MAX_ERROR_DESCRIPTION_LENGTH - 1), "Playback has been stalled for more than %d ms due to lack of new fragments", gpGlobalConfig->stallTimeoutInMS);
+		int stalltimeout;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_StallTimeoutMS,stalltimeout);
+		snprintf(description, (MAX_ERROR_DESCRIPTION_LENGTH - 1), "Playback has been stalled for more than %d ms due to lack of new fragments", stalltimeout);
 		errorDesc = description;
 	}
 
@@ -8221,17 +6883,6 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	}
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
 	logprintf("%s:%d : seek pos %.3f", __FUNCTION__, __LINE__, seek_pos_seconds);
-}
-
-/**
- * @brief Update subtitle language selection
- * @param lang string corresponding to language
- */
-void PrivateInstanceAAMP::UpdateSubtitleLanguageSelection(const char *lang)
-{
-	strncpy(mSubLanguage, lang, MAX_LANGUAGE_TAG_LENGTH);
-	//language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
-	mSubLanguage[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
 }
 
 /**
@@ -8340,8 +6991,7 @@ void PrivateInstanceAAMP::NotifyFirstFragmentDecrypted()
 {
 	if(mTunedEventPending)
 	{
-		TunedEventConfig tunedEventConfig =  IsLive() ? mTuneEventConfigLive : mTuneEventConfigVod;
-		if (eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED == tunedEventConfig)
+		if (eTUNED_EVENT_ON_FIRST_FRAGMENT_DECRYPTED == GetTuneEventConfig(IsLive()))
 		{
 			// For HLS - This is invoked by fetcher thread, so we have to sent asynchronously
 			if (SendTunedEvent(false))
@@ -8492,7 +7142,7 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 #ifdef AAMP_CC_ENABLED
 	if (0 == reason.compare("SERVICE_PIN_LOCKED"))
 	{
-		if (gpGlobalConfig->nativeCCRendering)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			AampCCManager::GetInstance()->SetParentalControlStatus(true);
 		}
@@ -8500,290 +7150,6 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 #endif
 }
 
-/**
- *   @brief To set the initial bitrate value.
- *
- *   @param[in] initial bitrate to be selected
- */
-void PrivateInstanceAAMP::SetInitialBitrate(long bitrate)
-{
-	if (bitrate > 0)
-	{
-		gpGlobalConfig->defaultBitrate = bitrate;
-	}
-}
-
-/**
- *   @brief To set the initial bitrate value for 4K assets.
- *
- *   @param[in] initial bitrate to be selected for 4K assets
- */
-void PrivateInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
-{
-	if (bitrate4K > 0)
-	{
-		gpGlobalConfig->defaultBitrate4K = bitrate4K;
-	}
-}
-
-/**
- *   @brief To set the network download timeout value.
- *
- *   @param[in] preferred timeout value
- */
-void PrivateInstanceAAMP::SetNetworkTimeout(double timeout)
-{
-	if(timeout > 0)
-	{
-		mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(timeout);
-		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d network timeout set to - %ld ms", __FUNCTION__, __LINE__, mNetworkTimeoutMs);
-	}
-}
-
-/**
- *   @brief To set the network timeout to based on the priority
- *
- */
-void PrivateInstanceAAMP::ConfigureNetworkTimeout()
-{
-	// If aamp.cfg has value , then set it as priority
-	if(gpGlobalConfig->networkTimeoutMs != -1)
-	{
-		mNetworkTimeoutMs = gpGlobalConfig->networkTimeoutMs;
-	}
-	else if(mNetworkTimeoutMs == -1)
-	{
-		// if App has not set the value , then set default value 
-		mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(CURL_FRAGMENT_DL_TIMEOUT);
-	}
-}
-
-/**
- *   @brief To set the manifest download timeout value.
- *
- *   @param[in] preferred timeout value
- */
-void PrivateInstanceAAMP::SetManifestTimeout(double timeout)
-{
-	if (timeout > 0)
-	{
-		mManifestTimeoutMs = (long)CONVERT_SEC_TO_MS(timeout);
-		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d manifest timeout set to - %ld ms", __FUNCTION__, __LINE__, mManifestTimeoutMs);
-	}
-}
-
-/**
- *   @brief To set the playlist download timeout value.
- *
- *   @param[in] preferred timeout value
- */
-void PrivateInstanceAAMP::SetPlaylistTimeout(double timeout)
-{
-	if (timeout > 0)
-	{
-		mPlaylistTimeoutMs = (long)CONVERT_SEC_TO_MS(timeout);
-		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Playlist timeout set to - %ld ms", __FUNCTION__, __LINE__, mPlaylistTimeoutMs);
-	}
-}
-
-/**
- *   @brief To set the manifest timeout as per priority
- *
- */
-void PrivateInstanceAAMP::ConfigureManifestTimeout()
-{
-	if(gpGlobalConfig->manifestTimeoutMs != -1)
-	{
-		mManifestTimeoutMs = gpGlobalConfig->manifestTimeoutMs;
-	}
-	else if(mManifestTimeoutMs == -1)
-	{
-		mManifestTimeoutMs = mNetworkTimeoutMs;
-	}
-}
-
-/**
- *   @brief To set the playlist timeout as per priority
- *
- */
-void PrivateInstanceAAMP::ConfigurePlaylistTimeout()
-{
-        if(gpGlobalConfig->playlistTimeoutMs != -1)
-        {
-                mPlaylistTimeoutMs = gpGlobalConfig->playlistTimeoutMs;
-        }
-        else if(mPlaylistTimeoutMs == -1)
-        {
-                mPlaylistTimeoutMs = mNetworkTimeoutMs;
-        }
-}
-
-/**
- *   @brief To set DASH Parallel Download configuration for fragments
- *
- */
-void PrivateInstanceAAMP::ConfigureDashParallelFragmentDownload()
-{
-	if(gpGlobalConfig->dashParallelFragDownload != eUndefinedState)
-	{
-		mDashParallelFragDownload = (bool)gpGlobalConfig->dashParallelFragDownload;
-	}
-
-	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d DASH Paraller Frag DL Config [%d]", __FUNCTION__, __LINE__, mDashParallelFragDownload);
-}
-
-/**
- *   @brief To set Parallel Download configuration
- *
- */
-void PrivateInstanceAAMP::ConfigureParallelFetch()
-{
-	// for VOD playlist fetch
-	if(gpGlobalConfig->playlistsParallelFetch != eUndefinedState)
-	{
-		mParallelFetchPlaylist = (bool)gpGlobalConfig->playlistsParallelFetch;
-	}
-
-	// for linear playlist fetch
-	if(gpGlobalConfig->parallelPlaylistRefresh  != eUndefinedState)
-	{
-		mParallelFetchPlaylistRefresh = (bool)gpGlobalConfig->parallelPlaylistRefresh ;
-	}
-}
-
-/**
- *   @brief To set bulk timedMetadata reporting configuration
- *
- */
-void PrivateInstanceAAMP::ConfigureBulkTimedMetadata()
-{
-        if(gpGlobalConfig->enableBulkTimedMetaReport != eUndefinedState)
-        {
-                mBulkTimedMetadata = (bool)gpGlobalConfig->enableBulkTimedMetaReport;
-        }
-}
-
-/**
- *   @brief To set unpaired discontinuity retune configuration
- *
- */
-void PrivateInstanceAAMP::ConfigureRetuneForUnpairedDiscontinuity()
-{
-    if(gpGlobalConfig->useRetuneForUnpairedDiscontinuity != eUndefinedState)
-    {
-            mUseRetuneForUnpairedDiscontinuity = (bool)gpGlobalConfig->useRetuneForUnpairedDiscontinuity;
-    }
-}
-
-/**
- *   @brief To set retune configuration for gstpipeline internal data stream error.
- *
- */
-void PrivateInstanceAAMP::ConfigureRetuneForGSTInternalError()
-{
-    if(gpGlobalConfig->useRetuneForGSTInternalError != eUndefinedState)
-    {
-            mUseRetuneForGSTInternalError = (bool)gpGlobalConfig->useRetuneForGSTInternalError;
-    }
-}
-
-/**
- *   @brief Set unpaired discontinuity retune flag
- *   @param[in] bValue - true if unpaired discontinuity retune set
- *
- *   @return void
- */
-void PrivateInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
-{
-    mUseRetuneForUnpairedDiscontinuity = bValue;
-    AAMPLOG_INFO("%s:%d Retune For Unpaired Discontinuity Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
-}
-
-/**
- *   @brief Set retune configuration for gstpipeline internal data stream error.
- *   @param[in] bValue - true if gst internal error retune set
- *
- *   @return void
- */
-void PrivateInstanceAAMP::SetRetuneForGSTInternalError(bool bValue)
-{
-	mUseRetuneForGSTInternalError = bValue;
-	AAMPLOG_INFO("%s:%d GST Retune Config from App : %d", __FUNCTION__, __LINE__, bValue);
-}
-
-/**
- *   @brief Function to Configure PreCache Playlist functionality
- *
- */
-void PrivateInstanceAAMP::ConfigurePreCachePlaylist()
-{
-	if(gpGlobalConfig->mPreCacheTimeWindow > 0)
-	{
-		mPreCacheDnldTimeWindow = gpGlobalConfig->mPreCacheTimeWindow;
-	}
-}
-
-/**
- *   @brief Function to set the max retry attempts for init frag curl timeout failures
- *
- */
-void PrivateInstanceAAMP::ConfigureInitFragTimeoutRetryCount()
-{
-	if(gpGlobalConfig->initFragmentRetryCount >= 0)
-	{
-		// given priority - if specified in /opt/aamp.cfg
-		mInitFragmentRetryCount = gpGlobalConfig->initFragmentRetryCount;
-	}
-	else if (-1 == mInitFragmentRetryCount)
-	{
-		mInitFragmentRetryCount = DEFAULT_DOWNLOAD_RETRY_COUNT;
-	}
-}
-
-/**
- *   @brief To set Westeros sink configuration
- *
- */
-void PrivateInstanceAAMP::ConfigureWesterosSink()
-{
-	if (gpGlobalConfig->mWesterosSinkConfig != eUndefinedState)
-	{
-		mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
-	}
-
-	AAMPLOG_WARN("%s Westeros Sink", mWesterosSinkEnabled ? "Enabling" : "Disabling");
-}
-
-/**
- *   @brief To set license caching config
- *
- */
-void PrivateInstanceAAMP::ConfigureLicenseCaching()
-{
-	if (gpGlobalConfig->licenseCaching != eUndefinedState)
-	{
-		mLicenseCaching = (bool)gpGlobalConfig->licenseCaching;
-	}
-
-	if (!mLicenseCaching)
-	{
-		gpGlobalConfig->dash_MaxDRMSessions = 1; // By configuring 1 to max session will request a license every time when a new tune will be initiated.
-		AAMPLOG_WARN("%s License Caching, MaxDRMSessions: %d", mLicenseCaching ? "Enabling" : "Disabling", gpGlobalConfig->dash_MaxDRMSessions);
-	}
-}
-
-/**
- *   @brief To set the download buffer size value
- *
- *   @param[in] preferred download buffer size
- */
-void PrivateInstanceAAMP::SetDownloadBufferSize(int bufferSize)
-{
-	if (bufferSize > 0)
-	{
-		gpGlobalConfig->maxCachedFragmentsPerTrack = bufferSize;
-	}
-}
 
 /**
  *   @brief To check if tune operation completed
@@ -8796,52 +7162,15 @@ bool PrivateInstanceAAMP::IsTuneCompleted()
 }
 
 /**
- *   @brief Set Preferred DRM.
- *
- *   @param[in] drmType - Preferred DRM type
- */
-void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
-{
-	// if Preferred DRM is set using /opt/aamp.cfg or via RFC then
-	// ignore this function setting
-	if(gpGlobalConfig->isUsingLocalConfigForPreferredDRM)
-	{
-		AAMPLOG_INFO("%s:%d Ignoring Preferred drm: %d setting as localConfig for Preferred DRM is set to :%d", __FUNCTION__, __LINE__, drmType,gpGlobalConfig->preferredDrm);
-	}
-	else
-	{
-		AAMPLOG_INFO("%s:%d set Preferred drm: %d", __FUNCTION__, __LINE__, drmType);
-		gpGlobalConfig->preferredDrm = drmType;
-		gpGlobalConfig->isPreferredDRMConfigured = true;
-	}
-}
-
-/**
  *   @brief Get Preferred DRM.
  *
  *   @return Preferred DRM type
  */
 DRMSystems PrivateInstanceAAMP::GetPreferredDRM()
 {
-	return gpGlobalConfig->preferredDrm;
-}
-
-/**
- *   @brief Set Stereo Only Playback.
- */
-void PrivateInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
-{
-	// If Stereo Only Mode is true, then disable DD+ and ATMOS (or) make if enable
-	if(gpGlobalConfig->disableEC3 == eUndefinedState)
-	{
-		mDisableEC3 = bValue;
-		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d EC3 is : %s", __FUNCTION__, __LINE__, (bValue)? "Disabled" : "Enabled");
-	}
-	if(gpGlobalConfig->disableATMOS == eUndefinedState)
-	{
-		mDisableATMOS = bValue;
-		AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d ATMOS is : %s", __FUNCTION__, __LINE__, (bValue)? "Disabled" : "Enabled");
-	}
+	int drmType;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredDRM,drmType);
+	return (DRMSystems)drmType;
 }
 
 /**
@@ -8854,7 +7183,7 @@ void PrivateInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
  */
 void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t startMS, uint32_t breakdur, std::string &scte35)
 {
-	if(gpGlobalConfig->enableClientDai && !adBreakId.empty())
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableClientDai) && !adBreakId.empty())
 	{
 		AAMPLOG_WARN("%s:%d [CDAI] Found Adbreak on period[%s] Duration[%d]", __FUNCTION__, __LINE__, adBreakId.c_str(), breakdur);
 		std::string adId("");
@@ -8873,7 +7202,7 @@ void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t sta
  */
 void PrivateInstanceAAMP::SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url)
 {
-	if(gpGlobalConfig->enableClientDai)
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableClientDai))
 	{
 		mCdaiObject->SetAlternateContents(adBreakId, adId, url);
 	}
@@ -9105,46 +7434,35 @@ const char* PrivateInstanceAAMP::GetTunedManifestUrl()
 }
 
 /**
- *   @brief To set the network proxy
- *
- *   @param[in] network proxy to use
- */
-void PrivateInstanceAAMP::SetNetworkProxy(const char * proxy)
-{
-	pthread_mutex_lock(&mLock);
-	if(mNetworkProxy)
-	{
-		free(mNetworkProxy);
-	}
-	mNetworkProxy = strdup(proxy);
-	pthread_mutex_unlock(&mLock);
-}
-
-/**
  *   @brief Get network proxy
  *
  *   @retval network proxy
  */
 const char* PrivateInstanceAAMP::GetNetworkProxy() const
 {
-	return mNetworkProxy;
+	std::string proxy;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_NetworkProxy,proxy);
+	if(proxy.empty())
+		return NULL;
+	else
+		return proxy.c_str();
 }
 
 /**
- *   @brief To set the proxy for license request
+ *   @brief Get License proxy
  *
- *   @param[in] proxy to use for license request
+ *   @retval License proxy
  */
-void PrivateInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
+const char* PrivateInstanceAAMP::GetLicenseReqProxy() const
 {
-	pthread_mutex_lock(&mLock);
-	if(mLicenseProxy)
-	{
-		free(mLicenseProxy);
-	}
-	mLicenseProxy = strdup(licenseProxy);
-	pthread_mutex_unlock(&mLock);
+	std::string proxy;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_LicenseProxy,proxy);
+	if(proxy.empty())
+		return NULL;
+	else
+		return proxy.c_str();
 }
+
 
 /**
  *   @brief Signal trick mode discontinuity to stream sink
@@ -9172,32 +7490,6 @@ bool PrivateInstanceAAMP::IsMuxedStream()
 		ret = mpStreamAbstractionAAMP->IsMuxedStream();
 	}
 	return ret;
-}
-
-/**
- *   @brief To set the curl stall timeout value
- *
- *   @param[in] curl stall timeout
- */
-void PrivateInstanceAAMP::SetDownloadStallTimeout(long stallTimeout)
-{
-	if (stallTimeout >= 0)
-	{
-		gpGlobalConfig->curlStallTimeout = stallTimeout;
-	}
-}
-
-/**
- *   @brief To set the curl download start timeout value
- *
- *   @param[in] curl download start timeout
- */
-void PrivateInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
-{
-	if (startTimeout >= 0)
-	{
-		gpGlobalConfig->curlDownloadStartTimeout = startTimeout;
-	}
 }
 
 /**
@@ -9304,7 +7596,7 @@ bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 {
 	// Assumption being that enableSubtec and event listener will not be registered at the same time
 	// in which case subtec gets priority over event listener
-	return (gpGlobalConfig->bEnableSubtec || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA] != NULL);
+	return (ISCONFIGSET_PRIV(eAAMPConfig_Subtec_subtitle)  || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA] != NULL);
 	//(!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
 }
 
@@ -9326,18 +7618,6 @@ bool PrivateInstanceAAMP::WebVTTCueListenersRegistered(void)
 void PrivateInstanceAAMP::GetCustomLicenseHeaders(std::unordered_map<std::string, std::vector<std::string>>& customHeaders)
 {
 	customHeaders.insert(mCustomLicenseHeaders.begin(), mCustomLicenseHeaders.end());
-}
-
-/**
- *   @brief Set parallel playlist download config value.
- *   @param[in] bValue - true if a/v playlist to be downloaded in parallel
- *
- *   @return void
- */
-void PrivateInstanceAAMP::SetParallelPlaylistDL(bool bValue)
-{
-	mParallelFetchPlaylist = bValue;
-	AAMPLOG_INFO("%s:%d Parallel playlist DL Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }
 
 /**
@@ -9400,30 +7680,6 @@ bool PrivateInstanceAAMP::GetEventListenerStatus(AAMPEventType eventType)
 }
 
 /**
- *	 @brief Set parallel playlist download config value for linear .
- *	 @param[in] bValue - true if a/v playlist to be downloaded in parallel for linear
- *
- *	 @return void
- */
-void PrivateInstanceAAMP::SetParallelPlaylistRefresh(bool bValue)
-{
-	mParallelFetchPlaylistRefresh = bValue;
-	AAMPLOG_INFO("%s:%d Parallel playlist Refresh Fetch  Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
-}
-
-/**
- *   @brief Set Bulk TimedMetadata reporting flag 
- *   @param[in] bValue - true if Application supports bulk reporting 
- *
- *   @return void
- */
-void PrivateInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
-{
-        mBulkTimedMetadata = bValue;
-        AAMPLOG_INFO("%s:%d Bulk TimedMetadata report Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
-}
-
-/**
  *   @brief Sending a flushing seek to stream sink with given position
  *
  *   @param[in] position - position value to seek to
@@ -9435,7 +7691,7 @@ void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
 #ifndef AAMP_STOP_SINK_ON_SEEK
 	if (mStreamSink)
 	{
-		if(gpGlobalConfig->midFragmentSeekEnabled && position != 0 )
+		if(ISCONFIGSET_PRIV(eAAMPConfig_MidFragmentSeek) && position != 0 )
 		{
 			//RDK-26957 Adding midSeekPtsOffset to position value.
 			//Enables us to seek to the desired position in the mp4 fragment.
@@ -9716,6 +7972,7 @@ void PrivateInstanceAAMP::SetAppName(std::string name)
 	mAppName = name;
 }
 
+
 /*
  *   @brief Get the application name
  *
@@ -9738,22 +7995,13 @@ void PrivateInstanceAAMP::individualization(const std::string& payload)
 }
 
 /**
- *   @brief Set initial buffer duration in seconds
- *
- *   @return void
- */
-void PrivateInstanceAAMP::SetInitialBufferDuration(int durationSec)
-{
-	mMinInitialCacheSeconds = durationSec;
-}
-
-/**
  *   @brief Get current initial buffer duration in seconds
  *
  *   @return void
  */
 int PrivateInstanceAAMP::GetInitialBufferDuration()
 {
+	GETCONFIGVALUE_PRIV(eAAMPConfig_InitialBuffer,mMinInitialCacheSeconds);
 	return mMinInitialCacheSeconds;
 }
 
@@ -9896,20 +8144,22 @@ void PrivateInstanceAAMP::StopBuffering(bool forceStop)
 std::string PrivateInstanceAAMP::GetLicenseServerUrlForDrm(DRMSystems type)
 {
 	std::string url;
-	auto it = mLicenseServerUrls.find(type);
-	if (it != mLicenseServerUrls.end())
+	if (type == eDRM_PlayReady)
 	{
-		url = it->second;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_PRLicenseServerUrl,url);
 	}
-	else
+	else if (type == eDRM_WideVine)
+	{	
+		GETCONFIGVALUE_PRIV(eAAMPConfig_WVLicenseServerUrl,url);
+	}
+	else if (type == eDRM_ClearKey)
 	{
-		// If url is not explicitly specified, check for generic one.
-		// This might be set in cases of VIPER AAMP/JSController bindings
-		it = mLicenseServerUrls.find(eDRM_MAX_DRMSystems);
-		if (it != mLicenseServerUrls.end())
-		{
-			url = it->second;
-		}
+		GETCONFIGVALUE_PRIV(eAAMPConfig_CKLicenseServerUrl,url);
+	}
+
+	if(url.empty())
+	{
+		GETCONFIGVALUE_PRIV(eAAMPConfig_LicenseServerUrl,url);
 	}
 	return url;
 }
@@ -9976,16 +8226,11 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 					}
 
 					// preferredCEA708 overrides whatever we infer from track. USE WITH CAUTION
-					if (gpGlobalConfig->preferredCEA708 != eUndefinedState)
+					int overrideCfg;
+					GETCONFIGVALUE_PRIV(eAAMPConfig_CEAPreferred,overrideCfg);
+					if (overrideCfg != -1)
 					{
-						if (gpGlobalConfig->preferredCEA708 == eTrueState)
-						{
-							format = eCLOSEDCAPTION_FORMAT_708;
-						}
-						else
-						{
-							format = eCLOSEDCAPTION_FORMAT_608;
-						}
+						format = (CCFormat)(overrideCfg & 1);
 						AAMPLOG_WARN("PrivateInstanceAAMP::%s %d CC format override present, override format to: %d", __FUNCTION__, __LINE__, format);
 					}
 					AampCCManager::GetInstance()->SetTrack(track.instreamId, format);
@@ -10153,50 +8398,6 @@ bool PrivateInstanceAAMP::IsActiveInstancePresent()
 }
 
 /**
- * @brief Set profile ramp down limit.
- *
- */
-void PrivateInstanceAAMP::SetInitRampdownLimit(int limit)
-{
-	if (gpGlobalConfig->mInitRampdownLimit >= 0)
-	{
-		AAMPLOG_INFO("%s:%d Setting Init Rampdown limit from configuration file: %d", __FUNCTION__, __LINE__, gpGlobalConfig->mInitRampdownLimit);
-	}
-	else
-	{
-		if (limit >= 0)
-		{
-			AAMPLOG_INFO("%s:%d Setting Init Rampdown limit : %d", __FUNCTION__, __LINE__, limit);
-			gpGlobalConfig->mInitRampdownLimit = limit;
-		}
-		else
-		{
-			AAMPLOG_WARN("%s:%d Invalid Init Rampdown limit value %d", __FUNCTION__,__LINE__, limit);
-		}
-	}
-}
-
-/**
- *   @brief Set the session Token for player
- *
- *   @param[in] string - sessionToken
- *   @return void
- */
-void PrivateInstanceAAMP::SetSessionToken(std::string &sessionToken)
-{
-	if (sessionToken.empty())
-	{
-		AAMPLOG_ERR("%s:%d Failed to set session Token : empty", __FUNCTION__, __LINE__);
-	}
-	else
-	{
-		AAMPLOG_INFO("%s:%d Setting Session Token", __FUNCTION__, __LINE__);	
-		mSessionToken = sessionToken;
-	}
-	return;
-}
-
-/**
  *   @brief To check if auxiliary audio is enabled
  *
  *   @return bool - true if aux audio is enabled
@@ -10335,59 +8536,6 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 }
 
 /**
- *   @brief Set video rectangle property
- *
- *   @param[in] video rectangle property
- */
-void PrivateInstanceAAMP::EnableVideoRectangle(bool rectProperty)
-{
-	//  Value can be set only if local override is not available.Local setting takes preference
-	if(gpGlobalConfig->mEnableRectPropertyCfg == eUndefinedState)
-	{
-		// Ideally video rectangle property should be enabled.
-		// There exists a scenario with westeros where the compositor handles scaling in parallel
-		// and scaling via rectangle property again messes up the co-ordinates.
-		// So disable video rectangle property only for those use-case.
-		if (rectProperty == false)
-		{
-			if (mWesterosSinkEnabled)
-			{
-				mEnableRectPropertyEnabled = rectProperty;
-			}
-			else
-			{
-				AAMPLOG_WARN("%s:%d Skipping the configuration value[%d], since westerossink is disabled", __FUNCTION__, __LINE__, rectProperty);
-			}
-		}
-		else
-		{
-			mEnableRectPropertyEnabled = rectProperty;
-		}
-	}
-	else
-	{
-		mEnableRectPropertyEnabled = (bool)gpGlobalConfig->mEnableRectPropertyCfg;
-	}
-}
-
-/**
- *   @brief Enable seekable range values in progress event
- *
- *   @param[in] enabled - true if enabled
- */
-void PrivateInstanceAAMP::EnableSeekableRange(bool enabled)
-{
-	if(gpGlobalConfig->mEnableSeekableRange == eUndefinedState)
-	{
-		mEnableSeekableRange = enabled;
-	}
-	else
-	{
-		mEnableSeekableRange = (bool)gpGlobalConfig->mEnableSeekableRange;
-	}
-}
-
-/**
 *   @brief Disable Content Restrictions - unlock
 *   @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
 *   @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
@@ -10402,7 +8550,7 @@ void PrivateInstanceAAMP::DisableContentRestrictions(long grace, long time, bool
 	{
 		mpStreamAbstractionAAMP->DisableContentRestrictions(grace, time, eventChange);
 #ifdef AAMP_CC_ENABLED
-		if (gpGlobalConfig->nativeCCRendering)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			AampCCManager::GetInstance()->SetParentalControlStatus(false);
 		}
@@ -10426,125 +8574,6 @@ void PrivateInstanceAAMP::EnableContentRestrictions()
 }
 
 /**
- *   @brief Enable video PTS reporting in progress event
- *
- *   @param[in] enabled - true if enabled
- */
-void PrivateInstanceAAMP::SetReportVideoPTS(bool enabled)
-{
-	if(gpGlobalConfig->bReportVideoPTS == eUndefinedState)
-	{
-		mReportVideoPTS = enabled;
-	}
-	else
-	{
-		mReportVideoPTS = (bool)gpGlobalConfig->bReportVideoPTS;
-	}
-}
-
-void PrivateInstanceAAMP::ConfigureWithLocalOptions()
-{
-	if(gpGlobalConfig->rampdownLimit >= 0)
-	{
-		mRampDownLimit = gpGlobalConfig->rampdownLimit;
-	}
-	if(gpGlobalConfig->minBitrate > 0)
-	{
-		mMinBitrate = gpGlobalConfig->minBitrate;
-	}
-	if(gpGlobalConfig->maxBitrate > 0)
-	{
-		mMaxBitrate = gpGlobalConfig->maxBitrate;
-	}
-	if(gpGlobalConfig->segInjectFailCount > 0)
-	{
-		mSegInjectFailCount = gpGlobalConfig->segInjectFailCount;
-	}
-	if(gpGlobalConfig->drmDecryptFailCount > 0)
-	{
-		mDrmDecryptFailCount = gpGlobalConfig->drmDecryptFailCount;
-	}
-	if(gpGlobalConfig->abrBufferCheckEnabled != eUndefinedState)
-	{
-		mABRBufferCheckEnabled = (bool)gpGlobalConfig->abrBufferCheckEnabled;
-	}
-	if(gpGlobalConfig->useNewDiscontinuity != eUndefinedState)
-	{
-		mNewAdBreakerEnabled = (bool)gpGlobalConfig->useNewDiscontinuity;
-	}
-	if (gpGlobalConfig->ckLicenseServerURL != NULL)
-	{
-		mLicenseServerUrls[eDRM_ClearKey] = std::string(gpGlobalConfig->ckLicenseServerURL);
-	}
-	if (gpGlobalConfig->licenseServerURL != NULL)
-	{
-		mLicenseServerUrls[eDRM_MAX_DRMSystems] = std::string(gpGlobalConfig->licenseServerURL);
-	}
-	if(gpGlobalConfig->disableEC3 != eUndefinedState)
-	{
-		mDisableEC3 = (bool)gpGlobalConfig->disableEC3;
-	}
-	if(gpGlobalConfig->disableATMOS != eUndefinedState)
-	{
-		mDisableATMOS = (bool)gpGlobalConfig->disableATMOS;
-	}
-	if(gpGlobalConfig->forceEC3 != eUndefinedState)
-	{
-		mForceEC3 = (bool)gpGlobalConfig->forceEC3;
-	}
-	if(gpGlobalConfig->mEnableSeekableRange != eUndefinedState)
-	{
-		mEnableSeekableRange = gpGlobalConfig->mEnableSeekableRange;
-	}
-	if(gpGlobalConfig->bReportVideoPTS != eUndefinedState)
-	{
-		mReportVideoPTS = gpGlobalConfig->bReportVideoPTS;
-	}
-	if (gpGlobalConfig->mWesterosSinkConfig != eUndefinedState)
-	{
-		mWesterosSinkEnabled = (bool)gpGlobalConfig->mWesterosSinkConfig;
-	}
-	if (gpGlobalConfig->mEnableRectPropertyCfg != eUndefinedState)
-	{
-		mEnableRectPropertyEnabled = (bool)gpGlobalConfig->mEnableRectPropertyCfg;
-	}
-	if(gpGlobalConfig->tunedEventConfigVOD != eTUNED_EVENT_MAX)
-	{
-		mTuneEventConfigVod = gpGlobalConfig->tunedEventConfigVOD;
-	}
-	if(gpGlobalConfig->tunedEventConfigLive != eTUNED_EVENT_MAX)
-	{
-		mTuneEventConfigLive = gpGlobalConfig->tunedEventConfigLive;
-	}
-	if(gpGlobalConfig->gMaxPlaylistCacheSize != 0)
-	{
-		mCacheMaxSize = gpGlobalConfig->gMaxPlaylistCacheSize ;
-	}
-	if(gpGlobalConfig->mPersistBitRateOverSeek != eUndefinedState)
-	{
-		mPersistBitRateOverSeek = gpGlobalConfig->mPersistBitRateOverSeek;
-	}
-	if(gpGlobalConfig->bLimitResolution != eUndefinedState)
-	{
-		mOutputResolutionCheckEnabled = gpGlobalConfig->bLimitResolution;
-	}
-
-	if(gpGlobalConfig->mUseAbsoluteTimeline != eUndefinedState)
-	{
-		mUseAbsoluteTimeline = gpGlobalConfig->mUseAbsoluteTimeline;
-	}
-}
-
-/**
- * @brief Set Maximum Cache Size for playlist store
- *
- */
-void PrivateInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
-{
-	mCacheMaxSize = cacheSize * 1024 ;
-}
-
-/**
  *   @brief Add async task to scheduler
  *
  *   @param[in] task - Task
@@ -10554,7 +8583,7 @@ void PrivateInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
 int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg)
 {
 	int taskId = 0;
-	if (mAsyncTuneEnabled)
+	if (GetAsyncTuneConfig())
 	{
 		if (mScheduler)
 		{
@@ -10585,7 +8614,7 @@ int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg)
 bool PrivateInstanceAAMP::RemoveAsyncTask(int taskId)
 {
 	bool ret = false;
-	if (mAsyncTuneEnabled)
+	if (GetAsyncTuneConfig())
 	{
 		ret = mScheduler->RemoveTask(taskId);
 	}
@@ -10596,23 +8625,6 @@ bool PrivateInstanceAAMP::RemoveAsyncTask(int taskId)
 	return ret;
 }
 
-/**
- *   @brief Enable/disable configuration to persist ABR profile over SAP/Seek
- *
- *   @param[in] value - To enable/disable configuration
- *   @return void
- */
-void PrivateInstanceAAMP::PersistBitRateOverSeek(bool value)
-{
-	if(gpGlobalConfig->mPersistBitRateOverSeek == eUndefinedState)
-	{
-		mPersistBitRateOverSeek = value;
-	}
-	else
-	{
-		mPersistBitRateOverSeek = (bool)gpGlobalConfig->mPersistBitRateOverSeek;
-	}
-}
 
 /**
  *	 @brief acquire streamsink lock

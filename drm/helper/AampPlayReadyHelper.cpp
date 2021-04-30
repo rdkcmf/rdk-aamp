@@ -124,7 +124,7 @@ void AampPlayReadyHelper::generateLicenseRequest(const AampChallengeInfo& challe
 		comChallengeObj.add("licenseRequest", challengeData, AampJsonObject::ENCODING_BASE64);
 		comChallengeObj.add("contentMetadata", mContentMetaData, AampJsonObject::ENCODING_BASE64);
 
-		if ((!challengeInfo.accessToken.empty()) && !gpGlobalConfig->licenseAnonymousRequest)
+		if ((!challengeInfo.accessToken.empty()) && !licenseRequest.licenseAnonymousRequest)
 		{
 			comChallengeObj.add("accessToken", challengeInfo.accessToken);
 		}

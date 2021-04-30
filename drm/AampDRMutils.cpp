@@ -24,7 +24,7 @@
 */
 
 #include "AampDRMutils.h"
-#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 #include "_base64.h"
 
 #include <uuid/uuid.h>

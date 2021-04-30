@@ -135,6 +135,31 @@ bool AampJsonObject::add(const std::string& name, cJSON *value)
 	return true;
 }
 
+
+bool AampJsonObject::add(const std::string& name, bool value)
+{
+	cJSON_AddItemToObject(mJsonObj, name.c_str(), cJSON_CreateBool(value));
+	return true;
+}
+
+bool AampJsonObject::add(const std::string& name, int value)
+{
+	cJSON_AddItemToObject(mJsonObj, name.c_str(), cJSON_CreateNumber(value));
+	return true;
+}
+
+bool AampJsonObject::add(const std::string& name, double value)
+{
+	cJSON_AddItemToObject(mJsonObj, name.c_str(), cJSON_CreateNumber(value));
+	return true;
+}
+
+bool AampJsonObject::add(const std::string& name, long value)
+{
+	cJSON_AddItemToObject(mJsonObj, name.c_str(), cJSON_CreateNumber(value));
+	return true;
+}
+
 bool AampJsonObject::get(const std::string& name, std::string& value)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
@@ -203,6 +228,18 @@ bool AampJsonObject::get(const std::string& name, std::vector<uint8_t>& values, 
 std::string AampJsonObject::print()
 {
 	char *jsonString = cJSON_Print(mJsonObj);
+	if (NULL != jsonString)
+	{
+		std::string retStr(jsonString);
+		cJSON_free(jsonString);
+		return retStr;
+	}
+	return "";
+}
+
+std::string AampJsonObject::print_UnFormatted()
+{
+	char *jsonString = cJSON_PrintUnformatted(mJsonObj);
 	if (NULL != jsonString)
 	{
 		std::string retStr(jsonString);

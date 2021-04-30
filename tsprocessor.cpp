@@ -292,7 +292,6 @@ public:
 		memset(&es, 0x00, sizeof(GrowableBuffer));
 		sentESCount = 0;
 		pes_state = PES_STATE_WAITING_FOR_HEADER;
-		allowPtsRewind = gpGlobalConfig->getUnknownValue("dmx.allowPtsRewind", false);
 		DEBUG_DEMUX("init : position %f, duration %f resetBasePTS %d", position, duration, resetBasePTS);
 	}
 
@@ -2443,7 +2442,7 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 		{
 			if (eStreamOp_DEMUX_AUDIO == m_streamOperation)
 			{
-				if(!gpGlobalConfig->bAudioOnlyPlayback)
+				if(!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 				{
 					pthread_mutex_lock(&m_mutex);
 					if (-1 == m_basePTSFromPeer)
@@ -2468,7 +2467,7 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 				}
 				ret = demuxAndSend(packetStart, len, m_startPosition, duration, discontinuous);
 			}
-			else if(!gpGlobalConfig->demuxedAudioBeforeVideo)
+			else if(!ISCONFIGSET(eAAMPConfig_DemuxAudioBeforeVideo))
 			{
 				ret = demuxAndSend(packetStart, len, position, duration, discontinuous);
 			}

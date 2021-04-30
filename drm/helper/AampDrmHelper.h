@@ -41,7 +41,7 @@ struct AampChallengeInfo
 
 struct AampLicenseRequest
 {
-	AampLicenseRequest() : method(), url(), payload(), headers()
+	AampLicenseRequest() : method(), url(), payload(), headers(),licenseAnonymousRequest(false)
 	{}
 	enum LicenseMethod
 	{
@@ -51,6 +51,7 @@ struct AampLicenseRequest
 	};
 
 	LicenseMethod method;
+	bool licenseAnonymousRequest;
 	std::string url;
 	std::string payload;
 	std::unordered_map<std::string, std::vector<std::string>> headers;
@@ -63,7 +64,7 @@ public:
 	const std::string EMPTY_DRM_METADATA;
 	const std::string EMPTY_STR;
 
-	AampDrmHelper(const struct DrmInfo drmInfo) : mDrmInfo(drmInfo), TIMEOUT_SECONDS(5000U), EMPTY_DRM_METADATA(), EMPTY_STR() {};
+	AampDrmHelper(const struct DrmInfo drmInfo) : mDrmInfo(drmInfo), TIMEOUT_SECONDS(5000U), EMPTY_DRM_METADATA(), EMPTY_STR() ,bOutputProtectionEnabled(false) {};
 
 	/**
 	 * Returns the OCDM system ID of the helper
@@ -95,7 +96,7 @@ public:
 	 * Determine whether HDCP 2.2 protection is required to be active
 	 * @return true if HDCP 2.2 protection is required, false otherwise
 	 */
-	virtual bool isHdcp22Required() const { return false; };
+	virtual bool isHdcp22Required() const { return bOutputProtectionEnabled; };
 
 	/**
 	 * Returns the content specific DRM metadata
@@ -194,11 +195,17 @@ public:
 	 */
 	virtual const std::string& friendlyName() const { return EMPTY_STR; }
 
+	/*
+	 * Set Output protection flag for the drmHelper
+	 * @return None
+	 */
+	void setOutputProtectionFlag(bool bValue) { bOutputProtectionEnabled = bValue;}
 public:
 	virtual ~AampDrmHelper() {};
 
 protected:
 	const DrmInfo mDrmInfo;
+	bool bOutputProtectionEnabled;
 };
 
 class AampDrmHelperFactory
