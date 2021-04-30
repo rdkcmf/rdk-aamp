@@ -275,7 +275,7 @@ void AampCacheHandler::ClearCacheHandler()
 AampCacheHandler::AampCacheHandler():
 	mCacheStoredSize(0),mAsyncThreadStartedFlag(false),mAsyncCleanUpTaskThreadId(0),mCacheActive(false),
 	mAsyncCacheCleanUpThread(false),mMutex(),mCondVarMutex(),mCondVar(),mPlaylistCache()
-	,mMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE),mInitialized(false)
+	,mMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE*1024),mInitialized(false)
 {
 	pthread_mutex_init(&mMutex, NULL);
 	pthread_mutex_init(&mCondVarMutex, NULL);

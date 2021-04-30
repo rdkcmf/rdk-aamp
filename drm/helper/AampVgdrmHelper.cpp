@@ -22,7 +22,7 @@
 
 #include "AampVgdrmHelper.h"
 #include "AampJsonObject.h"
-#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 
 static AampVgdrmHelperFactory vgdrm_helper_factory;
 

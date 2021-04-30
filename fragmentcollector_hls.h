@@ -389,7 +389,7 @@ public:
 	/// Function to to handle parse and indexing of individual tracks 
 	void IndexPlaylist(TrackState *trackState);
 	/// Constructor 
-	StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle);
+	StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
 	/// Copy Constructor
 	StreamAbstractionAAMP_HLS(const StreamAbstractionAAMP_HLS&) = delete;
 	/// Destructor 
@@ -514,7 +514,6 @@ private:
 	int mMediaCount;						/**< Number of media in the stream */
 	int mProfileCount;						/**< Number of Video/Iframe in the stream */
 	bool mIframeAvailable;					/**< True if iframe available in the stream */
-	bool mUseAvgBandwidthForABR;
 	std::set<std::string> mLangList; /**< Available language list */
 	double mFirstPTS; /**< First video PTS in seconds */
 };

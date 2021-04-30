@@ -23,7 +23,7 @@
  */
 
 #include "AampMemoryUtils.h"
-#include "GlobalConfigAAMP.h" //Required for logprintf, TODO: fix this
+#include "AampConfig.h"
 #include <assert.h>
 #include <glib.h>
 

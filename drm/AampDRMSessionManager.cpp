@@ -99,15 +99,25 @@ static string getFormattedLicenseServerURL(string url)
 /**
  *  @brief      AampDRMSessionManager constructor.
  */
-AampDRMSessionManager::AampDRMSessionManager() : drmSessionContexts(new DrmSessionContext[gpGlobalConfig->dash_MaxDRMSessions]),
-		cachedKeyIDs(new KeyID[gpGlobalConfig->dash_MaxDRMSessions]), accessToken(NULL),
+AampDRMSessionManager::AampDRMSessionManager(int maxDrmSessions) : drmSessionContexts(NULL),
+		cachedKeyIDs(NULL), accessToken(NULL),
 		accessTokenLen(0), sessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE), accessTokenMutex(PTHREAD_MUTEX_INITIALIZER),
 		cachedKeyMutex(PTHREAD_MUTEX_INITIALIZER)
 		,curlSessionAbort(false), mEnableAccessAtrributes(true)
 		,mDrmSessionLock(), licenseRequestAbort(false)
+		,mMaxDRMSessions(maxDrmSessions)
 {
-	mEnableAccessAtrributes = gpGlobalConfig->getUnknownValue("enableAccessAttributes", true);
-	AAMPLOG_INFO("AccessAttribute : %s", mEnableAccessAtrributes? "enabled" : "disabled");
+	if(maxDrmSessions < 1)
+	{
+		mMaxDRMSessions = 1; // minimum of 1 drm session needed
+	}
+	else if(maxDrmSessions > MAX_DASH_DRM_SESSIONS)
+	{
+		mMaxDRMSessions = MAX_DASH_DRM_SESSIONS; // limit to 30 
+	}
+	drmSessionContexts	= new DrmSessionContext[mMaxDRMSessions];
+	cachedKeyIDs		= new KeyID[mMaxDRMSessions];
+	AAMPLOG_INFO("AampDRMSessionManager MaxSession:%d",mMaxDRMSessions);
 	pthread_mutex_init(&mDrmSessionLock, NULL);
 }
 
@@ -129,7 +139,7 @@ AampDRMSessionManager::~AampDRMSessionManager()
 void AampDRMSessionManager::clearSessionData()
 {
 	logprintf("%s:%d AampDRMSessionManager:: Clearing session data", __FUNCTION__, __LINE__);
-	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
+	for(int i = 0 ; i < mMaxDRMSessions; i++)
 	{
 		if (drmSessionContexts != NULL && drmSessionContexts[i].drmSession != NULL)
 		{
@@ -211,7 +221,7 @@ void AampDRMSessionManager::setLicenseRequestAbort(bool isAbort)
 void AampDRMSessionManager::clearFailedKeyIds()
 {
 	pthread_mutex_lock(&cachedKeyMutex);
-	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
+	for(int i = 0 ; i < mMaxDRMSessions; i++)
 	{
 		if(cachedKeyIDs[i].isFailedKeyId)
 		{
@@ -250,7 +260,7 @@ void AampDRMSessionManager::clearAccessToken()
  */
 void AampDRMSessionManager::clearDrmSession(bool forceClearSession)
 {
-	for(int i = 0 ; i < gpGlobalConfig->dash_MaxDRMSessions; i++)
+	for(int i = 0 ; i < mMaxDRMSessions; i++)
 	{
 		// Clear the session data if license key acquisition failed or if forceClearSession is true in the case of LicenseCaching is false.
 		if((cachedKeyIDs[i].isFailedKeyId || forceClearSession) && drmSessionContexts != NULL)
@@ -365,7 +375,7 @@ string _extractSubstring(string parentStr, string startStr, string endStr)
  *  @note		AccessToken memory is dynamically allocated, deallocation
  *				should be handled at the caller side.
  */
-const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_code)
+const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_code , bool bSslPeerVerify)
 {
 	if(accessToken == NULL)
 	{
@@ -386,7 +396,7 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
-		if(!gpGlobalConfig->sslVerifyPeer){
+		if(!bSslPeerVerify){
 		     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 		}
 		curl_easy_setopt(curl, CURLOPT_URL, SESSION_TOKEN_URL);
@@ -482,7 +492,7 @@ bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
 {
 	bool ret = true;
 	pthread_mutex_lock(&cachedKeyMutex);
-	for (int sessionSlot = 0; sessionSlot < gpGlobalConfig->dash_MaxDRMSessions; sessionSlot++)
+	for (int sessionSlot = 0; sessionSlot < mMaxDRMSessions; sessionSlot++)
 	{
 		if (keyIdArray == cachedKeyIDs[sessionSlot].data)
 		{
@@ -520,7 +530,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	std::string serviceZone, streamID;
 	if(aampInstance->mIsVSS)
 	{
-		if (mEnableAccessAtrributes)
+		if (aampInstance->GetEnableAccessAtrributesFlag())
 		{
 			serviceZone = aampInstance->GetServiceZone();
 			streamID = aampInstance->GetVssVirtualStreamID();
@@ -553,7 +563,8 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	//logprintf("mediaUsage is %s", mediaUsage);
 	//logprintf("sessionToken is %s", sessionToken);
 	unsigned int attemptCount = 0;
-	int sleepTime = gpGlobalConfig->licenseRetryWaitTime;
+	int sleepTime ;
+	aampInstance->mConfig->GetConfigValue(eAAMPConfig_LicenseRetryWaitTime,sleepTime) ;
 				if(sleepTime<=0) sleepTime = 100;
 	while (attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
 	{
@@ -573,7 +584,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 		{
 			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
 			if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
-			logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, gpGlobalConfig->licenseRetryWaitTime);
+			logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, sleepTime);
 			mssleep(sleepTime);
 		}
 		else
@@ -622,7 +633,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
  *
  */
 DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
-		int32_t *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isContentMetadataAvailable, char* licenseProxy)
+		int32_t *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isContentMetadataAvailable, std::string licenseProxy)
 {
 	*httpCode = -1;
 	CURL *curl;
@@ -665,7 +676,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_URL, licenseRequest.url.c_str());
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
-	if(!gpGlobalConfig->sslVerifyPeer){
+	if(!ISCONFIGSET(eAAMPConfig_SslVerifyPeer)){
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 	}
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -681,9 +692,9 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
 	}
 
-	if (licenseProxy)
+	if (!licenseProxy.empty())
 	{
-		curl_easy_setopt(curl, CURLOPT_PROXY, licenseProxy);
+		curl_easy_setopt(curl, CURLOPT_PROXY, licenseProxy.c_str());
 		/* allow whatever auth the proxy speaks */
 		curl_easy_setopt(curl, CURLOPT_PROXYAUTH, CURLAUTH_ANY);
 	}
@@ -735,9 +746,11 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 			curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &totalTime);
 			if (*httpCode != 200 && *httpCode != 206)
 			{
+				int  licenseRetryWaitTime;
+				aamp->mConfig->GetConfigValue(eAAMPConfig_LicenseRetryWaitTime,licenseRetryWaitTime) ;
 				logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : http %d", __FUNCTION__, __LINE__, attemptCount, *httpCode);
 				if(*httpCode >= 500 && *httpCode < 600
-						&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && gpGlobalConfig->licenseRetryWaitTime > 0)
+						&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && licenseRetryWaitTime > 0)
 				{
 					delete keyInfo;
                                         delete callbackData;
@@ -746,8 +759,8 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
                                         callbackData->data = keyInfo;
                                         callbackData->mDRMSessionManager = this;
 					curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
-					logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, gpGlobalConfig->licenseRetryWaitTime);
-					mssleep(gpGlobalConfig->licenseRetryWaitTime);
+					logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__,licenseRetryWaitTime);
+					mssleep(licenseRetryWaitTime);
 				}
 			}
 			else
@@ -845,6 +858,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 	drmInfo.method = eMETHOD_AES_128;
 	drmInfo.mediaFormat = mediaFormat;
 	drmInfo.systemUUID = systemId;
+	drmInfo.bPropagateUriParams = ISCONFIGSET(eAAMPConfig_PropogateURIParam);
 
 	if (!AampDrmHelperEngine::getInstance().hasDRM(drmInfo))
 	{
@@ -977,7 +991,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 	{
 		AampMutexHold keymutex(cachedKeyMutex);
 
-		for (; sessionSlot < gpGlobalConfig->dash_MaxDRMSessions; sessionSlot++)
+		for (; sessionSlot < mMaxDRMSessions; sessionSlot++)
 		{
 			if (keyIdArray == cachedKeyIDs[sessionSlot].data)
 			{
@@ -995,7 +1009,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 			 * Avoid selecting that slot
 			 * */
 			/*select the first slot that is not primary*/
-			for (int index = 0; index < gpGlobalConfig->dash_MaxDRMSessions; index++)
+			for (int index = 0; index < mMaxDRMSessions; index++)
 			{
 				if (!cachedKeyIDs[index].isPrimaryKeyId)
 				{
@@ -1012,7 +1026,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 			}
 
 			/*Check if there's an older slot */
-			for (int index= sessionSlot + 1; index< gpGlobalConfig->dash_MaxDRMSessions; index++)
+			for (int index= sessionSlot + 1; index< mMaxDRMSessions; index++)
 			{
 				if (cachedKeyIDs[index].creationTime < cachedKeyIDs[sessionSlot].creationTime)
 				{
@@ -1102,6 +1116,13 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 		AAMPLOG_INFO("%s:%d Created new DrmSession for DrmSystemId %s", __FUNCTION__, __LINE__, systemId.c_str());
 		drmSessionContexts[sessionSlot].data = keyIdArray;
 		code = drmSessionContexts[sessionSlot].drmSession->getState();
+		// exception : by default for all types of drm , outputprotection is not handled in player 
+		// for playready , its configured within player 
+		if (systemId == PLAYREADY_KEY_SYSTEM_STRING && aampInstance->mConfig->IsConfigSet(eAAMPConfig_EnablePROutputProtection))
+		{
+			drmSessionContexts[sessionSlot].drmSession->setOutputProtection(true);
+			drmHelper->setOutputProtectionFlag(true);
+		}
 	}
 	else
 	{
@@ -1186,9 +1207,10 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 		{
 			/** flag for authToken set externally by app **/
 			bool usingAppDefinedAuthToken = !aampInstance->mSessionToken.empty();
+			bool anonymouslicReq 	=	 aampInstance->mConfig->IsConfigSet(eAAMPConfig_AnonymousLicenseRequest);
 			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_PREPROC);
 
-			if (!(drmHelper->getDrmMetaData().empty() || gpGlobalConfig->licenseAnonymousRequest))
+			if (!(drmHelper->getDrmMetaData().empty() || anonymouslicReq))
 			{
 				AampMutexHold accessTokenMutexHold(accessTokenMutex);
 
@@ -1197,7 +1219,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				char *sessionToken = NULL;
 				if(!usingAppDefinedAuthToken)
 				{ /* authToken not set externally by app */
-					sessionToken = (char *)getAccessToken(tokenLen, tokenError);
+					sessionToken = (char *)getAccessToken(tokenLen, tokenError , aampInstance->mConfig->IsConfigSet(eAAMPConfig_SslVerifyPeer));
 					AAMPLOG_WARN("%s:%d Access Token from AuthServer", __FUNCTION__, __LINE__);
 				}
 				else
@@ -1236,6 +1258,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 			AampLicenseRequest licenseRequest;
 			DRMSystems drmType = GetDrmSystem(drmHelper->getUuid());
 			licenseRequest.url = aampInstance->GetLicenseServerUrlForDrm(drmType);
+			licenseRequest.licenseAnonymousRequest = anonymouslicReq;
 			drmHelper->generateLicenseRequest(challengeInfo, licenseRequest);
 			if (code != KEY_PENDING || ((licenseRequest.method == AampLicenseRequest::POST) && (!challengeInfo.data.get())))
 			{
@@ -1247,7 +1270,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				/**
 				 * Configure the License acquisition parameters
 				 */
-				char *licenseServerProxy = nullptr;
+				std::string licenseServerProxy;
 				bool isContentMetadataAvailable = configureLicenseServerParameters(drmHelper, licenseRequest, licenseServerProxy, challengeInfo, aampInstance);
 
 				/**
@@ -1273,7 +1296,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 						}
 						int tokenLen = 0;
 						long tokenError = 0;
-						const char *sessionToken = getAccessToken(tokenLen, tokenError);
+						const char *sessionToken = getAccessToken(tokenLen, tokenError,aampInstance->mConfig->IsConfigSet(eAAMPConfig_SslVerifyPeer));
 						if (NULL != sessionToken)
 						{
 							AAMPLOG_INFO("%s:%d Requesting License with new access token", __FUNCTION__, __LINE__);
@@ -1428,7 +1451,7 @@ KeyState AampDRMSessionManager::processLicenseResponse(std::shared_ptr<AampDrmHe
  * Configure the Drm license server parameters for URL/proxy and custom http request headers
  */
 bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<AampDrmHelper> drmHelper, AampLicenseRequest &licenseRequest,
-		char* licenseServerProxy, const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance)
+		std::string &licenseServerProxy, const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance)
 {
 	string contentMetaData = drmHelper->getDrmMetaData();
 	bool isContentMetadataAvailable = !contentMetaData.empty();
@@ -1469,8 +1492,7 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 			licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_CONTENT_TYPE, {lhrContentType.c_str()}});
 #endif
 		}
-
-		licenseServerProxy = aampInstance->GetLicenseReqProxy();
+		licenseServerProxy = aampInstance->GetLicenseReqProxy(); 
 	}
 
 	return isContentMetadataAvailable;

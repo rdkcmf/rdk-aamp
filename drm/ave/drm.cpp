@@ -206,7 +206,7 @@ public:
 			drmerrordata->drmFailure = AAMP_TUNE_CORRUPT_DRM_DATA;
 
 			/* Enter if remove_Persistent flag is not set */
-			if(!gpGlobalConfig->aampRemovePersistent)
+			if(!mpAamp->mConfig->IsConfigSet(eAAMPConfig_RemovePersistent))
 			{
 				/*
 				 * Creating file "/tmp/DRM_Error" will invoke self heal logic in
@@ -1334,9 +1334,7 @@ long AveDrmManager::setSessionToken()
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, tokenReply);
-	if(!gpGlobalConfig->sslVerifyPeer){
-		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-	}
+	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 	curl_easy_setopt(curl, CURLOPT_URL, SESSION_TOKEN_URL);
 
 	res = curl_easy_perform(curl);

@@ -23,9 +23,8 @@
  */
 
 #include "AampUtils.h"
-#include "GlobalConfigAAMP.h" //For logprintf
 #include "_base64.h"
-#include "GlobalConfigAAMP.h" //For logprintf
+#include "AampConfig.h"
 #include "AampConstants.h"
 
 #include <sys/time.h>
@@ -73,7 +72,7 @@ long long aamp_GetCurrentTimeMS(void)
  * @param void
  * @return character pointer indicating default dump path
  */
-static const char * getDefaultDumpPath()
+std::string getDefaultHarvestPath()
 {
         std::string value = "/aamp/";
 /* In case of linux and mac simulator use home directory to dump the data as default */
@@ -90,7 +89,7 @@ static const char * getDefaultDumpPath()
 #else
         value.insert(0,"/opt");
 #endif
-        return value.c_str();
+        return value;
 }
 
 /**
@@ -133,7 +132,7 @@ static const char * ParseUriProtocol(const char *uri)
  * @param[in] uri manifest/ fragment uri
  * @retval void
  */
-void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
+void aamp_ResolveURL(std::string& dst, std::string base, const char *uri , bool bPropagateUriParams)
 {
 	if( ParseUriProtocol(uri) )
 	{
@@ -177,7 +176,7 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri)
 			dst += "/";
 		}
 		dst += uri;
-		if( gpGlobalConfig->mPropagateUriParameters )
+		if( bPropagateUriParams )
 		{
 			if (strchr(uri,'?') == 0)
 			{ // uri doesn't have url parameters; copy from parents if present
@@ -688,13 +687,13 @@ void trim(std::string& src)
 	}
 }
 
-std::string Getiso639map_NormalizeLanguageCode(std::string  lang )
+std::string Getiso639map_NormalizeLanguageCode(std::string  lang,LangCodePreference preferLangFormat )
 {
-        if (GetLangCodePreference() != ISO639_NO_LANGCODE_PREFERENCE)
+        if (preferLangFormat != ISO639_NO_LANGCODE_PREFERENCE)
         {
                 char lang2[MAX_LANGUAGE_TAG_LENGTH];
                 strcpy(lang2, lang.c_str());
-                iso639map_NormalizeLanguageCode(lang2, GetLangCodePreference());
+                iso639map_NormalizeLanguageCode(lang2, preferLangFormat);
                 lang = lang2;
         }
 	return lang;
@@ -760,7 +759,7 @@ static inline void createdir(const char *dirpath)
  * @param fileType meida file type
  * @return HarvestConfigType harvestType
  */
-static enum HarvestConfigType getHarvestConfigForMedia(MediaType fileType)
+int getHarvestConfigForMedia(MediaType fileType)
 {
 	enum HarvestConfigType harvestType = eHARVEST_ENAABLE_DEFAULT;
 	switch(fileType)
@@ -829,7 +828,7 @@ static enum HarvestConfigType getHarvestConfigForMedia(MediaType fileType)
 			harvestType = eHARVEST_DISABLE_DEFAULT;
 			break; 
 	}
-	return harvestType;
+	return (int)harvestType;
 }
 
 /**
@@ -839,21 +838,10 @@ static enum HarvestConfigType getHarvestConfigForMedia(MediaType fileType)
  * @param len length of buffer
  * @param media type of file
  */
-void aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count)
+bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count,const char *prefix)
 {
-	char * prefix = gpGlobalConfig->harvestPath;
-	if( !prefix )
+	bool retVal=false;	
 	{
-                prefix = (char *)getDefaultDumpPath();
-                AAMPLOG_WARN("Harvest path has not configured, taking default path %s", prefix);
-	}
-	unsigned int harvestConfig = gpGlobalConfig->harvestConfig;
-
-	/*Check harvesting of this file type has enabled by user */
-	if(getHarvestConfigForMedia(fileType) & harvestConfig)
-	{
-		/** Harvest enabled so decrease the harvest count */
-		gpGlobalConfig->harvestCountLimit--;
 		std::size_t pos = fileName.find("://");
 		if( pos != std::string::npos )
 		{
@@ -884,7 +872,9 @@ void aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaTyp
 				logprintf("File open failed. outfile = %s ", (dirpath + fileName).c_str());
 			}
 		}
+		retVal = true;
 	}
+	return retVal;
 }
 
 /**

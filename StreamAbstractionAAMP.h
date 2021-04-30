@@ -392,6 +392,8 @@ public:
 	TrackType type;                     /**< Media type of the track*/
 	std::unique_ptr<SubtitleParser> mSubtitleParser;    /**< Parser for subtitle data*/
 	bool refreshSubtitles;              /**< Switch subtitle track in the FetchLoop */
+	int maxCachedFragmentsPerTrack;
+
 protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */
@@ -822,10 +824,6 @@ public:
 	 */
 	void SetVideoBitrate(long bitrate);
 
-	/**
-	 *   @brief Check if a preferred bitrate is set and change profile accordingly.
-	 */
-	void CheckUserProfileChangeReq(void);
 
 	/**
 	 *   @brief Get available video bitrates.
@@ -1129,6 +1127,10 @@ private:
 	int mABRHighBufferCounter;	    /**< ABR High buffer counter */
 	int mABRLowBufferCounter;	    /**< ABR Low Buffer counter */
 	int mMaxBufferCountCheck;
+	int mABRMaxBuffer;			/**< ABR ramp up buffer*/
+	int mABRCacheLength;			/**< ABR cache length*/
+	int mABRMinBuffer;			/**< ABR ramp down buffer*/
+	int mABRNwConsistency;			/**< ABR Network consistency*/
 	bool mESChangeStatus;               /**< flag value which is used to call pipeline configuration if the audio type changed in mid stream */
 	double mLastVideoFragParsedTimeMS;  /**< timestamp when last video fragment was parsed */
 

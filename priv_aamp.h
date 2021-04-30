@@ -30,7 +30,6 @@
 #include "AampDrmHelper.h"
 #include "AampDrmMediaFormat.h"
 #include "AampDrmCallbacks.h"
-#include "GlobalConfigAAMP.h"
 #include "main_aamp.h"
 #ifdef SESSION_STATS
 #include <IPVideoStat.h>
@@ -52,6 +51,7 @@
 #include <algorithm>
 #include <glib.h>
 #include <cjson/cJSON.h>
+#include "AampConfig.h"
 
 static const char *mMediaFormatName[] =
 {
@@ -69,7 +69,7 @@ static const char *mMediaFormatName[] =
 #define AAMP_DRM_CURL_COUNT 2           /**< audio+video track DRMs */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
 #define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
-#define CURL_FRAGMENT_DL_TIMEOUT 10L    /**< Curl timeout for fragment download */
+//#define CURL_FRAGMENT_DL_TIMEOUT 10L    /**< Curl timeout for fragment download */
 #define DEFAULT_PLAYLIST_DL_TIMEOUT 10L /**< Curl timeout for playlist download */
 #define DEFAULT_CURL_TIMEOUT 5L         /**< Default timeout for Curl downloads */
 #define DEFAULT_CURL_CONNECTTIMEOUT 3L  /**< Curl socket connection timeout */
@@ -520,6 +520,11 @@ public:
 	 * @return void
 	 */
 	void SendMessageOverPipe(const char *str,int nToWrite);
+	/**
+	*   @brief Get Language preference from aamp.cfg.
+	*   @return enum type
+	*/
+	LangCodePreference GetLangCodePreference();
 
 	/**
 	 * @brief Establish PIPE session with Receiver
@@ -576,7 +581,7 @@ public:
          * @return void
          */
 	void SetTuneEventConfig( TunedEventConfig tuneEventType);
-
+	TunedEventConfig GetTuneEventConfig(bool isLive);
 	std::vector< std::pair<long long,long> > mAbrBitrateData;
 
 	pthread_mutex_t mLock;// = PTHREAD_MUTEX_INITIALIZER;
@@ -608,10 +613,8 @@ public:
 	std::string  mManifestUrl;
 	std::string mTunedManifestUrl;
 
-	int mReportProgressInterval;					// To store the refresh interval in millisec
+	bool isPreferredDRMConfigured;
 	int mPreCacheDnldTimeWindow;		// Stores PreCaching timewindow
-	int mInitFragmentRetryCount;		// max attempts for init frag curl timeout failures
-	bool mUseAvgBandwidthForABR;
 	bool mbDownloadsBlocked;
 	bool streamerIsActive;
 	bool mTSBEnabled;
@@ -620,22 +623,9 @@ public:
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
 	long mPlaylistTimeoutMs;
-	bool mDashParallelFragDownload;
-	bool mParallelFetchPlaylist;
-	bool mParallelFetchPlaylistRefresh;
-	bool mWesterosSinkEnabled;
-	bool mEnableRectPropertyEnabled;
 	bool mAsyncTuneEnabled;
-	bool mBulkTimedMetadata;
-	bool mDisableEC3;
-	bool mDisableATMOS;
-	bool mForceEC3;
-	bool mUseRetuneForUnpairedDiscontinuity;
-	bool mUseRetuneForGSTInternalError;
 	long long prevPositionMiliseconds;
 	MediaFormat mMediaFormat;
-	bool mNewLiveOffsetflag;	
-	pthread_t fragmentCollectorThreadID;
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
 	int rate; // most recent (non-zero) play rate for non-paused content
 	bool pipeline_paused; // true if pipeline is paused
@@ -665,13 +655,11 @@ public:
 	pthread_cond_t waitforplaystart;    /**< Signaled after playback starts */
 	pthread_mutex_t mMutexPlaystart;	/**< Mutex associated with playstart */
 	long long trickStartUTCMS;
-	long long playStartUTCMS;
 	double durationSeconds;
 	double culledSeconds;
 	double culledOffset;
         double mProgramDateTime;
 	float maxRefreshPlaylistIntervalSecs;
-	long long initialTuneTimeMs;
 	EventListener* mEventListener;
 	double mReportProgressPosn;
 	long long mReportProgressTime;
@@ -685,13 +673,9 @@ public:
 	guint mDiscontinuityTuneOperationId;
 	bool mIsVSS;       /**< Indicates if stream is VSS, updated during Tune*/
 	long curlDLTimeout[eCURLINSTANCE_MAX]; /**< To store donwload timeout of each curl instance*/
-	char mSubLanguage[MAX_LANGUAGE_TAG_LENGTH];   // current subtitle language set
+	std::string mSubLanguage;
 	bool mPlayerPreBuffered;     // Player changed from BG to FG
-	TunedEventConfig  mTuneEventConfigVod;
-	TunedEventConfig mTuneEventConfigLive;
 	int mPlayerId;
-	int mRampDownLimit;
-	int mSegInjectFailCount;	/**< Sets retry count for segment injection failure */
 	int mDrmDecryptFailCount;	/**< Sets retry count for DRM decryption failure */
 #ifdef AAMP_HLS_DRM
 	std::vector <attrNameData> aesCtrAttrDataList; /**< Queue to hold the values of DRM data parsed from manifest */
@@ -700,8 +684,6 @@ public:
 #endif
 	pthread_t mPreCachePlaylistThreadId;
 	bool mPreCachePlaylistThreadFlag;
-	bool mABRBufferCheckEnabled;
-	bool mNewAdBreakerEnabled;
 	bool mbPlayEnabled;	//Send buffer to pipeline or just cache them.
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM) || defined(USE_OPENCDM)
 	pthread_t createDRMSessionThreadID; /**< thread ID for DRM session creation **/
@@ -713,7 +695,6 @@ public:
 	                                in gst brcmaudiodecoder, default: True */
 	std::string mSessionToken; /**< Field to set session token for player */
 	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
-	bool mLicenseCaching;	/**< Enable/Disable license caching */
 	bool mAutoResumeTaskPending;
 
 	std::string mTsbRecordingId; /**< Recording ID of current TSB */
@@ -722,21 +703,20 @@ public:
 	PausedBehavior mPausedBehavior;	/**< Player paused state behavior for linear */
 	bool mJumpToLiveFromPause;	/**< Flag used to jump to live position from paused position */
 	bool mSeekFromPausedState; /**< Flag used to seek to live/culled position from SetRate() */
-	bool mOutputResolutionCheckEnabled; /**< Profile filtering by display resolution */
 	int mDisplayWidth; /**< Display resolution width */
 	int mDisplayHeight; /**< Display resolution height */
 	bool mProfileCappedStatus; /**< Profile capped status by resolution or bitrate */
-	bool mUseAbsoluteTimeline; /**< Flag used to enable progress report from available start time */
 	double mProgressReportOffset; /**< Offset time for progress reporting */
+	AampConfig *mConfig;
 	/**
 	 * @brief Curl initialization function
 	 *
 	 * @param[in] startIdx - Start index of the curl instance
 	 * @param[in] instanceCount - Instance count
-	 * @param[in] proxy - proxy to be applied for curl connection	 
+	 * @param[in] proxyName - proxy to be applied for curl connection	 
 	 * @return void
 	 */
-	void CurlInit(AampCurlInstance startIdx, unsigned int instanceCount=1,const char *proxy=NULL);
+	void CurlInit(AampCurlInstance startIdx, unsigned int instanceCount=1, std::string proxyName="");
 
 	/**
 	 *   @brief Sets Recorded URL from Manifest received form XRE.
@@ -1447,7 +1427,7 @@ public:
 	/**
 	 * @brief PrivateInstanceAAMP Constructor
 	 */
-	PrivateInstanceAAMP();
+	PrivateInstanceAAMP(AampConfig *config=NULL);
 
 	/**
 	 * @brief PrivateInstanceAAMP Destructor
@@ -1841,14 +1821,6 @@ public:
 	void UpdateAudioLanguageSelection(const char *lang, bool checkBeforeOverwrite = false);
 
 	/**
-	 *   @brief Update subtitle language selection
-	 *
-	 *   @param[in] lang - Language
-	 *   @return void
-	 */
-	void UpdateSubtitleLanguageSelection(const char *lang);
-
-	/**
 	 *   @brief Get stream type
 	 *
 	 *   @return Stream type
@@ -2056,7 +2028,7 @@ public:
 	 *
 	 *   @return true if ABR enabled.
 	 */
-	bool CheckABREnabled(void) { return mABREnabled; }
+	bool CheckABREnabled(void) { return ISCONFIGSET_PRIV(eAAMPConfig_EnableABR); }
 	/**
 	 *   @brief Set a preferred bitrate for video.
 	 *
@@ -2094,7 +2066,7 @@ public:
 	 *
 	 *   @return Network proxy URL, if exists.
 	 */
-	const char* GetNetworkProxy() const;
+	std::string GetNetworkProxy();
 
 	/**
 	 *   @brief To set the proxy for license request
@@ -2108,7 +2080,7 @@ public:
 	 *
 	 *   @return proxy to use for license request
 	 */
-	char * GetLicenseReqProxy() { return mLicenseProxy; };
+	std::string GetLicenseReqProxy();
 
 	/**
 	 *   @brief Set is Live flag
@@ -2330,12 +2302,12 @@ public:
 	 */
 	void SetParallelPlaylistDL(bool bValue);
 	/**
-	 *   @brief Set async tune configuration
-	 *   @param[in] bValue - true if async tune enabled
+	 *   @brief Set async tune configuration for EventPriority
 	 *
-	*   @return void
-	*/
-	void SetAsyncTuneConfig(bool bValue);
+	 *   @param[in] bValue - true if async tune enabled
+	 *   @return void
+	 */
+	void SetEventPriorityAsyncTune(bool bValue);
 
 	/**
 	 *   @brief Get async tune configuration
@@ -2369,15 +2341,6 @@ public:
 	void SetLicenseCaching(bool bValue);
 
 	/**
-         *       @brief Set Display resolution check
-         *       @param[in] bValue - true/false to enable/disable profile filtering by display resoluton
-         *
-         *       @return void
-         */
-        void SetOutputResolutionCheck(bool bValue);
-
-
-	/**
 	 *   @brief Set Matching BaseUrl Config Configuration
 	 *
 	 *   @param[in] bValue - true if Matching BaseUrl enabled
@@ -2392,14 +2355,6 @@ public:
 	 *	 @return void
 	 */
 	void SetPropagateUriParameters(bool bValue);
-
-        /**
-         *       @brief Configure simulated per-download network latency for negative testing
-         *       @param[in] DownloadDelayInMs - extra millisecond delay added in each download
-         *
-         *       @return void
-         */
-        void ApplyArtificialDownloadDelay(unsigned int DownloadDelayInMs);
 
 	/**
 	 *   @brief to configure disable ssl verify peer parameter
@@ -2523,6 +2478,12 @@ public:
 	 *
 	 */
 	void detach();
+	/*
+	 *	 @brief Get Access Attribute flag for VSS 
+	 *
+	 *	 @return true / false
+	 */
+	bool GetEnableAccessAtrributesFlag() const { return ISCONFIGSET_PRIV(eAAMPConfig_EnableAccessAttributes); }
 
 	/**
 	 * @brief Get pointer to AampCacheHandler
@@ -2566,6 +2527,29 @@ public:
 	 * @return minimum bitrate value
 	 */
 	long GetMinimumBitrate();
+	/**
+	 * @brief Get default bitrate value.
+	 * @return default bitrate value
+	 */
+	long GetDefaultBitrate();
+
+	/**
+	* @brief Get Default bitrate for 4K
+	* @return default bitrate 4K value
+	*/
+	long GetDefaultBitrate4K();
+
+	/**
+	 * @brief Get Default Iframe bitrate value.
+	 * @return default iframe bitrate value
+	 */
+	long GetIframeBitrate();
+
+	/**
+	 * @brief Get Default Iframe bitrate 4K value.
+	 * @return default iframe bitrate 4K value
+	 */
+	long GetIframeBitrate4K();
 
 	/* End AampDrmCallbacks implementation */
 
@@ -2838,7 +2822,7 @@ public:
 	 *
 	 *   @return bool - true if enabled
 	 */
-	bool IsBitRatePersistedOverSeek() { return mPersistBitRateOverSeek; }
+	bool IsBitRatePersistedOverSeek() { return ISCONFIGSET_PRIV(eAAMPConfig_PersistentBitRateOverSeek); }
 
 	/**
 	*   @brief Check if buffer underflow (RED)
@@ -2893,6 +2877,11 @@ public:
 	 */
 	void ReleaseStreamLock();
 
+	/**
+	 *	 @brief UpdateLiveOffset live offset [Sec]
+	 *
+	 */
+	void UpdateLiveOffset();
 private:
 
 	/**
@@ -2979,10 +2968,6 @@ private:
 	std::map<guint, bool> mPendingAsyncEvents;
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;
-	bool mABREnabled;                   /**< Flag that denotes if ABR is enabled */
-	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
-	char *mNetworkProxy;                /**< proxy for download requests */
-	char *mLicenseProxy;                /**< proxy for license acquisition */
 	// VSS license parameters
 	std::string mServiceZone; // part of url
 	std::string  mVssVirtualStreamId; // part of manifest file
@@ -3002,21 +2987,14 @@ private:
 	bool mProgressReportFromProcessDiscontinuity; /** flag dentoes if progress reporting is in execution from ProcessPendingDiscontinuity*/
 
 	AampCacheHandler *mAampCacheHandler;
-	long mMinBitrate;	/** minimum bitrate limit of profiles to be selected during playback */
-	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
 	int mMinInitialCacheSeconds; /**< Minimum cached duration before playing in seconds*/
 	std::string mDrmInitData; // DRM init data from main manifest URL (if present)
-	std::map<DRMSystems, std::string> mLicenseServerUrls;
 	bool mFragmentCachingRequired; /**< True if fragment caching is required or ongoing */
 	pthread_mutex_t mFragmentCachingLock; /**< To sync fragment initial caching operations */
 	bool mPauseOnFirstVideoFrameDisp; /**< True if pause AAMP after displaying first video frame */
 //	AudioTrackInfo mPreferredAudioTrack; /**< Preferred audio track from available tracks in asset */
 	TextTrackInfo mPreferredTextTrack; /**< Preferred text track from available tracks in asset */
 	bool mFirstVideoFrameDisplayedEnabled; /** Set True to enable call to NotifyFirstVideoFrameDisplayed() from Sink */
-	int mCacheMaxSize;
-	bool mEnableSeekableRange;
-	bool mReportVideoPTS;
-	bool mPersistBitRateOverSeek; /**< Persist video profile over SAP/Seek */
 	unsigned int mManifestRefreshCount; /**< counter which keeps the count of manifest/Playlist success refresh */
 
 	guint mAutoResumeTaskId; /**< handler id for auto resume idle callback */
@@ -3024,5 +3002,7 @@ private:
 	pthread_mutex_t mEventLock; /**< lock for operation on mPendingAsyncEvents */
 	int mEventPriority; /**< priority for async events */
 	pthread_mutex_t mStreamLock; /**< Mutex for accessing mpStreamAbstractionAAMP */
+	int mHarvestCountLimit;	// Harvest count 
+	int mHarvestConfig;		// Harvest config
 };
 #endif // PRIVAAMP_H

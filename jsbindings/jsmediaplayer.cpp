@@ -697,7 +697,25 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		bool useRole = false; //default value in func arg
 		int enableVideoRectangle = -1; //-1: value not passed, 0: false, 1:true
 		int numConfigParams = sizeof(initialConfigParamNames)/sizeof(initialConfigParamNames[0]);
-
+#if 0  // to be enabled after Seek and SetPreferred Language is fixed
+		bool jsonparsingdone=false;
+		char *jsonStr = aamp_JSValueToJSONCString(ctx,arguments[0], exception);
+		if (jsonStr != NULL)
+		{
+			ERROR("%s(): InitConfig input from App : %s", __FUNCTION__, jsonStr);
+			if(privObj->_aamp->InitAAMPConfig(jsonStr))
+			{
+				jsonparsingdone=true;
+			}
+			delete[] jsonStr;
+		}
+		else
+		{
+			ERROR("%s(): InitConfig Failed to create JSON String", __FUNCTION__);
+		}
+		if(!jsonparsingdone)
+		{
+#endif
 		JSObjectRef initConfigObj = JSValueToObject(ctx, arguments[0], &_exception);
 		if (initConfigObj == NULL || _exception != NULL)
 		{
@@ -864,16 +882,14 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_PARALLELPLAYLISTREFRESH:
 					privObj->_aamp->SetParallelPlaylistRefresh(valueAsBoolean);
 					break;
+				case ePARAM_ASYNCTUNE:
+					privObj->_aamp->SetAsyncTuneConfig(valueAsBoolean);
+					break;
 				case ePARAM_USE_WESTEROS_SINK:
 					privObj->_aamp->SetWesterosSinkConfig(valueAsBoolean);
 					break;
 				case ePARAM_LICENSE_CACHING:
 					privObj->_aamp->SetLicenseCaching(valueAsBoolean);
-				case ePARAM_ASYNCTUNE:
-					if (valueAsBoolean)
-					{
-						privObj->_aamp->EnableAsyncOperation();
-					}
 					break;
 				case ePARAM_USE_NEWABR:
 					privObj->_aamp->SetNewABRConfig(valueAsBoolean);
@@ -985,6 +1001,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		{
 			privObj->_aamp->EnableVideoRectangle(enableVideoRectangle == 1);
 		}
+#if 0		
+		}
+#endif
 	}
 	else
 	{

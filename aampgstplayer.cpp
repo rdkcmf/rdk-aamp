@@ -533,11 +533,11 @@ static void httpsoup_source_setup (GstElement * element, GstElement * source, gp
 
 	if (!strcmp(GST_ELEMENT_NAME(source), "source"))
 	{
-		const char *proxy = _this->aamp->GetNetworkProxy();
-		if(proxy)
+		std::string networkProxyValue = _this->aamp->GetNetworkProxy();
+		if(!networkProxyValue.empty())
 		{
-			g_object_set(source, "proxy", proxy, NULL);
-			logprintf("%s() : httpsoup -> Set network proxy '%s'", __FUNCTION__, proxy);
+			g_object_set(source, "proxy", networkProxyValue.c_str(), NULL);
+			logprintf("%s() : httpsoup -> Set network proxy '%s'", __FUNCTION__, networkProxyValue.c_str());
 		}
 	}
 }
@@ -631,7 +631,9 @@ static gboolean IdleCallback(gpointer user_data)
 		_this->privateContext->firstProgressCallbackIdleTaskId = 0;
 		if (0 == _this->privateContext->periodicProgressCallbackIdleTaskId)
 		{
-			_this->privateContext->periodicProgressCallbackIdleTaskId = g_timeout_add(_this->aamp->mReportProgressInterval, ProgressCallbackOnTimeout, user_data);
+			 int  reportProgressInterval;
+			 _this->aamp->mConfig->GetConfigValue(eAAMPConfig_ReportProgressInterval,reportProgressInterval);
+			_this->privateContext->periodicProgressCallbackIdleTaskId = g_timeout_add(reportProgressInterval, ProgressCallbackOnTimeout, user_data);
 			AAMPLOG_WARN("%s:%d current %d, periodicProgressCallbackIdleTaskId %d", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
 		}
 		else
@@ -915,13 +917,11 @@ GstFlowReturn AAMPGstPlayer::AAMPGstPlayer_OnVideoSample(GstElement* object, AAM
 static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0, gpointer arg1,
         AAMPGstPlayer * _this)
 {
-#ifdef REALTEKCE
-    if (gpGlobalConfig->bDisableUnderflow) // temp hack to avoid video freeze while processing underflow for Realtek.
-    {
-        logprintf("## %s() : [WARN] Ignored underflow from %s, disableUnderflow config enabled ##", __FUNCTION__, GST_ELEMENT_NAME(object));
-    }
-    else
-#endif
+	if (_this->aamp->mConfig->IsConfigSet(eAAMPConfig_DisableUnderflow))
+	{ // optioonally ignore underflow
+		logprintf("## %s() : [WARN] Ignored underflow from %s, disableUnderflow config enabled ##", __FUNCTION__, GST_ELEMENT_NAME(object));
+	}
+	else
 	{
 		//TODO - Handle underflow
 		MediaType type = eMEDIATYPE_DEFAULT;  //CID:89173 - Resolve Uninit
@@ -1049,7 +1049,7 @@ static gboolean buffering_timeout (gpointer data)
 			DRM key acquisition can end after injection, and buffering is not expected
 			to be completed by the 1 second timeout
 			*/
-			if (G_UNLIKELY(( _this->aamp->getStreamType() < 20) && (privateContext->buffering_timeout_cnt == 0 ) && gpGlobalConfig->reTuneOnBufferingTimeout && (privateContext->numberOfVideoBuffersSent > 0)))
+			if (G_UNLIKELY(( _this->aamp->getStreamType() < 20) && (privateContext->buffering_timeout_cnt == 0 ) && _this->aamp->mConfig->IsConfigSet(eAAMPConfig_ReTuneOnBufferingTimeout) && (privateContext->numberOfVideoBuffersSent > 0)))
 			{
 				logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d  bytes %u  frames %u", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent, bytes, frames);
 				privateContext->buffering_in_progress = false;
@@ -1110,7 +1110,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 			// Trying to play a 4K content on a non-4K TV .Report error to XRE with no retune
 			_this->aamp->SendErrorEvent(AAMP_TUNE_HDCP_COMPLIANCE_ERROR, errorDesc, false);
 		}
-		else if (strstr(error->message, "Internal data stream error") && _this->aamp->mUseRetuneForGSTInternalError)
+		else if (strstr(error->message, "Internal data stream error") && _this->aamp->mConfig->IsConfigSet(eAAMPConfig_RetuneForGSTError))
 		{
 			// This can be executed only for Peacock when it hits Internal data stream error.
 			AAMPLOG_WARN("%s:%d Schedule retune for GstPipeline Error", __FUNCTION__, __LINE__);
@@ -1128,7 +1128,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 	case GST_MESSAGE_WARNING:
 		gst_message_parse_warning(msg, &error, &dbg_info);
 		g_printerr("GST_MESSAGE_WARNING %s: %s\n", GST_OBJECT_NAME(msg->src), error->message);
-		if (gpGlobalConfig->decoderUnavailableStrict && strstr(error->message, "No decoder available") != NULL)
+		if (_this->aamp->mConfig->IsConfigSet(eAAMPConfig_DecoderUnavailableStrict)  && strstr(error->message, "No decoder available") != NULL)
 		{
 			char warnDesc[MAX_ERROR_DESCRIPTION_LENGTH];
 			snprintf( warnDesc, MAX_ERROR_DESCRIPTION_LENGTH, "GstPipeline Error:%s", error->message );
@@ -1338,7 +1338,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					note: alternate "window-set" works as well
 					*/
 					_this->privateContext->video_sink = (GstElement *) msg->src;
-					if (_this->privateContext->using_westerossink && !_this->aamp->mEnableRectPropertyEnabled)
+					if (_this->privateContext->using_westerossink && !_this->aamp->mConfig->IsConfigSet(eAAMPConfig_EnableRectPropertyCfg))
 					{
 						logprintf("AAMPGstPlayer - using westerossink, setting cached video mute and zoom");
 						g_object_set(msg->src, "zoom-mode", VIDEO_ZOOM_FULL == _this->privateContext->zoom ? 0 : 1, NULL);
@@ -1564,7 +1564,7 @@ bool AAMPGstPlayer::CreatePipeline()
 #else
 			gst_bus_set_sync_handler(privateContext->bus, (GstBusSyncHandler) bus_sync_handler, this);
 #endif
-			privateContext->buffering_enabled = gpGlobalConfig->gstreamerBufferingBeforePlay;
+			privateContext->buffering_enabled = ISCONFIGSET(eAAMPConfig_GStreamerBufferingBeforePlay);
 			privateContext->buffering_in_progress = false;
 			privateContext->buffering_timeout_cnt = DEFAULT_BUFFERING_MAX_CNT;
 			privateContext->buffering_target_state = GST_STATE_NULL;
@@ -1952,7 +1952,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_NATIVE_AUDIO | GST_PLAY_FLAG_NATIVE_VIDEO;
 #endif
 		g_object_set(stream->sinkbin, "flags", flags, NULL); // needed?
-		if((_this->aamp->getStreamType() != 30) ||  gpGlobalConfig->useAppSrcForProgressivePlayback)
+		if((_this->aamp->getStreamType() != 30) ||  _this->aamp->mConfig->IsConfigSet(eAAMPConfig_UseAppSrcForProgressivePlayback))
 		{
 			g_object_set(stream->sinkbin, "uri", "appsrc://", NULL);
 			g_signal_connect(stream->sinkbin, "deep-notify::source", G_CALLBACK(found_source), _this);
@@ -2053,7 +2053,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 		// When override is enabled qtdemux internally restamps and sends segment.start = 0 which is part of
 		// AAMP's change in qtdemux so we don't need to query segment.start
 		// Enabling position query based progress reporting for non-westerossink configurations
-		if (gpGlobalConfig->bPositionQueryEnabled && enableOverride == FALSE)
+		if (ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery) && enableOverride == FALSE)
 		{
 			privateContext->segmentStart = -1;
 		}
@@ -2230,7 +2230,8 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 	if (!stream->sourceConfigured && stream->format != FORMAT_INVALID)
 	{
 		AAMPLOG_WARN("%s:%d Source element[%p] not configured, wait for setup to complete!", __FUNCTION__, __LINE__, stream->source);
-		int timeRemaining = gpGlobalConfig->mTimeoutForSourceSetup;
+		int timeRemaining = 0;
+		GETCONFIGVALUE(eAAMPConfig_SourceSetupTimeout,timeRemaining);
 		int waitInterval = 100; //ms
 		while(timeRemaining >= 0)
 		{
@@ -2403,7 +2404,8 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 	if (!stream->sourceConfigured && stream->format != FORMAT_INVALID)
 	{
 		AAMPLOG_WARN("%s:%d Source element[%p] not configured, wait for setup to complete!", __FUNCTION__, __LINE__, stream->source);
-		int timeRemaining = gpGlobalConfig->mTimeoutForSourceSetup;
+		int timeRemaining = 0;
+		GETCONFIGVALUE(eAAMPConfig_SourceSetupTimeout,timeRemaining);
 		int waitInterval = 100; //ms
 		while(timeRemaining >= 0)
 		{
@@ -2512,7 +2514,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	newFormat[eMEDIATYPE_AUDIO] = audioFormat;
 	newFormat[eMEDIATYPE_SUBTITLE] = FORMAT_INVALID;
 
-	if (!aamp->mWesterosSinkEnabled)
+	if (!ISCONFIGSET(eAAMPConfig_UseWesterosSink))
 	{
 		privateContext->using_westerossink = false;
 #if defined(REALTEKCE)
@@ -3178,7 +3180,7 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 	sprintf(privateContext->videoRectangle, "%d,%d,%d,%d", x,y,w,h);
 	logprintf("SetVideoRectangle :: Rect %s, using_playersinkbin = %d, video_sink =%p",
 			privateContext->videoRectangle, stream->using_playersinkbin, privateContext->video_sink);
-	if (aamp->mEnableRectPropertyEnabled) //As part of DELIA-37804
+	if (ISCONFIGSET(eAAMPConfig_EnableRectPropertyCfg)) //As part of DELIA-37804
 	{
 		if (stream->using_playersinkbin)
 		{
@@ -3886,7 +3888,9 @@ void AAMPGstPlayer::SignalTrickModeDiscontinuity()
 	if (stream && (privateContext->rate != AAMP_NORMAL_PLAY_RATE) )
 	{
 		GstPad* sourceEleSrcPad = gst_element_get_static_pad(GST_ELEMENT(stream->source), "src");
-		GstStructure * eventStruct = gst_structure_new("aamp-tm-disc", "fps", G_TYPE_UINT, (guint)gpGlobalConfig->vodTrickplayFPS, NULL);
+		int  vodTrickplayFPS;
+		GETCONFIGVALUE(eAAMPConfig_VODTrickPlayFPS,vodTrickplayFPS); 
+		GstStructure * eventStruct = gst_structure_new("aamp-tm-disc", "fps", G_TYPE_UINT, (guint)vodTrickplayFPS, NULL);
 		if (!gst_pad_push_event(sourceEleSrcPad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, eventStruct)))
 		{
 			logprintf("%s:%d Error on sending aamp-tm-disc", __FUNCTION__, __LINE__);
@@ -3927,7 +3931,7 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 {
 	pthread_mutex_lock(&mBufferingLock);
 	//Check if we are in buffering
-	if (gpGlobalConfig->reportBufferEvent && privateContext->video_dec && aamp->GetBufUnderFlowStatus())
+	if (ISCONFIGSET(eAAMPConfig_ReportBufferEvent) && privateContext->video_dec && aamp->GetBufUnderFlowStatus())
 	{
 		bool stopBuffering = forceStop;
 #if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
