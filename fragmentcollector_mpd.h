@@ -47,6 +47,7 @@ using namespace dash::helpers;
 
 /*Common MPD util functions (admanager_mpd.cpp and fragmentcollector_mpd.cpp */
 uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumber);
+double aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(IPeriod * period);
 uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t mpdDownloadTime = 0);
 Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd = false);
 uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd);
@@ -97,6 +98,7 @@ public:
 	std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
 	bool SetThumbnailTrack(int) override;
 	std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
+	double GetFirstPeriodStartTime(void);
 
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
@@ -219,6 +221,7 @@ private:
 #endif
 	std::vector<StreamInfo*> thumbnailtrack;
 	std::vector<TileInfo> indexedTileInfo;
+	double mFirstPeriodStartTime; /*< First period start time for progress report*/
 };
 
 #endif //FRAGMENTCOLLECTOR_MPD_H_
