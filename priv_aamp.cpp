@@ -1612,6 +1612,11 @@ static void ProcessConfigEntry(std::string cfg)
 				logprintf("Live pause behavior: %d", gpGlobalConfig->mPausedBehavior);
 			}
 		}
+               else if (ReadConfigNumericHelper(cfg, "lowLatency-Dash=", value) == 1)
+               {
+                       gpGlobalConfig->enableLowLatencyDash = (value == 1);
+                       logprintf("Low Latency Dash: %s", gpGlobalConfig->enableLowLatencyDash ? "ON" : "OFF");
+               }
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');
@@ -4732,6 +4737,13 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 		{
 			mMinInitialCacheSeconds = gpGlobalConfig->minInitialCacheSeconds;
 		}
+
+                const char *env_enable_lld = getenv("LOW_LATENCY_DASH");
+                if(env_enable_lld)
+                {
+                        logprintf("LOW_LATENCY_DASH present: Enabling LOW_LATENCY_DASH.");
+                        gpGlobalConfig->enableLowLatencyDash = true;
+                }
 	}
 }
 

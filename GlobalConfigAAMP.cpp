@@ -86,6 +86,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	, mDownloadDelayInMs(0)
 	, mPausedBehavior(ePAUSED_BEHAVIOR_MAX)
 	, bDisableUnderflow(false)
+        , enableLowLatencyDash(false)
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
 	//onVideoInfo depends on the metrics received from pipe.

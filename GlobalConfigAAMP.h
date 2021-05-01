@@ -258,7 +258,7 @@ public:
 	bool bDisableUnderflow;            	  /**< Enable/Disable Underflow processing*/
 	unsigned int mDownloadDelayInMs; /** optional delay for downloads to simulate network latency **/
 	PausedBehavior mPausedBehavior; /**< Configuration for player paused state behavior */
-
+        bool enableLowLatencyDash;      /**< Enabling the Low Latency Dash handling*/
 public:
 
 	/**
