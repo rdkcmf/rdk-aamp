@@ -94,6 +94,12 @@ static const char *mMediaFormatName[] =
 #define VSS_VIRTUAL_STREAM_ID_PREFIX "urn:merlin:linear:stream:"
 #define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"
 
+//Low Latency DASH SERVICE PROFILE URL
+#define LL_DASH_SERVICE_PROFILE "http://www.dashif.org/guidelines/low-latency-live-v5"
+#define URN_UTC_HTTP_XSDATE "urn:mpeg:dash:utc:http-xsdate:2014"
+#define URN_UTC_HTTP_ISO "urn:mpeg:dash:utc:http-iso:2014"
+#define URN_UTC_HTTP_NTP "urn:mpeg:dash:utc:http-ntp:2014"
+
 
 /*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x001 */
@@ -270,6 +276,19 @@ enum CurlRequest
 };
 
 /**
+ *
+ * @enum UTC TIMING
+ *
+ */
+enum UtcTiming
+{
+    eUTC_HTTP_INVALID,
+    eUTC_HTTP_XSDATE,
+    eUTC_HTTP_ISO,
+    eUTC_HTTP_NTP
+};
+
+/**
  * @struct AsyncEventDescriptor
  * @brief Used in asynchronous event notification logic
  */
@@ -369,6 +388,21 @@ struct ThumbnailData {
 struct ListenerData {
 	EventListener* eventListener;   /**< Event listener */
 	ListenerData* pNext;                /**< Next listener */
+};
+
+/**
+ * @brief To store Low Latency Service configurtions
+ */
+struct AampLLDashServiceData {
+    bool lowLatencyMode; /**< LL Playback mode enabled */
+    bool strictSpecConformance; /**< Check for Strict LL Dash spec conformace*/
+    int targetLatency;    /**< Target Latency of playback */
+    int minLatency;    /**< Minimum Latency of playback */
+    int maxLatency;   /**< Maximum Latency of playback */
+    int latencyThreshold; /**<Latency when play rate correction kicks-in*/
+    double minPlaybackRate; /**< Minimum playback rate for playback */
+    double maxPlaybackRate; /**< Maximum playback rate for playback */
+    UtcTiming utcTiming;
 };
 
 class AampCacheHandler;
@@ -2920,6 +2954,15 @@ public:
          */
         bool CheckIfMediaTrackBufferLow(MediaType type);
 
+       void SetLLDashServiceData(AampLLDashServiceData &stAampLLDashServiceData);
+
+       /**
+        *   @brief Sets  Low Latency Service Data
+        *
+        *   @param[in]  LLDashServiceData - Low Latency Service Data from MPD
+        *   @return void
+        */
+        AampLLDashServiceData* GetLLDashServiceData(void);
 private:
 
 	/**
@@ -3073,5 +3116,6 @@ private:
 	int mEventPriority; /**< priority for async events */
 	bool mPersistBitRateOverSeek; /**< Persist video profile over SAP/Seek */
 	unsigned int mManifestRefreshCount; /**< counter which keeps the count of manifest/Playlist success refresh */
+        AampLLDashServiceData mAampLLDashServiceData; /**< Low Latency Service Configuration Data */
 };
 #endif // PRIVAAMP_H
