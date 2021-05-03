@@ -149,7 +149,6 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     drm/helper/AampDrmHelper.cpp
                     AampGstUtils.cpp
 )
-
 if (CMAKE_WPEFRAMEWORK_REQUIRED)
 	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ThunderAccess.cpp)
 endif()
@@ -407,13 +406,6 @@ if (CMAKE_RDK_CC_ENABLED OR CMAKE_SUBTEC_CC_ENABLED)
 	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} closedcaptions/AampCCManager.cpp)
 endif()
 
-if (CMAKE_AAMP_RFC_REQUIRED)
-        message("AAMP RFC set")
-        set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_RFC_ENABLED")
-        set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} AampRfc.cpp)
-        set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -ltr181api")
-endif()
-
 if (CMAKE_RDK_CC_ENABLED)
 	message("CMAKE_RDK_CC_ENABLED set")
 	include_directories(${DIRECTFB_INCLUDE_DIRS})
@@ -526,12 +518,8 @@ install(FILES AampEvent.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRM
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h
   drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h
   AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h
-  AampGstUtils.h AampRfc.h
+  AampGstUtils.h
   DESTINATION include)
-
-if (CMAKE_AAMP_RFC_REQUIRED)
-install(FILES AampRfc.h DESTINATION include)
-endif()
 
 message("LIBAAMP_DEFINES is ${LIBAAMP_DEFINES}")
 message("LIBAAMP_SOURCES is ${LIBAAMP_SOURCES}")

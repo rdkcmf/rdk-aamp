@@ -80,7 +80,7 @@ bool AampPlayReadyHelper::parsePssh(const uint8_t* initData, uint32_t initDataLe
 	// Extract content metadata. May not be present
 	int drmMetaDataLen = 0;
 	unsigned char *drmMetaData = aamp_ExtractDataFromPssh(reinterpret_cast<const char*>(initData), initDataLen,
-			DRM_METADATA_TAG_START, DRM_METADATA_TAG_END, &drmMetaDataLen);
+			COMCAST_DRM_METADATA_TAG_START, COMCAST_DRM_METADATA_TAG_END, &drmMetaDataLen);
 	if (drmMetaData)
 	{
 		mContentMetaData.assign(reinterpret_cast<char *>(drmMetaData), drmMetaDataLen);

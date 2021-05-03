@@ -255,7 +255,6 @@ public:
 	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
 	TriState mPersistBitRateOverSeek; /**< Flag indicates if video profile have to be persisted during SAP/Seek */
 	PausedBehavior mPausedBehavior; /**< Configuration for player paused state behavior */
-	bool bDisableUnderflow;            	  /**< Enable/Disable Underflow processing*/
 
 public:
 
