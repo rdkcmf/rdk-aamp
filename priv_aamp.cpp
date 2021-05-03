@@ -2038,6 +2038,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mDisplayHeight(0)
 	, mJumpToLiveFromPause(false), mPausedBehavior(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE), mSeekFromPausedState(false)
     	, preferredRenditionString(""), preferredRenditionList(), preferredCodecString(""), preferredCodecList(), mAudioTuple() 
+        , mAampLLDashServiceData{}
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -10614,4 +10615,28 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 		AAMPLOG_INFO("%s:%d: Discarding set lanuage(s) (%s) and rendition (%s) since already set", __FUNCTION__, __LINE__, 
 		languageList?languageList:"", preferredRendition?preferredRendition:"");
 	}
+}
+
+/**
+ *   @brief Sets  Low Latency Service Data
+ *
+ *   @param[in]  AampLLDashServiceData - Low Latency Service Data from MPD
+ *   @return void
+ */
+
+void PrivateInstanceAAMP::SetLLDashServiceData(AampLLDashServiceData &stAampLLDashServiceData)
+{
+    this->mAampLLDashServiceData = stAampLLDashServiceData;
+}
+
+/**
+ *   @brief Gets  Low Latency Service Data
+ *
+ *   @param[in]  AampLLDashServiceData - Low Latency Service Data from MPD
+ *   @return void
+ */
+
+AampLLDashServiceData*  PrivateInstanceAAMP::GetLLDashServiceData(void)
+{
+    return &this->mAampLLDashServiceData;
 }
