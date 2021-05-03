@@ -1763,6 +1763,7 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRe
 void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure, long error_code)
 {
 	AAMPTuneFailure actualFailure = tuneFailure;
+	bool retryStatus = true;
 
 	if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)
 	{
@@ -1798,13 +1799,17 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure, lo
 			{
 				actualFailure = AAMP_TUNE_CONTENT_NOT_FOUND;
 			}
+			else if (error_code == 421)	// http 421 - Fog power saving mode failure
+			{
+				 retryStatus = false;
+			}
 		}
 		if( IsTSBSupported() )
 		{
 			strcat(description, "(FOG)");
 		}
 
-		SendErrorEvent(actualFailure, description);
+		SendErrorEvent(actualFailure, description, retryStatus);
 	}
 	else
 	{
