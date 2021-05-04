@@ -5668,14 +5668,14 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 		int fogError;
 
 		CurlInit(eCURLINSTANCE_MANIFEST_MAIN, 1, GetNetworkProxy());
-
+		EnableMediaDownloads(eMEDIATYPE_MANIFEST);
 		bool gotManifest = GetFile(
 							url,
 							&sniffedBytes,
 							effectiveUrl,
 							&http_error,
 							&downloadTime,
-							"0-100", // download first few bytes only
+							"0-150", // download first few bytes only
 							// TODO: ideally could use "0-6" for range but write_callback sometimes not called before curl returns http 206
 							eCURLINSTANCE_MANIFEST_MAIN,
 							false,
