@@ -126,6 +126,33 @@ const char *Box::getType()
 }
 
 /**
+ * @brief Get box type
+ *
+ * @return box type
+ */
+const char* Box::getBoxType()
+{
+    if ((!IS_TYPE(type, MOOV)) ||
+        (!IS_TYPE(type, MDIA)) ||
+        (!IS_TYPE(type, MOOF)) ||
+        (!IS_TYPE(type, TRAF)) ||
+        (!IS_TYPE(type, TFDT)) ||
+        (!IS_TYPE(type, MVHD)) ||
+        (!IS_TYPE(type, MDHD)) ||
+        (!IS_TYPE(type, TFDT)) ||
+        (!IS_TYPE(type, FTYP)) ||
+        (!IS_TYPE(type, STYP)) ||
+        (!IS_TYPE(type, SIDX)) ||
+        (!IS_TYPE(type, PRFT)) ||
+        (!IS_TYPE(type, MDAT)))
+    {
+        return "unknown";
+    }
+    return type;
+}
+
+
+/**
  * @brief Static function to construct a Box object
  *
  * @param[in] hdr - pointer to box

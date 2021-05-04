@@ -24,6 +24,7 @@
 
 #include "isobmffbuffer.h"
 #include "priv_aamp.h" //Required for AAMPLOG_WARN
+#include <string.h>
 
 /**
  * @brief IsoBmffBuffer destructor
@@ -61,6 +62,10 @@ bool IsoBmffBuffer::parseBuffer()
 	while (curOffset < bufSize)
 	{
 		Box *box = Box::constructBox(buffer+curOffset, bufSize - curOffset);
+        if(box->getSize() > bufSize - curOffset)
+        {
+            chunkedBox = box;
+        }
 		box->setOffset(curOffset);
 		boxes.push_back(box);
 		curOffset += box->getSize();
@@ -68,6 +73,12 @@ bool IsoBmffBuffer::parseBuffer()
 	return !!(boxes.size());
 }
 
+/**
+ * @brief Get mdat buffer handle and size from parsed buffer
+ * @param[out] uint8_t * - mdat buffer pointer
+ * @param[out] size_t - size of mdat buffer
+ * @return true if mdat buffer is available. false otherwise
+ */
 bool IsoBmffBuffer::parseMdatBox(uint8_t *buf, size_t &size)
 {
 	return parseBoxInternal(&boxes, Box::MDAT, buf, size);
@@ -75,6 +86,15 @@ bool IsoBmffBuffer::parseMdatBox(uint8_t *buf, size_t &size)
 
 #define BOX_HEADER_SIZE 8
 
+/**
+ * @brief parse ISOBMFF boxes of a type in a parsed buffer
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @param[in] const char * - box name to get
+ * @param[out] uint8_t * - mdat buffer pointer
+ * @param[out] size_t - size of mdat buffer
+ * @return bool
+ */
 bool IsoBmffBuffer::parseBoxInternal(const std::vector<Box*> *boxes, const char *name, uint8_t *buf, size_t &size)
 {
 	for (size_t i = 0; i < boxes->size(); i++)
@@ -92,11 +112,24 @@ bool IsoBmffBuffer::parseBoxInternal(const std::vector<Box*> *boxes, const char 
 	return false;
 }
 
+/**
+ * @brief Get mdat buffer size
+ * @param[out] size_t - size of mdat buffer
+ * @return true if buffer size available. false otherwise
+ */
 bool IsoBmffBuffer::getMdatBoxSize(size_t &size)
 {
 	return getBoxSizeInternal(&boxes, Box::MDAT, size);
 }
 
+/**
+ * @brief get ISOBMFF box size of a type
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @param[in] const char * - box name to get
+ * @param[out] size_t - size of mdat buffer
+ * @return bool
+ */
 bool IsoBmffBuffer::getBoxSizeInternal(const std::vector<Box*> *boxes, const char *name, size_t &size)
 {
 	for (size_t i = 0; i < boxes->size(); i++)
@@ -268,6 +301,7 @@ void IsoBmffBuffer::printBoxesInternal(const std::vector<Box*> *boxes)
 	for (size_t i = 0; i < boxes->size(); i++)
 	{
 		Box *box = boxes->at(i);
+
 		AAMPLOG_WARN("Offset[%u] Type[%s] Size[%u]\n", box->getOffset(), box->getType(), box->getSize());
 		if (IS_TYPE(box->getType(), Box::TFDT))
 		{
@@ -321,3 +355,120 @@ bool IsoBmffBuffer::isInitSegment()
 	return foundFtypBox;
 }
 
+/**
+ * @brief get ISOBMFF box list of a type in a parsed buffer
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @param[in] const char * - box name to get
+ * @param[out] size_t - size of mdat buffer
+ * @return bool
+ */
+bool IsoBmffBuffer::getBoxesInternal(const std::vector<Box*> *boxes, const char *name, std::vector<Box*> *pBoxes)
+{
+    for (size_t i = 0; i < boxes->size(); i++)
+    {
+        Box *box = boxes->at(i);
+
+        if (IS_TYPE(box->getType(), name))
+        {
+            pBoxes->push_back(box);
+        }
+    }
+    return !!(pBoxes->size());
+}
+
+/**
+ * @brief Check mdat buffer count in parsed buffer
+ * @param[out] size_t - mdat box count
+ * @return true if mdat count available. false otherwise
+ */
+bool IsoBmffBuffer::getMdatBoxCount(size_t &count)
+{
+    std::vector<Box*> mdatBoxes;
+    bool bParse = false;
+    bParse = getBoxesInternal(&boxes ,Box::MDAT, &mdatBoxes);
+    count = mdatBoxes.size();
+    return bParse;
+}
+
+/**
+ * @brief Print ISOBMFF mdat boxes in parsed buffer
+ *
+ * @return void
+ */
+void IsoBmffBuffer::printMdatBoxes()
+{
+    std::vector<Box*> mdatBoxes;
+    bool bParse = false;
+    bParse = getBoxesInternal(&boxes ,Box::MDAT, &mdatBoxes);
+    printBoxesInternal(&mdatBoxes);
+}
+
+/**
+ * @brief Get list of box handle in parsed bufferr using name
+ * @param[in] const char * - box name to get
+ * @param[out] std::vector<Box*> - List of box handles of a type in a parsed buffer
+ * @return true if Box found. false otherwise
+ */
+bool IsoBmffBuffer::getTypeOfBoxes(const char *name, std::vector<Box*> &stBoxes)
+{
+    bool bParse = false;
+    bParse = getBoxesInternal(&boxes ,name, &stBoxes);
+    return bParse;
+}
+
+/**
+ * @brief Get list of box handles in a parsed buffer
+ *
+ * @return Box handle if Chunk box found in a parsed buffer. NULL otherwise
+ */
+Box* IsoBmffBuffer::getChunkedfBox()
+{
+    return this->chunkedBox;
+}
+
+/**
+ * @brief Get list of box handles in a parsed buffer
+ *
+ * @return Box handle list if Box found at index given. NULL otherwise
+ */
+std::vector<Box*> *IsoBmffBuffer::getParsedBoxes()
+{
+    return &this->boxes;
+}
+
+/**
+ * @brief Get box handle in parsed bufferr using name
+ * @param[in] const char * - box name to get
+ * @param[out] size_t - index of box in a parsed buffer
+ * @return Box handle if Box found at index given. NULL otherwise
+ */
+Box*  IsoBmffBuffer::getBox(const char *name, size_t &index)
+{
+    Box *pBox = NULL;
+    index = -1;
+    for (size_t i = 0; i < boxes.size(); i++)
+    {
+        pBox = boxes.at(i);
+        if (IS_TYPE(pBox->getType(), name))
+        {
+            index = i;
+            break;
+        }
+        pBox = NULL;
+    }
+    return pBox;
+}
+
+/**
+ * @brief Get box handle in parsed bufferr using index
+ * @param[out] size_t - index of box in a parsed buffer
+ * @return Box handle if Box found at index given. NULL otherwise
+ */
+Box* IsoBmffBuffer::getBoxAtIndex(size_t index)
+{
+    if(index != -1)
+        return boxes.at(index);
+    else
+        return NULL;
+}

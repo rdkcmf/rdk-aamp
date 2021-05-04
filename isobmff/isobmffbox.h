@@ -79,6 +79,10 @@ public:
 	static constexpr const char *FTYP = "ftyp";
 	static constexpr const char *MDAT = "mdat";
 
+        static constexpr const char *STYP = "styp";
+        static constexpr const char *SIDX = "sidx";
+        static constexpr const char *PRFT = "prft";
+
 	/**
 	 * @brief Box constructor
 	 *
@@ -137,6 +141,13 @@ public:
 	 * @return box type
 	 */
 	const char *getType();
+
+        /**
+         * @brief Get box type
+         *
+         * @return box type if parsed. "unknown" otherwise
+         */
+        const char *getBoxType();
 
 	/**
 	 * @brief Static function to construct a Box object
