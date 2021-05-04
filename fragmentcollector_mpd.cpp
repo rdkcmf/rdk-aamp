@@ -169,9 +169,10 @@ public :
 struct PeriodInfo {
 	std::string periodId;
 	uint64_t startTime;
+	uint32_t timeScale;
 	double duration;
 
-	PeriodInfo() : periodId(""), startTime(0), duration(0.0)
+	PeriodInfo() : periodId(""), startTime(0), duration(0.0), timeScale(0)
 	{
 	}
 };
@@ -3215,6 +3216,40 @@ uint64_t GetFirstSegmentStartTime(IPeriod * period)
 		}
 	}
 	return startTime;
+}
+
+/**
+ *   @brief  GetPeriod Segment timescale from period
+ *   @param  period
+ *   @retval timescale
+ */
+uint32_t GetPeriodSegmentTimeScale(IPeriod * period)
+{
+	uint64_t timeScale = 0;
+	const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
+
+	const ISegmentTemplate *representation = NULL;
+	const ISegmentTemplate *adaptationSet = NULL;
+	if( adaptationSets.size() > 0 )
+	{
+		IAdaptationSet * firstAdaptation = adaptationSets.at(0);
+		if(firstAdaptation != NULL)
+		{
+			adaptationSet = firstAdaptation->GetSegmentTemplate();
+			const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
+			if (representations.size() > 0)
+			{
+				representation = representations.at(0)->GetSegmentTemplate();
+			}
+		}
+	}
+	SegmentTemplates segmentTemplates(representation,adaptationSet);
+
+	if( segmentTemplates.HasSegmentTemplate() )
+	{
+		timeScale = segmentTemplates.GetTimescale();
+	}
+	return timeScale;
 }
 
 uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumber)
@@ -6719,7 +6754,6 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 			{
 				auto periods = mpd->GetPeriods();
 				vector<PeriodInfo> currMPDPeriodDetails;
-				uint32_t timescale = segmentTemplates.GetTimescale();
 				for (int iter = 0; iter < periods.size(); iter++)
 				{
 					auto period = periods.at(iter);
@@ -6727,6 +6761,7 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 					periodInfo.periodId = period->GetId();
 					periodInfo.duration = (double)aamp_GetPeriodDuration(mpd, iter, mLastPlaylistDownloadTimeMs)/ 1000;
 					periodInfo.startTime = GetFirstSegmentStartTime(period);
+					periodInfo.timeScale = GetPeriodSegmentTimeScale(period);
 					currMPDPeriodDetails.push_back(periodInfo);
 				}
 
@@ -6740,7 +6775,7 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 						if(prevPeriodInfo.startTime && currFirstPeriodInfo.startTime)
 						{
 							uint64_t timeDiff = currFirstPeriodInfo.startTime - prevPeriodInfo.startTime;
-							culled += ((double)timeDiff / (double)timescale);
+							culled += ((double)timeDiff / (double)prevPeriodInfo.timeScale);
 							AAMPLOG_INFO("%s:%d PeriodId %s, prevStart %" PRIu64 " currStart %" PRIu64 " culled %f", __FUNCTION__, __LINE__,
 												prevPeriodInfo.periodId.c_str(), prevPeriodInfo.startTime, currFirstPeriodInfo.startTime, culled);
 						}
