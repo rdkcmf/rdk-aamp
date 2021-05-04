@@ -4321,14 +4321,180 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 			this->mpd = mpd;
 			mIsLiveManifest = !(mpd->GetType() == "static");
 			aamp->SetIsLive(mIsLiveManifest);
-			if(aamp->mIsVSS)
-			{
-				CheckForVssTags();
-			}
-			if (!retrievedPlaylistFromCache && !mIsLiveManifest)
-			{
-				aamp->getAampCacheHandler()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLiveStream,eMEDIATYPE_MANIFEST);
-			}
+
+                        /*LL DASH VERIFICATION START*/
+                        //Check if LLD requested
+                        if (gpGlobalConfig->enableLowLatencyDash)
+                        {
+                           AampLLDashServiceData stAampLLDashServiceData = {0,};
+
+                           std::vector<std::string> profiles;
+                           profiles = this->mpd->GetProfiles();
+                           size_t numOfProfiles = profiles.size();
+                           for (int iProfileCnt = 0; iProfileCnt < numOfProfiles; iProfileCnt++)
+                           {
+                               std::string profile = profiles.at(iProfileCnt);
+                               if(!strcmp(LL_DASH_SERVICE_PROFILE , profile.c_str()))
+                               {
+                                   stAampLLDashServiceData.lowLatencyMode = true;
+                                   logprintf("this->mLLDEnabled >%d: ",stAampLLDashServiceData.lowLatencyMode);
+                                   break;
+                               }
+                            }
+
+                            //If LLD enabled then check servicedescription requirements
+                            if(stAampLLDashServiceData.lowLatencyMode || aamp->IsLive())
+                            {
+                                //check if <ServiceDescription> available->raise error if not
+                                if(!mpd->GetServiceDescriptions().size())
+                                {
+                                    logprintf("[LL-DASH-ERROR] ServiceDescription element not available");
+                                    ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
+                                    aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
+                                    return ret;
+                                }
+                                //check if <scope> element is available in <ServiceDescription> element->raise error if not
+                                if(!mpd->GetServiceDescriptions().at(0)->GetScopes().size())
+                                {
+                                    logprintf("[LL-DASH-ERROR] Scope element not available");
+                                    if (stAampLLDashServiceData.strictSpecConformance)
+                                    {
+                                        ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
+                                        aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
+                                        return ret;
+                                    }
+                                }
+                                //check if <Latency> element is availablein <ServiceDescription> element->raise error if not
+                                if(!mpd->GetServiceDescriptions().at(0)->GetLatencys().size())
+                                {
+                                    logprintf("[LL-DASH-ERROR] Latency element not available");
+                                    if (stAampLLDashServiceData.strictSpecConformance)
+                                    {
+                                        ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
+                                        aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
+                                        return ret;
+                                    }
+                                }
+                                //check if attribute @target is available in <latency> element->raise error if not
+                                ILatency *latency= mpd->GetServiceDescriptions().at(0)->GetLatencys().at(0);
+
+                                // Some timeline may not have attribute for target latency , check it .
+                                map<string, string> attributeMap = latency->GetRawAttributes();
+
+                                if(attributeMap.find("target") == attributeMap.end())
+                                {
+                                    logprintf("[LL-DASH-ERROR] Latency target attribute not available");
+                                    if (stAampLLDashServiceData.strictSpecConformance)
+                                    {
+                                        ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
+                                        aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
+                                        return ret;
+                                    }
+                                 }
+
+                                 stAampLLDashServiceData.targetLatency = latency->GetTarget();
+                                 logprintf("[LL-DASH] targetLatency: %d", stAampLLDashServiceData.targetLatency);
+                                 //check if attribute @max or @min is available in <Latency> element->raise info if not
+                                 if(attributeMap.find("max") == attributeMap.end())
+                                 {
+                                     logprintf("[LL-DASH-INFO] Latency max attribute not available");
+                                 }
+                                 else
+                                 {
+                                     stAampLLDashServiceData.maxLatency = latency->GetMax();
+                                     logprintf("[LL-DASH] maxLatency: %d", stAampLLDashServiceData.maxLatency);
+                                 }
+                                 if(attributeMap.find("min") == attributeMap.end())
+                                 {
+                                     logprintf("[LL-DASH-INFO] Latency min attribute not available");
+                                 }
+                                 else
+                                 {
+                                     stAampLLDashServiceData.minLatency = latency->GetMin();
+                                     logprintf("[LL-DASH] minLatency: %d", stAampLLDashServiceData.minLatency);
+                                 }
+                                 //check if attribute @max or @min is available in <PlaybackRate> element->raise info if not
+                                 IPlaybackRate *playbackRate= mpd->GetServiceDescriptions().at(0)->GetPlaybackRates().at(0);
+
+                                 // Some timeline may not have attribute for target latency , check it .
+                                 map<string, string> attributeMapRate = playbackRate->GetRawAttributes();
+
+                                 if(attributeMapRate.find("max") == attributeMapRate.end())
+                                 {
+                                     logprintf("[LL-DASH-INFO] Latency max attribute not available");
+                                 }
+                                 else
+                                 {
+                                     stAampLLDashServiceData.maxPlaybackRate = playbackRate->GetMax();
+                                     logprintf("[LL-DASH] maxPlatbackRate: %0.2f",stAampLLDashServiceData.maxPlaybackRate);
+                                 }
+                                 if(attributeMapRate.find("min") == attributeMapRate.end())
+                                 {
+                                     logprintf("[LL-DASH-INFO] Latency min attribute not available");
+                                 }
+                                 else
+                                 {
+                                     stAampLLDashServiceData.minPlaybackRate = playbackRate->GetMin();
+                                     logprintf("[LL-DASH] minPlatbackRate: %0.2f", stAampLLDashServiceData.minPlaybackRate);
+                                 }
+                                 //check if UTCTiming element available
+                                 if(!mpd->GetUTCTimings().size())
+                                 {
+                                     logprintf("[LL-DASH-ERROR] UTCTiming element not available");
+                                     if (stAampLLDashServiceData.strictSpecConformance)
+                                     {
+                                         ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
+                                         aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
+                                         return ret;
+                                     }
+                                 }
+
+                                 //check if attribute @max or @min is available in <PlaybackRate> element->raise info if not
+                                 IUTCTiming *utcTiming= mpd->GetUTCTimings().at(0);
+
+                                 // Some timeline may not have attribute for target latency , check it .
+                                 map<string, string> attributeMapTiming = utcTiming->GetRawAttributes();
+
+                                 if(attributeMapTiming.find("schemeIdUri") == attributeMapTiming.end())
+                                 {
+                                     logprintf("[LL-DASH-INFO] UTCTiming@schemeIdUri attribute not available");
+                                 }
+                                 else
+                                 {
+                                     logprintf("[LL-DASH-INFO] UTCTiming@schemeIdUri: %s", utcTiming->GetSchemeIdUri().c_str());
+                                     if(!strcmp(URN_UTC_HTTP_XSDATE , utcTiming->GetSchemeIdUri().c_str()))
+                                     {
+                                         stAampLLDashServiceData.utcTiming = eUTC_HTTP_XSDATE;
+                                     }
+                                     else if(!strcmp(URN_UTC_HTTP_ISO , utcTiming->GetSchemeIdUri().c_str()))
+                                     {
+                                         stAampLLDashServiceData.utcTiming = eUTC_HTTP_ISO;
+                                     }
+                                     else if(!strcmp(URN_UTC_HTTP_NTP , utcTiming->GetSchemeIdUri().c_str()))
+                                     {
+                                         stAampLLDashServiceData.utcTiming = eUTC_HTTP_NTP;
+                                     }
+                                     else
+                                     {
+                                         stAampLLDashServiceData.utcTiming = eUTC_HTTP_INVALID;
+                                         logprintf("[LL-DASH-INFO] UTCTiming@schemeIdUri Value not proper");
+                                     }
+                                 }
+
+                                 //Set LL Dash Service Configuration Data in Pvt AAMP instance
+                                 aamp->SetLLDashServiceData(stAampLLDashServiceData);
+                            }
+                        }
+                        /*LL DASH VERIFICATION END*/
+
+                        if(aamp->mIsVSS)
+	                {
+           		    CheckForVssTags();
+       		        }
+	                if (!retrievedPlaylistFromCache && !mIsLiveManifest)
+	                {
+	                    aamp->getAampCacheHandler()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLiveStream,eMEDIATYPE_MANIFEST);
+		        }
 		}
 		else
 		{

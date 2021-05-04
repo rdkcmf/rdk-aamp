@@ -3817,8 +3817,10 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		if (curl)
 		{
 			curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
-                        curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-
+                        if(this->mAampLLDashServiceData.lowLatencyMode)
+                        {
+                            curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+                        }
 			context.aamp = this;
 			context.buffer = buffer;
 			context.responseHeaderData = &httpRespHeaders[curlInstance];
