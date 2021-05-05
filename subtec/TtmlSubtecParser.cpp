@@ -25,7 +25,7 @@ TtmlSubtecParser::TtmlSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType t
 {
 	if (!PacketSender::Instance()->Init())
 	{
-		AAMPLOG_INFO("%s: Init failed - subtitle parsing disabled\n", __FUNCTION__);
+		AAMPLOG_INFO("%s: Init failed - subtitle parsing disabled", __FUNCTION__);
 		throw std::runtime_error("PacketSender init failed");
 	}
 	m_channel = make_unique<TtmlChannel>();
@@ -38,9 +38,10 @@ TtmlSubtecParser::TtmlSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType t
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 }
 
-bool TtmlSubtecParser::init(double startPos, unsigned long long basePTS)
+bool TtmlSubtecParser::init(double startPosSeconds, unsigned long long basePTS)
 {
-	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPos * 1000.0));
+	AAMPLOG_INFO("%s:%d startPos %.3fs", __FUNCTION__, __LINE__, startPosSeconds);
+	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPosSeconds * 1000.0));
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 	return true;
 }
@@ -79,7 +80,7 @@ bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double positi
 		m_channel->SendDataPacket(std::move(data));
 
 		free(mdat);
-		AAMPLOG_TRACE("Sent buffer with size %zu position %.3f\n", bufferLen, position);
+		AAMPLOG_TRACE("Sent buffer with size %zu position %.3f", bufferLen, position);
 	}
 	else
 	{

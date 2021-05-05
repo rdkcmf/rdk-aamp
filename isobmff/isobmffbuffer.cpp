@@ -80,7 +80,7 @@ bool IsoBmffBuffer::parseBoxInternal(const std::vector<Box*> *boxes, const char 
 	for (size_t i = 0; i < boxes->size(); i++)
 	{
 		Box *box = boxes->at(i);
-		AAMPLOG_TRACE("%s: Offset[%u] Type[%s] Size[%u]\n", __FUNCTION__, box->getOffset(), box->getType(), box->getSize());
+		AAMPLOG_TRACE("%s: Offset[%u] Type[%s] Size[%u]", __FUNCTION__, box->getOffset(), box->getType(), box->getSize());
 		if (IS_TYPE(box->getType(), name))
 		{
 			size_t offset = box->getOffset() + BOX_HEADER_SIZE;
