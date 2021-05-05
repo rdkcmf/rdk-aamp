@@ -6779,7 +6779,11 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 					PeriodInfo prevPeriodInfo = mMPDPeriodsInfo.at(iter1);
 					if(prevPeriodInfo.periodId == currFirstPeriodInfo.periodId)
 					{
-						if(prevPeriodInfo.startTime && currFirstPeriodInfo.startTime)
+						/* Update culled seconds if startTime of existing periods changes
+						 * and exceeds previos start time. Updates culled value for ad periods
+						 * with startTime = 0 on next refresh if fragments are removed.
+						 */
+						if(currFirstPeriodInfo.startTime > prevPeriodInfo.startTime)
 						{
 							uint64_t timeDiff = currFirstPeriodInfo.startTime - prevPeriodInfo.startTime;
 							culled += ((double)timeDiff / (double)prevPeriodInfo.timeScale);
