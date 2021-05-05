@@ -1612,11 +1612,21 @@ static void ProcessConfigEntry(std::string cfg)
 				logprintf("Live pause behavior: %d", gpGlobalConfig->mPausedBehavior);
 			}
 		}
-               else if (ReadConfigNumericHelper(cfg, "lowLatency-Dash=", value) == 1)
-               {
-                       gpGlobalConfig->enableLowLatencyDash = (value == 1);
-                       logprintf("Low Latency Dash: %s", gpGlobalConfig->enableLowLatencyDash ? "ON" : "OFF");
-               }
+        else if (ReadConfigNumericHelper(cfg, "lowLatency-Dash=", value) == 1)
+        {
+            gpGlobalConfig->enableLowLatencyDash = (value == 1);
+            logprintf("Low Latency Dash: %s", gpGlobalConfig->enableLowLatencyDash ? "ON" : "OFF");
+        }
+        else if (ReadConfigNumericHelper(cfg, "latency-monitor-delay=", gpGlobalConfig->latencyMonitorDelay) == 1)
+        { // override for latency monitor delay after tune/ seek
+            VALIDATE_INT("latency-monitor-delay", gpGlobalConfig->latencyMonitorDelay, DEFAULT_LATENCY_MONITOR_DELAY)
+            logprintf("latency-monitor-delay=%d", gpGlobalConfig->latencyMonitorDelay);
+        }
+        else if (ReadConfigNumericHelper(cfg, "latency-monitor-interval=", gpGlobalConfig->latencyMonitorInterval) == 1)
+        { // override for latency monitor interval
+            VALIDATE_INT("latency-monitor-interval", gpGlobalConfig->latencyMonitorInterval, DEFAULT_LATENCY_MONITOR_INTERVAL)
+            logprintf("latency-monitor-interval=%d", gpGlobalConfig->latencyMonitorInterval);
+        }
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');
@@ -4742,12 +4752,12 @@ void PrivateInstanceAAMP::LazilyLoadConfigIfNeeded(void)
 			mMinInitialCacheSeconds = gpGlobalConfig->minInitialCacheSeconds;
 		}
 
-                const char *env_enable_lld = getenv("LOW_LATENCY_DASH");
-                if(env_enable_lld)
-                {
-                        logprintf("LOW_LATENCY_DASH present: Enabling LOW_LATENCY_DASH.");
-                        gpGlobalConfig->enableLowLatencyDash = true;
-                }
+        const char *env_enable_lld = getenv("LOW_LATENCY_DASH");
+        if(env_enable_lld)
+        {
+            logprintf("LOW_LATENCY_DASH present: Enabling LOW_LATENCY_DASH.");
+            gpGlobalConfig->enableLowLatencyDash = true;
+        }
 	}
 }
 

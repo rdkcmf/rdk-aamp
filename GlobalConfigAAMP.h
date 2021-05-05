@@ -82,6 +82,9 @@
 
 #define DEFAULT_TIMEOUT_FOR_SOURCE_SETUP (1000) /**< Default timeout value in milliseconds */
 
+#define DEFAULT_LATENCY_MONITOR_DELAY 5
+#define DEFAULT_LATENCY_MONITOR_INTERVAL 2
+
 /**
  * @brief Enumeration for TUNED Event Configuration
  */
@@ -259,6 +262,8 @@ public:
 	unsigned int mDownloadDelayInMs; /** optional delay for downloads to simulate network latency **/
 	PausedBehavior mPausedBehavior; /**< Configuration for player paused state behavior */
         bool enableLowLatencyDash;      /**< Enabling the Low Latency Dash handling*/
+        int latencyMonitorDelay;           /**< Latency monitor start delay after tune/ seek*/
+        int latencyMonitorInterval;        /**< Latency monitor interval*/
 public:
 
 	/**

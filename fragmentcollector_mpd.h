@@ -51,6 +51,19 @@ uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t 
 Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd = false);
 uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd);
 
+/**
+ * @brief Latency status
+ */
+enum LatencyStatus
+{
+    LATENCY_STATUS_UNKNOWN=-1,
+	LATENCY_STATUS_MIN,
+    LATENCY_STATUS_THRESHOLD_MIN,
+    LATENCY_STATUS_THRESHOLD,
+    LATENCY_STATUS_THRESHOLD_MAX,
+    LATENCY_STATUS_MAX
+};
+
 struct ProfileInfo
 {
 	int adaptationSetIndex;
@@ -98,6 +111,8 @@ public:
 	bool SetThumbnailTrack(int) override;
 	std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 
+    void MonitorLatency();
+
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
 	void FetcherLoop();
@@ -134,6 +149,10 @@ private:
 	bool CheckForVssTags();
 	std::string GetVssVirtualStreamID();
 	bool IsMatchingLanguageAndMimeType(MediaType type, std::string lang, IAdaptationSet *adaptationSet, int &representationIndex);
+
+    void StartLatencyMonitorThread();
+    LatencyStatus GetLatencyStatus() { return latencyStatus; }
+
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
 	double seekPosition;
@@ -219,6 +238,11 @@ private:
 #endif
 	std::vector<StreamInfo*> thumbnailtrack;
 	std::vector<TileInfo> indexedTileInfo;
+
+    LatencyStatus latencyStatus;     /**< Latency status of the playback*/
+    LatencyStatus prevLatencyStatus; /**< Previous latency status of the playback*/
+    bool latencyMonitorThreadStarted; /**< Monitor latency thread  status*/
+    pthread_t latencyMonitorThreadID; /**< Fragment injector thread id*/
 };
 
 #endif //FRAGMENTCOLLECTOR_MPD_H_
