@@ -112,7 +112,7 @@ void MediaTrack::StartPlaylistDownloaderThread()
  */
 void MediaTrack::StopPlaylistDownloaderThread()
 {
-	if ((playlistDownloaderThread) && (playlistDownloaderThread->joinable()))
+	if ((playlistDownloaderThreadStarted) && (playlistDownloaderThread) && (playlistDownloaderThread->joinable()))
 	{
 		abortPlaylistDownloader = true;
 		AbortWaitForPlaylistDownload();

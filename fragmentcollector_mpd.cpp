@@ -759,7 +759,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *
 	,mEarlyAvailableKeyIDMap(), mPendingKeyIDs(), mAbortDeferredLicenseLoop(false), mEarlyAvailablePeriodIds(), thumbnailtrack(), indexedTileInfo()
 	, mMaxTracks(0)
 	,playlistMutex(), mIterPeriodIndex(0), mNumberOfPeriods(0)
-	,mUpperBoundaryPeriod(0), mLowerBoundaryPeriod(0), mUpdateFragmentDetails(true)
+	,mUpperBoundaryPeriod(0), mLowerBoundaryPeriod(0), mUpdateFragmentDetails(true), playlistDownloaderThreadStarted(false)
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
@@ -8156,9 +8156,10 @@ void StreamAbstractionAAMP_MPD::Start(void)
 #ifdef AAMP_MPD_DRM
 	aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 #endif
-	if(aamp->IsLive())
+	if(aamp->IsLive() && mMediaStreamContext[eMEDIATYPE_VIDEO])
 	{
 		mMediaStreamContext[eMEDIATYPE_VIDEO]->StartPlaylistDownloaderThread();
+		playlistDownloaderThreadStarted = true;
 	}
 	fragmentCollectorThreadID = new std::thread(&StreamAbstractionAAMP_MPD::FetcherLoop, this);
 	fragmentCollectorThreadStarted = true;
@@ -8194,9 +8195,10 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 		}
 	}
 
-	if(aamp->IsLive())
+	if(aamp->IsLive() && mMediaStreamContext[eMEDIATYPE_VIDEO] && playlistDownloaderThreadStarted)
 	{
 		mMediaStreamContext[eMEDIATYPE_VIDEO]->StopPlaylistDownloaderThread();
+		playlistDownloaderThreadStarted = false;
 	}
 
 	if(fragmentCollectorThreadStarted)
