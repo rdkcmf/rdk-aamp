@@ -85,11 +85,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	, licenseCaching(eUndefinedState)
 	, mPausedBehavior(ePAUSED_BEHAVIOR_MAX)
 	, bLimitResolution(eUndefinedState)
-#ifdef REALTEKCE
-	, bDisableUnderflow(true)
-#else
 	, bDisableUnderflow(false)
-#endif
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
 	//onVideoInfo depends on the metrics received from pipe.
