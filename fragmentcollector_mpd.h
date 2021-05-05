@@ -185,7 +185,6 @@ public:
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
 	int GetProfileCount();
 	int GetProfileIndexForBandwidth(long mTsbBandwidth);
-	void StartSubtitleParser() override;
 
 	// ideally below would be private, but called from MediaStreamContext
 	const IAdaptationSet* GetAdaptationSetAtIndex(int idx);
@@ -197,6 +196,7 @@ public:
 	bool SetThumbnailTrack(int) override;
 	std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 	double GetFirstPeriodStartTime(void);
+	void StartSubtitleParser() override;
 
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
@@ -260,7 +260,7 @@ private:
 	double mPeriodEndTime;
 	double mPeriodStartTime;
 	double mPeriodDuration;
-	int64_t mMinUpdateDurationMs;
+	uint64_t mMinUpdateDurationMs;
 	double mTSBDepth;
 	double mPresentationOffsetDelay;
 	uint64_t mLastPlaylistDownloadTimeMs;
