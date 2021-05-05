@@ -226,6 +226,20 @@ struct TextTrackInfo
 		codec(codecStr), primaryKey(0)
 	{
 	}
+	
+	friend bool operator==(const TextTrackInfo &lhs, const TextTrackInfo &rhs)
+	{
+		return (
+			lhs.index == rhs.index &&
+			lhs.language == rhs.language &&
+			lhs.isCC == rhs.isCC &&
+			lhs.rendition == rhs.rendition &&
+			lhs.name == rhs.name &&
+			lhs.instreamId == rhs.instreamId &&
+			lhs.characteristics == rhs.characteristics &&
+			lhs.codec == rhs.codec
+		);
+	}
 };
 
 struct RestrictionInfo

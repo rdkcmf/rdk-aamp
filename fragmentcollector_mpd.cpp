@@ -5843,20 +5843,42 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 			{
 				if (AAMP_NORMAL_PLAY_RATE == rate)
 				{
-					if (eMEDIATYPE_SUBTITLE == i && aamp->IsSubtitleEnabled())
+					if (eMEDIATYPE_SUBTITLE == i && selAdaptationSetIndex == -1)
 					{
-						if (IsMatchingLanguageAndMimeType((MediaType)i, aamp->mSubLanguage, adaptationSet, selRepresentationIndex) == true)
+						AAMPLOG_INFO("%s:%d Checking subs - mime %s lang %s selAdaptationSetIndex %d",
+							__FUNCTION__, __LINE__, adaptationSet->GetMimeType().c_str(), GetLanguageForAdaptationSet(adaptationSet).c_str(), selAdaptationSetIndex);
+						// TTML selection as follows:
+						// 1. Text track as set from SetTextTrack API (this is confusingly named preferredTextTrack, even though it's explicitly set)
+						// 2. The *actual* preferred text track, as set through the SetPreferredSubtitleLanguage API
+						// 3. Not set
+						const auto selectedTextTrack = aamp->GetPreferredTextTrack();
+						
+						if (!selectedTextTrack.index.empty())
+						{
+							if (IsMatchingLanguageAndMimeType((MediaType)i, selectedTextTrack.language, adaptationSet, selRepresentationIndex))
+							{
+								auto adapSetName = (adaptationSet->GetRepresentation().at(selRepresentationIndex))->GetId();
+								AAMPLOG_INFO("%s:%d adapSet Id %s selName %s", __FUNCTION__, __LINE__, adapSetName.c_str(), selectedTextTrack.name.c_str());
+								if (adapSetName.empty() || adapSetName == selectedTextTrack.name)
+								{
+									selAdaptationSetIndex = iAdaptationSet;
+								}
+							}
+						}
+						else if (IsMatchingLanguageAndMimeType((MediaType)i, aamp->mSubLanguage, adaptationSet, selRepresentationIndex) == true)
 						{
 							selAdaptationSetIndex = iAdaptationSet;
+						}
+						
+						if (selAdaptationSetIndex != -1)
+						{
 							std::string mimeType = adaptationSet->GetMimeType();
 							if (mimeType.empty())
 							{
 								mimeType = (adaptationSet->GetRepresentation().at(selRepresentationIndex))->GetMimeType();
 							}
-							if (selAdaptationSetIndex != -1)
-							{
-								tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
-							}
+							tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
+							
 							pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, mimeType);
 							if (pMediaStreamContext->mSubtitleParser) 
 							{
@@ -8137,6 +8159,10 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 		if(track && track->Enabled())
 		{
 			track->StopInjectLoop();
+			if (iTrack == eMEDIATYPE_SUBTITLE && track->mSubtitleParser)
+			{
+				track->mSubtitleParser->reset();
+			}
 		}
 	}
 
@@ -9206,6 +9232,7 @@ bool StreamAbstractionAAMP_MPD::IsMatchingLanguageAndMimeType(MediaType type, st
 {
 	   bool ret = false;
 	   std::string adapLang = GetLanguageForAdaptationSet(adaptationSet);
+	   AAMPLOG_INFO("%s:%d type %d inlang %s current lang %s", __FUNCTION__, __LINE__, type, lang.c_str(), adapLang.c_str());
 	   if (adapLang == lang)
 	   {
 			   std::string adaptationMimeType = adaptationSet->GetMimeType();

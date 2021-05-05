@@ -35,12 +35,12 @@ TtmlSubtecParser::TtmlSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType t
 	mAamp->GetPlayerVideoSize(width, height);
 	m_channel->SendSelectionPacket(width, height);
 	m_channel->SendMutePacket();
-	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 }
 
 bool TtmlSubtecParser::init(double startPos, unsigned long long basePTS)
 {
 	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPos));
+	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 
 	return true;
 }
