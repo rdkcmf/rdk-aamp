@@ -60,7 +60,7 @@ public:
 	WebVTTParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type);
 	virtual ~WebVTTParser();
 
-	virtual bool init(double startPos, unsigned long long basePTS);
+	virtual bool init(double startPosSeconds, unsigned long long basePTS);
 	virtual bool processData(char *buffer, size_t bufferLen, double position, double duration);
 	virtual bool close();
 	virtual void reset();

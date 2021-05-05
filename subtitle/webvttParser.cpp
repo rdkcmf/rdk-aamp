@@ -191,7 +191,7 @@ WebVTTParser::~WebVTTParser()
 * @param basePTS[in] base PTS value
 * @return bool true if successful, false otherwise
 ***************************************************************************/
-bool WebVTTParser::init(double startPos, unsigned long long basePTS)
+bool WebVTTParser::init(double startPosSeconds, unsigned long long basePTS)
 {
 	bool ret = true;
 	mStartPTS = basePTS;
@@ -201,7 +201,7 @@ bool WebVTTParser::init(double startPos, unsigned long long basePTS)
 		mVttQueueIdleTaskId = g_timeout_add(VTT_QUEUE_TIMER_INTERVAL, SendVttCueToExt, this);
 	}
 
-	AAMPLOG_WARN("WebVTTParser::%s %d startPos:%.3f and mStartPTS:%lld", __FUNCTION__, __LINE__, startPos, mStartPTS);
+	AAMPLOG_WARN("WebVTTParser::%s %d startPos:%.3f and mStartPTS:%lld", __FUNCTION__, __LINE__, startPosSeconds, mStartPTS);
 	//We are ready to receive data, unblock in PrivateInstanceAAMP
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 	return ret;

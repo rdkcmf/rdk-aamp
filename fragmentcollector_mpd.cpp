@@ -604,8 +604,8 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *
 	,mMaxTSBBandwidth(0), mTSBDepth(0)
 	,mVideoPosRemainder(0)
 	,mPresentationOffsetDelay(0)
-	,mAvailabilityStartTime(0)
 	,mUpdateStreamInfo(false)
+	,mAvailabilityStartTime(-1)
 	,mFirstPeriodStartTime(0)
 	,mDrmPrefs({{CLEARKEY_UUID, 1}, {WIDEVINE_UUID, 2}, {PLAYREADY_UUID, 3}})// Default values, may get changed due to config file
 	,mLastDrmHelper()
@@ -2024,7 +2024,17 @@ void StreamAbstractionAAMP_MPD::SeekInPeriod( double seekPositionSeconds)
 {
 	for (int i = 0; i < mNumberOfTracks; i++)
 	{
-		SkipFragments(mMediaStreamContext[i], seekPositionSeconds, true);
+		if (eMEDIATYPE_SUBTITLE == i)
+		{
+			double skipTime = seekPositionSeconds;
+			if (mMediaStreamContext[eMEDIATYPE_AUDIO]->fragmentTime != seekPositionSeconds)
+				skipTime = mMediaStreamContext[eMEDIATYPE_AUDIO]->fragmentTime;
+			SkipFragments(mMediaStreamContext[i], skipTime, true);
+		}
+		else
+		{
+			SkipFragments(mMediaStreamContext[i], seekPositionSeconds, true);
+		}
 	}
 }
 
@@ -2262,12 +2272,14 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					double segmentDuration = ComputeFragmentDuration( segmentTemplates.GetDuration(), segmentTemplates.GetTimescale() );
 					if (skipTime >= segmentDuration)
 					{
-						pMediaStreamContext->fragmentDescriptor.Number++;
-						pMediaStreamContext->fragmentTime += segmentDuration;
-						pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
-						pMediaStreamContext->fragmentDescriptor.Time += segmentDuration;
+						uint64_t number = (skipTime / segmentDuration) + 1; // Number is 1-based index
+						double fragmentTimeFromNumber = ceil((segmentDuration * (number - 1)) * 1000.0) / 1000.0;
+						pMediaStreamContext->fragmentDescriptor.Number = number;
+						pMediaStreamContext->fragmentTime = fragmentTimeFromNumber;
+						pMediaStreamContext->fragmentDescriptor.Time = fragmentTimeFromNumber;
 						pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
-						skipTime -= segmentDuration;
+						skipTime -= fragmentTimeFromNumber;
+						break;
 					}
 					else if (-(skipTime) >= segmentDuration)
 					{
@@ -2641,59 +2653,100 @@ Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd)
 	return NULL;
 }
 
-/**
- * @brief Parse duration from ISO8601 string
- * @param ptr ISO8601 string
- * @param[out] durationMs duration in milliseconds
- */
+//Multiply two ints without overflow
+inline std::uint64_t safeMultiply(const int first, const int second)
+{
+    return static_cast<std::uint64_t>(first) * second;
+}
+
 static uint64_t ParseISO8601Duration(const char *ptr)
 {
+	int years = 0;
+	int months = 0;
+	int days = 0;
 	int hour = 0;
 	int minute = 0;
-	int days = 0;
-	double seconds = 0;
-	// Some manifests contain date info along with duration info
-	// Skip the date info in that case
+	double seconds = 0.0;
+    
+	uint64_t returnValue = 0;
+	
+    //ISO 8601 does not specify specific values for months in a day
+    //or days in a year, so use 30 days/month and 365 days/year
+	static constexpr auto kMonthDays = 30;
+	static constexpr auto kYearDays = 365;
+	
+	static constexpr auto kMinuteSecs = 60;
+	static constexpr auto kHourSecs = kMinuteSecs * 60;
+	static constexpr auto kDaySecs = kHourSecs * 24;
+	static constexpr auto kMonthSecs = kMonthDays * kDaySecs;
+	static constexpr auto kYearSecs = kDaySecs * kYearDays;
+	
+	// ISO 8601 allow for number of years, months, days before the "T"
 	const char* durationPtr = strchr(ptr, 'T');
 
-	if (ptr[0] == 'P' && durationPtr != NULL)
+	if (ptr[0] == 'P')
 	{
-		ptr = ptr + 1;
-		const char* temp = strchr(ptr,'D');
-		if(temp)
+		ptr++;
+		if (ptr != durationPtr)
 		{
-			sscanf(ptr,"%dD", &days);
-			ptr = temp + 2 ;
+			const char *temp = strchr(ptr, 'Y');
+			if (temp)
+			{
+				sscanf(ptr, "%dY", &years);
+				logprintf("%s:%d : years %d", __FUNCTION__, __LINE__, years);
+				ptr = temp + 1;
+			}
+			temp = strchr(ptr, 'M');
+			if (temp)
+			{
+				sscanf(ptr, "%dM", &months);
+				ptr = temp + 1;
+			}
+			temp = strchr(ptr, 'D');
+			if (temp)
+			{
+				sscanf(ptr, "%dD", &days);
+				ptr = temp + 1;
+			}
 		}
-		else
+		if (ptr == durationPtr)
 		{
-			ptr = durationPtr + 1;
-		}
-
-		temp = strchr(ptr, 'H');
-		if (temp)
-		{
-			sscanf(ptr, "%dH", &hour);
-			ptr = temp + 1;
-		}
-		temp = strchr(ptr, 'M');
-		if (temp)
-		{
-			sscanf(ptr, "%dM", &minute);
-			ptr = temp + 1;
-		}
-		temp = strchr(ptr, 'S');
-		if (temp)
-		{
-			sscanf(ptr, "%lfS", &seconds);
-			ptr = temp + 1;
+			ptr++;
+			const char* temp = strchr(ptr, 'H');
+			if (temp)
+			{
+				sscanf(ptr, "%dH", &hour);
+				ptr = temp + 1;
+			}
+			temp = strchr(ptr, 'M');
+			if (temp)
+			{
+				sscanf(ptr, "%dM", &minute);
+				ptr = temp + 1;
+			}
+			temp = strchr(ptr, 'S');
+			if (temp)
+			{
+				sscanf(ptr, "%lfS", &seconds);
+				ptr = temp + 1;
+			}
 		}
 	}
 	else
 	{
 		logprintf("%s:%d - Invalid input %s", __FUNCTION__, __LINE__, ptr);
 	}
-	return( ((double)(((days * 1440) + (hour * 60) + minute) * 60 + seconds)) * 1000 ) ;
+	
+	returnValue += seconds;
+	
+	//Guard against overflow by casting first term
+	returnValue += safeMultiply(kMinuteSecs, minute);
+	returnValue += safeMultiply(kHourSecs, hour);
+    returnValue += safeMultiply(kDaySecs, days);
+    returnValue += safeMultiply(kMonthSecs, months);
+    returnValue += safeMultiply(kYearSecs, years);
+	
+	return returnValue * 1000;
 }
 
 
@@ -3272,31 +3325,38 @@ double StreamAbstractionAAMP_MPD::GetPeriodStartTime(IMPD *mpd, int periodIndex)
 	uint64_t  periodStartMs = 0;
 	if(mpd != NULL)
 	{
-		int periodCnt= mpd->GetPeriods().size();
-		if(periodIndex < periodCnt)
+		if((0 > mAvailabilityStartTime) && !(mpd->GetType() == "static"))
 		{
-			string startTimeStr = mpd->GetPeriods().at(periodIndex)->GetStart();
-			if(!startTimeStr.empty())
+			AAMPLOG_WARN("%s:%d :  availabilityStartTime required to calculate period duration not present in MPD", __FUNCTION__, __LINE__);
+		}
+		else 
+		{
+			int periodCnt= mpd->GetPeriods().size();
+			if(periodIndex < periodCnt)
 			{
-				periodStartMs = ParseISO8601Duration(startTimeStr.c_str());
-				periodStart =  mAvailabilityStartTime + ((double)periodStartMs / (double)1000);
-				AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d - MPD periodIndex %d AvailStartTime %f periodStart %f %s", __FUNCTION__, __LINE__, periodIndex, mAvailabilityStartTime, periodStart,startTimeStr.c_str());
-			}
-			else
-			{
-				double durationTotal = 0;
-				for(int idx=0;idx < periodIndex; idx++)
+				string startTimeStr = mpd->GetPeriods().at(periodIndex)->GetStart();
+				if(!startTimeStr.empty())
 				{
-					string durationStr = mpd->GetPeriods().at(idx)->GetDuration();
-					uint64_t  periodDurationMs = 0;
-					if(!durationStr.empty())
-					{
-						periodDurationMs = ParseISO8601Duration(durationStr.c_str());
-						durationTotal += periodDurationMs;
-					}
+					periodStartMs = ParseISO8601Duration(startTimeStr.c_str());
+					periodStart =  mAvailabilityStartTime + ((double)periodStartMs / (double)1000);
+					AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d - MPD periodIndex %d AvailStartTime %f periodStart %f %s", __FUNCTION__, __LINE__, periodIndex, mAvailabilityStartTime, periodStart,startTimeStr.c_str());
 				}
-				periodStart =  mAvailabilityStartTime + ((double)durationTotal / (double)1000);
-				AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d - MPD periodIndex %d periodStart %f", __FUNCTION__, __LINE__, periodIndex, periodStart);
+				else
+				{
+					double durationTotal = 0;
+					for(int idx=0;idx < periodIndex; idx++)
+					{
+						string durationStr = mpd->GetPeriods().at(idx)->GetDuration();
+						uint64_t  periodDurationMs = 0;
+						if(!durationStr.empty())
+						{
+							periodDurationMs = ParseISO8601Duration(durationStr.c_str());
+							durationTotal += periodDurationMs;
+						}
+					}
+					periodStart =  mAvailabilityStartTime + ((double)durationTotal / (double)1000);
+					AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d - MPD periodIndex %d periodStart %f", __FUNCTION__, __LINE__, periodIndex, periodStart);
+				}
 			}
 		}
 	}
@@ -3395,7 +3455,7 @@ double StreamAbstractionAAMP_MPD::GetPeriodEndTime(IMPD *mpd, int periodIndex, u
 		string startTimeStr = period->GetStart();
 		periodDurationMs = aamp_GetPeriodDuration(mpd, periodIndex, mpdRefreshTime);
 
-		if((0 == mAvailabilityStartTime) && !(mpd->GetType() == "static"))
+		if((0 > mAvailabilityStartTime) && !(mpd->GetType() == "static"))
 		{
 			AAMPLOG_WARN("%s:%d :  availabilityStartTime required to calculate period duration not present in MPD", __FUNCTION__, __LINE__);
 		}
@@ -3749,15 +3809,15 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			{
 				mTSBDepth = (double)timeshiftBufferDepthMS / 1000;
 				// Add valid check for minimum size requirement here
-				uint64_t segmentDuration = 0;
+				uint64_t segmentDurationSeconds = 0;
 				tempStr = mpd->GetMaxSegmentDuration();
 				if(!tempStr.empty())
 				{
-					segmentDuration = ParseISO8601Duration( tempStr.c_str() );
+					segmentDurationSeconds = ParseISO8601Duration( tempStr.c_str() ) / 1000;
 				}
-				if(mTSBDepth < ( 4 * (double)segmentDuration))
+				if(mTSBDepth < ( 4 * (double)segmentDurationSeconds))
 				{
-					mTSBDepth = ( 4 * (double)segmentDuration);
+					mTSBDepth = ( 4 * (double)segmentDurationSeconds);
 				}
 			}
 
@@ -4127,6 +4187,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				mMediaStreamContext[i]->periodStartOffset = currentPeriodStart;
 			}
 			AAMPLOG_INFO("%s:%d offsetFromStart(%f) seekPosition(%f) currentPeriodStart(%f)",__FUNCTION__,__LINE__, offsetFromStart,seekPosition, currentPeriodStart);
+
 			if (newTune )
 			{
 				std::vector<long> bitrateList;
@@ -5443,7 +5504,6 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 			{
 				bestScore = score;
 				bestTrack = iAdaptationSet;
-				
 				desiredRepIdx = audioRepresentationIndex;
 				CodecType = selectedCodecType;
 			}
@@ -5584,6 +5644,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 								pMediaStreamContext->enabled = false;
 								selAdaptationSetIndex = -1;
 							}
+							aamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE);
 						}
 					}
 					else if (eMEDIATYPE_AUDIO == i)
