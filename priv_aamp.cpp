@@ -3972,9 +3972,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					long curlDownloadTimeoutMS = curlDLTimeout[curlInstance]; // curlDLTimeout is in msec
 					//abortReason for progress_callback exit scenarios
 					// curl sometimes exceeds the wait time by few milliseconds.Added buffer of 10msec
-					isDownloadStalled = ((res == CURLE_OPERATION_TIMEDOUT || res == CURLE_PARTIAL_FILE ||
-									(progressCtx.abortReason != eCURL_ABORT_REASON_NONE)) &&
-									((downloadTimeMS-10) <= curlDownloadTimeoutMS));  //CID:100647 - No effect
+					isDownloadStalled = ((res == CURLE_PARTIAL_FILE) || (progressCtx.abortReason != eCURL_ABORT_REASON_NONE));
 					// set flag if download aborted with start/stall timeout.
 					abortReason = progressCtx.abortReason;
 
@@ -3986,9 +3984,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
 					}
 
-					//Attempt retry for local playback since rampdown is disabled for FOG
 					//Attempt retry for partial downloads, which have a higher chance to succeed
-					if((res == CURLE_COULDNT_CONNECT || (res == CURLE_OPERATION_TIMEDOUT && mTSBEnabled) || isDownloadStalled) && downloadAttempt < maxDownloadAttempt)
+					if((res == CURLE_COULDNT_CONNECT || res == CURLE_OPERATION_TIMEDOUT || isDownloadStalled) && downloadAttempt < maxDownloadAttempt)
 					{
 						if(mpStreamAbstractionAAMP)
 						{
