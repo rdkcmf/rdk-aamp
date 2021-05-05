@@ -233,6 +233,13 @@ public:
 	virtual std::string& GetEffectivePlaylistUrl() = 0;
 
 	/**
+         * @brief Sets the original playlist URL
+         *
+         * @param string - original playlist URL
+         */
+        virtual void SetEffectivePlaylistUrl(std::string url) = 0;
+
+	/**
 	 * @brief Returns last playlist download time
 	 *
 	 * @return lastPlaylistDownloadTime

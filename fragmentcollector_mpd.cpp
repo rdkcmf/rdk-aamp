@@ -623,6 +623,13 @@ public:
 	std::string& GetEffectivePlaylistUrl() { return mEffectiveUrl; }
 
 	/**
+         * @brief Sets the HLS original playlist URL
+         *
+         * @param string - original playlist URL
+         */
+        void SetEffectivePlaylistUrl(std::string url) { mEffectiveUrl = url; }
+
+	/**
 	 * @brief Returns last playlist download time
 	 *
 	 * @return lastPlaylistDownloadTime
@@ -6690,6 +6697,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 				}
 			}
 			pMediaStreamContext->fragmentDescriptor.SetBaseURLs(baseUrls);
+			pMediaStreamContext->eos = false;
 			if(mUpdateFragmentDetails)
 			{
 				// If there is any period change/or at init, update these values
@@ -6703,7 +6711,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 				pMediaStreamContext->fragmentRepeatCount = 0;
 				pMediaStreamContext->fragmentOffset = 0;
 				pMediaStreamContext->periodStartOffset = pMediaStreamContext->fragmentTime;
-				pMediaStreamContext->eos = false;
 				if(0 == pMediaStreamContext->fragmentDescriptor.Bandwidth || !aamp->IsTSBSupported())
 				{
 					pMediaStreamContext->fragmentDescriptor.Bandwidth = pMediaStreamContext->representation->GetBandwidth();
@@ -8195,7 +8202,7 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 		}
 	}
 
-	if(aamp->IsLive() && mMediaStreamContext[eMEDIATYPE_VIDEO] && playlistDownloaderThreadStarted)
+	if(aamp->IsLive() && playlistDownloaderThreadStarted && mMediaStreamContext[eMEDIATYPE_VIDEO])
 	{
 		mMediaStreamContext[eMEDIATYPE_VIDEO]->StopPlaylistDownloaderThread();
 		playlistDownloaderThreadStarted = false;

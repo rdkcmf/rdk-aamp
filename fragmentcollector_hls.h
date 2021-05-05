@@ -267,16 +267,23 @@ public:
 	/**
 	 * @brief Return current playlist URL
 	 *
-	 * @return string - original playlist URL(redirected)
+	 * @return string - playlist URL
 	 */
 	std::string& GetPlaylistUrl() { return mPlaylistUrl; }
 
 	/**
-	 * @brief Returns the MPD original playlist URL
+	 * @brief Returns the HLS original playlist URL
 	 *
 	 * @return string - original playlist URL(redirected)
 	 */
 	std::string& GetEffectivePlaylistUrl() { return mEffectiveUrl; }
+
+	/**
+	 * @brief Sets the HLS original playlist URL
+	 *
+	 * @param string - original playlist URL
+	 */
+	void SetEffectivePlaylistUrl(std::string url) { mEffectiveUrl = url; }
 
 	/**
 	 * @brief Returns last playlist download time

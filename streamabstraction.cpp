@@ -2790,7 +2790,13 @@ void MediaTrack::PlaylistDownloader()
 				aamp->UpdateVideoEndMetrics(mediaType,0,http_error,effectiveUrl,downloadTime);
 				if (gotManifest && (eMEDIAFORMAT_DASH == aamp->mMediaFormat))
 				{
-					aamp->mManifestUrl = manifestUrl;
+					aamp->mManifestUrl = effectiveUrl;
+				}
+				else
+				{
+					// Set effective URL for cache handler
+					// or else fragments will be mapped from old url
+					SetEffectivePlaylistUrl(effectiveUrl);
 				}
 			}
 
