@@ -6698,16 +6698,16 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 			}
 			pMediaStreamContext->fragmentDescriptor.SetBaseURLs(baseUrls);
 			pMediaStreamContext->eos = false;
+			if(resetTimeLineIndex)
+			{
+				pMediaStreamContext->timeLineIndex = 0;
+			}
 			if(mUpdateFragmentDetails)
 			{
 				// If there is any period change/or at init, update these values
 
 				pMediaStreamContext->fragmentIndex = 0;
 
-				if(resetTimeLineIndex)
-				{
-					pMediaStreamContext->timeLineIndex = 0;
-				}
 				pMediaStreamContext->fragmentRepeatCount = 0;
 				pMediaStreamContext->fragmentOffset = 0;
 				pMediaStreamContext->periodStartOffset = pMediaStreamContext->fragmentTime;
