@@ -7727,7 +7727,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 		// Before download , check the state 
 		GetState(state);
 		// Check for state not IDLE also to avoid DELIA-46092
-		if(state != eSTATE_RELEASED || state != eSTATE_IDLE)
+		if(state != eSTATE_RELEASED && state != eSTATE_IDLE && state != eSTATE_ERROR)
 		{
 			CurlInit(eCURLINSTANCE_PLAYLISTPRECACHE, 1, GetNetworkProxy());
 			SetCurlTimeout(mPlaylistTimeoutMs, eCURLINSTANCE_PLAYLISTPRECACHE);
@@ -7770,7 +7770,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 					}
 				}
 				GetState(state);
-			}while (idx < mPreCacheDnldList.size() && state != eSTATE_RELEASED && state != eSTATE_IDLE);
+			}while (idx < mPreCacheDnldList.size() && state != eSTATE_RELEASED && state != eSTATE_IDLE && state != eSTATE_ERROR);
 			mPreCacheDnldList.clear();
 			CurlTerm(eCURLINSTANCE_PLAYLISTPRECACHE);
 		}
