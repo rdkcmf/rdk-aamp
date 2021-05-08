@@ -2726,10 +2726,7 @@ void MediaTrack::PlaylistDownloader()
 
 			if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(manifestUrl, &manifest, effectiveUrl))
 			{
-				if(eMEDIAFORMAT_DASH == aamp->mMediaFormat)
-				{
-					aamp->mManifestUrl = effectiveUrl;
-				}
+				gotManifest = true;
 				AAMPLOG_INFO("%s:%d manifest[%s] retrieved from cache", __FUNCTION__, __LINE__, trackName.c_str());
 			}
 			else
@@ -2746,17 +2743,22 @@ void MediaTrack::PlaylistDownloader()
 
 				//update videoend info
 				aamp->UpdateVideoEndMetrics(mediaType,0,http_error,effectiveUrl,downloadTime);
-				if (gotManifest && (eMEDIAFORMAT_DASH == aamp->mMediaFormat))
+			}
+
+			if(gotManifest)
+			{
+				if(eMEDIAFORMAT_DASH == aamp->mMediaFormat)
 				{
 					aamp->mManifestUrl = effectiveUrl;
 				}
 				else
 				{
-					// Set effective URL for cache handler
-					// or else fragments will be mapped from old url
+					// HLS or HLS_MP4
+					// Set effective URL, else fragments will be mapped from old url
 					SetEffectivePlaylistUrl(effectiveUrl);
 				}
 			}
+
 
 			// Index playlist and update track informations.
 			ProcessPlaylist(manifest, http_error);
