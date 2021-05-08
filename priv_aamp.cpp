@@ -1307,6 +1307,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 #endif
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
+	mAsyncTuneEnabled = ISCONFIGSET_PRIV(eAAMPConfig_AsyncTune);
 	profiler.SetMicroEventFlag(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents));
 }
 
@@ -4338,6 +4339,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	int iCacheMaxSize = 0;
 	int maxDrmSession = 1;
 	double tmpVar=0;
+	int intTmpVar=0;
 	
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
@@ -4348,6 +4350,9 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_SessionToken,mSessionToken);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_SubTitleLanguage,mSubLanguage);
+	mAsyncTuneEnabled = ISCONFIGSET_PRIV(eAAMPConfig_AsyncTune);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_LivePauseBehavior,intTmpVar);
+	mPausedBehavior = (PausedBehavior)intTmpVar;
 	profiler.SetMicroEventFlag(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents));
 	GETCONFIGVALUE_PRIV(eAAMPConfig_NetworkTimeout,tmpVar);
 	mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(tmpVar);
@@ -5409,7 +5414,7 @@ void PrivateInstanceAAMP::SetEventPriorityAsyncTune(bool bValue)
  */
 bool PrivateInstanceAAMP::GetAsyncTuneConfig()
 {
-        return ISCONFIGSET_PRIV(eAAMPConfig_AsyncTune);
+        return mAsyncTuneEnabled;
 }
 
 /**
