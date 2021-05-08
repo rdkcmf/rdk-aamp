@@ -7727,8 +7727,18 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 				// playback
 				while (!exitFetchLoop && !liveMPDRefresh)
 				{
-					// Don't update fragment information from now on, until the loop exits.
-					mUpdateFragmentDetails = false;
+					if(aamp->pipeline_paused)
+					{
+						// If pipeline is paused and manifest refresh happens,
+						// Update fragment details in UpdateTrackInfo.
+						mUpdateFragmentDetails = true;
+					}
+					else
+					{
+						// Playback in progress
+						// Don't update fragment information from now on, until the loop exits for a refresh.
+						mUpdateFragmentDetails = false;
+					}
 					bool bCacheFullState = true;
 					std::thread *parallelDownload[AAMP_TRACK_COUNT];
 
