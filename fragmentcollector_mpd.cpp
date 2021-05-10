@@ -6628,14 +6628,10 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 				}
 			}
 			pMediaStreamContext->fragmentDescriptor.SetBaseURLs(baseUrls);
-			pMediaStreamContext->eos = false;
-			if(resetTimeLineIndex)
-			{
-				pMediaStreamContext->timeLineIndex = 0;
-			}
-			if(mUpdateFragmentDetails)
+			if(mUpdateFragmentDetails || pMediaStreamContext->eos)
 			{
 				// If there is any period change/or at init, update these values
+				// Or Update segment details when EOS reached
 
 				pMediaStreamContext->fragmentIndex = 0;
 
@@ -6648,7 +6644,12 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 				}
 				pMediaStreamContext->fragmentDescriptor.RepresentationID.assign(pMediaStreamContext->representation->GetId());
 				pMediaStreamContext->fragmentDescriptor.Time = 0;
-				
+				pMediaStreamContext->eos = false;
+				if(resetTimeLineIndex)
+				{
+					pMediaStreamContext->timeLineIndex = 0;
+				}
+
 				if(periodChanged)
 				{
 					//update period start and endtimes as period has changed.
@@ -7727,6 +7728,13 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 				// playback
 				while (!exitFetchLoop && !liveMPDRefresh)
 				{
+
+					if(mIsLiveStream && !mIsLiveManifest && playlistDownloaderThreadStarted)
+					{
+						// CDVR moved from "dynamic" to "static"
+						playlistDownloaderContext->StopPlaylistDownloaderThread();
+						playlistDownloaderThreadStarted = false;
+					}
 					if(aamp->pipeline_paused)
 					{
 						// If pipeline is paused and manifest refresh happens,
