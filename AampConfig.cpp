@@ -1018,11 +1018,15 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 bool AampConfig::ReadAampCfgJsonFile()
 {
 	bool retVal=false;
-		std::string cfgPath = "";
+#if defined(__APPLE__)
+	std::string cfgPath(getenv("HOME"));
+#else
+	std::string cfgPath = "";
+#endif
+
 #ifdef WIN32
 		cfgPath.assign(cWindowsJsonCfg);
 #elif defined(__APPLE__)
-		std::string cfgPath(getenv("HOME"));
 		cfgPath += "/aampcfg.json";
 #else
 
@@ -1053,7 +1057,6 @@ bool AampConfig::ReadAampCfgJsonFile()
 				f.close();
 				ProcessConfigJson( jsonbuffer, AAMP_DEV_CFG_SETTING);
 				delete[] jsonbuffer;
-				//ShowDevCfgConfiguration();
 				DoCustomSetting();
 				retVal = true;
 			}
@@ -1070,12 +1073,15 @@ bool AampConfig::ReadAampCfgJsonFile()
 bool AampConfig::ReadAampCfgTxtFile()
 {
 	bool retVal = false;
+#if defined(__APPLE__)
+	std::string cfgPath(getenv("HOME"));
+#else
 	std::string cfgPath = "";
+#endif
 
 #ifdef WIN32
 	cfgPath.assign(cWindowsCfg);
 #elif defined(__APPLE__)
-	std::string cfgPath(getenv("HOME"));
 	cfgPath += "/aamp.cfg";
 #else
 
@@ -1105,7 +1111,6 @@ bool AampConfig::ReadAampCfgTxtFile()
 				ProcessConfigText(buf, AAMP_DEV_CFG_SETTING);
 			}
 			f.close();
-			ShowDevCfgConfiguration();
 			DoCustomSetting();
 			retVal = true;
 		}
@@ -1214,7 +1219,6 @@ void AampConfig::ReadOperatorConfiguration()
 
 	}
 
-	ShowOperatorSetConfiguration();
 }
 
 
