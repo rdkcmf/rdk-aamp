@@ -329,7 +329,11 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAam
  	bAampCfgValue[eAAMPConfig_AsyncTune].value				=	true;
 	bAampCfgValue[eAAMPConfig_EnableAccessAttributes].value			=	true;
 	bAampCfgValue[eAAMPConfig_PreferredDRMConfigured].value                 =       false;
+#ifdef REALTEKCE
+	bAampCfgValue[eAAMPConfig_DisableUnderflow].value                       =       true;
+#else
 	bAampCfgValue[eAAMPConfig_DisableUnderflow].value                       =       false;
+#endif
 	bAampCfgValue[eAAMPConfig_LimitResolution].value                        =       false;
 	bAampCfgValue[eAAMPConfig_UseAbsoluteTimeline].value                  	=       false;
 
