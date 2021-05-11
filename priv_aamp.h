@@ -654,9 +654,6 @@ public:
 	int mSetOnTuneRateRequested;
 	int mOnTuneRate;
 	int mPreCacheDnldTimeWindow;		// Stores PreCaching timewindow
-	int mReportProgressInterval;					// To store the refresh interval in millisec
-	int mInitFragmentRetryCount;		// max attempts for init frag curl timeout failures
-	bool mUseAvgBandwidthForABR;
 	bool mbDownloadsBlocked;
 	bool streamerIsActive;
 	bool mTSBEnabled;
@@ -665,22 +662,9 @@ public:
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
 	long mPlaylistTimeoutMs;
-	bool mDashParallelFragDownload;
-	bool mParallelFetchPlaylist;
-	bool mParallelFetchPlaylistRefresh;
 	bool mAsyncTuneEnabled;
-	bool mWesterosSinkEnabled;
-	bool mEnableRectPropertyEnabled;
-	bool mBulkTimedMetadata;
-	bool mDisableEC3;
-	bool mDisableATMOS;
-	bool mForceEC3;
-	bool mUseRetuneForUnpairedDiscontinuity;
-	bool mUseRetuneForGSTInternalError;
 	long long prevPositionMiliseconds;
 	MediaFormat mMediaFormat;
-	bool mNewLiveOffsetflag;	
-	pthread_t fragmentCollectorThreadID;
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
 	int rate; // most recent (non-zero) play rate for non-paused content
 	bool pipeline_paused; // true if pipeline is paused
@@ -710,13 +694,12 @@ public:
 	pthread_cond_t waitforplaystart;    /**< Signaled after playback starts */
 	pthread_mutex_t mMutexPlaystart;	/**< Mutex associated with playstart */
 	long long trickStartUTCMS;
-	long long playStartUTCMS;
+	//long long playStartUTCMS;
 	double durationSeconds;
 	double culledSeconds;
 	double culledOffset;
         double mProgramDateTime;
 	float maxRefreshPlaylistIntervalSecs;
-	long long initialTuneTimeMs;
 	EventListener* mEventListener;
 	double mReportProgressPosn;
 	long long mReportProgressTime;
@@ -734,10 +717,6 @@ public:
 	bool mbPlayEnabled;	//Send buffer to pipeline or just cache them.
 	bool mPlayerPreBuffered;     // Player changed from BG to FG
 	int mPlayerId;
-	TunedEventConfig  mTuneEventConfigVod;
-	TunedEventConfig mTuneEventConfigLive;
-	int mRampDownLimit;
-	int mSegInjectFailCount;	/**< Sets retry count for segment injection failure */
 	int mDrmDecryptFailCount;	/**< Sets retry count for DRM decryption failure */
 #ifdef AAMP_HLS_DRM
 	std::vector <attrNameData> aesCtrAttrDataList; /**< Queue to hold the values of DRM data parsed from manifest */
@@ -746,13 +725,11 @@ public:
 #endif
 	pthread_t mPreCachePlaylistThreadId;
 	bool mPreCachePlaylistThreadFlag;
-	bool mABRBufferCheckEnabled;
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM) || defined(USE_OPENCDM)
 	pthread_t createDRMSessionThreadID; /**< thread ID for DRM session creation **/
 	bool drmSessionThreadStarted; /**< flag to indicate the thread is running on not **/
 	AampDRMSessionManager *mDRMSessionManager;
 #endif
-	bool mNewAdBreakerEnabled;
 	long mPlaylistFetchFailError;	/**< To store HTTP error code when playlist download fails */
 	bool mAudioDecoderStreamSync; /**< BCOM-4203: Flag to set or clear 'stream_sync_mode' property
 	                                in gst brcmaudiodecoder, default: True */
@@ -761,19 +738,16 @@ public:
 	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
 	std::string mSessionToken; /**< Field to set session token for player */
 	bool mAutoResumeTaskPending;
-	bool mLicenseCaching;	/**< Enable/Disable license caching */
 
 	std::string mTsbRecordingId; /**< Recording ID of current TSB */
 	int mthumbIndexValue;
 
-	bool mOutputResolutionCheckEnabled; /**< Profile filtering by display resolution */
 	bool mProfileCappedStatus; /**< Profile capped status by resolution or bitrate */
 	int mDisplayWidth; /**< Display resolution width */
 	int mDisplayHeight; /**< Display resolution height */
 	PausedBehavior mPausedBehavior;	/**< Player paused state behavior for linear */
 	bool mJumpToLiveFromPause;	/**< Flag used to jump to live position from paused position */
 	bool mSeekFromPausedState; /**< Flag used to seek to live/culled position from SetRate() */
-	bool mUseAbsoluteTimeline; /**< Flag used to enable progress report from available start time */
 	double mProgressReportOffset; /**< Offset time for progress reporting */
 	AampConfig *mConfig;
 	/**
@@ -3089,10 +3063,6 @@ private:
 	std::map<guint, bool> mPendingAsyncEvents;
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;
-	bool mABREnabled;                   /**< Flag that denotes if ABR is enabled */
-	long mUserRequestedBandwidth;       /**< preferred bitrate set by user */
-	char *mNetworkProxy;                /**< proxy for download requests */
-	char *mLicenseProxy;                /**< proxy for license acquisition */
 	// VSS license parameters
 	std::string mServiceZone; // part of url
 	std::string  mVssVirtualStreamId; // part of manifest file
@@ -3112,7 +3082,6 @@ private:
 	PreCacheUrlList mPreCacheDnldList;
 	std::string mAppName;
 	//long mMinBitrate;	/** minimum bitrate limit of profiles to be selected during playback */
-	long mMaxBitrate;	/** Maximum bitrate limit of profiles to be selected during playback */
 	bool mProgressReportFromProcessDiscontinuity; /** flag dentoes if progress reporting is in execution from ProcessPendingDiscontinuity*/
 	std::string mDrmInitData; // DRM init data from main manifest URL (if present)
 	int mMinInitialCacheSeconds; /**< Minimum cached duration before playing in seconds*/
@@ -3124,15 +3093,11 @@ private:
 	TextTrackInfo mPreferredTextTrack; /**< Preferred text track from available tracks in asset */
 	bool mFirstVideoFrameDisplayedEnabled; /** Set True to enable call to NotifyFirstVideoFrameDisplayed() from Sink */
 	std::string mAuxAudioLanguage; /**< auxiliary audio language */
-	bool mEnableSeekableRange;
-	bool mReportVideoPTS;
-	int mCacheMaxSize;
 
 	guint mAutoResumeTaskId; /**< handler id for auto resume idle callback */
 	AampScheduler *mScheduler; /**< instance to schedule async tasks */
 	pthread_mutex_t mEventLock; /**< lock for operation on mPendingAsyncEvents */
 	int mEventPriority; /**< priority for async events */
-	bool mPersistBitRateOverSeek; /**< Persist video profile over SAP/Seek */
 	unsigned int mManifestRefreshCount; /**< counter which keeps the count of manifest/Playlist success refresh */
 	pthread_mutex_t mStreamLock; /**< Mutex for accessing mpStreamAbstractionAAMP */
 	int mHarvestCountLimit;	// Harvest count 

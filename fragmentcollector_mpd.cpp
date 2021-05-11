@@ -5732,18 +5732,20 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 			
 			AudioType selectedCodecType = eAUDIO_UNKNOWN;
 			uint32_t selRepBandwidth = 0;
-			int audioRepresentationIndex = GetDesiredCodecIndex(adaptationSet, selectedCodecType, selRepBandwidth,aamp->mDisableEC3 , aamp->mDisableATMOS);
+			bool disableATMOS = ISCONFIGSET(eAAMPConfig_DisableATMOS);
+			bool disableEC3 = ISCONFIGSET(eAAMPConfig_DisableEC3);
+			int audioRepresentationIndex = GetDesiredCodecIndex(adaptationSet, selectedCodecType, selRepBandwidth,disableEC3 , disableATMOS);
 			switch( selectedCodecType )
 			{
 				case eAUDIO_ATMOS:
-					if( !aamp->mDisableATMOS )
+					if( !disableATMOS )
 					{
 						score += 6;
 					}
 					break;
 					
 				case eAUDIO_DDPLUS:
-					if( !aamp->mDisableEC3 )
+					if( !disableEC3 )
 					{
 						score += 4;
 					}

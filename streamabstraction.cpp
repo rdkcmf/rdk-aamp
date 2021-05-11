@@ -681,7 +681,7 @@ bool MediaTrack::InjectFragment()
 					if(SegInjectFailCount <= mSegInjectFailCount)
 					{
 						ret	= false;
-						AAMPLOG_ERR("%s:%d [%s] Reached max inject failure count: %d, stopping playback",__FUNCTION__, __LINE__, name, aamp->mSegInjectFailCount);
+						AAMPLOG_ERR("%s:%d [%s] Reached max inject failure count: %d, stopping playback",__FUNCTION__, __LINE__, name, SegInjectFailCount);
 						aamp->SendErrorEvent(AAMP_TUNE_FAILED_PTS_ERROR);
 					}
 					

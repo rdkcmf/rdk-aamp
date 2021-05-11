@@ -569,7 +569,6 @@ private:
 	int mMediaCount;						/**< Number of media in the stream */
 	int mProfileCount;						/**< Number of Video/Iframe in the stream */
 	bool mIframeAvailable;					/**< True if iframe available in the stream */
-	bool mUseAvgBandwidthForABR;
 	std::set<std::string> mLangList; /**< Available language list */
 	double mFirstPTS; /**< First video PTS in seconds */
 };
