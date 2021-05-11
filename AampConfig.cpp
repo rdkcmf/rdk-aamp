@@ -324,8 +324,8 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAam
 	bAampCfgValue[eAAMPConfig_RemovePersistent].value			=	false;
 	bAampCfgValue[eAAMPConfig_AvgBWForABR].value				=	false;
 	bAampCfgValue[eAAMPConfig_NativeCCRendering].value			=	false;
-	bAampCfgValue[eAAMPConfig_Subtec_subtitle].value			=	false;
-	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	false;
+	bAampCfgValue[eAAMPConfig_Subtec_subtitle].value			=	true;
+	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	true;
  	bAampCfgValue[eAAMPConfig_AsyncTune].value				=	true;
 	bAampCfgValue[eAAMPConfig_EnableAccessAttributes].value			=	true;
 	bAampCfgValue[eAAMPConfig_PreferredDRMConfigured].value                 =       false;
