@@ -4171,29 +4171,35 @@ bool AAMPGstPlayer::ForwardAudioBuffersToAux()
  */
 bool AAMPGstPlayer::AdjustPlayBackRate(double position, double rate)
 {
-    FN_TRACE( __FUNCTION__ );
+	FN_TRACE( __FUNCTION__ );
 	bool ErrSuccess = false;
 	if (privateContext->pipeline == NULL)
 	{
-			logprintf("[LL-DASH] AAMPGstPlayer::%s:%d Pipeline is NULL", __FUNCTION__, __LINE__);
-			return false;
+		logprintf("[LL-DASH] AAMPGstPlayer::%s:%d Pipeline is NULL", __FUNCTION__, __LINE__);
 	}
 	else
 	{
 		if(rate != privateContext->playbackrate)
 		{
-			if (!gst_element_seek(privateContext->pipeline, rate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
-								position, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
+			gint64 position1;
+			/* Obtain the current position, needed for the seek event */
+			if (!gst_element_query_position (privateContext->pipeline, GST_FORMAT_TIME, &position1))
 			{
-				logprintf("[LL-DASH] AAMPGstPlayer::%s:%d playrate adjustment  failed", __FUNCTION__, __LINE__);
+				logprintf ("[LL-DASH] AAMPGstPlayer::%s:%d Unable to retrieve current position",__FUNCTION__,__LINE__);
 			}
 			else
 			{
-				logprintf("[LL-DASH] AAMPGstPlayer::%s:%d playrate adjustment  success", __FUNCTION__, __LINE__);
-				privateContext->playbackrate = rate;
-			    //The NotifySpeedChanged need not to be called since it is temporary speed change?
-				//aamp->NotifySpeedChanged(rate, false)
-				ErrSuccess = true;
+				if (!gst_element_seek(privateContext->pipeline, rate, GST_FORMAT_TIME, GST_SEEK_FLAG_ACCURATE, GST_SEEK_TYPE_SET,
+					position1, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
+				{
+					logprintf("[LL-DASH] AAMPGstPlayer::%s:%d playrate adjustment  failed", __FUNCTION__, __LINE__);
+				}
+				else
+				{
+					logprintf("[LL-DASH] AAMPGstPlayer::%s:%d playrate adjustment  success", __FUNCTION__, __LINE__);
+					privateContext->playbackrate = rate;
+					ErrSuccess = true;
+				}
 			}
 		}
 		else
@@ -4201,7 +4207,6 @@ bool AAMPGstPlayer::AdjustPlayBackRate(double position, double rate)
 			logprintf("[LL-DASH] AAMPGstPlayer::%s:%d rate is already in %lf rate", __FUNCTION__, __LINE__,rate);
 			ErrSuccess = true;
 		}
-
 	}
 	return ErrSuccess;
 }
