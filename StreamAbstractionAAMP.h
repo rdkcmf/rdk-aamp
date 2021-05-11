@@ -1217,6 +1217,13 @@ public:
 	 */
 	void SetAudioFwdToAuxStatus(bool status) { mFwdAudioToAux = status; }
 
+	/**
+	 * @brief Notify playlist downloader threads of tracks
+	 *
+	 * @return void
+	 */
+	void NotifyPlaylistDownloader();
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.

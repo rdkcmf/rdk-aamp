@@ -59,24 +59,6 @@ static void* BufferHealthMonitor(void* user_data)
 }
 
 /**
- * @brief Abort wait for playlist download
- *
- * @return void
- */
-void MediaTrack::AbortWaitForPlaylistDownload()
-{
-	if(playlistDownloaderThreadStarted)
-	{
-		plDownloaderSignal.notify_one();
-	}
-	else
-	{
-		AAMPLOG_ERR("%s[%s] Playlist downloader thread not started", __FUNCTION__, name);
-	}
-}
-
-
-/**
  * @brief Start playlist downloader loop
  *
  * @return void
@@ -2609,6 +2591,41 @@ MediaType MediaTrack::GetPlaylistMediaTypeFromTrack(TrackType type, bool isIfram
 		return playlistType;
 }
 
+
+/**
+ * @brief Notify playlist downloader threads of tracks
+ *
+ * @return void
+ */
+void StreamAbstractionAAMP::NotifyPlaylistDownloader()
+{
+	for (int i = 0 ; i < AAMP_TRACK_COUNT; i++)
+	{
+		MediaTrack *track = GetMediaTrack((TrackType) i);
+		if (track && track->enabled)
+		{
+			track->AbortWaitForPlaylistDownload();
+		}
+	}
+}
+
+/**
+ * @brief Abort wait for playlist download
+ *
+ * @return void
+ */
+void MediaTrack::AbortWaitForPlaylistDownload()
+{
+	if(playlistDownloaderThreadStarted)
+	{
+		plDownloaderSignal.notify_one();
+	}
+	else
+	{
+		AAMPLOG_ERR("%s[%s] Playlist downloader thread not started", __FUNCTION__, name);
+	}
+}
+
 /**
  * @brief Wait until timeout is reached or interrupted
  *
@@ -2671,7 +2688,7 @@ void MediaTrack::PlaylistDownloader()
 		 * quickPlaylistDownload is enabled under above cases for live refresh.
 		 *
 		 */
-		if(aamp->IsLive() && !quickPlaylistDownload)
+		if(aamp->DownloadsAreEnabled() && aamp->IsLive() && !quickPlaylistDownload)
 		{
 			lastPlaylistDownloadTimeMS = GetLastPlaylistDownloadTime();
 			liveRefreshTimeOutInMs = updateDuration - (int)(aamp_GetCurrentTimeMS() - lastPlaylistDownloadTimeMS);
@@ -2718,11 +2735,14 @@ void MediaTrack::PlaylistDownloader()
 			/*
 			 *
 			 * FOR HLS, This should be called here
-			 * FOR DASH, We can move this to ProcessPlaylist(), after getting MPD doc
+			 * FOR DASH, after getting MPD doc
 			 *
 			 */
-			long long lastPlaylistDownloadTime = aamp_GetCurrentTimeMS();
-			SetLastPlaylistDownloadTime(lastPlaylistDownloadTime);
+			if(eMEDIAFORMAT_DASH != aamp->mMediaFormat)
+			{
+				long long lastPlaylistDownloadTime = aamp_GetCurrentTimeMS();
+				SetLastPlaylistDownloadTime(lastPlaylistDownloadTime);
+			}
 
 			if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(manifestUrl, &manifest, effectiveUrl))
 			{

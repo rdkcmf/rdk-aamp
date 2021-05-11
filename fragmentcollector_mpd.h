@@ -271,8 +271,8 @@ private:
 	AudioType mAudioType;
 	int mPrevAdaptationSetCount;
 	std::vector<long> mBitrateIndexVector;
-	bool mUpdateFragmentDetails; // Indicates fragment information needs to be updated.
 	bool playlistDownloaderThreadStarted; // Playlist downloader thread start status
+	bool mFreshManifest;
 	
 	// In case of streams with multiple video Adaptation Sets, A profile
 	// is a combination of an Adaptation Set and Representation within

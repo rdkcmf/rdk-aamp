@@ -671,7 +671,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *
 	,mEarlyAvailableKeyIDMap(), mPendingKeyIDs(), mAbortDeferredLicenseLoop(false), mEarlyAvailablePeriodIds(), thumbnailtrack(), indexedTileInfo()
 	, mMaxTracks(0)
 	,playlistMutex(), mIterPeriodIndex(0), mNumberOfPeriods(0)
-	,mUpperBoundaryPeriod(0), mLowerBoundaryPeriod(0), mUpdateFragmentDetails(true), playlistDownloaderThreadStarted(false)
+	,mUpperBoundaryPeriod(0), mLowerBoundaryPeriod(0), playlistDownloaderThreadStarted(false), mFreshManifest(false)
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
@@ -1621,7 +1621,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					ITimeline *timeline = timelines.at(pMediaStreamContext->timeLineIndex);
 					uint32_t repeatCount = timeline->GetRepeatCount();
 					uint32_t duration = timeline->GetDuration();
-					ReleasePlaylistLock();
+					mFreshManifest = false; // Used to indicate manifest refreshed in parallel to fragment download.
 #ifdef DEBUG_TIMELINE
 					logprintf("%s:%d Type[%d] FDt=%f L=%" PRIu64 " d=%d r=%d fragrep=%d x=%d num=%lld",__FUNCTION__, __LINE__,
 					pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,
@@ -1638,14 +1638,25 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 							pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->lastSegmentTime,duration,pMediaStreamContext->fragmentTime,endTime);
 #endif
 						retval = true;
+						uint64_t fragmentTimeBackUp = pMediaStreamContext->fragmentDescriptor.Time;
+						ReleasePlaylistLock();
 						if(!mPeriodDuration || (mPeriodDuration !=0 && pMediaStreamContext->fragmentTime <= endTime))
 						{
 							retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
 						}
 						if(retval)
 						{
-							pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
-							pMediaStreamContext->lastSegmentDuration = pMediaStreamContext->fragmentDescriptor.Time + duration;
+							if(mFreshManifest)
+							{
+								// if manifest refreshed in between, take backup values
+								pMediaStreamContext->lastSegmentTime = fragmentTimeBackUp;
+								pMediaStreamContext->lastSegmentDuration = fragmentTimeBackUp + duration;
+							}
+							else
+							{
+								pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
+								pMediaStreamContext->lastSegmentDuration = pMediaStreamContext->fragmentDescriptor.Time + duration;
+							}
 						}
 						else if((mIsFogTSB && !mAdPlayingFromCDN) && pMediaStreamContext->mDownloadedFragment.ptr)
 						{
@@ -1675,6 +1686,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
 						pMediaStreamContext->lastSegmentDuration = pMediaStreamContext->fragmentDescriptor.Time + duration;
 						double fragmentDuration = ComputeFragmentDuration(duration,timeScale);
+						ReleasePlaylistLock();
 						retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
 						if (!retval && ((mIsFogTSB && !mAdPlayingFromCDN) && pMediaStreamContext->mDownloadedFragment.ptr))
 						{
@@ -1688,6 +1700,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					else if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO &&
 							((pMediaStreamContext->lastSegmentTime - pMediaStreamContext->fragmentDescriptor.Time) > TIMELINE_START_RESET_DIFF))
 					{
+						ReleasePlaylistLock();
 						if(!mIsLiveStream || !aamp->IsLiveAdjustRequired())
 						{
 							pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time - 1;
@@ -1703,48 +1716,55 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 							pMediaStreamContext->fragmentDescriptor.Time, pMediaStreamContext->lastSegmentTime,pMediaStreamContext->timeLineIndex,
 							pMediaStreamContext->fragmentRepeatCount , repeatCount,pMediaStreamContext->fragmentDescriptor.Number);
 #endif
-						while(pMediaStreamContext->fragmentDescriptor.Time < pMediaStreamContext->lastSegmentTime &&
-								pMediaStreamContext->fragmentRepeatCount < repeatCount )
-							{
-								if(rate > 0)
+						ReleasePlaylistLock();
+						if(!mFreshManifest)
+						{
+							while(pMediaStreamContext->fragmentDescriptor.Time < pMediaStreamContext->lastSegmentTime &&
+									pMediaStreamContext->fragmentRepeatCount < repeatCount )
 								{
-									pMediaStreamContext->fragmentDescriptor.Time += duration;
-									pMediaStreamContext->fragmentDescriptor.Number++;
-									pMediaStreamContext->fragmentRepeatCount++;
+									if(rate > 0)
+									{
+										pMediaStreamContext->fragmentDescriptor.Time += duration;
+										pMediaStreamContext->fragmentDescriptor.Number++;
+										pMediaStreamContext->fragmentRepeatCount++;
+									}
 								}
-							}
+						}
 #ifdef DEBUG_TIMELINE
 						logprintf("%s:%d Type[%d] After skipping. fragmentDescriptor.Time %f lastSegmentTime %" PRIu64 " Index=%d Number=%lld",__FUNCTION__, __LINE__,pMediaStreamContext->type,
 								pMediaStreamContext->fragmentDescriptor.Time, pMediaStreamContext->lastSegmentTime,pMediaStreamContext->timeLineIndex,pMediaStreamContext->fragmentDescriptor.Number);
 #endif
 					}
-					if(rate > 0)
+					if(!mFreshManifest)
 					{
-						pMediaStreamContext->fragmentDescriptor.Time += duration;
-						pMediaStreamContext->fragmentDescriptor.Number++;
-						pMediaStreamContext->fragmentRepeatCount++;
-						if( pMediaStreamContext->fragmentRepeatCount > repeatCount)
+						if(rate > 0)
 						{
-							pMediaStreamContext->fragmentRepeatCount = 0;
-							pMediaStreamContext->timeLineIndex++;
-						}
-#ifdef DEBUG_TIMELINE
-							logprintf("%s:%d Type[%d] After Incr. fragmentDescriptor.Time %f lastSegmentTime %" PRIu64 " Index=%d fragRep=%d,repMax=%d Number=%lld",__FUNCTION__, __LINE__,pMediaStreamContext->type,
-							pMediaStreamContext->fragmentDescriptor.Time, pMediaStreamContext->lastSegmentTime,pMediaStreamContext->timeLineIndex,
-							pMediaStreamContext->fragmentRepeatCount , repeatCount,pMediaStreamContext->fragmentDescriptor.Number);
-#endif
-					}
-					else
-					{
-						pMediaStreamContext->fragmentDescriptor.Time -= duration;
-						pMediaStreamContext->fragmentDescriptor.Number--;
-						pMediaStreamContext->fragmentRepeatCount--;
-						if( pMediaStreamContext->fragmentRepeatCount < 0)
-						{
-							pMediaStreamContext->timeLineIndex--;
-							if(pMediaStreamContext->timeLineIndex >= 0)
+							pMediaStreamContext->fragmentDescriptor.Time += duration;
+							pMediaStreamContext->fragmentDescriptor.Number++;
+							pMediaStreamContext->fragmentRepeatCount++;
+							if( pMediaStreamContext->fragmentRepeatCount > repeatCount)
 							{
-								pMediaStreamContext->fragmentRepeatCount = timelines.at(pMediaStreamContext->timeLineIndex)->GetRepeatCount();
+								pMediaStreamContext->fragmentRepeatCount = 0;
+								pMediaStreamContext->timeLineIndex++;
+							}
+#ifdef DEBUG_TIMELINE
+								logprintf("%s:%d Type[%d] After Incr. fragmentDescriptor.Time %f lastSegmentTime %" PRIu64 " Index=%d fragRep=%d,repMax=%d Number=%lld",__FUNCTION__, __LINE__,pMediaStreamContext->type,
+								pMediaStreamContext->fragmentDescriptor.Time, pMediaStreamContext->lastSegmentTime,pMediaStreamContext->timeLineIndex,
+								pMediaStreamContext->fragmentRepeatCount , repeatCount,pMediaStreamContext->fragmentDescriptor.Number);
+#endif
+						}
+						else
+						{
+							pMediaStreamContext->fragmentDescriptor.Time -= duration;
+							pMediaStreamContext->fragmentDescriptor.Number--;
+							pMediaStreamContext->fragmentRepeatCount--;
+							if( pMediaStreamContext->fragmentRepeatCount < 0)
+							{
+								pMediaStreamContext->timeLineIndex--;
+								if(pMediaStreamContext->timeLineIndex >= 0)
+								{
+									pMediaStreamContext->fragmentRepeatCount = timelines.at(pMediaStreamContext->timeLineIndex)->GetRepeatCount();
+								}
 							}
 						}
 					}
@@ -4406,6 +4426,11 @@ void StreamAbstractionAAMP_MPD::ProcessPlaylist(GrowableBuffer& newPlaylist, lon
 #endif
 			}
 		}
+		mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
+		if(mIsLiveStream && ISCONFIGSET(eAAMPConfig_EnableClientDai))
+		{
+			mCdaiObject->PlaceAds(mpd);
+		}
 
 		// mCurrentPeriodIdx, mNumberOfPeriods based on mBasePeriodId
 		IndexNewMPDDocument();
@@ -4479,15 +4504,12 @@ void StreamAbstractionAAMP_MPD::IndexNewMPDDocument(bool updateTrackInfo)
 		// Reset of mCurrentPeriodIdx to be done to max period if Period count changes after mpd refresh
 		if(mCurrentPeriodIdx > (mNumberOfPeriods - 1))
 		{
-			AAMPLOG_WARN("MPD Fragment Collector detected reset in Period(New Size:%zu)(currentIdx:%d->%zu)",
-				mNumberOfPeriods,mCurrentPeriodIdx,mNumberOfPeriods - 1);
 			mCurrentPeriodIdx = mNumberOfPeriods - 1;
 		}
 	}
 	deltaInPeriodIndex -= mCurrentPeriodIdx;
 	//Adjusting currently iterating period index based on delta
 	mIterPeriodIndex -= deltaInPeriodIndex;
-	AAMPLOG_INFO("MPD has %zu periods current period index %u", mNumberOfPeriods, mCurrentPeriodIdx);
 	if(AdState::IN_ADBREAK_AD_PLAYING != mCdaiObject->mAdState)
 	{
 		mCurrentPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
@@ -4515,11 +4537,12 @@ void StreamAbstractionAAMP_MPD::IndexNewMPDDocument(bool updateTrackInfo)
 		}
 		break;
 	}
-	AAMPLOG_TRACE("%s:%d Period lower boundary:%d , upper boundary:%d", __FUNCTION__, __LINE__, mLowerBoundaryPeriod, mUpperBoundaryPeriod);
 
 	// Update Track Information based on flag
 	if (updateTrackInfo)
 	{
+		AAMPLOG_TRACE("%s:%d Period lower boundary:%d , upper boundary:%d", __FUNCTION__, __LINE__, mLowerBoundaryPeriod, mUpperBoundaryPeriod);
+		AAMPLOG_INFO("MPD has %zu periods current period index %u", mNumberOfPeriods, mCurrentPeriodIdx);
 		if(mIsLiveStream)
 		{
 			// IsLive = 1 , resetTimeLineIndex = 1
@@ -4529,6 +4552,7 @@ void StreamAbstractionAAMP_MPD::IndexNewMPDDocument(bool updateTrackInfo)
 			{
 				AAMPLOG_TRACE("%s:%d Indexing new mpd doc", __FUNCTION__, __LINE__);
 				UpdateTrackInfo(true, true);
+				mFreshManifest = true;
 			}
 
 			double culled = 0;
@@ -6657,42 +6681,36 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 				}
 			}
 			pMediaStreamContext->fragmentDescriptor.SetBaseURLs(baseUrls);
-			if(mUpdateFragmentDetails || pMediaStreamContext->eos)
+			pMediaStreamContext->fragmentIndex = 0;
+
+			pMediaStreamContext->fragmentRepeatCount = 0;
+			pMediaStreamContext->fragmentOffset = 0;
+			pMediaStreamContext->periodStartOffset = pMediaStreamContext->fragmentTime;
+			if(0 == pMediaStreamContext->fragmentDescriptor.Bandwidth || !aamp->IsTSBSupported())
 			{
-				// If there is any period change/or at init, update these values
-				// Or Update segment details when EOS reached
+				pMediaStreamContext->fragmentDescriptor.Bandwidth = pMediaStreamContext->representation->GetBandwidth();
+			}
+			pMediaStreamContext->fragmentDescriptor.RepresentationID.assign(pMediaStreamContext->representation->GetId());
+			pMediaStreamContext->fragmentDescriptor.Time = 0;
+			pMediaStreamContext->eos = false;
+			if(resetTimeLineIndex)
+			{
+				pMediaStreamContext->timeLineIndex = 0;
+			}
 
-				pMediaStreamContext->fragmentIndex = 0;
+			if(periodChanged)
+			{
+				//update period start and endtimes as period has changed.
+				mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
+				mPeriodStartTime = GetPeriodStartTime(mpd, mCurrentPeriodIdx);
+				mPeriodDuration = GetPeriodDuration(mpd, mCurrentPeriodIdx);
+			}
 
-				pMediaStreamContext->fragmentRepeatCount = 0;
-				pMediaStreamContext->fragmentOffset = 0;
-				pMediaStreamContext->periodStartOffset = pMediaStreamContext->fragmentTime;
-				if(0 == pMediaStreamContext->fragmentDescriptor.Bandwidth || !aamp->IsTSBSupported())
-				{
-					pMediaStreamContext->fragmentDescriptor.Bandwidth = pMediaStreamContext->representation->GetBandwidth();
-				}
-				pMediaStreamContext->fragmentDescriptor.RepresentationID.assign(pMediaStreamContext->representation->GetId());
-				pMediaStreamContext->fragmentDescriptor.Time = 0;
-				pMediaStreamContext->eos = false;
-				if(resetTimeLineIndex)
-				{
-					pMediaStreamContext->timeLineIndex = 0;
-				}
-
-				if(periodChanged)
-				{
-					//update period start and endtimes as period has changed.
-					mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
-					mPeriodStartTime = GetPeriodStartTime(mpd, mCurrentPeriodIdx);
-					mPeriodDuration = GetPeriodDuration(mpd, mCurrentPeriodIdx);
-				}
-
-				SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),pMediaStreamContext->adaptationSet->GetSegmentTemplate());
-				if( segmentTemplates.HasSegmentTemplate())
-				{
-					pMediaStreamContext->fragmentDescriptor.Number = segmentTemplates.GetStartNumber();
-					AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d Track %d timeLineIndex %d fragmentDescriptor.Number %lu", __FUNCTION__, __LINE__, i, pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentDescriptor.Number);
-				}
+			SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),pMediaStreamContext->adaptationSet->GetSegmentTemplate());
+			if( segmentTemplates.HasSegmentTemplate())
+			{
+				pMediaStreamContext->fragmentDescriptor.Number = segmentTemplates.GetStartNumber();
+				AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d Track %d timeLineIndex %d fragmentDescriptor.Number %" PRIu64 "", __FUNCTION__, __LINE__, i, pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentDescriptor.Number);
 			}
 		}
 	}
@@ -7764,18 +7782,6 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						playlistDownloaderContext->StopPlaylistDownloaderThread();
 						playlistDownloaderThreadStarted = false;
 					}
-					if(aamp->pipeline_paused)
-					{
-						// If pipeline is paused and manifest refresh happens,
-						// Update fragment details in UpdateTrackInfo.
-						mUpdateFragmentDetails = true;
-					}
-					else
-					{
-						// Playback in progress
-						// Don't update fragment information from now on, until the loop exits for a refresh.
-						mUpdateFragmentDetails = false;
-					}
 					bool bCacheFullState = true;
 					std::thread *parallelDownload[AAMP_TRACK_COUNT];
 
@@ -7860,7 +7866,10 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						// If audio and video reached EOS then only break the fetch loop .
 						if(vEos && aEos)
 						{
-							AAMPLOG_INFO("%s:%d EOS - Exit fetch loop ", __FUNCTION__, __LINE__);
+							// Disabling this log to avoid flooding, as Fetcher loop maintains track EOS until
+							// playlist refreshes in parallel thread.
+							// Enable 'info' level to track EOS from PushNextFragment.
+							// AAMPLOG_INFO("%s:%d EOS - Exit fetch loop ", __FUNCTION__, __LINE__);
 							if(AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState)
 							{
 								adStateChanged = onAdEvent(AdEvent::AD_FINISHED);
@@ -7925,7 +7934,6 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						aamp->InterruptableMsSleep(50);
 					}
 				} // Loop 3: end of while loop (!exitFetchLoop)
-				mUpdateFragmentDetails = true;
 				if(liveMPDRefresh)
 				{
 					break;
@@ -7956,16 +7964,15 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 
 		// Playlist EOS
 		// if liveMPDRefresh, immediately abort playlist downloader wait.
-		// else, wait for playlist update
 		if(liveMPDRefresh)
 		{
 			playlistDownloaderContext->AbortWaitForPlaylistDownload();
 		}
-		playlistDownloaderContext->NotifyFragmentCollectorWait();
-		// Wait time calculated as playlistDownloadtimeout + max-refresh time
-		// This wait will be signalled to stop from PlaylistDownloader before reaching timeout.
-		int playlistMaximumWaitTime = aamp->mPlaylistTimeoutMs + MAX_DELAY_BETWEEN_MPD_UPDATE_MS;
-		playlistDownloaderContext->EnterTimedWaitForPlaylistRefresh(playlistMaximumWaitTime);
+
+		AcquirePlaylistLock();
+		// Reset period info to go back to loop without UpdateTrackInfo.
+		IndexNewMPDDocument(false);
+		ReleasePlaylistLock();
 
 		if (!aamp->DownloadsAreEnabled())
 		{
@@ -8149,11 +8156,6 @@ void StreamAbstractionAAMP_MPD::Start(void)
 #ifdef AAMP_MPD_DRM
 	aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 #endif
-	if(aamp->IsLive() && mMediaStreamContext[eMEDIATYPE_VIDEO])
-	{
-		mMediaStreamContext[eMEDIATYPE_VIDEO]->StartPlaylistDownloaderThread();
-		playlistDownloaderThreadStarted = true;
-	}
 	fragmentCollectorThreadID = new std::thread(&StreamAbstractionAAMP_MPD::FetcherLoop, this);
 	fragmentCollectorThreadStarted = true;
 	for (int i = 0; i < mNumberOfTracks; i++)
@@ -8163,6 +8165,12 @@ void StreamAbstractionAAMP_MPD::Start(void)
 			mMediaStreamContext[i]->StartInjectLoop();
 		}
 	}
+	if(aamp->IsLive() && mMediaStreamContext[eMEDIATYPE_VIDEO])
+	{
+		mMediaStreamContext[eMEDIATYPE_VIDEO]->StartPlaylistDownloaderThread();
+		playlistDownloaderThreadStarted = true;
+	}
+
 }
 
 /**

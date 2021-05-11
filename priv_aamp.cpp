@@ -5471,6 +5471,11 @@ void PrivateInstanceAAMP::DisableDownloads(void)
 	mDownloadsEnabled = false;
 	pthread_cond_broadcast(&mDownloadsDisabled);
 	pthread_mutex_unlock(&mLock);
+	// Notify playlist downloader threads
+	if(mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->NotifyPlaylistDownloader();
+	}
 }
 
 /**
