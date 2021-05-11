@@ -3221,7 +3221,7 @@ bool StreamAbstractionAAMP_HLS::FilterAudioCodecBasedOnConfig(StreamOutputFormat
 ***************************************************************************/
 int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 {
-	int bestTrack = 0;
+	int bestTrack = -1;
 	int bestScore = -1;
 	for( int i=0; i<mMediaCount; i++ )
 	{
