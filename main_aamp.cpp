@@ -151,6 +151,8 @@ if(!iarmInitialized)
 		logprintf(" AAMP_BUILD_INFO: %s",tmpstr.c_str());
 #endif
 		gpGlobalConfig =  new AampConfig();
+		// Init the default values
+		gpGlobalConfig->Initialize();
 		logprintf("[AAMP_JS][%p]Creating GlobalConfig Instance[%p]",this,gpGlobalConfig);
 		if(!gpGlobalConfig->ReadAampCfgTxtFile())
 		{
@@ -162,7 +164,8 @@ if(!iarmInitialized)
 		
 	}
 
-	// Copy the default configuration to session configuration .App can modify the configuration set
+	// Copy the default configuration to session configuration .
+	// App can modify the configuration set
 	mConfig = *gpGlobalConfig;
 
 	aamp = new PrivateInstanceAAMP(&mConfig);

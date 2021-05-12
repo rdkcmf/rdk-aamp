@@ -574,28 +574,6 @@ static MediaTypeTelemetry aamp_GetMediaTypeForTelemetry(MediaType type)
 }
 
 /**
- * @brief Check and replace if local overrides match manifest url
- * @param mainManifestUrl manifest url
- * @retval url to override or NULL
- */
-static const char *RemapManifestUrl(const char *mainManifestUrl)
-{
-	if (!mChannelOverrideMap.empty())
-	{
-		for (std::list<ChannelInfo>::iterator it = mChannelOverrideMap.begin(); it != mChannelOverrideMap.end(); ++it)
-		{
-			ChannelInfo &pChannelInfo = *it;
-			if (strstr(mainManifestUrl, pChannelInfo.name.c_str()))
-			{
-				logprintf("override!");
-				return pChannelInfo.uri.c_str();
-			}
-		}
-	}
-	return NULL;
-}
-
-/**
  * @brief de-fog playback URL to play directly from CDN instead of fog
  * @param[in][out] dst Buffer containing URL
  */
@@ -4441,7 +4419,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		httpRespHeaders[i].data.clear();
 	}
 
-	const char *remapUrl = RemapManifestUrl(mainManifestUrl);
+	const char *remapUrl = mConfig->GetChannelOverride(mainManifestUrl);
 	if (remapUrl )
 	{
 		mainManifestUrl = remapUrl;

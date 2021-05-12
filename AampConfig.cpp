@@ -237,7 +237,11 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAam
 	{
 		mAampLookupTable[ConfigLookUpTable[i].cmdString] = ConfigLookUpTable[i];
 	}
-	logprintf("Starting AampConfig... ");
+}
+
+
+void AampConfig::Initialize()
+{
 	// Player Default Configuration
 	///////////////// Following for Boolean setting ////////////////////////////
 	bAampCfgValue[eAAMPConfig_EnableABR].value				=	true;
@@ -421,7 +425,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAam
 	sAampCfgValue[eAAMPConfig_SessionToken-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_LogLevel-eAAMPConfig_StringStartValue].value                  =       "";
 
-	logprintf("Completed AampConfig Constructor.....");
 }
 
 #if 0
@@ -539,9 +542,8 @@ bool AampConfig::GetConfigValue(AAMPConfigSettings cfg, std::string &value)
  * @param[out] chOverride - URI
  * @return true - if valid return
  */
-bool AampConfig::GetChannelOverride(const std::string manifestUrl, std::string &chOverride)
+const char * AampConfig::GetChannelOverride(const std::string manifestUrl)
 {
-	bool ret=false;
 	if(mChannelOverrideMap.size() && manifestUrl.size())
 	{
 		for (ChannelMapIter it = mChannelOverrideMap.begin(); it != mChannelOverrideMap.end(); ++it)
@@ -549,13 +551,11 @@ bool AampConfig::GetChannelOverride(const std::string manifestUrl, std::string &
 			ConfigChannelInfo &pChannelInfo = *it;
 			if (manifestUrl.find(pChannelInfo.name) != std::string::npos)
 			{
-				chOverride = pChannelInfo.uri;
-				ret= true;
-				break;
+				return pChannelInfo.uri.c_str();
 			}
 		}
 	}
-	return ret;
+	return NULL;
 }
 
 /**

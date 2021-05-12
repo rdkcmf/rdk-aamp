@@ -166,6 +166,7 @@ typedef enum
 	eAAMPConfig_LimitResolution,                                                    /** Flag to indicate if display resolution based profile selection to be done */
 	eAAMPConfig_UseAbsoluteTimeline,					/**Enable Report Progress report position based on Availability Start Time **/
 	eAAMPConfig_WideVineKIDWorkaround,                          /**< SkyDE Store workaround to pick WV DRM Key Id from different location */
+	eAAMPConfig_EnableAccessAttributes,							/*** Usage of Access Attributes in VSS */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
@@ -202,7 +203,6 @@ typedef enum
 	eAAMPConfig_PrePlayBufferCount, 							/** Count of segments to be downloaded until play state */
 	eAAMPConfig_PreCachePlaylistTime,							/** Max time to complete PreCaching .In Minutes  */
 	eAAMPConfig_CEAPreferred,									/*** To force 608/708 track selection in CC manager */
-	eAAMPConfig_EnableAccessAttributes,							/*** Usage of Access Attributes in VSS */
 	eAAMPConfig_StallErrorCode,
 	eAAMPConfig_StallTimeoutMS,
 	eAAMPConfig_InitialBuffer,
@@ -378,7 +378,7 @@ public:
 public:
 	AampConfig();
 	~AampConfig(){};
-
+	void Initialize();
 	void ShowOperatorSetConfiguration();
 	void ShowAppSetConfiguration();
 	void ShowStreamSetConfiguration();
@@ -398,7 +398,7 @@ public:
 	bool GetConfigValue(AAMPConfigSettings cfg, long &value);
 	bool GetConfigValue(AAMPConfigSettings cfg, double &value);
 	bool GetConfigValue(AAMPConfigSettings cfg , int &value);
-	bool GetChannelOverride(const std::string chName, std::string &chOverride);
+	const char * GetChannelOverride(const std::string chName);
 	bool ProcessConfigJson(const char *, ConfigPriority owner );
 	bool ProcessConfigText(std::string &cfg, ConfigPriority owner );
 	void RestoreConfiguration(ConfigPriority owner);
