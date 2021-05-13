@@ -727,26 +727,33 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 					}
 				}
 			}
-#if 0
 			// checked all the config string in json
 			// next check is channel override array is present
 			cJSON *chMap = cJSON_GetObjectItem(cfgdata,"chmap");
 			if(chMap)
 			{
-				for (int i = 0 ; i < cJSON_GetArraySize(chMap) ; i++)
+				if(cJSON_IsArray(chMap))
 				{
-					cJSON * subitem = cJSON_GetArrayItem(chMap, i);
-					char *name      = (char *)cJSON_GetObjectItem(subitem, "name")->valuestring;
-					char *url       = (char *)cJSON_GetObjectItem(subitem, "url")->valuestring;
-					if(name && url )
+					for (int i = 0 ; i < cJSON_GetArraySize(chMap) ; i++)
 					{
-						ConfigChannelInfo channelInfo;
-						channelInfo.uri = url;
-						channelInfo.name = name;
-						mChannelOverrideMap.push_back(channelInfo);
+						cJSON * subitem = cJSON_GetArrayItem(chMap, i);
+						char *name      = (char *)cJSON_GetObjectItem(subitem, "name")->valuestring;
+						char *url       = (char *)cJSON_GetObjectItem(subitem, "url")->valuestring;
+						if(name && url )
+						{
+							ConfigChannelInfo channelInfo;
+							channelInfo.uri = url;
+							channelInfo.name = name;
+							mChannelOverrideMap.push_back(channelInfo);
+						}
 					}
 				}
+				else
+				{
+					logprintf("%s %d JSON Channel Override format is wrong", __FUNCTION__,__LINE__);
+				}
 			}
+#if 0
 
 			cJSON *drmConfig = cJSON_GetObjectItem(cfgdata,"drmConfig");
 			if(drmConfig)
