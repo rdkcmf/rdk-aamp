@@ -164,7 +164,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"downloadBuffer",eAAMPConfig_MaxFragmentCached,-1,-1},
 	{"ptsErrorThreshold",eAAMPConfig_PTSErrorThreshold,-1,-1},
 	{"enableVideoRectangle",eAAMPConfig_EnableRectPropertyCfg,-1,-1},
-	{"maxPlaylistCacheSize",eAAMPConfig_MaxPlaylistCacheSize,-1,-1},
+	{"maxPlaylistCacheSize",eAAMPConfig_MaxPlaylistCacheSize,0,15360},              // Range for PlaylistCache size - upto 15 MB max
 	{"dashMaxDrmSessions",eAAMPConfig_MaxDASHDRMSessions,1,MAX_DASH_DRM_SESSIONS},
 	{"userAgent",eAAMPConfig_UserAgent,-1,-1},
 	{"waitTimeBeforeRetryHttp5xx",eAAMPConfig_Http5XXRetryWaitInterval,-1,-1},

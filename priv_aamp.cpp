@@ -4363,7 +4363,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	
 	// For PreCaching of playlist , no max limit set as size will vary for each playlist length
 	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxPlaylistCacheSize,iCacheMaxSize);
-	if(iCacheMaxSize != 0)
+	if(iCacheMaxSize != MAX_PLAYLIST_CACHE_SIZE)
 	{
 		getAampCacheHandler()->SetMaxPlaylistCacheSize(iCacheMaxSize*1024); // convert KB inputs to bytes
 	}
