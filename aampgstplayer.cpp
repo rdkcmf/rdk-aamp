@@ -419,21 +419,24 @@ static void need_data(GstElement *source, guint size, AAMPGstPlayer * _this)
  */
 static void enough_data(GstElement *source, AAMPGstPlayer * _this)
 {
-	if (source == _this->privateContext->stream[eMEDIATYPE_SUBTITLE].source)
+	if (_this->aamp->DownloadsAreEnabled()) // avoid processing enough data if the downloads are already disabled.
 	{
-		_this->aamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE); // signal fragment downloader thread
-	}
-	else if (source == _this->privateContext->stream[eMEDIATYPE_AUDIO].source)
-	{
-		_this->aamp->StopTrackDownloads(eMEDIATYPE_AUDIO); // signal fragment downloader thread
-	}
-	else if (source == _this->privateContext->stream[eMEDIATYPE_AUX_AUDIO].source)
-	{
-		_this->aamp->StopTrackDownloads(eMEDIATYPE_AUX_AUDIO); // signal fragment downloader thread
-	}
-        else
-	{
-		_this->aamp->StopTrackDownloads(eMEDIATYPE_VIDEO); // signal fragment downloader thread
+		if (source == _this->privateContext->stream[eMEDIATYPE_SUBTITLE].source)
+		{
+			_this->aamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE); // signal fragment downloader thread
+		}
+		else if (source == _this->privateContext->stream[eMEDIATYPE_AUDIO].source)
+		{
+			_this->aamp->StopTrackDownloads(eMEDIATYPE_AUDIO); // signal fragment downloader thread
+		}
+		else if (source == _this->privateContext->stream[eMEDIATYPE_AUX_AUDIO].source)
+		{
+			_this->aamp->StopTrackDownloads(eMEDIATYPE_AUX_AUDIO); // signal fragment downloader thread
+		}
+			else
+		{
+			_this->aamp->StopTrackDownloads(eMEDIATYPE_VIDEO); // signal fragment downloader thread
+		}
 	}
 }
 
