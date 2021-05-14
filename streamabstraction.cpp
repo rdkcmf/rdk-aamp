@@ -612,7 +612,7 @@ bool MediaTrack::InjectFragment()
 				}
 				else if (isDiscoIgnoredForOtherTrack)
 				{
-					logprintf("%s:%d - discontinuity ignored for %s track prior, no need to process for %s track", __FUNCTION__, __LINE__, ((!type == eTRACK_AUDIO) ? "audio" : "video"), name);
+					logprintf("%s:%d - discontinuity ignored for other AV track , no need to process %s track", __FUNCTION__, __LINE__, name);
 					stopInjection = false;
 
 					// reset the flag when both the paired discontinuities ignored.

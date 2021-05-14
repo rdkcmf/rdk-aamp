@@ -764,10 +764,10 @@ public:
 	 *
 	 * @param[in] startIdx - Start index of the curl instance
 	 * @param[in] instanceCount - Instance count
-	 * @param[in] proxy - proxy to be applied for curl connection	 
+	 * @param[in] proxyName - proxy to be applied for curl connection	 
 	 * @return void
 	 */
-	void CurlInit(AampCurlInstance startIdx, unsigned int instanceCount=1,const char *proxy=NULL);
+	void CurlInit(AampCurlInstance startIdx, unsigned int instanceCount=1, std::string proxyName="");
 
 	/**
 	 *   @brief Sets Recorded URL from Manifest received form XRE.
@@ -2125,7 +2125,7 @@ public:
 	 *
 	 *   @return Network proxy URL, if exists.
 	 */
-	const char* GetNetworkProxy() const;
+	std::string GetNetworkProxy();
 
 	/**
 	 *   @brief To set the proxy for license request
@@ -2139,7 +2139,7 @@ public:
 	 *
 	 *   @return proxy to use for license request
 	 */
-	const char* GetLicenseReqProxy() const;
+	std::string GetLicenseReqProxy();
 
 	/**
 	 *   @brief Set is Live flag

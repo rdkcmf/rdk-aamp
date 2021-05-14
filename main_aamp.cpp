@@ -2391,11 +2391,11 @@ bool PlayerInstanceAAMP::InitAAMPConfig(char *jsonStr)
 /**
 * @brief GetAAMPConfig - Get AAMP Config as JSON String 
 */
-const char * PlayerInstanceAAMP::GetAAMPConfig()
+std::string PlayerInstanceAAMP::GetAAMPConfig()
 {
 	std::string jsonStr;
 	mConfig.GetAampConfigJSONStr(jsonStr);
-	return jsonStr.c_str();
+	return jsonStr;
 }
 
 

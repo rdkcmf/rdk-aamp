@@ -6487,7 +6487,9 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					}
 					for (int pidx = 0; pidx < idx; pidx++)
 					{
-						if (resolutionCheckEnabled && ((mStreamInfo[pidx].isIframeTrack && bIframeCapped) || (!mStreamInfo[pidx].isIframeTrack && bVideoCapped)) && mStreamInfo[pidx].resolution.width > aamp->mDisplayWidth)
+						if (resolutionCheckEnabled && (mStreamInfo[pidx].resolution.width > aamp->mDisplayWidth) &&
+							((mStreamInfo[pidx].isIframeTrack && bIframeCapped) || 
+							(!mStreamInfo[pidx].isIframeTrack && bVideoCapped)))
 						{
 							AAMPLOG_INFO("%s:%d Video Profile ignoring for resolution= %d:%d display= %d:%d BW=%ld", __FUNCTION__, __LINE__, mStreamInfo[pidx].resolution.width, mStreamInfo[pidx].resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight, mStreamInfo[pidx].bandwidthBitsPerSecond);
 						}
@@ -6507,7 +6509,9 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								mProfileMaps[addedProfiles].adaptationSetIndex = iProfileMaps[pidx].adaptationSetIndex;
 								mProfileMaps[addedProfiles].representationIndex = iProfileMaps[pidx].representationIndex;
 								addedProfiles++;
-								if (resolutionCheckEnabled && (mStreamInfo[pidx].isIframeTrack && bIframeCapped) || (!mStreamInfo[pidx].isIframeTrack && bVideoCapped))
+								if (resolutionCheckEnabled && 
+									((mStreamInfo[pidx].isIframeTrack && bIframeCapped) || 
+									(!mStreamInfo[pidx].isIframeTrack && bVideoCapped)))
                                                                 {
                                                                         aamp->mProfileCappedStatus = true;
                                                                 }
