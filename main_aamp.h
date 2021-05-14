@@ -1482,7 +1482,7 @@ public:
 	/**
 	* @brief GetAAMPConfig - GetAamp Config as JSON string 
 	*/
-	const char * GetAAMPConfig();
+	std::string GetAAMPConfig();
 
 	/**
          *   @brief To set UseAbsoluteTimeline for DASH

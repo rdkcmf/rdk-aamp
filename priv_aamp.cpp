@@ -2568,7 +2568,7 @@ void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int peri
  * @param startIdx start index
  * @param instanceCount count of instances
  */
-void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int instanceCount, const char *proxy)
+void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int instanceCount, std::string proxyName)
 {
 	int instanceEnd = startIdx + instanceCount;
 	std::string UserAgentString;
@@ -2604,10 +2604,10 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 
 			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT * 1000;
 
-			if (proxy != NULL)
+			if (!proxyName.empty())
 			{
 				/* use this proxy */
-				curl_easy_setopt(curl[i], CURLOPT_PROXY, proxy);
+				curl_easy_setopt(curl[i], CURLOPT_PROXY, proxyName.c_str());
 				/* allow whatever auth the proxy speaks */
 				curl_easy_setopt(curl[i], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
 			}
@@ -7433,14 +7433,11 @@ const char* PrivateInstanceAAMP::GetTunedManifestUrl()
  *
  *   @retval network proxy
  */
-const char* PrivateInstanceAAMP::GetNetworkProxy() const
+std::string PrivateInstanceAAMP::GetNetworkProxy()
 {
 	std::string proxy;
 	GETCONFIGVALUE_PRIV(eAAMPConfig_NetworkProxy,proxy);
-	if(proxy.empty())
-		return NULL;
-	else
-		return proxy.c_str();
+	return proxy;
 }
 
 /**
@@ -7448,14 +7445,11 @@ const char* PrivateInstanceAAMP::GetNetworkProxy() const
  *
  *   @retval License proxy
  */
-const char* PrivateInstanceAAMP::GetLicenseReqProxy() const
+std::string PrivateInstanceAAMP::GetLicenseReqProxy()
 {
 	std::string proxy;
 	GETCONFIGVALUE_PRIV(eAAMPConfig_LicenseProxy,proxy);
-	if(proxy.empty())
-		return NULL;
-	else
-		return proxy.c_str();
+	return proxy;
 }
 
 

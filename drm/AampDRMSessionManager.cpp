@@ -693,7 +693,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
  *
  */
 DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
-		int32_t *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isContentMetadataAvailable, char* licenseProxy)
+		int32_t *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isContentMetadataAvailable, std::string licenseProxy)
 {
 	*httpCode = -1;
 	CURL *curl;
@@ -752,9 +752,9 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
 	}
 
-	if (licenseProxy)
+	if (!licenseProxy.empty())
 	{
-		curl_easy_setopt(curl, CURLOPT_PROXY, licenseProxy);
+		curl_easy_setopt(curl, CURLOPT_PROXY, licenseProxy.c_str());
 		/* allow whatever auth the proxy speaks */
 		curl_easy_setopt(curl, CURLOPT_PROXYAUTH, CURLAUTH_ANY);
 	}
@@ -1357,7 +1357,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				/**
 				 * Configure the License acquisition parameters
 				 */
-				char *licenseServerProxy = nullptr;
+				std::string licenseServerProxy;
 				bool isContentMetadataAvailable = configureLicenseServerParameters(drmHelper, licenseRequest, licenseServerProxy, challengeInfo, aampInstance);
 
 				/**
@@ -1537,7 +1537,7 @@ KeyState AampDRMSessionManager::processLicenseResponse(std::shared_ptr<AampDrmHe
  * Configure the Drm license server parameters for URL/proxy and custom http request headers
  */
 bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<AampDrmHelper> drmHelper, AampLicenseRequest &licenseRequest,
-		char* licenseServerProxy, const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance)
+		std::string &licenseServerProxy, const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance)
 {
 	string contentMetaData = drmHelper->getDrmMetaData();
 	bool isContentMetadataAvailable = !contentMetaData.empty();
@@ -1579,8 +1579,7 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 			licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_CONTENT_TYPE, {lhrContentType.c_str()}});
 #endif
 		}
-
-		licenseServerProxy = (char *)aampInstance->GetLicenseReqProxy();
+		licenseServerProxy = aampInstance->GetLicenseReqProxy(); 
 	}
 
 	return isContentMetadataAvailable;

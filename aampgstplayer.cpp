@@ -545,11 +545,11 @@ static void httpsoup_source_setup (GstElement * element, GstElement * source, gp
 
 	if (!strcmp(GST_ELEMENT_NAME(source), "source"))
 	{
-		const char *proxy = _this->aamp->GetNetworkProxy();
-		if(proxy)
+		std::string networkProxyValue = _this->aamp->GetNetworkProxy();
+		if(!networkProxyValue.empty())
 		{
-			g_object_set(source, "proxy", proxy, NULL);
-			logprintf("%s() : httpsoup -> Set network proxy '%s'", __FUNCTION__, proxy);
+			g_object_set(source, "proxy", networkProxyValue.c_str(), NULL);
+			logprintf("%s() : httpsoup -> Set network proxy '%s'", __FUNCTION__, networkProxyValue.c_str());
 		}
 	}
 }
