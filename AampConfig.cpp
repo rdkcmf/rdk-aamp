@@ -45,11 +45,6 @@ template void AampConfig::SetConfigValue<double>(ConfigPriority owner, AAMPConfi
 template void AampConfig::SetConfigValue<int>(ConfigPriority owner, AAMPConfigSettings cfg , const int &value);
 template void AampConfig::SetConfigValue<bool>(ConfigPriority owner, AAMPConfigSettings cfg , const bool &value);
 
-#ifdef WIN32
-std::string AampConfig::cWindowsCfg= AAMP_CFG_PATH;
-std::string AampConfig::cWindowsJsonCfg = AAMP_JSON_PATH;
-#endif
-
 /**
  * @brief AAMP Config Owners enum-string mapping table
  */
@@ -433,14 +428,6 @@ LangCodePreference AampConfig::GetLanguageCodePreference()
 std::string AampConfig::GetUserAgentString()
 {
 	return std::string(sAampCfgValue[eAAMPConfig_UserAgent-eAAMPConfig_StringStartValue].value + " " + AAMP_USERAGENT_SUFFIX);
-}
-
-void AampConfig::SetCfgDrive(char drivename)
-{
-#ifdef WIN32
-	cWindowsCfg.replace(0,1,1,drivename);
-	cWindowsJsonCfg.replace(0,1,1,drivename);
-#endif
 }
 
 /**
@@ -1038,9 +1025,7 @@ bool AampConfig::ReadAampCfgJsonFile()
 	std::string cfgPath = "";
 #endif
 
-#ifdef WIN32
-		cfgPath.assign(cWindowsJsonCfg);
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
 		cfgPath += "/aampcfg.json";
 #else
 
@@ -1093,9 +1078,7 @@ bool AampConfig::ReadAampCfgTxtFile()
 	std::string cfgPath = "";
 #endif
 
-#ifdef WIN32
-	cfgPath.assign(cWindowsCfg);
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
 	cfgPath += "/aamp.cfg";
 #else
 

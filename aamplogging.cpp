@@ -27,13 +27,11 @@
 #include "priv_aamp.h"
 using namespace std;
 
-#ifndef WIN32
 #ifdef USE_SYSLOG_HELPER_PRINT
 #include "syslog_helper_ifc.h"
 #endif
 #ifdef USE_SYSTEMD_JOURNAL_PRINT
 #include <systemd/sd-journal.h>
-#endif
 #endif
 
 /**
@@ -482,23 +480,9 @@ void logprintf(const char *format, ...)
 		printf("%ld:%3ld : %s\n", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
 	}
 #else  //USE_SYSTEMD_JOURNAL_PRINT
-#ifdef WIN32
-	static bool init;
-
-	FILE *f = fopen(gAampLog, (init ? "a" : "w"));
-	if (f)
-	{
-		init = true;
-		fputs(gDebugPrintBuffer, f);
-		fclose(f);
-	}
-
-	printf("%s\n", gDebugPrintBuffer);
-#else
 	struct timeval t;
 	gettimeofday(&t, NULL);
 	printf("%ld:%3ld : %s\n", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
-#endif
 #endif
 }
 
