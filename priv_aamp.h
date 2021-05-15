@@ -446,13 +446,8 @@ class PrivateInstanceAAMP : public AampDrmCallbacks
 	    E_AAMP2Receiver_EVENTS,
 	    E_AAMP2Receiver_MsgMAX
 	};
-#ifdef WIN32
-	// 'packed' directive unavailable in win32 build;
-	typedef struct _AAMP2ReceiverMsg
-#else
 	// needed to ensure matching structure alignment in receiver
 	typedef struct __attribute__((__packed__)) _AAMP2ReceiverMsg
-#endif
 	{
 	    unsigned int type;
 	    unsigned int length;

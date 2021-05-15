@@ -41,14 +41,9 @@
 #include "aampgstplayer.h"
 
 #include <dlfcn.h>
-
-#ifdef WIN32
-#include "conio.h"
-#else
 #include <termios.h>
 #include <errno.h>
 #include <regex>
-#endif //WIN32
 
 #ifdef USE_SECMANAGER
 #include "AampSecManager.h"
