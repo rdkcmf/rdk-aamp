@@ -993,12 +993,10 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 			{
 				break;
 			}
-	#ifndef WIN32
 			if (ret != ETIMEDOUT)
 			{
 				logprintf("%s:%d error while calling pthread_cond_timedwait - %s", __FUNCTION__, __LINE__, strerror(ret));
 			}
-	#endif
 		}
 	}
 	else
@@ -1940,12 +1938,10 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 			{
 				break;
 			}
-	#ifndef WIN32
 			if (ret != ETIMEDOUT)
 			{
 				logprintf("%s:%d error while calling pthread_cond_timedwait - %s", __FUNCTION__, __LINE__, strerror(ret));
 			}
-	#endif
 			audioDuration = audio->GetTotalInjectedDuration();
 		}
 	}
