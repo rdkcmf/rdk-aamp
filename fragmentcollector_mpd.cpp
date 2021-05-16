@@ -22,6 +22,7 @@
  */
 #include "iso639map.h"
 #include "fragmentcollector_mpd.h"
+#include "MediaStreamContext.h"
 #include "AampFnLogger.h"
 #include "priv_aamp.h"
 #include "AampDRMSessionManager.h"
@@ -81,87 +82,6 @@
 #define MEDIATYPE_IMAGE "image"
 
 static uint64_t ParseISO8601Duration(const char *ptr);
-
-
-/**
- * @struct FragmentDescriptor
- * @brief Stores information of dash fragment
- */
-struct FragmentDescriptor
-{
-private :
-	const std::vector<IBaseUrl *>*baseUrls;
-	std::string matchingBaseURL;
-public :
-	std::string manifestUrl;
-	uint32_t Bandwidth;
-	std::string RepresentationID;
-	uint64_t Number;
-	double Time;
-
-	FragmentDescriptor() : manifestUrl(""), baseUrls (NULL), Bandwidth(0), Number(0), Time(0), RepresentationID(""),matchingBaseURL("")
-	{
-	}
-	
-	FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), baseUrls(p.baseUrls), Bandwidth(p.Bandwidth), RepresentationID(p.RepresentationID), Number(p.Number), Time(p.Time),matchingBaseURL(p.matchingBaseURL)
-	{
-	}
-
-	FragmentDescriptor& operator=(const FragmentDescriptor &p)
-	{
-		manifestUrl = p.manifestUrl;
-		baseUrls = p.baseUrls;
-		RepresentationID.assign(p.RepresentationID);
-		Bandwidth = p.Bandwidth;
-		Number = p.Number;
-		Time = p.Time;
-		matchingBaseURL = p.matchingBaseURL;
-		return *this;
-	}
-
-	const std::vector<IBaseUrl *>*  GetBaseURLs() const
-	{
-		return baseUrls;
-	}
-
-	std::string GetMatchingBaseUrl() const
-	{
-		return matchingBaseURL;
-	}
-	void SetBaseURLs(const std::vector<IBaseUrl *>* baseurls )
-	{
-                FN_TRACE_F_MPD( __FUNCTION__ );
-		if(baseurls)
-		{
-			this->baseUrls = baseurls;
-			if(this->baseUrls->size() > 0 )
-			{
-				// use baseurl which matches with host from manifest.
-				if(gpGlobalConfig->useMatchingBaseUrl == eTrueState)
-				{
-					std::string prefHost = aamp_getHostFromURL(manifestUrl);
-					for (auto & item : *this->baseUrls) {
-						std::string itemUrl =item->GetUrl();
-						std::string host  = aamp_getHostFromURL(itemUrl);
-						if(0 == prefHost.compare(host))
-						{
-							this->matchingBaseURL = item->GetUrl();
-							return; // return here, we are done
-						}
-					}
-				}
-				//we are here means useMatchingBaseUrl not enabled or host did not match
-				// hence initialize default to first baseurl
-				this->matchingBaseURL = this->baseUrls->at(0)->GetUrl();
-			}
-			else
-			{
-				this->matchingBaseURL.clear();
-			}
-		}
-	}
-
-};
 
 /**
  * @struct PeriodInfo
@@ -286,367 +206,6 @@ public:
  * @brief Check if the given period is empty
  */
 static bool IsEmptyPeriod(IPeriod *period);
-
-
-/**
- * @class MediaStreamContext
- * @brief MPD media track
- */
-class MediaStreamContext : public MediaTrack
-{
-public:
-	/**
-	 * @brief MediaStreamContext Constructor
-	 * @param type Type of track
-	 * @param context  MPD collector context
-	 * @param aamp Pointer to associated aamp instance
-	 * @param name Name of the track
-	 */
-	MediaStreamContext(TrackType type, StreamAbstractionAAMP_MPD* ctx, PrivateInstanceAAMP* aamp, const char* name) :
-			MediaTrack(type, aamp, name),
-			mediaType((MediaType)type), adaptationSet(NULL), representation(NULL),
-			fragmentIndex(0), timeLineIndex(0), fragmentRepeatCount(0), fragmentOffset(0),
-			eos(false), fragmentTime(0), periodStartOffset(0), index_ptr(NULL), index_len(0),
-			lastSegmentTime(0), lastSegmentNumber(0), lastSegmentDuration(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
-			adaptationSetId(0), fragmentDescriptor(), context(ctx), initialization(""),
-			mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true)
-	{
-		memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
-	}
-
-	/**
-	 * @brief MediaStreamContext Destructor
-	 */
-	~MediaStreamContext()
-	{
-		if(mDownloadedFragment.ptr)
-		{
-			aamp_Free(&mDownloadedFragment.ptr);
-			mDownloadedFragment.ptr = NULL;
-		}
-	}
-
-	/**
-	 * @brief MediaStreamContext Copy Constructor
-	 */
-	 MediaStreamContext(const MediaStreamContext&) = delete;
-
-	/**
-	 * @brief MediaStreamContext Assignment operator overloading
-	 */
-	 MediaStreamContext& operator=(const MediaStreamContext&) = delete;
-
-
-	/**
-	 * @brief Get the context of media track. To be implemented by subclasses
-	 * @retval Context of track.
-	 */
-	StreamAbstractionAAMP* GetContext()
-	{
-		return context;
-	}
-
-	/**
-	 * @brief Receives cached fragment and injects to sink.
-	 *
-	 * @param[in] cachedFragment - contains fragment to be processed and injected
-	 * @param[out] fragmentDiscarded - true if fragment is discarded.
-	 */
-	void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded)
-	{
-                FN_TRACE_F_MPD( __FUNCTION__ );
-		aamp->SendStream((MediaType)type, &cachedFragment->fragment,
-					cachedFragment->position, cachedFragment->position, cachedFragment->duration);
-		fragmentDiscarded = false;
-	} // InjectFragmentInternal
-
-	/**
-	 * @brief Fetch and cache a fragment
-	 * @param fragmentUrl url of fragment
-	 * @param curlInstance curl instance to be used to fetch
-	 * @param position position of fragment in seconds
-	 * @param duration duration of fragment in seconds
-	 * @param range byte range
-	 * @param initSegment true if fragment is init fragment
-	 * @param discontinuity true if fragment is discontinuous
-	 * @retval true on success
-	 */
-	bool CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false
-		, bool playingAd = false
-	)
-	{
-                FN_TRACE_F_MPD( __FUNCTION__ );
-		bool ret = false;
-
-		fragmentDurationSeconds = duration;
-		ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(mediaType, initSegment);
-		CachedFragment* cachedFragment = GetFetchBuffer(true);
-		long http_code = 0;
-		long bitrate = 0;
-		double downloadTime = 0;
-		MediaType actualType = (MediaType)(initSegment?(eMEDIATYPE_INIT_VIDEO+mediaType):mediaType); //Need to revisit the logic
-
-		if(!initSegment && mDownloadedFragment.ptr)
-		{
-			ret = true;
-			cachedFragment->fragment.ptr = mDownloadedFragment.ptr;
-			cachedFragment->fragment.len = mDownloadedFragment.len;
-			cachedFragment->fragment.avail = mDownloadedFragment.avail;
-			memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
-		}
-		else
-		{
-			std::string effectiveUrl;
-			int iFogError = -1;
-			int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
-			ret = aamp->LoadFragment(bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
-						range, actualType, &http_code, &downloadTime, &bitrate, &iFogError, fragmentDurationSeconds );
-
-			if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
-			{
-				if(actualType == eMEDIATYPE_VIDEO)
-				{
-					actualType = eMEDIATYPE_IFRAME;
-				}
-				else if(actualType == eMEDIATYPE_INIT_VIDEO)
-				{
-					actualType = eMEDIATYPE_INIT_IFRAME;
-				}
-				//CID:101284 - To resolve the deadcode
-			}
-
-			//update videoend info
-			aamp->UpdateVideoEndMetrics( actualType,
-									bitrate? bitrate : fragmentDescriptor.Bandwidth,
-									(iFogError > 0 ? iFogError : http_code),effectiveUrl,duration, downloadTime);
-		}
-
-		context->mCheckForRampdown = false;
-		if(bitrate > 0 && bitrate != fragmentDescriptor.Bandwidth)
-		{
-			AAMPLOG_INFO("%s:%d Bitrate changed from %u to %ld", __FUNCTION__, __LINE__, fragmentDescriptor.Bandwidth, bitrate);
-			fragmentDescriptor.Bandwidth = bitrate;
-			context->SetTsbBandwidth(bitrate);
-			mDownloadedFragment.ptr = cachedFragment->fragment.ptr;
-			mDownloadedFragment.avail = cachedFragment->fragment.avail;
-			mDownloadedFragment.len = cachedFragment->fragment.len;
-			memset(&cachedFragment->fragment, 0, sizeof(GrowableBuffer));
-			ret = false;
-		}
-		else if (!ret)
-		{
-			aamp_Free(&cachedFragment->fragment.ptr);
-			if( aamp->DownloadsAreEnabled())
-			{
-				logprintf("%s:%d LoadFragment failed", __FUNCTION__, __LINE__);
-
-				if (initSegment)
-				{
-					logprintf("%s:%d Init fragment fetch failed. fragmentUrl %s", __FUNCTION__, __LINE__, fragmentUrl.c_str());
-				}
-
-				if (mSkipSegmentOnError)
-				{
-					// Skip segment on error, and increse fail count
-					segDLFailCount += 1;
-				}
-				else
-				{
-					// Rampdown already attempted on same segment
-					// Reset flag for next fetch
-					mSkipSegmentOnError = true;
-				}
-				if (MAX_SEG_DOWNLOAD_FAIL_COUNT <= segDLFailCount)
-				{
-					if(!playingAd)	//If playingAd, we are invalidating the current Ad in onAdEvent().
-					{
-						if (!initSegment)
-						{
-							AAMPLOG_ERR("%s:%d Not able to download fragments; reached failure threshold sending tune failed event",__FUNCTION__, __LINE__);
-							aamp->SendDownloadErrorEvent(AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, http_code);
-						}
-						else
-						{
-							// When rampdown limit is not specified, init segment will be ramped down, this wil
-							AAMPLOG_ERR("%s:%d Not able to download init fragments; reached failure threshold sending tune failed event",__FUNCTION__, __LINE__);
-							aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
-						}
-					}
-				}
-				// DELIA-32287 - Profile RampDown check and rampdown is needed only for Video . If audio fragment download fails
-				// should continue with next fragment,no retry needed .
-				else if ((eTRACK_VIDEO == type) && !(context->CheckForRampDownLimitReached()))
-				{
-					// Attempt rampdown
-					if (context->CheckForRampDownProfile(http_code))
-					{
-						context->mCheckForRampdown = true;
-						if (!initSegment)
-						{
-							// Rampdown attempt success, download same segment from lower profile.
-							mSkipSegmentOnError = false;
-						}
-						AAMPLOG_WARN( "StreamAbstractionAAMP_MPD::%s:%d > Error while fetching fragment:%s, failedCount:%d. decrementing profile",
-								__FUNCTION__, __LINE__, fragmentUrl.c_str(), segDLFailCount);
-					}
-					else
-					{
-						if(!playingAd && initSegment)
-						{
-							// Already at lowest profile, send error event for init fragment.
-							AAMPLOG_ERR("%s:%d Not able to download init fragments; reached failure threshold sending tune failed event",__FUNCTION__, __LINE__);
-							aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
-						}
-						else
-						{
-							AAMPLOG_WARN("StreamAbstractionAAMP_MPD::%s:%d Already at the lowest profile, skipping segment", __FUNCTION__,__LINE__);
-							context->mRampDownCount = 0;
-						}
-					}
-				}
-				else if (AAMP_IS_LOG_WORTHY_ERROR(http_code))
-				{
-					AAMPLOG_WARN("StreamAbstractionAAMP_MPD::%s:%d > Error on fetching %s fragment. failedCount:%d",
-							__FUNCTION__, __LINE__, name, segDLFailCount);
-					// For init fragment, rampdown limit is reached. Send error event.
-					if(!playingAd && initSegment)
-					{
-						aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
-					}
-				}
-			}
-		}
-		else
-		{
-			cachedFragment->position = position;
-			cachedFragment->duration = duration;
-			cachedFragment->discontinuity = discontinuity;
-#ifdef AAMP_DEBUG_INJECT
-			if (discontinuity)
-			{
-				logprintf("%s:%d Discontinuous fragment", __FUNCTION__, __LINE__);
-			}
-			if ((1 << type) & AAMP_DEBUG_INJECT)
-			{
-				cachedFragment->uri.assign(fragmentUrl);
-			}
-#endif
-			segDLFailCount = 0;
-			if ((eTRACK_VIDEO == type) && (!initSegment))
-			{
-				// reset count on video fragment success
-				context->mRampDownCount = 0;
-			}
-			UpdateTSAfterFetch();
-			ret = true;
-		}
-		return ret;
-	}
-
-
-	/**
-	 * @brief Listener to ABR profile change
-	 */
-	void ABRProfileChanged(void)
-	{
-		struct ProfileInfo profileMap = context->GetAdaptationSetAndRepresetationIndicesForProfile(context->currentProfileIndex);
-		// Get AdaptationSet Index and Representation Index from the corresponding profile
-		int adaptIdxFromProfile = profileMap.adaptationSetIndex;
-		int reprIdxFromProfile = profileMap.representationIndex;
-		if (!((adaptationSetIdx == adaptIdxFromProfile) && (representationIndex == reprIdxFromProfile)))
-		{
-			const IAdaptationSet *pNewAdaptationSet = context->GetAdaptationSetAtIndex(adaptIdxFromProfile);
-			IRepresentation *pNewRepresentation = pNewAdaptationSet->GetRepresentation().at(reprIdxFromProfile);
-			if(representation != NULL)
-			{
-				logprintf("StreamAbstractionAAMP_MPD::%s:%d - ABR %dx%d[%d] -> %dx%d[%d]", __FUNCTION__, __LINE__,
-						representation->GetWidth(), representation->GetHeight(), representation->GetBandwidth(),
-						pNewRepresentation->GetWidth(), pNewRepresentation->GetHeight(), pNewRepresentation->GetBandwidth());
-				adaptationSetIdx = adaptIdxFromProfile;
-				adaptationSet = pNewAdaptationSet;
-				adaptationSetId = adaptationSet->GetId();
-				representationIndex = reprIdxFromProfile;
-				representation = pNewRepresentation;
-				const std::vector<IBaseUrl *>*baseUrls = &representation->GetBaseURLs();
-				if (baseUrls->size() != 0)
-				{
-					fragmentDescriptor.SetBaseURLs(baseUrls);
-				}
-				fragmentDescriptor.Bandwidth = representation->GetBandwidth();
-				fragmentDescriptor.RepresentationID.assign(representation->GetId());
-				profileChanged = true;
-			}
-			else
-			{
-				AAMPLOG_WARN("%s:%d :  representation is null", __FUNCTION__, __LINE__);  //CID:83962 - Null Returns
-			}
-		}
-		else
-		{
-			traceprintf("StreamAbstractionAAMP_MPD::%s:%d - Not switching ABR %dx%d[%d] ", __FUNCTION__, __LINE__,
-					representation->GetWidth(), representation->GetHeight(), representation->GetBandwidth());
-		}
-
-	}
-
-	double GetBufferedDuration()
-	{
-		double position = aamp->GetPositionMs() / 1000.00;
-		if (fragmentTime >= position) {
-			return (fragmentTime - position);
-		}
-		else
-		{
-			return ((fragmentTime + aamp->culledOffset) - position);
-		}
-	}
-
-
-	/**
-	 * @brief Notify discontinuity during trick-mode as PTS re-stamping is done in sink
-	 */
-	void SignalTrickModeDiscontinuity()
-	{
-                FN_TRACE_F_MPD( __FUNCTION__ );
-		aamp->SignalTrickModeDiscontinuity();
-	}
-
-	/**
-	 * @brief Returns if the end of track reached.
-	 */
-	bool IsAtEndOfTrack()
-	{
-                FN_TRACE_F_MPD( __FUNCTION__ );
-		return eosReached;
-	}
-
-	MediaType mediaType;
-	struct FragmentDescriptor fragmentDescriptor;
-	const IAdaptationSet *adaptationSet;
-	const IRepresentation *representation;
-	int fragmentIndex;
-	int timeLineIndex;
-	int fragmentRepeatCount;
-	int fragmentOffset;
-	bool eos;
-	bool profileChanged;
-	bool discontinuity;
-	GrowableBuffer mDownloadedFragment;
-
-	double fragmentTime;
-	double periodStartOffset;
-	char *index_ptr;
-	size_t index_len;
-	uint64_t lastSegmentTime;
-	uint64_t lastSegmentNumber;
-	uint64_t lastSegmentDuration;
-	int adaptationSetIdx;
-	int representationIndex;
-	StreamAbstractionAAMP_MPD* context;
-	std::string initialization;
-	uint32_t adaptationSetId;
-	bool mSkipSegmentOnError;
-}; // MediaStreamContext
 
 /**
  * @class HeaderFetchParams
@@ -4309,7 +3868,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 		memset(&manifest, 0, sizeof(manifest));
 		aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
 		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs,eCURLINSTANCE_VIDEO);
-		gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_VIDEO, true, eMEDIATYPE_MANIFEST);
+		gotManifest = aamp->GetFile(NULL,manifestUrl, &manifest, manifestUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_VIDEO, true, eMEDIATYPE_MANIFEST);
 		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,eCURLINSTANCE_VIDEO);
 		//update videoend info
 		aamp->UpdateVideoEndMetrics(eMEDIATYPE_MANIFEST,0,http_error,manifestUrl,downloadTime);
@@ -4375,179 +3934,47 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 			mIsLiveManifest = !(mpd->GetType() == "static");
 			aamp->SetIsLive(mIsLiveManifest);
 
-                        /*LL DASH VERIFICATION START*/
-                        //Check if LLD requested
-                        if (gpGlobalConfig->enableLowLatencyDash)
-                        {
-                           AampLLDashServiceData stAampLLDashServiceData = {0,};
+            /*LL DASH VERIFICATION START*/
+            //Check if LLD requested
+            if (gpGlobalConfig->enableLowLatencyDash)
+            {
+                AampLLDashServiceData stAampLLDashServiceData = {0,};
 
-                           std::vector<std::string> profiles;
-                           profiles = this->mpd->GetProfiles();
-                           size_t numOfProfiles = profiles.size();
-                           for (int iProfileCnt = 0; iProfileCnt < numOfProfiles; iProfileCnt++)
-                           {
-                               std::string profile = profiles.at(iProfileCnt);
-                               if(!strcmp(LL_DASH_SERVICE_PROFILE , profile.c_str()))
-                               {
-                                   stAampLLDashServiceData.lowLatencyMode = true;
-                                   logprintf("this->mLLDEnabled >%d: ",stAampLLDashServiceData.lowLatencyMode);
-                                   break;
-                               }
-                            }
+                if(CheckLLProfileAvailable(mpd))
+                {
+                    //Enable LowLatency Mode Handling
+                    stAampLLDashServiceData.lowLatencyMode = true;
+                }
 
-                            //If LLD enabled then check servicedescription requirements
-                            if(stAampLLDashServiceData.lowLatencyMode || aamp->IsLive())
-                            {
-                                //check if <ServiceDescription> available->raise error if not
-                                if(!mpd->GetServiceDescriptions().size())
-                                {
-                                    logprintf("[LL-DASH-ERROR] ServiceDescription element not available");
-                                    ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
-                                    aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
-                                    return ret;
-                                }
-                                //check if <scope> element is available in <ServiceDescription> element->raise error if not
-                                if(!mpd->GetServiceDescriptions().at(0)->GetScopes().size())
-                                {
-                                    logprintf("[LL-DASH-ERROR] Scope element not available");
-                                    if (stAampLLDashServiceData.strictSpecConformance)
-                                    {
-                                        ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
-                                        aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
-                                        return ret;
-                                    }
-                                }
-                                //check if <Latency> element is availablein <ServiceDescription> element->raise error if not
-                                if(!mpd->GetServiceDescriptions().at(0)->GetLatencys().size())
-                                {
-                                    logprintf("[LL-DASH-ERROR] Latency element not available");
-                                    if (stAampLLDashServiceData.strictSpecConformance)
-                                    {
-                                        ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
-                                        aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
-                                        return ret;
-                                    }
-                                }
-                                //check if attribute @target is available in <latency> element->raise error if not
-                                ILatency *latency= mpd->GetServiceDescriptions().at(0)->GetLatencys().at(0);
+                stAampLLDashServiceData.lowLatencyMode = true;
 
-                                // Some timeline may not have attribute for target latency , check it .
-                                map<string, string> attributeMap = latency->GetRawAttributes();
+                //If LLD enabled then check servicedescription requirements
+                if(stAampLLDashServiceData.lowLatencyMode)
+                {
+                    //Set Latency Offset to 0 in Low Latency Mode case
+                    aamp->SetLiveOffset(0);
 
-                                if(attributeMap.find("target") == attributeMap.end())
-                                {
-                                    logprintf("[LL-DASH-ERROR] Latency target attribute not available");
-                                    if (stAampLLDashServiceData.strictSpecConformance)
-                                    {
-                                        ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
-                                        aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
-                                        return ret;
-                                    }
-                                 }
+                    if(!ParseMPDLLData(mpd, stAampLLDashServiceData))
+                    {
+                        ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
+                        aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
+                        return ret;
+                    }
 
-                                 stAampLLDashServiceData.targetLatency = latency->GetTarget();
-                                 logprintf("[LL-DASH] targetLatency: %d", stAampLLDashServiceData.targetLatency);
-                                 //check if attribute @max or @min is available in <Latency> element->raise info if not
-                                 if(attributeMap.find("max") == attributeMap.end())
-                                 {
-                                     logprintf("[LL-DASH-INFO] Latency max attribute not available");
-                                 }
-                                 else
-                                 {
-                                     stAampLLDashServiceData.maxLatency = latency->GetMax();
-                                     logprintf("[LL-DASH] maxLatency: %d", stAampLLDashServiceData.maxLatency);
-                                 }
-                                 if(attributeMap.find("min") == attributeMap.end())
-                                 {
-                                     logprintf("[LL-DASH-INFO] Latency min attribute not available");
-                                 }
-                                 else
-                                 {
-                                     stAampLLDashServiceData.minLatency = latency->GetMin();
-                                     logprintf("[LL-DASH] minLatency: %d", stAampLLDashServiceData.minLatency);
-                                 }
-                                 //check if attribute @max or @min is available in <PlaybackRate> element->raise info if not
-                                 IPlaybackRate *playbackRate= mpd->GetServiceDescriptions().at(0)->GetPlaybackRates().at(0);
+                    //Set LL Dash Service Configuration Data in Pvt AAMP instance
+                    aamp->SetLLDashServiceData(stAampLLDashServiceData);
+                }
+            }
+            /*LL DASH VERIFICATION END*/
 
-                                 // Some timeline may not have attribute for target latency , check it .
-                                 map<string, string> attributeMapRate = playbackRate->GetRawAttributes();
-
-                                 if(attributeMapRate.find("max") == attributeMapRate.end())
-                                 {
-                                     logprintf("[LL-DASH-INFO] Latency max attribute not available");
-                                 }
-                                 else
-                                 {
-                                     stAampLLDashServiceData.maxPlaybackRate = playbackRate->GetMax();
-                                     logprintf("[LL-DASH] maxPlatbackRate: %0.2f",stAampLLDashServiceData.maxPlaybackRate);
-                                 }
-                                 if(attributeMapRate.find("min") == attributeMapRate.end())
-                                 {
-                                     logprintf("[LL-DASH-INFO] Latency min attribute not available");
-                                 }
-                                 else
-                                 {
-                                     stAampLLDashServiceData.minPlaybackRate = playbackRate->GetMin();
-                                     logprintf("[LL-DASH] minPlatbackRate: %0.2f", stAampLLDashServiceData.minPlaybackRate);
-                                 }
-                                 //check if UTCTiming element available
-                                 if(!mpd->GetUTCTimings().size())
-                                 {
-                                     logprintf("[LL-DASH-ERROR] UTCTiming element not available");
-                                     if (stAampLLDashServiceData.strictSpecConformance)
-                                     {
-                                         ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
-                                         aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
-                                         return ret;
-                                     }
-                                 }
-
-                                 //check if attribute @max or @min is available in <PlaybackRate> element->raise info if not
-                                 IUTCTiming *utcTiming= mpd->GetUTCTimings().at(0);
-
-                                 // Some timeline may not have attribute for target latency , check it .
-                                 map<string, string> attributeMapTiming = utcTiming->GetRawAttributes();
-
-                                 if(attributeMapTiming.find("schemeIdUri") == attributeMapTiming.end())
-                                 {
-                                     logprintf("[LL-DASH-INFO] UTCTiming@schemeIdUri attribute not available");
-                                 }
-                                 else
-                                 {
-                                     logprintf("[LL-DASH-INFO] UTCTiming@schemeIdUri: %s", utcTiming->GetSchemeIdUri().c_str());
-                                     if(!strcmp(URN_UTC_HTTP_XSDATE , utcTiming->GetSchemeIdUri().c_str()))
-                                     {
-                                         stAampLLDashServiceData.utcTiming = eUTC_HTTP_XSDATE;
-                                     }
-                                     else if(!strcmp(URN_UTC_HTTP_ISO , utcTiming->GetSchemeIdUri().c_str()))
-                                     {
-                                         stAampLLDashServiceData.utcTiming = eUTC_HTTP_ISO;
-                                     }
-                                     else if(!strcmp(URN_UTC_HTTP_NTP , utcTiming->GetSchemeIdUri().c_str()))
-                                     {
-                                         stAampLLDashServiceData.utcTiming = eUTC_HTTP_NTP;
-                                     }
-                                     else
-                                     {
-                                         stAampLLDashServiceData.utcTiming = eUTC_HTTP_INVALID;
-                                         logprintf("[LL-DASH-INFO] UTCTiming@schemeIdUri Value not proper");
-                                     }
-                                 }
-
-                                 //Set LL Dash Service Configuration Data in Pvt AAMP instance
-                                 aamp->SetLLDashServiceData(stAampLLDashServiceData);
-                            }
-                        }
-                        /*LL DASH VERIFICATION END*/
-
-                        if(aamp->mIsVSS)
-	                {
-           		    CheckForVssTags();
-       		        }
-	                if (!retrievedPlaylistFromCache && !mIsLiveManifest)
-	                {
-	                    aamp->getAampCacheHandler()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLiveStream,eMEDIATYPE_MANIFEST);
-		        }
+            if(aamp->mIsVSS)
+            {
+                CheckForVssTags();
+            }
+            if (!retrievedPlaylistFromCache && !mIsLiveManifest)
+            {
+                aamp->getAampCacheHandler()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLiveStream,eMEDIATYPE_MANIFEST);
+            }
 		}
 		else
 		{
@@ -8114,13 +7541,18 @@ void StreamAbstractionAAMP_MPD::Start(void)
 		if(aamp->IsPlayEnabled())
 		{
 			mMediaStreamContext[i]->StartInjectLoop();
+
+			if(aamp->GetLLDashServiceData()->lowLatencyMode)
+			{
+				mMediaStreamContext[i]->StartInjectChunkLoop();
+			}
 		}
 	}
-   
-        if(aamp->GetLLDashServiceData()->lowLatencyMode)
-        {
-           StartLatencyMonitorThread();
-        }
+
+    if(aamp->GetLLDashServiceData()->lowLatencyMode)
+    {
+        StartLatencyMonitorThread();
+    }
 }
 
 /**
@@ -8171,6 +7603,11 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 		if(track && track->Enabled())
 		{
 			track->StopInjectLoop();
+
+			if(aamp->GetLLDashServiceData()->lowLatencyMode)
+			{
+				track->StopInjectChunkLoop();
+			}
 		}
 	}
 
@@ -8755,7 +8192,12 @@ void StreamAbstractionAAMP_MPD::StopInjection(void)
 		{
 			track->AbortWaitForCachedFragment();
 			aamp->StopTrackInjection((MediaType) iTrack);
-			track->StopInjectLoop();
+
+			if(aamp->GetLLDashServiceData()->lowLatencyMode)
+			{
+				track->StopInjectChunkLoop();
+			}
+
 		}
 	}
 }
@@ -8773,6 +8215,11 @@ void StreamAbstractionAAMP_MPD::StartInjection(void)
 		{
 			aamp->ResumeTrackInjection((MediaType) iTrack);
 			track->StartInjectLoop();
+
+			if(aamp->GetLLDashServiceData()->lowLatencyMode)
+			{
+				track->StartInjectChunkLoop();
+			}
 		}
 	}
 }
@@ -9440,4 +8887,151 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
             keepRunning = false;
         }
     }
+}
+
+bool StreamAbstractionAAMP_MPD::CheckLLProfileAvailable(IMPD *mpd)
+{
+    std::vector<std::string> profiles;
+    profiles = this->mpd->GetProfiles();
+    size_t numOfProfiles = profiles.size();
+    for (int iProfileCnt = 0; iProfileCnt < numOfProfiles; iProfileCnt++)
+    {
+        std::string profile = profiles.at(iProfileCnt);
+        if(!strcmp(LL_DASH_SERVICE_PROFILE , profile.c_str()))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool StreamAbstractionAAMP_MPD::ParseMPDLLData(MPD* mpd, AampLLDashServiceData &stAampLLDashServiceData)
+{
+    bool ret = false;
+    //check if <ServiceDescription> available->raise error if not
+    if(!mpd->GetServiceDescriptions().size())
+    {
+        return ret;
+    }
+    //check if <scope> element is available in <ServiceDescription> element->raise error if not
+    if(!mpd->GetServiceDescriptions().at(0)->GetScopes().size())
+    {
+        logprintf("[LL-DASH-ERROR] Scope element not available");
+        if (stAampLLDashServiceData.strictSpecConformance)
+        {
+            return ret;
+        }
+    }
+    //check if <Latency> element is availablein <ServiceDescription> element->raise error if not
+    if(!mpd->GetServiceDescriptions().at(0)->GetLatencys().size())
+    {
+        logprintf("[LL-DASH-ERROR] Latency element not available");
+        if (stAampLLDashServiceData.strictSpecConformance)
+        {
+            return ret;
+        }
+    }
+    //check if attribute @target is available in <latency> element->raise error if not
+    ILatency *latency= mpd->GetServiceDescriptions().at(0)->GetLatencys().at(0);
+
+    // Some timeline may not have attribute for target latency , check it .
+    map<string, string> attributeMap = latency->GetRawAttributes();
+
+    if(attributeMap.find("target") == attributeMap.end())
+    {
+        logprintf("[LL-DASH-ERROR] Latency target attribute not available");
+        if (stAampLLDashServiceData.strictSpecConformance)
+        {
+            return ret;
+        }
+    }
+
+    stAampLLDashServiceData.targetLatency = latency->GetTarget();
+    logprintf("[LL-DASH] targetLatency: %d", stAampLLDashServiceData.targetLatency);
+    //check if attribute @max or @min is available in <Latency> element->raise info if not
+    if(attributeMap.find("max") == attributeMap.end())
+    {
+        logprintf("[LL-DASH-INFO] Latency max attribute not available");
+    }
+    else
+    {
+        stAampLLDashServiceData.maxLatency = latency->GetMax();
+        logprintf("[LL-DASH] maxLatency: %d", stAampLLDashServiceData.maxLatency);
+    }
+    if(attributeMap.find("min") == attributeMap.end())
+    {
+        logprintf("[LL-DASH-INFO] Latency min attribute not available");
+    }
+    else
+    {
+        stAampLLDashServiceData.minLatency = latency->GetMin();
+        logprintf("[LL-DASH] minLatency: %d", stAampLLDashServiceData.minLatency);
+    }
+    //check if attribute @max or @min is available in <PlaybackRate> element->raise info if not
+    IPlaybackRate *playbackRate= mpd->GetServiceDescriptions().at(0)->GetPlaybackRates().at(0);
+
+    // Some timeline may not have attribute for target latency , check it .
+    map<string, string> attributeMapRate = playbackRate->GetRawAttributes();
+
+    if(attributeMapRate.find("max") == attributeMapRate.end())
+    {
+        logprintf("[LL-DASH-INFO] Latency max attribute not available");
+    }
+    else
+    {
+        stAampLLDashServiceData.maxPlaybackRate = playbackRate->GetMax();
+        logprintf("[LL-DASH] maxPlatbackRate: %0.2f",stAampLLDashServiceData.maxPlaybackRate);
+    }
+    if(attributeMapRate.find("min") == attributeMapRate.end())
+    {
+        logprintf("[LL-DASH-INFO] Latency min attribute not available");
+    }
+    else
+    {
+        stAampLLDashServiceData.minPlaybackRate = playbackRate->GetMin();
+        logprintf("[LL-DASH] minPlatbackRate: %0.2f", stAampLLDashServiceData.minPlaybackRate);
+    }
+    //check if UTCTiming element available
+    if(!mpd->GetUTCTimings().size())
+    {
+        logprintf("[LL-DASH-ERROR] UTCTiming element not available");
+        if (stAampLLDashServiceData.strictSpecConformance)
+        {
+            return ret;
+        }
+    }
+
+    //check if attribute @max or @min is available in <PlaybackRate> element->raise info if not
+    IUTCTiming *utcTiming= mpd->GetUTCTimings().at(0);
+
+    // Some timeline may not have attribute for target latency , check it .
+    map<string, string> attributeMapTiming = utcTiming->GetRawAttributes();
+
+    if(attributeMapTiming.find("schemeIdUri") == attributeMapTiming.end())
+    {
+        logprintf("[LL-DASH-INFO] UTCTiming@schemeIdUri attribute not available");
+    }
+    else
+    {
+        logprintf("[LL-DASH-INFO] UTCTiming@schemeIdUri: %s", utcTiming->GetSchemeIdUri().c_str());
+        if(!strcmp(URN_UTC_HTTP_XSDATE , utcTiming->GetSchemeIdUri().c_str()))
+        {
+            stAampLLDashServiceData.utcTiming = eUTC_HTTP_XSDATE;
+        }
+        else if(!strcmp(URN_UTC_HTTP_ISO , utcTiming->GetSchemeIdUri().c_str()))
+        {
+            stAampLLDashServiceData.utcTiming = eUTC_HTTP_ISO;
+        }
+        else if(!strcmp(URN_UTC_HTTP_NTP , utcTiming->GetSchemeIdUri().c_str()))
+        {
+            stAampLLDashServiceData.utcTiming = eUTC_HTTP_NTP;
+        }
+        else
+        {
+            stAampLLDashServiceData.utcTiming = eUTC_HTTP_INVALID;
+            logprintf("[LL-DASH-INFO] UTCTiming@schemeIdUri Value not proper");
+        }
+    }
+
+    return true;
 }

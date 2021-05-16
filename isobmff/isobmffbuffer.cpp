@@ -246,6 +246,15 @@ bool IsoBmffBuffer::getFirstPTS(uint64_t &pts)
 }
 
 /**
+ * @brief Print PTS of buffer
+ * @return tvoid
+ */
+void IsoBmffBuffer::PrintPTS(void)
+{
+    return printPTSInternal(&boxes);
+}
+
+/**
  * @brief Get TimeScale value of buffer
  *
  * @param[in] boxes - ISOBMFF boxes
@@ -365,7 +374,13 @@ bool IsoBmffBuffer::isInitSegment()
  */
 bool IsoBmffBuffer::getBoxesInternal(const std::vector<Box*> *boxes, const char *name, std::vector<Box*> *pBoxes)
 {
-    for (size_t i = 0; i < boxes->size(); i++)
+    size_t size =boxes->size();
+    //Adjust size when chunked box is available
+    if(chunkedBox)
+    {
+        size -= 1;
+    }
+    for (size_t i = 0; i < size; i++)
     {
         Box *box = boxes->at(i);
 
@@ -471,4 +486,111 @@ Box* IsoBmffBuffer::getBoxAtIndex(size_t index)
         return boxes.at(index);
     else
         return NULL;
+}
+
+/**
+ * @brief Print ISOBMFF box PTS
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @return void
+ */
+void IsoBmffBuffer::printPTSInternal(const std::vector<Box*> *boxes)
+{
+    for (size_t i = 0; i < boxes->size(); i++)
+    {
+        Box *box = boxes->at(i);
+
+        if (IS_TYPE(box->getType(), Box::TFDT))
+        {
+            AAMPLOG_WARN("****Base Media Decode Time: %lld \n", dynamic_cast<TfdtBox *>(box)->getBaseMDT());
+        }
+
+        if (box->hasChildren())
+        {
+            printBoxesInternal(box->getChildren());
+        }
+    }
+}
+
+/**
+ * @brief Get ISOBMFF box Sample Duration
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @return uint64_t - duration  value
+ */
+uint64_t IsoBmffBuffer::getSampleDurationInernal(const std::vector<Box*> *boxes)
+{
+    if(!boxes) return 0;
+
+    for (size_t i = 0; i < boxes->size(); i++)
+    {
+        Box *box = boxes->at(i);
+
+        if (IS_TYPE(box->getType(), Box::TRUN))
+        {
+            //AAMPLOG_WARN("****TRUN BOX SIZE: %d \n", box->getSize());
+            //AAMPLOG_WARN("****DURATION: %lld \n", dynamic_cast<TrunBox *>(box)->getSampleDuration());
+            return dynamic_cast<TrunBox *>(box)->getSampleDuration();
+        }
+
+        if (box->hasChildren())
+        {
+            return getSampleDurationInernal(box->getChildren());
+        }
+    }
+}
+
+/**
+ * @brief Get ISOBMFF box Sample Duration
+ *
+ * @param[in] box - ISOBMFF box
+ * @param[in] uint64_t* -  duration to get
+ * @return void
+ */
+void IsoBmffBuffer::getSampleDuration(Box *box, uint64_t &fduration)
+{
+    if (box->hasChildren())
+    {
+        fduration = getSampleDurationInernal(box->getChildren());
+    }
+}
+
+/**
+ * @brief Get ISOBMFF box PTS
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @return uint64_t - PTS value
+ */
+uint64_t IsoBmffBuffer::getPtsInternal(const std::vector<Box*> *boxes)
+{
+    for (size_t i = 0; i < boxes->size(); i++)
+    {
+        Box *box = boxes->at(i);
+
+        if (IS_TYPE(box->getType(), Box::TFDT))
+        {
+            AAMPLOG_WARN("****Base Media Decode Time: %lld \n", dynamic_cast<TfdtBox *>(box)->getBaseMDT());
+            return dynamic_cast<TfdtBox *>(box)->getBaseMDT();
+        }
+
+        if (box->hasChildren())
+        {
+            return getPtsInternal(box->getChildren());
+        }
+    }
+}
+
+/**
+ * @brief Get ISOBMFF box PTS
+ *
+ * @param[in] boxe - ISOBMFF box
+ * @param[in] uint64_t* -  PTS to get
+ * @return void
+ */
+void IsoBmffBuffer::getPts(Box *box, uint64_t &fpts)
+{
+    if (box->hasChildren())
+    {
+        fpts = getPtsInternal(box->getChildren());
+    }
 }

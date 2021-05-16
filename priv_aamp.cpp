@@ -23,6 +23,8 @@
  */
 
 #include "priv_aamp.h"
+#include "isobmffbuffer.h"
+#include "AampFnLogger.h"
 #include "AampConstants.h"
 #include "AampCacheHandler.h"
 #include "AampUtils.h"
@@ -31,6 +33,7 @@
 #include "admanager_mpd.h"
 #include "fragmentcollector_hls.h"
 #include "fragmentcollector_progressive.h"
+#include "MediaStreamContext.h"
 #include "hdmiin_shim.h"
 #include "compositein_shim.h"
 #include "ota_shim.h"
@@ -103,6 +106,7 @@
 #define CONTENT_ENCODING_STRING		"Content-Encoding:"
 #define FOG_RECORDING_ID_STRING		"Fog-Recording-Id:"
 #define CAPPED_PROFILE_STRING 		"Profile-Capped:"
+#define TRANSFER_ENCODING_STRING		"Transfer-Encoding:"
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
@@ -171,12 +175,16 @@ struct CurlCallbackContext
 	httpRespHeaderData *responseHeaderData;
 	long bitrate;
 	bool downloadIsEncoded;
+	//represents transfer-encoding based download
+	bool chunkedDownload;
+	class MediaStreamContext *pMediaStreamContext;
+	std::string remoteUrl;
 
-	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false), fileType(eMEDIATYPE_DEFAULT), allResponseHeadersForErrorLogging{""}
+	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false), chunkedDownload(false),  fileType(eMEDIATYPE_DEFAULT), pMediaStreamContext(NULL), remoteUrl(""), allResponseHeadersForErrorLogging{""}
 	{
 
 	}
-	CurlCallbackContext(PrivateInstanceAAMP *_aamp, GrowableBuffer *_buffer) : aamp(_aamp), buffer(_buffer), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false), fileType(eMEDIATYPE_DEFAULT), allResponseHeadersForErrorLogging{""}{}
+	CurlCallbackContext(PrivateInstanceAAMP *_aamp, GrowableBuffer *_buffer) : aamp(_aamp), buffer(_buffer), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false),  chunkedDownload(false), fileType(eMEDIATYPE_DEFAULT), pMediaStreamContext(NULL), remoteUrl(""), allResponseHeadersForErrorLogging{""}{}
 
 	~CurlCallbackContext() {}
 
@@ -1659,9 +1667,77 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
 		size_t numBytesForBlock = size*nmemb;
 		aamp_AppendBytes(context->buffer, ptr, numBytesForBlock);
 		ret = numBytesForBlock;
+
+		if(context->aamp->GetLLDashServiceData()->lowLatencyMode &&
+		(context->fileType == eMEDIATYPE_INIT_VIDEO || context->fileType ==  eMEDIATYPE_INIT_AUDIO))
+		{
+			IsoBmffBuffer isobuf;
+			isobuf.setBuffer(reinterpret_cast<uint8_t *>(ptr), numBytesForBlock);
+			isobuf.parseBuffer();
+#ifdef AAMP_DEBUG_CURL_WRITE
+			logprintf("%s:%d Buffer Length: %d", __FUNCTION__, __LINE__, context->buffer->len);
+#endif
+			//Print box details
+			//isobuf.printBoxes();
+			if(isobuf.isInitSegment())
+			{
+				uint32_t timeScale = 0;
+				isobuf.getTimeScale(timeScale);
+				if(context->fileType == eMEDIATYPE_INIT_VIDEO)
+				{
+#ifdef AAMP_DEBUG_LL_CURL_WRITE
+					logprintf("%s:%d Video TimeScale  [%d]", __FUNCTION__, __LINE__, timeScale);
+#endif
+					context->aamp->GetLLDashServiceData()->vidTimeScale = timeScale;
+				}
+				else
+				{
+#ifdef AAMP_DEBUG_LL_CURL_WRITE
+					logprintf("%s:%d Audio TimeScale  [%d]", __FUNCTION__, __LINE__, timeScale);
+#endif
+					context->aamp->GetLLDashServiceData()->audTimeScale = timeScale;
+				}
+			}
+			isobuf.destroyBoxes();
+		}
 	}
 	else
 	{
+		logprintf("write_callback - interrupted");
+	}
+	pthread_mutex_unlock(&context->aamp->mLock);
+	return ret;
+}
+
+/**
+ * @brief write callback ll to be used by CURL
+ * @param ptr pointer to buffer containing the data
+ * @param size size of the buffer
+ * @param nmemb number of bytes
+ * @param userdata CurlCallbackContext pointer
+ * @retval size consumed or 0 if interrupted
+ */
+static size_t write_callback_ll(char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+	size_t ret = 0;
+	CurlCallbackContext *context = (CurlCallbackContext *)userdata;
+
+	pthread_mutex_lock(&context->aamp->mLock);
+	if (context->aamp->mDownloadsEnabled)
+	{
+		size_t numBytesForBlock = size*nmemb;
+		aamp_AppendBytes(context->buffer, ptr, numBytesForBlock);
+		ret = numBytesForBlock;
+#ifdef AAMP_DEBUG_LL_CURL_WRITE
+        logprintf("%s:%d [%d] Buffer Length: %d",context->fileType,context->buffer->len);
+#endif
+		if(context->pMediaStreamContext)
+		{
+			context->pMediaStreamContext->CacheFragmentChunk(context->fileType, ptr, numBytesForBlock,context->remoteUrl);
+		}
+	}
+	else
+	    {
 		logprintf("write_callback - interrupted");
 	}
 	pthread_mutex_unlock(&context->aamp->mLock);
@@ -1762,6 +1838,10 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		// Enabled IsEncoded as Content-Encoding header is present
 		// The Content-Encoding entity header incidcates media is compressed
 		context->downloadIsEncoded = true;
+	}
+	else if (STARTS_WITH_IGNORE_CASE(ptr, TRANSFER_ENCODING_STRING ))
+	{
+		context->chunkedDownload = true;
 	}
 	else if (context->aamp->mOutputResolutionCheckEnabled && context->aamp->IsFirstRequestToFog() && STARTS_WITH_IGNORE_CASE(ptr, CAPPED_PROFILE_STRING ))
 	{
@@ -3769,7 +3849,7 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
  * @param fragmentDurationSeconds to know the current fragment length in case fragment fetch
  * @retval true if success
  */
-bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *buffer, std::string& effectiveUrl, 
+bool PrivateInstanceAAMP::GetFile(class MediaStreamContext *pMediaStreamContext,std::string remoteUrl,struct GrowableBuffer *buffer, std::string& effectiveUrl,
 				long * http_error, double *downloadTime, const char *range, unsigned int curlInstance, 
 				bool resetBuffer, MediaType fileType, long *bitrate, int * fogError,
 				double fragmentDurationSeconds)
@@ -3819,7 +3899,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				gpGlobalConfig->uriParameter[0] = '?';
 			}
 			remoteUrl.append(gpGlobalConfig->uriParameter);
-			//printf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
+			//logprintf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
 		}
 
 		AAMPLOG_INFO("aamp url:%d,%d,%d,%f,%s", mediaType, simType, curlInstance,fragmentDurationSeconds, remoteUrl.c_str());
@@ -3827,10 +3907,11 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		if (curl)
 		{
 			curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
-                        if(this->mAampLLDashServiceData.lowLatencyMode)
-                        {
-                            curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
-                        }
+			if(this->mAampLLDashServiceData.lowLatencyMode)
+			{
+				curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+				context.remoteUrl = remoteUrl;
+			}
 			context.aamp = this;
 			context.buffer = buffer;
 			context.responseHeaderData = &httpRespHeaders[curlInstance];
@@ -3847,6 +3928,28 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			{
 				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 			}
+
+			if( mAampLLDashServiceData.lowLatencyMode &&
+				(curlInstance == eMEDIATYPE_VIDEO || curlInstance == eMEDIATYPE_AUDIO))
+			{
+#ifdef AAMP_DEBUG_LL_CURL_WRITE
+				logprintf("[LL-DASH] curlInstance : %d, simType : %d ", curlInstance, simType);
+#endif
+				if (simType == eMEDIATYPE_VIDEO || simType == eMEDIATYPE_AUDIO ||
+					simType == eMEDIATYPE_SUBTITLE || simType == eMEDIATYPE_AUX_AUDIO)
+				{
+					if(pMediaStreamContext)
+					{
+						context.pMediaStreamContext = pMediaStreamContext;
+					}
+					curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback_ll);
+				}
+			}
+#ifdef AAMP_DEBUG_LL_CURL_WRITE
+			else{
+				logprintf("[LL-DASH] mAampLLDashServiceData.lowLatencyMode :%d, curlInstance : %d, simType : %d ", mAampLLDashServiceData.lowLatencyMode, curlInstance, simType);
+			}
+#endif
 
 			CurlProgressCbContext progressCtx;
 			progressCtx.aamp = this;
@@ -5679,7 +5782,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 
 		CurlInit(eCURLINSTANCE_MANIFEST_PLAYLIST, 1, GetNetworkProxy());
 
-		bool gotManifest = GetFile(
+		bool gotManifest = GetFile(NULL,
 							url,
 							&sniffedBytes,
 							effectiveUrl,
@@ -6117,7 +6220,7 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::stri
 {
 	profiler.ProfileBegin(bucketType);
 	struct GrowableBuffer fragment = { 0, 0, 0 }; // TODO: leaks if thread killed
-	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, http_code, downloadTime, range, curlInstance, true, fileType,NULL,fogError))
+	if (!GetFile(NULL,fragmentUrl, &fragment, effectiveUrl, http_code, downloadTime, range, curlInstance, true, fileType,NULL,fogError))
 	{
 		profiler.ProfileError(bucketType, *http_code);
 	}
@@ -6140,12 +6243,11 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::stri
  * @param http_code http code
  * @retval true on success, false on failure
  */
-bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl,std::string& effectiveUrl, struct GrowableBuffer *fragment, 
-					unsigned int curlInstance, const char *range, MediaType fileType,long * http_code, double *downloadTime, long *bitrate,int * fogError, double fragmentDurationSeconds)
+bool PrivateInstanceAAMP::LoadFragment(class MediaStreamContext *pMediaStreamContext,ProfilerBucketType bucketType, std::string fragmentUrl,std::string& effectiveUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType,long * http_code, double *downloadTime, long *bitrate,int * fogError, double fragmentDurationSeconds)
 {
 	bool ret = true;
 	profiler.ProfileBegin(bucketType);
-	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, downloadTime, range, curlInstance, false,fileType, bitrate, NULL, fragmentDurationSeconds))
+	if (!GetFile(pMediaStreamContext, fragmentUrl, fragment, effectiveUrl, http_code, downloadTime, range, curlInstance, false,fileType, bitrate, NULL, fragmentDurationSeconds))
 	{
 		ret = false;
 		profiler.ProfileError(bucketType, *http_code);
@@ -9462,7 +9564,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 						GrowableBuffer playlistStore;
 						long http_error;
 						double downloadTime;
-						if(GetFile(newelem.url, &playlistStore, playlistEffectiveUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_PLAYLISTPRECACHE, true, newelem.type))
+						if(GetFile(NULL, newelem.url, &playlistStore, playlistEffectiveUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_PLAYLISTPRECACHE, true, newelem.type))
 						{
 							// If successful download , then insert into Cache 
 							getAampCacheHandler()->InsertToPlaylistCache(newelem.url, &playlistStore, playlistEffectiveUrl, false, newelem.type);

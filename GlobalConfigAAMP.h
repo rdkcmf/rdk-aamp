@@ -46,6 +46,7 @@
 #define DEFAULT_ABR_NW_CONSISTENCY_CNT 2            /**< ABR network consistency count */
 
 #define DEFAULT_CACHED_FRAGMENTS_PER_TRACK  3       /**< Default cached fragements per track */
+#define DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK  20 /**< Default cached fragements per track */
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
 #define DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL 5
 #define DEFAULT_DISCONTINUITY_TIMEOUT 3000          /**< Default discontinuity timeout after cache is empty in MS */
@@ -175,6 +176,7 @@ public:
 	int abrCacheLife;                       /**< Adaptive bitrate cache life in seconds*/
 	int abrCacheLength;                     /**< Adaptive bitrate cache length*/
 	int maxCachedFragmentsPerTrack;         /**< fragment cache length*/
+	int maxCachedFragmentChunksPerTrack;    /**< fragment Chunk cache length*/
 	int abrOutlierDiffBytes;                /**< Adaptive bitrate outlier, if values goes beyond this*/
 	int abrNwConsistency;                   /**< Adaptive bitrate network consistency*/
 	int minABRBufferForRampDown;		/**< Mininum ABR Buffer for Rampdown*/

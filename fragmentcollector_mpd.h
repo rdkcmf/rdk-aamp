@@ -28,7 +28,7 @@
 #include "StreamAbstractionAAMP.h"
 #include <string>
 #include <stdint.h>
-#include "libdash/IMPD.h"
+#include "libdash/mpd/MPD.h"
 #include "libdash/INode.h"
 #include "libdash/IDASHManager.h"
 #include "libdash/xml/Node.h"
@@ -68,6 +68,86 @@ struct ProfileInfo
 {
 	int adaptationSetIndex;
 	int representationIndex;
+};
+
+
+/**
+ * @struct FragmentDescriptor
+ * @brief Stores information of dash fragment
+ */
+struct FragmentDescriptor
+{
+private :
+    const std::vector<IBaseUrl *>*baseUrls;
+    std::string matchingBaseURL;
+public :
+    std::string manifestUrl;
+    uint32_t Bandwidth;
+    std::string RepresentationID;
+    uint64_t Number;
+    double Time;
+
+    FragmentDescriptor() : manifestUrl(""), baseUrls (NULL), Bandwidth(0), Number(0), Time(0), RepresentationID(""),matchingBaseURL("")
+    {
+    }
+
+    FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), baseUrls(p.baseUrls), Bandwidth(p.Bandwidth), RepresentationID(p.RepresentationID), Number(p.Number), Time(p.Time),matchingBaseURL(p.matchingBaseURL)
+    {
+    }
+
+    FragmentDescriptor& operator=(const FragmentDescriptor &p)
+    {
+        manifestUrl = p.manifestUrl;
+        baseUrls = p.baseUrls;
+        RepresentationID.assign(p.RepresentationID);
+        Bandwidth = p.Bandwidth;
+        Number = p.Number;
+        Time = p.Time;
+        matchingBaseURL = p.matchingBaseURL;
+        return *this;
+    }
+
+    const std::vector<IBaseUrl *>*  GetBaseURLs() const
+    {
+        return baseUrls;
+    }
+
+    std::string GetMatchingBaseUrl() const
+    {
+        return matchingBaseURL;
+    }
+    void SetBaseURLs(const std::vector<IBaseUrl *>* baseurls )
+    {
+        if(baseurls)
+        {
+            this->baseUrls = baseurls;
+            if(this->baseUrls->size() > 0 )
+            {
+                // use baseurl which matches with host from manifest.
+                if(gpGlobalConfig->useMatchingBaseUrl == eTrueState)
+                {
+                    std::string prefHost = aamp_getHostFromURL(manifestUrl);
+                    for (auto & item : *this->baseUrls) {
+                        std::string itemUrl =item->GetUrl();
+                        std::string host  = aamp_getHostFromURL(itemUrl);
+                        if(0 == prefHost.compare(host))
+                        {
+                            this->matchingBaseURL = item->GetUrl();
+                            return; // return here, we are done
+                        }
+                    }
+                }
+                //we are here means useMatchingBaseUrl not enabled or host did not match
+                // hence initialize default to first baseurl
+                this->matchingBaseURL = this->baseUrls->at(0)->GetUrl();
+            }
+            else
+            {
+                this->matchingBaseURL.clear();
+            }
+        }
+    }
+
 };
 
 /**
@@ -117,6 +197,8 @@ private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
 	void FetcherLoop();
 	StreamInfo* GetStreamInfo(int idx) override;
+    bool CheckLLProfileAvailable(IMPD *mpd);
+    bool ParseMPDLLData(MPD* mpd, AampLLDashServiceData &stAampLLDashServiceData);
 	AAMPStatusType UpdateMPD(bool init = false);
 	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false, bool reportBulkMet = false);
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit, bool reportBulkMeta=false);

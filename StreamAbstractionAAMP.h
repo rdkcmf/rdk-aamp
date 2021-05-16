@@ -98,6 +98,17 @@ struct CachedFragment
 	std::string uri;   /**< Fragment url */
 #endif
 	StreamInfo cacheFragStreamInfo; /**< Bitrate info of the fragment */
+	MediaType   type;           /**< MediaType info of the fragment */
+};
+
+/**
+ * @brief Structure of cached fragment data
+ *        Holds information about a cached fragment
+ */
+struct CachedFragmentChunk
+{
+	GrowableBuffer fragmentChunk;    /**< Buffer to keep fragment content */
+	MediaType   type; /**< MediaType info of the fragment */
 };
 
 /**
@@ -167,11 +178,25 @@ public:
 	void StartInjectLoop();
 
 	/**
+	* @brief Start fragment Chunk injector loop
+	*
+	* @return void
+	*/
+	void StartInjectChunkLoop();
+
+	/**
 	 * @brief Stop fragment injector loop
 	 *
 	 * @return void
 	 */
 	void StopInjectLoop();
+
+	/**
+	* @brief Stop fragment chunk injector loop
+	*
+	* @return void
+	*/
+	void StopInjectChunkLoop();
 
 	/**
 	 * @brief Status of media track
@@ -188,11 +213,25 @@ public:
 	bool InjectFragment();
 
 	/**
+	* @brief Inject fragment Chunk into the gstreamer
+	*
+	* @return Success/Failure
+	*/
+	bool InjectFragmentChunk();
+
+	/**
 	 * @brief Get total fragment injected duration
 	 *
 	 * @return Total duration in seconds
 	 */
 	double GetTotalInjectedDuration() { return totalInjectedDuration; };
+
+	/**
+	* @brief Get total fragment chunk injected duration
+	*
+	* @return Total duration in seconds
+	*/
+	double GetTotalInjectedChunkDuration() { return totalInjectedChunksDuration; };
 
 	/**
 	 * @brief Run fragment injector loop.
@@ -202,11 +241,25 @@ public:
 	void RunInjectLoop();
 
 	/**
+	* @brief Run fragment injector loop.
+	*
+	* @return void
+	*/
+	void RunInjectChunkLoop();
+
+	/**
 	 * @brief Update cache after fragment fetch
 	 *
 	 * @return void
 	 */
 	void UpdateTSAfterFetch();
+
+	/**
+	* @brief Update cache after fragment chunk fetch
+	*
+	* @return void
+	*/
+	void UpdateTSAfterChunkFetch();
 
 	/**
 	 * @brief Wait till fragments available
@@ -246,6 +299,13 @@ public:
 	 * @return Fragment cache buffer
 	 */
 	CachedFragment* GetFetchBuffer(bool initialize);
+
+	/**
+	* @brief Get buffer to fetch and cache next fragment chunk
+	* @param[in] initialize true to initialize the fragment chunk
+	* @retval Pointer to fragment chunk buffer.
+	*/
+	CachedFragmentChunk* GetFetchChunkBuffer(bool initialize);
 
 	/**
 	 * @brief Set current bandwidth
@@ -335,6 +395,13 @@ public:
 	 */
 	void FlushFragments();
 
+	/**
+	* @brief Flushes all cached fragment Chunks
+	*
+	* @return void
+	*/
+	void FlushFragmentChunks();
+
 protected:
 
 	/**
@@ -345,12 +412,25 @@ protected:
 	void UpdateTSAfterInject();
 
 	/**
+	* @brief Update segment cache and inject buffer to gstreamer
+	*
+	* @return void
+	*/
+	void UpdateTSAfterChunkInject();
+
+	/**
 	 * @brief Wait till cached fragment available
 	 *
 	 * @return TRUE if fragment available, FALSE if aborted/fragment not available.
 	 */
 	bool WaitForCachedFragmentAvailable();
 
+	/**
+	* @brief Wait till cached fragment chunk available
+	*
+	* @return TRUE if fragment chunk available, FALSE if aborted/fragment chunk not available.
+	*/
+	bool WaitForCachedFragmentChunkAvailable();
 
 	/**
 	 * @brief Get the context of media track. To be implemented by subclasses
@@ -367,6 +447,15 @@ protected:
 	 * @return void
 	 */
 	virtual void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded) = 0;
+
+	/**
+	* @brief To be implemented by derived classes to receive cached fragment Chunk
+	*
+	* @param[in] cachedFragmentChunk - contains fragment to be processed and injected
+	* @param[out] fragmentChunkDiscarded - true if fragment is discarded.
+	* @return void
+	*/
+	void InjectFragmentChunkInternal(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration);
 
 
 	static int GetDeferTimeMs(long maxTimeSeconds);
@@ -385,6 +474,7 @@ public:
 	bool eosReached;                    /**< set to true when a vod asset has been played to completion */
 	bool enabled;                       /**< set to true if track is enabled */
 	int numberOfFragmentsCached;        /**< Number of fragments cached in this track*/
+	int numberOfFragmentChunksCached;   /**< Number of fragments cached in this track*/
 	const char* name;                   /**< Track name used for debugging*/
 	double fragmentDurationSeconds;     /**< duration in seconds for current fragment-of-interest */
 	int segDLFailCount;                 /**< Segment download fail count*/
@@ -393,27 +483,39 @@ public:
 	TrackType type;                     /**< Media type of the track*/
 	std::unique_ptr<SubtitleParser> mSubtitleParser;    /**< Parser for subtitle data*/
 	bool refreshSubtitles;              /**< Switch subtitle track in the FetchLoop */
+	pthread_cond_t fragmentChunkFetched;/**< Signaled after a fragment Chunk is fetched*/
+	uint32_t totalMdatCount;            /**< Total MDAT Chunk Found*/
 protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */
+	CachedFragmentChunk *cachedFragmentChunks;/**< storage for currently-downloaded fragment */
+	GrowableBuffer unparsedBufferChunk;    /**< Buffer to keep fragment content */
+	GrowableBuffer parsedBufferChunk;    /**< Buffer to keep fragment content */
 	bool abort;                         /**< Abort all operations if flag is set*/
 	pthread_mutex_t mutex;              /**< protection of track variables accessed from multiple threads */
 	bool ptsError;                      /**< flag to indicate if last injected fragment has ptsError */
 	bool abortInject;                   /**< Abort inject operations if flag is set*/
+    bool abortInjectChunk;                   /**< Abort inject operations if flag is set*/
 private:
 	pthread_cond_t fragmentFetched;     /**< Signaled after a fragment is fetched*/
 	pthread_cond_t fragmentInjected;    /**< Signaled after a fragment is injected*/
 	pthread_t fragmentInjectorThreadID; /**< Fragment injector thread id*/
+	pthread_t fragmentChunkInjectorThreadID; /**< Fragment injector thread id*/
 	pthread_t bufferMonitorThreadID;    /**< Buffer Monitor thread id */
 	int totalFragmentsDownloaded;       /**< Total fragments downloaded since start by track*/
+	int totalFragmentChunksDownloaded;       /**< Total fragments downloaded since start by track*/
 	bool fragmentInjectorThreadStarted; /**< Fragment injector's thread started or not*/
+	bool fragmentChunkInjectorThreadStarted; /**< Fragment Chunk injector's thread started or not*/
 	bool bufferMonitorThreadStarted;    /**< Buffer Monitor thread started or not */
 	double totalInjectedDuration;       /**< Total fragment injected duration*/
+	double totalInjectedChunksDuration;  /**< Total fragment injected chunk duration*/
 	int currentInitialCacheDurationSeconds;    /**< Current cached fragments duration before playing*/
 	bool sinkBufferIsFull;                /**< True if sink buffer is full and do not want new fragments*/
 	bool cachingCompleted;              /**< Fragment caching completed or not*/
 	int fragmentIdxToInject;            /**< Write position */
+	int fragmentChunkIdxToInject;       /**< Write position */
 	int fragmentIdxToFetch;             /**< Read position */
+	int fragmentChunkIdxToFetch;        /**< Read position */
 	int bandwidthBitsPerSecond;        /**< Bandwidth of last selected profile*/
 	double totalFetchedDuration;        /**< Total fragment fetched duration*/
 	bool discontinuityProcessed;

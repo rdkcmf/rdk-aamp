@@ -34,7 +34,7 @@
 GlobalConfigAAMP::GlobalConfigAAMP():
 	defaultBitrate(DEFAULT_INIT_BITRATE), defaultBitrate4K(DEFAULT_INIT_BITRATE_4K), bEnableABR(true), noFog(false), mapMPD(NULL),mapM3U8(NULL),
 	abrCacheLife(DEFAULT_ABR_CACHE_LIFE), abrCacheLength(DEFAULT_ABR_CACHE_LENGTH),
-	maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),
+	maxCachedFragmentsPerTrack(DEFAULT_CACHED_FRAGMENTS_PER_TRACK),maxCachedFragmentChunksPerTrack(DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK),
 	harvestCountLimit(0), harvestPath(0), harvestConfig(0xFFFFFFFF)/*Enable all type by default */,
 	gPreservePipeline(0), gAampDemuxHLSAudioTsTrack(1), gAampMergeAudioTrack(1), forceEC3(eUndefinedState),
 	gAampDemuxHLSVideoTsTrack(1), demuxHLSVideoTsTrackTM(1), gThrottle(0), demuxedAudioBeforeVideo(0),

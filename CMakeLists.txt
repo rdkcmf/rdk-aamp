@@ -149,6 +149,7 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
                     AampGstUtils.cpp
+		    MediaStreamContext.cpp
 )
 
 if (CMAKE_WPEFRAMEWORK_REQUIRED)

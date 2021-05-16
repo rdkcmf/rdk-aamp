@@ -89,6 +89,26 @@ void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len
 }
 
 /**
+ * @brief Move data to buffer
+ * @param buffer Growable buffer object pointer
+ * @param ptr Buffer to Move
+ * @param len Buffer size
+ */
+void aamp_MoveBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len)
+{
+	/* remove parsed data from memory */
+	if (buffer->ptr && ptr)
+	{
+		memcpy(&buffer->ptr[0], ptr, len);
+		buffer->len = len;
+	}
+	else
+	{
+		logprintf("%s:%d WARNING - NULL pointer input!!!");
+	}
+}
+
+/**
  * @brief Append nul character to buffer
  * @param buffer buffer in which nul to be append
  */

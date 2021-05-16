@@ -168,7 +168,9 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz)
 
 	if (size > maxSz)
 	{
+#ifdef AAMP_DEBUG_BOX_CONSTRUCT
 		AAMPLOG_WARN("Box[%s] Size error:size[%u] > maxSz[%u]\n",type, size, maxSz);
+#endif
 	}
 	else if (IS_TYPE(type, MOOV))
 	{
@@ -193,6 +195,10 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz)
 	else if (IS_TYPE(type, TFDT))
 	{
 		return TfdtBox::constructTfdtBox(size,  hdr);
+	}
+	else if (IS_TYPE(type, TRUN))
+	{
+		return TrunBox::constructTrunBox(size,  hdr);
 	}
 	else if (IS_TYPE(type, MVHD))
 	{
@@ -502,4 +508,108 @@ TfdtBox* TfdtBox::constructTfdtBox(uint32_t sz, uint8_t *ptr)
 	}
 	FullBox fbox(sz, Box::TFDT, version, flags);
 	return new TfdtBox(fbox, mdt);
+}
+
+/**
+ * @brief TrunBox constructor
+ *
+ * @param[in] sz - box size
+ * @param[in] mdt - sampleDuration value
+ */
+TrunBox::TrunBox(uint32_t sz, uint64_t sampleDuration) : FullBox(sz, Box::TRUN, 0, 0), duration(sampleDuration)
+{
+}
+
+/**
+ * @brief TrunBox constructor
+ *
+ * @param[in] fbox - box object
+ * @param[in] mdt - BaseMediaDecodeTime value
+ */
+TrunBox::TrunBox(FullBox &fbox, uint64_t sampleDuration) : FullBox(fbox), duration(sampleDuration)
+{
+}
+
+/**
+ * @brief Set SampleDuration value
+ *
+ * @param[in] sampleDuration - Sample Duration value
+ * @return void
+ */
+void TrunBox::setSampleDuration(uint64_t sampleDuration)
+{
+    duration = sampleDuration;
+}
+
+/**
+ * @brief Get sampleDuration value
+ *
+ * @return sampleDuration value
+ */
+uint64_t TrunBox::getSampleDuration()
+{
+    return duration;
+}
+
+/**
+ * @brief Static function to construct a TrunBox object
+ *
+ * @param[in] sz - box size
+ * @param[in] ptr - pointer to box
+ * @return newly constructed TrunBox object
+ */
+TrunBox* TrunBox::constructTrunBox(uint32_t sz, uint8_t *ptr)
+{
+	const uint32_t TRUN_FLAG_DATA_OFFSET_PRESENT                    = 0x0001;
+	const uint32_t TRUN_FLAG_FIRST_SAMPLE_FLAGS_PRESENT             = 0x0004;
+	const uint32_t TRUN_FLAG_SAMPLE_DURATION_PRESENT                = 0x0100;
+	const uint32_t TRUN_FLAG_SAMPLE_SIZE_PRESENT                    = 0x0200;
+	const uint32_t TRUN_FLAG_SAMPLE_FLAGS_PRESENT                   = 0x0400;
+	const uint32_t TRUN_FLAG_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT = 0x0800;
+
+	uint8_t version = READ_VERSION(ptr);
+	uint32_t flags  = READ_FLAGS(ptr);
+	uint64_t sampleDuration = 0;//1001000; //fix-Me
+	uint32_t sample_count = 0;
+	uint32_t sample_duration = 0;
+	uint32_t sample_size = 0;
+	uint32_t sample_flags = 0;
+	uint32_t sample_composition_time_offset = 0;
+	uint32_t discard;
+	uint32_t totalSampleDuration = 0;
+
+	uint32_t record_fields_count = 0;
+
+	// count the number of bits set to 1 in the second byte of the flags
+	for (unsigned int i=0; i<8; i++)
+	{
+		if (flags & (1<<(i+8))) ++record_fields_count;
+	}
+
+	sample_count = READ_U32(ptr);
+
+	discard = READ_U32(ptr);
+
+	for (unsigned int i=0; i<sample_count; i++)
+	{
+		if (flags & TRUN_FLAG_SAMPLE_DURATION_PRESENT)
+		{
+			sample_duration = READ_U32(ptr);
+			totalSampleDuration += sample_duration;
+		}
+		if (flags & TRUN_FLAG_SAMPLE_SIZE_PRESENT)
+		{
+			sample_size = READ_U32(ptr);
+		}
+		if (flags & TRUN_FLAG_SAMPLE_FLAGS_PRESENT)
+		{
+			sample_flags = READ_U32(ptr);
+		}
+		if (flags & TRUN_FLAG_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT)
+		{
+			sample_composition_time_offset = READ_U32(ptr);
+		}
+	}
+	FullBox fbox(sz, Box::TRUN, version, flags);
+	return new TrunBox(fbox, totalSampleDuration);
 }
