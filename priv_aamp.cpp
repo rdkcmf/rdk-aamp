@@ -4807,6 +4807,15 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	mPauseOnFirstVideoFrameDisp = false;
 	mFirstVideoFrameDisplayedEnabled = false;
 
+	
+	if( seekWhilePaused )
+	{ // XIONE-4261 Player state not updated correctly after seek
+			// Prevent gstreamer callbacks from placing us back into playing state by setting these gate flags before CBs are triggered
+			// in this routine. See NotifyFirstFrameReceived(), NotifyFirstBufferProcessed(), NotifyFirstVideoFrameDisplayed()
+			mPauseOnFirstVideoFrameDisp = true;
+			mFirstVideoFrameDisplayedEnabled = true;
+	}
+
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
 	{
 		mSeekOperationInProgress = true;
