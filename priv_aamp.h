@@ -662,6 +662,7 @@ public:
 	bool mIsWVKIDWorkaround;            /*Widevine KID workaround flag*/
 	int mSetOnTuneRateRequested;
 	int mOnTuneRate;
+	bool isPreferredDRMConfigured;
 	int mPreCacheDnldTimeWindow;		// Stores PreCaching timewindow
 	bool mbDownloadsBlocked;
 	bool streamerIsActive;

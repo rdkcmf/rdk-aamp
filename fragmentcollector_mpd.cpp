@@ -2955,7 +2955,7 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 		{
 			AAMPLOG_WARN("%s:%d (%s) Failed to locate DRM helper for UUID %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
 			/** Preferred DRM configured and it is failed hhen exit here */
-			if(ISCONFIGSET(eAAMPConfig_PreferredDRMConfigured) && (GetPreferredDrmUUID() == drmInfo.systemUUID) && !aamp->mIsWVKIDWorkaround){
+			if(aamp->isPreferredDRMConfigured && (GetPreferredDrmUUID() == drmInfo.systemUUID) && !aamp->mIsWVKIDWorkaround){
 				AAMPLOG_ERR("%s:%d (%s) Preffered DRM Failed to locate with UUID %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
 				break;
 			}
@@ -2993,7 +2993,7 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 		{
 			AAMPLOG_WARN("%s:%d (%s) No PSSH data available from the stream for UUID %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
 			/** Preferred DRM configured and it is failed then exit here */
-			if(ISCONFIGSET(eAAMPConfig_PreferredDRMConfigured) && (GetPreferredDrmUUID() == drmInfo.systemUUID)&& !aamp->mIsWVKIDWorkaround){
+			if(aamp->isPreferredDRMConfigured && (GetPreferredDrmUUID() == drmInfo.systemUUID)&& !aamp->mIsWVKIDWorkaround){
 				AAMPLOG_ERR("%s:%d (%s) No PSSH data available for Preffered DRM with UUID  %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
 				break;
 			}

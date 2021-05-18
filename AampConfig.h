@@ -161,7 +161,6 @@ typedef enum
 	eAAMPConfig_Subtec_subtitle,							/**< Enable subtec-based subtitles */
 	eAAMPConfig_WebVTTNative,								/**< Enable subtec-based subtitles */
 	eAAMPConfig_AsyncTune,								 	/*** To enable Asynchronous tune */
-	eAAMPConfig_PreferredDRMConfigured,                                             /** Flag to check whether preferred DRM has set **/
 	eAAMPConfig_DisableUnderflow,                                                   /**< Enable/Disable Underflow processing*/
 	eAAMPConfig_LimitResolution,                                                    /** Flag to indicate if display resolution based profile selection to be done */
 	eAAMPConfig_UseAbsoluteTimeline,					/**Enable Report Progress report position based on Availability Start Time **/

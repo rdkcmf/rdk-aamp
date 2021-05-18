@@ -1519,8 +1519,15 @@ void PlayerInstanceAAMP::SetDownloadBufferSize(int bufferSize)
 void PlayerInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 {
 	ERROR_STATE_CHECK_VOID();
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredDRM,(int)drmType);
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredDRMConfigured,true);
+	if(drmType != eDRM_NONE)
+	{
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredDRM,(int)drmType);
+		aamp->isPreferredDRMConfigured = true;
+	}
+	else
+	{
+		aamp->isPreferredDRMConfigured = false;
+	}
 }
 
 /**

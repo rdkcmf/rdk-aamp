@@ -217,7 +217,6 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"downloadDelay",eAAMPConfig_DownloadDelay,-1,-1},
 	{"onTuneRate",eAAMPConfig_OnTuneRate,-1,-1},
 	{"livePauseBehavior",eAAMPConfig_LivePauseBehavior,ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE,ePAUSED_BEHAVIOR_MAX},
-	{"isPreferredDRMConfigured",eAAMPConfig_PreferredDRMConfigured,-1,-1},
 	{"disableUnderflow",eAAMPConfig_DisableUnderflow,-1,-1},
 	{"limitResolution",eAAMPConfig_LimitResolution,-1,-1},
 	{"useAbsoluteTimeline",eAAMPConfig_UseAbsoluteTimeline,-1,-1},
@@ -333,7 +332,6 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	true;
  	bAampCfgValue[eAAMPConfig_AsyncTune].value				=	false;
 	bAampCfgValue[eAAMPConfig_EnableAccessAttributes].value			=	true;
-	bAampCfgValue[eAAMPConfig_PreferredDRMConfigured].value                 =       false;
 #ifdef REALTEKCE
 	bAampCfgValue[eAAMPConfig_DisableUnderflow].value                       =       true;
 #else

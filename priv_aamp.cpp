@@ -1142,7 +1142,7 @@ static void curl_unlock_callback(CURL *curl, curl_lock_data data, curl_lock_acce
  */
 PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData(), mLock(), mMutexAttr(),
 	mpStreamAbstractionAAMP(NULL), mInitSuccess(false), mVideoFormat(FORMAT_INVALID), mAudioFormat(FORMAT_INVALID), mDownloadsDisabled(),
-	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN), mSetOnTuneRateRequested(AAMP_RATE_INVALID), mOnTuneRate(AAMP_RATE_INVALID),
+	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN), mSetOnTuneRateRequested(AAMP_RATE_INVALID), mOnTuneRate(AAMP_RATE_INVALID),isPreferredDRMConfigured(false),
 	mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET),
 	seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
 	video_muted(false), subtitles_muted(true), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),mLogTimetoTopProfile(true),
