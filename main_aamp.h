@@ -43,6 +43,7 @@
 #include <vector>
 #include <string>
 #include <string.h>
+#include <mutex>
 #include <stddef.h>
 #include <functional>
 #include "AampEvent.h"
@@ -83,16 +84,10 @@ struct TuneFailureMap
 #define MAX_ANOMALY_BUFF_SIZE   256
 
 // Player supported play/trick-play rates.
-#define AAMP_RATE_REW_1X		-4
-#define AAMP_RATE_REW_2X		-16
-#define AAMP_RATE_REW_3X		-32
-#define AAMP_RATE_REW_4X		-64
+#define AAMP_RATE_TRICKPLAY_MAX		64
+#define AAMP_NORMAL_PLAY_RATE		1
 #define AAMP_RATE_PAUSE			0
-#define AAMP_NORMAL_PLAY_RATE 	1
-#define AAMP_RATE_FWD_1X		4
-#define AAMP_RATE_FWD_2X		16
-#define AAMP_RATE_FWD_3X		32
-#define AAMP_RATE_FWD_4X		64
+#define AAMP_RATE_INVALID		INT_MAX
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
@@ -186,26 +181,29 @@ struct AudioTrackInfo
 	int channels;
 	long bandwidth;
 	int primaryKey; // used for ATSC to store key , this should not be exposed to app.
+	std::string contentType; // used for ATSC to propogate content type
+	std::string mixType; // used for ATSC to propogate mix type
 
-	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), bandwidth(0),primaryKey(0)
+	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), bandwidth(0),primaryKey(0), contentType(), mixType()
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, std::string cha, int ch):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1), primaryKey(0)
+		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1), primaryKey(0) , contentType(), mixType()
 	{
 	}
 
-	AudioTrackInfo(std::string idx, std::string lang,std::string trackName, std::string codecStr,int pk):
+	AudioTrackInfo(std::string idx, std::string lang,std::string trackName, std::string codecStr, int pk, std::string conType, std::string mixType):
 			index(idx), language(lang), rendition(), name(trackName),
-			codec(codecStr), characteristics(), channels(0), bandwidth(-1),primaryKey(pk)
+			codec(codecStr), characteristics(), channels(0), bandwidth(-1), primaryKey(pk),
+                        contentType(conType), mixType(mixType)
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0)
+		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType()
 	{
 	}
 };
@@ -428,13 +426,6 @@ public:
 	 * @retval true if PTS is changing, false if PTS hasn't changed for timeout msecs
 	 */
 	virtual bool CheckForPTSChangeWithTimeout(long timeout) { return true; }
-
-	/**
-	 * @brief Check if first frame received or not
-	 *
-	 * @retval true if the first frame received
-	 */
-	virtual bool IsFirstFrameReceived() {return true;};
 
 	/**
 	 *   @brief Check whether cach is empty
@@ -1109,6 +1100,15 @@ public:
 	void SetLicenseCaching(bool bValue);
 
 	/**
+         *       @brief Set Display resolution check
+         *       @param[in] bValue - true/false to enable/disable profile filtering by display resoluton
+         *
+         *       @return void
+         */
+        void SetOutputResolutionCheck(bool bValue);
+
+
+	/**
 	 *   @brief Set Matching BaseUrl Config Configuration
 	 *
 	 *   @param[in] bValue - true if Matching BaseUrl enabled
@@ -1183,7 +1183,32 @@ public:
 	 *
 	 *   @return void
 	 */
-	 void SetPreferredLanguages(const char* languageList);
+	 void SetPreferredLanguages(const char* languageList, const char *preferredRendition = NULL );
+
+	/**
+	 *   @brief Set audio track by audio parameters like language , rendition, codec etc..
+	 *   @param[in][optional] language, rendition, codec, bitrate, channel 
+	 *
+	 *   @return void
+	 */
+	void SetAudioTrack(std::string language="", std::string rendition="", std::string codec="", unsigned int channel=0);
+
+	/**
+	 *   @brief Set optional preferred codec list
+	 *   @param[in] codecList[] - string with array with codec list
+	 *
+	 *   @return void
+	 */
+	void SetPreferredCodec(const char *codecList);
+
+	/**
+	 *   @brief Set optional preferred rendition list
+	 *   @param[in] renditionList - string with comma-delimited rendition list in ISO-639
+	 *             from most to least preferred. Set NULL to clear current list.
+	 *
+	 *   @return void
+	 */
+	void SetPreferredRenditions(const char *renditionList);
 
 	/**
 	 *   @brief Get current preferred language list
@@ -1400,6 +1425,13 @@ public:
 	 */
 	std::string GetThumbnails(double sduration, double eduration);
 
+	/**
+	 *   @brief To set preferred paused state behavior
+	 *
+	 *   @param[in] int behavior
+	 */
+	void SetPausedBehavior(int behavior);
+
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:
 
@@ -1412,6 +1444,7 @@ private:
 	void StopInternal(bool sendStateChangeEvent);
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */
 	void* mJSBinding_DL;                /**< Handle to AAMP plugin dynamic lib.  */
+	static std::mutex mPrvAampMtx;      /**< Mutex to protect aamp instance in GetState() */
 };
 
 #endif // MAINAAMP_H

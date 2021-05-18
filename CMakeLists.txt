@@ -147,6 +147,7 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     isobmff/isobmffbuffer.cpp
                     isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
+                    AampGstUtils.cpp
 )
 
 if (CMAKE_WPEFRAMEWORK_REQUIRED)
@@ -201,13 +202,6 @@ else()
 endif()
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-multichar -std=c++11 -Wno-non-virtual-dtor -Werror=effc++")
-
-if (CMAKE_AAMP_RFC_REQUIRED)
-	message("AAMP RFC set")
-	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_RFC_ENABLED")
-	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} AampRfc.cpp)
-	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -ltr181api")
-endif()
 
 if(CMAKE_IARM_MGR)
 	message("CMAKE_IARM_MGR set")
@@ -413,6 +407,13 @@ if (CMAKE_RDK_CC_ENABLED OR CMAKE_SUBTEC_CC_ENABLED)
 	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} closedcaptions/AampCCManager.cpp)
 endif()
 
+if (CMAKE_AAMP_RFC_REQUIRED)
+        message("AAMP RFC set")
+        set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_RFC_ENABLED")
+        set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} AampRfc.cpp)
+        set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -ltr181api")
+endif()
+
 if (CMAKE_RDK_CC_ENABLED)
 	message("CMAKE_RDK_CC_ENABLED set")
 	include_directories(${DIRECTFB_INCLUDE_DIRS})
@@ -487,7 +488,14 @@ if(CMAKE_WPEWEBKIT_JSBINDINGS)
 	message("CMAKE_WPEWEBKIT_JSBINDINGS set, creating jsbinding library")
 	add_subdirectory(test)
 	add_library(aampjsbindings SHARED jsbindings/jscontroller-jsbindings.cpp jsbindings/jsbindings.cpp jsbindings/jsutils.cpp jsbindings/jsmediaplayer.cpp jsbindings/jseventlistener.cpp jsbindings/jsevent.cpp)
-	target_link_libraries(aampjsbindings aamp)
+    target_link_libraries(aampjsbindings aamp)
+
+    if (CMAKE_RDK_CC_ENABLED OR CMAKE_SUBTEC_CC_ENABLED)
+        set(LIBAAMPJSBINDINGS_DEFINES "${LIBAAMPJSBINDINGS_DEFINES} -DAAMP_CC_ENABLED")
+    endif()
+
+    set_target_properties(aampjsbindings PROPERTIES COMPILE_FLAGS "${LIBAAMPJSBINDINGS_DEFINES}")
+
 	install(TARGETS aampjsbindings DESTINATION lib)
 	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_WPEWEBKIT_JSBINDINGS")
 else()
@@ -518,6 +526,7 @@ install(FILES AampEvent.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRM
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h
   drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h
   AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h
+  AampGstUtils.h AampRfc.h
   DESTINATION include)
 
 if (CMAKE_AAMP_RFC_REQUIRED)

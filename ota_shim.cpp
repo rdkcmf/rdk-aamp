@@ -68,8 +68,12 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 			state = eSTATE_PREPARING;
 		}else if(0 == currState.compare("BLOCKED"))
 		{
-			std::string reason = playerData["blockedReason"].String(); 
-			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s", __FUNCTION__, reason.c_str());
+			std::string ratingString;
+			JsonObject ratingObj = playerData["rating"].Object();
+			ratingObj.ToString(ratingString);
+			std::string reason = playerData["blockedReason"].String();
+			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s Current Ratings: %s", __FUNCTION__, reason.c_str(), ratingString.c_str());
+
 			aamp->SendAnomalyEvent(ANOMALY_WARNING,"BLOCKED REASON:%s", reason.c_str());
 			aamp->SendBlockedEvent(reason);
 			state = eSTATE_BLOCKED;
@@ -85,6 +89,10 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 				aamp->LogFirstFrame();
 				aamp->LogTuneComplete();
 			}
+			std::string ratingString;
+			JsonObject ratingObj = playerData["rating"].Object();
+			ratingObj.ToString(ratingString);
+			AAMPLOG_WARN( "[OTA_SHIM]%s PLAYING STATE Current Ratings : %s", __FUNCTION__, ratingString.c_str());
 			state = eSTATE_PLAYING;
 		}else if(0 == currState.compare("DONE"))
 		{
@@ -106,6 +114,22 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 		}
 		aamp->SetState(state);
 	}
+	if(tuned){
+		JsonObject videoInfoObj = playerData["videoInfo"].Object();
+		std::string currDisplyInfo = videoInfoObj["displayInfo"].String();
+		if(0 != prevDisplyInfo.compare(currDisplyInfo))
+		{
+			prevDisplyInfo = currDisplyInfo;
+			VideoScanType videoScanType = (videoInfoObj["progressive"].Boolean() ? eVIDEOSCAN_PROGRESSIVE : eVIDEOSCAN_INTERLACED);
+			double frameRate = 0.0;
+			double frameRateN = static_cast<double> (videoInfoObj["frameRateN"].Number());
+			double frameRateD = static_cast<double> (videoInfoObj["frameRateD"].Number());
+			if((0 != frameRateN) && (0 != frameRateD))
+				frameRate = frameRateN / frameRateD;
+
+			aamp->NotifyBitRateChangeEvent(videoInfoObj["bitrate"].Number(), eAAMP_BITRATE_CHANGE_BY_OTA, videoInfoObj["width"].Number(), videoInfoObj["height"].Number(), frameRate, 0, false, videoScanType, videoInfoObj["aspectRatioWidth"].Number(), videoInfoObj["aspectRatioHeight"].Number());
+		}
+	}
 }
 
 #endif
@@ -125,6 +149,7 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 #else
     AAMPLOG_INFO( "[OTA_SHIM]Inside %s ", __FUNCTION__ );
     prevState = "IDLE";
+    prevDisplyInfo = "";
     tuned = false;
 
     thunderAccessObj.ActivatePlugin();
@@ -461,7 +486,6 @@ void StreamAbstractionAAMP_OTA::SetAudioTrackByLanguage(const char* lang)
            if(0 == strcmp(lang, itr->language.c_str()))
            {
                index = std::distance(mAudioTracks.begin(), itr);
-               memcpy(aamp->language, itr->language.c_str(),itr->language.length());
                break;
            }
        }
@@ -528,7 +552,7 @@ void StreamAbstractionAAMP_OTA::GetAudioTracks()
 
         std::string languageCode;
         languageCode = Getiso639map_NormalizeLanguageCode(audioData["language"].String());
-        aTracks.push_back(AudioTrackInfo(index, /*idx*/ languageCode,/* lang */ audioData["name"].String(),	/* name*/ audioData["type"].String(), /* codecStr  */ (int)audioData["pk"].Number()));           //pk
+        aTracks.push_back(AudioTrackInfo(index, /*idx*/ languageCode, /*lang*/ audioData["name"].String(), /*name*/ audioData["type"].String(), /*codecStr*/ (int)audioData["pk"].Number(), /*primaryKey*/ audioData["contentType"].String(), /*contentType*/ audioData["mixType"].String() /*mixType*/ ));
     }
 
     mAudioTracks = aTracks;
@@ -580,8 +604,6 @@ void StreamAbstractionAAMP_OTA::SetAudioTrack(int trackId)
     thunderAccessObj.InvokeJSONRPC("setAudioTrack", param, result);
     if (result["success"].Boolean()) {
         mAudioTrackIndex = to_string(trackId);
-        memset(aamp->language, 0, sizeof(aamp->language));
-        strncpy (aamp->language, mAudioTracks[trackId].language.c_str(),mAudioTracks[trackId].language.length());
     }
     return;
 #endif

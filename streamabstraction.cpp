@@ -134,12 +134,6 @@ void MediaTrack::MonitorBufferHealth()
 
 			pthread_mutex_unlock(&mutex);
 
-			if (aamp->IsLive() && !aamp->pipeline_paused && !aamp->IsFirstFrameReceived())
-			{
-				// Added logic to identify the playback stall which is observed even before the pipeline moving to PLAYING state (or) receiving the first frame.
-				GetContext()->CheckForPlaybackStall(false, true);
-			}
-
 			// We use another lock inside CheckForMediaTrackInjectionStall for synchronization
 			GetContext()->CheckForMediaTrackInjectionStall(type);
 
@@ -1324,7 +1318,7 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
-	if(video->enabled)
+	if(video && video->enabled)
 	{
 		// If buffer is high , set high timeout , not to fail the download 
 		// If buffer is low , set timeout less than the buffer availability
@@ -1345,7 +1339,7 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 			AAMPLOG_INFO("Setting Video timeout to :%ld %f",timeoutMs,vBufferDuration);
 		}
 	}
-	if(audio->enabled)
+	if(audio && audio->enabled)
 	{
 		// If buffer is high , set high timeout , not to fail the download
 		// If buffer is low , set timeout less than the buffer availability
@@ -1771,7 +1765,7 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
  *
  *   @param[in] fragmentParsed - true if next fragment was parsed, otherwise false
  */
-void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed, bool isStalledBeforePlay)
+void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed)
 {
 	if (fragmentParsed)
 	{
@@ -1797,7 +1791,7 @@ void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed, bool isSt
 				if (CheckIfPlayerRunningDry())
 				{
 					logprintf("StreamAbstractionAAMP::%s() Stall detected!. Time elapsed since fragment parsed(%f), caches are all empty!", __FUNCTION__, timeElapsedSinceLastFragment);
-					aamp->SendStalledErrorEvent(isStalledBeforePlay);
+					aamp->SendStalledErrorEvent();
 				}
 			}
 		}

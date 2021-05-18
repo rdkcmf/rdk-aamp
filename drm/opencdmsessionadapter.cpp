@@ -43,6 +43,8 @@ AAMPOCDMSessionAdapter::AAMPOCDMSessionAdapter(std::shared_ptr<AampDrmHelper> dr
 	logprintf("AAMPOCDMSessionAdapter :: enter ");
 	pthread_mutex_init(&decryptMutex, NULL);
 
+	logprintf("AAMPOCDMSessionAdapter :: key process timeout is %d", drmHelper->keyProcessTimeout());
+
 	initAampDRMSystem();
 
 	// Get output protection pointer

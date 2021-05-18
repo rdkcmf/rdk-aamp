@@ -94,7 +94,6 @@
     }
 
 #define FOG_REASON_STRING			"Fog-Reason:"
-#define FOG_ERROR_STRING			"X-Fog-Error:"
 #define CURLHEADER_X_REASON			"X-Reason:"
 #define BITRATE_HEADER_STRING		"X-Bitrate:"
 #define CONTENTLENGTH_STRING		"Content-Length:"
@@ -102,6 +101,7 @@
 #define LOCATION_HEADER_STRING		"Location:"
 #define CONTENT_ENCODING_STRING		"Content-Encoding:"
 #define FOG_RECORDING_ID_STRING		"Fog-Recording-Id:"
+#define CAPPED_PROFILE_STRING 		"Profile-Capped:"
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
@@ -275,6 +275,7 @@ static constexpr const char *BITRATECHANGE_STR[] =
 	(const char *)"BitrateChanged - Rampup since buffers are full",			// eAAMP_BITRATE_CHANGE_BY_BUFFER_FULL
 	(const char *)"BitrateChanged - Rampdown since buffers are empty",		// eAAMP_BITRATE_CHANGE_BY_BUFFER_EMPTY
 	(const char *)"BitrateChanged - Network adaptation by FOG",			// eAAMP_BITRATE_CHANGE_BY_FOG_ABR
+	(const char *)"BitrateChanged - Information from OTA",                          // eAAMP_BITRATE_CHANGE_BY_OTA
 	(const char *)"BitrateChanged - Unknown reason"					// eAAMP_BITRATE_CHANGE_MAX
 };
 
@@ -317,25 +318,30 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 	bool retValue = true;
 	PrivateInstanceAAMP* aamp = (PrivateInstanceAAMP* )ptr;
 	aamp->NotifyFirstBufferProcessed();
-	if (aamp->pipeline_paused)
-	{
-		if (aamp->rate == AAMP_NORMAL_PLAY_RATE)
-		{
-			retValue = aamp->mStreamSink->Pause(false, false);
-			aamp->pipeline_paused = false;
-		}
-		else
-		{
-			aamp->rate = AAMP_NORMAL_PLAY_RATE;
-			aamp->pipeline_paused = false;
-			aamp->TuneHelper(eTUNETYPE_SEEK);
-		}
-		aamp->ResumeDownloads();
+	TuneType tuneType = eTUNETYPE_SEEK;
 
-		if(retValue)
+	if (!aamp->mSeekFromPausedState && (aamp->rate == AAMP_NORMAL_PLAY_RATE))
+	{
+		retValue = aamp->mStreamSink->Pause(false, false);
+		aamp->pipeline_paused = false;
+	}
+	else
+	{
+		// Live immediate : seek to live position from paused state.
+		if (aamp->mPausedBehavior == ePAUSED_BEHAVIOR_LIVE_IMMEDIATE)
 		{
-			aamp->NotifySpeedChanged(aamp->rate);
+			tuneType = eTUNETYPE_SEEKTOLIVE;
 		}
+		aamp->rate = AAMP_NORMAL_PLAY_RATE;
+		aamp->pipeline_paused = false;
+		aamp->mSeekFromPausedState = false;
+		aamp->TuneHelper(tuneType);
+	}
+
+	aamp->ResumeDownloads();
+	if(retValue)
+	{
+		aamp->NotifySpeedChanged(aamp->rate);
 	}
 	return G_SOURCE_REMOVE;
 }
@@ -1010,6 +1016,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->bEnableABR = !gpGlobalConfig->bEnableABR;
 			logprintf("abr %s", gpGlobalConfig->bEnableABR ? "on" : "off");
 		}
+		else if (ReadConfigNumericHelper(cfg, "disableUnderflow=", value) == 1)
+		{
+			gpGlobalConfig->bDisableUnderflow = value;
+			logprintf("disableUnderflow %s", gpGlobalConfig->bDisableUnderflow ? "on" : "off");
+		}
 		else if (ReadConfigNumericHelper(cfg, "abr-cache-life=", gpGlobalConfig->abrCacheLife) == 1)
 		{
 			gpGlobalConfig->abrCacheLife *= 1000;
@@ -1040,11 +1051,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->decoderUnavailableStrict = true;
 			logprintf("decoderunavailablestrict:%s", gpGlobalConfig->decoderUnavailableStrict ? "on" : "off");
 		}
-		else if( cfg.compare("descriptiveaudiotrack") == 0 )
-		{
-			gpGlobalConfig->bDescriptiveAudioTrack  = true;
-			logprintf("descriptiveaudiotrack:%s", gpGlobalConfig->bDescriptiveAudioTrack ? "on" : "off");
-		}
+//		else if( cfg.compare("descriptiveaudiotrack") == 0 )
+//		{
+//			gpGlobalConfig->bDescriptiveAudioTrack  = true;
+//			logprintf("descriptiveaudiotrack:%s", gpGlobalConfig->bDescriptiveAudioTrack ? "on" : "off");
+//		}
 		else if( ReadConfigNumericHelper( cfg, "langcodepref=", value) == 1 )
 		{
 			const char *langCodePrefName[] =
@@ -1137,6 +1148,7 @@ static void ProcessConfigEntry(std::string cfg)
 			else
 			{
 				gpGlobalConfig->isUsingLocalConfigForPreferredDRM = true;
+				gpGlobalConfig->isPreferredDRMConfigured = true;
 				gpGlobalConfig->preferredDrm = (DRMSystems) value;
 			}
 			logprintf("preferred-drm=%s", GetDrmSystemName(gpGlobalConfig->preferredDrm));
@@ -1554,6 +1566,19 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->mPersistBitRateOverSeek = (TriState) (value == 1);
 			logprintf("Persist ABR Profile over seek: %d", gpGlobalConfig->mPersistBitRateOverSeek);
 		}
+		else if (ReadConfigNumericHelper(cfg, "livePauseBehavior=", value))
+		{
+			if(value >= 0 && value < ePAUSED_BEHAVIOR_MAX)
+			{
+				gpGlobalConfig->mPausedBehavior = (PausedBehavior) value;
+				logprintf("Live pause behavior: %d", gpGlobalConfig->mPausedBehavior);
+			}
+		}
+		else if(ReadConfigNumericHelper(cfg, "limitResolution=", value) == 1)
+		{
+			gpGlobalConfig->bLimitResolution= (TriState) (value==1);
+			logprintf("limitResolution :%s", gpGlobalConfig->bLimitResolution ? "Enabled" : "Disabled");
+		}
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');
@@ -1633,6 +1658,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 
 	bool isBitrateHeader = false;
 	bool isFogRecordingIdHeader = false;
+	bool isProfileCapHeader = false;
 
 	if( len<2 || ptr[endPos] != '\r' || ptr[endPos+1] != '\n' )
 	{ // only proceed if this is a CRLF terminated curl header, as expected
@@ -1657,11 +1683,6 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 	{
 		httpHeader->type = eHTTPHEADERTYPE_XREASON;
 		startPos = STRLEN_LITERAL(CURLHEADER_X_REASON);
-	}
-	else if (STARTS_WITH_IGNORE_CASE(ptr, FOG_ERROR_STRING))
-	{
-		httpHeader->type = eHTTPHEADERTYPE_FOG_ERROR;
-		startPos = STRLEN_LITERAL(FOG_ERROR_STRING);
 	}
 	else if (STARTS_WITH_IGNORE_CASE(ptr, BITRATE_HEADER_STRING))
 	{
@@ -1688,6 +1709,11 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		// Enabled IsEncoded as Content-Encoding header is present
 		// The Content-Encoding entity header incidcates media is compressed
 		context->downloadIsEncoded = true;
+	}
+	else if (context->aamp->mOutputResolutionCheckEnabled && context->aamp->IsFirstRequestToFog() && STARTS_WITH_IGNORE_CASE(ptr, CAPPED_PROFILE_STRING ))
+	{
+		startPos = STRLEN_LITERAL(CAPPED_PROFILE_STRING);
+		isProfileCapHeader = true;
 	}
 	else if (0 == context->buffer->avail)
 	{
@@ -1716,7 +1742,6 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		{ // strip leading whitespace
 			startPos++;
 		}
-
 		if(isBitrateHeader)
 		{
 			const char * strBitrate = ptr + startPos;
@@ -1728,12 +1753,18 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 			context->aamp->mTsbRecordingId = string( ptr + startPos, endPos - startPos );
 			AAMPLOG_TRACE("Parsed Fog-Id : %s", context->aamp->mTsbRecordingId.c_str());
 		}
+		else if(isProfileCapHeader)
+		{
+			const char * strProfileCap = ptr + startPos;
+			context->aamp->mProfileCappedStatus = atol(strProfileCap)? true : false;
+			AAMPLOG_TRACE("Parsed Profile-Capped Header : %d", context->aamp->mProfileCappedStatus);
+                }
 		else
 		{
 			httpHeader->data = string( ptr + startPos, endPos - startPos );
-			if(httpHeader->type != eHTTPHEADERTYPE_EFF_LOCATION && httpHeader->type != eHTTPHEADERTYPE_FOG_ERROR)
+			if(httpHeader->type != eHTTPHEADERTYPE_EFF_LOCATION)
 			{ //Append delimiter ";"
-				httpHeader->data += ';';
+			 	httpHeader->data += ';';
 			}
 		}
 
@@ -1909,8 +1940,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(ContentType_UNKNOWN), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
-	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(), mVssVirtualStreamId(), mFogErrorString(""),
-	mCurrentLanguageIndex(0), noExplicitUserLanguageSelection(true), languageSetByUser(false), preferredLanguagesString(), preferredLanguagesList(),
+	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(), mVssVirtualStreamId(),
+	mCurrentLanguageIndex(0),
+	preferredLanguagesString(), preferredLanguagesList(),
 #ifdef SESSION_STATS
 	mVideoEnd(NULL),
 #endif
@@ -1919,14 +1951,14 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 	,mBufUnderFlowStatus(false), mVideoBasePTS(0)
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
-	,mBulkTimedMetadata(false), reportMetadata(), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
-	,mAsyncTuneEnabled(false),
+	,mBulkTimedMetadata(false), mbPlayEnabled(true), mPlayerPreBuffered(false), mPlayerId(PLAYERID_CNTR++),mAampCacheHandler(new AampCacheHandler())
+	,mAsyncTuneEnabled(false), 
 #if defined(REALTEKCE) || defined(AMLOGIC)	// Temporary till westerossink disable is rollbacked
 	mWesterosSinkEnabled(true)
 #else
 	mWesterosSinkEnabled(false)
 #endif
-	,mEnableRectPropertyEnabled(true), waitforplaystart(), mLicenseCaching(true)
+	,mEnableRectPropertyEnabled(true), waitforplaystart(), mLicenseCaching(true), mOutputResolutionCheckEnabled(false)
 	,mTuneEventConfigLive(eTUNED_EVENT_ON_GST_PLAYING), mTuneEventConfigVod(eTUNED_EVENT_ON_GST_PLAYING)
 	,mUseAvgBandwidthForABR(false), mParallelFetchPlaylistRefresh(true), mParallelFetchPlaylist(false), mDashParallelFragDownload(true)
 	,mCurlShared(NULL)
@@ -1948,7 +1980,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS), mUseRetuneForGSTInternalError(true)
 	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
 	, mPauseOnFirstVideoFrameDisp(false)
-	, mPreferredAudioTrack(), mPreferredTextTrack(), mFirstVideoFrameDisplayedEnabled(false)
+	, mPreferredTextTrack(), mFirstVideoFrameDisplayedEnabled(false)
 	, mSessionToken(), mCacheMaxSize(0)
 	, midFragmentSeekCache(false)
 	, mEnableSeekableRange(false), mReportVideoPTS(false)
@@ -1956,16 +1988,21 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mTsbRecordingId()
 	, mPersistBitRateOverSeek(false)
 	, mProgramDateTime (0)
-	, mthumbIndexValue(0)
+	, mthumbIndexValue(-1)
 	, mManifestRefreshCount (0)
+	, mJumpToLiveFromPause(false), mPausedBehavior(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE), mSeekFromPausedState(false)
+	, mProfileCappedStatus(false)
+	, mDisplayWidth(0)
+	, mDisplayHeight(0)
+    	, preferredRenditionString(""), preferredRenditionList(), preferredCodecString(""), preferredCodecList(), mAudioTuple() 
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	mDRMSessionManager = new AampDRMSessionManager();
 #endif
 	pthread_cond_init(&mDownloadsDisabled, NULL);
-	strcpy(language,"en");
-	iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
+//	strcpy(language,"en");
+//	iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
     
 	memset(mSubLanguage, '\0', MAX_LANGUAGE_TAG_LENGTH);
 	if (!gpGlobalConfig->mSubtitleLanguage.empty())
@@ -2101,7 +2138,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	if (mDRMSessionManager)
 	{
 		delete mDRMSessionManager;
-		mAampCacheHandler = NULL;
+		mDRMSessionManager = NULL;
 	}
 #endif
 	if(mCurlShared)
@@ -2277,6 +2314,7 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 		if (iter->_timeMS != 0 && iter->_timeMS < limitMs)
 		{
 			//logprintf("ERASE(limit:%lld) aamp_ReportTimedMetadata(%lld, '%s', '%s', nb)", limitMs,iter->_timeMS, iter->_name.c_str(), iter->_content.c_str());
+			//logprintf("ERASE(limit:%lld) aamp_ReportTimedMetadata(%lld)", limitMs,iter->_timeMS);
 			iter = timedMetadata.erase(iter);
 		}
 		else
@@ -2291,14 +2329,41 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 	// Issue observed when culled position reaches the paused position during lightning trickplay and player resumes the playback with paused position as playback position ignoring XRE shown position.
 	// Fix checks if the player is put into paused state with lighting mode(by checking last stored rate). 
   	// In this state player will not come out of Paused state, even if the culled position reaches paused position.
-	if (pipeline_paused && mpStreamAbstractionAAMP && (rate != AAMP_RATE_FWD_4X) && (rate != AAMP_RATE_REW_4X))
+	// The rate check is a special case for a specific player, if this is contradicting to other players, we will have to add a config to enable/disable
+	if (pipeline_paused && mpStreamAbstractionAAMP && (abs(rate) != AAMP_RATE_TRICKPLAY_MAX))
 	{
 		double position = GetPositionMilliseconds() / 1000.0; // in seconds
 		double minPlaylistPositionToResume = (position < maxRefreshPlaylistIntervalSecs) ? position : (position - maxRefreshPlaylistIntervalSecs);
 		if (this->culledSeconds >= position)
 		{
-			logprintf("%s(): Resume playback since playlist start position(%f) has moved past paused position(%f) ", __FUNCTION__, this->culledSeconds, position);
-			g_idle_add(PrivateInstanceAAMP_Resume, (gpointer)this);
+			if (mPausedBehavior <= ePAUSED_BEHAVIOR_LIVE_IMMEDIATE)
+			{
+				// Immediate play from paused state, Execute player resume.
+				// Live immediate - Play from live position
+				// Autoplay immediate - Play from start of live window
+				if(ePAUSED_BEHAVIOR_LIVE_IMMEDIATE == mPausedBehavior)
+				{
+					// Enable this flag to perform seek to live.
+					mSeekFromPausedState = true;
+				}
+				logprintf("%s(): Resume playback since playlist start position(%f) has moved past paused position(%f) ", __FUNCTION__, this->culledSeconds, position);
+				g_idle_add(PrivateInstanceAAMP_Resume, (gpointer)this);
+			}
+			else if(mPausedBehavior >= ePAUSED_BEHAVIOR_AUTOPLAY_DEFER)
+			{
+				// Wait for play() call to resume, enable mSeekFromPausedState for reconfigure.
+				// Live differ - Play from live position
+				// Autoplay differ -Play from eldest part (start of live window)
+				mSeekFromPausedState = true;
+				if(ePAUSED_BEHAVIOR_LIVE_DEFER == mPausedBehavior)
+				{
+					mJumpToLiveFromPause = true;
+				}
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d Auto resume playback task already exists, avoid creating duplicates for now!", __FUNCTION__, __LINE__);
+			}
 		}
 		else if (this->culledSeconds >= minPlaylistPositionToResume)
 		{
@@ -2309,11 +2374,29 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 
 			if (culledSecs <= maxRefreshPlaylistIntervalSecs)
 			{
-				logprintf("%s(): Resume playback since start position(%f) moved very close to minimum resume position(%f) ", __FUNCTION__, this->culledSeconds, minPlaylistPositionToResume);
-				g_idle_add(PrivateInstanceAAMP_Resume, (gpointer)this);
+				if (mPausedBehavior <= ePAUSED_BEHAVIOR_LIVE_IMMEDIATE)
+				{
+					if(ePAUSED_BEHAVIOR_LIVE_IMMEDIATE == mPausedBehavior)
+					{
+						mSeekFromPausedState = true;
+					}
+					logprintf("%s(): Resume playback since start position(%f) moved very close to minimum resume position(%f) ", __FUNCTION__, this->culledSeconds, minPlaylistPositionToResume);
+					g_idle_add(PrivateInstanceAAMP_Resume, (gpointer)this);
+				}
+				else if(mPausedBehavior >= ePAUSED_BEHAVIOR_AUTOPLAY_DEFER)
+				{
+					mSeekFromPausedState = true;
+					if(ePAUSED_BEHAVIOR_LIVE_DEFER == mPausedBehavior)
+					{
+						mJumpToLiveFromPause = true;
+					}
+				}
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d Auto resume playback task already exists, avoid creating duplicates for now!", __FUNCTION__, __LINE__);
 			}
 		}
-
 	}
 }
 
@@ -2380,7 +2463,7 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRe
 	{
 		AAMPTuneFailure tuneFailure = event->getFailure();
 		long error_code = event->getResponseCode();
-		bool isSecClientError = event->secclientError();
+		bool isSecClientError = event->getSecclientError();
 
 		if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure || AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure)
 		{
@@ -2629,8 +2712,6 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 	{
 		logprintf("PrivateInstanceAAMP::%s:%d Ignore error %d[%s]", __FUNCTION__, __LINE__, (int)tuneFailure, description);
 	}
-
-	mFogErrorString.clear();
 }
 
 
@@ -2648,7 +2729,14 @@ void PrivateInstanceAAMP::SendEventAsync(AAMPEventPtr e)
 		ScheduleEvent(aed);
 		if(eventType != AAMP_EVENT_PROGRESS)
 		{
-			AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d event type  %d", __FUNCTION__, __LINE__, eventType);
+			if(eventType != AAMP_EVENT_STATE_CHANGED)
+			{
+				AAMPLOG_INFO("[AAMP_JS] %s(type=%d)", __FUNCTION__, eventType);
+			}
+			else
+			{
+				AAMPLOG_WARN("[AAMP_JS] %s(type=%d)(state=%d)", __FUNCTION__, eventType, std::dynamic_pointer_cast<StateChangedEvent>(e)->getState());
+			}
 		}
 	}
 	else
@@ -2732,23 +2820,26 @@ void PrivateInstanceAAMP::SendEventSync(AAMPEventPtr e)
  * @param height new height in pixels
  * @param GetBWIndex get bandwidth index - used for logging
  */
-void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double frameRate, double position, bool GetBWIndex)
+void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double frameRate, double position, bool GetBWIndex, VideoScanType scantype, int aspectRatioWidth, int aspectRatioHeight)
 {
 	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_BITRATE_CHANGED])
 	{
 		AsyncEventDescriptor* e = new AsyncEventDescriptor();
-		e->event = std::make_shared<BitrateChangeEvent>((int)aamp_GetCurrentTimeMS(), bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position);
+		e->event = std::make_shared<BitrateChangeEvent>((int)aamp_GetCurrentTimeMS(), bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mProfileCappedStatus, mDisplayWidth, mDisplayHeight, scantype, aspectRatioWidth, aspectRatioHeight);
 
+		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
+
+		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 		if(GetBWIndex && (mpStreamAbstractionAAMP != NULL))
 		{
-			logprintf("NotifyBitRateChangeEvent :: bitrate:%d desc:%s width:%d height:%d fps:%f position:%f IndexFromTopProfile: %d%s",
-				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "));
+			logprintf("NotifyBitRateChangeEvent :: bitrate:%d desc:%s width:%d height:%d fps:%f position:%f IndexFromTopProfile: %d%s profileCap:%d tvWidth:%d tvHeight:%d, scantype:%d, aspectRatioW:%d, aspectRatioH:%d",
+				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "), mProfileCappedStatus, mDisplayWidth, mDisplayHeight, scantype, aspectRatioWidth, aspectRatioHeight);
 		}
 		else
 		{
-			logprintf("NotifyBitRateChangeEvent :: bitrate:%d desc:%s width:%d height:%d fps:%f position:%f %s",
-				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, (IsTSBSupported()? ", fog": " "));
+			logprintf("NotifyBitRateChangeEvent :: bitrate:%d desc:%s width:%d height:%d fps:%f position:%f %s profileCap:%d tvWidth:%d tvHeight:%d, scantype:%d, aspectRatioW:%d, aspectRatioH:%d",
+				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, (IsTSBSupported()? ", fog": " "), mProfileCappedStatus, mDisplayWidth, mDisplayHeight, scantype, aspectRatioWidth, aspectRatioHeight);
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
@@ -2759,13 +2850,13 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeRea
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 		if(GetBWIndex && (mpStreamAbstractionAAMP != NULL))
 		{
-			logprintf("NotifyBitRateChangeEvent ::NO LISTENERS bitrate:%d desc:%s width:%d height:%d, fps:%f position:%f IndexFromTopProfile: %d%s", 
-				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "));
+			logprintf("NotifyBitRateChangeEvent ::NO LISTENERS bitrate:%d desc:%s width:%d height:%d, fps:%f position:%f IndexFromTopProfile: %d%s profileCap:%d tvWidth:%d tvHeight:%d, scantype:%d, aspectRatioW:%d, aspectRatioH:%d",
+				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mpStreamAbstractionAAMP->GetBWIndex(bitrate), (IsTSBSupported()? ", fog": " "), mProfileCappedStatus, mDisplayWidth, mDisplayHeight, scantype, aspectRatioWidth, aspectRatioHeight);
 		}
 		else
 		{
-			logprintf("NotifyBitRateChangeEvent ::NO LISTENERS bitrate:%d desc:%s width:%d height:%d fps:%f position:%f %s", 
-				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, (IsTSBSupported()? ", fog": " "));
+			logprintf("NotifyBitRateChangeEvent ::NO LISTENERS bitrate:%d desc:%s width:%d height:%d fps:%f position:%f %s profileCap:%d tvWidth:%d tvHeight:%d, scantype:%d, aspectRatioW:%d, aspectRatioH:%d",
+				bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, (IsTSBSupported()? ", fog": " "), mProfileCappedStatus, mDisplayWidth, mDisplayHeight, scantype, aspectRatioWidth, aspectRatioHeight);
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 	}
@@ -3242,9 +3333,7 @@ void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int peri
 void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int instanceCount, const char *proxy)
 {
 	int instanceEnd = startIdx + instanceCount;
-        long curlIPResolve;
 	assert (instanceEnd <= eCURLINSTANCE_MAX);
-        curlIPResolve = aamp_GetIPResolveValue();
 	for (unsigned int i = startIdx; i < instanceEnd; i++)
 	{
 		if (!curl[i])
@@ -3261,8 +3350,7 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 			curl_easy_setopt(curl[i], CURLOPT_WRITEFUNCTION, write_callback);
 			curl_easy_setopt(curl[i], CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
 			curl_easy_setopt(curl[i], CURLOPT_CONNECTTIMEOUT, DEFAULT_CURL_CONNECTTIMEOUT);
-                        //Depending on ip mode supported by box, force curl to use that particular ip mode (DELIA-46626)
-                        curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, curlIPResolve);
+			curl_easy_setopt(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 			curl_easy_setopt(curl[i], CURLOPT_FOLLOWLOCATION, 1L);
 			curl_easy_setopt(curl[i], CURLOPT_NOPROGRESS, 0L); // enable progress meter (off by default)
 			curl_easy_setopt(curl[i], CURLOPT_USERAGENT, gpGlobalConfig->pUserAgentString);
@@ -3756,6 +3844,16 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					customHeader.append(headerValue);
 					httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
 				}
+				if (mOutputResolutionCheckEnabled && mIsFirstRequestToFOG && mTSBEnabled && eMEDIATYPE_MANIFEST == simType)
+				{
+					std::string customHeader;
+					customHeader.clear();
+					customHeader = "width: " +  std::to_string(mDisplayWidth);
+					httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
+					customHeader.clear();
+					customHeader = "height: " + std::to_string(mDisplayHeight);
+					httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
+				}
 
 				if (gpGlobalConfig->logging.curlHeader && (eMEDIATYPE_VIDEO == simType || eMEDIATYPE_PLAYLIST_VIDEO == simType))
 				{
@@ -3840,13 +3938,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
 					}
 
-					if ((http_code == 200) && (httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_FOG_ERROR) && (httpRespHeaders[curlInstance].data.length() > 0))
-					{
-						mFogErrorString.clear();
-						mFogErrorString.assign(httpRespHeaders[curlInstance].data);
-						logprintf("%s:%d Fog Error : '%s'",__FUNCTION__,__LINE__, mFogErrorString.c_str());
-					}
-
 					if(effectiveUrlPtr)
 					{
 						effectiveUrl.assign(effectiveUrlPtr);    //CID:81493 - Resolve Forward null
@@ -3909,6 +4000,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						{
 							if( simType == eMEDIATYPE_MANIFEST ||
 								simType == eMEDIATYPE_AUDIO ||
+								simType == eMEDIATYPE_VIDEO ||
 							    simType == eMEDIATYPE_INIT_VIDEO ||
 							    simType == eMEDIATYPE_PLAYLIST_AUDIO ||
 							    simType == eMEDIATYPE_INIT_AUDIO )
@@ -4651,10 +4743,14 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		else
 		{
 #ifdef AAMP_CC_ENABLED
-			// Stop CC when pipeline is stopped/destroyed and if foreground instance
-			if (gpGlobalConfig->nativeCCRendering && mbPlayEnabled)
+			AAMPLOG_INFO("%s:%d before CC Release - mTuneType:%d mbPlayEnabled:%d ", __FUNCTION__, __LINE__, mTuneType, mbPlayEnabled);
+			if (mbPlayEnabled && mTuneType != eTUNETYPE_RETUNE)
 			{
 				AampCCManager::GetInstance()->Release();
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d CC Release - skipped ", __FUNCTION__, __LINE__);
 			}
 #endif
 			mStreamSink->Stop(!newTune);
@@ -4847,6 +4943,13 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		playStartUTCMS = aamp_GetCurrentTimeMS();
 		StoreLanguageList(std::set<std::string>());
 		mTunedEventPending = true;
+		mProfileCappedStatus = false;
+#ifdef USE_OPENCDM
+		AampOutputProtection *pInstance = AampOutputProtection::GetAampOutputProcectionInstance();
+		pInstance->GetDisplayResolution(mDisplayWidth, mDisplayHeight);
+		pInstance->Release();
+#endif
+		AAMPLOG_INFO ("%s:%d Display Resolution width:%d height:%d",  __FUNCTION__, __LINE__, mDisplayWidth, mDisplayHeight);
 	}
 
 	trickStartUTCMS = -1;
@@ -4983,6 +5086,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		prevPositionMiliseconds = -1;
 		double updatedSeekPosition = mpStreamAbstractionAAMP->GetStreamPosition();
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
+		UpdateProfileCappedStatus();
 #ifndef AAMP_STOP_SINK_ON_SEEK
 		logprintf("%s:%d Updated seek_pos_seconds %f culledSeconds :%f",__FUNCTION__,__LINE__, seek_pos_seconds,culledSeconds);
 #endif
@@ -5099,6 +5203,12 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureLicenseCaching();
 	ConfigurePreCachePlaylist();
 	ConfigureInitFragTimeoutRetryCount();
+	if(ePAUSED_BEHAVIOR_MAX != gpGlobalConfig->mPausedBehavior)
+	{
+		mPausedBehavior = gpGlobalConfig->mPausedBehavior;
+	}
+	mSeekFromPausedState = false;
+	mJumpToLiveFromPause = false;
 	mABREnabled = gpGlobalConfig->bEnableABR;
 	mUserRequestedBandwidth = gpGlobalConfig->defaultBitrate;
 	mLogTimetoTopProfile = true;
@@ -5180,6 +5290,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		seek_pos_seconds = 0;
 	}
+
+	AAMPLOG_INFO("%s:%d Paused behavior : %d", __FUNCTION__, __LINE__, mPausedBehavior);
 
 	for(int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
@@ -5634,6 +5746,24 @@ void PrivateInstanceAAMP::NotifySinkBufferFull(MediaType type)
 		if(video && video->enabled)
 			video->OnSinkBufferFull();
 	}
+}
+
+bool PrivateInstanceAAMP::CheckIfMediaTrackBufferLow(MediaType type)
+{
+    if(type != eMEDIATYPE_VIDEO)
+        return false;
+
+    if(mpStreamAbstractionAAMP)
+    {
+        MediaTrack* video = mpStreamAbstractionAAMP->GetMediaTrack(eTRACK_VIDEO);
+        if(video && video->enabled)
+        {
+           //check if video buffer in red state for true underflow check
+           // if yes then return true;
+           if(BUFFER_STATUS_RED == video->GetBufferHealthStatus()) return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -6266,6 +6396,25 @@ void PrivateInstanceAAMP::SetLicenseCaching(bool bValue)
 }
 
 /**
+ *   @brief Set license caching
+ *   @param[in] bValue - true/false to enable/disable license caching
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetOutputResolutionCheck(bool bValue)
+{
+        if(gpGlobalConfig->bLimitResolution == eUndefinedState)
+        {
+                mOutputResolutionCheckEnabled = bValue;
+        }
+        else
+        {
+                mOutputResolutionCheckEnabled = (bool)gpGlobalConfig->bLimitResolution;
+        }
+        AAMPLOG_INFO("%s:%d Display Resolution check is : %s ",__FUNCTION__, __LINE__, (mOutputResolutionCheckEnabled ? "True" : "False"));
+}
+
+/**
  *   @brief Configure New ABR Enable/Disable
  *   @param[in] bValue - true if new ABR enabled
  *
@@ -6634,8 +6783,8 @@ void PrivateInstanceAAMP::Stop()
   
 	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
-	mPreferredAudioTrack = AudioTrackInfo();
-	mPreferredTextTrack = TextTrackInfo();
+	//mPreferredAudioTrack = AudioTrackInfo(); // reset
+	mPreferredTextTrack = TextTrackInfo(); // reset
 	// send signal to any thread waiting for play
 	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
@@ -6692,7 +6841,7 @@ void PrivateInstanceAAMP::Stop()
 void PrivateInstanceAAMP::SaveTimedMetadata(long long timeMilliseconds, const char* szName, const char* szContent, int nb, const char* id, double durationMS)
 {
 	std::string content(szContent, nb);
-	reportMetadata.push_back(TimedMetadata(timeMilliseconds, std::string((szName == NULL) ? "" : szName), content, std::string((id == NULL) ? "" : id), durationMS));
+	timedMetadata.push_back(TimedMetadata(timeMilliseconds, std::string((szName == NULL) ? "" : szName), content, std::string((id == NULL) ? "" : id), durationMS));
 }
 
 /**
@@ -6702,7 +6851,7 @@ void PrivateInstanceAAMP::SaveTimedMetadata(long long timeMilliseconds, const ch
 void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 {
 	std::vector<TimedMetadata>::iterator iter;
-	if(gpGlobalConfig->enableSubscribedTags && reportMetadata.size())
+	if(gpGlobalConfig->enableSubscribedTags && timedMetadata.size())
 	{
 		AAMPLOG_INFO("%s:%d Sending bulk Timed Metadata",__FUNCTION__,__LINE__);
 
@@ -6711,7 +6860,7 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 		root = cJSON_CreateArray();
 		if(root)
 		{
-			for (iter = reportMetadata.begin(); iter != reportMetadata.end(); iter++)
+			for (iter = timedMetadata.begin(); iter != timedMetadata.end(); iter++)
 			{
 				cJSON_AddItemToArray(root, item = cJSON_CreateObject());
 				cJSON_AddStringToObject(item, "name", iter->_name.c_str());
@@ -6759,43 +6908,51 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 	// Check if timedMetadata was already reported
 	std::vector<TimedMetadata>::iterator i;
 	bool ignoreMetaAdd = false;
+
 	for (i = timedMetadata.begin(); i != timedMetadata.end(); i++)
 	{
-
-		// Add a boundary check of 1 sec for rounding correction
-		if ((timeMilliseconds >= i->_timeMS-1000 && timeMilliseconds <= i->_timeMS+1000 ) &&
-			(i->_name.compare(szName) == 0)	&&
-			(i->_content.compare(content) == 0))
+		if ((timeMilliseconds >= i->_timeMS-1000 && timeMilliseconds <= i->_timeMS+1000 ))
 		{
-			// Already same exists , ignore
-			ignoreMetaAdd = true;
-			break;
+			if((i->_name.compare(szName) == 0) && (i->_content.compare(content) == 0))
+			{
+				// Already same exists , ignore
+				ignoreMetaAdd = true;
+				break;
+			}
+			else
+			{
+				continue;
+			}
 		}
-
-		if (i->_timeMS < timeMilliseconds)
+		else if (i->_timeMS < timeMilliseconds)
 		{
 			// move to next entry
 			continue;
+		}		
+		else if (i->_timeMS > timeMilliseconds)
+		{
+			break;
+		}		
+	}
+
+	if(!ignoreMetaAdd) 
+	{
+		bFireEvent = true;
+		if(i == timedMetadata.end())
+		{
+			// Comes here for
+			// 1.No entry in the table
+			// 2.Entries available which is only having time < NewMetatime
+			timedMetadata.push_back(TimedMetadata(timeMilliseconds, szName, content, id, durationMS));
 		}
 		else
 		{
 			// New entry in between saved entries.
 			// i->_timeMS >= timeMilliseconds && no similar entry in table
 			timedMetadata.insert(i, TimedMetadata(timeMilliseconds, szName, content, id, durationMS));
-			bFireEvent = true;
-			ignoreMetaAdd = true;
-			break;
 		}
 	}
 
-	if(!ignoreMetaAdd && i == timedMetadata.end())
-	{
-		// Comes here for
-		// 1.No entry in the table
-		// 2.Entries available which is only having time < NewMetatime
-		timedMetadata.push_back(TimedMetadata(timeMilliseconds, szName, content, id, durationMS));
-		bFireEvent = true;
-	}
 
 	if (bFireEvent)
 	{
@@ -7140,15 +7297,6 @@ gint PrivateInstanceAAMP::AddHighIdleTask(IdleTask task, void* arg,DestroyTask d
 }
 
 /**
- * @brief Check if first frame received or not
- * @retval true if the first frame received
- */
-bool PrivateInstanceAAMP::IsFirstFrameReceived(void)
-{
-	return mStreamSink->IsFirstFrameReceived();
-}
-
-/**
  * @brief Check if sink cache is empty
  * @param mediaType type of track
  * @retval true if sink cache is empty
@@ -7259,12 +7407,7 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 	}
 	
 	mVideoEnd = new CVideoStat();
-#ifdef USE_OPENCDM // AampOutputProtection is compiled when this  flag is enabled 
-	//Collect Display resoluation and store in videoEndObject, TBD: If DisplayResolution changes during playback, its not taken care. not in scope for now. 
-	int iDisplayWidth = 0 , iDisplayHeight = 0;
-	AampOutputProtection::GetAampOutputProcectionInstance()->GetDisplayResolution(iDisplayWidth,iDisplayHeight);
-	mVideoEnd->SetDisplayResolution(iDisplayWidth,iDisplayHeight);
-#endif 
+	mVideoEnd->SetDisplayResolution(mDisplayWidth,mDisplayHeight);
 	pthread_mutex_unlock(&mLock);
 
 	if(strVideoEndJson)
@@ -7342,6 +7485,27 @@ void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 	}
 #endif
 }   
+
+/**
+ *   @brief updates profile capped status
+ *
+ *   @param[in] void
+ *   @return  void
+ */
+void PrivateInstanceAAMP::UpdateProfileCappedStatus(void)
+{
+#ifdef SESSION_STATS
+	if(gpGlobalConfig->mEnableVideoEndEvent)
+	{
+		pthread_mutex_lock(&mLock);
+		if(mVideoEnd)
+		{
+			mVideoEnd->SetProfileCappedStatus(mProfileCappedStatus);
+		}
+		pthread_mutex_unlock(&mLock);
+	}
+#endif
+}
 
 /**
  *   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
@@ -7835,24 +7999,12 @@ void PrivateInstanceAAMP::SetInitFragTimeoutRetryCount(int count)
 /**
  * @brief Send stalled event to listeners
  */
-void PrivateInstanceAAMP::SendStalledErrorEvent(bool isStalledBeforePlay)
+void PrivateInstanceAAMP::SendStalledErrorEvent()
 {
-	char* errorDesc = NULL;
 	char description[MAX_ERROR_DESCRIPTION_LENGTH];
 	memset(description, '\0', MAX_ERROR_DESCRIPTION_LENGTH);
-
-	if (IsTSBSupported() && !mFogErrorString.empty())
-	{
-		snprintf(description, (MAX_ERROR_DESCRIPTION_LENGTH - 1), "%s", mFogErrorString.c_str());
-		errorDesc = description;
-	}
-	else if (!isStalledBeforePlay)
-	{
-		snprintf(description, (MAX_ERROR_DESCRIPTION_LENGTH - 1), "Playback has been stalled for more than %d ms due to lack of new fragments", gpGlobalConfig->stallTimeoutInMS);
-		errorDesc = description;
-	}
-
-	SendErrorEvent(AAMP_TUNE_PLAYBACK_STALLED, errorDesc);
+	snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "Playback has been stalled for more than %d ms", gpGlobalConfig->stallTimeoutInMS);
+	SendErrorEvent(AAMP_TUNE_PLAYBACK_STALLED, description);
 }
 
 /**
@@ -7874,57 +8026,14 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 }
 
 /**
- * @brief Update audio language selection
- * @param lang string corresponding to language
- * @param checkBeforeOverwrite - if set will do additional checks before overwriting user setting
- */
-void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang, bool checkBeforeOverwrite)
-{
-	bool overwriteSetting = true;
-	if (checkBeforeOverwrite)
-	{
-		// Check if the user provided language is present in the available language list
-		// in which case this is just temporary and no need to overwrite user settings
-		for (int cnt = 0; cnt < mMaxLanguageCount; cnt++)
-		{
-			if(strncmp(mLanguageList[cnt], language, MAX_LANGUAGE_TAG_LENGTH) == 0)
-			{
-				overwriteSetting = false;
-				break;
-			}
-		}
-
-	}
-
-	if (overwriteSetting)
-	{
-		if (strncmp(language, lang, MAX_LANGUAGE_TAG_LENGTH) != 0)
-		{
-			AAMPLOG_WARN("%s:%d Update audio language from (%s) -> (%s)", __FUNCTION__, __LINE__, language, lang);
-			strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
-			language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
-		}
-	}
-	noExplicitUserLanguageSelection = false;
-
-	for (int cnt=0; cnt < mMaxLanguageCount; cnt ++)
-	{
-		if(strncmp(mLanguageList[cnt],lang,MAX_LANGUAGE_TAG_LENGTH) == 0)
-		{
-			mCurrentLanguageIndex = cnt; // needed?
-			break;
-		}
-	}
-}
-
-/**
  * @brief Update subtitle language selection
  * @param lang string corresponding to language
  */
 void PrivateInstanceAAMP::UpdateSubtitleLanguageSelection(const char *lang)
 {
 	strncpy(mSubLanguage, lang, MAX_LANGUAGE_TAG_LENGTH);
-	language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+	//language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+	mSubLanguage[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
 }
 
 /**
@@ -8505,6 +8614,7 @@ void PrivateInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 	{
 		AAMPLOG_INFO("%s:%d set Preferred drm: %d", __FUNCTION__, __LINE__, drmType);
 		gpGlobalConfig->preferredDrm = drmType;
+		gpGlobalConfig->isPreferredDRMConfigured = true;
 	}
 }
 
@@ -9235,6 +9345,14 @@ std::string PrivateInstanceAAMP::GetAvailableAudioTracks()
 					{
 						cJSON_AddNumberToObject(item, "bandwidth", iter->bandwidth);
 					}
+					if (!iter->contentType.empty())
+					{
+						cJSON_AddStringToObject(item, "contentType", iter->contentType.c_str());
+					}
+					if (!iter->mixType.empty())
+					{
+						cJSON_AddStringToObject(item, "mixType", iter->mixType.c_str());
+					}
 				}
 				char *jsonStr = cJSON_Print(root);
 				if (jsonStr)
@@ -9265,6 +9383,10 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 	if (mpStreamAbstractionAAMP)
 	{
 		std::vector<TextTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableTextTracks();
+
+#ifdef AAMP_CC_ENABLED
+		AampCCManager::GetInstance()->updateLastTextTracks(trackInfo);
+#endif
 		if (!trackInfo.empty())
 		{
 			//Convert to JSON format
@@ -9542,40 +9664,6 @@ std::string PrivateInstanceAAMP::GetLicenseServerUrlForDrm(DRMSystems type)
 		}
 	}
 	return url;
-}
-
-/**
- *   @brief Set audio track
- *
- *   @param[in] trackId index of audio track in available track list
- *   @return void
- */
-void PrivateInstanceAAMP::SetAudioTrack(int trackId)
-{
-	if (mpStreamAbstractionAAMP)
-	{
-		std::vector<AudioTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableAudioTracks();
-		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
-		{
-			SetPreferredAudioTrack(tracks[trackId]);
-			// TODO: Confirm if required
-			languageSetByUser = true;
-			if (mMediaFormat == eMEDIAFORMAT_OTA)
-			{
-				mpStreamAbstractionAAMP->SetAudioTrack(trackId);
-			}
-			else
-			{
-				discardEnteringLiveEvt = true;
-
-				seek_pos_seconds = GetPositionMilliseconds() / 1000.0;
-				TeardownStream(false);
-				TuneHelper(eTUNETYPE_SEEK);
-
-				discardEnteringLiveEvt = false;
-			}
-		}
-	}
 }
 
 /**
@@ -10122,7 +10210,10 @@ void PrivateInstanceAAMP::ConfigureWithLocalOptions()
 	{
 		mPersistBitRateOverSeek = gpGlobalConfig->mPersistBitRateOverSeek;
 	}
-
+	if(gpGlobalConfig->bLimitResolution != eUndefinedState)
+	{
+		mOutputResolutionCheckEnabled = gpGlobalConfig->bLimitResolution;
+	}
 }
 /**
  * @brief Set Maximum Cache Size for playlist store
@@ -10152,5 +10243,73 @@ void PrivateInstanceAAMP::PersistBitRateOverSeek(bool value)
 }
 
 /**
- * EOF
+ *   @brief Set optional preferred language list
+ *   @param[in] languageList - string with comma-delimited language list in ISO-639
+ *             from most to least preferred. Set NULL to clear current list.
+ *
+ *   @return void
  */
+void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition )
+{
+	if((languageList && preferredLanguagesString != languageList) ||
+	(preferredRendition && preferredRenditionString != preferredRendition))
+	{
+		preferredLanguagesString.clear();
+		preferredLanguagesList.clear();
+		if(languageList != NULL)
+		{
+			preferredLanguagesString = std::string(languageList);
+			std::istringstream ss(preferredLanguagesString);
+			std::string lng;
+			while(std::getline(ss, lng, ','))
+			{
+				preferredLanguagesList.push_back(lng);
+				AAMPLOG_INFO("%s:%d: Parsed preferred lang: %s", __FUNCTION__, __LINE__,
+						lng.c_str());
+			}
+
+			preferredLanguagesString = std::string(languageList);
+		}
+
+		AAMPLOG_INFO("%s:%d: Number of preferred languages: %d", __FUNCTION__, __LINE__,
+			preferredLanguagesList.size());
+		
+
+		if( preferredRendition )
+		{
+			AAMPLOG_INFO("%s:%d: Setting rendition %s", __FUNCTION__, __LINE__, preferredRendition);
+			preferredRenditionString = std::string(preferredRendition);
+		}
+		else
+		{
+			preferredRenditionString.clear();
+		}
+
+		PrivAAMPState state;
+		GetState(state);
+		if (state != eSTATE_IDLE && state != eSTATE_RELEASED && state != eSTATE_ERROR )
+		{ // active playback session; apply immediately
+			if (mpStreamAbstractionAAMP)
+			{
+				if(mMediaFormat == eMEDIAFORMAT_OTA)
+				{
+					mpStreamAbstractionAAMP->SetAudioTrackByLanguage(languageList);
+				}
+				else
+				{
+					discardEnteringLiveEvt = true;
+				
+					seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+					TeardownStream(false);
+					TuneHelper(eTUNETYPE_SEEK);
+					discardEnteringLiveEvt = false;
+				}
+			}
+		}
+	}
+	else
+	{
+		AAMPLOG_INFO("%s:%d: Discarding set lanuage(s) (%s) and rendition (%s) since already set", __FUNCTION__, __LINE__, 
+		languageList?languageList:"", preferredRendition?preferredRendition:"");
+	}
+}

@@ -411,11 +411,17 @@ const std::string &MediaMetadataEvent::getDrmType() const
  * @param[in] height     - Video height
  * @param[in] frameRate  - Framerate
  * @param[in] position   - Position
+ * @param[in] cappedProfile - Restricted profile status
+ * @param[in] displayWidth - Output display width
+ * @param[in] displayHeight - Output display height
+ * @param[in] videoScanType - Video Scan Type
+ * @param[in] aspectRatioWidth - Aspect Ratio Width
+ * @param[in] aspectRatioHeight - Aspect Ratio Height
  */
-BitrateChangeEvent::BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position):
+BitrateChangeEvent::BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position, bool cappedProfile, int displayWidth, int displayHeight, VideoScanType videoScanType, int aspectRatioWidth, int aspectRatioHeight):
 		AAMPEventObject(AAMP_EVENT_BITRATE_CHANGED), mTime(time),
 		mBitrate(bitrate), mDescription(desc), mWidth(width),
-		mHeight(height), mFrameRate(frameRate), mPosition(position)
+		mHeight(height), mFrameRate(frameRate), mPosition(position), mCappedProfile(cappedProfile), mDisplayWidth(displayWidth), mDisplayHeight(displayHeight), mVideoScanType(videoScanType), mAspectRatioWidth(aspectRatioWidth), mAspectRatioHeight(aspectRatioHeight)
 {
 
 }
@@ -488,6 +494,66 @@ double BitrateChangeEvent::getFrameRate() const
 double BitrateChangeEvent::getPosition() const
 {
 	return mPosition;
+}
+
+/**
+ * @brief Get Profile capped status
+ *
+ * @return true or false
+ */
+bool BitrateChangeEvent::getCappedProfileStatus() const
+{
+        return mCappedProfile;
+}
+
+/**
+ * @brief Get output tv display Width
+ *
+ * @return Display width
+ */
+int BitrateChangeEvent::getDisplayWidth() const
+{
+        return mDisplayWidth;
+}
+
+/**
+ * @brief Get output tv display Height
+ *
+ * @return Displat height
+ */
+int BitrateChangeEvent::getDisplayHeight() const
+{
+        return mDisplayHeight;
+}
+
+/**
+ * @brief Get Video Scan Type
+ *
+ * @return Video Scan Type
+ */
+VideoScanType BitrateChangeEvent::getScanType() const
+{
+        return mVideoScanType;
+}
+
+/**
+ * @brief Get Aspect Ratio Width
+ *
+ * @return Aspect Ratio Width
+ */
+int BitrateChangeEvent::getAspectRatioWidth() const
+{
+        return mAspectRatioWidth;
+}
+
+/**
+ * @brief Get Aspect Ratio Height
+ *
+ * @return Aspect Ratio Height
+ */
+int BitrateChangeEvent::getAspectRatioHeight() const
+{
+        return mAspectRatioHeight;
 }
 
 /*
@@ -801,13 +867,24 @@ void DrmMetaDataEvent::setResponseCode(long code)
 }
 
 /**
- * @brief Is secclient error
+ * @brief get secclient error
  *
- * @return Is secclient error (true/false)
+ * @return get secclient error (true/false)
  */
-bool DrmMetaDataEvent::secclientError() const
+bool DrmMetaDataEvent::getSecclientError() const
 {
 	return mSecclientError;
+}
+
+/**
+ * @brief Update secclient error
+ *
+ * @param[in] secClientError status (true/false)
+ * @return void
+ */
+void DrmMetaDataEvent::setSecclientError(bool secClientError)
+{
+	mSecclientError = secClientError;
 }
 
 /**

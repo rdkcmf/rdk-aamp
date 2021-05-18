@@ -642,6 +642,7 @@ function playChannel()
 			aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
 			aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
 			aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
+			aampPlayer.addEventListener("bitrateChanged", bitrateChangedEventHandler, null);;
 		}
 		if(enableNativeCC === true) {
 			aampPlayer.initConfig(ccInitConfigParam);
@@ -753,6 +754,7 @@ var chMapElement = document.getElementById("chMap");
 		aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
 		aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
 		aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
+		aampPlayer.addEventListener("bitrateChanged", bitrateChangedEventHandler, null);;
 		clog("Tuning:"+strLocator);
 		aampPlayer.load(strLocator);
 	
@@ -828,6 +830,33 @@ function setAudioLanguage() {
 	var language = audioListElement.options[audioListElement.selectedIndex].lang;
 	console.log("Invoked setAudioLanguage with language " +language);
 	aampPlayer.setAudioLanguage(language);
+}
+
+/**
+ * Sets the Audio Volume
+ */
+function setAudioVolume(volume) {
+		aampPlayer.setVolume(volume);
+		console.log("Invoked setVolume :" +volume);
+		setGuideText("Invoked 1 setVolume :" +volume);
+}
+
+/**
+ * Sets the Video Mute
+ */
+function setVideoMute(muteVal) {
+    if( muteVal == 0 )
+	{
+		aampPlayer.setVideoMute(false);
+		console.log("Invoked SetVideoMute FALSE");
+		setGuideText("Invoked SetVideoMute FALSE");
+	}
+	else
+	{
+		aampPlayer.setVideoMute(true);
+		console.log("Invoked SetVideoMute TRUE");
+		setGuideText("Invoked SetVideoMute TRUE");
+	}
 }
 
 /**
@@ -1036,6 +1065,11 @@ function blockedEventHandler(event) {
 	log("Blocked event: " + JSON.stringify(event));
 }
 
+function bitrateChangedEventHandler(event) {
+    console.log("Bitrate changed event: " + JSON.stringify(event));
+	log("Bitrate changed  event: " + JSON.stringify(event));
+}
+
 </script>
 </head>
 	
@@ -1063,6 +1097,7 @@ function blockedEventHandler(event) {
 		<input type="button" value="TL" onclick="SetRectangle(0.0,0,0.5,0.5);"/>
 		<input type="button" value="BL" onclick="SetRectangle(0.0,0.5,0.5,0.5);"/>
 		<input type="button" value="BR" onclick="SetRectangle(0.5,0.5,0.5,0.5);"/>
+
 		<select id="videoURLs" size="3"/></select>
 		
 		<br/>
@@ -1076,6 +1111,12 @@ function blockedEventHandler(event) {
 		<!-- <input type="button" value="Preferred-Eng" onclick="SetPreferredLanguages(`eng`);"/> -->
 		<input type="button" value="Preferred-Eng,Spa" onclick="SetPreferredLanguages(en_spaInitConfig);"/>
 		<input type="button" value="Preferred-Spa,Eng" onclick="SetPreferredLanguages(spa_enInitConfig);"/>
+
+		<input type="button" value="ipVM-ON" onclick="setVideoMute(1);"/>
+		<input type="button" value="ipVM-OFF" onclick="setVideoMute(0);"/>
+		<input type="button" value="ipAM-ON" onclick="setAudioVolume(0);"/>
+		<input type="button" value="ipAM-OFF" onclick="setAudioVolume(50);"/>
+		<input type="button" value="ipA-FULLVOL" onclick="setAudioVolume(100);"/>
 		
 		<br/>
 

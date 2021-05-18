@@ -1045,6 +1045,37 @@ public:
 		name = JSStringCreateWithUTF8CString("position");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getPosition()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("cappedProfile");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getCappedProfileStatus()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("displayWidth");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getDisplayWidth()), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(name);
+
+		name = JSStringCreateWithUTF8CString("displayHeight");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getDisplayHeight()), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(name);
+
+		if(eVIDEOSCAN_UNKNOWN != evt->getScanType())
+		{
+			name = JSStringCreateWithUTF8CString("progressive");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeBoolean(p_obj->_ctx, ((eVIDEOSCAN_PROGRESSIVE == evt->getScanType())?true:false)), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(name);
+		}
+
+		if((0 != evt->getAspectRatioWidth()) && (0 != evt->getAspectRatioHeight()))
+		{
+			name = JSStringCreateWithUTF8CString("aspectRatioWidth");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getAspectRatioWidth()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(name);
+
+			name = JSStringCreateWithUTF8CString("aspectRatioHeight");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, name, JSValueMakeNumber(p_obj->_ctx, evt->getAspectRatioHeight()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(name);
+		}
+
 	}
 };
 
@@ -1331,17 +1362,21 @@ void AAMP_JSEventListener::RemoveEventListener(PrivAAMPStruct_JS* obj, AAMPEvent
 
 		typedef std::multimap<AAMPEventType, void*>::iterator listenerIter_t;
 		std::pair<listenerIter_t, listenerIter_t> range = obj->_listeners.equal_range(type);
-		for(listenerIter_t iter = range.first; iter != range.second; iter++)
+		for(listenerIter_t iter = range.first; iter != range.second; )
 		{
-			if (iter->second == jsCallback)
+			AAMP_JSEventListener *listener = (AAMP_JSEventListener *)iter->second;
+			if (listener->p_jsCallback == jsCallback)
 			{
-				AAMP_JSEventListener *listener = (AAMP_JSEventListener *)iter->second;
 				if (obj->_aamp != NULL)
 				{
 					obj->_aamp->RemoveEventListener(iter->first, listener);
 				}
 				iter = obj->_listeners.erase(iter);
 				delete listener;
+			}
+			else
+			{
+				iter++;
 			}
 		}
 	}

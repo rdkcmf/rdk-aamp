@@ -22,12 +22,25 @@
  * @brief JavaScript bindings for AAMPMediaPlayer
  */
 
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+	#include <core/core.h>
+	#include "ThunderAccess.h"
+	#include "AampUtils.h"
+#endif
 
 #include "jsbindings-version.h"
 #include "jsbindings.h"
 #include "jsutils.h"
 #include "jseventlistener.h"
+#include <functional>
+#include <string>
+#include <unordered_map>
 #include <vector>
+
+#ifdef AAMP_CC_ENABLED
+#include "AampCCManager.h"
+#endif
+
 
 extern "C"
 {
@@ -209,6 +222,8 @@ enum ConfigParamType
 	ePARAM_MINBITRATE,
 	ePARAM_MAXBITRATE,
 	ePARAM_AUDIOLANGUAGE,
+	ePARAM_AUDIORENDITION,
+	ePARAM_AUDIOCODEC,
 	ePARAM_TSBLENGTH,
 	ePARAM_DRMCONFIG,
 	ePARAM_STEREOONLY,
@@ -254,6 +269,8 @@ enum ConfigParamType
 	ePARAM_PERSIST_BITRATE_OVER_SEEK,
 	ePARAM_SSL_VERIFY_PEER,
 	ePARAM_LICENSE_CACHING,
+	ePARAM_PAUSED_BEHAVIOR,
+	ePARAM_LIMIT_RESOLUTION,
 	ePARAM_MAX_COUNT
 };
 
@@ -284,6 +301,8 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_MINBITRATE, "minBitrate" },
 	{ ePARAM_MAXBITRATE, "maxBitrate" },
 	{ ePARAM_AUDIOLANGUAGE, "preferredAudioLanguage" },
+	{ ePARAM_AUDIORENDITION, "preferredAudioRendition" },
+	{ ePARAM_AUDIOCODEC, "preferredAudioCodec"},
 	{ ePARAM_TSBLENGTH, "timeShiftBufferLength" },
 	{ ePARAM_DRMCONFIG, "drmConfig" },
 	{ ePARAM_STEREOONLY, "stereoOnly" },
@@ -325,6 +344,8 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_PERSIST_BITRATE_OVER_SEEK, "persistBitrateOverSeek"},
 	{ ePARAM_SSL_VERIFY_PEER, "sslVerifyPeer"},
 	{ ePARAM_LICENSE_CACHING, "setLicenseCaching"},
+	{ ePARAM_PAUSED_BEHAVIOR, "livePauseBehavior"},
+	{ ePARAM_LIMIT_RESOLUTION, "limitResolution"},
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -802,9 +823,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_TUNE_EVENT_CONFIG:
 			case ePARAM_LANG_CODE_PREFERENCE:
 			case ePARAM_MAX_PLAYLIST_CACHE_SIZE:
+			case ePARAM_PAUSED_BEHAVIOR:
 				ret = ParseJSPropAsNumber(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsNumber);
 				break;
 			case ePARAM_AUDIOLANGUAGE:
+			case ePARAM_AUDIORENDITION:
+			case ePARAM_AUDIOCODEC:
 			case ePARAM_NETWORKPROXY:
 			case ePARAM_LICENSEREQPROXY:
 			case ePARAM_SUBTITLELANGUAGE:
@@ -835,6 +859,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_PERSIST_BITRATE_OVER_SEEK:
 			case ePARAM_SSL_VERIFY_PEER:
 			case ePARAM_LICENSE_CACHING:
+			case ePARAM_LIMIT_RESOLUTION:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -878,6 +903,14 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_AUDIOLANGUAGE:
 					privObj->_aamp->SetPreferredLanguages(valueAsString);
+					delete[] valueAsString;
+					break;
+				case ePARAM_AUDIORENDITION:
+					privObj->_aamp->SetPreferredRenditions(valueAsString);
+					delete[] valueAsString;
+					break;
+				case ePARAM_AUDIOCODEC:
+					privObj->_aamp->SetPreferredCodec(valueAsString);
 					delete[] valueAsString;
 					break;
 				case ePARAM_DRMCONFIG:
@@ -1010,7 +1043,12 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_SSL_VERIFY_PEER:
 					privObj->_aamp->SetSslVerifyPeerConfig(valueAsBoolean);
 					break;
-					
+				case ePARAM_PAUSED_BEHAVIOR:
+					privObj->_aamp->SetPausedBehavior((int) valueAsNumber);
+					break;
+				case ePARAM_LIMIT_RESOLUTION:
+                                        privObj->_aamp->SetOutputResolutionCheck(valueAsBoolean);
+                                        break;
 				default: //ePARAM_MAX_COUNT
 					break;
 				}
@@ -1666,6 +1704,71 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 	{
 		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setAudioTrack() - 1 argument required");
+	}
+	else  if (JSValueIsObject(ctx, arguments[0]))
+	{
+	/*
+		 * Parmater format
+		 * "audioTuple": object {
+		 *    "language": "en",
+		 *    "rendition": "main"
+		 *    "codec": "avc", 
+		 *    "channel": 6  
+		 * }
+		 */
+		char *language = NULL;
+		int channel = 0;
+		char *rendition = NULL;
+		char *codec = NULL;
+		//Parse the ad object
+		JSObjectRef audioProperty = JSValueToObject(ctx, arguments[0], NULL);
+		if (audioProperty == NULL)
+		{
+			ERROR("%s() Unable to convert argument to JSObject", __FUNCTION__);
+			return JSValueMakeUndefined(ctx);
+		}
+		JSStringRef propName = JSStringCreateWithUTF8CString("language");
+		JSValueRef propValue = JSObjectGetProperty(ctx, audioProperty, propName, NULL);
+		if (JSValueIsString(ctx, propValue))
+		{
+			language = aamp_JSValueToCString(ctx, propValue, NULL);
+		}
+		JSStringRelease(propName);
+		
+		propName = JSStringCreateWithUTF8CString("rendition");
+		propValue = JSObjectGetProperty(ctx, audioProperty, propName, NULL);
+		if (JSValueIsString(ctx, propValue))
+		{
+			rendition = aamp_JSValueToCString(ctx, propValue, NULL);
+		}
+		JSStringRelease(propName);
+		
+		propName = JSStringCreateWithUTF8CString("codec");
+		propValue = JSObjectGetProperty(ctx, audioProperty, propName, NULL);
+		if (JSValueIsString(ctx, propValue))
+		{
+			codec = aamp_JSValueToCString(ctx, propValue, NULL);
+		}
+		JSStringRelease(propName);
+
+		propName = JSStringCreateWithUTF8CString("channel");
+		propValue = JSObjectGetProperty(ctx, audioProperty, propName, NULL);
+		if (JSValueIsNumber(ctx, propValue))
+		{
+			channel = JSValueToNumber(ctx, propValue, NULL);
+		}
+		JSStringRelease(propName);
+
+		std::string strLanguage =  language?std::string(language):"";
+		if(language)delete[] language;
+		std::string strRendition = rendition?std::string(rendition):"";
+		if(rendition)delete[] rendition;
+		std::string strCodec = codec?std::string(codec):"";
+		if(codec)delete[] codec;
+
+		INFO("%s() Calling SetAudioTrack ", __FUNCTION__);
+		privObj->_aamp->SetAudioTrack(strLanguage, strRendition, strCodec, channel);
+		
 	}
 	else
 	{
@@ -2637,8 +2740,131 @@ static JSValueRef AAMPMediaPlayerJS_setAlternateContent(JSContextRef ctx, JSObje
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
-	
-	
+
+/**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.setPreferredAudioLanguage()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_setPreferredAudioLanguage(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setPreferredAudioLanguage() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	if( argumentCount==1 || argumentCount==2 )
+	{
+		char* lanList = aamp_JSValueToCString(ctx,arguments[0], NULL);
+		if( lanList )
+		{
+			if( argumentCount==2 )
+			{  
+				char* rendition = aamp_JSValueToCString(ctx,arguments[1], NULL);
+				if( rendition )
+				{    
+					privObj->_aamp->SetPreferredLanguages(lanList,rendition);
+					delete[] rendition;
+				}
+			}
+			else
+			{
+				privObj->_aamp->SetPreferredLanguages(lanList);
+			}
+			delete[] lanList;
+		}
+	}
+	else
+	{
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setPreferredAudioLanguage() - 1 argument required");
+	}
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
+
+/**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.setPreferredAudioRendition()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_setPreferredAudioRendition(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{ // placeholder - not ready for use/publishing
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setPreferredAudioRendition() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setPreferredAudioRendition() - 1 argument required");
+	}
+	else
+	{
+		char* renditionList = aamp_JSValueToCString(ctx,arguments[0], NULL);
+		privObj->_aamp->SetPreferredRenditions(renditionList);
+		if(renditionList)delete[] renditionList;
+	}
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
+
+/**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.setPreferredAudioCodec()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_setPreferredAudioCodec(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{ // placeholder - not ready for use/publishing
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setPreferredAudioCodec() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setPreferredAudioCodec() - 1 argument required");
+	}
+	else
+	{
+		char *codecList = aamp_JSValueToCString(ctx,arguments[0], NULL);
+		privObj->_aamp->SetPreferredCodec(codecList);
+		if(codecList)delete[] codecList;
+	}
+
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
+
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.notifyReservationCompletion()
  * @param[in] ctx JS execution context
@@ -2972,6 +3198,9 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "getThumbnail", AAMPMediaPlayerJS_getThumbnails, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getAvailableThumbnailTracks", AAMPMediaPlayerJS_getAvailableThumbnailTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setThumbnailTrack", AAMPMediaPlayerJS_setThumbnailTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ "setPreferredAudioLanguage", AAMPMediaPlayerJS_setPreferredAudioLanguage, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ "setPreferredAudioRendition", AAMPMediaPlayerJS_setPreferredAudioRendition, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ "setPreferredAudioCodec", AAMPMediaPlayerJS_setPreferredAudioCodec, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ NULL, NULL, 0 }
 };
 
@@ -3177,8 +3406,143 @@ void ClearAAMPPlayerInstances(void)
 	pthread_mutex_unlock(&jsMediaPlayerCacheMutex);
 }
 
-
 #ifdef PLATCO
+
+class XREReceiver_onEventHandler
+{
+public:
+	static void handle(JSContextRef ctx, std::string method, size_t argumentCount, const JSValueRef arguments[])
+	{
+		if(handlers_map.count(method) != 0)
+		{
+			handlers_map.at(method)(ctx, argumentCount, arguments);
+		}
+		else
+		{
+			ERROR("[XREReceiver]:%s:%d no handler for method %s", __FUNCTION__, __LINE__, method.c_str());
+		}
+	}
+
+	static std::string findTextTrackWithLang(JSContextRef ctx, std::string selectedLang)
+	{
+		const auto textTracks = AampCCManager::GetInstance()->getLastTextTracks();
+		ERROR("[XREReceiver]:%s:%d found %d text tracks", __FUNCTION__, __LINE__, (int)textTracks.size());
+
+		if(!selectedLang.empty() && isdigit(selectedLang[0]))
+		{
+			ERROR("[XREReceiver]:%s:%d trying to parse selected lang as index", __FUNCTION__, __LINE__);
+			try
+			{
+				//input index starts from 1, not from 0, hence '-1'
+				int idx = std::stoi(selectedLang)-1;
+				ERROR("[XREReceiver]:%s:%d parsed index = %d", __FUNCTION__, __LINE__, idx);
+				return textTracks.at(idx).instreamId;
+			}
+			catch(const std::exception& e)
+			{
+				ERROR("[XREReceiver]:%s:%d exception during parsing lang selection %s", __FUNCTION__, __LINE__, e.what());
+			}
+		}
+
+		for(const auto& track : textTracks)
+		{
+			ERROR("[XREReceiver]:%s:%d found language '%s', expected '%s'", __FUNCTION__, __LINE__, track.language.c_str(), selectedLang.c_str());
+			if(selectedLang == track.language)
+			{
+				return track.instreamId;
+			}
+		}
+
+		ERROR("[XREReceiver]:%s:%d cannot find text track matching the selected language, defaulting to 'CC1'", __FUNCTION__, __LINE__);
+		return "CC1";
+	}
+
+private:
+
+	static void handle_onClosedCaptions(JSContextRef ctx, size_t argumentCount, const JSValueRef arguments[])
+	{
+		ERROR("[XREReceiver]:%s:%d ", __FUNCTION__, __LINE__);
+		if(argumentCount != 2)
+		{
+			ERROR("[XREReceiver]:%s wrong argument count (expected 2) %d", __FUNCTION__, argumentCount);
+			return;
+		}
+
+		JSObjectRef argument = JSValueToObject(ctx, arguments[1], NULL);
+
+		JSStringRef param_enable 		= JSStringCreateWithUTF8CString("enable");
+		JSStringRef param_setOptions	= JSStringCreateWithUTF8CString("setOptions");
+		JSStringRef param_setTrack		= JSStringCreateWithUTF8CString("setTrack");
+
+		JSValueRef param_enable_value 		= JSObjectGetProperty(ctx, argument, param_enable, NULL);
+		JSValueRef param_setOptions_value	= JSObjectGetProperty(ctx, argument, param_setOptions, NULL);
+		JSValueRef param_setTrack_value		= JSObjectGetProperty(ctx, argument, param_setTrack, NULL);
+
+		if(JSValueIsBoolean(ctx, param_enable_value))
+		{
+			const bool enable_value = JSValueToBoolean(ctx, param_enable_value);
+			ERROR("[XREReceiver]:%s:%d received enable boolean %d", __FUNCTION__, __LINE__, enable_value);
+
+#ifdef AAMP_CC_ENABLED
+			AampCCManager::GetInstance()->SetStatus(enable_value);
+#endif
+			if(enable_value)
+			{
+				const auto textTracks = AampCCManager::GetInstance()->getLastTextTracks();
+				std::string defaultTrack;
+				if(!textTracks.empty())
+				{
+					defaultTrack = textTracks.front().instreamId;
+				}
+				else
+				{
+					defaultTrack = "CC1";
+				}
+				ERROR("[XREReceiver]:%s:%d found %d tracks, selected default textTrack = %s", __FUNCTION__, __LINE__, (int)textTracks.size(), defaultTrack.c_str());
+
+#ifdef AAMP_CC_ENABLED
+				AampCCManager::GetInstance()->SetTrack(defaultTrack);
+#endif
+			}
+		}
+
+		if(JSValueIsObject(ctx, param_setOptions_value))
+		{
+			ERROR("[XREReceiver]:%s:%d received setOptions, ignoring for now", __FUNCTION__, __LINE__);
+		}
+
+		if(JSValueIsString(ctx, param_setTrack_value))
+		{
+			char* lang = aamp_JSValueToCString(ctx, param_setTrack_value, NULL);
+			ERROR("[XREReceiver]:%s:%d received setTrack language:  %s", __FUNCTION__, __LINE__, lang);
+
+			std::string lang_str;
+			lang_str.assign(lang);
+			delete[] lang;
+
+			std::string textTrack = findTextTrackWithLang(ctx, lang_str);
+
+			ERROR("[XREReceiver]:%s:%d selected textTrack = '%s'", __FUNCTION__, __LINE__, textTrack.c_str());
+
+#ifdef AAMP_CC_ENABLED
+			AampCCManager::GetInstance()->SetTrack(textTrack);
+#endif
+
+		}
+
+		JSStringRelease(param_enable);
+		JSStringRelease(param_setOptions);
+		JSStringRelease(param_setTrack);
+	}
+
+	using Handler_t = std::function<void(JSContextRef, size_t, const JSValueRef[])>;
+	static std::unordered_map<std::string, Handler_t> handlers_map;
+};
+
+std::unordered_map<std::string, XREReceiver_onEventHandler::Handler_t>  XREReceiver_onEventHandler::handlers_map = {
+	{ std::string{"onClosedCaptions"}, &XREReceiver_onEventHandler::handle_onClosedCaptions}
+};
+
 // temporary patch to avoid JavaScript exception in webapps referencing XREReceiverObject in builds that don't support it
 
 /**
@@ -3193,7 +3557,19 @@ void ClearAAMPPlayerInstances(void)
  */
 JSValueRef XREReceiverJS_onevent (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("%s arg count - %d", __FUNCTION__, argumentCount);
+	INFO("[XREReceiver]:%s arg count - %d", __FUNCTION__, argumentCount);
+	if (argumentCount > 0)
+	{
+		if (JSValueIsString(ctx, arguments[0]))
+		{
+			char* value =  aamp_JSValueToCString(ctx, arguments[0], exception);
+			std::string method;
+			method.assign(value);
+			XREReceiver_onEventHandler::handle(ctx, method, argumentCount, arguments);
+
+			delete[] value;
+		}
+	}
 	return JSValueMakeUndefined(ctx);
 }
 

@@ -67,7 +67,20 @@ struct StreamInfo
 	BitrateChangeReason reason;	/**< Reason for bitrate change*/
 };
 
+/**
+*	\struct	TileInfo
+* 	\brief	TileInfo structure for Thumbnail data
+*/
+struct TileInfo
+{
+	int numRows; /**< Number of Rows from Tile Inf */
+	int numCols; /**< Number of Cols from Tile Inf */
+	double posterDuration; /**< Duration of each Tile in Spritesheet */
 
+	double tileSetDuration; /**<Duration of whole Tile set */
+	double startTime;
+	const char *url;
+};
 
 /**
  * @brief Structure of cached fragment data
@@ -701,9 +714,8 @@ public:
 	 *   @brief Check if playback has stalled and update related flags.
 	 *
 	 *   @param[in] fragmentParsed - true if next fragment was parsed, otherwise false
-	 *   @param[in] isStalledBeforePlay - true if the playback stalled due to lack of new fragment before the pipeline changed to playing state.
 	 */
-	void CheckForPlaybackStall(bool fragmentParsed, bool isStalledBeforePlay = false);
+	void CheckForPlaybackStall(bool fragmentParsed);
 
 	void NotifyFirstFragmentInjected(void);
 

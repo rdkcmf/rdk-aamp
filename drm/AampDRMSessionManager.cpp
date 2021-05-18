@@ -32,27 +32,16 @@
 #include "AampDrmHelper.h"
 #include "AampJsonObject.h"
 #include "AampUtils.h"
-
+#include "AampRfc.h"
 
 //#define LOG_TRACE 1
-#define COMCAST_LICENCE_REQUEST_HEADER_ACCEPT "Accept:"
-#define COMCAST_LICENCE_REQUEST_HEADER_ACCEPT_VALUE "application/vnd.xcal.mds.licenseResponse+json; version=1"
+#define LICENCE_REQUEST_HEADER_ACCEPT "Accept:"
 
-#define COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE "Content-Type:"
-#define COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE_VALUE "application/vnd.xcal.mds.licenseRequest+json; version=1"
+#define LICENCE_REQUEST_HEADER_CONTENT_TYPE "Content-Type:"
 
 #define LICENCE_RESPONSE_JSON_LICENCE_KEY "license"
-#ifdef USE_SECCLIENT
-#define COMCAST_QA_DRM_LICENCE_SERVER_URL "mds-qa.ccp.xcal.tv"
-#define COMCAST_DRM_LICENCE_SERVER_URL "mds.ccp.xcal.tv"
-#define COMCAST_ROGERS_DRM_LICENCE_SERVER_URL "mds-rogers.ccp.xcal.tv"
-#else
-#define COMCAST_QA_DRM_LICENCE_SERVER_URL "https://mds-qa.ccp.xcal.tv/license"
-#define COMCAST_DRM_LICENCE_SERVER_URL "https://mds.ccp.xcal.tv/license"
-#define COMCAST_ROGERS_DRM_LICENCE_SERVER_URL "https://mds-rogers.ccp.xcal.tv/license"
-#endif
-#define COMCAST_DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
-#define COMCAST_DRM_METADATA_TAG_END "</ckm:policy>"
+#define DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
+#define DRM_METADATA_TAG_END "</ckm:policy>"
 #define SESSION_TOKEN_URL "http://localhost:50050/authService/getSessionToken"
 #define MAX_LICENSE_REQUEST_ATTEMPTS 2
 
@@ -646,8 +635,6 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	callbackData->mDRMSessionManager = this;
 	long challengeLength = 0;
 	long long downloadTimeMS = 0;
-        long curlIPResolve;
-        curlIPResolve = aamp_GetIPResolveValue();
     
 	curl = curl_easy_init();
 
@@ -674,7 +661,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
 	curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, this);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
-	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, curlIPResolve);
+	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_URL, licenseRequest.url.c_str());
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
@@ -1266,6 +1253,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 #ifdef USE_SECCLIENT
 				if (isContentMetadataAvailable || usingAppDefinedAuthToken)
 				{
+					eventHandle->setSecclientError(true);
 					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, &httpExtendedStatusCode, eventHandle));
 					// Reload Expired access token only on http error code 412 with status code 401
 					if (412 == httpResponseCode && 401 == httpExtendedStatusCode && !usingAppDefinedAuthToken)
@@ -1292,6 +1280,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				else
 #endif
 				{
+					eventHandle->setSecclientError(false);
 					licenseResponse.reset(getLicense(licenseRequest, &httpResponseCode, streamType, aampInstance, isContentMetadataAvailable, licenseServerProxy));
 				}
 
@@ -1462,12 +1451,16 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 		if (isContentMetadataAvailable)
 		{
 #ifdef AAMP_RFC_ENABLED
+			std:string lhrAcceptValue = RFCSettings::getLHRAcceptValue();
+			std::string lhrContentType = RFCSettings::getLRHContentType();
 			// Content metadata is available, Add corresponding headers 
 			if (customHeaders.empty())
 			{
 				// Not using custom headers, These headers will also override any headers from the helper
 				licenseRequest.headers.clear();
 			}
+			licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_ACCEPT, {lhrAcceptValue.c_str()}});
+			licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_CONTENT_TYPE, {lhrContentType.c_str()}});
 #endif
 		}
 

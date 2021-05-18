@@ -206,9 +206,8 @@ enum HttpHeaderType
 {
 	eHTTPHEADERTYPE_COOKIE,     /**< Cookie Header */
 	eHTTPHEADERTYPE_XREASON,    /**< X-Reason Header */
-	eHTTPHEADERTYPE_FOG_REASON, /**< FOG-X-Reason Header */
+	eHTTPHEADERTYPE_FOG_REASON, /**< X-Reason Header */
 	eHTTPHEADERTYPE_EFF_LOCATION, /**< Effective URL location returned */
-	eHTTPHEADERTYPE_FOG_ERROR,  /**< FOG-X-Error Header */
 	eHTTPHEADERTYPE_UNKNOWN=-1  /**< Unkown Header */
 };
 
@@ -236,7 +235,8 @@ typedef enum
 	eAAMP_BITRATE_CHANGE_BY_BUFFER_FULL = 5,
 	eAAMP_BITRATE_CHANGE_BY_BUFFER_EMPTY = 6,
 	eAAMP_BITRATE_CHANGE_BY_FOG_ABR = 7,
-	eAAMP_BITRATE_CHANGE_MAX = 8
+	eAAMP_BITRATE_CHANGE_BY_OTA = 8,
+	eAAMP_BITRATE_CHANGE_MAX = 9
 } BitrateChangeReason;
 
 /**
@@ -367,6 +367,37 @@ struct ListenerData {
 	ListenerData* pNext;                /**< Next listener */
 };
 
+
+class AudioTrackTuple
+{
+	public:
+		std::string language;
+		std::string rendition;
+		std::string codec;
+		unsigned int bitrate;
+		unsigned int channel;
+
+	public:
+		AudioTrackTuple(): language(""),rendition(""),codec(""),bitrate(0), channel(0){}
+
+		void setAudioTrackTuple(std::string language="",  std::string rendition="", std::string codec="", unsigned int channel=0)
+		{
+			this->language = language;
+			this->rendition = rendition;
+			this->codec = codec;
+			this->channel = channel;
+			this->bitrate = 0;
+		}
+
+		void clear(void)
+		{
+			this->language = "";
+			this->rendition = "";
+			this->codec = "";
+			this->bitrate = 0;
+			this->channel = 0;
+		}
+};
 
 #ifdef AAMP_HLS_DRM
 /**
@@ -606,21 +637,23 @@ public:
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
 	int rate; // most recent (non-zero) play rate for non-paused content
 	bool pipeline_paused; // true if pipeline is paused
-	char language[MAX_LANGUAGE_TAG_LENGTH];  // current language set
-	bool noExplicitUserLanguageSelection; //true until not updated apart constructor
-	bool languageSetByUser; //initially 'false', set 'true' once language[] is set by user (also with the same as init value)
+	
 	char mLanguageList[MAX_LANGUAGE_COUNT][MAX_LANGUAGE_TAG_LENGTH]; // list of languages in stream
 	int mCurrentLanguageIndex; // Index of current selected lang in mLanguageList, this is used for VideoStat event data collection
 	int  mMaxLanguageCount;
 	std::string preferredLanguagesString; // unparsed string with preferred languages in format "lang1,lang2,.."
 	std::vector<std::string> preferredLanguagesList; // list of preferred languages from most-preferred to the least
+	std::string preferredRenditionString; // unparsed string with preferred renditions in format "rendition1,rendition2,.."
+	std::vector<std::string> preferredRenditionList; // list of preferred rendition from most-preferred to the least
+	std::string preferredCodecString; // unparsed string with preferred codecs in format "codec1,codec2,.."
+	std::vector<std::string> preferredCodecList; //String array to store codec preference
+	AudioTrackTuple mAudioTuple;
 	VideoZoomMode zoom_mode;
 	bool video_muted;
 	bool subtitles_muted;
 	int audio_volume;
 	std::vector<std::string> subscribedTags;
 	std::vector<TimedMetadata> timedMetadata;
-	std::vector<TimedMetadata> reportMetadata;
 	bool mIsIframeTrackPresent;				/**< flag to check iframe track availability*/
 
 	/* START: Added As Part of DELIA-28363 and DELIA-28247 */
@@ -675,14 +708,20 @@ public:
 	long mPlaylistFetchFailError;	/**< To store HTTP error code when playlist download fails */
 	bool mAudioDecoderStreamSync; /**< BCOM-4203: Flag to set or clear 'stream_sync_mode' property
 	                                in gst brcmaudiodecoder, default: True */
-	std::string mFogErrorString;	/**< To keep the copy of fog error status*/
-
 	std::string mSessionToken; /**< Field to set session token for player */
 	bool midFragmentSeekCache;    /**< RDK-26957: To find if cache is updated when seeked to mid fragment boundary*/
 	bool mLicenseCaching;	/**< Enable/Disable license caching */
 
 	std::string mTsbRecordingId; /**< Recording ID of current TSB */
 	int mthumbIndexValue;
+
+	PausedBehavior mPausedBehavior;	/**< Player paused state behavior for linear */
+	bool mJumpToLiveFromPause;	/**< Flag used to jump to live position from paused position */
+	bool mSeekFromPausedState; /**< Flag used to seek to live/culled position from SetRate() */
+	bool mOutputResolutionCheckEnabled; /**< Profile filtering by display resolution */
+	int mDisplayWidth; /**< Display resolution width */
+	int mDisplayHeight; /**< Display resolution height */
+	bool mProfileCappedStatus; /**< Profile capped status by resolution or bitrate */
 	/**
 	 * @brief Curl initialization function
 	 *
@@ -977,7 +1016,7 @@ public:
 	 * @param[in] GetBWIndex - Flag to get the bandwidth index
 	 * @return void
 	 */
-	void NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double framerate, double position, bool GetBWIndex = false);
+	void NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double framerate, double position, bool GetBWIndex = false, VideoScanType scantype = eVIDEOSCAN_UNKNOWN, int aspectRatioWidth = 0, int aspectRatioHeight = 0);
 
 	/**
 	 * @brief Notify when end of stream reached
@@ -1514,13 +1553,6 @@ public:
 	static gint AddHighIdleTask(IdleTask task, void* arg,DestroyTask dtask=NULL);
 
 	/**
-	 * @brief Check if first frame received or not
-	 *
-	 * @retval true if the first frame received
-	 */
-	bool IsFirstFrameReceived(void);
-
-	/**
 	 *   @brief Check sink cache empty
 	 *
 	 *   @param[in] mediaType - Audio/Video
@@ -1776,10 +1808,9 @@ public:
 	/**
 	 *   @brief Send stalled error
 	 *
-	 *   @param[in] isStalledBeforePlay - true if the playback stalled before the pipeline state changed to play.
 	 *   @return void
 	 */
-	void SendStalledErrorEvent(bool isStalledBeforePlay = false);
+	void SendStalledErrorEvent();
 
 	/**
 	 *   @brief Is discontinuity pending to process
@@ -1993,6 +2024,8 @@ public:
 	 */
 	void ConfigureLicenseCaching();
 
+	void ConfigureOutputResolutionCheck();
+
 	/**
 	 *   @brief To set the manifest download timeout value.
 	 *
@@ -2118,6 +2151,13 @@ public:
 	 */
 	bool IsNewTune()  { return ((eTUNETYPE_NEW_NORMAL == mTuneType) || (eTUNETYPE_NEW_SEEK == mTuneType)); }
 
+         /**
+         *   @brief IsFirstRequestToFog Function to check first reqruest to fog
+         *
+         *   @return true if first request to fog
+         */
+        bool IsFirstRequestToFog()  { return mIsFirstRequestToFOG; }
+
 	/**
 	 *   @brief Check if current stream is muxed
 	 *
@@ -2220,6 +2260,13 @@ public:
 	 *   @return void
 	 */
 	void UpdateVideoEndTsbStatus(bool btsbAvailable);
+
+	/**
+	 *   @brief updates profile capped status
+	 *
+	 *   @return void
+	 */
+	void UpdateProfileCappedStatus(void);
 
 	/**
 	*   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
@@ -2329,6 +2376,15 @@ public:
 	 *	 @return void
 	 */
 	void SetLicenseCaching(bool bValue);
+
+	/**
+         *       @brief Set Display resolution check
+         *       @param[in] bValue - true/false to enable/disable profile filtering by display resoluton
+         *
+         *       @return void
+         */
+        void SetOutputResolutionCheck(bool bValue);
+
 
 	/**
 	 *   @brief Set Matching BaseUrl Config Configuration
@@ -2656,7 +2712,7 @@ public:
 	 *   @param[in] track - audio track info object
 	 *   @return void
 	 */
-	void SetPreferredAudioTrack(const AudioTrackInfo track) { mPreferredAudioTrack = track; }
+	//void SetPreferredAudioTrack(const AudioTrackInfo track) { mPreferredAudioTrack = track; }
 
 	/**
 	 *   @brief Set preferred text track
@@ -2672,7 +2728,7 @@ public:
 	 *
 	 *   @return AudioTrackInfo - preferred audio track object
 	 */
-	const AudioTrackInfo &GetPreferredAudioTrack() { return mPreferredAudioTrack; }
+	//const AudioTrackInfo &GetPreferredAudioTrack() { return mPreferredAudioTrack; }
 
 	/**
 	 *   @brief Get preferred text track
@@ -2784,6 +2840,21 @@ public:
 	 *   @return bool - true if enabled
 	 */
 	bool IsBitRatePersistedOverSeek() { return mPersistBitRateOverSeek; }
+
+	/**
+	*   @brief Check if buffer underflow (RED)
+	*
+	*   @return bool
+	*/
+	bool CheckIfMediaTrackBufferLow(MediaType type);
+	/**
+	 *   @brief Set optional preferred language list
+	 *   @param[in] languageList - string with comma-delimited language list in ISO-639
+	 *             from most to least preferred. Set NULL to clear current list.
+	 *
+	 *   @return void
+	 */
+	void SetPreferredLanguages(const char *languageList, const char *preferredRenditio = NULL );
 
 private:
 
@@ -2902,7 +2973,7 @@ private:
 	bool mFragmentCachingRequired; /**< True if fragment caching is required or ongoing */
 	pthread_mutex_t mFragmentCachingLock; /**< To sync fragment initial caching operations */
 	bool mPauseOnFirstVideoFrameDisp; /**< True if pause AAMP after displaying first video frame */
-	AudioTrackInfo mPreferredAudioTrack; /**< Preferred audio track from available tracks in asset */
+//	AudioTrackInfo mPreferredAudioTrack; /**< Preferred audio track from available tracks in asset */
 	TextTrackInfo mPreferredTextTrack; /**< Preferred text track from available tracks in asset */
 	bool mFirstVideoFrameDisplayedEnabled; /** Set True to enable call to NotifyFirstVideoFrameDisplayed() from Sink */
 	int mCacheMaxSize;

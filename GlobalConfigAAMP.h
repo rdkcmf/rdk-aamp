@@ -94,6 +94,18 @@ enum TunedEventConfig
 };
 
 /**
+ * @brief Enumeration for Paused state behavior
+ */
+enum PausedBehavior
+{
+	ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE,		/**< automatically begin playback from eldest portion of live window*/
+	ePAUSED_BEHAVIOR_LIVE_IMMEDIATE,			/**< automatically jump to live*/
+	ePAUSED_BEHAVIOR_AUTOPLAY_DEFER,			/**< video remains paused indefinitely till play() call, resume playback from new start portion of live window*/
+	ePAUSED_BEHAVIOR_LIVE_DEFER,				/**<  video remains paused indefinitely till play() call, resume playback from live position*/
+	ePAUSED_BEHAVIOR_MAX
+};
+
+/**
  * @brief TriState enums
  */
 enum TriState
@@ -181,6 +193,7 @@ public:
 	int reportProgressInterval;             /**< Interval of progress reporting*/
 	DRMSystems preferredDrm;                /**< Preferred DRM*/
 	bool  isUsingLocalConfigForPreferredDRM;          /**< Preferred DRM configured as part of aamp.cfg */
+	bool isPreferredDRMConfigured;          /** Flag to check whether preferred DRM has set eigther through API or config file **/
 	bool mpdDiscontinuityHandling;          /**< Enable MPD discontinuity handling*/
 	bool mpdDiscontinuityHandlingCdvr;      /**< Enable MPD discontinuity handling for CDVR*/
 	bool bForceHttp;                        /**< Force HTTP*/
@@ -213,7 +226,7 @@ public:
 	bool useAppSrcForProgressivePlayback;    /**< Enables appsrc for playing progressive AV type */
 	int aampAbrThresholdSize;		/**< AAMP ABR threshold size*/
 	int langCodePreference; /**<prefered format for normalizing language code */
-        bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
+//        bool bDescriptiveAudioTrack;            /**< advertise audio tracks using <langcode>-<role> instead of just <langcode> */
 	bool reportBufferEvent;			/** Enables Buffer event reporting */
 	bool fragmp4LicensePrefetch;   /*** Enable fragment mp4 license prefetching**/
 	bool bPositionQueryEnabled;		/** Enables GStreamer position query for progress reporting */
@@ -236,10 +249,13 @@ public:
 	bool nativeCCRendering;  /*** If native CC rendering to be supported */
 	bool wifiCurlHeaderEnabled; /*** Enable wifi status in curl header */
 	bool midFragmentSeekEnabled;    /*** Enables Mid Fragment Seek functionality ***/
+	TriState bLimitResolution; /** Flag to indicate if display resolution based profile selection to be done */
 	TriState preferredCEA708; /*** To force 608/708 track selection in CC manager */
 	long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
 	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
 	TriState mPersistBitRateOverSeek; /**< Flag indicates if video profile have to be persisted during SAP/Seek */
+	PausedBehavior mPausedBehavior; /**< Configuration for player paused state behavior */
+	bool bDisableUnderflow;            	  /**< Enable/Disable Underflow processing*/
 
 public:
 

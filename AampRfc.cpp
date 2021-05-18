@@ -23,6 +23,7 @@
  */
 
 #include <string>
+#include <cstdio>
 #include "tr181api.h"
 #include "AampRfc.h"
 #include "GlobalConfigAAMP.h"
@@ -42,18 +43,18 @@ namespace RFCSettings
      * @param   CallerId and Parameter to be fetched
      * @retval  std::string host value
      */
-    std::string getRFCValue(const char* parameter){
+    std::string getRFCValue(const std::string& parameter){
         TR181_ParamData_t param = {0};
         std::string strhost ;
-        tr181ErrorCode_t status = getParam((char*)AAMP_RFC_CALLERID, parameter, &param);
+        tr181ErrorCode_t status = getParam((char*)AAMP_RFC_CALLERID, parameter.c_str(), &param);
         if (tr181Success == status)
         {
-            AAMPLOG_TRACE("RFC Parameter for %s is %s type = %d", parameter, param.value, param.type);
+            AAMPLOG_INFO("RFC Parameter for %s is %s type = %d", parameter.c_str(), param.value, param.type);
             strhost = std::string(param.value);
         }
         else
         {
-            AAMPLOG_ERR("get RFC Parameter for %s Failed : %s type = %d", parameter, getTR181ErrorString(status), param.type);
+            AAMPLOG_ERR("get RFC Parameter for %s Failed : %s type = %d", parameter.c_str(), getTR181ErrorString(status), param.type);
         }    
         return strhost;
     }
@@ -76,6 +77,7 @@ namespace RFCSettings
         return getRFCValue(AAMP_LRH_ContentType_RFC_PARAM);
     }
 
+
     /**
      * @brief   get the scheme id uri for dai streams
      * @param   None
@@ -94,7 +96,6 @@ namespace RFCSettings
         return getRFCValue(AAMP_SCHEME_ID_URI_VSS_STREAM);
     }
 }
-
 #endif
 /**
  * EOF

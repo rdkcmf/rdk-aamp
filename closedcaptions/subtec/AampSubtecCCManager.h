@@ -77,6 +77,18 @@ private:
 	void EnsureInitialized() override;
 
 	/**
+	 * @brief Impl specific initialization code for HAL
+	 * @return void
+	 */
+	void EnsureHALInitialized() override;
+
+	/**
+	 * @brief Impl specific initialization code for Communication with renderer
+	 * @return void
+	 */
+	void EnsureRendererCommsInitialized() override;
+
+	/**
 	 * @brief set digital channel with specified id
 	 *
 	 * @return CC_VL_OS_API_RESULT
@@ -98,7 +110,8 @@ private:
 
 
 private:
-	bool mInitialized{false};
+	bool mRendererInitialized{false};
+	bool mHALInitialized{false};
 };
 
 #endif /* __AAMP_SUBTEC_CC_MANAGER_H__ */

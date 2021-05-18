@@ -28,6 +28,8 @@
 #define __AAMP_CC_MANAGER_H__
 
 #include <string>
+#include <vector>
+#include "main_aamp.h"
 
 /**
  * @brief Different CC formats
@@ -121,6 +123,21 @@ public:
 
 	virtual ~AampCCManagerBase(){ };
 
+	/**
+	 * @brief update stored list of text tracks
+	 *
+	 * @param[in] newTextTracks - list of text tracks to store
+	 * @return void
+	 */
+	void updateLastTextTracks(const std::vector<TextTrackInfo>& newTextTracks) { mLastTextTracks = newTextTracks; }
+
+	/**
+	 * @brief Get list of text tracks
+	 *
+	 * @return const std::vector<TextTrackInfo>& - list of text tracks
+	 */
+	const std::vector<TextTrackInfo>& getLastTextTracks() const { return mLastTextTracks; }
+
 protected:
 	/**
 	 * @brief To start CC rendering
@@ -141,6 +158,18 @@ protected:
 	 * @return void
 	 */
 	virtual void EnsureInitialized(){};
+
+	/**
+	 * @brief Impl specific initialization code for HAL
+	 * @return void
+	 */
+	virtual void EnsureHALInitialized(){};
+
+	/**
+	 * @brief Impl specific initialization code for Communication with renderer
+	 * @return void
+	 */
+	virtual void EnsureRendererCommsInitialized(){};
 
 	/**
 	 * @brief Impl specific initialization code called once in Init() function
@@ -187,7 +216,7 @@ protected:
 
 	std::string mOptions{}; /**< CC rendering styles */
 	std::string mTrack{}; /**< CC track */
-	bool mRendering{false}; /**< If CC is visible or not */
+	std::vector<TextTrackInfo> mLastTextTracks{};
 	bool mEnabled{false}; /**< true if CC rendering enabled, false otherwise */
 	bool mTrickplayStarted{false}; /** If a trickplay is going on or not */
 	bool mParentalCtrlLocked{false}; /** If Parental Control lock enabled on not */

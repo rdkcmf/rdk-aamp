@@ -21,6 +21,14 @@
  * @file main_aamp.cpp
  * @brief Advanced Adaptive Media Player (AAMP)
  */
+#ifdef IARM_MGR
+#include "host.hpp"
+#include "manager.hpp"
+#include "libIBus.h"
+#include "libIBusDaemon.h"
+#include "irMgr.h"
+#endif
+
 #include "main_aamp.h"
 #include "GlobalConfigAAMP.h"
 #include "AampCacheHandler.h"
@@ -84,6 +92,8 @@
 		return val; \
 	}
 
+static bool iarmInitialized = false;
+std::mutex PlayerInstanceAAMP::mPrvAampMtx;
 /**
  *   @brief Constructor.
  *
@@ -93,6 +103,30 @@ PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
 	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL()
 {
+
+#ifdef IARM_MGR
+if(!iarmInitialized)
+{
+        char processName[20] = {0};
+        IARM_Result_t result;
+        sprintf (processName, "AAMP-PLAYER-%u", getpid());
+        if (IARM_RESULT_SUCCESS == (result = IARM_Bus_Init((const char*) &processName))) {
+                logprintf("IARM Interface Inited in AAMP");
+        }
+        else {
+            logprintf("IARM Interface Inited Externally : %d", result);
+        }
+
+        if (IARM_RESULT_SUCCESS == (result = IARM_Bus_Connect())) {
+                logprintf("IARM Interface Connected  in AAMP");
+        }
+        else {
+            logprintf ("IARM Interface Connected Externally :%d", result);
+        }
+	iarmInitialized = true;
+}
+#endif
+
 #ifdef SUPPORT_JS_EVENTS
 #ifdef AAMP_WPEWEBKIT_JSBINDINGS //aamp_LoadJS defined in libaampjsbindings.so
 	const char* szJSLib = "libaampjsbindings.so";
@@ -130,6 +164,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 			//Avoid stop call since already stopped
 			aamp->Stop();
 		}
+		std::lock_guard<std::mutex> lock (mPrvAampMtx);
 		delete aamp;
 		aamp = NULL;
 	}
@@ -336,9 +371,13 @@ void PlayerInstanceAAMP::SetRampDownLimit(int limit)
  */
 void PlayerInstanceAAMP::SetLanguageFormat(LangCodePreference preferredFormat, bool useRole)
 {
-	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
+	//NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID(); // why was this here?
 	gpGlobalConfig->langCodePreference = preferredFormat;
-	gpGlobalConfig->bDescriptiveAudioTrack = useRole;
+	if( useRole )
+	{
+		AAMPLOG_WARN("SetLanguageFormat bDescriptiveAudioTrack deprecated!" );
+	}
+	//gpGlobalConfig->bDescriptiveAudioTrack = useRole;
 }
 
 /**
@@ -400,25 +439,10 @@ void PlayerInstanceAAMP::SetMaximumBitrate(long bitrate)
 bool PlayerInstanceAAMP::IsValidRate(int rate)
 {
 	bool retValue = false;
-
-	switch(rate)
+	if (abs(rate) <= AAMP_RATE_TRICKPLAY_MAX)
 	{
-		case AAMP_RATE_REW_1X:
-		case AAMP_RATE_REW_2X:
-		case AAMP_RATE_REW_3X:
-		case AAMP_RATE_REW_4X:
-		case AAMP_RATE_PAUSE:
-		case AAMP_NORMAL_PLAY_RATE:
-		case AAMP_RATE_FWD_1X:
-		case AAMP_RATE_FWD_2X:
-		case AAMP_RATE_FWD_3X:
-		case AAMP_RATE_FWD_4X:
-		{
-			retValue = true;
-			break;
-		}
+		retValue = true;
 	}
-
 	return retValue;
 }
 
@@ -548,13 +572,12 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			}
 		}
 
-		logprintf("aamp_SetRate(%d)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
-		logprintf("aamp_SetRate Adj position: %f", aamp->seek_pos_seconds); // current position relative to tune time
-		logprintf("aamp_SetRate rate(%d)->(%d)", aamp->rate,rate);
-		logprintf("aamp_SetRate cur pipeline: %s", aamp->pipeline_paused ? "paused" : "playing");
+		logprintf("aamp_SetRate (%d)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
+		logprintf("aamp_SetRate rate(%d)->(%d) cur pipeline: %s. Adj position: %f Play/Pause Position:%lld", aamp->rate,rate,aamp->pipeline_paused ? "paused" : "playing",aamp->seek_pos_seconds,aamp->GetPositionMilliseconds()); // current position relative to tune time
 
-		if (rate == aamp->rate)
+		if (!aamp->mSeekFromPausedState && (rate == aamp->rate))
 		{ // no change in desired play rate
+			// no deferring for playback resume
 			if (aamp->pipeline_paused && rate != 0)
 			{ // but need to unpause pipeline
 				AAMPLOG_INFO("Resuming Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
@@ -573,7 +596,6 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		{
 			if (!aamp->pipeline_paused)
 			{
-				AAMPLOG_INFO("Pausing Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
 				aamp->StopDownloads();
 				retValue = aamp->mStreamSink->Pause(true, false);
@@ -582,10 +604,17 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		}
 		else
 		{
+			TuneType tuneTypePlay = eTUNETYPE_SEEK;
+			if(aamp->mJumpToLiveFromPause)
+			{
+				tuneTypePlay = eTUNETYPE_SEEKTOLIVE;
+				aamp->mJumpToLiveFromPause = false;
+			}
 			aamp->rate = rate;
 			aamp->pipeline_paused = false;
+			aamp->mSeekFromPausedState = false;
 			aamp->ResumeDownloads();
-			aamp->TuneHelper(eTUNETYPE_SEEK); // this unpauses pipeline as side effect
+			aamp->TuneHelper(tuneTypePlay); // this unpauses pipeline as side effect
 		}
 
 		if(retValue)
@@ -646,9 +675,9 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 		}
 	}
 
-	if (aamp->pipeline_paused)
+	if ((aamp->mbPlayEnabled) && aamp->pipeline_paused)
 	{
-		// resume downloads and clear paused flag. state change will be done
+		// resume downloads and clear paused flag for foreground instance. state change will be done
 		// on streamSink configuration.
 		logprintf("%s(): paused state, so resume downloads", __FUNCTION__);
 		aamp->pipeline_paused = false;
@@ -881,50 +910,7 @@ void PlayerInstanceAAMP::SetAudioVolume(int volume)
 void PlayerInstanceAAMP::SetLanguage(const char* language)
 {
 	ERROR_STATE_CHECK_VOID();
-
-	logprintf("aamp_SetLanguage(%s)->(%s)",aamp->language, language);
-	if(strncmp(language, aamp->language, MAX_LANGUAGE_TAG_LENGTH) == 0)
-	{
-	    aamp->noExplicitUserLanguageSelection = false;
-	    aamp->languageSetByUser = true;
-	    return;
-	}
-	// There is no active playback session, save the language for later
-	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
-	{
-		aamp->languageSetByUser = true;
-		aamp->UpdateAudioLanguageSelection(language);
-	}
-	// check if language is supported in manifest languagelist
-	else if((aamp->IsAudioLanguageSupported(language)) || (!aamp->mMaxLanguageCount))
-	{
-		aamp->languageSetByUser = true;
-		aamp->UpdateAudioLanguageSelection(language);
-		if (aamp->mpStreamAbstractionAAMP)
-		{
-			logprintf("aamp_SetLanguage(%s) retuning", language);
-			if(aamp->mMediaFormat == eMEDIAFORMAT_OTA)
-			{
-				aamp->mpStreamAbstractionAAMP->SetAudioTrackByLanguage(language);
-			}
-			else
-			{
-				aamp->discardEnteringLiveEvt = true;
-
-				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000.0;
-				aamp->TeardownStream(false);
-				// Before calling TuneHelper, ensure player is not in Error state
-				ERROR_STATE_CHECK_VOID();
-				aamp->TuneHelper(eTUNETYPE_SEEK);
-
-				aamp->discardEnteringLiveEvt = false;
-			}
-		}
-	}
-	else
-	{
-		logprintf("aamp_SetLanguage(%s) not supported in manifest", language);
-	}
+	SetPreferredLanguages(language);
 }
 
 /**
@@ -1024,7 +1010,18 @@ bool PlayerInstanceAAMP::IsLive()
 const char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL("");
-	return aamp->language;
+	static char lang[MAX_LANGUAGE_TAG_LENGTH];
+	lang[0] = 0;
+	int trackIndex = GetAudioTrack();
+	if( trackIndex>=0 )
+	{
+		std::vector<AudioTrackInfo> trackInfo = aamp->mpStreamAbstractionAAMP->GetAvailableAudioTracks();
+		if (!trackInfo.empty())
+		{
+			strncpy(lang, trackInfo[trackIndex].language.c_str(), sizeof(lang) );
+		}
+	}
+	return lang;
 }
 
 /**
@@ -1211,8 +1208,20 @@ double PlayerInstanceAAMP::GetPlaybackDuration()
  */
 PrivAAMPState PlayerInstanceAAMP::GetState(void)
 {
-	PrivAAMPState currentState;
-	aamp->GetState(currentState);
+	PrivAAMPState currentState = eSTATE_RELEASED;
+	try 
+	{
+		std::lock_guard<std::mutex> lock (mPrvAampMtx);
+		if(NULL == aamp)
+		{	
+			throw std::invalid_argument("NULL reference");
+		}
+		aamp->GetState(currentState);
+	}
+	catch (std::exception &e)
+	{
+		AAMPLOG_WARN("%s:%d: Invalid access to the instance of PrivateInstanceAAMP (%s), returning %s as current state", __FUNCTION__, __LINE__, e.what(),"eSTATE_RELEASED");
+	}
 	return currentState;
 }
 
@@ -1579,6 +1588,17 @@ void PlayerInstanceAAMP::SetLicenseCaching(bool bValue)
 }
 
 /**
+ *   @brief Set display resolution check for video profile filtering
+ *   @param[in] bValue - true/false to enable/disable profile filtering
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetOutputResolutionCheck(bool bValue)
+{
+        aamp->SetOutputResolutionCheck(bValue);
+}
+
+/**
  *   @brief Set Matching BaseUrl Config Configuration
  *
  *   @param[in] bValue - true if Matching BaseUrl enabled
@@ -1623,41 +1643,94 @@ void PlayerInstanceAAMP::SetSslVerifyPeerConfig(bool bValue)
 }
 
 /**
+ *   @brief Set audio track by audio parameters like language , rendition, codec etc..
+ * 	 @param[in][optional] language, rendition, codec, channel 
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetAudioTrack(std::string language,  std::string rendition, std::string codec, unsigned int channel)
+{
+	aamp->mAudioTuple.clear();
+	aamp->mAudioTuple.setAudioTrackTuple(language, rendition, codec, channel);
+	/* Now we have an option to set language and rendition only*/
+	SetPreferredLanguages( language.c_str(), rendition.c_str() );
+}
+
+/**
+ *   @brief Set optional preferred codec list
+ *   @param[in] codecList[] - string with array with codec list
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetPreferredCodec(const char *codecList)
+{
+	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
+
+	aamp->preferredCodecString.clear();
+	aamp->preferredCodecList.clear();
+
+	if(codecList != NULL)
+	{
+		aamp->preferredCodecString = std::string(codecList);
+		std::istringstream ss(aamp->preferredCodecString);
+		std::string codec;
+		while(std::getline(ss, codec, ','))
+		{
+			aamp->preferredCodecList.push_back(codec);
+			AAMPLOG_INFO("%s:%d: Parsed preferred codec: %s", __FUNCTION__, __LINE__,
+					codec.c_str());
+		}
+
+		aamp->preferredCodecString = std::string(codecList);
+	}
+
+	AAMPLOG_INFO("%s:%d: Number of preferred codecs: %d", __FUNCTION__, __LINE__,
+			aamp->preferredCodecList.size());
+}
+
+/**
+ *   @brief Set optional preferred rendition list
+ *   @param[in] renditionList - string with comma-delimited rendition list in ISO-639
+ *             from most to least preferred. Set NULL to clear current list.
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetPreferredRenditions(const char *renditionList)
+{
+	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
+
+	aamp->preferredRenditionString.clear();
+	aamp->preferredRenditionList.clear();
+
+	if(renditionList != NULL)
+	{
+		aamp->preferredRenditionString = std::string(renditionList);
+		std::istringstream ss(aamp->preferredRenditionString);
+		std::string rendition;
+		while(std::getline(ss, rendition, ','))
+		{
+			aamp->preferredRenditionList.push_back(rendition);
+			AAMPLOG_INFO("%s:%d: Parsed preferred rendition: %s", __FUNCTION__, __LINE__,
+					rendition.c_str());
+		}
+
+		aamp->preferredRenditionString = std::string(renditionList);
+	}
+
+	AAMPLOG_INFO("%s:%d: Number of preferred renditions: %d", __FUNCTION__, __LINE__,
+			aamp->preferredRenditionList.size());
+}
+
+/**
  *   @brief Set optional preferred language list
  *   @param[in] languageList - string with comma-delimited language list in ISO-639
  *             from most to least preferred. Set NULL to clear current list.
  *
  *   @return void
  */
-void PlayerInstanceAAMP::SetPreferredLanguages(const char *languageList)
+void PlayerInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition )
 {
-	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
-
-	aamp->preferredLanguagesString.clear();
-	aamp->preferredLanguagesList.clear();
-
-	if(languageList != NULL)
-	{
-		aamp->preferredLanguagesString = std::string(languageList);
-		std::istringstream ss(aamp->preferredLanguagesString);
-		std::string lng;
-		while(std::getline(ss, lng, ','))
-		{
-			aamp->preferredLanguagesList.push_back(lng);
-			AAMPLOG_INFO("%s:%d: Parsed preferred lang: %s", __FUNCTION__, __LINE__,
-					lng.c_str());
-		}
-
-		aamp->preferredLanguagesString = std::string(languageList);
-
-		// If user has not yet called SetLanguage(), force to use
-		// preferred languages over default language
-		if(!aamp->languageSetByUser)
-			aamp->noExplicitUserLanguageSelection = true;
-	}
-
-	AAMPLOG_INFO("%s:%d: Number of preferred languages: %d", __FUNCTION__, __LINE__,
-			aamp->preferredLanguagesList.size());
+	aamp->SetPreferredLanguages(languageList, preferredRendition);
 }
 
 /**
@@ -1784,8 +1857,12 @@ void PlayerInstanceAAMP::EnableVideoRectangle(bool rectProperty)
 void PlayerInstanceAAMP::SetAudioTrack(int trackId)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
-
-	aamp->SetAudioTrack(trackId);
+	std::vector<AudioTrackInfo> tracks = aamp->mpStreamAbstractionAAMP->GetAvailableAudioTracks();
+	if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
+	{
+		//aamp->SetPreferredAudioTrack(tracks[trackId]);
+		SetPreferredLanguages( tracks[trackId].language.c_str(), tracks[trackId].rendition.c_str() );
+	}
 }
 
 /**
@@ -2026,6 +2103,29 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 
 	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
 	aamp->Stop();
+}
+
+/**
+ *   @brief To set preferred paused state behavior
+ *
+ *   @param[in] int behavior
+ */
+void PlayerInstanceAAMP::SetPausedBehavior(int behavior)
+{
+	ERROR_STATE_CHECK_VOID();
+
+	if(ePAUSED_BEHAVIOR_MAX != gpGlobalConfig->mPausedBehavior)
+	{
+	    aamp->mPausedBehavior = gpGlobalConfig->mPausedBehavior;
+	}
+	else
+	{
+	    if(behavior >= 0 && behavior < ePAUSED_BEHAVIOR_MAX)
+	    {
+		    AAMPLOG_WARN("%s:%d Player Paused behavior : %d", __FUNCTION__, __LINE__, behavior);
+		    aamp->mPausedBehavior = (PausedBehavior) behavior;
+	    }
+	}
 }
 /**
  * @}

@@ -25,6 +25,7 @@
 
 #include "aampgstplayer.h"
 #include "AampUtils.h"
+#include "AampGstUtils.h"
 #include <gst/gst.h>
 #include <gst/app/gstappsrc.h>
 #include <gst/app/gstappsink.h>
@@ -81,19 +82,21 @@ typedef enum {
 #ifdef INTELCE
 #define INPUT_GAIN_DB_MUTE  (gdouble)-145
 #define INPUT_GAIN_DB_UNMUTE  (gdouble)0
-#define DEFAULT_VIDEO_RECTANGLE "0,0,0,0"
-#else
-#define DEFAULT_VIDEO_RECTANGLE "0,0,1280,720"
 #endif
 #define DEFAULT_BUFFERING_TO_MS 10                       // TimeOut interval to check buffer fullness
 #define DEFAULT_BUFFERING_QUEUED_BYTES_MIN  (128 * 1024) // prebuffer in bytes
+#if defined(REALTEKCE)
+#define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (3)          // if the video decoder has this many queued frames start..
+#else
 #define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (5)          // if the video decoder has this many queued frames start.. even at 60fps, close to 100ms...
+#endif
 #define DEFAULT_BUFFERING_MAX_MS (1000)                  // max buffering time
 #define DEFAULT_BUFFERING_MAX_CNT (DEFAULT_BUFFERING_MAX_MS/DEFAULT_BUFFERING_TO_MS)   // max buffering timeout count
 #define AAMP_MIN_PTS_UPDATE_INTERVAL 4000
 #define AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW 500
 #define BUFFERING_TIMEOUT_PRIORITY -70
 #define AAMP_MIN_DECODE_ERROR_INTERVAL 10000
+#define VIDEO_COORDINATES_SIZE 32
 /**
  * @struct media_stream
  * @brief Holds stream(A/V) specific variables.
@@ -109,6 +112,13 @@ struct media_stream
 	bool bufferUnderrun;
 	bool eosReached;
 	bool sourceConfigured;
+
+	media_stream() : sinkbin(NULL), source(NULL), format(FORMAT_INVALID),
+			 using_playersinkbin(FALSE), flush(false), resetPosition(false),
+			 bufferUnderrun(false), eosReached(false), sourceConfigured(false)
+	{
+
+	}
 };
 
 /**
@@ -146,7 +156,7 @@ struct AAMPGstPlayerPriv
 	guint eosCallbackIdleTaskId; //ID of idle handler created for notifying EOS event.
 	std::atomic<bool> eosCallbackIdleTaskPending; //Set if any eos callback is pending.
 	bool firstFrameReceived; //Flag that denotes if first frame was notified.
-	char videoRectangle[32]; //Video-rectangle co-ordinates in format x,y,w,h.
+	char videoRectangle[VIDEO_COORDINATES_SIZE]; //Video-rectangle co-ordinates in format x,y,w,h.
 	bool pendingPlayState; //Flag that denotes if set pipeline to PLAYING state is pending.
 	bool decoderHandleNotified; //Flag that denotes if decoder handle was notified.
 	guint firstFrameCallbackIdleTaskId; //ID of idle handler created for notifying first frame event.
@@ -181,6 +191,58 @@ struct AAMPGstPlayerPriv
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
 	long long decodeErrorMsgTimeMS; //Timestamp when decode error message last posted
 	int decodeErrorCBCount; //Total decode error cb received within thresold time
+	bool progressiveBufferingEnabled;
+	bool progressiveBufferingStatus;
+
+	AAMPGstPlayerPriv() : pipeline(NULL), bus(NULL), current_rate(0),
+			total_bytes(0), n_audio(0), current_audio(0), firstProgressCallbackIdleTaskId(0),
+			firstProgressCallbackIdleTaskPending(false), periodicProgressCallbackIdleTaskId(0),
+			bufferingTimeoutTimerId(0), id3MetadataCallbackIdleTaskId(0),
+			id3MetadataCallbackTaskPending(false), video_dec(NULL), audio_dec(NULL),
+			video_sink(NULL), audio_sink(NULL),
+#ifdef INTELCE_USE_VIDRENDSINK
+			video_pproc(NULL),
+#endif
+			rate(AAMP_NORMAL_PLAY_RATE), zoom(VIDEO_ZOOM_FULL), videoMuted(false), audioMuted(false),
+			audioVolume(1.0), eosCallbackIdleTaskId(0), eosCallbackIdleTaskPending(false),
+			firstFrameReceived(false), pendingPlayState(false), decoderHandleNotified(false),
+			firstFrameCallbackIdleTaskId(0), firstFrameCallbackIdleTaskPending(false),
+			using_westerossink(false), busWatchId(0), eosSignalled(false),
+			buffering_enabled(FALSE), buffering_in_progress(FALSE), buffering_timeout_cnt(0),
+			buffering_target_state(GST_STATE_NULL),
+#ifdef INTELCE
+			keepLastFrame(false),
+#endif
+			lastKnownPTS(0), ptsUpdatedTimeMS(0), ptsCheckForEosOnUnderflowIdleTaskId(0),
+			numberOfVideoBuffersSent(0), segmentStart(0), positionQuery(NULL), durationQuery(NULL),
+			paused(false), pipelineState(GST_STATE_NULL), firstVideoFrameDisplayedCallbackIdleTaskId(0),
+			firstVideoFrameDisplayedCallbackIdleTaskPending(false), lastId3DataLen(0), lastId3Data(NULL),
+#if defined(REALTEKCE)
+			firstTuneWithWesterosSinkOff(false),
+			audioSinkAsyncEnabled(FALSE),
+#endif
+			decodeErrorMsgTimeMS(0), decodeErrorCBCount(0),
+			progressiveBufferingEnabled(false), progressiveBufferingStatus(false)
+	{
+		memset(videoRectangle, '\0', VIDEO_COORDINATES_SIZE);
+#ifdef INTELCE
+                strcpy(videoRectangle, "0,0,0,0");
+#else
+                /* DELIA-45366-default video scaling should take into account actual graphics
+                 * resolution instead of assuming 1280x720.
+                 * By default we where setting the resolution has 0,0,1280,720.
+                 * For Full HD this default resolution will not scale to full size.
+                 * So, we no need to set any default rectangle size here,
+                 * since the video will display full screen, if a gstreamer pipeline is started
+                 * using the westerossink connected using westeros compositor.
+                 */
+                strcpy(videoRectangle, "");
+#endif
+		for(int i = 0; i < AAMP_TRACK_COUNT; i++)
+		{
+			protectionEvent[i] = NULL;
+		}
+	}
 };
 
 /**
@@ -255,12 +317,9 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 	, cbExportYUVFrame(NULL)
 #endif
 {
-	privateContext = (AAMPGstPlayerPriv *)malloc(sizeof(*privateContext));
+	privateContext = new AAMPGstPlayerPriv();
 	if(privateContext)
 	{
-		memset(privateContext, 0, sizeof(*privateContext));
-		privateContext->audioVolume = 1.0;
-		privateContext->pipelineState = GST_STATE_NULL;
 		this->aamp = aamp;
 
 		pthread_mutex_init(&mBufferingLock, NULL);
@@ -270,8 +329,6 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 		this->cbExportYUVFrame = exportFrames;
 #endif
 		CreatePipeline();
-		privateContext->rate = AAMP_NORMAL_PLAY_RATE;
-		strcpy(privateContext->videoRectangle, DEFAULT_VIDEO_RECTANGLE);
 	}
 	else
 	{
@@ -286,7 +343,7 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 AAMPGstPlayer::~AAMPGstPlayer()
 {
 	DestroyPipeline();
-	free(privateContext);
+	delete privateContext;
 	pthread_mutex_destroy(&mBufferingLock);
 	pthread_mutex_destroy(&mProtectionLock);
 }
@@ -388,84 +445,6 @@ static gboolean appsrc_seek(GstAppSrc *src, guint64 offset, AAMPGstPlayer * _thi
 	logprintf("appsrc %p seek-signal - offset %" G_GUINT64_FORMAT, src, offset);
 #endif
 	return TRUE;
-}
-
-
-/**
- * @brief Parse format to generate GstCaps
- * @param[in] format stream format to generate caps
- * @retval GstCaps for the input format
- */
-static GstCaps* GetGstCaps(StreamOutputFormat format)
-{
-	GstCaps * caps = NULL;
-	switch (format)
-	{
-		case FORMAT_MPEGTS:
-			caps = gst_caps_new_simple ("video/mpegts",
-					"systemstream", G_TYPE_BOOLEAN, TRUE,
-					"packetsize", G_TYPE_INT, 188, NULL);
-			break;
-		case FORMAT_ISO_BMFF:
-			caps = gst_caps_new_simple("video/quicktime", NULL, NULL);
-			break;
-		case FORMAT_AUDIO_ES_AAC:
-			caps = gst_caps_new_simple ("audio/mpeg",
-					"mpegversion", G_TYPE_INT, 2,
-					"stream-format", G_TYPE_STRING, "adts", NULL);
-			break;
-		case FORMAT_AUDIO_ES_AC3:
-			caps = gst_caps_new_simple ("audio/x-ac3", NULL, NULL);
-			break;
-		case FORMAT_AUDIO_ES_ATMOS:
-			// Todo :: a) Test with all platforms if atmos works 
-			//	   b) Test to see if x-eac3 config is enough for atmos stream.
-			//	 	if x-eac3 is enough then both switch cases can be combined
-			caps = gst_caps_new_simple ("audio/x-eac3", NULL, NULL);
-                        break;
-		case FORMAT_AUDIO_ES_EC3:
-			caps = gst_caps_new_simple ("audio/x-eac3", NULL, NULL);
-			break;
-		case FORMAT_VIDEO_ES_H264:
-#ifdef INTELCE
-			caps = gst_caps_new_simple ("video/x-h264",
-					"stream-format", G_TYPE_STRING, "avc",
-					"width", G_TYPE_INT, 1920,
-					"height", G_TYPE_INT, 1080,
-					NULL);
-#elif (defined(RPI) || defined(__APPLE__) || defined(UBUNTU))
-			caps = gst_caps_new_simple ("video/x-h264",
-                                       "alignment", G_TYPE_STRING, "au",
-                                       "stream-format", G_TYPE_STRING, "avc",
-                                       NULL);
-#else
-			caps = gst_caps_new_simple ("video/x-h264", NULL, NULL);
-#endif
-			break;
-		case FORMAT_VIDEO_ES_HEVC:
-#if (defined(RPI) || defined(__APPLE__) || defined(UBUNTU))
-			caps = gst_caps_new_simple ("video/x-h265",
-					"alignment", G_TYPE_STRING, "au",
-					"stream-format", G_TYPE_STRING, "hev1",
-					NULL);
-#else
-			caps = gst_caps_new_simple ("video/x-h265", NULL, NULL);
-#endif
-			break;
-		case FORMAT_VIDEO_ES_MPEG2:
-			caps = gst_caps_new_simple ("video/mpeg",
-					"mpegversion", G_TYPE_INT, 2,
-					"systemstream", G_TYPE_BOOLEAN, FALSE, NULL);
-			break;  //CID:81305 - Using break statement
-		case FORMAT_UNKNOWN:
-			AAMPLOG_WARN("%s:%d Unknown format %d", __FUNCTION__, __LINE__, format);
-			break;
-		case FORMAT_INVALID:
-		default:
-			AAMPLOG_WARN("%s:%d Unsupported format %d", __FUNCTION__, __LINE__, format);
-			break;
-	}
-	return caps;
 }
 
 
@@ -679,20 +658,6 @@ static gboolean IdleCallbackFirstVideoFrameDisplayed(gpointer user_data)
 }
 
 /**
- * @brief Check if first frame received or not
- * @retval true if the first frame received
- */
-bool AAMPGstPlayer::IsFirstFrameReceived(void)
-{
-	if (privateContext)
-	{
-		return privateContext->firstFrameReceived;
-	}
-
-	return false;
-}
-
-/**
  * @brief Notify first Audio and Video frame through an idle function to make the playersinkbin halding same as normal(playbin) playback.
  * @param[in] type media type of the frame which is decoded, either audio or video.
  */
@@ -783,10 +748,12 @@ static void AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder(GstElement* object, gu
  */
 bool AAMPGstPlayer_isVideoDecoder(const char* name, AAMPGstPlayer * _this)
 {
-	return _this->privateContext->using_westerossink?
-		aamp_StartsWith(name, "westerossink"):
-		(aamp_StartsWith(name, "brcmvideodecoder") ||aamp_StartsWith(name, "omxwmvdec") || aamp_StartsWith(name, "omxh26") ||
-		aamp_StartsWith(name, "omxav1dec") || aamp_StartsWith(name, "omxvp") || aamp_StartsWith(name, "omxmpeg"));
+#if defined (REALTEKCE)
+	return (aamp_StartsWith(name, "omxwmvdec") || aamp_StartsWith(name, "omxh26")
+				|| aamp_StartsWith(name, "omxav1dec") || aamp_StartsWith(name, "omxvp") || aamp_StartsWith(name, "omxmpeg"));
+#else
+	return (_this->privateContext->using_westerossink ? aamp_StartsWith(name, "westerossink"): aamp_StartsWith(name, "brcmvideodecoder"));
+#endif
 }
 
 /**
@@ -802,6 +769,17 @@ bool AAMPGstPlayer_isVideoSink(const char* name, AAMPGstPlayer * _this)
 #else
 	return	(!_this->privateContext->using_westerossink && aamp_StartsWith(name, "brcmvideosink") == true) || // brcmvideosink0, brcmvideosink1, ...
 			( _this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink") == true);
+#endif
+}
+
+bool AAMPGstPlayer_isAudioSinkOrAudioDecoder(const char* name, AAMPGstPlayer * _this)
+{
+#if defined (REALTEKCE)
+	return (aamp_StartsWith(name, "rtkaudiosink")
+						|| aamp_StartsWith(name, "alsasink")
+						|| aamp_StartsWith(name, "fakesink"));
+#else
+	return (aamp_StartsWith(name, "brcmaudiodecoder") || aamp_StartsWith(name, "amlhalasink"));
 #endif
 }
 
@@ -832,7 +810,12 @@ bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this
 		isAudioOrVideoDecoder = true;
 	}
 #if defined (REALTEKCE)
-	else if (aamp_StartsWith(name, "omx"))
+	else if (aamp_StartsWith(name, "omx")
+			|| aamp_StartsWith(name, "westerossink")
+			|| aamp_StartsWith(name, "rtkv1sink")
+			|| aamp_StartsWith(name, "rtkaudiosink")
+			|| aamp_StartsWith(name, "alsasink")
+			|| aamp_StartsWith(name, "fakesink"))
 	{
 		isAudioOrVideoDecoder = true;
 	}
@@ -850,11 +833,7 @@ static gboolean VideoDecoderPtsCheckerForEOS(gpointer user_data)
 	AAMPGstPlayer *_this = (AAMPGstPlayer *) user_data;
 	AAMPGstPlayerPriv *privateContext = _this->privateContext;
 #ifndef INTELCE
-	gint64 currentPTS = 0;
-	if (privateContext->video_dec)
-	{
-		g_object_get(privateContext->video_dec, "video-pts", &currentPTS, NULL);
-	}
+	gint64 currentPTS = _this->GetVideoPTS();
 
 	if (currentPTS == privateContext->lastKnownPTS)
 	{
@@ -934,28 +913,54 @@ GstFlowReturn AAMPGstPlayer::AAMPGstPlayer_OnVideoSample(GstElement* object, AAM
 static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0, gpointer arg1,
         AAMPGstPlayer * _this)
 {
-	//TODO - Handle underflow
-	MediaType type = eMEDIATYPE_DEFAULT;  //CID:89173 - Resolve Uninit
-	AAMPGstPlayerPriv *privateContext = _this->privateContext;
-	logprintf("## %s() : Got Underflow message from %s ##", __FUNCTION__, GST_ELEMENT_NAME(object));
-	if (AAMPGstPlayer_isVideoDecoder(GST_ELEMENT_NAME(object), _this))
+#ifdef REALTEKCE
+    if (gpGlobalConfig->bDisableUnderflow) // temp hack to avoid video freeze while processing underflow for Realtek.
+    {
+        logprintf("## %s() : [WARN] Ignored underflow from %s, disableUnderflow config enabled ##", __FUNCTION__, GST_ELEMENT_NAME(object));
+    }
+    else
+#endif
 	{
-		type = eMEDIATYPE_VIDEO;
-	}
-	else if (aamp_StartsWith(GST_ELEMENT_NAME(object), "brcmaudiodecoder") == true)
-	{
-		type = eMEDIATYPE_AUDIO;
-	}
-	_this->privateContext->stream[type].bufferUnderrun = true;
-	if (_this->privateContext->stream[type].eosReached)
-	{
-		if (_this->privateContext->rate > 0)
+		//TODO - Handle underflow
+		MediaType type = eMEDIATYPE_DEFAULT;  //CID:89173 - Resolve Uninit
+		AAMPGstPlayerPriv *privateContext = _this->privateContext;
+#ifdef REALTEKCE
+		if (AAMPGstPlayer_isVideoSink(GST_ELEMENT_NAME(object), _this))
+#else
+		if (AAMPGstPlayer_isVideoDecoder(GST_ELEMENT_NAME(object), _this))
+#endif
 		{
-			if (privateContext->video_dec)
+			type = eMEDIATYPE_VIDEO;
+		}
+		else if (AAMPGstPlayer_isAudioSinkOrAudioDecoder(GST_ELEMENT_NAME(object), _this))
+		{
+			type = eMEDIATYPE_AUDIO;
+		}
+		else
+		{
+			logprintf("## %s() : WARNING!! Underflow message from %s not handled, unmapped underflow!", __FUNCTION__, GST_ELEMENT_NAME(object));
+			return;
+		}
+
+#if defined(AMLOGIC)
+                if(!_this->aamp->CheckIfMediaTrackBufferLow(type))
+                {
+                        AAMPLOG_WARN("%s():%d Ignoring underflow from %s as Buffer health is not low", __FUNCTION__, __LINE__, GST_ELEMENT_NAME(object));
+                        return;
+                }
+#endif
+
+		logprintf("## %s() : Got Underflow message from %s type %d ##", __FUNCTION__, GST_ELEMENT_NAME(object), type);
+
+		_this->privateContext->stream[type].bufferUnderrun = true;
+
+		if (_this->privateContext->stream[type].eosReached)
+		{
+			if (_this->privateContext->rate > 0)
 			{
 				if (!privateContext->ptsCheckForEosOnUnderflowIdleTaskId)
 				{
-					g_object_get(privateContext->video_dec, "video-pts", &privateContext->lastKnownPTS, NULL);
+					privateContext->lastKnownPTS =_this->GetVideoPTS();
 					privateContext->ptsUpdatedTimeMS = NOW_STEADY_TS_MS;
 					privateContext->ptsCheckForEosOnUnderflowIdleTaskId = g_timeout_add(AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW, VideoDecoderPtsCheckerForEOS, _this);
 				}
@@ -966,18 +971,15 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 			}
 			else
 			{
-				logprintf("%s:%d : video_dec not available", __FUNCTION__, __LINE__);
-				_this->NotifyEOS();
+				logprintf("%s:%d : Mediatype %d underrun, when eosReached is %d", __FUNCTION__, __LINE__, type, _this->privateContext->stream[type].eosReached);
+				_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
 			}
 		}
 		else
 		{
+			logprintf("%s:%d : Mediatype %d underrun, when eosReached is %d", __FUNCTION__, __LINE__, type, _this->privateContext->stream[type].eosReached);
 			_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
 		}
-	}
-	else
-	{
-		_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
 	}
 }
 
@@ -992,11 +994,15 @@ static void AAMPGstPlayer_OnGstPtsErrorCb(GstElement* object, guint arg0, gpoint
         AAMPGstPlayer * _this)
 {
 	logprintf("## %s() : Got PTS error message from %s ##", __FUNCTION__, GST_ELEMENT_NAME(object));
+#ifdef REALTEKCE
+	if (AAMPGstPlayer_isVideoSink(GST_ELEMENT_NAME(object), _this))
+#else
 	if (AAMPGstPlayer_isVideoDecoder(GST_ELEMENT_NAME(object), _this))
+#endif
 	{
 		_this->aamp->ScheduleRetune(eGST_ERROR_PTS, eMEDIATYPE_VIDEO);
 	}
-	else if (aamp_StartsWith(GST_ELEMENT_NAME(object), "brcmaudiodecoder") == true)
+	else if (AAMPGstPlayer_isAudioSinkOrAudioDecoder(GST_ELEMENT_NAME(object), _this))
 	{
 		_this->aamp->ScheduleRetune(eGST_ERROR_PTS, eMEDIATYPE_AUDIO);
 	}
@@ -1228,7 +1234,11 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				g_signal_connect(msg->src, "pts-error-callback",
 					G_CALLBACK(AAMPGstPlayer_OnGstPtsErrorCb), _this);
 				// To register decode-error-callback for video decoder source alone
+#ifdef REALTEKCE
+				if (AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
+#else
 				if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
+#endif
 				{
 					g_signal_connect(msg->src, "decode-error-callback",
 						G_CALLBACK(AAMPGstPlayer_OnGstDecodeErrorCb), _this);
@@ -1346,6 +1356,10 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 
 					_this->setVolumeOrMuteUnMute();
 				}
+				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "amlhalasink") == true)
+				{
+					_this->privateContext->audio_sink = (GstElement *) msg->src;
+				}
 				else if (strstr(GST_OBJECT_NAME(msg->src), "brcmaudiodecoder"))
 				{
 					// this reduces amount of data in the fifo, which is flushed/lost when transition from expert to normal modes
@@ -1393,6 +1407,12 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				}
 			}
 
+#if defined (REALTEKCE)
+			if ((NULL != msg->src) && AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
+			{
+				_this->privateContext->video_dec = (GstElement *) msg->src;
+			}
+#endif
 #else
 			if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink") == true)
 			{
@@ -3295,6 +3315,13 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 		return; /* Return here if the sinkbin or audio_sink is not valid, no need to proceed further */
 	}
 
+#ifdef AMLOGIC /*For AMLOGIC platform*/
+	/*Using "stream-volume" property of audio-sink for setting volume and mute for AMLOGIC platform*/
+	logprintf("AAMPGstPlayer::%s %d > Setting Volume %f using stream-volume property of audio-sink", __FUNCTION__, __LINE__, privateContext->audioVolume);
+	g_object_set(gSource, "stream-volume", privateContext->audioVolume, NULL);
+
+	/* Avoid mute property setting for AMLOGIC as use of "mute" property on pipeline is impacting all other players*/
+#else
 	/* Muting the audio decoder in general to avoid audio passthrough in expert mode for locked channel */
 	if (0 == privateContext->audioVolume)
 	{
@@ -3334,6 +3361,7 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 		logprintf("AAMPGstPlayer::%s %d > Setting Volume %f",	__FUNCTION__, __LINE__, privateContext->audioVolume);
 		g_object_set(gSource, "volume", privateContext->audioVolume, NULL);
 	}
+#endif
 }
 
 
@@ -3534,11 +3562,7 @@ bool AAMPGstPlayer::CheckForPTSChangeWithTimeout(long timeout)
 {
 	bool ret = true;
 #ifndef INTELCE
-	gint64 currentPTS = 0;
-	if (privateContext->video_dec)
-	{
-		g_object_get(privateContext->video_dec, "video-pts", &currentPTS, NULL);
-	}
+	gint64 currentPTS = GetVideoPTS();
 	if (currentPTS != 0)
 	{
 		if (currentPTS != privateContext->lastKnownPTS)
@@ -3575,17 +3599,25 @@ bool AAMPGstPlayer::CheckForPTSChangeWithTimeout(long timeout)
 long long AAMPGstPlayer::GetVideoPTS(void)
 {
 	gint64 currentPTS = 0;
-	if (privateContext->video_dec)
+	GstElement *element;
+#if defined (REALTEKCE)
+	element = privateContext->video_sink;
+#else
+	element = privateContext->video_dec;
+#endif
+	if( element )
 	{
-		g_object_get(privateContext->video_dec, "video-pts", &currentPTS, NULL);
-		//Westeros sink sync returns PTS in 90Khz format where as BCM returns in 45 KHz, 
+		g_object_get(element, "video-pts", &currentPTS, NULL);
+		
+#ifndef REALTEKCE
+		//Westeros sink sync returns PTS in 90Khz format where as BCM returns in 45 KHz,
 		// hence converting to 90Khz for BCM
 		if(!privateContext->using_westerossink)
 		{
 			currentPTS = currentPTS * 2; // convert from 45 KHz to 90 Khz PTS
 		}
+#endif
 	}
-
 	return (long long) currentPTS;
 }
 
@@ -3597,55 +3629,47 @@ long long AAMPGstPlayer::GetVideoPTS(void)
 bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 {
 	bool ret = true;
-	GstState current, pending;
-
-	gst_element_get_state(privateContext->pipeline, &current, &pending, 0 * GST_MSECOND);
-
-	if (current != GST_STATE_READY && pending != GST_STATE_PAUSED)
-	{
 #ifdef USE_GST1
-		media_stream *stream = &privateContext->stream[mediaType];
-		if (stream->source)
+	media_stream *stream = &privateContext->stream[mediaType];
+	if (stream->source)
+	{
+		guint64 cacheLevel = gst_app_src_get_current_level_bytes (GST_APP_SRC(stream->source));
+		if(0 != cacheLevel)
 		{
-			guint64 cacheLevel = gst_app_src_get_current_level_bytes (GST_APP_SRC(stream->source));
-			if(0 != cacheLevel)
+			traceprintf("AAMPGstPlayer::%s():%d Cache level  %" G_GUINT64_FORMAT "", __FUNCTION__, __LINE__, cacheLevel);
+			ret = false;
+		}
+		else
+		{
+			// Changed from logprintf to traceprintf, to avoid log flooding (seen on xi3 and xid).
+			// We're seeing this logged frequently during live linear playback, despite no user-facing problem.
+			traceprintf("AAMPGstPlayer::%s():%d Cache level empty", __FUNCTION__, __LINE__);
+			if (privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun == true ||
+					privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun == true)
 			{
-				traceprintf("AAMPGstPlayer::%s():%d Cache level  %" G_GUINT64_FORMAT, __FUNCTION__, __LINE__, cacheLevel);
-				ret = false;
+				logprintf("AAMPGstPlayer::%s():%d Received buffer underrun signal for video(%d) or audio(%d) previously",
+					__FUNCTION__, __LINE__, privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun,
+					privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun);
 			}
+#ifndef INTELCE
 			else
 			{
-				// Changed from logprintf to traceprintf, to avoid log flooding (seen on xi3 and xid).
-				// We're seeing this logged frequently during live linear playback, despite no user-facing problem.
-				traceprintf("AAMPGstPlayer::%s():%d Cache level empty", __FUNCTION__, __LINE__);
-				if (privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun == true ||
-						privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun == true)
+				bool ptsChanged = CheckForPTSChangeWithTimeout(AAMP_MIN_PTS_UPDATE_INTERVAL);
+				if(!ptsChanged)
 				{
-					logprintf("AAMPGstPlayer::%s():%d Received buffer underrun signal for video(%d) or audio(%d) previously",
-						__FUNCTION__, __LINE__, privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun,
-						privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun);
+					//PTS hasn't changed for the timeout value
+					AAMPLOG_WARN("AAMPGstPlayer::%s():%d Appsrc cache is empty and PTS hasn't been updated for more than %lldms and ret(%d)",
+									__FUNCTION__, __LINE__, AAMP_MIN_PTS_UPDATE_INTERVAL, ret);
 				}
-#ifndef INTELCE
 				else
 				{
-					bool ptsChanged = CheckForPTSChangeWithTimeout(AAMP_MIN_PTS_UPDATE_INTERVAL);
-					if(!ptsChanged)
-					{
-						//PTS hasn't changed for the timeout value
-						AAMPLOG_WARN("AAMPGstPlayer::%s():%d Appsrc cache is empty and PTS hasn't been updated for more than %lldms and ret(%d)",
-							__FUNCTION__, __LINE__, AAMP_MIN_PTS_UPDATE_INTERVAL, ret);
-					}
-					else
-					{
-						ret = false;
-					}
+					ret = false;
 				}
-#endif
 			}
-		}
 #endif
+		}
 	}
-
+#endif
 	return ret;
 }
 
@@ -3905,6 +3929,7 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 		uint bytes = 0, frames = DEFAULT_BUFFERING_QUEUED_FRAMES_MIN+1;
 	        g_object_get(privateContext->video_dec,"buffered_bytes",&bytes,NULL);
 	        g_object_get(privateContext->video_dec,"queued_frames",&frames,NULL);
+
 		stopBuffering = stopBuffering || (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN) || (frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN); //TODO: the minimum byte and frame values should be configurable from aamp.cfg
 #else
 		stopBuffering = true;

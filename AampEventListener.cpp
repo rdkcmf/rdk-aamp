@@ -108,6 +108,12 @@ static void GenerateLegacyAAMPEvent(const AAMPEventPtr &e, AAMPEvent &event)
 			event.data.bitrateChanged.height = ev->getHeight();
 			event.data.bitrateChanged.framerate = ev->getFrameRate();
 			event.data.bitrateChanged.position = ev->getPosition();
+			event.data.bitrateChanged.cappedProfile = ev->getCappedProfileStatus();
+			event.data.bitrateChanged.displayWidth = ev->getDisplayWidth();
+			event.data.bitrateChanged.displayHeight = ev->getDisplayHeight();
+			event.data.bitrateChanged.videoScanType = ev->getScanType();
+			event.data.bitrateChanged.aspectRatioWidth = ev->getAspectRatioWidth();
+			event.data.bitrateChanged.aspectRatioHeight = ev->getAspectRatioHeight();
 			break;
 		}
 		case AAMP_EVENT_TIMED_METADATA:
@@ -168,7 +174,7 @@ static void GenerateLegacyAAMPEvent(const AAMPEventPtr &e, AAMPEvent &event)
 			event.data.dash_drmmetadata.accessStatus = ev->getAccessStatus().c_str();
 			event.data.dash_drmmetadata.accessStatus_value = ev->getAccessStatusValue();
 			event.data.dash_drmmetadata.responseCode = ev->getResponseCode();
-			event.data.dash_drmmetadata.isSecClientError = ev->secclientError();
+			event.data.dash_drmmetadata.isSecClientError = ev->getSecclientError();
 			break;
 		}
 		case AAMP_EVENT_REPORT_ANOMALY:

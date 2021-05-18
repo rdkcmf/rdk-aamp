@@ -52,7 +52,6 @@
 #define zdebuglogprintf (void)
 #endif
 
-#define ZERO_DRM_HOST_URL  "mds.ccp.xcal.tv"
 #define ZERO_DRM_REQMETADATA_SZ 2
 #define ZERO_DRM_KEY_CACHE_LIFETIME	1800000 // 30min of lifetime 
 
