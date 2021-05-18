@@ -710,6 +710,18 @@ int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 	return ret;
 }
 
+/**
+ * @brief To restore cc state after new tune
+ *
+ * @return void
+ */
+void AampCCManagerBase::RestoreCC()
+{
+	AAMPLOG_WARN("AampCCManagerBase::%s %d mEnabled: %d, mTrickplayStarted: %d, mParentalCtrlLocked: %d, mCCHandle: %s",
+			__FUNCTION__, __LINE__, mEnabled, mTrickplayStarted, mParentalCtrlLocked, (CheckCCHandle()) ? "set" : "not set");
+
+	SetTrack(GetTrack());
+}
 
 /**
  * @brief Enable/disable CC rendering

@@ -4279,6 +4279,11 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		}
 	}
 
+#ifdef AAMP_CC_ENABLED
+	//restore CC if it was enabled for previous content.
+	AampCCManager::GetInstance()->RestoreCC();
+#endif
+
 	if (newTune)
 	{
 		PrivAAMPState state;
