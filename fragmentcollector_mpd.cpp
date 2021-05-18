@@ -2955,7 +2955,7 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 		{
 			AAMPLOG_WARN("%s:%d (%s) Failed to locate DRM helper for UUID %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
 			/** Preferred DRM configured and it is failed hhen exit here */
-			if(ISCONFIGSET(eAAMPConfig_PreferredDRMConfigured) && (GetPreferredDrmUUID() == drmInfo.systemUUID)){
+			if(ISCONFIGSET(eAAMPConfig_PreferredDRMConfigured) && (GetPreferredDrmUUID() == drmInfo.systemUUID) && !aamp->mIsWVKIDWorkaround){
 				AAMPLOG_ERR("%s:%d (%s) Preffered DRM Failed to locate with UUID %s", __FUNCTION__, __LINE__, getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
 				break;
 			}

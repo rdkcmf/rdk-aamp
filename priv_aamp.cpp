@@ -4426,14 +4426,13 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 
 	/** Least priority operator setting will override the value only if it is not set from dev config **/ 
-	SETCONFIGVALUE_PRIV(AAMP_OPERATOR_SETTING,eAAMPConfig_WideVineKIDWorkaround,IsWideVineKIDWorkaround(mainManifestUrl));
+	SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_WideVineKIDWorkaround,IsWideVineKIDWorkaround(mainManifestUrl));
 	mIsWVKIDWorkaround = ISCONFIGSET_PRIV(eAAMPConfig_WideVineKIDWorkaround);
 	if (mIsWVKIDWorkaround)
 	{
 		/** Set prefered DRM as Widevine with highest configuration **/
 		AAMPLOG_INFO("%s:%d : WideVine KeyID workaround present: Setting preferred DRM as Widevine", __FUNCTION__,__LINE__);
-		SETCONFIGVALUE_PRIV(AAMP_DEV_CFG_SETTING,eAAMPConfig_PreferredDRM,(int)eDRM_WideVine);
-		SETCONFIGVALUE_PRIV(AAMP_DEV_CFG_SETTING,eAAMPConfig_PreferredDRMConfigured,true);
+		SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_PreferredDRM,(int)eDRM_WideVine);
 	}
 
 	std::tie(mManifestUrl, mDrmInitData) = ExtractDrmInitData(mainManifestUrl);
