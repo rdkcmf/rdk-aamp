@@ -7568,10 +7568,6 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						AcquirePlaylistLock();
 						IPeriod *newPeriod = mpd->GetPeriods().at(mIterPeriodIndex);
 
-						//for VOD and cDVR
-						logprintf("%s:%d Period(%s - %d/%zu) Offset[%lf] IsLive(%d) IsCdvr(%d) ",__FUNCTION__,__LINE__,
-							mBasePeriodId.c_str(), mCurrentPeriodIdx, mNumberOfPeriods, mBasePeriodOffset, mIsLiveStream, aamp->IsInProgressCDVR());
-
 						vector <IAdaptationSet*> adapatationSets = newPeriod->GetAdaptationSets();
 						int adaptationSetCount = adapatationSets.size();
 						if(0 == adaptationSetCount || IsEmptyPeriod(newPeriod))
@@ -7878,6 +7874,9 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							{
 								adStateChanged = onAdEvent(AdEvent::AD_FINISHED);
 							}
+							// This sleep will hit when there is no content to download and at EOS
+							// and refresh interval timeout not reached . To Avoid tight loop adding a min delay
+							aamp->InterruptableMsSleep(50);
 							break;
 						}
 					}
