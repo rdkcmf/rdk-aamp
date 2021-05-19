@@ -7823,9 +7823,11 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 					// Audio cache is always full and need for data is not received for more fetch.
 					// So after video downloads loop was exiting without audio fetch causing audio drop .
 					// Now wait for both video and audio to reach EOS before moving to next period or exit.
+					AcquirePlaylistLock();
 					bool vEos = mMediaStreamContext[eMEDIATYPE_VIDEO]->eos;
 					bool audioEnabled = (mMediaStreamContext[eMEDIATYPE_AUDIO] && mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled);
 					bool aEos = (audioEnabled && mMediaStreamContext[eMEDIATYPE_AUDIO]->eos);
+					ReleasePlaylistLock();
 					if (vEos || aEos)
 					{
 						bool eosOutSideAd = (AdState::IN_ADBREAK_AD_PLAYING != mCdaiObject->mAdState &&
@@ -7874,9 +7876,13 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							{
 								adStateChanged = onAdEvent(AdEvent::AD_FINISHED);
 							}
-							// This sleep will hit when there is no content to download and at EOS
-							// and refresh interval timeout not reached . To Avoid tight loop adding a min delay
-							aamp->InterruptableMsSleep(50);
+							// This sleep will hit when there is no content to download and at EOS for live manifests(cDVR dynamic)
+							// To Avoid tight loop adding an interruptable sleep, which signals when new playlist is indexed
+							if(mIsLiveManifest && (mIterPeriodIndex == mNumberOfPeriods-1))
+							{
+								playlistDownloaderContext->NotifyFragmentCollectorWait();
+								playlistDownloaderContext->EnterTimedWaitForPlaylistRefresh(MAX_DELAY_BETWEEN_MPD_UPDATE_MS);
+							}
 							break;
 						}
 					}

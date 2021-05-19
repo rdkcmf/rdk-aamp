@@ -2634,7 +2634,7 @@ void MediaTrack::AbortWaitForPlaylistDownload()
  */
 void MediaTrack::EnterTimedWaitForPlaylistRefresh(int timeInMs)
 {
-	if(timeInMs > 0)
+	if(timeInMs > 0 && aamp->DownloadsAreEnabled())
 	{
 		std::unique_lock<std::mutex> lock(plDwnldMutex);
 		if(plDownloaderSignal.wait_for(lock, std::chrono::milliseconds(timeInMs)) == std::cv_status::timeout)
