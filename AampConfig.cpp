@@ -595,21 +595,24 @@ void AampConfig::SetConfigValue(ConfigPriority owner, AAMPConfigSettings cfg ,co
 	}
 	else if(cfg > eAAMPConfig_IntStartValue && cfg < eAAMPConfig_IntMaxValue)
 	{
-		if(ValidateRange(GetConfigName(cfg),value))
+		int valueInt = (int)value;
+		if(ValidateRange(GetConfigName(cfg),valueInt))
 		{
 			SetValue<ConfigInt , int>(iAampCfgValue[cfg-eAAMPConfig_IntStartValue], owner,(int)value,GetConfigName(cfg));
 		}
 	}
 	else if(cfg > eAAMPConfig_LongStartValue && cfg < eAAMPConfig_LongMaxValue)
 	{
-		if(ValidateRange(GetConfigName(cfg),value))
+		long valueLong = (long)value;
+		if(ValidateRange(GetConfigName(cfg),valueLong))
 		{
 			SetValue<ConfigLong , long>(lAampCfgValue[cfg-eAAMPConfig_LongStartValue], owner,(long)value,GetConfigName(cfg));
 		}
 	}
 	else if(cfg > eAAMPConfig_DoubleStartValue && cfg < eAAMPConfig_DoubleMaxValue)
 	{
-		if(ValidateRange(GetConfigName(cfg),value))
+		double valueDouble = (double)value;
+		if(ValidateRange(GetConfigName(cfg),valueDouble))
 		{
 			SetValue<ConfigDouble , double>(dAampCfgValue[cfg-eAAMPConfig_DoubleStartValue], owner,(double)value,GetConfigName(cfg));
 		}
