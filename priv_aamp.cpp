@@ -7649,7 +7649,15 @@ void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data)
 			AAMPLOG_WARN("%s:%d ID3 log was truncated, original size %d (printable %d)" ,__FUNCTION__,__LINE__, metadataLen, printableLen);
 		}
 	}
-	SendEventSync(e);
+
+	if (mAsyncTuneEnabled)
+	{
+		SendEventAsync(e);
+	}
+	else
+	{
+		SendEventSync(e);
+	}
 }
 
 /**
