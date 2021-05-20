@@ -276,22 +276,17 @@ struct AampConfigLookupEntry
 	AAMPConfigSettings cfgEntryValue;
 	union
 	{
-		struct
-		{
-			int iMinValue;
-			int iMaxValue;
-		}iValues;
-		struct
-		{
-			long lMinValue;
-			long lMaxValue;
-		}lValues;
-		struct
-		{
-			double dMinValue;
-			double dMaxValue;
-		}dValues;
-	}range;
+		int iMinValue;
+		long lMinValue;
+		double dMinValue;
+	}Min;
+	union
+	{
+		int iMaxValue;
+		long lMaxValue;
+		double dMaxValue;
+	}Max;
+
 };
 
 /**

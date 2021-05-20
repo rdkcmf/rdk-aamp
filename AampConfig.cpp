@@ -86,13 +86,13 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"disableEC3",eAAMPConfig_DisableEC3,-1,-1},									// Complete
 	{"disableATMOS",eAAMPConfig_DisableATMOS,-1,-1},								// Complete
 	{"stereoOnly",eAAMPConfig_StereoOnly,-1,-1},									// Complete
-	{"cdvrLiveOffset",eAAMPConfig_CDVRLiveOffset,0,50},
-	{"liveOffset",eAAMPConfig_LiveOffset,0,50},
+	{"cdvrLiveOffset",eAAMPConfig_CDVRLiveOffset,{.dMinValue = 0},{.dMaxValue=50}},
+	{"liveOffset",eAAMPConfig_LiveOffset,{.dMinValue = 0},{.dMaxValue=50}},
 	{"disablePlaylistIndexEvent",eAAMPConfig_DisablePlaylistIndexEvent,-1,-1},		// Complete
 	{"enableSubscribedTags",eAAMPConfig_EnableSubscribedTags,-1,-1},				// Complete
-	{"networkTimeout",eAAMPConfig_NetworkTimeout,-1,-1},
-	{"manifestTimeout",eAAMPConfig_ManifestTimeout,-1,-1},
-	{"playlistTimeout",eAAMPConfig_PlaylistTimeout,-1,-1},
+	{"networkTimeout",eAAMPConfig_NetworkTimeout,{.dMinValue = -1},{.dMaxValue=-1}},
+	{"manifestTimeout",eAAMPConfig_ManifestTimeout,{.dMinValue = -1},{.dMaxValue=-1}},
+	{"playlistTimeout",eAAMPConfig_PlaylistTimeout,{.dMinValue = -1},{.dMaxValue=-1}},
 	{"dashIgnoreBaseUrlIfSlash",eAAMPConfig_DASHIgnoreBaseURLIfSlash,-1,-1},	// Complete
 	{"licenseAnonymousRequest",eAAMPConfig_AnonymousLicenseRequest,-1,-1},		// Complete
 	{"useLinearSimulator",eAAMPConfig_EnableLinearSimulator,-1,-1},
@@ -119,7 +119,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"reportVideoPTS",eAAMPConfig_ReportVideoPTS,-1,-1},
 	{"decoderUnavailableStrict",eAAMPConfig_DecoderUnavailableStrict,-1,-1},
 	{"descriptiveAudioTrack",eAAMPConfig_DescriptiveAudioTrack,-1,-1},
-	{"langCodePreference",eAAMPConfig_LanguageCodePreference,0,3},
+	{"langCodePreference",eAAMPConfig_LanguageCodePreference,{.iMinValue=0},{.iMaxValue=3}},
 	{"appSrcForProgressivePlayback",eAAMPConfig_UseAppSrcForProgressivePlayback,-1,-1},
 	{"abrCacheOutlier",eAAMPConfig_ABRCacheOutlier,-1,-1},
 	{"abrSkipDuration",eAAMPConfig_ABRSkipDuration,-1,-1},
@@ -133,10 +133,10 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"throttle",eAAMPConfig_Throttle,-1,-1},
 	{"bufferHealthMonitorDelay",eAAMPConfig_BufferHealthMonitorDelay,-1,-1},
 	{"bufferHealthMonitorInterval",eAAMPConfig_BufferHealthMonitorInterval,-1,-1},
-	{"preferredDrm",eAAMPConfig_PreferredDRM,0,eDRM_MAX_DRMSystems},
+	{"preferredDrm",eAAMPConfig_PreferredDRM,{.iMinValue=0},{.iMaxValue=eDRM_MAX_DRMSystems}},
 	{"playreadyOutputProtection",eAAMPConfig_EnablePROutputProtection,-1,-1},
-	{"liveTuneEvent",eAAMPConfig_LiveTuneEvent,eTUNED_EVENT_ON_PLAYLIST_INDEXED,eTUNED_EVENT_ON_GST_PLAYING},
-	{"vodTuneEvent",eAAMPConfig_VODTuneEvent,eTUNED_EVENT_ON_PLAYLIST_INDEXED,eTUNED_EVENT_ON_GST_PLAYING},
+	{"liveTuneEvent",eAAMPConfig_LiveTuneEvent,{.iMinValue=eTUNED_EVENT_ON_PLAYLIST_INDEXED},{.iMaxValue=eTUNED_EVENT_ON_GST_PLAYING}},
+	{"vodTuneEvent",eAAMPConfig_VODTuneEvent,{.iMinValue=eTUNED_EVENT_ON_PLAYLIST_INDEXED},{.iMaxValue=eTUNED_EVENT_ON_GST_PLAYING}},
 	{"parallelPlaylistDownload",eAAMPConfig_PlaylistParallelFetch,-1,-1},
 	{"dashParallelFragDownload",eAAMPConfig_DashParallelFragDownload,-1,-1},
 	{"parallelPlaylistRefresh",eAAMPConfig_PlaylistParallelRefresh ,-1,-1},
@@ -164,8 +164,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"downloadBuffer",eAAMPConfig_MaxFragmentCached,-1,-1},
 	{"ptsErrorThreshold",eAAMPConfig_PTSErrorThreshold,-1,-1},
 	{"enableVideoRectangle",eAAMPConfig_EnableRectPropertyCfg,-1,-1},
-	{"maxPlaylistCacheSize",eAAMPConfig_MaxPlaylistCacheSize,0,15360},              // Range for PlaylistCache size - upto 15 MB max
-	{"dashMaxDrmSessions",eAAMPConfig_MaxDASHDRMSessions,1,MAX_DASH_DRM_SESSIONS},
+	{"maxPlaylistCacheSize",eAAMPConfig_MaxPlaylistCacheSize,{.iMinValue=0},{.iMaxValue=15360}},              // Range for PlaylistCache size - upto 15 MB max
+	{"dashMaxDrmSessions",eAAMPConfig_MaxDASHDRMSessions,{.iMinValue=1},{.iMaxValue=MAX_DASH_DRM_SESSIONS}},
 	{"userAgent",eAAMPConfig_UserAgent,-1,-1},
 	{"waitTimeBeforeRetryHttp5xx",eAAMPConfig_Http5XXRetryWaitInterval,-1,-1},
 	{"preplayBuffercount",eAAMPConfig_PrePlayBufferCount,-1,-1},
@@ -216,7 +216,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"initialBuffer",eAAMPConfig_InitialBuffer,-1,-1},
 	{"downloadDelay",eAAMPConfig_DownloadDelay,-1,-1},
 	{"onTuneRate",eAAMPConfig_OnTuneRate,-1,-1},
-	{"livePauseBehavior",eAAMPConfig_LivePauseBehavior,ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE,ePAUSED_BEHAVIOR_MAX},
+	{"livePauseBehavior",eAAMPConfig_LivePauseBehavior,{.iMinValue=ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE},{.iMaxValue=ePAUSED_BEHAVIOR_MAX}},
 	{"disableUnderflow",eAAMPConfig_DisableUnderflow,-1,-1},
 	{"limitResolution",eAAMPConfig_LimitResolution,-1,-1},
 	{"useAbsoluteTimeline",eAAMPConfig_UseAbsoluteTimeline,-1,-1},
@@ -1462,23 +1462,23 @@ bool AampConfig::ValidateRange(std::string key, T& value)
 		AampConfigLookupEntry item = iter->second;
 		if (std::is_same<T, int>::value)
 		{
-			if(item.range.iValues.iMinValue != -1 && value < item.range.iValues.iMinValue)
+			if(item.Min.iMinValue != -1 && value < item.Min.iMinValue)
 				retval = false;
-			if(item.range.iValues.iMaxValue != -1 && value > item.range.iValues.iMaxValue)
+			if(item.Max.iMaxValue != -1 && value > item.Max.iMaxValue)
 				retval = false;
 		}
 		else if (std::is_same<T, long>::value)
 		{
-			if(item.range.lValues.lMinValue != -1 && value < item.range.lValues.lMinValue)
+			if(item.Min.lMinValue != -1 && value < item.Min.lMinValue)
 				retval = false;
-			if(item.range.lValues.lMaxValue != -1 && value > item.range.lValues.lMaxValue)
+			if(item.Max.lMaxValue != -1 && value > item.Max.lMaxValue)
 				retval = false;
 		}
 		else if (std::is_same<T, double>::value)
 		{
-			if(item.range.dValues.dMinValue != 0 && value < item.range.dValues.dMinValue)
+			if(item.Min.dMinValue != -1 && value < item.Min.dMinValue)
 				retval = false;
-			if(item.range.dValues.dMaxValue != 0 && value > item.range.dValues.dMaxValue)
+			if(item.Max.dMaxValue != -1 && value > item.Max.dMaxValue)
 				retval = false;
 		}
 	}
