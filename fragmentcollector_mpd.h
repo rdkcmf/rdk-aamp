@@ -196,14 +196,12 @@ public:
 	bool SetThumbnailTrack(int) override;
 	std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 	double GetFirstPeriodStartTime(void);
-	void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error);
 
-	uint64_t mLastPlaylistDownloadTimeMs; // Last playlist refresh time
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
 	void FetcherLoop();
 	StreamInfo* GetStreamInfo(int idx) override;
-	AAMPStatusType FetchDashManifest();
+	AAMPStatusType UpdateMPD(bool init = false);
 	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false, bool reportBulkMet = false);
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit, bool reportBulkMeta=false);
 	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID,bool isInit, bool reportBulkMeta=false);
@@ -217,7 +215,7 @@ private:
 	bool CheckForInitalClearPeriod();
 	void PushEncryptedHeaders();
 	int GetProfileIdxForBandwidthNotification(uint32_t bandwidth);
-	AAMPStatusType UpdateTrackInfo(bool modifyDefaultBW, bool resetTimeLineIndex=false);
+	AAMPStatusType UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex=false);
 	double SkipFragments( class MediaStreamContext *pMediaStreamContext, double skipTime, bool updateFirstPTS = false);
 	void SkipToEnd( class MediaStreamContext *pMediaStreamContext); //Added to support rewind in multiperiod assets
 	void ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType, std::shared_ptr<AampDrmHelper> drmHelper = nullptr);
@@ -227,10 +225,13 @@ private:
 	int GetBestAudioTrackByLanguage(int &desiredRepIdx,AudioType &selectedCodecType);
 	int GetPreferredAudioTrackByLanguage();
 	std::string GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet );
-	AAMPStatusType GetMpdFromManifest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init);
+	AAMPStatusType GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
 	int GetDrmPrefs(const std::string& uuid);
 	std::string GetPreferredDrmUUID();
 	bool IsEmptyPeriod(IPeriod *period);
+	void GetAvailableVSSPeriods(std::vector<IPeriod*>& PeriodIds);
+	bool CheckForVssTags();
+	std::string GetVssVirtualStreamID();
 	bool IsMatchingLanguageAndMimeType(MediaType type, std::string lang, IAdaptationSet *adaptationSet, int &representationIndex);
 	void GetFragmentUrl( std::string& fragmentUrl, const FragmentDescriptor *fragmentDescriptor, std::string media);
 	bool fragmentCollectorThreadStarted;
@@ -247,10 +248,6 @@ private:
 	class MediaStreamContext *mMediaStreamContext[AAMP_TRACK_COUNT];
 	int mNumberOfTracks;
 	int mCurrentPeriodIdx;
-	size_t mNumberOfPeriods;	// Number of periods in the updated manifest
-	unsigned mIterPeriodIndex;	// FetcherLoop period iterator index
-	unsigned mUpperBoundaryPeriod;	// Last playable period index
-	unsigned mLowerBoundaryPeriod;	// First playable period index
 	double mEndPosition;
 	bool mIsLiveStream;        //Stream is live or not; won't change during runtime.
 	bool mIsLiveManifest;      //Current manifest is dynamic or static; may change during runtime. eg: Hot DVR.
@@ -265,14 +262,13 @@ private:
 	int64_t mMinUpdateDurationMs;
 	double mTSBDepth;
 	double mPresentationOffsetDelay;
+	uint64_t mLastPlaylistDownloadTimeMs;
 	double mFirstPTS;
 	double mVideoPosRemainder;
 	double mFirstFragPTS[AAMP_TRACK_COUNT];
 	AudioType mAudioType;
 	int mPrevAdaptationSetCount;
 	std::vector<long> mBitrateIndexVector;
-	bool playlistDownloaderThreadStarted; // Playlist downloader thread start status
-	bool mFreshManifest;
 	
 	// In case of streams with multiple video Adaptation Sets, A profile
 	// is a combination of an Adaptation Set and Representation within
@@ -303,7 +299,6 @@ private:
 	double mAvailabilityStartTime;
 	std::map<std::string, int> mDrmPrefs;
 	int mMaxTracks; /* Max number of tracks for this session */
-	std::mutex playlistMutex;	/**< Mutex locked for accessing and updating mpd document */
 	
 	double GetPeriodStartTime(IMPD *mpd, int periodIndex);
 	double GetPeriodDuration(IMPD *mpd, int periodIndex);
@@ -315,19 +310,12 @@ private:
 	
 	void SetAudioTrackInfo(const std::vector<AudioTrackInfo> &tracks, const std::string &trackIndex);
 	void SetTextTrackInfo(const std::vector<TextTrackInfo> &tracks, const std::string &trackIndex);
-	void IndexNewMPDDocument(bool updateTrackInfo = true);
-	void AcquirePlaylistLock();
-	void ReleasePlaylistLock();
 	
 #ifdef AAMP_MPD_DRM
 	void ProcessEAPLicenseRequest(void);
 	void StartDeferredDRMRequestThread(MediaType mediaType);
 	void ProcessVssContentProtection(std::shared_ptr<AampDrmHelper> drmHelper, MediaType mediaType);
 	std::shared_ptr<AampDrmHelper> CreateDrmHelper(IAdaptationSet * adaptationSet,MediaType mediaType);
-	bool CheckForVssTags();
-	void ProcessVssLicenseRequset();
-	void GetAvailableVSSPeriods(std::vector<IPeriod*>& PeriodIds);
-	std::string GetVssVirtualStreamID();
 #endif
 	std::vector<StreamInfo*> thumbnailtrack;
 	std::vector<TileInfo> indexedTileInfo;
