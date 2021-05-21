@@ -101,7 +101,7 @@ window.onload = function() {
             var raw = e.target.result;
 
             // cut out single sessions from a bigger log
-            var sessions = raw.split("[AAMP-PLAYER]aamp_tune:");
+            var sessions = raw.split("aamp_tune:");
             sessions.shift(); // to remove first null match
 
             var currentSession = document.getElementById("session");
@@ -135,15 +135,24 @@ window.onload = function() {
                 var param;
                 if( payload.startsWith("HttpRequestEnd:") )
                 {
-                    var json = payload.substr(15);
-                    var httpRequestEnd = JSON.parse(json);
+                    payloadData = payload.substr(15);
+                    var httpRequestEnd = payloadData.split(",");
+
+                    var indexAdjust = 0;
+                    // if the object has extra appName parameter at the start adjust the index calculation
+                    if(httpRequestEnd.length === 15) {
+                        indexAdjust = 1;
+                    }
+
                     var obj = {};
-                    var type = httpRequestEnd.type;
-                    obj.error = mapError(httpRequestEnd.responseCode);
-                    obj.durationms = 1000*httpRequestEnd.curlTime;
+                    var type = Number(httpRequestEnd[indexAdjust]);
+                    console.log(httpRequestEnd[indexAdjust]);
+                    obj.error = mapError(httpRequestEnd[2 + indexAdjust]);
+                    obj.durationms = 1000*httpRequestEnd[3 + indexAdjust];
                     obj.type = type;
-                    obj.bytes = httpRequestEnd.times.dlSz;
-                    obj.url = httpRequestEnd.url;
+                    obj.bytes = httpRequestEnd[11 + indexAdjust];
+                    obj.url = httpRequestEnd[13 + indexAdjust];
+
                     var doneUtc = ParseReceiverLogTimestamp(line);
                     obj.utcstart = doneUtc-obj.durationms;
                     if (timestamp_min == null || obj.utcstart < timestamp_min) timestamp_min = obj.utcstart;
