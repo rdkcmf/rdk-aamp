@@ -45,6 +45,7 @@ public:
     ~StreamAbstractionAAMP_COMPOSITEIN();
     StreamAbstractionAAMP_COMPOSITEIN(const StreamAbstractionAAMP_COMPOSITEIN&) = delete;
     StreamAbstractionAAMP_COMPOSITEIN& operator=(const StreamAbstractionAAMP_COMPOSITEIN&) = delete;
+    AAMPStatusType Init(TuneType tuneType) override;
     void Start() override;
     void Stop(bool clearChannelData) override;
     std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;

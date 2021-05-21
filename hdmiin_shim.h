@@ -45,11 +45,17 @@ public:
     ~StreamAbstractionAAMP_HDMIIN();
     StreamAbstractionAAMP_HDMIIN(const StreamAbstractionAAMP_HDMIIN&) = delete;
     StreamAbstractionAAMP_HDMIIN& operator=(const StreamAbstractionAAMP_HDMIIN&) = delete;
+    AAMPStatusType Init(TuneType tuneType) override;
     void Start() override;
     void Stop(bool clearChannelData) override;
     std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
     bool SetThumbnailTrack(int) override;
     std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
+private:
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+    /*Event Handler*/
+    void OnVideoStreamInfoUpdate(const JsonObject& parameters);
+#endif
 };
 
 #endif // HDMIIN_SHIM_H_
