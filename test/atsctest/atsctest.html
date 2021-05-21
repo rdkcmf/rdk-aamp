@@ -706,6 +706,7 @@ function playHdmiin(url)
                         aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);
                         aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
                         aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
+                        aampPlayer.addEventListener("bitrateChanged", bitrateChangedEventHandler, null);;
 	
                 }
 				clog("VideoIN:"+url);

@@ -51,6 +51,19 @@ StreamAbstractionAAMP_COMPOSITEIN::~StreamAbstractionAAMP_COMPOSITEIN()
 	AAMPLOG_WARN("%s:%d destructor ",__FUNCTION__,__LINE__);
 }
 /**
+ *   @brief  Initialize a newly created object.
+ *   @param  tuneType to set type of object.
+ *   @retval eAAMPSTATUS_OK
+ */
+
+AAMPStatusType StreamAbstractionAAMP_COMPOSITEIN::Init(TuneType tuneType)
+{
+        AAMPStatusType retval = eAAMPSTATUS_OK;
+        retval = InitHelper(tuneType);
+        return retval;
+}
+
+/**
  *   @brief  Starts streaming.
  */
 void StreamAbstractionAAMP_COMPOSITEIN::Start(void)

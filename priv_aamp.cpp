@@ -275,6 +275,7 @@ static constexpr const char *BITRATECHANGE_STR[] =
 	(const char *)"BitrateChanged - Rampdown since buffers are empty",		// eAAMP_BITRATE_CHANGE_BY_BUFFER_EMPTY
 	(const char *)"BitrateChanged - Network adaptation by FOG",			// eAAMP_BITRATE_CHANGE_BY_FOG_ABR
 	(const char *)"BitrateChanged - Information from OTA",                          // eAAMP_BITRATE_CHANGE_BY_OTA
+	(const char *)"BitrateChanged - Video stream information from HDMIIN",          // eAAMP_BITRATE_CHANGE_BY_HDMIIN
 	(const char *)"BitrateChanged - Unknown reason"					// eAAMP_BITRATE_CHANGE_MAX
 };
 
