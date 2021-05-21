@@ -65,6 +65,7 @@ public:
     void SeekPosUpdate(double) { };
 protected:
     StreamInfo* GetStreamInfo(int idx) override;
+    AAMPStatusType InitHelper(TuneType tuneType);
     void StartHelper(int port, const std::string & methodName);
     void StopHelper(const std::string & methodName) ;
     bool mTuned;

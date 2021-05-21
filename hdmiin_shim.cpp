@@ -55,6 +55,23 @@ StreamAbstractionAAMP_HDMIIN::~StreamAbstractionAAMP_HDMIIN()
 {
 	AAMPLOG_WARN("%s:%d destructor ",__FUNCTION__,__LINE__);
 }
+/**
+ *   @brief  Initialize a newly created object.
+ *   @param  tuneType to set type of object.
+ *   @retval eAAMPSTATUS_OK
+ */
+
+AAMPStatusType StreamAbstractionAAMP_HDMIIN::Init(TuneType tuneType)
+{
+	AAMPStatusType retval = eAAMPSTATUS_OK;
+	retval = InitHelper(tuneType);
+
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+	std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> videoInfoUpdatedMethod = std::bind(&StreamAbstractionAAMP_HDMIIN::OnVideoStreamInfoUpdate, this, std::placeholders::_1);
+	RegisterEvent("videoStreamInfoUpdate", videoInfoUpdatedMethod);
+#endif
+	return retval;
+}
 
 /**
  *   @brief  Starts streaming.
@@ -105,4 +122,25 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HDMIIN::GetThumbnailRangeData(d
 {
         return std::vector<ThumbnailData>();
 }
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+/**
+ *   @brief  Gets videoStreamInfoUpdate event and translates into aamp events
+ */
+void StreamAbstractionAAMP_HDMIIN::OnVideoStreamInfoUpdate(const JsonObject& parameters)
+{
+        std::string message;
+        parameters.ToString(message);
+        AAMPLOG_WARN("%s:%d :%s",__FUNCTION__,__LINE__,message.c_str());
 
+        JsonObject videoInfoObj = parameters;
+        VideoScanType videoScanType = (videoInfoObj["progressive"].Boolean() ? eVIDEOSCAN_PROGRESSIVE : eVIDEOSCAN_INTERLACED);
+
+	double frameRate = 0.0;
+	double frameRateN = static_cast<double> (videoInfoObj["frameRateN"].Number());
+	double frameRateD = static_cast<double> (videoInfoObj["frameRateD"].Number());
+	if((0 != frameRateN) && (0 != frameRateD))
+		frameRate = frameRateN / frameRateD;
+
+	aamp->NotifyBitRateChangeEvent(0, eAAMP_BITRATE_CHANGE_BY_HDMIIN, videoInfoObj["width"].Number(), videoInfoObj["height"].Number(), frameRate, 0, false, videoScanType, 0, 0);
+}
+#endif
