@@ -1497,9 +1497,14 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->bEnableSubtec = false;
 			logprintf("Subtec subtitles disabled");
 		}
-		else if (cfg.compare("webVttNative") == 0)
+		else if (cfg.compare("disableWebVttNative") == 0)
 		{
-			gpGlobalConfig->bWebVttNative = true;
+			gpGlobalConfig->bWebVttNative = false;
+			logprintf("Native WebVTT processing disabled");
+		}
+		else if (cfg.compare("useBasePts") == 0)
+		{
+			gpGlobalConfig->bUseBasePts = true;
 			logprintf("Native WebVTT processing enabled");
 		}
 		else if (ReadConfigNumericHelper(cfg, "preferred-cea-708=", value) == 1)
@@ -6934,14 +6939,6 @@ bool PrivateInstanceAAMP::Discontinuity(MediaType track, bool setDiscontinuityFl
 	return ret;
 }
 
-void PrivateInstanceAAMP::UpdateSubtitleTimestamp()
-{
-	if (mpStreamAbstractionAAMP)
-	{
-		mpStreamAbstractionAAMP->UpdateSubtitleTimestamp();
-	}
-}
-
 /**
  * @brief Schedules retune or discontinuity processing based on state.
  * @param errorType type of playback error
@@ -7909,7 +7906,6 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	}
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
 	logprintf("%s:%d : seek pos %.3f", __FUNCTION__, __LINE__, seek_pos_seconds);
-	UpdateSubtitleTimestamp();
 }
 
 /**
@@ -8991,10 +8987,15 @@ void PrivateInstanceAAMP::NotifyFirstVideoPTS(unsigned long long pts, unsigned l
  *
  *   @param[in]  pts - base pts value
  */
-void PrivateInstanceAAMP::NotifyVideoBasePTS(unsigned long long basepts)
+void PrivateInstanceAAMP::NotifyVideoBasePTS(unsigned long long basepts, unsigned long timeScale)
 {
 	mVideoBasePTS = basepts;
 	AAMPLOG_INFO("mVideoBasePTS::%llu\n", mVideoBasePTS);
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->StartSubtitleParser(mVideoBasePTS / 90.0);
+	}
+
 }
 
 /**

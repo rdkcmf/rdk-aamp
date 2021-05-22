@@ -377,7 +377,7 @@ public:
 	int segDrmDecryptFailCount;         /**< Segment decryption failure count*/
 	int mSegInjectFailCount;            /**< Segment Inject/Decode fail count */
 	TrackType type;                     /**< Media type of the track*/
-	SubtitleParser* mSubtitleParser;    /**< Parser for subtitle data*/
+	std::unique_ptr<SubtitleParser> mSubtitleParser;    /**< Parser for subtitle data*/
 	bool refreshSubtitles;              /**< Switch subtitle track in the FetchLoop */
 protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
@@ -856,10 +856,16 @@ public:
 	 *   @brief Receives first video PTS for the current playback
 	 *
 	 *   @param[in] pts - pts value
-	 *   @param[in] timeScale - time scale value 
+	 *   @param[in] timeScale - time scale value
 	 */
 	virtual void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale) { };
-	
+
+	/**
+	 * @brief Kicks off subtitle display - sent at start of video presentation
+	 * 
+	 */
+	virtual void StartSubtitleParser(unsigned long long firstPts) { };
+
 	/**
 	 *   @brief Waits subtitle track injection until caught up with audio track.
 	 *          Used internally by injection logic
@@ -1026,14 +1032,7 @@ public:
           */
 	void MuteSubtitles(bool mute);
 
-	/**
-          * @brief Send a timestamp packet to the subtitle renderer
-	  * based on GetStreamPosition()
-          *
-          */
-	void UpdateSubtitleTimestamp();
-
-       /**
+		/**
 	 * @brief Blocks aux track injection until caught up with video track.
 	 *        Used internally by injection logic
 	 *

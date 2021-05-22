@@ -36,9 +36,11 @@ public:
 	bool init(double startPos, unsigned long long basePTS);
 	bool processData(char* buffer, size_t bufferLen, double position, double duration);
 	bool close() { return true; }
-	void reset() {}
+	void reset();
 	void setProgressEventOffset(double offset) {}
 	void updateTimestamp(unsigned long long positionMs);
+	void pause(bool pause) override;
+	void mute(bool mute) override;
 protected:
 	std::unique_ptr<TtmlChannel> m_channel;
 };

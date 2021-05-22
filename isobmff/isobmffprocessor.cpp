@@ -214,7 +214,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 					p_aamp->NotifyFirstVideoPTS(basePTS, timeScale);
 					// Here, basePTS might not be based on a 90KHz clock, whereas gst videosink might be.
 					// So PTS value sent via progress event might not be accurate.
-					p_aamp->NotifyVideoBasePTS(basePTS);
+					p_aamp->NotifyVideoBasePTS(basePTS, timeScale);
 #endif
 					if (type == eBMFFPROCESSOR_TYPE_VIDEO)
 					{
