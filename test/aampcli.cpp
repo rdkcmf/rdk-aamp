@@ -777,6 +777,12 @@ public:
 				printf("[AAMPCLI] AAMP_EVENT_BLOCKED Reason:%s\n" ,ev->getReason().c_str());
 				break;
 			}
+		case AAMP_EVENT_WATERMARK_SESSION_UPDATE:
+			{
+				WatermarkSessionUpdateEventPtr ev = std::dynamic_pointer_cast<WatermarkSessionUpdateEvent>(e);
+				printf("[AAMPCLI] AAMP_EVENT_WATERMARK_SESSION_UPDATE SessionHandle:%d Status:%d System:%s\n" ,ev->getSessionHandle(), ev->getStatus(), ev->getSystem().c_str());
+				break;
+			}
 		default:
 			break;
 		}

@@ -125,6 +125,7 @@ static EventTypeMap aampPlayer_eventTypes[] =
 	{ AAMP_EVENT_ID3_METADATA, "id3Metadata"},
 	{ AAMP_EVENT_DRM_MESSAGE, "drmMessage" },
 	{ AAMP_EVENT_BLOCKED, "blocked" },
+	{ AAMP_EVENT_WATERMARK_SESSION_UPDATE, "watermarkSessionUpdate" },
 	{ (AAMPEventType)0, "" }
 };
 

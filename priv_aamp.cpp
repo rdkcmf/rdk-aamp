@@ -2157,6 +2157,9 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 	{
 		SendEventAsync(std::make_shared<SpeedChangedEvent>(rate));
 	}
+#ifdef USE_SECMANAGER
+	mDRMSessionManager->setPlaybackSpeedState(rate,seek_pos_seconds);
+#endif
 }
 
 /**
@@ -7097,6 +7100,15 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	}
 	//trickStartUTCMS = aamp_GetCurrentTimeMS(); // moved to ResetTrickStartUTCTime()
 	logprintf("%s:%d : seek pos %.3f", __FUNCTION__, __LINE__, seek_pos_seconds);
+
+#ifdef USE_SECMANAGER
+        mDRMSessionManager->setPlaybackSpeedState(rate,seek_pos_seconds);
+	int x,y,w,h;
+	sscanf(mStreamSink->GetVideoRectangle().c_str(),"%d,%d,%d,%d",&x,&y,&w,&h);
+        logprintf("In %s calling setContentAspectRatio  w:%d x h:%d h/w=%f 2.3",__FUNCTION__,w,h,(float)w/(float)h);
+        mDRMSessionManager->setVideoWindowSize(w,h);
+        mDRMSessionManager->setContentAspectRatio((float)w/(float)h);
+#endif
 	
 }
 
@@ -7383,6 +7395,18 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 #endif
 }
 
+/**
+ *   @brief  Generate WatermarkSessionUpdate event based on args passed.
+ *
+ *   @param[in] sessionHandle - Handle used to track and manage session
+ *   @param[in] status - Status of the watermark session
+ *   @param[in] system - Watermarking protection provider
+ */
+void PrivateInstanceAAMP::SendWatermarkSessionUpdateEvent(uint32_t sessionHandle, uint32_t status, const std::string &system)
+{
+	WatermarkSessionUpdateEventPtr event = std::make_shared<WatermarkSessionUpdateEvent>(sessionHandle, status, system);
+	SendEventAsync(event);
+}
 
 /**
  *   @brief To check if tune operation completed

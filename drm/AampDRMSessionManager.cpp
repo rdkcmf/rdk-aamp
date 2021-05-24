@@ -297,6 +297,38 @@ void AampDRMSessionManager::clearDrmSession(bool forceClearSession)
 	}
 }
 
+void AampDRMSessionManager::setVideoWindowSize(int width, int height)
+{
+#ifdef USE_SECMANAGER
+	logprintf("In AampDRMSessionManager::%s setting video windor size w:%d x h:%d mMaxDRMSessions=%d mSessionId=[%" PRId64 "]",__FUNCTION__,width,height,mMaxDRMSessions,mSessionId);
+	if(mSessionId != AAMP_SECMGR_INVALID_SESSION_ID)
+	{
+		logprintf("In AampDRMSessionManager::%s valid session ID",__FUNCTION__);
+		AampSecManager::GetInstance()->setVideoWindowSize(mSessionId, width, height);
+	}
+#endif
+}
+
+void AampDRMSessionManager::setPlaybackSpeedState(int speed, double position)
+{
+#ifdef USE_SECMANAGER
+	logprintf("In AampDRMSessionManager::%s after calling setPlaybackSpeedState speed=%d position=%f mSessionId=[%" PRId64 "]",__FUNCTION__,speed, position, mSessionId);
+	if(mSessionId != AAMP_SECMGR_INVALID_SESSION_ID)
+	{
+		logprintf("In AampDRMSessionManager::%s valid session ID",__FUNCTION__);
+		AampSecManager::GetInstance()->setPlaybackSpeedState(mSessionId, speed, position);
+	}
+#endif
+}
+
+void AampDRMSessionManager::setContentAspectRatio(float aspectratio)
+{
+#ifdef USE_SECMANAGER
+	logprintf("In AampDRMSessionManager::%s aspectratio=%f mMaxDRMSessions=%d",__FUNCTION__,aspectratio,mMaxDRMSessions);
+	AampSecManager::GetInstance()->setContentAspectRatio(mSessionId, aspectratio);
+#endif
+}
+
 /**
  * @brief
  * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
@@ -530,7 +562,7 @@ bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
 
 #if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
 DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
-		const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, int32_t *httpCode, int32_t *httpExtStatusCode, DrmMetaDataEventPtr eventHandle)
+		const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance, int32_t *httpCode, int32_t *httpExtStatusCode, DrmMetaDataEventPtr eventHandle)
 {
 	DrmData *licenseResponse = nullptr;
 	const char *mediaUsage = "stream";
@@ -584,7 +616,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 #if USE_SECMANAGER
 	int64_t statusCode;
 	int64_t reasonCode;
-	bool res = AampSecManager::GetInstance()->AcquireLicense(licenseRequest.url.c_str(),
+	bool res = AampSecManager::GetInstance()->AcquireLicense(aampInstance, licenseRequest.url.c_str(),
 							requestMetadata,
 							((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
 							encodedData,

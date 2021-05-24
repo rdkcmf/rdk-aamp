@@ -2001,6 +2001,15 @@ public:
 	void SendBlockedEvent(const std::string & reason);
 
 	/**
+	 *   @brief  Generate WatermarkSessionUpdate event based on args passed.
+	 *
+	 *   @param[in] sessionHandle - Handle used to track and manage session
+	 *   @param[in] status - Status of the watermark session
+	 *   @param[in] system - Watermarking protection provider
+	 */
+	void SendWatermarkSessionUpdateEvent(uint32_t sessionHandle, uint32_t status, const std::string &system);
+
+	/**
 	 *   @brief To set the initial bitrate value.
 	 *
 	 *   @param[in] initial bitrate to be selected

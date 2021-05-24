@@ -182,7 +182,7 @@ public:
 
 #if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
 	DrmData * getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
-			const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, int32_t *httpCode, int32_t *httpExtStatusCode, DrmMetaDataEventPtr eventHandle);
+			const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance, int32_t *httpCode, int32_t *httpExtStatusCode, DrmMetaDataEventPtr eventHandle);
 #endif
 	DrmData * getLicense(AampLicenseRequest &licRequest, int32_t *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isContentMetadataAvailable = false, std::string licenseProxy="");
 
@@ -195,6 +195,12 @@ public:
 	void clearFailedKeyIds();
 
 	void clearDrmSession(bool forceClearSession = false);
+
+	void setVideoWindowSize(int width, int height);
+
+	void setPlaybackSpeedState(int speed, double position);
+
+	void setContentAspectRatio(float aspectratio);
 
 	void setSessionMgrState(SessionMgrState state);
 
