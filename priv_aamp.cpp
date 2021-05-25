@@ -6962,6 +6962,16 @@ int PrivateInstanceAAMP::getStreamType()
 	return type;
 }
 
+/**
+ * @brief Get Mediaformat type
+ *
+ * @returns eMEDIAFORMAT
+ */
+MediaFormat PrivateInstanceAAMP::GetMediaFormatTypeEnum() const
+{
+        return mMediaFormat;
+}
+
 #ifdef USE_SECCLIENT
 /**
  * @brief GetMoneyTraceString - Extracts / Generates MoneyTrace string
