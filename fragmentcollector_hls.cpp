@@ -86,7 +86,6 @@ static const double DEFAULT_STREAM_FRAMERATE = 25.0;
 #ifdef AAMP_HLS_DRM
 extern DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName);
 extern int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData);
-extern void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp);
 #endif 
 
 #define UseProgramDateTimeIfAvailable() (ISCONFIGSET(eAAMPConfig_HLSAVTrackSyncUsingStartTime) || aamp->mIsVSS)
@@ -784,11 +783,11 @@ static void * TrackPLDownloader(void *arg)
 * @fn InitiateDrmProcess
 * @brief Function to initiate drm process
 *
-* @param ptr[in] Trackstate pointer
+* @param aamp[in] PrivateInstanceAAMP pointer
 *
 * @return None
 ***************************************************************************/
-static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
+static void InitiateDrmProcess(PrivateInstanceAAMP* aamp){
 #ifdef AAMP_HLS_DRM
 		/** If fragments are CDM encrypted KC **/
 		if (aamp->fragmentCdmEncrypted && ISCONFIGSET(eAAMPConfig_Fragmp4PrefetchLicense)){
@@ -797,7 +796,7 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 			for (int i=0; i < aamp->aesCtrAttrDataList.size(); i++ ){
 				if (!aamp->aesCtrAttrDataList.at(i).isProcessed){
 					aamp->aesCtrAttrDataList.at(i).isProcessed = true;
-					DrmSessionDataInfo* drmData = ProcessContentProtection(aamp, aamp->aesCtrAttrDataList.at(i).attrName);	
+					DrmSessionDataInfo* drmData = ProcessContentProtection(aamp, aamp->aesCtrAttrDataList.at(i).attrName);
 					if (NULL != drmData){
 /* This needs effort from MSO as to what they want to do viz-a-viz preferred DRM, */						
 							drmDataToUse = drmData;
@@ -2802,6 +2801,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 							pthread_mutex_unlock(&aamp->drmParserMutex);
 							/** Mark as CDM encryption is found in HLS **/
 							aamp->fragmentCdmEncrypted = true;
+							InitiateDrmProcess(this->aamp);
 						}
 #endif
 					}
@@ -4914,11 +4914,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				logprintf("StreamAbstractionAAMP_HLS::%s:%d : videoPeriodPositionIndex.size 0", __FUNCTION__, __LINE__);
 			}
 		}
-		
-#ifdef AAMP_HLS_DRM 
-		/** Initiate DRM Process from init to get early DRM license acquicition**/
-		InitiateDrmProcess(this->aamp);
-#endif
+
 		audio->lastPlaylistDownloadTimeMS = aamp_GetCurrentTimeMS();
 		video->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
 		subtitle->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
@@ -5718,7 +5714,6 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 		if(aamp->fragmentCdmEncrypted)
 	        {
 			// check for WV and PR , if anything to be flushed
-			ReleaseContentProtectionCache(aamp);
 			aamp->mStreamSink->ClearProtectionEvent();
 		}
 		aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
