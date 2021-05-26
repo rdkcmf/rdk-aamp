@@ -58,25 +58,37 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 	   playerData["locator"].String(), playerData["length"].String(), playerData["position"].String() */
 
 	std::string currState = playerData["playerStatus"].String();
-	if(0 != prevState.compare(currState))
+	bool blockedReasonChanged = false;
+	std::string reason("");
+	if(0 == currState.compare("BLOCKED"))
+	{
+		reason = playerData["blockedReason"].String();
+		if(0 != reason.compare(prevBlockedReason))
+		{
+			blockedReasonChanged = true;
+		}
+	}
+
+	if(0 != prevState.compare(currState) || blockedReasonChanged)
 	{
 		PrivAAMPState state = eSTATE_IDLE;
+		prevBlockedReason.clear();
 		AAMPLOG_WARN( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevState.c_str(), currState.c_str());
 		prevState = currState;
 		if(0 == currState.compare("PENDING"))
 		{
 			state = eSTATE_PREPARING;
-		}else if(0 == currState.compare("BLOCKED"))
+		}else if((0 == currState.compare("BLOCKED")) && (0 != reason.compare("NOT_BLOCKED")))
 		{
 			std::string ratingString;
 			JsonObject ratingObj = playerData["rating"].Object();
 			ratingObj.ToString(ratingString);
-			std::string reason = playerData["blockedReason"].String();
 			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s Current Ratings: %s", __FUNCTION__, reason.c_str(), ratingString.c_str());
 
 			aamp->SendAnomalyEvent(ANOMALY_WARNING,"BLOCKED REASON:%s", reason.c_str());
 			aamp->SendBlockedEvent(reason);
 			state = eSTATE_BLOCKED;
+			prevBlockedReason = reason;
 		}else if(0 == currState.compare("PLAYING"))
 		{
 			if(!tuned){
@@ -150,6 +162,7 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
     AAMPLOG_INFO( "[OTA_SHIM]Inside %s ", __FUNCTION__ );
     prevState = "IDLE";
     prevDisplyInfo = "";
+    prevBlockedReason = "";
     tuned = false;
 
     thunderAccessObj.ActivatePlugin();

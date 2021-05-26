@@ -84,6 +84,7 @@ private:
     ThunderAccessAAMP thunderAccessObj;
     ThunderAccessAAMP mediaSettingsObj;
     std::string prevState;
+    std::string prevBlockedReason;
     std::string prevDisplyInfo;
     bool tuned;
     bool mEventSubscribed;
