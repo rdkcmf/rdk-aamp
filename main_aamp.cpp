@@ -524,20 +524,28 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			// when switching from trick to play mode only
 			if(aamp->rate && rate == AAMP_NORMAL_PLAY_RATE && !aamp->pipeline_paused)
 			{
-				if(timeDeltaFromProgReport > 950) // diff > 950 mSec
+				if (gpGlobalConfig->bPositionQueryEnabled)
 				{
-					// increment by 1x trickplay frame , next possible displayed frame
-					newSeekPosInSec = (aamp->mReportProgressPosn+(aamp->rate*1000))/1000;
-				}
-				else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
-				{
-					// Get the last shown frame itself
-					newSeekPosInSec = aamp->mReportProgressPosn/1000;
+					// Get the last frame position when resume from the trick play.
+					newSeekPosInSec = (aamp->mReportProgressPosn/1000);
 				}
 				else
 				{
-					// Go little back to last shown frame
-					newSeekPosInSec = (aamp->mReportProgressPosn-(aamp->rate*1000))/1000;
+					if(timeDeltaFromProgReport > 950) // diff > 950 mSec
+					{
+						// increment by 1x trickplay frame , next possible displayed frame
+						newSeekPosInSec = (aamp->mReportProgressPosn+(aamp->rate*1000))/1000;
+					}
+					else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
+					{
+						// Get the last shown frame itself
+						newSeekPosInSec = aamp->mReportProgressPosn/1000;
+					}
+					else
+					{
+						// Go little back to last shown frame
+						newSeekPosInSec = (aamp->mReportProgressPosn-(aamp->rate*1000))/1000;
+					}
 				}
 
 				if (newSeekPosInSec >= 0)
