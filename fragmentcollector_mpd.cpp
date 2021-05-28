@@ -1405,7 +1405,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 										startTime = nextStartTime;
 									}
 									repeatCount = timeline->GetRepeatCount();
-									nextStartTime = startTime+((uint64_t)((repeatCount+1)*duration));
+									nextStartTime = startTime+((uint64_t)(repeatCount+1)*duration);
 									// found the right index
 									if(nextStartTime > (presentationTimeOffset+1))
 									{
@@ -1493,7 +1493,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 										startTime = nextStartTime;
 									}
 									repeatCount = timeline->GetRepeatCount();
-									nextStartTime = startTime+((uint64_t)((repeatCount+1)*duration));  //CID:98056 - Resolve Overfloew Before Widen
+									nextStartTime = startTime+((uint64_t)(repeatCount+1)*duration);  //CID:98056 - Resolve Overfloew Before Widen
 									if(pMediaStreamContext->lastSegmentTime < nextStartTime)
 									{
 										break;
