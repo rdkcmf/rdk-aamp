@@ -8284,6 +8284,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 	{
 		int idx = 0;
 		int w, h;
+		int bandwidth = 0;
 		bool done = false;
 		{
 			for(IPeriod* tempPeriod : mpd->GetPeriods())
@@ -8339,7 +8340,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 									AAMPLOG_WARN("%s:%d :  xml is null", __FUNCTION__, __LINE__);  //CID:81118 - Null Returns
 								}
 							}	// end of sub node loop
-							int bandwidth = rep->GetBandwidth();
+							bandwidth = rep->GetBandwidth();
 							if(thumbIndexValue < 0 || trackEmpty)
 							{
 								std::string mimeType = rep->GetMimeType();
@@ -8350,60 +8351,64 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 								thumbnailtrack.push_back(tmp);
 								traceprintf("In %s thumbnailtrack bandwidth=%d width=%d height=%d",__FUNCTION__, tmp->bandwidthBitsPerSecond, tmp->resolution.width, tmp->resolution.height);
 							}
-							if((thumbnailtrack.size() > thumbIndexValue) && thumbnailtrack[thumbIndexValue]->bandwidthBitsPerSecond == (long)bandwidth)
+						}	// end of representation loop
+						if((thumbnailtrack.size() > thumbIndexValue) && thumbnailtrack[thumbIndexValue]->bandwidthBitsPerSecond == (long)bandwidth)
+						{
+							const ISegmentTemplate *segRep = NULL;
+							const ISegmentTemplate *segAdap = NULL;
+							segAdap = adaptationSets.at(j)->GetSegmentTemplate();
+							//segRep = representation.at(repIndex)->GetSegmentTemplate();
+							SegmentTemplates segmentTemplates(segRep, segAdap);
+							if( segmentTemplates.HasSegmentTemplate() )
 							{
-								const ISegmentTemplate *segRep = NULL;
-								const ISegmentTemplate *segAdap = NULL;
-								segAdap = adaptationSets.at(j)->GetSegmentTemplate();
-								segRep = representation.at(repIndex)->GetSegmentTemplate();
-								SegmentTemplates segmentTemplates(segRep, segAdap);
-								if( segmentTemplates.HasSegmentTemplate() )
+								const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
+								uint32_t timeScale = segmentTemplates.GetTimescale();
+								uint64_t startNumber = segmentTemplates.GetStartNumber();
+								std::string media = segmentTemplates.Getmedia();
+								if (segmentTimeline)
 								{
-									const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
-									uint32_t timeScale = segmentTemplates.GetTimescale();
-									uint64_t startNumber = segmentTemplates.GetStartNumber();
-									std::string media = segmentTemplates.Getmedia();
-									if (segmentTimeline)
+									traceprintf("In %s - segment timeline",__FUNCTION__);
+									std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
+									int timeLineIndex = 0;
+									uint64_t durationMs = 0;
+									while (timeLineIndex < timelines.size())
 									{
-										traceprintf("In %s - segment timeline",__FUNCTION__);
-										std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
-										int timeLineIndex = 0;
-										uint64_t durationMs = 0;
-										while (timeLineIndex < timelines.size())
+										ITimeline *timeline = timelines.at(timeLineIndex);
+										double startTime = timeline->GetStartTime() / timeScale;
+										int repeatCount = timeline->GetRepeatCount();
+										uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale) * 1000;
+										while( repeatCount-- >= 0 )
 										{
 											std::string tmedia = media;
 											TileInfo tileInfo;
 											memset( &tileInfo,0,sizeof(tileInfo) );
-											ITimeline *timeline = timelines.at(timeLineIndex);
-											double startTime = timeline->GetStartTime() / timeScale;
-											uint32_t repeatCount = timeline->GetRepeatCount();
-											uint32_t timelineDurationMs = timeline->GetDuration() * 1000 / timeScale;
-											durationMs += ((repeatCount + 1) * timelineDurationMs);
+											tileInfo.startTime = durationMs / timeScale;
+											durationMs += ( timelineDurationMs );
 											traceprintf("In %s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "]", __FUNCTION__, timeLineIndex, timelines.size(), durationMs);
-											replace(tmedia, "Number", timeLineIndex);
+											replace(tmedia, "Number", startNumber);
 											char *ptr = strndup(tmedia.c_str(), tmedia.size());
 											tileInfo.url = ptr;
 											traceprintf("tileInfo.url%s:%p",tileInfo.url, ptr);
-											tileInfo.startTime = startTime;
 											tileInfo.posterDuration = ((double)segmentTemplates.GetDuration()) / (timeScale * w * h);
 											tileInfo.tileSetDuration = ComputeFragmentDuration(timeline->GetDuration(), timeScale);
 											tileInfo.numRows = h;
 											tileInfo.numCols = w;
 											traceprintf("StartTime:%f posterDuration:%d tileSetDuration:%f numRows:%d numCols:%d",tileInfo.startTime,tileInfo.posterDuration,tileInfo.tileSetDuration,tileInfo.numRows,tileInfo.numCols);
-											timeLineIndex++;
 											indexedTileInfo.push_back(tileInfo);
+											startNumber++;
 										}
-									}
-									else
-									{
-										// Segment base.
-									}
+										timeLineIndex++;
+									}	// emd of timeLine loop
+								}
+								else
+								{
+									// Segment base.
 								}
 							}
-						}	// end of representation loop
+						}
 					}	// if content type is IMAGE
 				}	// end of adaptation set loop
-				if((thumbIndexValue < 0) && !done)
+//				if((thumbIndexValue < 0) && !done)
 				{
 					break;
 				}
@@ -8529,8 +8534,25 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_MPD::GetThumbnailRangeData(doub
 		if(updateBaseParam)
 		{
 			updateBaseParam = false;
-			std::string url = tmpdata.url;
-			*baseurl = url.substr(0,url.find_last_of("/\\")+1);
+			std::string url;
+			if( url.compare(0, 7, "http://")==0 || url.compare(0, 8, "https://")==0 )
+			{
+				url = tmpdata.url;
+				*baseurl = url.substr(0,url.find_last_of("/\\")+1);
+			}
+			else
+			{
+				const std::vector<IBaseUrl *>*baseUrls = &mpd->GetBaseUrls();
+				if ( baseUrls->size() > 0 )
+				{
+					*baseurl = baseUrls->at(0)->GetUrl();
+				}
+				else
+				{
+					url = aamp->GetManifestUrl();
+					*baseurl = url.substr(0,url.find_last_of("/\\")+1);
+				}
+			}
 			*width = thumbnailtrack[aamp->mthumbIndexValue]->resolution.width;
 			*height = thumbnailtrack[aamp->mthumbIndexValue]->resolution.height;
 			*raw_w = thumbnailtrack[aamp->mthumbIndexValue]->resolution.width * tileInfo.numCols;
