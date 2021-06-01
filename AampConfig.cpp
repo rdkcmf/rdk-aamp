@@ -888,6 +888,11 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 				{
 					if (token.compare(0,4,"http") == 0)
 						channelInfo.uri = token;
+					else if ((token.compare(0,5,"live:") == 0) || (token.compare(0,3,"mr:") == 0) || (token.compare(0,5,"tune:") == 0))
+					{
+						logprintf("%s %d Overriden OTA Url!!", __FUNCTION__,__LINE__);
+						channelInfo.uri = token;
+					}
 					else
 						channelInfo.name = token;
 				}

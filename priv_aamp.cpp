@@ -4665,6 +4665,13 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 					rc = eMEDIAFORMAT_PROGRESSIVE;
 				}
 			}
+			else if(extensionLength == 2)
+			{
+				if(urlStr.compare(extensionStart,extensionLength,"ts") == 0)
+				{
+					rc = eMEDIAFORMAT_PROGRESSIVE;
+				}
+			}
 		}
 	}
 #endif // TRUST_LOCATOR_EXTENSION_IF_PRESENT
