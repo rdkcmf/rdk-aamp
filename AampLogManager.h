@@ -271,7 +271,4 @@ extern void logprintf(const char *format, ...);
  */
 void DumpBlob(const unsigned char *ptr, size_t len);
 
-
-
 #endif /* AAMPLOGMANAGER_H */
-
