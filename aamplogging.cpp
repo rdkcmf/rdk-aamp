@@ -37,9 +37,9 @@ using namespace std;
 /**
  * @brief Log file and cfg directory path - To support dynamic directory configuration
  */
-static char gAampLog[] = "c:/tmp/aamp.log";
-static char gAampCfg[] = "c:/tmp/aamp.cfg";
-static char gAampCliCfg[] = "c:/tmp/aampcli.cfg";
+static char gAampLog[] = "./aamp.log";
+static char gAampCfg[] = "/opt/aamp.cfg";
+static char gAampCliCfg[] = "/opt/aampcli.cfg";
 
 /*-----------------------------------------------------------------------------------------------------*/
 bool AampLogManager::disableLogRedirection = false;
@@ -479,10 +479,22 @@ void logprintf(const char *format, ...)
 		gettimeofday(&t, NULL);
 		printf("%ld:%3ld : %s\n", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
 	}
-#else  //USE_SYSTEMD_JOURNAL_PRINT
+#else	//USE_SYSTEMD_JOURNAL_PRINT
+#if (defined __APPLE__) || (defined UBUNTU)
+	static bool init;
+
+	FILE *f = fopen(gAampLog, (init ? "a" : "w"));
+	if (f)
+	{
+		init = true;
+		fputs(gDebugPrintBuffer, f);
+		fclose(f);
+	}
+
 	struct timeval t;
 	gettimeofday(&t, NULL);
 	printf("%ld:%3ld : %s\n", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
+#endif
 #endif
 }
 
@@ -496,21 +508,21 @@ void logprintf(const char *format, ...)
  */
 void DumpBlob(const unsigned char *ptr, size_t len)
 {
-#define FIT_CHARS 32
-	char buf[FIT_CHARS + 2]; // pad for newline and end-of-string
+#define FIT_CHARS 64
+	char buf[FIT_CHARS + 1]; // pad for NUL
 	char *dst = buf;
 	const unsigned char *fin = ptr+len;
 	int fit = FIT_CHARS;
-	char str_hex[]="0123456789abcdef";
+	const char *str_hex ="0123456789abcdef";
 	while (ptr < fin)
 	{
 		unsigned char c = *ptr++;
 		if (c >= ' ' && c < 128)
-		{
+		{ // printable ascii
 			*dst++ = c;
 			fit--;
 		}
-		else
+		else if( fit>=4 )
 		{
 			*dst++ = '[';
 			*dst++ = str_hex[c >> 4];
@@ -518,9 +530,14 @@ void DumpBlob(const unsigned char *ptr, size_t len)
 			*dst++ = ']';
 			fit -= 4;
 		}
-		if (fit < 4 || ptr==fin )
+		else
+		{
+			fit = 0;
+		}
+		if (fit==0 || ptr==fin )
 		{
 			*dst++ = 0x00;
+
 			logprintf("%s", buf);
 			dst = buf;
 			fit = FIT_CHARS;
