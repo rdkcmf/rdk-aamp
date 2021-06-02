@@ -205,7 +205,7 @@ private:
 	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false, bool reportBulkMet = false);
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit, bool reportBulkMeta=false);
 	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID,bool isInit, bool reportBulkMeta=false);
-	bool ProcessEventStream(uint64_t startMS, IPeriod * period);
+	bool ProcessEventStream(uint64_t startMS, IPeriod * period, bool reportBulkMeta);
 	void ProcessStreamRestrictionList(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void ProcessStreamRestriction(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
@@ -304,7 +304,7 @@ private:
 	double GetPeriodDuration(IMPD *mpd, int periodIndex);
 	double GetPeriodEndTime(IMPD *mpd, int periodIndex, uint64_t mpdRefreshTime);
 
-	bool isAdbreakStart(IPeriod *period, uint32_t &duration, uint64_t &startMS, std::string &scte35);
+	bool isAdbreakStart(IPeriod *period, uint64_t &startMS, std::vector<std::pair<std::string, uint32_t>> &scte35Vec);
 	bool onAdEvent(AdEvent evt);
 	bool onAdEvent(AdEvent evt, double &adOffset);
 	
