@@ -589,7 +589,7 @@ public:
 	int fragmentIndex;
 	int timeLineIndex;
 	int fragmentRepeatCount;
-	int fragmentOffset;
+	uint64_t fragmentOffset;
 	bool eos;
 	bool profileChanged;
 	bool discontinuity;
@@ -1979,8 +1979,8 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 			if (!pMediaStreamContext->index_ptr)
 			{ // lazily load index
 				std::string range = segmentBase->GetIndexRange();
-				int start;
-				sscanf(range.c_str(), "%d-%d", &start, &pMediaStreamContext->fragmentOffset);
+				uint64_t start;
+				sscanf(range.c_str(), "%" PRIu64 "-%" PRIu64 "", &start, &pMediaStreamContext->fragmentOffset);
 
 				ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(pMediaStreamContext->mediaType, true);
 				MediaType actualType = (MediaType)(eMEDIATYPE_INIT_VIDEO+pMediaStreamContext->mediaType);
@@ -2034,7 +2034,7 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 				if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, pMediaStreamContext->fragmentIndex++, &referenced_size, &fragmentDuration))
 				{
 					char range[128];
-					sprintf(range, "%d-%d", pMediaStreamContext->fragmentOffset, pMediaStreamContext->fragmentOffset + referenced_size - 1);
+					sprintf(range, "%" PRIu64 "-%" PRIu64 "", pMediaStreamContext->fragmentOffset, pMediaStreamContext->fragmentOffset + referenced_size - 1);
 					AAMPLOG_INFO("%s:%d %s [%s]", __FUNCTION__, __LINE__,mMediaTypeName[pMediaStreamContext->mediaType], range);
 					if(pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, 0.0, range ))
 					{
