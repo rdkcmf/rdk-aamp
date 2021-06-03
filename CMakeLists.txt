@@ -149,6 +149,7 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     isobmff/isobmffprocessor.cpp
                     drm/helper/AampDrmHelper.cpp
                     AampGstUtils.cpp
+		    MediaStreamContext.cpp
 )
 
 if (CMAKE_WPEFRAMEWORK_REQUIRED)
@@ -245,8 +246,8 @@ set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ${AAMP_SUBTEC_SOURCES} ${AAMP_SUBTEC_CLAS
 include_directories(subtec)
 
 #To enable session based stats for latency histogram
-set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DSESSION_STATS")
-set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lmetrics")
+#set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DSESSION_STATS")
+#set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lmetrics")
 
 if(CMAKE_AVE_DRM)
 	message("CMAKE_AVE_DRM set, adding stubs")

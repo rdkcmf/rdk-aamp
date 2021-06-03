@@ -51,6 +51,9 @@ void WriteUint64(uint8_t *dst, uint64_t val);
 #define READ_BMDT64(buf) \
 		ReadUint64(buf); buf+=8;
 
+#define READ_64(buf) \
+        ReadUint64(buf); buf+=8;
+
 #define IS_TYPE(value, type) \
 		(value[0]==type[0] && value[1]==type[1] && value[2]==type[2] && value[3]==type[3])
 
@@ -67,6 +70,7 @@ private:
 
 /*TODO: Handle special cases separately */
 public:
+    static constexpr const char *FTYP = "ftyp";
 	static constexpr const char *MOOV = "moov";
 	static constexpr const char *MVHD = "mvhd";
 	static constexpr const char *TRAK = "trak";
@@ -74,10 +78,15 @@ public:
 	static constexpr const char *MDHD = "mdhd";
 
 	static constexpr const char *MOOF = "moof";
+    static constexpr const char *TFHD = "tfhd";
 	static constexpr const char *TRAF = "traf";
 	static constexpr const char *TFDT = "tfdt";
-	static constexpr const char *FTYP = "ftyp";
+	static constexpr const char *TRUN = "trun";
 	static constexpr const char *MDAT = "mdat";
+
+	static constexpr const char *STYP = "styp";
+	static constexpr const char *SIDX = "sidx";
+	static constexpr const char *PRFT = "prft";
 
 	/**
 	 * @brief Box constructor
@@ -137,6 +146,13 @@ public:
 	 * @return box type
 	 */
 	const char *getType();
+
+        /**
+         * @brief Get box type
+         *
+         * @return box type if parsed. "unknown" otherwise
+         */
+        const char *getBoxType();
 
 	/**
 	 * @brief Static function to construct a Box object
@@ -379,6 +395,114 @@ public:
 	 * @return newly constructed TfdtBox object
 	 */
 	static TfdtBox* constructTfdtBox(uint32_t sz, uint8_t *ptr);
+};
+
+/**
+ * @brief Class for ISO BMFF TRUN Box
+ */
+class TrunBox : public FullBox
+{
+private:
+	uint64_t duration;    //Sample Duration value
+
+
+public:
+	struct Entry {
+	Entry() : sample_duration(0), sample_size(0), sample_flags(0), sample_composition_time_offset(0) {}
+	uint32_t sample_duration;
+	uint32_t sample_size;
+	uint32_t sample_flags;
+	uint32_t sample_composition_time_offset;
+	};
+	/**
+	* @brief TrunBox constructor
+	*
+	* @param[in] sz - box size
+	* @param[in] mdt - sampleDuration value
+	*/
+	TrunBox(uint32_t sz, uint64_t sampleDuration);
+
+	/**
+	* @brief TrunBox constructor
+	*
+	* @param[in] fbox - box object
+	* @param[in] mdt - BaseMediaDecodeTime value
+	*/
+	TrunBox(FullBox &fbox, uint64_t sampleDuration);
+
+	/**
+	* @brief Set SampleDuration value
+	*
+	* @param[in] sampleDuration - Sample Duration value
+	* @return void
+	*/
+	void setSampleDuration(uint64_t sampleDuration);
+
+	/**
+	* @brief Get sampleDuration value
+	*
+	* @return sampleDuration value
+	*/
+	uint64_t getSampleDuration();
+
+	/**
+	* @brief Static function to construct a TrunBox object
+	*
+	* @param[in] sz - box size
+	* @param[in] ptr - pointer to box
+	* @return newly constructed TrunBox object
+	*/
+	static TrunBox* constructTrunBox(uint32_t sz, uint8_t *ptr);
+};
+
+/**
+ * @brief Class for ISO BMFF TFHD Box
+ */
+class TfhdBox : public FullBox
+{
+private:
+    uint64_t duration;
+
+public:
+    /**
+     * @brief TfdtBox constructor
+     *
+     * @param[in] sz - box size
+     * @param[in] mdt - BaseMediaDecodeTime value
+     */
+    TfhdBox(uint32_t sz, uint64_t sample_duration);
+
+    /**
+     * @brief TfdtBox constructor
+     *
+     * @param[in] fbox - box object
+     * @param[in] sample_duration - Sample Duration value
+     */
+    TfhdBox(FullBox &fbox, uint64_t sample_duration);
+
+    /**
+     * @brief Set Sample Duration value
+     *
+     * @param[in] sample_duration - SampleDuration value
+     * @return void
+     */
+    void setSampleDuration(uint64_t sample_duration);
+
+    /**
+     * @brief Get SampleDuration value
+     *
+     * @return SampleDuration value
+     */
+    uint64_t getSampleDuration();
+
+    /**
+     * @brief Static function to construct a TfdtBox object
+     *
+     * @param[in] sz - box size
+     * @param[in] ptr - pointer to box
+     * @return newly constructed TfhdBox object
+     */
+    static TfhdBox* constructTfhdBox(uint32_t sz, uint8_t *ptr);
 };
 
 #endif /* __ISOBMFFBOX_H__ */

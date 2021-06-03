@@ -94,6 +94,22 @@
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
 
+#define DEFAULT_LATENCY_MONITOR_DELAY 5				/**< Latency Monitor Delay */
+#define DEFAULT_LATENCY_MONITOR_INTERVAL 2			/**< Latency monitor Interval */
+
+#define DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK  20        	/**< Default cached fragement chunks per track */
+#define DEFAULT_ABR_CHUNK_CACHE_LIFE 5000                    	/**< Default ABR Chunk cache life  in milli secs*/
+#define DEFAULT_ABR_CHUNK_OUTLIER 5000                      	/**< ABR outlier: 5 K */
+#define DEFAULT_ABR_CHUNK_CACHE_LENGTH 10                    	/**< Default ABR chunk cache length */
+#define DEFAULT_AAMP_ABR_CHUNK_THRESHOLD_SIZE (5000)        	/**< aamp abr Chunk threshold size */
+#define DEFAULT_ABR_CHUNK_SKIP_DURATION 3                       /**< Initial skip duration of ABR - 6 sec */
+
+
+#define DEFAULT_ABR_CHUNK_SPEED_CONTENTYPE 1 //For Video only	/**< Chunk Speed content Type to Track */
+#define DEFAULT_ABR_CHUNK_SPEEDCNT 10				/**< Chunk Speed Count Store Size */
+#define DEFAULT_ABR_CHUNK_SPEED_CHECK_DURATION (DEFAULT_ABR_CHUNK_CACHE_LIFE/DEFAULT_ABR_CHUNK_SPEEDCNT)	/**< Duration to check Chunk Speed */
+
+
 /**
  * @brief Enumeration for TUNED Event Configuration
  */

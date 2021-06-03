@@ -133,6 +133,7 @@ limitResolution			Check if display resolution based profile selection to be done
 disableUnderflow		Enable/Disable Underflow processing.Default is false
 useAbsoluteTimeline		Enable Report Progress report position based on Availability Start Time.Default is false
 id3				Enable/Disable ID3 tag.Default is false
+enableLowLatencyDash		Enable/Disable Low Latency Dash. Default is false
 
 // Integer inputs
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune
@@ -196,6 +197,9 @@ onTuneRate			Tune rate.Default is INT_MAX
 dashMaxDrmSessions		Max drm sessions that can be cached by AampDRMSessionManager.Default is 3
 log				New Configuration to overide info/debug/trace.Default is 0
 livePauseBehavior               Player paused state behavior.Default is 0(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE)
+latencyMonitorDelay		Low Latency Monitor delay.Default is 5(DEFAULT_LATENCY_MONITOR_DELAY) 
+latencyMonitorInterval		Low Latency Monitor Interval.Default is 2(DEFAULT_LATENCY_MONITOR_INTERVAL)
+downloadBufferChunks		Low Latency Fragment chunk cache length (defaults 20 chunks)
 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets

@@ -67,8 +67,6 @@ static const char *mMediaFormatName[] =
 #define AAMP_TRACK_COUNT 4              /**< internal use - audio+video+sub+aux track */
 #define DEFAULT_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + 1) // One for Manifest/Playlist + Number of tracks
 #define AAMP_DRM_CURL_COUNT 4           /**< audio+video+sub+aux track DRMs */
-#define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
-#define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
 //#define CURL_FRAGMENT_DL_TIMEOUT 10L    /**< Curl timeout for fragment download */
 #define DEFAULT_PLAYLIST_DL_TIMEOUT 10L /**< Curl timeout for playlist download */
 #define DEFAULT_CURL_TIMEOUT 5L         /**< Default timeout for Curl downloads */
@@ -93,6 +91,14 @@ static const char *mMediaFormatName[] =
 #define VSS_VIRTUAL_STREAM_ID_KEY_STR "content:xcal:virtualStreamId"
 #define VSS_VIRTUAL_STREAM_ID_PREFIX "urn:merlin:linear:stream:"
 #define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"
+
+//Low Latency DASH SERVICE PROFILE URL
+#define LL_DASH_SERVICE_PROFILE "http://www.dashif.org/guidelines/low-latency-live-v5"
+#define URN_UTC_HTTP_XSDATE "urn:mpeg:dash:utc:http-xsdate:2014"
+#define URN_UTC_HTTP_ISO "urn:mpeg:dash:utc:http-iso:2014"
+#define URN_UTC_HTTP_NTP "urn:mpeg:dash:utc:http-ntp:2014"
+#define MAX_LOW_LATENCY_DASH_CORRECTION_ALLOWED 100
+#define MAX_LOW_LATENCY_DASH_RETUNE_ALLOWED 2
 
 
 /*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/
@@ -166,7 +172,8 @@ enum PlaybackErrorType
 	eGST_ERROR_OUTPUT_PROTECTION_ERROR,     /**< Output Protection error */
 	eDASH_ERROR_STARTTIME_RESET,    /**< Start time reset of DASH */
 	eSTALL_AFTER_DISCONTINUITY,		/** Playback stall after notifying discontinuity */
-	eGST_ERROR_GST_PIPELINE_INTERNAL	/** GstPipeline Internal Error */
+	eGST_ERROR_GST_PIPELINE_INTERNAL,	/** GstPipeline Internal Error */
+	eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED /**Low Latency Dash Max Correction Reached**/
 };
 
 
@@ -272,6 +279,19 @@ enum CurlRequest
 };
 
 /**
+ *
+ * @enum UTC TIMING
+ *
+ */
+enum UtcTiming
+{
+    eUTC_HTTP_INVALID,
+    eUTC_HTTP_XSDATE,
+    eUTC_HTTP_ISO,
+    eUTC_HTTP_NTP
+};
+
+/**
  * @struct AsyncEventDescriptor
  * @brief Used in asynchronous event notification logic
  */
@@ -371,6 +391,39 @@ struct ThumbnailData {
 struct ListenerData {
 	EventListener* eventListener;   /**< Event listener */
 	ListenerData* pNext;                /**< Next listener */
+};
+
+struct SpeedData
+{
+  long download_val;
+  long time_val;
+};
+
+struct SpeedCache
+{
+    long time_val = 0;
+    long totalDownloaded = 0;
+    unsigned int speedCacheindex = -1;
+    bool bWrap = false;
+    struct SpeedData cache[DEFAULT_ABR_CHUNK_SPEEDCNT];
+};
+
+/**
+ * @brief To store Low Latency Service configurtions
+ */
+struct AampLLDashServiceData {
+    bool lowLatencyMode; /**< LL Playback mode enabled */
+    bool strictSpecConformance; /**< Check for Strict LL Dash spec conformace*/
+    int targetLatency;    /**< Target Latency of playback */
+    int minLatency;    /**< Minimum Latency of playback */
+    int maxLatency;   /**< Maximum Latency of playback */
+    int latencyThreshold; /**<Latency when play rate correction kicks-in*/
+    double minPlaybackRate; /**< Minimum playback rate for playback */
+    double maxPlaybackRate; /**< Maximum playback rate for playback */
+    UtcTiming utcTiming;
+    uint32_t vidTimeScale;
+    uint32_t audTimeScale;
+    struct SpeedCache speedcache[DEFAULT_ABR_CHUNK_SPEED_CONTENTYPE];
 };
 
 class AampCacheHandler;
@@ -603,6 +656,8 @@ public:
 	
 	std::vector< std::pair<long long,long> > mAbrBitrateData;
 
+    std::vector< std::pair<long long,long> > mAbrBitrateChunkData;
+
 	pthread_mutex_t mLock;// = PTHREAD_MUTEX_INITIALIZER;
 	pthread_mutexattr_t mMutexAttr;
 	pthread_mutex_t mParallelPlaylistFetchLock; // mutex lock for parallel fetch
@@ -642,6 +697,8 @@ public:
 	bool mTSBEnabled;
 	bool mIscDVR;
 	double mLiveOffset;
+	int mLLDashRateCorrectionCount;
+	int mLLDashRetuneCount;
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
 	long mPlaylistTimeoutMs;
@@ -820,7 +877,7 @@ public:
 	 * @param[in] fileType - File type
 	 * @return void
 	 */
-	bool GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long *http_error = NULL, double *downloadTime = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL,  int * fogError = NULL, double fragmentDurationSec = 0);
+	bool GetFile(class MediaStreamContext *pMediaStreamContext,std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long *http_error = NULL, double *downloadTime = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL,  int * fogError = NULL, double fragmentDurationSec = 0);
 
 	/**
 	 * @brief Download VideoEnd Session statistics from fog
@@ -876,7 +933,7 @@ public:
 	 * @param[out] fogError - Error from FOG
 	 * @return void
 	 */
-	bool LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, double * downloadTime = NULL, long *bitrate = NULL, int * fogError = NULL, double fragmentDurationSec = 0);
+	bool LoadFragment(class MediaStreamContext *pMediaStreamContext, ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, double * downloadTime = NULL, long *bitrate = NULL, int * fogError = NULL, double fragmentDurationSec = 0);
 
 	/**
 	 * @brief Push fragment to the gstreamer
@@ -1412,6 +1469,24 @@ public:
 	 * @return Available bandwidth in bps
 	 */
 	long GetCurrentlyAvailableBandwidth(void);
+
+    /**
+     * @brief Reset bandwidth value
+     * Artificially resetting the bandwidth. Low for quicker tune times
+     *
+     * @param[in] bitsPerSecond - bps
+     * @param[in] trickPlay        - Is trickplay mode
+     * @param[in] profile        - Profile id.
+     * @return void
+     */
+    void ResetCurrentlyAvailableChunkBandwidth(long bitsPerSecond,bool trickPlay,int profile=0);
+
+    /**
+     * @brief Get the current network bandwidth
+     *
+     * @return Available bandwidth in bps
+     */
+    long GetCurrentlyAvailableChunkBandwidth(void);
 
 	/**
 	 * @brief Abort ongoing downloads and returns error on future downloads
@@ -2146,6 +2221,12 @@ public:
 	 *   @brief  set virtual stream ID, extracted from manifest
 	 */
 	void SetVssVirtualStreamID(std::string streamID) { mVssVirtualStreamId = streamID;}
+    
+    /**
+     *   @brief getTuneType Function to check what is the tuneType
+     *  @return Bool TuneType
+     */
+    TuneType GetTuneType()  { return mTuneType; }
 
 	/**
 	 *   @brief IsNewTune Function to check if tune is New tune or retune
@@ -2938,6 +3019,43 @@ public:
 	 *
 	 */
 	void UpdateLiveOffset();
+
+    /**
+     *   @brief Sets  Low Latency Service Data
+     *
+     *   @param[in]  AampLLDashServiceData - Low Latency Service Data from MPD
+     *   @return void
+     */
+    void SetLLDashServiceData(AampLLDashServiceData &stAampLLDashServiceData);
+
+    /**
+     *   @brief Gets  Low Latency Service Data
+     *
+     *   @return AampLLDashServiceData*
+     */
+    AampLLDashServiceData* GetLLDashServiceData(void);
+
+	 /**
+     *   @brief Sets  Low latency play rate
+     *
+     *   @param[in]  rate - playback rate to set
+     *   @return void
+     */
+    void SetLLDashCurrentPlayBackRate(double rate)
+	{
+			mLLDashCurrentPlayRate = rate;
+	}
+
+    /**
+     *   @brief Gets  Low Latency current play back rate
+     *
+     *   @return double
+     */
+    double GetLLDashCurrentPlayBackRate(void)
+	{
+		return mLLDashCurrentPlayRate;
+	}
+
 private:
 
 	/**
@@ -3093,5 +3211,7 @@ private:
 	pthread_mutex_t mStreamLock; /**< Mutex for accessing mpStreamAbstractionAAMP */
 	int mHarvestCountLimit;	// Harvest count 
 	int mHarvestConfig;		// Harvest config
+    AampLLDashServiceData mAampLLDashServiceData; /**< Low Latency Service Configuration Data */
+	double mLLDashCurrentPlayRate; /**<Low Latency Current play Rate */
 };
 #endif // PRIVAAMP_H

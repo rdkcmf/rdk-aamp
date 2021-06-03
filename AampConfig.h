@@ -166,6 +166,8 @@ typedef enum
 	eAAMPConfig_UseAbsoluteTimeline,					/**Enable Report Progress report position based on Availability Start Time **/
 	eAAMPConfig_WideVineKIDWorkaround,                          /**< SkyDE Store workaround to pick WV DRM Key Id from different location */
 	eAAMPConfig_EnableAccessAttributes,							/*** Usage of Access Attributes in VSS */
+	eAAMPConfig_EnableLowLatencyDash,                           /** Enables Low Latency Dash */
+	eAAMPConfig_DisableLowLatencyMonitor,                       /** Enables Low Latency Monitor Thread */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
@@ -209,6 +211,14 @@ typedef enum
 	eAAMPConfig_DownloadDelay,
 	eAAMPConfig_OnTuneRate,
 	eAAMPConfig_LivePauseBehavior,                                                          /**< player paused state behavior */
+	eAAMPConfig_LatencyMonitorDelay,                            				/**< Latency Monitor Delay */
+	eAAMPConfig_LatencyMonitorInterval,                         				/**< Latency Monitor Interval */
+	eAAMPConfig_MaxFragmentChunkCached,                         				/**< fragment chunk cache length*/
+	eAAMPConfig_ABRChunkCacheLife,                              				/**< Adaptive bitrate Chunk cache life in seconds*/
+	eAAMPConfig_ABRChunkCacheOutlier,                           				/**< Adaptive bitrate Chunk outlier, if values goes beyond this*/
+	eAAMPConfig_ABRChunkCacheLength,                            				/**< Adaptive bitrate Chunk cache length*/
+	eAAMPConfig_ABRChunkThresholdSize,                         				/**< AAMP ABR Chunk threshold size*/
+	eAAMPConfig_ABRChunkSkipDuration,                          				/**< Initial duration for ABR Chunk skip*/
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,
