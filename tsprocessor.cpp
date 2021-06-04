@@ -57,7 +57,6 @@ void print_nop(const char *format, ...){}
 #define DEBUG print_nop
 #define INFO print_nop
 #else
-
 #define INFO logprintf("PC: INFO %s:%d:", __FUNCTION__, __LINE__ ); logprintf
 #define DEBUG logprintf("PC: DEBUG %s:%d:", __FUNCTION__, __LINE__ ); logprintf
 #endif
@@ -71,6 +70,7 @@ void print_nop(const char *format, ...){}
 #define ERROR print_nop
 #define FATAL print_nop
 #else
+
 #define NOTICE(FORMAT, ...) 	AAMPLOG(eLOGLEVEL_INFO,  FORMAT, ##__VA_ARGS__)
 #define WARNING(FORMAT, ...) 	AAMPLOG(eLOGLEVEL_WARN, FORMAT, ##__VA_ARGS__)
 #define ERROR(FORMAT, ...) 	AAMPLOG(eLOGLEVEL_ERROR,  FORMAT, ##__VA_ARGS__)
@@ -507,11 +507,7 @@ public:
 			}
 			if (current_pts < base_pts)
 			{
-				if (finalized_base_pts && !allowPtsRewind
-#if defined (REALTEKCE)
-					&& ((base_pts-current_pts) > 1000000)
-#endif
-				)
+				if (finalized_base_pts && !allowPtsRewind) 
 				{
 					WARNING("Type[%d] current_pts[%llu] < base_pts[%llu], ptsError", (int)type, current_pts, base_pts);
 					ptsError = true;
