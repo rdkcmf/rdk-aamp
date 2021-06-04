@@ -1523,6 +1523,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->mEnableSeekableRange = (TriState) (value == 1);
 			logprintf("Seekable range reporting: %d", gpGlobalConfig->mEnableSeekableRange);
 		}
+		else if(ReadConfigNumericHelper(cfg, "SkyStoreDE=", value))
+		{
+			gpGlobalConfig->mIsWideVineKIDWorkaround = (TriState) (value == 1);
+			logprintf("WideVine KeyID Workaround has %s", gpGlobalConfig->mIsWideVineKIDWorkaround?"enabled":"disabled");
+		}
 		else if (cfg.at(0) == '*')
 		{
 			std::size_t pos = cfg.find_first_of(' ');
@@ -1963,6 +1968,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mProgramDateTime (0)
 	, mthumbIndexValue(0)
 	, mManifestRefreshCount (0)
+	, mIsWVKIDWorkaround(false)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -5206,6 +5212,25 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	if (remapUrl )
 	{
 		mainManifestUrl = remapUrl;
+	}
+
+	if (gpGlobalConfig->mIsWideVineKIDWorkaround == eUndefinedState)
+	{ 
+		mIsWVKIDWorkaround = IsWideVineKIDWorkaround(mainManifestUrl);
+		AAMPLOG_INFO("%s:%d : WideVine KeyID workaround has %s from URL",
+	      	__FUNCTION__,__LINE__, mIsWVKIDWorkaround?"enabled":"disabled");
+	}
+	else
+	{
+		mIsWVKIDWorkaround = (bool)gpGlobalConfig->mIsWideVineKIDWorkaround;
+		AAMPLOG_INFO("%s:%d : WideVine KeyID workaround has %s through configuraion",
+	      	__FUNCTION__,__LINE__, mIsWVKIDWorkaround?"enabled":"disabled");
+	}
+	if (mIsWVKIDWorkaround)
+	{
+		/** Set prefered DRM as Widevine with highest configuration **/
+		AAMPLOG_INFO("%s:%d : WideVine KeyID workaround present: Setting preferred DRM as Widevine", __FUNCTION__,__LINE__);
+		SetPreferredDRM(eDRM_WideVine);
 	}
 
 	std::tie(mManifestUrl, mDrmInitData) = ExtractDrmInitData(mainManifestUrl);
@@ -10165,6 +10190,91 @@ void PrivateInstanceAAMP::PersistBitRateOverSeek(bool value)
 	}
 }
 
-/**
- * EOF
+/*
+ *   @brief get the WideVine KID Workaround from url
+ *
+ *   @param[in] value - url info
+ *   @return true/false
  */
+#define WV_KID_WORKAROUND "SkyStoreDE="
+bool PrivateInstanceAAMP::IsWideVineKIDWorkaround(std::string url)
+{
+	bool enable = false;
+	int pos = url.find(WV_KID_WORKAROUND);
+	if (pos != string::npos){
+		pos = pos + strlen(WV_KID_WORKAROUND);
+		AAMPLOG_INFO("%s:%d URL found WideVine KID Workaround at %d key = %c",
+            __FUNCTION__, __LINE__, pos, url.at(pos));
+		enable = (url.at(pos) == '1');
+	}
+
+	return enable;
+}
+
+//#define ENABLE_DUMP 1 //uncomment this to enable dumping of PSSH Data
+/**
+ * @brief Replace KeyID from PsshData
+ * @param initialization data input 
+ * @param initialization data input size
+ * @param [out] output data size
+ * @retval Output data pointer 
+ */
+unsigned char* PrivateInstanceAAMP::ReplaceKeyIDPsshData(const unsigned char *InputData, const size_t InputDataLength,  size_t & OutputDataLength)
+{
+	unsigned char *OutpuData = NULL;
+	unsigned int WIDEVINE_PSSH_KEYID_OFFSET = 36u;
+	unsigned int WIDEVINE_PSSH_DATA_SIZE = 60u;
+	unsigned int CK_PSSH_KEYID_OFFSET = 32u;
+	unsigned int COMMON_KEYID_SIZE = 16u;
+	unsigned char WVSamplePSSH[] = {
+		0x00, 0x00, 0x00, 0x3c, 
+		0x70, 0x73, 0x73, 0x68, 
+		0x00, 0x00, 0x00, 0x00, 
+		0xed, 0xef, 0x8b, 0xa9, 0x79, 0xd6, 0x4a, 0xce, 
+		0xa3, 0xc8, 0x27, 0xdc, 0xd5, 0x1d, 0x21, 0xed, 
+		0x00, 0x00, 0x00, 0x1c, 0x08, 0x01, 0x12, 0x10,  
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //dummy KeyId (16 byte)
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, //dummy KeyId (16 byte)
+		0x22, 0x06, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x37
+	};
+	if (InputData){
+		AAMPLOG_INFO("%s:%d Converting system UUID of PSSH data size (%d)", __FUNCTION__, __LINE__, InputDataLength);
+#ifdef ENABLE_DUMP
+		AAMPLOG_INFO("%s:%d PSSH Data (%d) Before Modification : ", __FUNCTION__, __LINE__, InputDataLength);
+		DumpBlob(InputData, InputDataLength);
+#endif
+
+		/** Replace KeyID of WV PSSH Data with Key ID of CK PSSH Data **/
+		int iWVpssh = WIDEVINE_PSSH_KEYID_OFFSET; 
+		int CKPssh = CK_PSSH_KEYID_OFFSET;
+		int size = 0;
+		if (CK_PSSH_KEYID_OFFSET+COMMON_KEYID_SIZE <=  InputDataLength){
+			for (; size < COMMON_KEYID_SIZE; ++size, ++iWVpssh, ++CKPssh  ){
+				/** Transfer KeyID from CK PSSH data to WV PSSH Data **/
+				WVSamplePSSH[iWVpssh] = InputData[CKPssh];
+			}
+
+			/** Allocate WV PSSH Data memory and transfer local data **/
+			OutpuData = (unsigned char *)malloc(sizeof(WVSamplePSSH));
+			if (OutpuData){
+				memcpy(OutpuData, WVSamplePSSH, sizeof(WVSamplePSSH));
+				OutputDataLength = sizeof(WVSamplePSSH);
+#ifdef ENABLE_DUMP
+				AAMPLOG_INFO("%s:%d PSSH Data (%d) after Modification : ", __FUNCTION__, __LINE__, OutputDataLength);
+				DumpBlob(OutpuData, OutputDataLength);
+#endif
+				return OutpuData;
+
+			}else{
+				AAMPLOG_ERR("%s:%d PSSH Data Memory allocation failed ", __FUNCTION__, __LINE__);
+			}
+		}else{
+			//Invalid PSSH data
+			AAMPLOG_ERR("%s:%d Invalid Clear Key PSSH data ", __FUNCTION__, __LINE__);
+		}
+	}else{
+		//Inalid argument - PSSH Data
+		AAMPLOG_ERR("%s:%d Invalid Argument of PSSH data ", __FUNCTION__, __LINE__);
+	}
+	return NULL;
+}

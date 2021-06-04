@@ -241,7 +241,7 @@ public:
 	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
 	TriState mPersistBitRateOverSeek; /**< Flag indicates if video profile have to be persisted during SAP/Seek */
 	bool bDisableUnderflow;            	  /**< Enable/Disable Underflow functionality*/
-
+	TriState mIsWideVineKIDWorkaround;              /**< Optional workaround for WV KEY ID **/
 public:
 
 	/**

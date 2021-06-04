@@ -2929,11 +2929,14 @@ std::shared_ptr<AampDrmHelper> PrivateStreamAbstractionMPD::CreateDrmHelper(IAda
 {
 	const vector<IDescriptor*> contentProt = adaptationSet->GetContentProtection();
 	unsigned char* data = NULL;
+	unsigned char *outData = NULL;
+	size_t outDataLen  = 0;
 	size_t dataLength = 0;
 	std::shared_ptr<AampDrmHelper> tmpDrmHelper;
 	std::shared_ptr<AampDrmHelper> drmHelper = nullptr;
 	DrmInfo drmInfo;
 	std::string contentMetadata;
+	bool forceSelectDRM = false; 
 
 	AAMPLOG_TRACE("%s:%d [HHH] contentProt.size= %d", __FUNCTION__, __LINE__, contentProt.size());
 	for (unsigned iContentProt = 0; iContentProt < contentProt.size(); iContentProt++)
@@ -2987,7 +2990,20 @@ std::shared_ptr<AampDrmHelper> PrivateStreamAbstractionMPD::CreateDrmHelper(IAda
 			}
 			continue;
 		}
-
+		
+		if (aamp->mIsWVKIDWorkaround && drmInfo.systemUUID == CLEARKEY_UUID ){
+			/* WideVine KeyID workaround present , UUID change from clear key to widevine **/
+			AAMPLOG_INFO("%s:%d WideVine KeyID workaround present, processing KeyID from clear key to WV Data", __FUNCTION__, __LINE__);
+			drmInfo.systemUUID = WIDEVINE_UUID;
+			forceSelectDRM = true; /** Need this variable to understand widevine has choosen **/
+			outData = aamp->ReplaceKeyIDPsshData(data, dataLength, outDataLen );
+			if (outData){
+				if(data) free(data);
+				data = 	outData;
+				dataLength = outDataLen;
+			}
+		}
+		
 		// Try and create a DRM helper
 		if (!AampDrmHelperEngine::getInstance().hasDRM(drmInfo))
 		{
@@ -3003,8 +3019,19 @@ std::shared_ptr<AampDrmHelper> PrivateStreamAbstractionMPD::CreateDrmHelper(IAda
 			}
 			else
 			{
+				if (forceSelectDRM){
+					AAMPLOG_INFO("%s:%d (%s) If Widevine DRM Selected due to Widevine KeyID workaround", 
+					__FUNCTION__, __LINE__, mMediaTypeName[mediaType]);
+					drmHelper = tmpDrmHelper;
+					forceSelectDRM = false; /* reset flag */
+					/** No need to progress further**/
+					free(data);
+					data = NULL;
+					break;
+				}
+
 				// Track the best DRM available to use
-				if ((!drmHelper) || (GetDrmPrefs(drmInfo.systemUUID) > GetDrmPrefs(drmHelper->getUuid())))
+				else if ((!drmHelper) || (GetDrmPrefs(drmInfo.systemUUID) > GetDrmPrefs(drmHelper->getUuid())))
 				{
 					logprintf("%s:%d (%s) Created DRM helper for UUID %s and best to use", __FUNCTION__, __LINE__, mMediaTypeName[mediaType], drmInfo.systemUUID.c_str());
 					drmHelper = tmpDrmHelper;
