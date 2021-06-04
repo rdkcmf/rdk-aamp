@@ -1,6 +1,7 @@
 #include "config.h"
 #include "opencdmsessionadapter.h"
 #include "AampDrmHelper.h"
+#include "AampUtils.h"
 
 #include <gst/gst.h>
 #include <assert.h>
@@ -27,6 +28,7 @@ AAMPOCDMSessionAdapter::AAMPOCDMSessionAdapter(std::shared_ptr<AampDrmHelper> dr
 		decryptMutex(),
 		m_sessionID(),
 		m_challenge(),
+		timeBeforeCallback(0),
 		m_challengeReady(),
 		m_challengeSize(0),
 		m_keyStatus(InternalError),
@@ -100,9 +102,11 @@ void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 	else
 	{
 		memset(&m_OCDMSessionCallbacks, 0, sizeof(m_OCDMSessionCallbacks));
+		timeBeforeCallback = aamp_GetCurrentTimeMS();
 		m_OCDMSessionCallbacks.process_challenge_callback = [](OpenCDMSession* session, void* userData, const char destUrl[], const uint8_t challenge[], const uint16_t challengeSize) {
-
 			AAMPOCDMSessionAdapter* userSession = reinterpret_cast<AAMPOCDMSessionAdapter*>(userData);
+			userSession->timeBeforeCallback = ((aamp_GetCurrentTimeMS())-(userSession->timeBeforeCallback));
+			AAMPLOG_INFO("Duration for process_challenge_callback %lld",(userSession->timeBeforeCallback));
 			userSession->processOCDMChallenge(destUrl, challenge, challengeSize);
 		};
 
@@ -118,7 +122,6 @@ void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 			AAMPOCDMSessionAdapter* userSession = reinterpret_cast<AAMPOCDMSessionAdapter*>(userData);
 			userSession->keysUpdatedOCDM();
 		};
-
 #ifdef USE_THUNDER_OCDM_API_0_2
 	OpenCDMError ocdmRet = opencdm_construct_session(m_pOpenCDMSystem, LicenseType::Temporary, "video/mp4",
 #else
