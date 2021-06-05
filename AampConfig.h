@@ -249,6 +249,7 @@ typedef enum
 	eAAMPConfig_LicenseProxy,									/**<License Proxy */
 	eAAMPConfig_SessionToken,									/**<Session Token  */
 	eAAMPConfig_LogLevel,										/**< New Configuration to overide info/debug/trace */
+	eAAMPConfig_CustomHeaderLicense,                            					/**<custom header string data to be appended to curl License request*/
 	eAAMPConfig_StringMaxValue,
 	eAAMPConfig_MaxValue
 }AAMPConfigSettings;
