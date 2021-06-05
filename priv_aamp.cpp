@@ -4438,6 +4438,44 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		mainManifestUrl = remapUrl;
 	}
 
+        //Add Custom Header via config
+        {
+                std::string customLicenseHeaderStr;
+                GETCONFIGVALUE_PRIV(eAAMPConfig_CustomHeaderLicense,customLicenseHeaderStr);
+                if(!customLicenseHeaderStr.empty())
+                {
+                        if (gpGlobalConfig->logging.curlLicense)
+                        {
+                                logprintf("%s:%d CustomHeader :%s",__FUNCTION__,__LINE__,customLicenseHeaderStr.c_str());
+                        }
+                        char* token = NULL;
+                        char* tokenHeader = NULL;
+                        char* str = (char*) customLicenseHeaderStr.c_str();
+
+                        while ((token = strtok_r(str, ";", &str)))
+                        {
+                                int headerTokenIndex = 0;
+                                std::string headerName;
+                                std::vector<std::string> headerValue;
+                                while ((tokenHeader = strtok_r(token, ":", &token)))
+                                {
+                                        if(headerTokenIndex == 0)
+                                                headerName = tokenHeader;
+                                        else if(headerTokenIndex == 1)
+                                                headerValue.push_back(std::string(tokenHeader));
+                                        else
+                                                break;
+
+                                        headerTokenIndex++;
+                                }
+                                if(!headerName.empty() && !headerValue.empty())
+                                {
+                                        AddCustomHTTPHeader(headerName, headerValue, true);
+                                }
+                        }
+                }
+        }
+
 	/** Least priority operator setting will override the value only if it is not set from dev config **/ 
 	SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_WideVineKIDWorkaround,IsWideVineKIDWorkaround(mainManifestUrl));
 	mIsWVKIDWorkaround = ISCONFIGSET_PRIV(eAAMPConfig_WideVineKIDWorkaround);
