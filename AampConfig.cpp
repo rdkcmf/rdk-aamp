@@ -215,7 +215,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"limitResolution",eAAMPConfig_LimitResolution,-1,-1},
 	{"useAbsoluteTimeline",eAAMPConfig_UseAbsoluteTimeline,-1,-1},
 	{"id3",eAAMPConfig_ID3Logging,-1,-1},
-	{"SkyStoreDE",eAAMPConfig_WideVineKIDWorkaround,-1,-1}
+	{"SkyStoreDE",eAAMPConfig_WideVineKIDWorkaround,-1,-1},
+	{"customHeaderLicense",eAAMPConfig_CustomHeaderLicense,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -416,6 +417,7 @@ void AampConfig::Initialize()
 	sAampCfgValue[eAAMPConfig_LicenseProxy-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_SessionToken-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_LogLevel-eAAMPConfig_StringStartValue].value                  =       "";
+	sAampCfgValue[eAAMPConfig_CustomHeaderLicense-eAAMPConfig_StringStartValue].value	=	"";
 
 }
 

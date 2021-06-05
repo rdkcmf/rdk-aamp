@@ -212,6 +212,7 @@ preferredSubtitleLanguage	User preferred subtitle language.Default is None
 ckLicenseServerUrl		ClearKey License server URL.Default is None
 prLicenseServerUrl		PlayReady License server URL.Default is None
 wvLicenseServerUrl		Widevine License server URL.Default is None
+customHeaderLicense             custom header data to be appended to curl License request. Default None
 
 // Long inputs
 minBitrate			Set minimum bitrate filter for playback profiles, default is 0.
