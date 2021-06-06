@@ -259,11 +259,12 @@ typedef enum
  */
 struct ConfigChannelInfo
 {
-	ConfigChannelInfo() : name(), uri()
+	ConfigChannelInfo() : name(), uri(), licenseUri()
 	{
 	}
 	std::string name;
 	std::string uri;
+	std::string licenseUri;
 };
 
 
@@ -393,6 +394,7 @@ public:
 	bool GetConfigValue(AAMPConfigSettings cfg, double &value);
 	bool GetConfigValue(AAMPConfigSettings cfg , int &value);
 	const char * GetChannelOverride(const std::string chName);
+	const char * GetChannelLicenseOverride(const std::string chName);
 	bool ProcessConfigJson(const char *, ConfigPriority owner );
 	bool ProcessConfigText(std::string &cfg, ConfigPriority owner );
 	void RestoreConfiguration(ConfigPriority owner);

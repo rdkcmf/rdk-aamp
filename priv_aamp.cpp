@@ -142,21 +142,6 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 static bool activeInterfaceWifi = false;
 
 /**
- * @struct ChannelInfo 
- * @brief Holds information of a channel
- */
-struct ChannelInfo
-{
-	ChannelInfo() : name(), uri()
-	{
-	}
-	std::string name;
-	std::string uri;
-};
-
-static std::list<ChannelInfo> mChannelOverrideMap;
-
-/**
  * @struct CurlCallbackContext
  * @brief context during curl callbacks
  */
@@ -4420,7 +4405,14 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	const char *remapUrl = mConfig->GetChannelOverride(mainManifestUrl);
 	if (remapUrl )
 	{
+		const char *remapLicenseUrl = NULL;
 		mainManifestUrl = remapUrl;
+		remapLicenseUrl = mConfig->GetChannelLicenseOverride(mainManifestUrl);
+		if (remapLicenseUrl )
+		{
+			AAMPLOG_INFO("%s %d Channel License Url Override: [%s]", __FUNCTION__,__LINE__, remapLicenseUrl);
+			SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_LicenseServerUrl,std::string(remapLicenseUrl));
+		}
 	}
 
         //Add Custom Header via config
