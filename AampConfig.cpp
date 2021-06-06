@@ -546,6 +546,32 @@ const char * AampConfig::GetChannelOverride(const std::string manifestUrl)
 }
 
 /**
+ * @brief GetChannelLicenseOverride - Gets channel License override url for channel Url
+ *
+ * @param[in] chUrl - channel Url to search
+ * @param[out] chLicenseOverride - license URI
+ * @return true - if valid return
+ */
+const char * AampConfig::GetChannelLicenseOverride(const std::string manifestUrl)
+{
+    if(mChannelOverrideMap.size() && manifestUrl.size())
+    {
+        for (ChannelMapIter it = mChannelOverrideMap.begin(); it != mChannelOverrideMap.end(); ++it)
+        {
+            ConfigChannelInfo &pChannelInfo = *it;
+            if (manifestUrl.find(pChannelInfo.uri) != std::string::npos)
+            {
+                if(!pChannelInfo.licenseUri.empty())
+                {
+                    return pChannelInfo.licenseUri.c_str();
+                }
+            }
+        }
+    }
+    return NULL;
+}
+
+/**
  * @brief ToggleConfigValue - Toggle Boolean configuration
  *
  * @param[in] owner  - ownership of new set call
@@ -729,11 +755,13 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 						cJSON * subitem = cJSON_GetArrayItem(chMap, i);
 						char *name      = (char *)cJSON_GetObjectItem(subitem, "name")->valuestring;
 						char *url       = (char *)cJSON_GetObjectItem(subitem, "url")->valuestring;
+						char *licenseUrl= (char *)cJSON_GetObjectItem(subitem, "licenseServerUrl")->valuestring;
 						if(name && url )
 						{
 							ConfigChannelInfo channelInfo;
 							channelInfo.uri = url;
 							channelInfo.name = name;
+							channelInfo.licenseUri = licenseUrl;
 							mChannelOverrideMap.push_back(channelInfo);
 						}
 					}
@@ -882,6 +910,10 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 					{
 						logprintf("%s %d Overriden OTA Url!!", __FUNCTION__,__LINE__);
 						channelInfo.uri = token;
+					}
+					else if (token.compare(0,17,"licenseServerUrl=") == 0)
+					{
+						channelInfo.licenseUri = token.substr(17);
 					}
 					else
 						channelInfo.name = token;
@@ -1624,6 +1656,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		for (iter = mChannelOverrideMap.begin(); iter != mChannelOverrideMap.end(); ++iter)
 		{
 			logprintf("Cfg Channel[%s]-> [%s]",iter->name.c_str(),iter->uri.c_str());
+			logprintf("Cfg Channel[%s]-> License Uri: [%s]",iter->name.c_str(),iter->licenseUri.c_str());
 		}
 	}
 
