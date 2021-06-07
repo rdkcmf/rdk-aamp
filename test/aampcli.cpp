@@ -2435,7 +2435,6 @@ int main(int argc, char **argv)
 	ABRManager mAbrManager;
 
 	/* Set log directory path for AAMP and ABR Manager */
-	AampConfig::SetCfgDrive(driveName);
 	mLogManager.setLogAndCfgDirectory(driveName);
 	mAbrManager.setLogDirectory(driveName);
 

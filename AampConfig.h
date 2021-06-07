@@ -396,7 +396,6 @@ public:
 	bool ProcessConfigText(std::string &cfg, ConfigPriority owner );
 	void RestoreConfiguration(ConfigPriority owner);
 	void ConfigureLogSettings();
-	static void SetCfgDrive(char drivename);
 	bool GetAampConfigJSONStr(std::string &str);
 	bool GetDeveloperConfigData(std::string &key,std::string &value);
 
@@ -433,10 +432,6 @@ private:
 	typedef std::list<ConfigChannelInfo> ChannelMap ;
 	typedef std::list<ConfigChannelInfo>::iterator ChannelMapIter ;
 	ChannelMap mChannelOverrideMap;
-#ifdef WIN32
-	static std::string cWindowsCfg;
-	static std::string cWindowsJsonCfg;
-#endif
 };
 
 extern AampConfig  *gpGlobalConfig;
