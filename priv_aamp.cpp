@@ -5527,12 +5527,10 @@ void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
 			{
 				//logprintf("sleep interrupted!");
 			}
-#ifndef WIN32
 			else if (ETIMEDOUT != ret)
 			{
 				logprintf("sleep - condition wait failed %s", strerror(ret));
 			}
-#endif
 		}
 		pthread_mutex_unlock(&mLock);
 	}
