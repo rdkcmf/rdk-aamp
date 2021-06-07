@@ -9122,30 +9122,32 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 						playRate = pAampLLDashServiceData->minPlaybackRate;
 						aamp->mLLDashRateCorrectionCount++;
 					}
-					else if (currentLatency <= (long)((pAampLLDashServiceData->targetLatency+pAampLLDashServiceData->minLatency) * 0.5 ))
+					else if ( ( currentLatency >= (long) pAampLLDashServiceData->minLatency ) &&
+						(  currentLatency <= (long)pAampLLDashServiceData->targetLatency) )
 					{
 						//Yellow state(the latency is within range but less than target latency but greater than minimum latency)
 						latencyStatus = LATENCY_STATUS_THRESHOLD_MIN;
 						logprintf("MonitorLatency: latencyStatus = LATENCY_STATUS_THRESHOLD_MIN(%d)",latencyStatus);
 						playRate = AAMP_NORMAL_PLAY_RATE;
 					}
-					else if ( currentLatency == (long)pAampLLDashServiceData->targetLatency)
+					else if ( currentLatency == (long)pAampLLDashServiceData->targetLatency )
 					{
 							//green state(No correction is requried. set the playrate to normal, the latency is equal to given latency from mpd)
 							latencyStatus = LATENCY_STATUS_THRESHOLD;
 							logprintf("MonitorLatency: latencyStatus = LATENCY_STATUS_THRESHOLD(%d)",latencyStatus);
 							playRate = AAMP_NORMAL_PLAY_RATE;
 					}
-					else if (currentLatency > (long)((pAampLLDashServiceData->targetLatency+pAampLLDashServiceData->maxLatency) * 0.5 ))
+					else if ( ( currentLatency >= (long)pAampLLDashServiceData->targetLatency ) &&
+						( currentLatency <= (long)pAampLLDashServiceData->maxLatency )  )
 					{
-						//Red state(The latency is more that target latency but less than maxium latency)
+						//Red state(The latency is more that target latency but less than maximum latency)
 						latencyStatus = LATENCY_STATUS_THRESHOLD_MAX;
 						logprintf("MonitorLatency: latencyStatus = LATENCY_STATUS_THRESHOLD_MAX(%d)",latencyStatus);
 						playRate = AAMP_NORMAL_PLAY_RATE;
 					}
-					else if (currentLatency >= (long)pAampLLDashServiceData->maxLatency)
+					else if (currentLatency > (long)pAampLLDashServiceData->maxLatency)
 					{
-						//Red state(The latency is more than maxium latency)
+						//Red state(The latency is more than maximum latency)
 						latencyStatus = LATENCY_STATUS_MAX; //Red state
 						logprintf("MonitorLatency: latencyStatus = LATENCY_STATUS_MAX(%d)",latencyStatus);
 						playRate = pAampLLDashServiceData->maxPlaybackRate;
@@ -9163,9 +9165,8 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 						aamp->mLLDashRateCorrectionCount = 0;
 						aamp->SetLLDashCurrentPlayBackRate(AAMP_NORMAL_PLAY_RATE);
 						aamp->mLLDashRetuneCount++;
-#if ENABLE_LL_DASH_RETUNE
+
 						aamp->ScheduleRetune(eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED,eMEDIATYPE_VIDEO);
-#endif
 					}
 					else
 					{

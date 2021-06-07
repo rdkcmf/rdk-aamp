@@ -4205,7 +4205,7 @@ bool AAMPGstPlayer::AdjustPlayBackRate(double position, double rate)
         aamp->GetState(state);
         if( ( rate != privateContext->playbackrate ) && ( state == eSTATE_PLAYING ) )
 		{
-			gint64 position1;
+			gint64 position1=0;
 			/* Obtain the current position, needed for the seek event */
 			if (!gst_element_query_position (privateContext->pipeline, GST_FORMAT_TIME, &position1))
 			{
@@ -4213,8 +4213,8 @@ bool AAMPGstPlayer::AdjustPlayBackRate(double position, double rate)
 			}
 			else
 			{
-				if (!gst_element_seek(privateContext->pipeline, rate, GST_FORMAT_TIME, GST_SEEK_FLAG_ACCURATE, GST_SEEK_TYPE_SET,
-					position1, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
+				if (!gst_element_seek(privateContext->pipeline, rate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH,
+					GST_SEEK_TYPE_SET, position1, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
 				{
 					logprintf("[LL-DASH] AAMPGstPlayer::%s:%d playrate adjustment  failed", __FUNCTION__, __LINE__);
 				}
