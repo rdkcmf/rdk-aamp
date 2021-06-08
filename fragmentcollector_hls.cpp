@@ -3407,6 +3407,10 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 				{
 					format = FORMAT_AUDIO_ES_AAC;
 				}
+				else if ( extension == ".ac3" )
+				{
+					format = FORMAT_AUDIO_ES_AC3;
+				}
 				else if ( extension == ".ec3" )
 				{
 					format = FORMAT_AUDIO_ES_EC3;
@@ -4445,6 +4449,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_AAC", ts->name);
 					ts->streamOutputFormat = FORMAT_AUDIO_ES_AAC;
+					continue;
+				}
+
+				// Elementary stream, we can skip playContext creation
+				if (FORMAT_AUDIO_ES_AC3 == format)
+				{
+					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_AC3", ts->name);
+					ts->streamOutputFormat = FORMAT_AUDIO_ES_AC3;
 					continue;
 				}
 
