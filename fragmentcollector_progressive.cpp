@@ -328,6 +328,16 @@ double StreamAbstractionAAMP_PROGRESSIVE::GetFirstPTS()
     return 0.0;
 }
 
+/**
+ *   @brief  Get Start time PTS of first sample.
+ *
+ *   @retval start time of first sample
+ */
+double StreamAbstractionAAMP_PROGRESSIVE::GetStartTimeOfFirstPTS()
+{
+    return 0.0;
+}
+
 double StreamAbstractionAAMP_PROGRESSIVE::GetBufferedDuration()
 {
 	return -1.0;

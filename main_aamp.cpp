@@ -808,11 +808,6 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 		if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
 		{
 			double currPositionSecs = aamp->GetPositionMilliseconds() / 1000.00;
-			if (ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline))
-			{
-				secondsRelativeToTuneTime -= aamp->mProgressReportOffset;
-				logprintf("%s(): Seek position adjusted to :%f", __FUNCTION__, secondsRelativeToTuneTime);
-			}
 			if (isSeekToLive || secondsRelativeToTuneTime >= currPositionSecs)
 			{
 				logprintf("%s():Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", __FUNCTION__, secondsRelativeToTuneTime, currPositionSecs, isSeekToLive);

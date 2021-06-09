@@ -1140,7 +1140,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	durationSeconds(0.0), culledSeconds(0.0), culledOffset(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000),
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
-	m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
+	m_fd(-1), mIsLive(false), mIsLiveStream(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
 	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(ContentType_UNKNOWN), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
@@ -1182,19 +1182,20 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, midFragmentSeekCache(false)
 	, mPreviousAudioType (FORMAT_INVALID)
 	, mTsbRecordingId()
-	, mProgramDateTime (0)
 	, mthumbIndexValue(-1)
 	, mManifestRefreshCount (0)
 	, mJumpToLiveFromPause(false), mPausedBehavior(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE), mSeekFromPausedState(false)
+	, mProgramDateTime (0), mMPDPeriodsInfo()
 	, mProfileCappedStatus(false)
 	, mDisplayWidth(0)
 	, mDisplayHeight(0)
    	, preferredRenditionString(""), preferredRenditionList(), preferredCodecString(""), preferredCodecList(), mAudioTuple() 
-	, mProgressReportOffset(0.0)
+	, mProgressReportOffset(-1)
 	, mAutoResumeTaskId(0), mAutoResumeTaskPending(false), mScheduler(NULL), mEventLock(), mEventPriority(G_PRIORITY_DEFAULT_IDLE)
 	, mStreamLock()
 	, mConfig (config),mSubLanguage(), mHarvestCountLimit(0), mHarvestConfig(0)
 	, mIsWVKIDWorkaround(false)
+	, mAbsoluteEndPosition(0)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -1384,16 +1385,17 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		}
 		else
 		{	//DELIA-49735 - Report Progress report position based on Availability Start Time
-			start = 0;
-			if( mContentType == ContentType_LINEAR && eMEDIAFORMAT_DASH == mMediaFormat
-					&& ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && mpStreamAbstractionAAMP )
+			start = (culledSeconds*1000.0);
+			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && (mProgressReportOffset > 0) && IsLive() && !mTSBEnabled)
 			{
-				start = mProgressReportOffset*1000;
-				position += start;
+				position += (mProgressReportOffset*1000);
+				end = (mAbsoluteEndPosition * 1000);
 			}
-			start += (culledSeconds*1000.0);
+			else
+			{
+				end = start + duration;
+			}
 
-			end = start + duration;
 			if (position > end)
 			{ // clamp end
 				//logprintf("aamp clamp end");
@@ -2199,6 +2201,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		{
 			double newPosition = GetPositionMilliseconds() / 1000.0;
 			double injectedPosition = seek_pos_seconds + mpStreamAbstractionAAMP->GetLastInjectedFragmentPosition();
+			double startTimeofFirstSample = 0;
 			AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d last injected position:%f position calcualted: %f", __FUNCTION__, __LINE__, injectedPosition, newPosition);
 
 			// Reset with injected position from StreamAbstractionAAMP. This ensures that any drift in
@@ -2212,6 +2215,16 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 			else
 			{
 				seek_pos_seconds = newPosition;
+			}
+
+			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && IsLiveStream() && !mTSBEnabled)
+			{
+				startTimeofFirstSample = mpStreamAbstractionAAMP->GetStartTimeOfFirstPTS() / 1000;
+				if(startTimeofFirstSample > 0)
+				{
+					AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Position is updated wrt start time of discontinuity : %lf", __FUNCTION__, __LINE__, startTimeofFirstSample);
+					seek_pos_seconds = startTimeofFirstSample;
+				}
 			}
 			AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Updated seek_pos_seconds:%f", __FUNCTION__, __LINE__, seek_pos_seconds);
 		}
@@ -4238,6 +4251,22 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		prevPositionMiliseconds = -1;
 		double updatedSeekPosition = mpStreamAbstractionAAMP->GetStreamPosition();
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
+		// Adjust seek_pos_second based on adjusted stream position and discontinuity start time for absolute progress reports
+		if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && !ISCONFIGSET_PRIV(eAAMPConfig_MidFragmentSeek) && !mTSBEnabled)
+		{
+			double startTimeOfDiscontinuity = mpStreamAbstractionAAMP->GetStartTimeOfFirstPTS() / 1000;
+			if(startTimeOfDiscontinuity > 0)
+			{
+				seek_pos_seconds = startTimeOfDiscontinuity + updatedSeekPosition;
+				if(!IsLive())
+				{
+					// For dynamic => static cases, add culled seconds
+					// For normal VOD, culledSeconds is expected to be 0.
+					seek_pos_seconds += culledSeconds;
+				}
+				AAMPLOG_WARN("%s:%d Position adjusted discontinuity start: %lf, Abs position: %lf", __FUNCTION__, __LINE__, startTimeOfDiscontinuity, seek_pos_seconds);
+			}
+		}
 		UpdateProfileCappedStatus();
 #ifndef AAMP_STOP_SINK_ON_SEEK
 		logprintf("%s:%d Updated seek_pos_seconds %f culledSeconds :%f",__FUNCTION__,__LINE__, seek_pos_seconds,culledSeconds);
@@ -4370,6 +4399,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	// Reset mProgramDateTime to 0 , to avoid spill over to next tune if same session is 
 	// reused 
 	mProgramDateTime = 0;
+	mMPDPeriodsInfo.clear();
 
 	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
@@ -5689,6 +5719,15 @@ bool PrivateInstanceAAMP::IsLive()
 }
 
 /**
+ * @brief Check if stream is live
+ * @retval true if stream is live, false if not
+ */
+bool PrivateInstanceAAMP::IsLiveStream()
+{
+        return mIsLiveStream;
+}
+
+/**
  * @brief Stop playback and release resources.
  *
  */
@@ -5762,8 +5801,9 @@ void PrivateInstanceAAMP::Stop()
 
 	seek_pos_seconds = -1;
 	culledSeconds = 0;
+	mIsLiveStream = false;
 	durationSeconds = 0;
-	mProgressReportOffset = 0;
+	mProgressReportOffset = -1;
 	rate = 1;
 	// Set the state to eSTATE_IDLE
 	// directly setting state variable . Calling SetState will trigger event :(

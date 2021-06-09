@@ -295,6 +295,22 @@ struct AsyncEventDescriptor
 };
 
 /**
+ * @struct PeriodInfo
+ * @brief Stores details about available periods in mpd
+ */
+
+struct PeriodInfo {
+	std::string periodId;
+	uint64_t startTime;
+	uint32_t timeScale;
+	double duration;
+
+	PeriodInfo() : periodId(""), startTime(0), duration(0.0), timeScale(0)
+	{
+	}
+};
+
+/**
  * @brief Class for Timed Metadata
  */
 class TimedMetadata
@@ -669,6 +685,7 @@ public:
 	double culledSeconds;
 	double culledOffset;
         double mProgramDateTime;
+	std::vector<struct PeriodInfo> mMPDPeriodsInfo;
 	float maxRefreshPlaylistIntervalSecs;
 	EventListener* mEventListener;
 	double mReportProgressPosn;
@@ -717,6 +734,7 @@ public:
 	int mDisplayHeight; /**< Display resolution height */
 	bool mProfileCappedStatus; /**< Profile capped status by resolution or bitrate */
 	double mProgressReportOffset; /**< Offset time for progress reporting */
+	double mAbsoluteEndPosition; /**< Live Edge position for absolute reporting */
 	AampConfig *mConfig;
 	/**
 	 * @brief Curl initialization function
@@ -1156,6 +1174,13 @@ public:
 	 * @return True or False
 	 */
 	bool IsLive(void);
+
+        /**
+         * @brief Checking if the stream is changed from dynamic to static or not
+         *
+         * @return True or False
+         */
+        bool IsLiveStream(void);
 
 	/**
 	 * @brief Stop playback
@@ -2100,6 +2125,14 @@ public:
 	 */
 	void SetIsLive(bool isLive)  {mIsLive = isLive; }
 
+        /**
+         *   @brief Set isLiveStream flag
+         *
+         *   @param[in] isLiveStream - is Live stream flag
+         *   @return void
+         */
+	void SetIsLiveStream(bool isLiveStream)  {mIsLiveStream = isLiveStream; }
+	
 	/**
 	 *   @brief Signal trick mode discontinuity to stream sink
 	 *
@@ -2966,6 +2999,7 @@ private:
 	TuneType mTuneType;
 	int m_fd;
 	bool mIsLive;
+	bool mIsLiveStream;
 	bool mTuneCompleted;
 	bool mFirstTune;			//To identify the first tune after load.
 	int mfirstTuneFmt;			//First Tune Format HLS(0) or DASH(1)

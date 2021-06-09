@@ -49,6 +49,7 @@ public:
     double GetStreamPosition() override;
     MediaTrack* GetMediaTrack(TrackType type) override;
     double GetFirstPTS() override;
+    double GetStartTimeOfFirstPTS() override;
     double GetBufferedDuration() override;
     bool IsInitialCachingSupported() override;
     int GetBWIndex(long bitrate) override;
