@@ -2331,7 +2331,6 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			GST_BUFFER_TIMESTAMP(buffer) = pts;
 			GST_BUFFER_DURATION(buffer) = duration;
 	#endif
-		
 			ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), buffer);
 			if (ret != GST_FLOW_OK)
 			{
@@ -2535,7 +2534,8 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		CreatePipeline();
 	}
 
-	bool configureStream = false;
+	bool configureStream[AAMP_TRACK_COUNT];
+	memset(configureStream, 0, sizeof(configureStream));
 
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
@@ -2546,15 +2546,15 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 			{
 				logprintf("AAMPGstPlayer::%s %d > Closing stream %d old format = %d, new format = %d",
 								__FUNCTION__, __LINE__, i, stream->format, newFormat[i]);
-				configureStream = true;
+				configureStream[i] = true;
 			}
 		}
 
 		/* Force configure the bin for mid stream audio type change */
-		if (!configureStream && bESChangeStatus && (eMEDIATYPE_AUDIO == i))
+		if (!configureStream[i] && bESChangeStatus && (eMEDIATYPE_AUDIO == i))
 		{
 			logprintf("AAMPGstPlayer::%s %d > AudioType Changed. Force configure pipeline", __FUNCTION__, __LINE__);
-			configureStream = true;
+			configureStream[i] = true;
 		}
 
 		stream->resetPosition = true;
@@ -2564,7 +2564,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
 		media_stream *stream = &privateContext->stream[i];
-		if (configureStream && (newFormat[i] != FORMAT_INVALID))
+		if (configureStream[i] && (newFormat[i] != FORMAT_INVALID))
 		{
 			TearDownStream((MediaType) i);
 			stream->format = newFormat[i];
