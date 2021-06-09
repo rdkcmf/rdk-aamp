@@ -138,22 +138,6 @@ public :
 
 };
 
-/**
- * @struct PeriodInfo
- * @brief Stores details about available periods in mpd
- */
-
-struct PeriodInfo {
-	std::string periodId;
-	uint64_t startTime;
-	uint32_t timeScale;
-	double duration;
-
-	PeriodInfo() : periodId(""), startTime(0), duration(0.0), timeScale(0)
-	{
-	}
-};
-
 
 /**
  * @class StreamAbstractionAAMP_MPD
@@ -174,6 +158,7 @@ public:
 	double GetStreamPosition() override;
 	MediaTrack* GetMediaTrack(TrackType type) override;
 	double GetFirstPTS() override;
+	double GetStartTimeOfFirstPTS() override;
 	int GetBWIndex(long bitrate) override;
 	std::vector<long> GetVideoBitrates(void) override;
 	std::vector<long> GetAudioBitrates(void) override;
@@ -266,6 +251,7 @@ private:
 	double mPresentationOffsetDelay;
 	uint64_t mLastPlaylistDownloadTimeMs;
 	double mFirstPTS;
+	double mStartTimeOfFirstPTS;
 	double mVideoPosRemainder;
 	double mFirstFragPTS[AAMP_TRACK_COUNT];
 	AudioType mAudioType;
@@ -279,7 +265,6 @@ private:
 	std::map<int, struct ProfileInfo> mProfileMaps;
 	
 	bool mIsFogTSB;
-	vector<struct PeriodInfo> mMPDPeriodsInfo;
 	IPeriod *mCurrentPeriod;
 	std::string mBasePeriodId;
 	double mBasePeriodOffset;

@@ -505,6 +505,13 @@ public:
 	virtual double GetFirstPTS() = 0;
 
 	/**
+	 *   @brief  Get Start time PTS of first sample.
+	 *
+	 *   @retval start time of first sample
+	 */
+	virtual double GetStartTimeOfFirstPTS() = 0;
+
+	/**
 	 *   @brief Return MediaTrack of requested type
 	 *
 	 *   @param[in]  type - track type

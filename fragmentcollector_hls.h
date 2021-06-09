@@ -411,6 +411,8 @@ public:
 	double GetStreamPosition() { return seekPosition; }
 	/// Function to return first PTS 
 	double GetFirstPTS();
+	/// Function to return start time of first PTS
+	double GetStartTimeOfFirstPTS() { return 0.0; }
 	/// Function to return the MediaTrack instance for the media type input 
 	MediaTrack* GetMediaTrack(TrackType type);
 	/// Function to return Bandwidth index for the bitrate value 
