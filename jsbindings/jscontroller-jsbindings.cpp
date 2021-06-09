@@ -440,7 +440,7 @@ static const JSClassDefinition AAMP_JSController_class_def =
 	AAMP_JSController_static_values,
 	AAMP_JSController_static_methods,
 	NULL,
-	AAMP_JSController_finalize,
+	NULL, // _globalController is reused, so don't clean when one object goes out of scope
 	NULL,
 	NULL,
 	NULL,
@@ -516,7 +516,8 @@ void aamp_UnloadJSController(JSGlobalContextRef context)
 	AAMP_JSController_finalize(aampObj);
 	_globalController = NULL;
 
-	JSObjectSetProperty(context, globalObj, str, JSValueMakeUndefined(context), kJSPropertyAttributeReadOnly, NULL);
+	// Per comments in DELIA-48964, use JSObjectDeleteProperty instead of JSObjectSetProperty when trying to invalidate a read-only property
+	JSObjectDeleteProperty(context, globalObj, str, NULL);
 	JSStringRelease(str);
 
 	LOG("[AAMP_JSController] JSGarbageCollect(%p)", context);
