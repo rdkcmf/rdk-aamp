@@ -523,16 +523,20 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
 			return;
 		}
-		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (AAMP_NORMAL_PLAY_RATE == rate))
+		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (AAMP_RATE_PAUSE != rate))
 		{
 			AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s.", __FUNCTION__, __LINE__, aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
 			aamp->mbPlayEnabled = true;
-			aamp->LogPlayerPreBuffered();
-			aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mAuxFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus(), aamp->mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
-			aamp->mpStreamAbstractionAAMP->StartInjection();
-			aamp->mStreamSink->Stream();
-			aamp->pipeline_paused = false;
-			return;
+			if (AAMP_NORMAL_PLAY_RATE == rate)
+			{
+				aamp->LogPlayerPreBuffered();
+				aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mAuxFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus(), aamp->mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
+				aamp->ResumeDownloads(); //To make sure that the playback resumes after a player switch if player was in paused state before being at background
+				aamp->mpStreamAbstractionAAMP->StartInjection();
+				aamp->mStreamSink->Stream();
+				aamp->pipeline_paused = false;
+				return;
+			}
 		}
 		bool retValue = true;
 		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE)
