@@ -80,7 +80,7 @@
 #define MEDIATYPE_AUX_AUDIO "aux-audio"
 #define MEDIATYPE_IMAGE "image"
 
-static uint64_t ParseISO8601Duration(const char *ptr);
+static double ParseISO8601Duration(const char *ptr);
 
 static double ComputeFragmentDuration( uint32_t duration, uint32_t timeScale )
 {
@@ -597,8 +597,8 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *
 	drmSessionThreadStarted(false), mpd(NULL), mNumberOfTracks(0), mCurrentPeriodIdx(0), mEndPosition(0), mIsLiveStream(true), mIsLiveManifest(true),
 	mStreamInfo(NULL), mPrevStartTimeSeconds(0), mPrevLastSegurlMedia(""), mPrevLastSegurlOffset(0),
 	mPeriodEndTime(0), mPeriodStartTime(0), mPeriodDuration(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
-	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mAudioType(eAUDIO_UNKNOWN),
-	mPrevAdaptationSetCount(0), mBitrateIndexVector(), mProfileMaps(), mIsFogTSB(false), mMPDPeriodsInfo(),
+	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mStartTimeOfFirstPTS(0), mAudioType(eAUDIO_UNKNOWN),
+	mPrevAdaptationSetCount(0), mBitrateIndexVector(), mProfileMaps(), mIsFogTSB(false),
 	mCurrentPeriod(NULL), mBasePeriodId(""), mBasePeriodOffset(0), mCdaiObject(NULL), mLiveEndPosition(0), mCulledSeconds(0)
 	,mAdPlayingFromCDN(false)
 	,mMaxTSBBandwidth(0), mTSBDepth(0)
@@ -2659,7 +2659,12 @@ inline std::uint64_t safeMultiply(const int first, const int second)
     return static_cast<std::uint64_t>(first) * second;
 }
 
-static uint64_t ParseISO8601Duration(const char *ptr)
+/**
+ * @brief Parse duration from ISO8601 string
+ * @param ptr ISO8601 string
+ * @param[out] durationMs duration in milliseconds
+ */
+static double ParseISO8601Duration(const char *ptr)
 {
 	int years = 0;
 	int months = 0;
@@ -3224,11 +3229,11 @@ uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumb
 /**
  *   @brief  Get difference between first segment start time and presentation offset from period
  *   @param  period
- *   @retval start time delta
+ *   @retval start time delta in seconds
  */
 double aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(IPeriod * period)
 {
-	double durationMs = 0;
+	double duration = 0;
 
 	const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
 	const ISegmentTemplate *representation = NULL;
@@ -3255,24 +3260,25 @@ double aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(IPeriod * period)
 			{
 				uint32_t timeScale = segmentTemplates.GetTimescale();
 				uint64_t presentationTimeOffset = segmentTemplates.GetPresentationTimeOffset();
-				logprintf("%s tscale: %" PRIu64 " offset : %" PRIu64 "", __FUNCTION__, timeScale, presentationTimeOffset);
+				AAMPLOG_TRACE("%s tscale: %" PRIu32 " offset : %" PRIu64 "", __FUNCTION__, timeScale, presentationTimeOffset);
 				std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
 				ITimeline *timeline = timelines.at(0);
 				if(timeline != NULL)
 				{
 					uint64_t timelineStart = timeline->GetStartTime();
-					logprintf("%s timeline start : %" PRIu64 "", __FUNCTION__, timelineStart);
+					AAMPLOG_TRACE("%s timeline start : %" PRIu64 "", __FUNCTION__, timelineStart);
 					uint64_t deltaBwFirstSegmentAndOffset = 0;
 					if(timelineStart > presentationTimeOffset)
 					{
 						deltaBwFirstSegmentAndOffset = timelineStart - presentationTimeOffset;
 					}
-					durationMs = (double) deltaBwFirstSegmentAndOffset / timeScale;
+					duration = (double) deltaBwFirstSegmentAndOffset / timeScale;
+					AAMPLOG_INFO("%s() offset delta : %lf", __FUNCTION__, duration);
 				}
 			}
 		}
 	}
-	return durationMs;
+	return duration;
 }
 
 /**
@@ -3867,11 +3873,12 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			mMediaStreamContext[i]->representationIndex = -1;
 		}
 
-		unsigned int nextPeriodStart = 0;
+		uint64_t nextPeriodStart = 0;
 		double currentPeriodStart = 0;
 		double prevPeriodEndMs = 0; // used to find gaps between periods
 		size_t numPeriods = mpd->GetPeriods().size();
 		bool seekPeriods = true;
+
 		for (unsigned iPeriod = 0; iPeriod < numPeriods; iPeriod++)
 		{//TODO -  test with streams having multiple periods.
 			IPeriod *period = mpd->GetPeriods().at(iPeriod);
@@ -3881,7 +3888,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				continue;
 			}
 			std::string tempString = period->GetDuration();
-			uint64_t  periodStartMs = 0;
+			double  periodStartMs = 0;
 			uint64_t periodDurationMs = 0;
 			if(!tempString.empty())
 			{
@@ -3892,7 +3899,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 					logprintf("%s:%d - Updated duration %" PRIu64 " seconds", __FUNCTION__, __LINE__, durationMs/1000);
 				}
 			}
-			else if (mIsFogTSB)
+			else if(mIsFogTSB || ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline))
 			{
 				periodDurationMs = aamp_GetPeriodDuration(mpd, iPeriod, mLastPlaylistDownloadTimeMs);
 				durationMs += periodDurationMs;
@@ -3911,20 +3918,29 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 					periodStartMs = nextPeriodStart;
 				}
 
-				double periodStartSeconds = (double)periodStartMs/1000;
+				if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline))
+				{
+					// Adjust start time wrt presentation time offset.
+					periodStartMs += (aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(period) * 1000);
+				}
+
+				double periodStartSeconds = periodStartMs/1000;
 				double periodDurationSeconds = (double)periodDurationMs / 1000;
 				if (periodDurationMs != 0)
 				{
-					nextPeriodStart += periodDurationMs; // set the value here, nextPeriodStart is used below to identify "Multi period assets with no period duration" if it is set to ZERO.
 					double periodEnd = periodStartMs + periodDurationMs;
 
 					// check for gaps between periods
 					if(prevPeriodEndMs > 0)
 					{
 						double periodGap = (periodStartMs - prevPeriodEndMs)/ 1000; // current period start - prev period end will give us GAP between period
-						if(periodGap > 0 ) // ohh we have GAP between last and current period
+						if(std::abs(periodGap) > 0 ) // ohh we have GAP between last and current period
 						{
-							offsetFromStart -= periodGap; // reduce offset to accomodate gap
+							offsetFromStart -= periodGap; // adjust offset to accomodate gap
+							if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline))
+							{
+								nextPeriodStart -= periodGap;
+							}
 							if(offsetFromStart < 0 ) // this means offset is between gap, set to start of currentPeriod
 							{
 								offsetFromStart = 0;
@@ -3932,7 +3948,13 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 							AAMPLOG_WARN("%s:%d GAP betwen period found :GAP:%f  mCurrentPeriodIdx %d currentPeriodStart %f offsetFromStart %f", __FUNCTION__, __LINE__,
 								periodGap, mCurrentPeriodIdx, periodStartSeconds, offsetFromStart);
 						}
+						if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline))
+						{
+							periodStartMs = nextPeriodStart;
+							periodStartSeconds = periodStartMs / 1000;
+						}
 					}
+					nextPeriodStart += periodDurationMs; // set the value here, nextPeriodStart is used below to identify "Multi period assets with no period duration" if it is set to ZERO.
 					prevPeriodEndMs = periodEnd; // store for future use
 					currentPeriodStart = periodStartSeconds;
 					mCurrentPeriodIdx = iPeriod;
@@ -4163,6 +4185,23 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 					AAMPLOG_ERR("%s:%d ERROR: No playable profiles found", __FUNCTION__, __LINE__);
 				}
 				return ret;
+			}
+
+			if(!newTune)
+			{
+				double culled = 0;
+				if(mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
+				{
+					culled = GetCulledSeconds();
+				}
+				if(culled > 0)
+				{
+					AAMPLOG_INFO("%s:%d Culled seconds = %f, Adjusting seekPos after considering new culled value", __FUNCTION__, __LINE__, culled);
+					aamp->UpdateCullingState(culled);
+					mCulledSeconds += culled;
+					seekPosition -= culled;
+
+				}
 			}
 
 			if(notifyEnteringLive)
@@ -6435,9 +6474,9 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 
 				int iter1 = 0;
 				PeriodInfo currFirstPeriodInfo = currMPDPeriodDetails.at(0);
-				while (iter1 < mMPDPeriodsInfo.size())
+				while (iter1 < aamp->mMPDPeriodsInfo.size())
 				{
-					PeriodInfo prevPeriodInfo = mMPDPeriodsInfo.at(iter1);
+					PeriodInfo prevPeriodInfo = aamp->mMPDPeriodsInfo.at(iter1);
 					if(prevPeriodInfo.periodId == currFirstPeriodInfo.periodId)
 					{
 						/* Update culled seconds if startTime of existing periods changes
@@ -6461,7 +6500,7 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 										prevPeriodInfo.periodId.c_str(), prevPeriodInfo.duration);
 					}
 				}
-				mMPDPeriodsInfo = currMPDPeriodDetails;
+				aamp->mMPDPeriodsInfo = currMPDPeriodDetails;
 			}
 			else
 			{
@@ -7514,6 +7553,11 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 									logprintf("StreamAbstractionAAMP_MPD::%s:%d discontinuity detected nextSegmentTime %" PRIu64 " FirstSegmentStartTime %" PRIu64 " ", __FUNCTION__, __LINE__, nextSegmentTime, segmentStartTime);
 									discontinuity = true;
 									mFirstPTS = (double)segmentStartTime/(double)segmentTemplates.GetTimescale();
+									std::string startTime = mCurrentPeriod->GetStart();
+									if(!startTime.empty() && ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline))
+									{
+										mStartTimeOfFirstPTS = ParseISO8601Duration(startTime.c_str());
+									}
 								}
 								else
 								{
@@ -8264,6 +8308,16 @@ StreamInfo* StreamAbstractionAAMP_MPD::GetStreamInfo(int idx)
 double StreamAbstractionAAMP_MPD::GetFirstPTS()
 {
 	return mFirstPTS;
+}
+
+/**
+ *   @brief  Get Start time PTS of first sample.
+ *
+ *   @retval start time of first sample
+ */
+double StreamAbstractionAAMP_MPD::GetStartTimeOfFirstPTS()
+{
+	return mStartTimeOfFirstPTS;
 }
 
 /**

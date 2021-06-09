@@ -1179,6 +1179,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mthumbIndexValue(-1)
 	, mManifestRefreshCount (0)
 	, mJumpToLiveFromPause(false), mPausedBehavior(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE), mSeekFromPausedState(false)
+	, mMPDPeriodsInfo()
 	, mProfileCappedStatus(false)
 	, mDisplayWidth(0)
 	, mDisplayHeight(0)
@@ -1377,15 +1378,8 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		}
 		else
 		{	//DELIA-49735 - Report Progress report position based on Availability Start Time
-			start = 0;
-			if( mContentType == ContentType_LINEAR && eMEDIAFORMAT_DASH == mMediaFormat
-					&& ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && mpStreamAbstractionAAMP )
-			{
-				start = mProgressReportOffset*1000;
-				position += start;
-			}
-			start += (culledSeconds*1000.0);
-
+			start = (culledSeconds*1000.0) + (mProgressReportOffset*1000);
+			position += (mProgressReportOffset*1000);
 			end = start + duration;
 			if (position > end)
 			{ // clamp end
@@ -2198,6 +2192,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		{
 			double newPosition = GetPositionMilliseconds() / 1000.0;
 			double injectedPosition = seek_pos_seconds + mpStreamAbstractionAAMP->GetLastInjectedFragmentPosition();
+			double startTimeofFirstSample = 0;
 			AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d last injected position:%f position calcualted: %f", __FUNCTION__, __LINE__, injectedPosition, newPosition);
 
 			// Reset with injected position from StreamAbstractionAAMP. This ensures that any drift in
@@ -2211,6 +2206,16 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 			else
 			{
 				seek_pos_seconds = newPosition;
+			}
+
+			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline))
+			{
+				startTimeofFirstSample = mpStreamAbstractionAAMP->GetStartTimeOfFirstPTS() / 1000;
+				if(startTimeofFirstSample > 0)
+				{
+					AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Position is updated wrt start time of discontinuity : %lf", __FUNCTION__, __LINE__, startTimeofFirstSample);
+					seek_pos_seconds = startTimeofFirstSample - mProgressReportOffset;
+				}
 			}
 			AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Updated seek_pos_seconds:%f", __FUNCTION__, __LINE__, seek_pos_seconds);
 		}
@@ -4389,6 +4394,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	// Reset mProgramDateTime to 0 , to avoid spill over to next tune if same session is 
 	// reused 
 	mProgramDateTime = 0;
+	mMPDPeriodsInfo.clear();
 
 	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))

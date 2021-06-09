@@ -276,6 +276,17 @@ double StreamAbstractionAAMP_VIDEOIN::GetFirstPTS()
     return 0.0;
 }
 
+/**
+ *   @brief  Get Start time PTS of first sample.
+ *
+ *   @retval start time of first sample
+ */
+double StreamAbstractionAAMP_VIDEOIN::GetStartTimeOfFirstPTS()
+{ // STUB
+	AAMPLOG_WARN("%s:%d %s ",__FUNCTION__,__LINE__,mName.c_str());
+    return 0.0;
+}
+
 double StreamAbstractionAAMP_VIDEOIN::GetBufferedDuration()
 { // STUB
 	AAMPLOG_WARN("%s:%d %s ",__FUNCTION__,__LINE__,mName.c_str());

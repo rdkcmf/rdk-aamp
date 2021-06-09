@@ -296,6 +296,22 @@ struct AsyncEventDescriptor
 };
 
 /**
+ * @struct PeriodInfo
+ * @brief Stores details about available periods in mpd
+ */
+
+struct PeriodInfo {
+	std::string periodId;
+	uint64_t startTime;
+	uint32_t timeScale;
+	double duration;
+
+	PeriodInfo() : periodId(""), startTime(0), duration(0.0), timeScale(0)
+	{
+	}
+};
+
+/**
  * @brief Class for Timed Metadata
  */
 class TimedMetadata
@@ -665,6 +681,7 @@ public:
 	double culledSeconds;
 	double culledOffset;
         double mProgramDateTime;
+	std::vector<struct PeriodInfo> mMPDPeriodsInfo;
 	float maxRefreshPlaylistIntervalSecs;
 	EventListener* mEventListener;
 	double mReportProgressPosn;
