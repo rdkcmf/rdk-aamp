@@ -53,7 +53,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 	parameters.ToString(message);
 
 	JsonObject playerData = parameters[APP_ID].Object();
-	AAMPLOG_TRACE( "[OTA_SHIM]%s Received event : message : %s ", __FUNCTION__, message.c_str());
+	AAMPLOG_TRACE( "[OTA_SHIM] Received event : message : %s ", message.c_str());
 	/* For detailed event data, we can print or use details like
 	   playerData["locator"].String(), playerData["length"].String(), playerData["position"].String() */
 
@@ -61,7 +61,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 	if(0 != prevState.compare(currState))
 	{
 		PrivAAMPState state = eSTATE_IDLE;
-		AAMPLOG_WARN( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevState.c_str(), currState.c_str());
+		AAMPLOG_WARN( "[OTA_SHIM] State changed from %s to %s ", prevState.c_str(), currState.c_str());
 		prevState = currState;
 		if(0 == currState.compare("PENDING"))
 		{
@@ -72,7 +72,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 			JsonObject ratingObj = playerData["rating"].Object();
 			ratingObj.ToString(ratingString);
 			std::string reason = playerData["blockedReason"].String();
-			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s Current Ratings: %s", __FUNCTION__, reason.c_str(), ratingString.c_str());
+			AAMPLOG_WARN( "[OTA_SHIM] Received BLOCKED event from player with REASON: %s Current Ratings: %s", reason.c_str(), ratingString.c_str());
 
 			aamp->SendAnomalyEvent(ANOMALY_WARNING,"BLOCKED REASON:%s", reason.c_str());
 			aamp->SendBlockedEvent(reason);
@@ -92,7 +92,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 			std::string ratingString;
 			JsonObject ratingObj = playerData["rating"].Object();
 			ratingObj.ToString(ratingString);
-			AAMPLOG_WARN( "[OTA_SHIM]%s PLAYING STATE Current Ratings : %s", __FUNCTION__, ratingString.c_str());
+			AAMPLOG_WARN( "[OTA_SHIM] PLAYING STATE Current Ratings : %s", ratingString.c_str());
 			state = eSTATE_PLAYING;
 		}else if(0 == currState.compare("DONE"))
 		{
@@ -107,7 +107,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 				aamp->SendAnomalyEvent(ANOMALY_WARNING, "ATSC Tuner Idle");
 			}else{
 				/* Currently plugin lists only "IDLE","ERROR","PROCESSING","PLAYING"&"DONE" */
-				AAMPLOG_INFO( "[OTA_SHIM]%s Unsupported state change!", __FUNCTION__);
+				AAMPLOG_INFO( "[OTA_SHIM] Unsupported state change!");
 			}
 			/* Need not set a new state hence returning */
 			return;
@@ -147,7 +147,7 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
     logprintf( "[OTA_SHIM]Inside %s CURL ACCESS", __FUNCTION__ );
     AAMPStatusType retval = eAAMPSTATUS_OK;
 #else
-    AAMPLOG_INFO( "[OTA_SHIM]Inside %s ", __FUNCTION__ );
+    AAMPLOG_INFO( "[OTA_SHIM] Entered");
     prevState = "IDLE";
     prevDisplyInfo = "";
     tuned = false;
@@ -280,7 +280,7 @@ void StreamAbstractionAAMP_OTA::Start(void)
         // logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
 
 #else
-	AAMPLOG_INFO( "[OTA_SHIM]Inside %s : url : %s ", __FUNCTION__ , url.c_str());
+	AAMPLOG_INFO( "[OTA_SHIM]Entered  : url : %s ", url.c_str());
 	JsonObject result;
 
 	SetPreferredAudioLanguage();
@@ -340,7 +340,7 @@ bool StreamAbstractionAAMP_OTA::GetScreenResolution(int & screenWidth, int & scr
 	 {
 		 screenWidth = result["w"].Number();
 		 screenHeight = result["h"].Number();
-		 AAMPLOG_INFO( "StreamAbstractionAAMP_OTA:%s:%d screenWidth:%d screenHeight:%d  ",__FUNCTION__, __LINE__,screenWidth, screenHeight);
+		 AAMPLOG_INFO( "StreamAbstractionAAMP_OTA: screenWidth:%d screenHeight:%d  ",screenWidth, screenHeight);
 		 bRetVal = true;
 	 }
 	 return bRetVal;
@@ -537,7 +537,7 @@ void StreamAbstractionAAMP_OTA::GetAudioTracks()
     thunderAccessObj.InvokeJSONRPC("getAudioTracks", param, result);
 
     result.ToString(output);
-    AAMPLOG_TRACE( "[OTA_SHIM]:%s:%d audio track output : %s ", __FUNCTION__, __LINE__, output.c_str());
+    AAMPLOG_TRACE( "[OTA_SHIM] audio track output : %s ", output.c_str());
     outputArray = result["table"].Array();
     arrayCount = outputArray.Length();
 
@@ -576,7 +576,7 @@ int StreamAbstractionAAMP_OTA::GetAudioTrackInternal()
     JsonObject param;
     JsonObject result;
 
-    AAMPLOG_TRACE("[OTA_SHIM]Entered %s ", __FUNCTION__);
+    AAMPLOG_TRACE("[OTA_SHIM]Entered");
     param["id"] = APP_ID;
     thunderAccessObj.InvokeJSONRPC("getAudioTrack", param, result);
     pk = result["pk"].Number();
@@ -616,7 +616,7 @@ void StreamAbstractionAAMP_OTA::SetAudioTrack(int trackId)
  */
 std::vector<TextTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableTextTracks()
 {
-	AAMPLOG_TRACE("[OTA_SHIM]%s ", __FUNCTION__);
+	AAMPLOG_TRACE("[OTA_SHIM] Entered");
 	if (mTextTracks.empty())
 		GetTextTracks();
 
@@ -631,7 +631,7 @@ std::vector<TextTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableTextTracks()
  */
 void StreamAbstractionAAMP_OTA::GetTextTracks()
 {
-	AAMPLOG_TRACE("[OTA_SHIM]%s ", __FUNCTION__);
+	AAMPLOG_TRACE("[OTA_SHIM] Entered");
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 #else
 	JsonObject param;
@@ -659,7 +659,7 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 	thunderAccessObj.InvokeJSONRPC("getSubtitleTracks", param, result);
 
 	result.ToString(output);
-	AAMPLOG_TRACE( "[OTA_SHIM]:%s:%d text track output : %s ", __FUNCTION__, __LINE__, output.c_str());
+	AAMPLOG_TRACE( "[OTA_SHIM]text track output : %s ", output.c_str());
 	outputArray = result["table"].Array();
 	arrayCount = outputArray.Length();
 
@@ -692,7 +692,7 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 				}
 				else
 				{
-					AAMPLOG_WARN( "[OTA_SHIM]:%s:%d unexpected text track for 708 CC", __FUNCTION__, __LINE__);
+					AAMPLOG_WARN( "[OTA_SHIM] unexpected text track for 708 CC");
 				}
 			}
 			else
@@ -705,13 +705,13 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 				}
 				else
 				{
-					AAMPLOG_WARN( "[OTA_SHIM]:%s:%d unexpected text track for 608 CC", __FUNCTION__, __LINE__);
+					AAMPLOG_WARN( "[OTA_SHIM] unexpected text track for 608 CC");
 				}
 			}
 
 			txtTracks.push_back(TextTrackInfo(index, languageCode, true, empty, textData["name"].String(), serviceNo, empty, (int)textData["pk"].Number()));
 			//values shared: index, language, isCC, rendition-empty, name, instreamId, characteristics-empty, primarykey
-			AAMPLOG_WARN("[OTA_SHIM]::%s Text Track - index:%s lang:%s, isCC:true, rendition:empty, name:%s, instreamID:%s, characteristics:empty, primarykey:%d", __FUNCTION__, index.c_str(), languageCode.c_str(), textData["name"].String().c_str(), serviceNo.c_str(), (int)textData["pk"].Number());
+			AAMPLOG_WARN("[OTA_SHIM] Text Track - index:%s lang:%s, isCC:true, rendition:empty, name:%s, instreamID:%s, characteristics:empty, primarykey:%d", index.c_str(), languageCode.c_str(), textData["name"].String().c_str(), serviceNo.c_str(), (int)textData["pk"].Number());
 		}
 	}
 
@@ -748,17 +748,17 @@ void StreamAbstractionAAMP_OTA::DisableContentRestrictions(long grace, long time
 		param["grace"] = -1;
 		param["time"] = -1;
 		param["eventChange"] = false;
-		AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked till next reboot or explicit enable", __FUNCTION__ );
+		AAMPLOG_WARN( "[OTA_SHIM] unlocked till next reboot or explicit enable");
 	}else{
 		param["grace"] = 0;
 		param["time"] = time;
 		param["eventChange"] = eventChange;
 
 		if(-1 != time)
-			AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked for %ld sec ", __FUNCTION__, time);
+			AAMPLOG_WARN( "[OTA_SHIM] unlocked for %ld sec ", time);
 
 		if(eventChange)
-			AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked till next program ", __FUNCTION__);
+			AAMPLOG_WARN( "[OTA_SHIM] unlocked till next program ");
 	}
 	thunderAccessObj.InvokeJSONRPC("disableContentRestrictionsUntil", param, result);
 
@@ -775,7 +775,7 @@ void StreamAbstractionAAMP_OTA::EnableContentRestrictions()
 {
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 #else
-	AAMPLOG_WARN( "[OTA_SHIM]%s: locked ", __FUNCTION__);
+	AAMPLOG_WARN( "[OTA_SHIM] locked ");
 	JsonObject param;
 	JsonObject result;
 	param["id"] = APP_ID;

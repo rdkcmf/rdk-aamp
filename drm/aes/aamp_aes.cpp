@@ -259,7 +259,7 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 		licenseAcquisitionThreadStarted = true;
 	}
 	pthread_mutex_unlock(&mMutex);
-	AAMPLOG_INFO("AesDec::%s:%d drmState:%d ",__FUNCTION__, __LINE__, mDrmState);
+	AAMPLOG_INFO("AesDec: drmState:%d ", mDrmState);
 	return err;
 }
 
@@ -300,7 +300,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 	}
 	if (mDrmState == eDRM_KEY_ACQUIRED)
 	{
-		AAMPLOG_INFO("AesDec::%s:%d Starting decrypt", __FUNCTION__, __LINE__);
+		AAMPLOG_INFO("AesDec: Starting decrypt");
 		unsigned char *decryptedDataBuf = (unsigned char *)malloc(encryptedDataLen);
 		int decryptedDataLen = 0;
 		if (decryptedDataBuf)
@@ -323,7 +323,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 				{
 					decryptedDataLen = decLen;
 					decLen = 0;
-					AAMPLOG_INFO("AesDec::%s:%d: EVP_DecryptUpdate success decryptedDataLen = %d encryptedDataLen %d", __FUNCTION__, __LINE__, (int) decryptedDataLen, (int)encryptedDataLen);
+					AAMPLOG_INFO("AesDec: EVP_DecryptUpdate success decryptedDataLen = %d encryptedDataLen %d", (int) decryptedDataLen, (int)encryptedDataLen);
 					if (!EVP_DecryptFinal_ex(OPEN_SSL_CONTEXT, decryptedDataBuf + decryptedDataLen, &decLen))
 					{
 						logprintf("AesDec::%s:%d: EVP_DecryptFinal_ex failed mDrmState = %d", __FUNCTION__, __LINE__,
@@ -332,7 +332,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 					else
 					{
 						decryptedDataLen += decLen;
-						AAMPLOG_INFO("AesDec::%s:%d decrypt success", __FUNCTION__, __LINE__);
+						AAMPLOG_INFO("AesDec: decrypt success");
 						err = eDRM_SUCCESS;
 					}
 				}

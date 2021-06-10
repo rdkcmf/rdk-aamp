@@ -164,7 +164,7 @@ void MediaTrack::MonitorBufferHealth()
 				if (!aamp->TrackDownloadsAreEnabled(eMEDIATYPE_VIDEO))
 				{
 					// This is a deadlock, buffering is active and enough-data received from GStreamer
-					AAMPLOG_WARN("%s:%d Possible deadlock with buffering. Enough buffers cached, un-pause pipeline!", __FUNCTION__, __LINE__);
+					AAMPLOG_WARN("Possible deadlock with buffering. Enough buffers cached, un-pause pipeline!");
 					aamp->StopBuffering(true);
 				}
 
@@ -256,8 +256,7 @@ void MediaTrack::UpdateTSAfterFetch()
 		}
 		else
 		{
-			AAMPLOG_INFO("## %s:%d [%s] Caching Ongoing cacheDuration %d minInitialCacheSeconds %d##",
-					__FUNCTION__, __LINE__, name, currentInitialCacheDurationSeconds, minInitialCacheSeconds);
+			AAMPLOG_INFO("[%s] Caching Ongoing cacheDuration %d minInitialCacheSeconds %d", name, currentInitialCacheDurationSeconds, minInitialCacheSeconds);
 		}
 	}
 	fragmentIdxToFetch++;
@@ -593,7 +592,7 @@ bool MediaTrack::InjectFragment()
 				{
 					GetContext()->NotifyBitRateUpdate(cachedFragment->profileIndex, cachedFragment->cacheFragStreamInfo, cachedFragment->position);
 				}
-				AAMPLOG_TRACE("%s:%d [%p] - %s - injected cached uri at pos %f dur %f", __FUNCTION__, __LINE__, this, name, cachedFragment->position, cachedFragment->duration);
+				AAMPLOG_TRACE("[%p] - %s - injected cached uri at pos %f dur %f", this, name, cachedFragment->position, cachedFragment->duration);
 				if (!fragmentDiscarded)
 				{
 					totalInjectedDuration += cachedFragment->duration;
@@ -608,7 +607,7 @@ bool MediaTrack::InjectFragment()
 					if(SegInjectFailCount <= mSegInjectFailCount)
 					{
 						ret	= false;
-						AAMPLOG_ERR("%s:%d [%s] Reached max inject failure count: %d, stopping playback",__FUNCTION__, __LINE__, name, SegInjectFailCount);
+						AAMPLOG_ERR("[%s] Reached max inject failure count: %d, stopping playback", name, SegInjectFailCount);
 						aamp->SendErrorEvent(AAMP_TUNE_FAILED_PTS_ERROR);
 					}
 					
@@ -636,7 +635,7 @@ bool MediaTrack::InjectFragment()
 				}
 				else
 				{
-					AAMPLOG_WARN("%s:%d :  GetContext is null", __FUNCTION__, __LINE__);  //CID:81799 - Null Return
+					AAMPLOG_WARN("GetContext is null");  //CID:81799 - Null Return
 				}
 			}
 			else
@@ -765,7 +764,7 @@ void MediaTrack::RunInjectLoop()
 			}
 			else
 			{
-				AAMPLOG_WARN("%s:%d :  GetContext  is null", __FUNCTION__, __LINE__);  //CID:85546 - Null Return
+				AAMPLOG_WARN("GetContext  is null");  //CID:85546 - Null Return
 			}
 		}
 	}
@@ -1026,7 +1025,7 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d :  video  is null", __FUNCTION__, __LINE__);  //CID:85054 - Null Returns
+		AAMPLOG_WARN("video  is null");  //CID:85054 - Null Returns
 	}
 	pthread_mutex_unlock(&mLock);
 }
@@ -1093,7 +1092,7 @@ StreamAbstractionAAMP::~StreamAbstractionAAMP()
 
 	pthread_cond_destroy(&mStateCond);
 	pthread_mutex_destroy(&mStateLock);
-	AAMPLOG_INFO("Exit StreamAbstractionAAMP::%s", __FUNCTION__);
+	AAMPLOG_INFO("Exit");
 }
 
 /**
@@ -1137,14 +1136,14 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
 			}
 			else
 			{
-				AAMPLOG_WARN("%s:%d :  GetStreamInfo is null", __FUNCTION__, __LINE__);  //CID:81678 - Null Returns
+				AAMPLOG_WARN("GetStreamInfo is null");  //CID:81678 - Null Returns
 			}
 		}
 		else
 		{
-			AAMPLOG_TRACE("%s:%d video track NULL", __FUNCTION__, __LINE__);
+			AAMPLOG_TRACE("video track NULL");
 		}
-		AAMPLOG_TRACE("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
+		AAMPLOG_TRACE("profileIdxForBandwidthNotification updated to %d ", profileIdxForBandwidthNotification);
 	}
 	return desiredProfileIndex;
 }
@@ -1184,7 +1183,7 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamIn
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d : StreamInfo  is null", __FUNCTION__, __LINE__);  //CID:82200 - Null Returns
+			AAMPLOG_WARN("StreamInfo  is null");  //CID:82200 - Null Returns
 		}
 	}
 }
@@ -1241,7 +1240,7 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 			}
 			else
 			{
-				AAMPLOG_WARN("%s:%d :  GetStreamInfo is null", __FUNCTION__, __LINE__);  //CID:84179 - Null Returns
+				AAMPLOG_WARN("GetStreamInfo is null");  //CID:84179 - Null Returns
 			}
 		}
 	}
@@ -1299,7 +1298,7 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 
 	if(bufferValue > 0 && currProfileIndex == newProfileIndex)
 	{
-		AAMPLOG_INFO("%s buffer:%f currProf:%d nwBW:%ld",__FUNCTION__,bufferValue,currProfileIndex,nwBandwidth);
+		AAMPLOG_INFO("buffer:%f currProf:%d nwBW:%ld",bufferValue,currProfileIndex,nwBandwidth);
 		if(bufferValue > mABRMaxBuffer)
 		{
 			mABRHighBufferCounter++;
@@ -1437,7 +1436,7 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 			desiredProfileIndex = mAbrManager.getProfileIndexByBitrateRampUpOrDown(currentProfileIndex,
 					currentBandwidth, networkBandwidth, nwConsistencyCnt);
 
-			AAMPLOG_INFO("%s currBW:%ld NwBW=%ld currProf:%d desiredProf:%d",__FUNCTION__,currentBandwidth,networkBandwidth,currentProfileIndex,desiredProfileIndex);
+			AAMPLOG_INFO("currBW:%ld NwBW=%ld currProf:%d desiredProf:%d",currentBandwidth,networkBandwidth,currentProfileIndex,desiredProfileIndex);
 			if (currentProfileIndex != desiredProfileIndex)
 			{
 				// There is a chance that desiredProfileIndex is reset in below GetDesiredProfileOnBuffer call
@@ -1466,7 +1465,7 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d : video is null", __FUNCTION__, __LINE__);  //CID:84160 - Null Returns
+		AAMPLOG_WARN("video is null");  //CID:84160 - Null Returns
 	}
 	return desiredProfileIndex;
 }
@@ -1546,7 +1545,7 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d :  GetStreamInfo is null", __FUNCTION__, __LINE__);  //CID:84132 - Null Returns
+			AAMPLOG_WARN("GetStreamInfo is null");  //CID:84132 - Null Returns
 		}
 	}
 
@@ -1599,7 +1598,7 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 		{
 			if (RampDownProfile(http_error))
 			{
-				AAMPLOG_INFO("StreamAbstractionAAMP::%s:%d > Condition Rampdown Success", __FUNCTION__, __LINE__);
+				AAMPLOG_INFO("StreamAbstractionAAMP: Condition Rampdown Success");
 				retValue = true;
 			}
 		}
@@ -1676,7 +1675,7 @@ void StreamAbstractionAAMP::CheckForProfileChange(void)
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d :  Video is null", __FUNCTION__, __LINE__);  //CID:82070 - Null Returns
+			AAMPLOG_WARN("Video is null");  //CID:82070 - Null Returns
 		}
 	}
 }
@@ -1832,7 +1831,7 @@ void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed, bool isSt
 			GETCONFIGVALUE(eAAMPConfig_StallTimeoutMS,stalltimeout);
 			if (!mNetworkDownDetected && (timeElapsedSinceLastFragment > stalltimeout) && mediatrack->numberOfFragmentsCached == 0)
 			{
-				AAMPLOG_INFO("StreamAbstractionAAMP::%s() Didn't download a new fragment for a long time(%f) and cache empty!", __FUNCTION__, timeElapsedSinceLastFragment);
+				AAMPLOG_INFO("StreamAbstractionAAMP: Didn't download a new fragment for a long time(%f) and cache empty!", timeElapsedSinceLastFragment);
 				mIsPlaybackStalled = true;
 				if (CheckIfPlayerRunningDry())
 				{
@@ -1843,7 +1842,7 @@ void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed, bool isSt
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d :  GetMediaTrack  is null", __FUNCTION__, __LINE__);  //CID:85383 - Null Returns
+			AAMPLOG_WARN("GetMediaTrack  is null");  //CID:85383 - Null Returns
 		}
 	}
 }
@@ -1978,7 +1977,7 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d :  subtitle    is null", __FUNCTION__, __LINE__);  //CID:85996 - Null Returns
+		AAMPLOG_WARN("subtitle is null");  //CID:85996 - Null Returns
 	}
 	pthread_mutex_unlock(&mLock);
 }
@@ -2030,7 +2029,7 @@ bool StreamAbstractionAAMP::IsEOSReached()
 			eos = eos && track->IsAtEndOfTrack();
 			if (!eos)
 			{
-				AAMPLOG_WARN("%s:%d EOS not seen by track: %s, skip check for rest of the tracks", __FUNCTION__, __LINE__, track->name);
+				AAMPLOG_WARN("EOS not seen by track: %s, skip check for rest of the tracks", track->name);
 				break;
 			}
 		}
@@ -2051,7 +2050,7 @@ bool StreamAbstractionAAMP::CheckForRampDownLimitReached()
 	{
 		ret = true;
 		mRampDownCount = 0;
-		AAMPLOG_WARN("%s:%d Rampdown limit reached, Limit is %d", __FUNCTION__, __LINE__, mRampDownLimit);
+		AAMPLOG_WARN("Rampdown limit reached, Limit is %d", mRampDownLimit);
 	}
 	return ret;
 }
@@ -2070,7 +2069,7 @@ double StreamAbstractionAAMP::GetLastInjectedFragmentPosition()
 	{
 		pos = video->GetTotalInjectedDuration();
 	}
-	AAMPLOG_INFO("%s:%d Last Injected fragment Position : %f", __FUNCTION__, __LINE__, pos);
+	AAMPLOG_INFO("Last Injected fragment Position : %f", pos);
 	return pos;
 }
 
@@ -2095,7 +2094,7 @@ bool MediaTrack::CheckForFutureDiscontinuity(double &cachedDuration)
 			ret = ret || cachedFragment[start].discontinuity;
 			if (ret)
 			{
-				AAMPLOG_WARN("%s:%d Found discontinuity for track %s at index: %d and position - %f", __FUNCTION__, __LINE__, name, start, cachedFragment[start].position);
+				AAMPLOG_WARN("Found discontinuity for track %s at index: %d and position - %f", name, start, cachedFragment[start].position);
 			}
 		}
 		cachedDuration += cachedFragment[start].duration;
@@ -2105,7 +2104,7 @@ bool MediaTrack::CheckForFutureDiscontinuity(double &cachedDuration)
 		}
 		count--;
 	}
-	AAMPLOG_WARN("%s:%d track %s numberOfFragmentsCached - %d, cachedDuration - %f", __FUNCTION__, __LINE__, name, numberOfFragmentsCached, cachedDuration);
+	AAMPLOG_WARN("track %s numberOfFragmentsCached - %d, cachedDuration - %f", name, numberOfFragmentsCached, cachedDuration);
 	pthread_mutex_unlock(&mutex);
 
 	return ret;
@@ -2170,7 +2169,7 @@ bool StreamAbstractionAAMP::ProcessDiscontinuity(TrackType type)
 			 */
 			if (ret == false)
 			{
-				AAMPLOG_WARN("%s:%d muxed track audio discontinuity/EOS processing ignored!", __FUNCTION__, __LINE__);
+				AAMPLOG_WARN("muxed track audio discontinuity/EOS processing ignored!");
 				isMuxedAndAudioDiscoIgnored = true;
 			}
 		}
@@ -2191,12 +2190,12 @@ bool StreamAbstractionAAMP::ProcessDiscontinuity(TrackType type)
 		bool wait = false;
 		mTrackState = (MediaTrackDiscontinuityState) (mTrackState | state);
 
-		AAMPLOG_WARN("%s:%d mTrackState:%d!", __FUNCTION__, __LINE__, mTrackState);
+		AAMPLOG_WARN("mTrackState:%d!", mTrackState);
 
 		if (mTrackState == state)
 		{
 			wait = true;
-			AAMPLOG_WARN("%s:%d track[%d] Going into wait for processing discontinuity in other track!", __FUNCTION__, __LINE__, type);
+			AAMPLOG_WARN("track[%d] Going into wait for processing discontinuity in other track!", type);
 			pthread_cond_wait(&mStateCond, &mStateLock);
 
 			MediaTrack *track = GetMediaTrack(type);
@@ -2236,12 +2235,12 @@ bool StreamAbstractionAAMP::ProcessDiscontinuity(TrackType type)
 			if (ret == false)
 			{
 				mTrackState = (MediaTrackDiscontinuityState) (mTrackState & ~state);
-				AAMPLOG_WARN("%s:%d track:%d discontinuity processing ignored! reset mTrackState to: %d!", __FUNCTION__, __LINE__, type, mTrackState);
+				AAMPLOG_WARN("track:%d discontinuity processing ignored! reset mTrackState to: %d!", type, mTrackState);
 			}
 			else if (isMuxedAndAudioDiscoIgnored && type == eTRACK_VIDEO)
 			{
 				// In muxed stream, set the audio track's mProcessingDiscontinuity flag to true to unblock the ProcessPendingDiscontinuity if video track discontinuity-EOS processing succeeded
-				AAMPLOG_WARN("%s:%d set muxed track audio discontinuity flag to true since video discontinuity processing succeeded.", __FUNCTION__, __LINE__);
+				AAMPLOG_WARN("set muxed track audio discontinuity flag to true since video discontinuity processing succeeded.");
 				aamp->Discontinuity((MediaType) eTRACK_AUDIO, true);
 			}
 
@@ -2303,8 +2302,8 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 				double duration = track->GetTotalInjectedDuration();
 				double otherTrackDuration = otherTrack->GetTotalInjectedDuration();
 				double diff = otherTrackDuration - duration;
-				AAMPLOG_WARN("%s:%d Discontinuity encountered in track:%d with injectedDuration:%f and other track injectedDuration:%f, fragmentDurationSeconds:%f, diff:%f",
-								__FUNCTION__, __LINE__, type, duration, otherTrackDuration, track->fragmentDurationSeconds, diff);
+				AAMPLOG_WARN("Discontinuity encountered in track:%d with injectedDuration:%f and other track injectedDuration:%f, fragmentDurationSeconds:%f, diff:%f",
+								type, duration, otherTrackDuration, track->fragmentDurationSeconds, diff);
 				if (otherTrackDuration >= duration)
 				{
 					//Check for future discontinuity
@@ -2314,8 +2313,8 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 						//Scenario - video wait on discontinuity, and audio has a future discontinuity
 						if (type == eTRACK_VIDEO)
 						{
-							AAMPLOG_WARN("%s:%d For discontinuity in track:%d, other track has injectedDuration:%f and future discontinuity, signal mCond var!",
-									__FUNCTION__, __LINE__, type, otherTrackDuration);
+							AAMPLOG_WARN("For discontinuity in track:%d, other track has injectedDuration:%f and future discontinuity, signal mCond var!",
+									type, otherTrackDuration);
 							pthread_mutex_lock(&mLock);
 							pthread_cond_signal(&mCond);
 							pthread_mutex_unlock(&mLock);
@@ -2325,8 +2324,8 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 					// unblock this track
 					else if (((diff + cachedDuration) > (2 * track->fragmentDurationSeconds)))
 					{
-						AAMPLOG_WARN("%s:%d Discontinuity in track:%d does not have a discontinuity in other track (diff: %f, injectedDuration: %f, cachedDuration: %f)",
-								__FUNCTION__, __LINE__, type, diff, otherTrackDuration, cachedDuration);
+						AAMPLOG_WARN("Discontinuity in track:%d does not have a discontinuity in other track (diff: %f, injectedDuration: %f, cachedDuration: %f)",
+								type, diff, otherTrackDuration, cachedDuration);
 						bProcessFlag = true;
 					}
 				}
@@ -2338,8 +2337,8 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 				// so need to control the stalling as soon as possible for the negative diff case from here.
 				else if ((diff < 0) && (abs(diff) > (2 * track->fragmentDurationSeconds)))
 				{
-					AAMPLOG_WARN("%s:%d Discontinuity in track:%d does not have a discontinuity in other track (diff is negative: %f, injectedDuration: %f)",
-							__FUNCTION__, __LINE__, type, diff, otherTrackDuration);
+					AAMPLOG_WARN("Discontinuity in track:%d does not have a discontinuity in other track (diff is negative: %f, injectedDuration: %f)",
+							type, diff, otherTrackDuration);
 					isDiscontinuityPresent = otherTrack->CheckForFutureDiscontinuity(cachedDuration); // called just to get the value of cachedDuration of the track.
 					bProcessFlag = true;
 				}
@@ -2350,8 +2349,8 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 					{
 						if(aamp->GetBufUnderFlowStatus())
 						{
-							AAMPLOG_WARN("%s:%d Schedule retune since for discontinuity in track:%d other track doesn't have a discontinuity (diff: %f, injectedDuration: %f, cachedDuration: %f)",
-									__FUNCTION__, __LINE__, type, diff, otherTrackDuration, cachedDuration);
+							AAMPLOG_WARN("Schedule retune since for discontinuity in track:%d other track doesn't have a discontinuity (diff: %f, injectedDuration: %f, cachedDuration: %f)",
+									type, diff, otherTrackDuration, cachedDuration);
 							aamp->ScheduleRetune(eSTALL_AFTER_DISCONTINUITY, (MediaType) type);
 						}
 						else
@@ -2362,8 +2361,8 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 					}
 					else
 					{
-						AAMPLOG_WARN("%s:%d Ignoring discontinuity in track:%d since other track doesn't have a discontinuity (diff: %f, injectedDuration: %f, cachedDuration: %f)",
-								__FUNCTION__, __LINE__, type, diff, otherTrackDuration, cachedDuration);
+						AAMPLOG_WARN("Ignoring discontinuity in track:%d since other track doesn't have a discontinuity (diff: %f, injectedDuration: %f, cachedDuration: %f)",
+								type, diff, otherTrackDuration, cachedDuration);
 						mTrackState = (MediaTrackDiscontinuityState) (mTrackState & ~state);
 						pthread_cond_signal(&mStateCond);
 					}
@@ -2491,7 +2490,7 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchupForAux()
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d :  video  is null", __FUNCTION__, __LINE__);  //CID:85054 - Null Returns
+		AAMPLOG_WARN("video  is null");  //CID:85054 - Null Returns
 	}
 	pthread_mutex_unlock(&mLock);
 }

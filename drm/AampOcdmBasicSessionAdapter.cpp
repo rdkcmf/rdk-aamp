@@ -37,7 +37,7 @@ int AAMPOCDMBasicSessionAdapter::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 		{
 			m_drmHelper->getMemorySystem()->terminateEarly();
 		}
-		AAMPLOG_INFO("%s : decrypt returned : %d", __FUNCTION__, retvalue);
+		AAMPLOG_INFO("decrypt returned : %d", retvalue);
 	}
 	else if (m_drmHelper->getMemorySystem() != nullptr)
 	{

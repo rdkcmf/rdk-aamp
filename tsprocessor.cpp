@@ -306,7 +306,7 @@ public:
 			INFO("demux : sending remaining bytes. es.len %d", (int)es.len);
 			send();
 		}
-		AAMPLOG_INFO("Demuxer::%s:%d: count %d in duration %f", __FUNCTION__, __LINE__, sentESCount, duration);
+		AAMPLOG_INFO("Demuxer: count %d in duration %f", sentESCount, duration);
 		reset();
 	}
 
@@ -2312,7 +2312,7 @@ void TSProcessor::sendQueuedSegment(long long basepts, double updatedStartPosito
 			}
 			if(!demuxAndSend(m_queuedSegment, m_queuedSegmentLen, m_queuedSegmentPos, m_queuedSegmentDuration, m_queuedSegmentDiscontinuous ))
 			{
-				AAMPLOG_WARN("%s:%d: demuxAndSend", __FUNCTION__, __LINE__);  //CID:90622- checked return
+				AAMPLOG_WARN("demuxAndSend");  //CID:90622- checked return
 			}
 		}
 		else

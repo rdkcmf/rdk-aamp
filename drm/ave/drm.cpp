@@ -537,11 +537,11 @@ DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 	}
 	else if (eDRM_KEY_FLUSH == mDrmState)
 	{          
-		AAMPLOG_WARN("AveDrm::%s:%d[%p]  Decryption cancelled", __FUNCTION__, __LINE__, this);
+		AAMPLOG_WARN("AveDrm: [%p]  Decryption cancelled", this);
 	}
 	else
 	{
-		AAMPLOG_ERR( "AveDrm::%s:%d[%p]  aamp:key acquisition failure! mDrmState = %d", __FUNCTION__, __LINE__, this, (int)mDrmState);
+		AAMPLOG_ERR( "AveDrm: [%p]  aamp:key acquisition failure! mDrmState = %d", this, (int)mDrmState);
 	}
 	pthread_mutex_unlock(&mutex);
 	return err;
@@ -1131,7 +1131,7 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType)
                 }
                 else
                 {
-                        AAMPLOG_WARN("%s:%d:[%d] sHlsDrmContext[%d].mDrmContexSet is false", __FUNCTION__, __LINE__,trackType, i);
+                        AAMPLOG_WARN("[%d] sHlsDrmContext[%d].mDrmContexSet is false",trackType, i);
                 }
         }
 	}
@@ -1142,25 +1142,25 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType)
 		{
 			aveDrm = sAveDrmManager[0]->mDrm;
 			sAveDrmManager[0]->mHasBeenUsed = true;
-			AAMPLOG_INFO("%s:%d:[%d] Returned only available Drm Instance ", __FUNCTION__, __LINE__,trackType);
+			AAMPLOG_INFO("[%d] Returned only available Drm Instance ",trackType);
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d:[%d] sHlsDrmContextmDrmContexSet is false", __FUNCTION__, __LINE__,trackType);
+			AAMPLOG_WARN("[%d] sHlsDrmContextmDrmContexSet is false",trackType);
 		}
 	}
 	// case b.2
 	else if(sAveDrmManager.size() > 1)
 	{
-		AAMPLOG_INFO("%s:%d:[%d] Multi Meta[%d]available  without hash.Matching trackTypee ", __FUNCTION__, __LINE__,trackType,sAveDrmManager.size());
+		AAMPLOG_INFO("[%d] Multi Meta[%d]available  without hash.Matching trackTypee ",trackType,sAveDrmManager.size());
 		for (int i = 0; i < sAveDrmManager.size(); i++)
 		{
-			AAMPLOG_INFO("%s:%d:[%d] Idx[%d] ContextSet[%d] mTractType[%d]",__FUNCTION__, __LINE__,trackType,i,sAveDrmManager[i]->mDrmContexSet,sAveDrmManager[i]->mTrackType);
+			AAMPLOG_INFO("[%d] Idx[%d] ContextSet[%d] mTractType[%d]",trackType,i,sAveDrmManager[i]->mDrmContexSet,sAveDrmManager[i]->mTrackType);
 			if (sAveDrmManager[i]->mDrmContexSet && (sAveDrmManager[i]->mTrackType & (1<<trackType)))
 			{
 				aveDrm = sAveDrmManager[i]->mDrm;
 				sAveDrmManager[i]->mHasBeenUsed = true;
-				AAMPLOG_INFO("%s:%d:[%d] Found Matching Multi Meta drm asset State[%d]",__FUNCTION__, __LINE__,trackType,aveDrm->GetState());
+				AAMPLOG_INFO("[%d] Found Matching Multi Meta drm asset State[%d]",trackType,aveDrm->GetState());
 				break;
 			}
 		}

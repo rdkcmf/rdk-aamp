@@ -42,6 +42,17 @@
  * if gpGlobalConfig is not initialized, skip logging
  * if gpGlobalConfig is initialized, check the LogLevel
  */
+#define AAMPLOG_CFG(LEVEL, FORMAT, FUNCTION, LINE, ...) \
+                do { if (gpGlobalConfig && gpGlobalConfig->logging.isLogLevelAllowed(LEVEL)) { \
+                                logprintf_cfg(FUNCTION, LINE, FORMAT, ##__VA_ARGS__); \
+                } } while (0)
+
+/**
+ * @brief Macro for validating the log level to be enabled
+ *
+ * if gpGlobalConfig is not initialized, skip logging
+ * if gpGlobalConfig is initialized, check the LogLevel
+ */
 #define AAMPLOG(LEVEL,FORMAT, ...) \
 		do { if (gpGlobalConfig && gpGlobalConfig->logging.isLogLevelAllowed(LEVEL)) { \
 				logprintf(FORMAT, ##__VA_ARGS__); \
@@ -59,14 +70,14 @@
 /**
  * @brief AAMP logging defines, this can be enabled through setLogLevel() as per the need
  */
-#define AAMPLOG_TRACE(FORMAT, ...) AAMPLOG(eLOGLEVEL_TRACE, FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_INFO(FORMAT, ...) AAMPLOG(eLOGLEVEL_INFO,  FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_WARN(FORMAT, ...) AAMPLOG(eLOGLEVEL_WARN, FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_ERR(FORMAT, ...) AAMPLOG(eLOGLEVEL_ERROR,  FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_TRACE(FORMAT, ...) AAMPLOG_CFG(eLOGLEVEL_TRACE, FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define AAMPLOG_INFO(FORMAT, ...) AAMPLOG_CFG(eLOGLEVEL_INFO,  FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define AAMPLOG_WARN(FORMAT, ...) AAMPLOG_CFG(eLOGLEVEL_WARN, FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define AAMPLOG_ERR(FORMAT, ...) AAMPLOG_CFG(eLOGLEVEL_ERROR,  FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 
 #define AAMPLOG_FAILOVER(FORMAT, ...) \
 		if (gpGlobalConfig->logging.failover) { \
-				logprintf(FORMAT, ##__VA_ARGS__); \
+				logprintf_cfg(__FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__); \
 		}
 
 /**
@@ -260,6 +271,15 @@ private:
  * @retuen void
  */
 extern void logprintf(const char *format, ...);
+
+/* Context-free utility function */
+
+/**
+ * @brief Print logs to console / log file
+ * @param[in] format - printf style string
+ * @retuen void
+ */
+extern void logprintf_cfg(const char *function, int line, const char *format, ...);
 
 /**
  * @brief Compactly log blobs of binary data

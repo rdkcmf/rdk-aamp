@@ -329,7 +329,7 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d :  privateContext  is null", __FUNCTION__, __LINE__);  //CID:85372 - Null Returns
+		AAMPLOG_WARN("privateContext  is null");  //CID:85372 - Null Returns
 	}
 }
 
@@ -646,11 +646,11 @@ static gboolean IdleCallback(gpointer user_data)
 			 int  reportProgressInterval;
 			 _this->aamp->mConfig->GetConfigValue(eAAMPConfig_ReportProgressInterval,reportProgressInterval);
 			_this->privateContext->periodicProgressCallbackIdleTaskId = g_timeout_add(reportProgressInterval, ProgressCallbackOnTimeout, user_data);
-			AAMPLOG_WARN("%s:%d current %d, periodicProgressCallbackIdleTaskId %d", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
+			AAMPLOG_WARN("current %d, periodicProgressCallbackIdleTaskId %d", g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
 		}
 		else
 		{
-			AAMPLOG_INFO("%s:%d Progress callback already available: periodicProgressCallbackIdleTaskId %d", __FUNCTION__, __LINE__, _this->privateContext->periodicProgressCallbackIdleTaskId);
+			AAMPLOG_INFO("Progress callback already available: periodicProgressCallbackIdleTaskId %d", _this->privateContext->periodicProgressCallbackIdleTaskId);
 		}
 	}
 	return G_SOURCE_REMOVE;
@@ -973,7 +973,7 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 #if defined(AMLOGIC)
 		if(!_this->aamp->CheckIfMediaTrackBufferLow(type))
 		{
-			AAMPLOG_WARN("%s():%d Ignoring underflow from %s as Buffer health is not low", __FUNCTION__, __LINE__, GST_ELEMENT_NAME(object));
+			AAMPLOG_WARN("Ignoring underflow from %s as Buffer health is not low", GST_ELEMENT_NAME(object));
 			return;
 		}
 #endif
@@ -1138,7 +1138,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 		else if (strstr(error->message, "Internal data stream error") && _this->aamp->mConfig->IsConfigSet(eAAMPConfig_RetuneForGSTError))
 		{
 			// This can be executed only for Peacock when it hits Internal data stream error.
-			AAMPLOG_WARN("%s:%d Schedule retune for GstPipeline Error", __FUNCTION__, __LINE__);
+			AAMPLOG_WARN("Schedule retune for GstPipeline Error");
 			_this->aamp->ScheduleRetune(eGST_ERROR_GST_PIPELINE_INTERNAL, eMEDIATYPE_VIDEO);
 		}
 		else
@@ -1549,7 +1549,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 		break;
 #endif
 	case GST_MESSAGE_ASYNC_DONE:
-		AAMPLOG_INFO("%s: Received GST_MESSAGE_ASYNC_DONE message", __FUNCTION__);
+		AAMPLOG_INFO("Received GST_MESSAGE_ASYNC_DONE message");
 		if (_this->privateContext->buffering_in_progress)
 		{
 			_this->privateContext->bufferingTimeoutTimerId = g_timeout_add_full(BUFFERING_TIMEOUT_PRIORITY, DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this, NULL);
@@ -1697,13 +1697,13 @@ void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *i
 	pthread_mutex_lock(&mProtectionLock);
 	if (privateContext->protectionEvent[type] != NULL)
 	{
-		AAMPLOG_WARN("%s:%d Previously cached protection event is present for type(%d), clearing!", __FUNCTION__, __LINE__, type);
+		AAMPLOG_WARN("Previously cached protection event is present for type(%d), clearing!", type);
 		gst_event_unref(privateContext->protectionEvent[type]);
 		privateContext->protectionEvent[type] = NULL;
 	}
 	pthread_mutex_unlock(&mProtectionLock); 
 
-	AAMPLOG_WARN("%s:%d Queueing protection event for type(%d) keysystem(%s) initData(%p) initDataSize(%d)", __FUNCTION__, __LINE__, type, protSystemId, initData, initDataSize);
+	AAMPLOG_WARN("Queueing protection event for type(%d) keysystem(%s) initData(%p) initDataSize(%d)", type, protSystemId, initData, initDataSize);
 
 	/* Giving invalid initData into ProtectionEvent causing "GStreamer-CRITICAL" assertion error. So if the initData is valid then its good to call the ProtectionEvent further. */
 	if (initData && initDataSize)
@@ -2019,7 +2019,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		gst_element_link(stream->source, stream->sinkbin);
 		if(!gst_element_link(stream->source, stream->sinkbin))
 		{
-			AAMPLOG_WARN("%s:%d: gst_element_link  is error", __FUNCTION__, __LINE__);  //CID:90331- checked return
+			AAMPLOG_WARN("gst_element_link  is error");  //CID:90331- checked return
 		}
 		gst_element_sync_state_with_parent(stream->sinkbin);
 
@@ -2196,7 +2196,7 @@ uint32_t getId3TagSize(const uint8_t *data, size_t &len0)
 	// Check for any 1s in bit 7
 	if (tagSize[0] > 0x7f || tagSize[1] > 0x7f || tagSize[2] > 0x7f || tagSize[3] > 0x7f)
 	{
-		AAMPLOG_WARN("%s:%d Bad header format", __FUNCTION__, __LINE__);
+		AAMPLOG_WARN("Bad header format");
 		return 0;
 	}
 
@@ -2235,7 +2235,7 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 					!privateContext->lastId3Data ||
 					(memcmp(ptr, privateContext->lastId3Data, privateContext->lastId3DataLen) != 0)))
 		{
-			AAMPLOG_INFO("AAMPGstPlayer %s: Found new ID3 frame",__FUNCTION__);
+			AAMPLOG_INFO("AAMPGstPlayer: Found new ID3 frame");
 			FlushLastId3Data();
 			Id3CallbackData* id3Metadata = new Id3CallbackData(this, static_cast<const uint8_t*>(ptr), len);
 			privateContext->lastId3Data = (uint8_t*)g_malloc(len);
@@ -2374,7 +2374,7 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d :  buffer is null", __FUNCTION__, __LINE__);  //CID:86190 - Null Returns
+			AAMPLOG_WARN("buffer is null");  //CID:86190 - Null Returns
 		}
 	}
 	if (eMEDIATYPE_VIDEO == mediaType)
@@ -2525,7 +2525,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	newFormat[eMEDIATYPE_SUBTITLE] = FORMAT_INVALID;
 	if (forwardAudioToAux)
 	{
-		AAMPLOG_WARN("AAMPGstPlayer::%s %d > Override auxFormat %d -> %d", __FUNCTION__, __LINE__, auxFormat, audioFormat);
+		AAMPLOG_WARN("AAMPGstPlayer: Override auxFormat %d -> %d", auxFormat, audioFormat);
 		privateContext->forwardAudioBuffers = true;
 		newFormat[eMEDIATYPE_AUX_AUDIO] = audioFormat;
 	}
@@ -3042,23 +3042,23 @@ long AAMPGstPlayer::GetDurationMilliseconds(void)
 				}
 				else
 				{
-					AAMPLOG_WARN("%s(): Duration query failed", __FUNCTION__);
+					AAMPLOG_WARN("Duration query failed");
 				}
 				gst_query_unref(privateContext->durationQuery);
 			}
 			else
 			{
-				AAMPLOG_WARN("%s(): Duration query is NULL", __FUNCTION__);
+				AAMPLOG_WARN("Duration query is NULL");
 			}
 		}
 		else
 		{
-			AAMPLOG_WARN("%s(): Pipeline is in %s state", __FUNCTION__, gst_element_state_get_name(privateContext->pipelineState) );
+			AAMPLOG_WARN("Pipeline is in %s state", gst_element_state_get_name(privateContext->pipelineState) );
 		}
 	}
 	else
 	{
-		AAMPLOG_WARN("%s(): Pipeline is null", __FUNCTION__ );
+		AAMPLOG_WARN("Pipeline is null");
 	}
 	return rc;
 }
@@ -3072,20 +3072,20 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 	long rc = 0;
 	if (privateContext->pipeline == NULL)
 	{
-		AAMPLOG_ERR("%s(): Pipeline is NULL", __FUNCTION__);
+		AAMPLOG_ERR("Pipeline is NULL");
 		return rc;
 	}
 
 	if (privateContext->positionQuery == NULL)
 	{
-		AAMPLOG_ERR("%s(): Position query is NULL", __FUNCTION__);
+		AAMPLOG_ERR("Position query is NULL");
 		return rc;
 	}
 
 	// Perform gstreamer query and related operation only when pipeline is playing or if deliberately put in paused
 	if (privateContext->pipelineState != GST_STATE_PLAYING && !(privateContext->pipelineState == GST_STATE_PAUSED && privateContext->paused))
 	{
-		AAMPLOG_INFO("%s(): Pipeline is in %s state, returning position as %ld", __FUNCTION__, gst_element_state_get_name(privateContext->pipelineState), rc);
+		AAMPLOG_INFO("Pipeline is in %s state, returning position as %ld", gst_element_state_get_name(privateContext->pipelineState), rc);
 		return rc;
 	}
 
@@ -3102,11 +3102,11 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 			gint64 start;
 			gst_query_parse_segment(segmentQuery, NULL, NULL, &start, NULL);
 			privateContext->segmentStart = GST_TIME_AS_MSECONDS(start);
-			AAMPLOG_WARN("AAMPGstPlayer::%s()%d Segment start: %" G_GINT64_FORMAT, __FUNCTION__, __LINE__, privateContext->segmentStart);
+			AAMPLOG_WARN("AAMPGstPlayer: Segment start: %" G_GINT64_FORMAT, privateContext->segmentStart);
 		}
 		else
 		{
-			AAMPLOG_ERR("AAMPGstPlayer::%s()%d segment query failed", __FUNCTION__, __LINE__);
+			AAMPLOG_ERR("AAMPGstPlayer: segment query failed");
 		}
 		gst_query_unref(segmentQuery);
 	}
@@ -3125,7 +3125,7 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 		{
 			rc = GST_TIME_AS_MSECONDS(pos) * privateContext->rate;
 		}
-		//AAMPLOG_WARN("AAMPGstPlayer::%s()%d pos - %" G_GINT64_FORMAT " rc - %ld", __FUNCTION__, __LINE__, GST_TIME_AS_MSECONDS(pos), rc);
+		//AAMPLOG_WARN("AAMPGstPlayer: pos - %" G_GINT64_FORMAT " rc - %ld", GST_TIME_AS_MSECONDS(pos), rc);
 
 		//positionQuery is not unref-ed here, because it could be reused for future position queries
 	}
@@ -3281,7 +3281,7 @@ void AAMPGstPlayer::SetVideoZoom(VideoZoomMode zoom)
 void AAMPGstPlayer::SetVideoMute(bool muted)
 {
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_VIDEO];
-	AAMPLOG_INFO("%s: muted %d, using_playersinkbin = %d, video_sink =%p", __FUNCTION__, muted, stream->using_playersinkbin, privateContext->video_sink);
+	AAMPLOG_INFO("muted %d, using_playersinkbin = %d, video_sink =%p", muted, stream->using_playersinkbin, privateContext->video_sink);
 
 	privateContext->videoMuted = muted;
 	if (stream->using_playersinkbin && stream->sinkbin)
@@ -3322,7 +3322,7 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 	char *propertyName = NULL;
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_AUDIO];
 
-	AAMPLOG_INFO("AAMPGstPlayer::%s() %d > volume = %f, using_playersinkbin = %d, audio_sink = %p", __FUNCTION__, __LINE__, privateContext->audioVolume, stream->using_playersinkbin, privateContext->audio_sink);
+	AAMPLOG_INFO("AAMPGstPlayer: volume = %f, using_playersinkbin = %d, audio_sink = %p", privateContext->audioVolume, stream->using_playersinkbin, privateContext->audio_sink);
 
 	if (stream->using_playersinkbin && stream->sinkbin)
 	{
@@ -3527,7 +3527,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			privateContext->stream[i].eosReached = false;
 		}
 
-		AAMPLOG_INFO("AAMPGstPlayer::%s:%d Pipeline flush seek - start = %f", __FUNCTION__, __LINE__, position);
+		AAMPLOG_INFO("AAMPGstPlayer: Pipeline flush seek - start = %f", position);
 
 		if (!gst_element_seek(privateContext->pipeline, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
 				position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
@@ -3609,15 +3609,15 @@ bool AAMPGstPlayer::CheckForPTSChangeWithTimeout(long timeout)
 			long diff = NOW_STEADY_TS_MS - privateContext->ptsUpdatedTimeMS;
 			if (diff > timeout)
 			{
-				AAMPLOG_WARN("AAMPGstPlayer::%s():%d Video PTS hasn't been updated for %ld ms and timeout - %ld ms", __FUNCTION__, __LINE__, diff, timeout);
+				AAMPLOG_WARN("AAMPGstPlayer: Video PTS hasn't been updated for %ld ms and timeout - %ld ms", diff, timeout);
 				ret = false;
 			}
 		}
 	}
 	else
 	{
-		AAMPLOG_WARN("AAMPGstPlayer::%s():%d video-pts parsed is: %" G_GINT64_FORMAT,
-			__FUNCTION__, __LINE__, currentPTS);
+		AAMPLOG_WARN("AAMPGstPlayer: video-pts parsed is: %" G_GINT64_FORMAT,
+			currentPTS);
 	}
 #endif
 	return ret;
@@ -3696,8 +3696,8 @@ bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 					if(!ptsChanged)
 					{
 						//PTS hasn't changed for the timeout value
-						AAMPLOG_WARN("AAMPGstPlayer::%s():%d Appsrc cache is empty and PTS hasn't been updated for more than %lldms and ret(%d)",
-									__FUNCTION__, __LINE__, AAMP_MIN_PTS_UPDATE_INTERVAL, ret);
+						AAMPLOG_WARN("AAMPGstPlayer: Appsrc cache is empty and PTS hasn't been updated for more than %lldms and ret(%d)",
+									AAMP_MIN_PTS_UPDATE_INTERVAL, ret);
 					}
 					else
 					{
@@ -3774,7 +3774,7 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 
 	if (pluginFeature == NULL)
 	{
-		AAMPLOG_ERR("AAMPGstPlayer::%s():%d %s plugin feature not available; reloading aamp plugin", __FUNCTION__, __LINE__, GstPluginNamePR);
+		AAMPLOG_ERR("AAMPGstPlayer: %s plugin feature not available; reloading aamp plugin", GstPluginNamePR);
 		GstPlugin * plugin = gst_plugin_load_by_name ("aamp");
 		if(plugin)
 		{
@@ -3782,7 +3782,7 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 		}
 		pluginFeature = gst_registry_lookup_feature(registry, GstPluginNamePR);
 		if(pluginFeature == NULL)
-			AAMPLOG_ERR("AAMPGstPlayer::%s():%d %s plugin feature not available", __FUNCTION__, __LINE__, GstPluginNamePR);
+			AAMPLOG_ERR("AAMPGstPlayer: %s plugin feature not available", GstPluginNamePR);
 	}
 	if(pluginFeature)
 	{
@@ -3790,7 +3790,7 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 		gst_registry_add_feature (registry, pluginFeature);
 
 
-		AAMPLOG_WARN("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY + 111", __FUNCTION__, __LINE__, GstPluginNamePR);
+		AAMPLOG_WARN("AAMPGstPlayer: %s plugin priority set to GST_RANK_PRIMARY + 111", GstPluginNamePR);
 		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
 		gst_object_unref(pluginFeature);
 	}
@@ -3799,11 +3799,11 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 
 	if (pluginFeature == NULL)
 	{
-		AAMPLOG_ERR("AAMPGstPlayer::%s():%d %s plugin feature not available", __FUNCTION__, __LINE__, GstPluginNameWV);
+		AAMPLOG_ERR("AAMPGstPlayer: %s plugin feature not available", GstPluginNameWV);
 	}
 	else
 	{
-		AAMPLOG_WARN("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY + 111", __FUNCTION__, __LINE__, GstPluginNameWV);
+		AAMPLOG_WARN("AAMPGstPlayer: %s plugin priority set to GST_RANK_PRIMARY + 111", GstPluginNameWV);
 		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
 		gst_object_unref(pluginFeature);
 	}
@@ -3812,11 +3812,11 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 
 	if (pluginFeature == NULL)
 	{
-		AAMPLOG_ERR("AAMPGstPlayer::%s():%d %s plugin feature not available", __FUNCTION__, __LINE__, GstPluginNameCK);
+		AAMPLOG_ERR("AAMPGstPlayer: %s plugin feature not available", GstPluginNameCK);
 	}
 	else
 	{
-		AAMPLOG_WARN("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY + 111", __FUNCTION__, __LINE__, GstPluginNameCK);
+		AAMPLOG_WARN("AAMPGstPlayer: %s plugin priority set to GST_RANK_PRIMARY + 111", GstPluginNameCK);
 		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
 		gst_object_unref(pluginFeature);
 	}
@@ -3826,7 +3826,7 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins()
 		if(pluginFeature) {
 			gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY - 1);
 			gst_object_unref(pluginFeature);
-			AAMPLOG_WARN("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY  - 1\n", __FUNCTION__, __LINE__, plugins_to_lower_rank[i]);
+			AAMPLOG_WARN("AAMPGstPlayer: %s plugin priority set to GST_RANK_PRIMARY  - 1\n", plugins_to_lower_rank[i]);
 		}
 	}
 #endif
@@ -3979,7 +3979,7 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 		if (stopBuffering)
 		{
 #if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
-			AAMPLOG_WARN("%s:%d Enough data available to stop buffering, bytes %u, frames %u !", __FUNCTION__, __LINE__, bytes, frames);
+			AAMPLOG_WARN("Enough data available to stop buffering, bytes %u, frames %u !", bytes, frames);
 #endif
 			GstState current, pending;
 			bool sendEndEvent = false;
@@ -4002,7 +4002,7 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 
 			if( !sendEndEvent )
 			{
-				AAMPLOG_ERR("%s(): Failed to un-pause pipeline for stop buffering!", __FUNCTION__);
+				AAMPLOG_ERR("Failed to un-pause pipeline for stop buffering!");
 			}
 			else
 			{
@@ -4015,7 +4015,7 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 			if (0 == (bufferLogCount++ % 10) )
 			{
 #if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
-				AAMPLOG_WARN("%s:%d Not enough data available to stop buffering, bytes %u, frames %u !", __FUNCTION__, __LINE__, bytes, frames);
+				AAMPLOG_WARN("Not enough data available to stop buffering, bytes %u, frames %u !", bytes, frames);
 #endif
 			}
 		}
@@ -4042,7 +4042,7 @@ bool AAMPGstPlayer::WaitForSourceSetup(MediaType mediaType)
   	GETCONFIGVALUE(eAAMPConfig_SourceSetupTimeout,timeRemaining);
 	int waitInterval = 100; //ms
 
-	AAMPLOG_WARN("%s:%d Source element[%p] for track[%d] not configured, wait for setup to complete!", __FUNCTION__, __LINE__, stream->source, mediaType);
+	AAMPLOG_WARN("Source element[%p] for track[%d] not configured, wait for setup to complete!", stream->source, mediaType);
 	while(timeRemaining >= 0)
 	{
 		aamp->InterruptableMsSleep(waitInterval);
@@ -4050,7 +4050,7 @@ bool AAMPGstPlayer::WaitForSourceSetup(MediaType mediaType)
 		{
 			if (stream->sourceConfigured)
 			{
-				AAMPLOG_WARN("%s:%d Source element[%p] for track[%d] setup completed!", __FUNCTION__, __LINE__, stream->source, mediaType);
+				AAMPLOG_WARN("Source element[%p] for track[%d] setup completed!", stream->source, mediaType);
 				ret = true;
 				break;
 			}
@@ -4065,7 +4065,7 @@ bool AAMPGstPlayer::WaitForSourceSetup(MediaType mediaType)
 
 	if (!ret)
 	{
-		AAMPLOG_WARN("%s:%d Wait for source element setup for track[%d] exited/timedout!", __FUNCTION__, __LINE__, mediaType);
+		AAMPLOG_WARN("Wait for source element setup for track[%d] exited/timedout!", mediaType);
 	}
 	return ret;
 }
@@ -4094,7 +4094,7 @@ void AAMPGstPlayer::ForwardBuffersToAuxPipeline(GstBuffer *buffer)
 #ifdef USE_GST1
 		if (FALSE == gst_buffer_copy_into(fwdBuffer, buffer, GST_BUFFER_COPY_ALL, 0, -1))
 		{
-			AAMPLOG_ERR("%s:%d Error while copying audio buffer to auxiliary buffer!!", __FUNCTION__, __LINE__);
+			AAMPLOG_ERR("Error while copying audio buffer to auxiliary buffer!!");
 			gst_buffer_unref(fwdBuffer);
 			return;
 		}
@@ -4102,11 +4102,11 @@ void AAMPGstPlayer::ForwardBuffersToAuxPipeline(GstBuffer *buffer)
 		memcpy(GST_BUFFER_DATA(fwdBuffer), GST_BUFFER_DATA(buffer), GST_BUFFER_SIZE(buffer));
 		gst_buffer_copy_metadata(fwdBuffer, buffer, GST_BUFFER_COPY_ALL);
 #endif
-		//AAMPLOG_TRACE("%s:%d Forward audio buffer to auxiliary pipeline!!", __FUNCTION__, __LINE__);
+		//AAMPLOG_TRACE("Forward audio buffer to auxiliary pipeline!!");
 		GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), fwdBuffer);
 		if (ret != GST_FLOW_OK)
 		{
-			AAMPLOG_ERR("%s:%d gst_app_src_push_buffer error: %d[%s] mediaType %d", __FUNCTION__, __LINE__, ret, gst_flow_get_name (ret), (int)eMEDIATYPE_AUX_AUDIO);
+			AAMPLOG_ERR("gst_app_src_push_buffer error: %d[%s] mediaType %d", ret, gst_flow_get_name (ret), (int)eMEDIATYPE_AUX_AUDIO);
 			assert(false);
 		}
 	}

@@ -59,7 +59,7 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 			4 byte (Data size) + (Data)  ]
 	*/
 
-	//AAMPLOG_INFO("%s:%d wv pssh data version - %u ", __FUNCTION__, __LINE__, psshDataVer);
+	//AAMPLOG_INFO("wv pssh data version - %u ", psshDataVer);
 	if (psshDataVer == 0)
 	{
 		uint32_t header = 0;
@@ -73,7 +73,7 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d WV Version: %u, Keyid indicator byte not found using default logic", __FUNCTION__, __LINE__, psshDataVer);
+			AAMPLOG_WARN("WV Version: %u, Keyid indicator byte not found using default logic", psshDataVer);
 			header = WIDEVINE_PSSH_KEYID_SIZE_OFFSET + 1;  //pssh data in default format
 		}
 
@@ -92,7 +92,7 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 	}
 	else
 	{
-		AAMPLOG_ERR("%s:%d Unsupported PSSH version: %u", __FUNCTION__, __LINE__, psshDataVer);
+		AAMPLOG_ERR("Unsupported PSSH version: %u", psshDataVer);
 	}
 
 	if (keyIdSize != 0u)
@@ -102,7 +102,7 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 	}
 	else
 	{
-		AAMPLOG_INFO("%s:%d WV version: %u, KeyIdlen: %u", __FUNCTION__, __LINE__, psshDataVer, keyIdSize);
+		AAMPLOG_INFO("WV version: %u, KeyIdlen: %u", psshDataVer, keyIdSize);
 	}
 
 	return ret;

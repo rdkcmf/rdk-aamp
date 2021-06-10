@@ -48,7 +48,7 @@ StreamAbstractionAAMP_COMPOSITEIN::StreamAbstractionAAMP_COMPOSITEIN(class Priva
  */
 StreamAbstractionAAMP_COMPOSITEIN::~StreamAbstractionAAMP_COMPOSITEIN()
 {
-	AAMPLOG_WARN("%s:%d destructor ",__FUNCTION__,__LINE__);
+	AAMPLOG_WARN("destructor ");
 }
 /**
  *   @brief  Initialize a newly created object.
@@ -90,7 +90,7 @@ void StreamAbstractionAAMP_COMPOSITEIN::Stop(bool clearChannelData)
  */
 std::vector<StreamInfo*> StreamAbstractionAAMP_COMPOSITEIN::GetAvailableThumbnailTracks(void)
 { // STUB
-        AAMPLOG_WARN("StreamAbstractionAAMP_COMPOSITEIN:%s:%d",__FUNCTION__,__LINE__);
+        AAMPLOG_WARN("StreamAbstractionAAMP_COMPOSITEIN: Enter");
 	return std::vector<StreamInfo*>();
 }
 

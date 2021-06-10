@@ -64,12 +64,12 @@ public:
                 case eSUB_TYPE_TTML:
                     return make_unique<TtmlSubtecParser>(aamp, mimeType);
                 default:
-                    AAMPLOG_WARN("%s:  Unknown subtitle parser type %d, returning empty", __FUNCTION__, mimeType);
+                    AAMPLOG_WARN("Unknown subtitle parser type %d, returning empty", mimeType);
                     break;
             }
         } catch (const std::runtime_error &e) {
-            AAMPLOG_WARN("%s:  %s", __FUNCTION__, e.what());
-            AAMPLOG_WARN("%s:  Failed on SubtitleParser construction - returning empty", __FUNCTION__);
+            AAMPLOG_WARN("%s", e.what());
+            AAMPLOG_WARN("Failed on SubtitleParser construction - returning empty");
         }
 
         return empty;
