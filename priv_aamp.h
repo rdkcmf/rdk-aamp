@@ -2962,6 +2962,7 @@ private:
 	TuneType mTuneType;
 	int m_fd;
 	bool mIsLive;
+	bool mLogTune;				//Guard to ensure sending tune  time info only once.
 	bool mTuneCompleted;
 	bool mFirstTune;			//To identify the first tune after load.
 	int mfirstTuneFmt;			//First Tune Format HLS(0) or DASH(1)
