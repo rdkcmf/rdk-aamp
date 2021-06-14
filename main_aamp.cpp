@@ -640,6 +640,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 					aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
 					retValue = aamp->mStreamSink->Pause(false, false);
 					aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
+					aamp->ResetTrickStartUTCTime();
 				}
 				aamp->pipeline_paused = false;
 				aamp->ResumeDownloads();

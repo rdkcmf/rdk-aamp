@@ -317,6 +317,7 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 	bool retValue = true;
 	PrivateInstanceAAMP* aamp = (PrivateInstanceAAMP* )ptr;
 	aamp->NotifyFirstBufferProcessed();
+	aamp->ResetTrickStartUTCTime();
 	TuneType tuneType = eTUNETYPE_SEEK;
 
 	if (!aamp->mSeekFromPausedState && (aamp->rate == AAMP_NORMAL_PLAY_RATE))
@@ -1427,28 +1428,34 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 
 		ProgressEventPtr evt = std::make_shared<ProgressEvent>(duration, position, start, end, speed, videoPTS, bufferedDuration);
         
-		if (gpGlobalConfig->logging.progress)
+		mReportProgressPosn = position;
+
+		if (trickStartUTCMS >= 0)
 		{
-			static int tick;
-			if ((tick++ % 4) == 0)
+			if (gpGlobalConfig->logging.progress)
 			{
-				logprintf("aamp pos: [%ld..%ld..%ld..%lld..%ld]",
-					(long)(start / 1000),
-					(long)(position / 1000),
-					(long)(end / 1000),
-					(long long) videoPTS,
-					(long)(bufferedDuration / 1000) );
+				static int tick;
+				if ((tick++ % 4) == 0)
+				{
+					logprintf("aamp pos: [%ld..%ld..%ld..%lld..%ld]",
+						(long)(start / 1000),
+						(long)(position / 1000),
+						(long)(end / 1000),
+						(long long) videoPTS,
+						(long)(bufferedDuration / 1000) );
+				}
+			}
+
+			if (sync)
+			{
+				SendEventSync(evt);
+			}
+			else
+			{
+				SendEventAsync(evt);
 			}
 		}
-		mReportProgressPosn = position;
-		if (sync)
-		{
-			SendEventSync(evt);
-		}
-		else
-		{
-			SendEventAsync(evt);
-		}
+
 		mReportProgressTime = aamp_GetCurrentTimeMS();
 	}
 }
@@ -6898,8 +6905,16 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	{
 		SetState(eSTATE_PLAYING);
 	}
-	trickStartUTCMS = aamp_GetCurrentTimeMS();
+	//trickStartUTCMS = aamp_GetCurrentTimeMS(); // moved to ResetTrickStartUTCTime()
 	logprintf("%s:%d : seek pos %.3f", __FUNCTION__, __LINE__, seek_pos_seconds);
+}
+
+/**
+ * @brief Reset trick start position
+ */
+void PrivateInstanceAAMP::ResetTrickStartUTCTime()
+{
+	trickStartUTCMS = aamp_GetCurrentTimeMS();
 }
 
 /**

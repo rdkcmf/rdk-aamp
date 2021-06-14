@@ -1847,6 +1847,13 @@ public:
 	void NotifyFirstBufferProcessed();
 
 	/**
+	 * @brief Reset trick start position
+	 *
+	 *   @return void
+	 */
+	void ResetTrickStartUTCTime();
+
+	/**
 	 *   @brief Update audio language selection
 	 *
 	 *   @param[in] lang - Language
