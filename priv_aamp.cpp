@@ -2317,7 +2317,7 @@ void PrivateInstanceAAMP::NotifyOnEnteringLive()
 void PrivateInstanceAAMP::ScheduleEvent(AsyncEventDescriptor* e)
 {
 	//TODO protect mEventListener
-	e->aamp = this;
+	e->aamp = shared_from_this();
 	guint callbackID = g_idle_add_full(mEventPriority, SendAsynchronousEvent, e, AsyncEventDestroyNotify);
 	SetCallbackAsPending(callbackID);
 }

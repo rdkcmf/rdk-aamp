@@ -1459,6 +1459,7 @@ public:
 	void EnableAsyncOperation();
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
+	std::shared_ptr<PrivateInstanceAAMP> sp_aamp; /* shared pointer for aamp resource */
 
 	AampConfig mConfig;
 private:

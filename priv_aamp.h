@@ -277,7 +277,7 @@ struct AsyncEventDescriptor
 	/**
 	 * @brief AsyncEventDescriptor constructor
 	 */
-	AsyncEventDescriptor() : event(nullptr), aamp(NULL)
+	AsyncEventDescriptor() : event(nullptr), aamp(nullptr)
 	{
 	}
 
@@ -292,7 +292,7 @@ struct AsyncEventDescriptor
 	AsyncEventDescriptor& operator=(const AsyncEventDescriptor& other) = delete;
 
 	AAMPEventPtr event;
-	PrivateInstanceAAMP* aamp;
+	std::shared_ptr<PrivateInstanceAAMP> aamp;
 };
 
 /**
@@ -435,7 +435,7 @@ class AampDRMSessionManager;
 /**
  * @brief Class representing the AAMP player's private instance, which is not exposed to outside world.
  */
-class PrivateInstanceAAMP : public AampDrmCallbacks
+class PrivateInstanceAAMP : public AampDrmCallbacks, public std::enable_shared_from_this<PrivateInstanceAAMP>
 {
 
 	enum AAMP2ReceiverMsgType
