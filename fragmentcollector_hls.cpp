@@ -6086,13 +6086,13 @@ void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsi
  * @brief Signal start of subtitle renderering - should be sent at start of video presentation
  * 
  */
-void StreamAbstractionAAMP_HLS::StartSubtitleParser(unsigned long long firstPts)
+void StreamAbstractionAAMP_HLS::StartSubtitleParser()
 {
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
 	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
 	{
-		logprintf("%s: sending timestamp %0.2f / %lld", __FUNCTION__, firstPts);
-		subtitle->mSubtitleParser->init(seekPosition, firstPts);
+		AAMPLOG_INFO("%s: sending init %.3f", __FUNCTION__, mFirstPTS * 1000.0);
+		subtitle->mSubtitleParser->init(seekPosition, static_cast<unsigned long long>(mFirstPTS * 1000.0));
 		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
 	}
 }

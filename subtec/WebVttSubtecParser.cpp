@@ -51,7 +51,7 @@ void WebVTTSubtecParser::reset()
 	
 bool WebVTTSubtecParser::init(double startPos, unsigned long long basePTS)
 {
-	AAMPLOG_INFO("%s: startPos %f start_ms %lld", __FUNCTION__, startPos, start_ms_);
+	AAMPLOG_INFO("%s: startPos %f basePTS %lld", __FUNCTION__, startPos, basePTS);
 
 	m_channel->SendTimestampPacket(static_cast<uint64_t>(basePTS));
 

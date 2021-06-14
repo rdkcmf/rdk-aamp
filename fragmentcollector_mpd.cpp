@@ -5451,6 +5451,17 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 	return bestTrack;
 }
 
+void StreamAbstractionAAMP_MPD::StartSubtitleParser()
+{
+	struct MediaStreamContext *subtitle = mMediaStreamContext[eMEDIATYPE_SUBTITLE];
+	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
+	{
+		AAMPLOG_INFO("%s: sending init %.3f", __FUNCTION__, seekPosition);
+		subtitle->mSubtitleParser->init(seekPosition, 0);
+		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
+	}
+}
+
 /**
  * @brief Does stream selection
  * @param newTune true if this is a new tune
@@ -5544,6 +5555,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 						}
 						else if (IsMatchingLanguageAndMimeType((MediaType)i, aamp->mSubLanguage, adaptationSet, selRepresentationIndex) == true)
 						{
+							AAMPLOG_INFO("%s:%d matched default sub language %s [%d]", __FUNCTION__, __LINE__, aamp->mSubLanguage.c_str(), iAdaptationSet);
 							selAdaptationSetIndex = iAdaptationSet;
 						}
 
@@ -5565,14 +5577,8 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 								}
 							}
 							tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
-
 							pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, mimeType);
-							if (pMediaStreamContext->mSubtitleParser) 
-							{
-								pMediaStreamContext->mSubtitleParser->init(seekPosition, 0);
-								pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
-							}
-							else
+							if (!pMediaStreamContext->mSubtitleParser)
 							{
 								pMediaStreamContext->enabled = false;
 								selAdaptationSetIndex = -1;
@@ -5766,7 +5772,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 				aamp->previousAudioType = selectedCodecType;
 				SetESChangeStatus();
 			}
-			logprintf("StreamAbstractionAAMP_MPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]\n",
+			logprintf("StreamAbstractionAAMP_MPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]",
 				__FUNCTION__, __LINE__, getMediaTypeName(MediaType(i)),selAdaptationSetIndex,selRepresentationIndex,(mNumberOfTracks+1) );
 
 			ProcessContentProtection(period->GetAdaptationSets().at(selAdaptationSetIndex),(MediaType)i);
@@ -5775,11 +5781,11 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 
 		if(selAdaptationSetIndex < 0 && rate == 1)
 		{
-			logprintf("StreamAbstractionAAMP_MPD::%s %d > No valid adaptation set found for Media[%s]\n",
+			logprintf("StreamAbstractionAAMP_MPD::%s %d > No valid adaptation set found for Media[%s]",
 				__FUNCTION__, __LINE__, getMediaTypeName(MediaType(i)));
 		}
 
-		logprintf("StreamAbstractionAAMP_MPD::%s %d > Media[%s] %s\n",
+		logprintf("StreamAbstractionAAMP_MPD::%s %d > Media[%s] %s",
 			__FUNCTION__, __LINE__, getMediaTypeName(MediaType(i)), pMediaStreamContext->enabled?"enabled":"disabled");
 
 		//Store the iframe track status in current period if there is any change
