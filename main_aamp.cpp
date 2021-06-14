@@ -101,7 +101,7 @@ std::mutex PlayerInstanceAAMP::mPrvAampMtx;
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
-	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL(),mAsyncRunning(false),mConfig()
+	) : aamp(NULL), sp_aamp(nullptr), mInternalStreamSink(NULL), mJSBinding_DL(),mAsyncRunning(false),mConfig()
 {
 
 #ifdef IARM_MGR
@@ -163,7 +163,8 @@ if(!iarmInitialized)
 	// App can modify the configuration set
 	mConfig = *gpGlobalConfig;
 
-	aamp = new PrivateInstanceAAMP(&mConfig);
+	sp_aamp = std::make_shared<PrivateInstanceAAMP>(&mConfig);
+	aamp = sp_aamp.get();
 	if (NULL == streamSink)
 	{
 		mInternalStreamSink = new AAMPGstPlayer(aamp
@@ -207,7 +208,6 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 			}
 		}
 		std::lock_guard<std::mutex> lock (mPrvAampMtx);
-		delete aamp;
 		aamp = NULL;
 	}
 	if (mInternalStreamSink)
