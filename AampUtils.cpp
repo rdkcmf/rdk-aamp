@@ -76,7 +76,7 @@ std::string getDefaultHarvestPath()
 {
         std::string value = "/aamp/";
 /* In case of linux and mac simulator use home directory to dump the data as default */
-#if defined( __APPLE__ ) || defined ( __linux__ )
+#ifdef AAMP_SIMULATOR_BUILD
         char *ptr = getenv("HOME");
         if(ptr)
         {

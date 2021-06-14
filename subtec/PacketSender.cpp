@@ -62,7 +62,7 @@ bool PacketSender::Init()
     return Init(SOCKET_PATH);
 }
 
-#if (defined __APPLE__) || (defined UBUNTU)
+#ifdef AAMP_SIMULATOR_BUILD
 // in simulator build, create a socket to receive and dump messages that would
 // otherwise go to subtec
 #include <pthread.h>
@@ -187,14 +187,14 @@ static bool PrepareSubtecSimulator( const char *name )
 	}
 	return state->started;
 }
-#endif // __APPLE__ || UBUNTU
+#endif // AAMP_SIMULATOR_BUILD
 
 bool PacketSender::Init(const char *socket_path)
 {
     bool ret = true;
     std::unique_lock<std::mutex> lock(mStartMutex);
 
-#if (defined __APPLE__) || (defined UBUNTU)
+#ifdef AAMP_SIMULATOR_BUILD
 	ret = PrepareSubtecSimulator(socket_path);
 #endif
 

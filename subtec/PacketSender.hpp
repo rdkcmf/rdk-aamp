@@ -42,7 +42,7 @@
 
 #include "SubtecPacket.hpp"
 
-#if (defined __APPLE__) || (defined UBUNTU)
+#ifdef AAMP_SIMULATOR_BUILD
 const constexpr char *SOCKET_PATH = "subtecsim";
 #else
 const constexpr char *SOCKET_PATH = "/run/subttx/pes_data_main";

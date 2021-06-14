@@ -480,7 +480,7 @@ void logprintf(const char *format, ...)
 		printf("%ld:%3ld : %s\n", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
 	}
 #else	//USE_SYSTEMD_JOURNAL_PRINT
-#if (defined __APPLE__) || (defined UBUNTU)
+#ifdef AAMP_SIMULATOR_BUILD
 	static bool init;
 
 	FILE *f = fopen(gAampLog, (init ? "a" : "w"));
