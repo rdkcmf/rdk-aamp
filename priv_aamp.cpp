@@ -6830,6 +6830,14 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	}
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
 	logprintf("%s:%d : seek pos %.3f", __FUNCTION__, __LINE__, seek_pos_seconds);
+	
+	if (mpStreamAbstractionAAMP)
+	{
+		auto pts = mStreamSink->GetVideoPTS() + mVideoBasePTS;
+		auto pts_ms = pts / 90.0;
+		AAMPLOG_INFO("%s:%d Updating subtitle PTS: %.3fms", __FUNCTION__, __LINE__, pts_ms);
+		mpStreamAbstractionAAMP->UpdateSubtitleTimestamp(static_cast<unsigned long long>(pts_ms));
+	}
 }
 
 /**

@@ -482,6 +482,9 @@ public:
 
 	// Signals subtitle renderer to begin presentation
 	void StartSubtitleParser(unsigned long long firstPts);
+	
+	// Sends updated timestamp to subtitle renderer
+	void UpdateSubtitleTimestamp(unsigned long long pts);
 
 	/// Function to get matching mediaInfo index for a language and track type
 	int GetMediaIndexForLanguage(std::string lang, TrackType type);
