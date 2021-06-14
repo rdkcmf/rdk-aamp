@@ -1055,13 +1055,13 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 bool AampConfig::ReadAampCfgJsonFile()
 {
 	bool retVal=false;
-#if defined(__APPLE__)
+#ifdef AAMP_SIMULATOR_BUILD
 	std::string cfgPath(getenv("HOME"));
 #else
 	std::string cfgPath = "";
 #endif
 
-#if defined(__APPLE__)
+#ifdef AAMP_SIMULATOR_BUILD
 		cfgPath += "/aampcfg.json";
 #else
 
@@ -1108,13 +1108,13 @@ bool AampConfig::ReadAampCfgJsonFile()
 bool AampConfig::ReadAampCfgTxtFile()
 {
 	bool retVal = false;
-#if defined(__APPLE__)
+#ifdef AAMP_SIMULATOR_BUILD
 	std::string cfgPath(getenv("HOME"));
 #else
 	std::string cfgPath = "";
 #endif
 
-#if defined(__APPLE__)
+#ifdef AAMP_SIMULATOR_BUILD
 	cfgPath += "/aamp.cfg";
 #else
 
