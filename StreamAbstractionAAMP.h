@@ -865,6 +865,13 @@ public:
 	 * 
 	 */
 	virtual void StartSubtitleParser(unsigned long long firstPts) { };
+	
+	/**
+	 * @brief Send a timestamp to sync the subtitle renderer
+	 * 
+	 * @param pts 
+	 */
+	virtual void UpdateSubtitleTimestamp(unsigned long long pts) { };
 
 	/**
 	 *   @brief Waits subtitle track injection until caught up with audio track.
