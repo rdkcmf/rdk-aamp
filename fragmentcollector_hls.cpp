@@ -6282,9 +6282,21 @@ void StreamAbstractionAAMP_HLS::StartSubtitleParser(unsigned long long firstPts)
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
 	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
 	{
-		logprintf("%s: sending timestamp %0.2f / %lld", __FUNCTION__, firstPts);
+		AAMPLOG_INFO("%s: sending init %lld", __FUNCTION__, firstPts);
 		subtitle->mSubtitleParser->init(seekPosition, firstPts);
 		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
+	}
+}
+
+void StreamAbstractionAAMP_HLS::UpdateSubtitleTimestamp(unsigned long long pts)
+{
+	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
+	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
+	{
+		AAMPLOG_INFO("%s: sending timestamp %lld", __FUNCTION__, pts);
+		// Base class implementation resolves to no-op to defend against 
+		// _cxa_pure_virtual error during destruction
+		subtitle->mSubtitleParser->updateTimestamp(pts);
 	}
 }
 
