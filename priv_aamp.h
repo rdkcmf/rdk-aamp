@@ -1830,6 +1830,13 @@ public:
 	void UpdateSubtitleTimestamp();
 
 	/**
+         *  @brief Reset trick start position
+         *
+         *  @return void
+         */
+        void ResetTrickStartUTCTime();
+
+	/**
 	 *   @brief Get stream type
 	 *
 	 *   @return Stream type
