@@ -2522,6 +2522,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					}
 				}
 				
+				mFirstPTS = fragmentTime;
 				//updated seeked position
 				pMediaStreamContext->fragmentIndex = fragmentIndex;
 				pMediaStreamContext->fragmentTime = fragmentTime;
