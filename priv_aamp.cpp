@@ -1149,7 +1149,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	/*playStartUTCMS(0), */durationSeconds(0.0), culledSeconds(0.0), culledOffset(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000),
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
-	m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
+	m_fd(-1), mIsLive(false), mLogTune(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
 	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(ContentType_UNKNOWN), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
@@ -2375,16 +2375,19 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 
 	if (!mTuneCompleted)
 	{
-		char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
-		profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
-		SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
-		if(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents))
+		if(mLogTune)
 		{
-			sendTuneMetrics(success);
+			char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
+			mLogTune = false;
+			profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
+			SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
+			if(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents))
+			{
+				sendTuneMetrics(success);
+			}
+			mTuneCompleted = true;
+			mFirstTune = false;
 		}
-		mTuneCompleted = true;
-		mFirstTune = false;
-
 		AAMPAnomalyMessageType eMsgType = AAMPAnomalyMessageType::ANOMALY_TRACE;
 		if(mTuneAttempts > 1 )
 		{
@@ -4479,6 +4482,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		mTuneAttempts = 1;	//Only the first attempt is xreInitiated.
 		mPlayerLoadTime = NOW_STEADY_TS_MS;
+		mLogTune = true;
 	}
 	else
 	{
