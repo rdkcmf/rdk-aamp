@@ -243,7 +243,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"downloadBufferChunks",eAAMPConfig_MaxFragmentChunkCached,-1,-1},
 	{"abrChunkThresholdSize",eAAMPConfig_ABRChunkThresholdSize,-1,-1},
 	{"enableLowLatencyOffsetMin",eAAMPConfig_EnableLowLatencyOffsetMin,-1,-1},
-	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}}
+	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}},
+	{"syncAudioFragments",eAAMPConfig_SyncAudioFragments,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -359,6 +360,11 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_LimitResolution].value                        =       false;
 	bAampCfgValue[eAAMPConfig_UseAbsoluteTimeline].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_WideVineKIDWorkaround].value                	=       false;
+#ifdef REALTEKCE
+	bAampCfgValue[eAAMPConfig_SyncAudioFragments].value                  	=       true;
+#else
+	bAampCfgValue[eAAMPConfig_SyncAudioFragments].value			=       false;
+#endif
 	bAampCfgValue[eAAMPConfig_RepairIframes].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_SEITimeCode].value              		=       true;
 #ifdef CONTENT_4K_SUPPORTED

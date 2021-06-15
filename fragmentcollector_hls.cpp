@@ -5153,7 +5153,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			AAMPLOG_WARN("StreamAbstractionAAMP_HLS: Setting setProgressEventOffset value of %.3f ms", offset);
 			subtitle->mSubtitleParser->setProgressEventOffset(offset);
 		}
-
 	
 		if (rate == AAMP_NORMAL_PLAY_RATE)
 		{
@@ -5163,7 +5162,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			// So enforcing this strictly for normal playrate
 
 			// DELIA-42052 
-			for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
+			for (int iTrack = 0; iTrack <= AAMP_TRACK_COUNT - 1; iTrack++)
 			{
 				TrackState *ts = trackState[iTrack];
 				if(ts->enabled)
@@ -5172,8 +5171,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					ts->playTarget = ts->playlistPosition;
 					ts->playTargetBufferCalc = ts->playTarget;
 				}
-			}
 
+				// To avoid audio loss while seeking HLS/TS AV of different duration w/o affecting VOD Discontinuities
+				if(iTrack == 0 && ISCONFIGSET(eAAMPConfig_SyncAudioFragments) && !(ISCONFIGSET(eAAMPConfig_MidFragmentSeek) || audio->mDiscontinuityIndexCount))
+				{
+					AAMPLOG_TRACE("Setting audio playtarget %f to video playtarget %f", audio->playTarget, ts->playTarget);
+					audio->playTarget = ts->playTarget;
+				}
+			}
 			if (IsLive() && audio->enabled && !ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 			{
 				AAMPStatusType retValue = SyncTracks();
@@ -5217,7 +5222,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				SeekPosUpdate(video->playTarget);
 			}
-			
 			AAMPLOG_WARN("seekPosition updated with corrected playtarget : %f midSeekPtsOffset : %f",seekPosition,midSeekPtsOffset);
 		}
 

@@ -179,6 +179,7 @@ typedef enum
 	eAAMPConfig_DisableLowLatencyABR,							/** Enables Low Latency ABR handling */
 	eAAMPConfig_DisableLowLatencyCorrection,                    			/** Enables Low Latency Correction handling */
 	eAAMPConfig_EnableLowLatencyOffsetMin,                                /** Enables Low Latency Offset Min handling */
+	eAAMPConfig_SyncAudioFragments,							/** Flag to enable Audio Video Fragment Sync */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
