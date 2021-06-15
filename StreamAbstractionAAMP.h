@@ -1045,6 +1045,14 @@ public:
           */
         virtual void SetAudioTrackByLanguage(const char* lang) {}
 
+        /**
+          * @brief SetPreferredAudioLanguages set the preferred audio languages and rendition. [currently for OTA]
+          *
+          * @param[in]
+          * @param[in]
+          */
+        virtual void SetPreferredAudioLanguages() {}
+
 		/**
           * @brief Send a MUTE/UNMUTE packet to the subtitle renderer
           *

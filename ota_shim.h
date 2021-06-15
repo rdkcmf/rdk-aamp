@@ -36,6 +36,15 @@
 using namespace std;
 
 /**
+ * @brief Structure to save the ATSC settings
+ */
+typedef struct ATSCSettings
+{
+	std::string preferredLanguages;
+	std::string preferredRendition;
+}ATSCGlobalSettings;
+
+/**
  * @class StreamAbstractionAAMP_OTA
  * @brief Fragment collector for OTA
  */
@@ -74,6 +83,7 @@ public:
     std::vector<AudioTrackInfo> &GetAvailableAudioTracks() override;
     int GetAudioTrack() override;
     std::vector<TextTrackInfo> &GetAvailableTextTracks() override;
+    void SetPreferredAudioLanguages() override;
     void DisableContentRestrictions(long grace, long time, bool eventChange) override;
     void EnableContentRestrictions() override;
     std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
@@ -94,7 +104,6 @@ private:
     bool GetScreenResolution(int & screenWidth, int & screenHeight);
 #endif
     void GetAudioTracks();
-    void SetPreferredAudioLanguage();
     int GetAudioTrackInternal();
     void NotifyAudioTrackChange(const std::vector<AudioTrackInfo> &tracks);
     void GetTextTracks();

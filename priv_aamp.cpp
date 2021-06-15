@@ -8745,7 +8745,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			{
 				if(mMediaFormat == eMEDIAFORMAT_OTA)
 				{
-					mpStreamAbstractionAAMP->SetAudioTrackByLanguage(languageList);
+					mpStreamAbstractionAAMP->SetPreferredAudioLanguages();
 				}
 				else
 				{
