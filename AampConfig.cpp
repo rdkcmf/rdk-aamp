@@ -216,7 +216,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"useAbsoluteTimeline",eAAMPConfig_UseAbsoluteTimeline,-1,-1},
 	{"id3",eAAMPConfig_ID3Logging,-1,-1},
 	{"SkyStoreDE",eAAMPConfig_WideVineKIDWorkaround,-1,-1},
-	{"customHeaderLicense",eAAMPConfig_CustomHeaderLicense,-1,-1}
+	{"customHeaderLicense",eAAMPConfig_CustomHeaderLicense,-1,-1},
+	{"syncAudioFragments",eAAMPConfig_SyncAudioFragments,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -336,6 +337,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_LimitResolution].value                        =       false;
 	bAampCfgValue[eAAMPConfig_UseAbsoluteTimeline].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_WideVineKIDWorkaround].value                  	=       false;
+	bAampCfgValue[eAAMPConfig_SyncAudioFragments].value                  	=       false;
 
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
