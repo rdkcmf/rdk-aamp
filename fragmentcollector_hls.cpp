@@ -5151,7 +5151,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			logprintf("StreamAbstractionAAMP_HLS::%s:%d: Setting setProgressEventOffset value of %.3f ms", __FUNCTION__, __LINE__, offset);
 			subtitle->mSubtitleParser->setProgressEventOffset(offset);
 		}
-
 	
 		if (rate == AAMP_NORMAL_PLAY_RATE)
 		{
@@ -5161,7 +5160,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			// So enforcing this strictly for normal playrate
 
 			// DELIA-42052 
-			for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
+			for (int iTrack = 0; iTrack <= AAMP_TRACK_COUNT - 1; iTrack++)
 			{
 				TrackState *ts = trackState[iTrack];
 				if(ts->enabled)
@@ -5169,6 +5168,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					ts->fragmentURI = ts->GetNextFragmentUriFromPlaylist(true);
 					ts->playTarget = ts->playlistPosition;
 					ts->playTargetBufferCalc = ts->playTarget;
+				}
+
+				if(ISCONFIGSET(eAAMPConfig_SyncAudioFragments) && !(ISCONFIGSET(eAAMPConfig_MidFragmentSeek)) && iTrack == 0)
+				{
+					audio->playTarget = ts->playTarget;
 				}
 			}
 			//Set live adusted position to seekPosition
@@ -5207,7 +5211,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				SeekPosUpdate(video->playTarget);
 			}
-			
+
 			logprintf("%s seekPosition updated with corrected playtarget : %f midSeekPtsOffset : %f",__FUNCTION__,seekPosition,midSeekPtsOffset);
 		}
 

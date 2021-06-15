@@ -506,7 +506,7 @@ public:
 				}
 				DEBUG(" PES_PAYLOAD_LENGTH %d", PES_PAYLOAD_LENGTH(pesStart));
 			}
-			if (current_pts < base_pts)
+			if ((current_pts < base_pts) && !(ISCONFIGSET(eAAMPConfig_SyncAudioFragments)))
 			{
 				if (finalized_base_pts && !allowPtsRewind
 #if defined (REALTEKCE)
