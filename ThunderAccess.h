@@ -25,6 +25,7 @@
 #ifndef THUNDERACCESS_H_
 #define THUNDERACCESS_H_
 
+#include <Module.h>
 #include <core/core.h>
 #include <websocket/websocket.h>
 
