@@ -1542,9 +1542,8 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #endif
 			gCbgetWindowContentView && gst_is_video_overlay_prepare_window_handle_message(msg))
 		{
-			logprintf("Recieved prepare-window-handle. Attaching video to window handle=%llu",(*gCbgetWindowContentView)());
+			logprintf("Received prepare-window-handle. Attaching video to window handle=%llu",(*gCbgetWindowContentView)());
 			gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY (GST_MESSAGE_SRC (msg)), (*gCbgetWindowContentView)());
-			gst_message_unref (msg);
 		}
 		break;
 #endif
