@@ -243,6 +243,8 @@ public:
 	TriState mPersistBitRateOverSeek; /**< Flag indicates if video profile have to be persisted during SAP/Seek */
 	bool bDisableUnderflow;            	  /**< Enable/Disable Underflow functionality*/
 	TriState mIsWideVineKIDWorkaround;              /**< Optional workaround for WV KEY ID **/
+	bool syncAudioFragmanets; /*** Sync Audio with Video Fragments */
+
 public:
 
 	/**

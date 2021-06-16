@@ -5027,7 +5027,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			// So enforcing this strictly for normal playrate
 
 			// DELIA-42052 
-			for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
+			for (int iTrack = 0; iTrack <= AAMP_TRACK_COUNT - 1; iTrack++)
 			{
 				TrackState *ts = trackState[iTrack];
 				if(ts->enabled)
@@ -5035,6 +5035,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					ts->fragmentURI = ts->GetNextFragmentUriFromPlaylist(true);
 					ts->playTarget = ts->playlistPosition;
 					ts->playTargetBufferCalc = ts->playTarget;
+				}
+				if (gpGlobalConfig->syncAudioFragmanets && !gpGlobalConfig->midFragmentSeekEnabled && iTrack == 0)
+				{
+					audio->playTarget = ts->playTarget;
 				}
 			}
 			//Set live adusted position to seekPosition

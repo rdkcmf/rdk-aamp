@@ -1569,6 +1569,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->mPersistBitRateOverSeek = (TriState) (value == 1);
 			logprintf("Persist ABR Profile over seek: %d", gpGlobalConfig->mPersistBitRateOverSeek);
 		}
+		else if(ReadConfigNumericHelper(cfg, "syncAudioFragments=", value) == 1)
+		{
+			gpGlobalConfig->syncAudioFragmanets= (value==1);
+			logprintf("syncAudioFragments:%s", gpGlobalConfig->syncAudioFragmanets ? "Enabled" : "Disabled");
+		}
 		else
 		{
 			std::size_t pos = cfg.find_first_of('=');

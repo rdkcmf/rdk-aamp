@@ -505,7 +505,7 @@ public:
 				}
 				DEBUG(" PES_PAYLOAD_LENGTH %d", PES_PAYLOAD_LENGTH(pesStart));
 			}
-			if (current_pts < base_pts)
+			if ((current_pts < base_pts) && !(gpGlobalConfig->syncAudioFragmanets))
 			{
 				if (finalized_base_pts && !allowPtsRewind) 
 				{
