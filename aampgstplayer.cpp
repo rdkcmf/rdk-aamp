@@ -1515,13 +1515,12 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 		(nullptr == _this->cbExportYUVFrame) &&
 #endif
-        gCbgetWindowContentView &&gst_is_video_overlay_prepare_window_handle_message(msg))
-        {
-            logprintf("Recieved prepare-window-handle. Attaching video to window handle=%llu",(*gCbgetWindowContentView)());
-            gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY (GST_MESSAGE_SRC (msg)), (*gCbgetWindowContentView)());
-            gst_message_unref (msg);
-        }
-        break;
+			gCbgetWindowContentView && gst_is_video_overlay_prepare_window_handle_message(msg))
+		{
+			logprintf("Received prepare-window-handle. Attaching video to window handle=%llu",(*gCbgetWindowContentView)());
+			gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY (GST_MESSAGE_SRC (msg)), (*gCbgetWindowContentView)());
+		}
+		break;
 #endif
 	case GST_MESSAGE_ASYNC_DONE:
 		AAMPLOG_INFO("%s: Received GST_MESSAGE_ASYNC_DONE message", __FUNCTION__);
