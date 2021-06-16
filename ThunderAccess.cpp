@@ -21,6 +21,7 @@
  * @file ThunderAccess.cpp
  * @brief wrapper class for accessing thunder plugins
  */
+#include "Module.h"
 #include "priv_aamp.h"
 #include <core/core.h>
 #include <websocket/websocket.h>
