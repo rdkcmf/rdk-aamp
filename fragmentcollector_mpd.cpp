@@ -1192,12 +1192,13 @@ static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentInd
 	unsigned int earliest_presentation_time = Read32(f);
 	unsigned int first_offset = Read32(f);
 	unsigned int count = Read32(f);
-	for (unsigned int i = 0; i < count; i++)
+	if( segmentIndex<count )
 	{
+		start += 12*segmentIndex;
 		*referenced_size = Read32(f);
 		*referenced_duration = Read32(f)/(float)timescale;
 		unsigned int flags = Read32(f);
-		if (i == segmentIndex) return true;
+		return true;
 	}
 	return false;
 }
@@ -2036,11 +2037,11 @@ bool PrivateStreamAbstractionMPD::PushNextFragment( struct MediaStreamContext *p
 					char range[128];
 					sprintf(range, "%" PRIu64 "-%" PRIu64 "", pMediaStreamContext->fragmentOffset, pMediaStreamContext->fragmentOffset + referenced_size - 1);
 					AAMPLOG_INFO("%s:%d %s [%s]", __FUNCTION__, __LINE__,mMediaTypeName[pMediaStreamContext->mediaType], range);
-					if(pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, 0.0, range ))
+					if(pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, fragmentDuration, range ))
 					{
 						pMediaStreamContext->fragmentTime += fragmentDuration;
 						pMediaStreamContext->fragmentOffset += referenced_size;
-						pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
+						//pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						retval = true;
 					}
 				}
@@ -2510,7 +2511,7 @@ double PrivateStreamAbstractionMPD::SkipFragments( MediaStreamContext *pMediaStr
 					if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, fragmentIndex++, &referenced_size, &fragmentDuration))
 					{
 						fragmentTime += fragmentDuration;
-						fragmentTime = ceil(fragmentTime * 1000.0) / 1000.0;
+						//fragmentTime = ceil(fragmentTime * 1000.0) / 1000.0;
 						pMediaStreamContext->fragmentOffset += referenced_size;
 					}
 					else
@@ -6579,7 +6580,11 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 							if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 							{
 								pMediaStreamContext->profileChanged = false;
-								if(!pMediaStreamContext->CacheFragment(fragmentUrl, 0, pMediaStreamContext->fragmentTime, 0, range.c_str(), true ))
+								if(!pMediaStreamContext->CacheFragment(fragmentUrl,
+									getCurlInstanceByMediaType(pMediaStreamContext->mediaType),
+									pMediaStreamContext->fragmentTime,
+									0, // duration - zero for init fragment
+									range.c_str(), true ))
 								{
 									logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 								}
@@ -6691,7 +6696,12 @@ void PrivateStreamAbstractionMPD::FetchAndInjectInitialization(bool discontinuit
 									if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 									{
 										pMediaStreamContext->profileChanged = false;
-										if(!pMediaStreamContext->CacheFragment(fragmentUrl, 0, pMediaStreamContext->fragmentTime, 0.0, range.c_str(), true ))
+										if(!pMediaStreamContext->CacheFragment(fragmentUrl,
+                                                                                                                       getCurlInstanceByMediaType(pMediaStreamContext->mediaType),
+                                                                                                                       pMediaStreamContext->fragmentTime,
+                                                                                                                       0.0, // duration - zero for init fragment
+                                                                                                                       range.c_str(),
+                                                                                                                       true ))
 										{
 											logprintf("PrivateStreamAbstractionMPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 										}
