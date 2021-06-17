@@ -48,8 +48,6 @@ using namespace WPEFramework;
 
 #define RDKSHELL_CALLSIGN "org.rdk.RDKShell.1"
 
-ATSCGlobalSettings gATSCSettings;
-
 void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& parameters) {
 	std::string message;
 	parameters.ToString(message);
@@ -298,7 +296,7 @@ void StreamAbstractionAAMP_OTA::Start(void)
 	AAMPLOG_INFO( "[OTA_SHIM]Inside %s : url : %s ", __FUNCTION__ , url.c_str());
 	JsonObject result;
 
-	SetPreferredAudioLanguages();
+	SetPreferredAudioLanguage();
 
 	JsonObject createParam;
 	createParam["id"] = APP_ID;
@@ -454,63 +452,24 @@ int StreamAbstractionAAMP_OTA::GetAudioTrack()
 }
 
 /**
- * @brief SetPreferredAudioLanguages set the preferred audio language list
+ * @brief SetPreferredAudioLanguage set the preferred audio language list
  *
  * @param[in]
  * @param[in]
  */
-void StreamAbstractionAAMP_OTA::SetPreferredAudioLanguages()
+void StreamAbstractionAAMP_OTA::SetPreferredAudioLanguage()
 {
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 #else
-	JsonObject properties;
-	bool modifiedLang = false;
-	bool modifiedRend = false;
-	//AAMPLOG_WARN( "[OTA_SHIM]Inside %s %d aamp->preferredLanguagesString : %s, gATSCSettings.preferredLanguages : %s aamp->preferredRenditionString : %s gATSCSettings.preferredRendition : %s", __FUNCTION__ , __LINE__, aamp->preferredLanguagesString.c_str(),gATSCSettings.preferredLanguages.c_str(), aamp->preferredRenditionString.c_str(), gATSCSettings.preferredRendition.c_str());fflush(stdout);
+    JsonObject result;
+    JsonObject param;
+    JsonObject properties;
 
-	if((0 != aamp->preferredLanguagesString.length()) && (aamp->preferredLanguagesString != gATSCSettings.preferredLanguages)){
-		properties["preferredAudioLanguage"] = aamp->preferredLanguagesString.c_str();
-		modifiedLang = true;
-	}
-	if((0 != aamp->preferredRenditionString.length()) && (aamp->preferredRenditionString != gATSCSettings.preferredRendition)){
-
-		if(0 == aamp->preferredRenditionString.compare("VISUALLY_IMPAIRED")){
-			properties["visuallyImpaired"] = true;
-			modifiedRend = true;
-		}else if(0 == aamp->preferredRenditionString.compare("NORMAL")){
-			properties["visuallyImpaired"] = false;
-			modifiedRend = true;
-		}else{
-			/*No rendition settings to MediaSettings*/
-		}
-	}
-	if(modifiedLang || modifiedRend)
-	{
-		bool rpcResult = false;
-		JsonObject result;
-		JsonObject param;
-
-		param["properties"] = properties;
-		rpcResult = mediaSettingsObj.InvokeJSONRPC("setProperties", param, result);
-		if (rpcResult){
-			if (!result["success"].Boolean()){
-				std::string responseStr;
-				result.ToString(responseStr);
-				AAMPLOG_WARN( "[OTA_SHIM] %s:%d setProperties API failed result:%s",__FUNCTION__, __LINE__, responseStr.c_str());
-			}else{
-				std::string paramStr;
-				param.ToString(paramStr);
-				AAMPLOG_WARN( "[OTA_SHIM] %s:%d setProperties success with param:%s",__FUNCTION__, __LINE__, paramStr.c_str());fflush(stdout);
-				/*Thunder call success save global settings*/
-				if(modifiedLang){
-					gATSCSettings.preferredLanguages = aamp->preferredLanguagesString;
-				}
-				if(modifiedRend){
-					gATSCSettings.preferredRendition = aamp->preferredRenditionString;
-				}
-			}
-		}
-	}
+    if(0 != aamp->preferredLanguagesString.length()) {
+        properties["preferredAudioLanguage"] = aamp->preferredLanguagesString.c_str();
+        param["properties"] = properties;
+        mediaSettingsObj.InvokeJSONRPC("setProperties", param, result);
+    }
 #endif
 }
 
@@ -606,7 +565,7 @@ void StreamAbstractionAAMP_OTA::GetAudioTracks()
 
         std::string languageCode;
         languageCode = Getiso639map_NormalizeLanguageCode(audioData["language"].String(),aamp->GetLangCodePreference());
-        aTracks.push_back(AudioTrackInfo(index, /*idx*/ languageCode, /*lang*/ audioData["contentType"].String(), /*rend*/ audioData["name"].String(), /*name*/ audioData["type"].String(), /*codecStr*/ (int)audioData["pk"].Number(), /*primaryKey*/ audioData["contentType"].String(), /*contentType*/ audioData["mixType"].String() /*mixType*/));
+        aTracks.push_back(AudioTrackInfo(index, /*idx*/ languageCode, /*lang*/ audioData["name"].String(), /*name*/ audioData["type"].String(), /*codecStr*/ (int)audioData["pk"].Number(), /*primaryKey*/ audioData["contentType"].String(), /*contentType*/ audioData["mixType"].String() /*mixType*/));
     }
 
     mAudioTracks = aTracks;

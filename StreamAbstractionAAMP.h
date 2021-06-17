@@ -1042,19 +1042,7 @@ public:
           */
         virtual void SetAudioTrackByLanguage(const char* lang) {}
 
-<<<<<<< HEAD   (023a25 DELIA-50914:multiple seconds of silence can occur after VOD )
 	/**
-=======
-        /**
-          * @brief SetPreferredAudioLanguages set the preferred audio languages and rendition. [currently for OTA]
-          *
-          * @param[in]
-          * @param[in]
-          */
-        virtual void SetPreferredAudioLanguages() {}
-
-		/**
->>>>>>> CHANGE (c5e65e RDKTV-7976 : Rendition added to track details)
           * @brief Send a MUTE/UNMUTE packet to the subtitle renderer
           *
           * @param[in] mute mute/unmute
