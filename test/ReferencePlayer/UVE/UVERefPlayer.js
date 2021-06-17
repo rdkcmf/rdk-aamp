@@ -315,10 +315,12 @@ function playbackStateChanged(event) {
             break;
         case playerStatesEnum.initialized:
             playerState = playerStatesEnum.initialized;
-            console.log("Available audio tracks: " + playerObj.getAvailableAudioTracks());
-            console.log("Available text tracks: " + playerObj.getAvailableTextTracks());
+            var audioTracksAvailable = playerObj.getAvailableAudioTracks();
+            var textTracksAvailable = playerObj.getAvailableTextTracks();
+            console.log("Available audio tracks: " + audioTracksAvailable);
+            console.log("Available text tracks: " + textTracksAvailable);
 
-            if(playerObj.getAvailableTextTracks() != undefined)
+            if(textTracksAvailable != undefined)
             {
                 // Remove exsisting options in list
                 if(ccTracks.options.length) {
@@ -327,7 +329,7 @@ function playbackStateChanged(event) {
                     }
                 }
 
-                var textTrackList = JSON.parse((playerObj.getAvailableTextTracks()));
+                var textTrackList = JSON.parse(textTracksAvailable);
                 // Parse only the closed captioning tracks
                 var closedCaptioningList = [];
                 for(track=0; track<textTrackList.length;track++) {
@@ -346,6 +348,26 @@ function playbackStateChanged(event) {
                     }
                     option.text = closedCaptioningList[trackNo-1];
                     ccTracks.add(option);
+                }
+            }
+
+            if(audioTracksAvailable != undefined)
+            {
+                // Remove exsisting options in list
+                if(audioTracks.options.length) {
+                    for(itemIndex = audioTracks.options.length; itemIndex >= 0; itemIndex--) {
+                        audioTracks.remove(itemIndex);
+                    }
+                }
+
+                var audioTrackList = JSON.parse(audioTracksAvailable);
+
+                // Iteratively adding all the options to audioTracks
+                for (var trackNo = 0; trackNo < audioTrackList.length; trackNo++) {
+                    var option = document.createElement("option");
+                    option.value = trackNo;
+                    option.text = audioTrackList[trackNo].language + " " + audioTrackList[trackNo].rendition;
+                    audioTracks.add(option);
                 }
             }
 
