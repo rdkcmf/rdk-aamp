@@ -40,8 +40,8 @@ TtmlSubtecParser::TtmlSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType t
 
 bool TtmlSubtecParser::init(double startPos, unsigned long long basePTS)
 {
-	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPos));
-
+	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPos * 1000.0));
+	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 	return true;
 }
 

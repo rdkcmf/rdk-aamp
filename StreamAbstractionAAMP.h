@@ -875,15 +875,8 @@ public:
 	 * @brief Kicks off subtitle display - sent at start of video presentation
 	 * 
 	 */
-	virtual void StartSubtitleParser(unsigned long long firstPts) { };
+	virtual void StartSubtitleParser() { };
 	
-	/**
-	 * @brief Send a timestamp to sync the subtitle renderer
-	 * 
-	 * @param pts 
-	 */
-	virtual void UpdateSubtitleTimestamp(unsigned long long pts) { };
-
 	/**
 	 *   @brief Waits subtitle track injection until caught up with audio track.
 	 *          Used internally by injection logic

@@ -1818,13 +1818,10 @@ public:
 	void NotifyFirstBufferProcessed();
 
 	/**
-	 *   @brief Update audio language selection
-	 *
-	 *   @param[in] lang - Language
-	 *   @param[in] checkBeforeOverwrite - flag to enable additional check before overwriting language
-	 *   @return void
+	 * @brief Sets up the timestamp sync for subtitle renderer
+	 * 
 	 */
-	void UpdateAudioLanguageSelection(const char *lang, bool checkBeforeOverwrite = false);
+	void UpdateSubtitleTimestamp();
 
 	/**
 	 *   @brief Get stream type

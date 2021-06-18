@@ -6849,6 +6849,14 @@ void PrivateInstanceAAMP::SendStalledErrorEvent()
 	SendErrorEvent(AAMP_TUNE_PLAYBACK_STALLED, description);
 }
 
+void PrivateInstanceAAMP::UpdateSubtitleTimestamp()
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->StartSubtitleParser();
+	}
+}
+
 /**
  * @brief Notifiy first buffer is processed
  */
@@ -6865,13 +6873,6 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	trickStartUTCMS = aamp_GetCurrentTimeMS();
 	logprintf("%s:%d : seek pos %.3f", __FUNCTION__, __LINE__, seek_pos_seconds);
 	
-	if (mpStreamAbstractionAAMP)
-	{
-		auto pts = mStreamSink->GetVideoPTS() + mVideoBasePTS;
-		auto pts_ms = pts / 90.0;
-		AAMPLOG_INFO("%s:%d Updating subtitle PTS: %.3fms", __FUNCTION__, __LINE__, pts_ms);
-		mpStreamAbstractionAAMP->UpdateSubtitleTimestamp(static_cast<unsigned long long>(pts_ms));
-	}
 }
 
 /**
@@ -7538,12 +7539,7 @@ void PrivateInstanceAAMP::NotifyFirstVideoPTS(unsigned long long pts, unsigned l
 void PrivateInstanceAAMP::NotifyVideoBasePTS(unsigned long long basepts, unsigned long timeScale)
 {
 	mVideoBasePTS = basepts;
-	AAMPLOG_INFO("mVideoBasePTS::%llu\n", mVideoBasePTS);
-	if (mpStreamAbstractionAAMP)
-	{
-		mpStreamAbstractionAAMP->StartSubtitleParser(mVideoBasePTS / 90.0);
-	}
-
+	AAMPLOG_INFO("mVideoBasePTS::%llus", mVideoBasePTS);
 }
 
 /**
