@@ -78,6 +78,7 @@ public:
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
 	int GetProfileCount();
 	int GetProfileIndexForBandwidth(long mTsbBandwidth);
+	void StartSubtitleParser() override;
 
 	std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
 	bool SetThumbnailTrack(int) override;

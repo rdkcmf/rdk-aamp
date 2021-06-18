@@ -1810,6 +1810,12 @@ public:
 	 *   @return void
 	 */
 	void NotifyFirstBufferProcessed();
+	
+	/**
+	 * @brief Sets up the timestamp sync for subtitle renderer
+	 * 
+	 */
+	void UpdateSubtitleTimestamp();
 
 	/**
 	 *   @brief Update audio language selection
