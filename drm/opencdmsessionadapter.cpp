@@ -170,7 +170,7 @@ void AAMPOCDMSessionAdapter::processOCDMChallenge(const char destUrl[], const ui
 		logprintf("processOCDMChallenge challenge = %s", m_challenge.c_str());
 
 		m_destUrl.assign(destUrl);
-		logprintf("processOCDMChallenge destUrl = %s", m_destUrl.c_str());
+		logprintf("processOCDMChallenge destUrl = %s (default value used as drm server)", m_destUrl.c_str());
 
 		m_challengeReady.signal();
 	}
@@ -212,7 +212,7 @@ DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL,
 
 			result = new DrmData(reinterpret_cast<unsigned char*>(const_cast<char*>(m_challenge.c_str())), m_challenge.length());
 			destinationURL.assign((m_destUrl.c_str()));
-			logprintf("destination url is %s", destinationURL.c_str());
+			logprintf("destinationURL is %s (default value used as drm server)", destinationURL.c_str());
 			m_eKeyState = KEY_PENDING;
 		}
 		else {
