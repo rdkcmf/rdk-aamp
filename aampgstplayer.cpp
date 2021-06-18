@@ -1164,6 +1164,15 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 
 			if (isPlaybinStateChangeEvent && new_state == GST_STATE_PLAYING)
 			{
+				// progressive ff case, notify to update trickStartUTCMS
+				if (_this->aamp->mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
+				{
+					_this->aamp->NotifyFirstBufferProcessed();
+					if (_this->privateContext->firstProgressCallbackIdleTaskId == 0)
+					{
+						_this->privateContext->firstProgressCallbackIdleTaskId = _this->aamp->ScheduleAsyncTask(IdleCallback, (void *)_this);
+					}
+				}
 #if defined(REALTEKCE)
 				// DELIA-33640: For Realtekce build and westeros-sink disabled
 				// prevent calling NotifyFirstFrame after first tune, ie when upausing
@@ -3102,16 +3111,21 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 	if (gst_element_query(video->sinkbin, privateContext->positionQuery) == TRUE)
 	{
 		gint64 pos = 0;
+		int rate = privateContext->rate;
 		gst_query_parse_position(privateContext->positionQuery, NULL, &pos);
+		if (aamp->mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
+		{
+			rate = 1; // MP4 position query alaways return absolute value
+		}
 
 		if (privateContext->segmentStart > 0)
 		{
 			// DELIA-39530 - Deduct segment.start to find the actual time of media that's played.
-			rc = (GST_TIME_AS_MSECONDS(pos) - privateContext->segmentStart) * privateContext->rate;
+			rc = (GST_TIME_AS_MSECONDS(pos) - privateContext->segmentStart) * rate;
 		}
 		else
 		{
-			rc = GST_TIME_AS_MSECONDS(pos) * privateContext->rate;
+			rc = GST_TIME_AS_MSECONDS(pos) * rate;
 		}
 		//AAMPLOG_WARN("AAMPGstPlayer::%s()%d pos - %" G_GINT64_FORMAT " rc - %ld", __FUNCTION__, __LINE__, GST_TIME_AS_MSECONDS(pos), rc);
 
@@ -3514,9 +3528,13 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			privateContext->stream[i].eosReached = false;
 		}
 
-		AAMPLOG_INFO("AAMPGstPlayer::%s:%d Pipeline flush seek - start = %f", __FUNCTION__, __LINE__, position);
-
-		if (!gst_element_seek(privateContext->pipeline, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
+		AAMPLOG_INFO("AAMPGstPlayer::%s:%d Pipeline flush seek - start = %f rate = %d", __FUNCTION__, __LINE__, position, rate);
+		double playRate = 1.0;
+		if (eMEDIAFORMAT_PROGRESSIVE == aamp->mMediaFormat)
+		{
+			playRate = rate;
+		}
+		if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
 				position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
 		{
 			logprintf("Seek failed");

@@ -195,10 +195,13 @@ AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
     AAMPStatusType retval = eAAMPSTATUS_OK;
     aamp->CurlInit(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT,aamp->GetNetworkProxy());  //CID:110904 - newTune bool variable  initialized not used
     aamp->IsTuneTypeNew = false;
+    std::set<std::string> mLangList; /**< emptry language list */
+    std::vector<long> bitrates; /**< empty bitrates */
     for (int i = 0; i < AAMP_TRACK_COUNT; i++)
     {
         aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, (AampCurlInstance) i);
     }
+    aamp->SendMediaMetadataEvent(0, mLangList, bitrates, false, false);
     return retval;
 }
 
@@ -226,7 +229,7 @@ AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
  * @param rate playback rate
  */
 StreamAbstractionAAMP_PROGRESSIVE::StreamAbstractionAAMP_PROGRESSIVE(class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(aamp),
-fragmentCollectorThreadStarted(false), fragmentCollectorThreadID(0)
+fragmentCollectorThreadStarted(false), fragmentCollectorThreadID(0), seekPosition(seek_pos)
 {
     trickplayMode = (rate != AAMP_NORMAL_PLAY_RATE);
 }
@@ -304,7 +307,7 @@ MediaTrack* StreamAbstractionAAMP_PROGRESSIVE::GetMediaTrack(TrackType type)
  */
 double StreamAbstractionAAMP_PROGRESSIVE::GetStreamPosition()
 {
-    return 0.0;
+    return seekPosition;
 }
 
 /**
