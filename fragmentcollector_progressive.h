@@ -41,6 +41,7 @@ public:
     ~StreamAbstractionAAMP_PROGRESSIVE();
     StreamAbstractionAAMP_PROGRESSIVE(const StreamAbstractionAAMP_PROGRESSIVE&) = delete;
     StreamAbstractionAAMP_PROGRESSIVE& operator=(const StreamAbstractionAAMP_PROGRESSIVE&) = delete;
+    double seekPosition;
     void DumpProfiles(void) override;
     void Start() override;
     void Stop(bool clearChannelData) override;
