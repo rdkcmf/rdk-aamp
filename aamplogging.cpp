@@ -61,7 +61,7 @@ bool AampLogManager::isLogLevelAllowed(AAMP_LogLevel chkLevel)
  */
 void AampLogManager::setLogLevel(AAMP_LogLevel newLevel)
 {
-	if(!info && !debug)
+	if(!info && !debug && !trace)
 		aampLoglevel = newLevel;
 }
 

@@ -185,6 +185,7 @@ public:
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
 	int GetProfileCount();
 	int GetProfileIndexForBandwidth(long mTsbBandwidth);
+	void StartSubtitleParser() override;
 
 	// ideally below would be private, but called from MediaStreamContext
 	const IAdaptationSet* GetAdaptationSetAtIndex(int idx);
