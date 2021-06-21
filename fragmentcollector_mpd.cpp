@@ -702,6 +702,7 @@ public:
 	bool onAdEvent(AdEvent evt, double &adOffset);
 	long GetMaxTSBBandwidth() { return mMaxTSBBandwidth; }
 	bool IsTSBUsed() { return mIsFogTSB; }
+	void StartSubtitleParser();
 #ifdef AAMP_MPD_DRM
 	void ProcessEAPLicenseRequest();
 	void StartDeferredDRMRequestThread(MediaType mediaType);
@@ -5549,6 +5550,17 @@ int PrivateStreamAbstractionMPD::GetBestAudioTrackByLanguage( int &desiredRepIdx
 	return retAdapSetValue;
 }
 
+void PrivateStreamAbstractionMPD::StartSubtitleParser()
+{
+	struct MediaStreamContext *subtitle = mMediaStreamContext[eMEDIATYPE_SUBTITLE];
+	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
+	{
+		AAMPLOG_INFO("%s: sending init %.3f", __FUNCTION__, mFirstPTS * 1000.0);
+		subtitle->mSubtitleParser->init(seekPosition, static_cast<unsigned long long>(mFirstPTS * 1000.0));
+		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
+	}
+}
+
 /**
  * @brief Does stream selection
  * @param newTune true if this is a new tune
@@ -5656,12 +5668,7 @@ void PrivateStreamAbstractionMPD::StreamSelection( bool newTune, bool forceSpeed
 								tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
 							}
 							pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, adaptationMimeType);
-							if (pMediaStreamContext->mSubtitleParser) 
-							{
-								pMediaStreamContext->mSubtitleParser->init(seekPosition, 0);
-								pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
-							}
-							else
+							if (!pMediaStreamContext->mSubtitleParser) 
 							{
 								pMediaStreamContext->enabled = false;
 								selAdaptationSetIndex = -1;
@@ -8789,6 +8796,11 @@ bool PrivateStreamAbstractionMPD::onAdEvent(AdEvent evt, double &adOffset)
 		}
 	}
 	return stateChanged;
+}
+
+void StreamAbstractionAAMP_MPD::StartSubtitleParser()
+{
+	mPriv->StartSubtitleParser();
 }
 
 /**
