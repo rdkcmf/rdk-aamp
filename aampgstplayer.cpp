@@ -1163,7 +1163,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 
 		isPlaybinStateChangeEvent = (GST_MESSAGE_SRC(msg) == GST_OBJECT(_this->privateContext->pipeline));
 
-		if (gpGlobalConfig->logging.gst || isPlaybinStateChangeEvent)
+		if (_this->aamp->mConfig->IsConfigSet(eAAMPConfig_GSTLogging) || isPlaybinStateChangeEvent)
 		{
 			logprintf("%s %s -> %s (pending %s)",
 				GST_OBJECT_NAME(msg->src),
@@ -1209,7 +1209,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 #endif
 				analyze_streams(_this);
 
-				if (gpGlobalConfig->logging.gst )
+				if (_this->aamp->mConfig->IsConfigSet(eAAMPConfig_GSTLogging))
 				{
 					GST_DEBUG_BIN_TO_DOT_FILE((GstBin *)_this->privateContext->pipeline, GST_DEBUG_GRAPH_SHOW_ALL, "myplayer");
 					// output graph to .dot format which can be visualized with Graphviz tool if:

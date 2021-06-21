@@ -2642,7 +2642,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 					fragDuration = atof(ptr);
 					// enable logging for all stream type , for top 10 segments .This will help to find diff between
 					// playlist
-					if(gpGlobalConfig->logging.stream && indexCount < 10)
+					if(ISCONFIGSET(eAAMPConfig_StreamLogging) && indexCount < 10)
 					{
 						std::string urlname;
 						char *urlstrstart=GetNextLineStart(ptr);
@@ -2661,7 +2661,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				{
 					indexFirstMediaSequenceNumber = atoll(ptr);
 					mediaSequence = true;
-					if(gpGlobalConfig->logging.stream)
+					if(ISCONFIGSET(eAAMPConfig_StreamLogging))
 					{
 						logprintf("%s %s First Media Sequence Number :%lld",__FUNCTION__,name,indexFirstMediaSequenceNumber);
 					}
@@ -2725,7 +2725,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				else if(startswith(&ptr,"-X-DISCONTINUITY"))
 				{
 					discontinuity = true;
-					if(gpGlobalConfig->logging.stream)
+					if(ISCONFIGSET(eAAMPConfig_StreamLogging))
 					{
 						logprintf("%s %s [%d] Discontinuity Posn : %f ",__FUNCTION__,name,indexCount,totalDuration);
 					}
@@ -2733,7 +2733,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				else if (startswith(&ptr, "-X-PROGRAM-DATE-TIME:"))
 				{
 					programDateTimeIdxOfFragment = ptr;					
-					if(gpGlobalConfig->logging.stream)
+					if(ISCONFIGSET(eAAMPConfig_StreamLogging))
 					{
 						AAMPLOG_INFO("%s %s EXT-X-PROGRAM-DATE-TIME: %.*s ",__FUNCTION__,name, 30, programDateTimeIdxOfFragment);
 					}

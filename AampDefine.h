@@ -138,7 +138,8 @@ typedef enum
 	AAMP_STREAM_SETTING             = 2,
 	AAMP_APPLICATION_SETTING        = 3,
 	AAMP_TUNE_SETTING        		= 4,
-	AAMP_DEV_CFG_SETTING            = 5,            // Highest priority
+	AAMP_DEV_CFG_SETTING            = 5,
+	AAMP_CUSTOM_DEV_CFG_SETTING     = 6,		// Highest priority
 	AAMP_MAX_SETTING
 }ConfigPriority;
 

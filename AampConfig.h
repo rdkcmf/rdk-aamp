@@ -290,6 +290,19 @@ struct ConfigChannelInfo
 	std::string licenseUri;
 };
 
+/**
+ * @struct customJson
+ * @brief Holds information of a custom JSON array
+ */
+
+struct customJson
+{
+        customJson() : config(), configValue()
+        { }
+        std::string config;
+        std::string configValue;
+};
+
 
 /**
  * @brief AAMP Config lookup table structure
@@ -426,6 +439,9 @@ public:
 	bool GetAampConfigJSONStr(std::string &str);
 	bool GetDeveloperConfigData(std::string &key,std::string &value);
 	void DoCustomSetting(ConfigPriority owner);
+	void CustomArrayRead( cJSON *customArray,ConfigPriority owner );
+	bool CustomSearch( std::string url, int playerId , std::string appname);
+
 	////////// Special Functions /////////////////////////
 	std::string GetUserAgentString();
 	//long GetManifestTimeoutMs();
@@ -450,6 +466,9 @@ private:
 	typedef std::map<std::string, std::string> DevCmds;
 	typedef std::map<std::string, std::string>::iterator DevCmdsIter;
 	DevCmds mAampDevCmdTable;
+	std::vector<struct customJson>vCustom;
+	std::vector<struct customJson>::iterator vCustomIt;
+	bool customFound;
 	ConfigBool	bAampCfgValue[eAAMPConfig_BoolMaxValue];								// Stores bool configuration
 	ConfigInt	iAampCfgValue[eAAMPConfig_IntMaxValue-eAAMPConfig_IntStartValue];		// Stores int configuration
 	ConfigLong	lAampCfgValue[eAAMPConfig_LongMaxValue-eAAMPConfig_LongStartValue];		// Stores long configuration

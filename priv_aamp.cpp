@@ -994,7 +994,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		return len;
 	}
 
-	if (gpGlobalConfig->logging.curlHeader && ptr[0] &&
+	if (context->aamp->mConfig->IsConfigSet(eAAMPConfig_CurlHeader) && ptr[0] &&
 			(eMEDIATYPE_VIDEO == context->fileType || eMEDIATYPE_PLAYLIST_VIDEO == context->fileType))
 	{
 		std::string temp = std::string(ptr,endPos);
@@ -1841,7 +1841,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 
 		if (trickStartUTCMS >= 0 && bProcessEvent)
 		{
-			if (gpGlobalConfig->logging.progress)
+			if (ISCONFIGSET_PRIV(eAAMPConfig_ProgressLogging))
 			{
 				static int tick;
 				if ((tick++ % 4) == 0)
@@ -3048,7 +3048,7 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 		if (!curl[i])
 		{
 			curl[i] = curl_easy_init();
-			if (gpGlobalConfig->logging.curl)
+			if (ISCONFIGSET_PRIV(eAAMPConfig_CurlLogging))
 			{
 				curl_easy_setopt(curl[i], CURLOPT_VERBOSE, 1L);
 			}
@@ -3541,7 +3541,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		std::string uriParameter;
 		GETCONFIGVALUE_PRIV(eAAMPConfig_URIParameter,uriParameter);
 		// append custom uri parameter with remoteUrl at the end before curl request if curlHeader logging enabled.
-		if (gpGlobalConfig->logging.curlHeader && (!uriParameter.empty()) && simType == eMEDIATYPE_MANIFEST)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_CurlHeader) && (!uriParameter.empty()) && simType == eMEDIATYPE_MANIFEST)
 		{
 			if (remoteUrl.find("?") == std::string::npos)
 			{
@@ -5046,6 +5046,21 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	int intTmpVar=0;
 	
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
+	const char *remapUrl = mConfig->GetChannelOverride(mainManifestUrl);
+	if (remapUrl )
+	{
+		const char *remapLicenseUrl = NULL;
+		mainManifestUrl = remapUrl;
+		remapLicenseUrl = mConfig->GetChannelLicenseOverride(mainManifestUrl);
+		if (remapLicenseUrl )
+		{
+			AAMPLOG_INFO("%s %d Channel License Url Override: [%s]", __FUNCTION__,__LINE__, remapLicenseUrl);
+			SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_LicenseServerUrl,std::string(remapLicenseUrl));
+		}
+	}
+	
+	mConfig->CustomSearch(mainManifestUrl,mPlayerId,mAppName);
+
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PlaybackOffset,seek_pos_seconds);
@@ -5111,18 +5126,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 	mAudioDecoderStreamSync = audioDecoderStreamSync;
  
-	const char *remapUrl = mConfig->GetChannelOverride(mainManifestUrl);
-	if (remapUrl )
-	{
-		const char *remapLicenseUrl = NULL;
-		mainManifestUrl = remapUrl;
-		remapLicenseUrl = mConfig->GetChannelLicenseOverride(mainManifestUrl);
-		if (remapLicenseUrl )
-		{
-			AAMPLOG_INFO("%s %d Channel License Url Override: [%s]", __FUNCTION__,__LINE__, remapLicenseUrl);
-			SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_LicenseServerUrl,std::string(remapLicenseUrl));
-		}
-	}
 
 	mMediaFormat = GetMediaFormatType(mainManifestUrl);
 
@@ -5179,7 +5182,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		GETCONFIGVALUE_PRIV(eAAMPConfig_CustomHeaderLicense,customLicenseHeaderStr);
 		if(!customLicenseHeaderStr.empty())
 		{
-			if (gpGlobalConfig->logging.curlLicense)
+			if (ISCONFIGSET_PRIV(eAAMPConfig_CurlLicenseLogging))
 			{
 				logprintf("%s:%d CustomHeader :%s",__FUNCTION__,__LINE__,customLicenseHeaderStr.c_str());
 			}
@@ -5211,7 +5214,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			}
 		}
 	}
-
 	/** Least priority operator setting will override the value only if it is not set from dev config **/ 
 	SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_WideVineKIDWorkaround,IsWideVineKIDWorkaround(mainManifestUrl));
 	mIsWVKIDWorkaround = ISCONFIGSET_PRIV(eAAMPConfig_WideVineKIDWorkaround);
@@ -6738,7 +6740,7 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 			{
 				BulkTimedMetadataEventPtr eventData = std::make_shared<BulkTimedMetadataEvent>(std::string(bulkData));
 				AAMPLOG_INFO("%s:%d:: Sending bulkTimedData", __FUNCTION__, __LINE__);
-				if (gpGlobalConfig->logging.logMetadata)
+				if (ISCONFIGSET_PRIV(eAAMPConfig_MetadataLogging))
 				{
 					printf("%s:%d:: bulkTimedData : %s\n", __FUNCTION__, __LINE__, bulkData);
 				}
@@ -6829,7 +6831,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 		//DELIA-40019: szContent should not contain any tag name and ":" delimiter. This is not checked in JS event listeners
 		TimedMetadataEventPtr eventData = std::make_shared<TimedMetadataEvent>(((szName == NULL) ? "" : szName), ((id == NULL) ? "" : id), timeMilliseconds, durationMS, content);
 
-		if (gpGlobalConfig->logging.logMetadata)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_MetadataLogging))
 		{
 			logprintf("aamp timedMetadata: [%ld] '%s'", (long)(timeMilliseconds), content.c_str());
 		}
@@ -8682,7 +8684,7 @@ void PrivateInstanceAAMP::GetCustomLicenseHeaders(std::unordered_map<std::string
 void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data, std::string &schIDUri, std::string &id3Value, uint32_t timeScale, uint64_t presentationTime, uint32_t eventDuration, uint32_t id, uint64_t timestampOffset)
 {
 	ID3MetadataEventPtr e = std::make_shared<ID3MetadataEvent>(data, schIDUri, id3Value, timeScale, presentationTime, eventDuration, id, timestampOffset);
-	if (gpGlobalConfig->logging.id3)
+	if (ISCONFIGSET_PRIV(eAAMPConfig_ID3Logging))
 	{
 		std::vector<uint8_t> metadata = e->getMetadata();
 		int metadataLen = e->getMetadataSize();
