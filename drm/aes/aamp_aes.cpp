@@ -259,7 +259,7 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 		licenseAcquisitionThreadStarted = true;
 	}
 	pthread_mutex_unlock(&mMutex);
-	AAMPLOG_INFO("AesDec: drmState:%d ", mDrmState);
+	AAMPLOG_INFO(mpAamp->mConfig, "AesDec: drmState:%d ", mDrmState);
 	return err;
 }
 
@@ -271,7 +271,7 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 void AesDec::WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err )
 {
 	struct timespec ts;
-	AAMPLOG_INFO( "aamp:waiting for key acquisition to complete,wait time:%d",timeInMs );
+	AAMPLOG_INFO(mpAamp->mConfig,  "aamp:waiting for key acquisition to complete,wait time:%d",timeInMs );
 	ts = aamp_GetTimespec(timeInMs);
 
 	if(0 != pthread_cond_timedwait(&mCond, &mMutex, &ts)) // block until drm ready
@@ -300,7 +300,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 	}
 	if (mDrmState == eDRM_KEY_ACQUIRED)
 	{
-		AAMPLOG_INFO("AesDec: Starting decrypt");
+		AAMPLOG_INFO(mpAamp->mConfig, "AesDec: Starting decrypt");
 		unsigned char *decryptedDataBuf = (unsigned char *)malloc(encryptedDataLen);
 		int decryptedDataLen = 0;
 		if (decryptedDataBuf)
@@ -323,7 +323,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 				{
 					decryptedDataLen = decLen;
 					decLen = 0;
-					AAMPLOG_INFO("AesDec: EVP_DecryptUpdate success decryptedDataLen = %d encryptedDataLen %d", (int) decryptedDataLen, (int)encryptedDataLen);
+					AAMPLOG_INFO(mpAamp->mConfig, "AesDec: EVP_DecryptUpdate success decryptedDataLen = %d encryptedDataLen %d", (int) decryptedDataLen, (int)encryptedDataLen);
 					if (!EVP_DecryptFinal_ex(OPEN_SSL_CONTEXT, decryptedDataBuf + decryptedDataLen, &decLen))
 					{
 						logprintf("AesDec::%s:%d: EVP_DecryptFinal_ex failed mDrmState = %d", __FUNCTION__, __LINE__,
@@ -332,7 +332,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 					else
 					{
 						decryptedDataLen += decLen;
-						AAMPLOG_INFO("AesDec: decrypt success");
+						AAMPLOG_INFO(mpAamp->mConfig, "AesDec: decrypt success");
 						err = eDRM_SUCCESS;
 					}
 				}

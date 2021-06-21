@@ -46,7 +46,7 @@ std::shared_ptr<HlsDrmBase> AampHlsDrmSessionManager::createSession(PrivateInsta
 	mDrmSession = aampInstance->mDRMSessionManager->createDrmSession(drmHelper, event, aampInstance, streamType);
 	if (!mDrmSession)
 	{
-		AAMPLOG_WARN("Failed to create Drm Session ");
+		AAMPLOG_WARN(aampInstance->mConfig, "Failed to create Drm Session ");
 
 		if (aampInstance->DownloadsAreEnabled())
 		{
@@ -56,7 +56,7 @@ std::shared_ptr<HlsDrmBase> AampHlsDrmSessionManager::createSession(PrivateInsta
 	}
 	else
 	{
-		AAMPLOG_WARN("created Drm Session ");
+		AAMPLOG_WARN(aampInstance->mConfig, "created Drm Session ");
 		bridge = std::make_shared<AampHlsOcdmBridge>(mDrmSession);
 	}
 

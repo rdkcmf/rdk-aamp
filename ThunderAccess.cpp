@@ -46,7 +46,7 @@ ThunderAccessAAMP::ThunderAccessAAMP(std::string callsign)
                    query(""),
                    pluginCallsign(callsign)
 {
-    AAMPLOG_INFO( "[ThunderAccessAAMP]Entered");
+    AAMPLOG_INFO_GP("[ThunderAccessAAMP]Entered");
 
     int tokenStatus = 0;
     uint32_t status = Core::ERROR_NONE;
@@ -56,7 +56,7 @@ ThunderAccessAAMP::ThunderAccessAAMP(std::string callsign)
 
     tokenStatus = GetSecurityToken(MAX_LENGTH,buffer);
     if(tokenStatus > 0){
-        AAMPLOG_INFO( "[ThunderAccessAAMP]: GetSecurityToken success");
+        AAMPLOG_INFO_GP("[ThunderAccessAAMP]: GetSecurityToken success");
         string sToken = (char*)buffer;
         query = "token=" + sToken;
     }
@@ -71,9 +71,9 @@ ThunderAccessAAMP::ThunderAccessAAMP(std::string callsign)
         }
 
         if (NULL == controllerObject) {
-            AAMPLOG_WARN( "[ThunderAccessAAMP]: Controller object creation failed");
+            AAMPLOG_WARN_GP( "[ThunderAccessAAMP]: Controller object creation failed");
         } else {
-            AAMPLOG_INFO( "[ThunderAccessAAMP]: Controller object creation success");
+            AAMPLOG_INFO_GP("[ThunderAccessAAMP]: Controller object creation success");
         }
     }
 
@@ -84,9 +84,9 @@ ThunderAccessAAMP::ThunderAccessAAMP(std::string callsign)
         remoteObject = new JSONRPC::LinkType<Core::JSON::IElement>(_T(pluginCallsign), _T(""));
     }
     if (NULL == remoteObject) {
-        AAMPLOG_WARN( "[ThunderAccessAAMP]: %s Client initialization failed", pluginCallsign.c_str());
+        AAMPLOG_WARN_GP( "[ThunderAccessAAMP]: %s Client initialization failed", pluginCallsign.c_str());
     } else {
-        AAMPLOG_INFO( "[ThunderAccessAAMP]: %s Client initialization success", pluginCallsign.c_str());
+        AAMPLOG_INFO_GP("[ThunderAccessAAMP]: %s Client initialization success", pluginCallsign.c_str());
     }
 }
 
@@ -131,15 +131,15 @@ bool ThunderAccessAAMP::ActivatePlugin()
         status = controllerObject->Invoke<JsonObject, JsonObject>(THUNDER_RPC_TIMEOUT, _T("activate"), controlParam, result);
         if (Core::ERROR_NONE == status){
             result.ToString(response);
-            AAMPLOG_INFO( "[ThunderAccessAAMP] %s plugin Activated. Response : %s ", pluginCallsign.c_str(), response.c_str());
+            AAMPLOG_INFO_GP("[ThunderAccessAAMP] %s plugin Activated. Response : %s ", pluginCallsign.c_str(), response.c_str());
         }
         else
         {
-            AAMPLOG_WARN( "[ThunderAccessAAMP] %s plugin Activation failed with error status : %u ", pluginCallsign.c_str(), status);
+            AAMPLOG_WARN_GP( "[ThunderAccessAAMP] %s plugin Activation failed with error status : %u ", pluginCallsign.c_str(), status);
             ret = false;
         }
     } else {
-        AAMPLOG_WARN( "[ThunderAccessAAMP]: Controller Object NULL ");
+        AAMPLOG_WARN_GP( "[ThunderAccessAAMP]: Controller Object NULL ");
         ret = false;
     }
 
@@ -161,13 +161,13 @@ bool ThunderAccessAAMP::SubscribeEvent (string eventName, std::function<void(con
     if (NULL != remoteObject) {
         status = remoteObject->Subscribe<JsonObject>(THUNDER_RPC_TIMEOUT, _T(eventName), functionHandler);
         if (Core::ERROR_NONE == status) {
-            AAMPLOG_INFO( "[ThunderAccessAAMP]: Subscribed to : %s", eventName.c_str());
+            AAMPLOG_INFO_GP("[ThunderAccessAAMP]: Subscribed to : %s", eventName.c_str());
         } else {
-            AAMPLOG_WARN( "[ThunderAccessAAMP]: Subscription failed for : %s with error status %u", eventName.c_str(), status);
+            AAMPLOG_WARN_GP( "[ThunderAccessAAMP]: Subscription failed for : %s with error status %u", eventName.c_str(), status);
             ret = false;
         }
     } else {
-        AAMPLOG_WARN( "[ThunderAccessAAMP]: remoteObject not created for the plugin!");
+        AAMPLOG_WARN_GP( "[ThunderAccessAAMP]: remoteObject not created for the plugin!");
         ret = false;
     }
     return ret;
@@ -186,9 +186,9 @@ bool ThunderAccessAAMP::UnSubscribeEvent (string eventName)
     bool ret = true;
     if (NULL != remoteObject) {
         remoteObject->Unsubscribe(THUNDER_RPC_TIMEOUT, _T(eventName));
-        AAMPLOG_INFO( "[ThunderAccessAAMP]: UnSubscribed : %s event", eventName.c_str());
+        AAMPLOG_INFO_GP("[ThunderAccessAAMP]: UnSubscribed : %s event", eventName.c_str());
     } else {
-        AAMPLOG_WARN( "[ThunderAccessAAMP]: remoteObject not created for the plugin!");
+        AAMPLOG_WARN_GP( "[ThunderAccessAAMP]: remoteObject not created for the plugin!");
         ret = false;
     }
     return ret;
@@ -209,7 +209,7 @@ bool ThunderAccessAAMP::InvokeJSONRPC(std::string method, const JsonObject &para
 
     if(NULL == remoteObject)
     {
-        AAMPLOG_WARN( "[ThunderAccessAAMP]: client not initialized! ");
+        AAMPLOG_WARN_GP( "[ThunderAccessAAMP]: client not initialized! ");
         return false;
     }
     status = remoteObject->Invoke<JsonObject, JsonObject>(waitTime, _T(method), param, result);
@@ -217,18 +217,18 @@ bool ThunderAccessAAMP::InvokeJSONRPC(std::string method, const JsonObject &para
     {
         if (result["success"].Boolean()) {
             result.ToString(response);
-            AAMPLOG_INFO( "[ThunderAccessAAMP] %s success! Response : %s", method.c_str() , response.c_str());
+            AAMPLOG_INFO_GP("[ThunderAccessAAMP] %s success! Response : %s", method.c_str() , response.c_str());
         }
         else
         {
             result.ToString(response);
-            AAMPLOG_WARN( "[ThunderAccessAAMP] %s call failed! Response : %s", method.c_str() , response.c_str());
+            AAMPLOG_WARN_GP( "[ThunderAccessAAMP] %s call failed! Response : %s", method.c_str() , response.c_str());
             ret = false;
         }
     }
     else
     {
-        AAMPLOG_WARN( "[ThunderAccessAAMP] %s : invoke failed with error status %u", method.c_str(), status);
+        AAMPLOG_WARN_GP( "[ThunderAccessAAMP] %s : invoke failed with error status %u", method.c_str(), status);
         ret = false;
     }
     return ret;

@@ -71,9 +71,9 @@ void print_nop(const char *format, ...){}
 #define ERROR print_nop
 #define FATAL print_nop
 #else
-#define NOTICE(FORMAT, ...) 	AAMPLOG(eLOGLEVEL_INFO,  FORMAT, ##__VA_ARGS__)
-#define WARNING(FORMAT, ...) 	AAMPLOG(eLOGLEVEL_WARN, FORMAT, ##__VA_ARGS__)
-#define ERROR(FORMAT, ...) 	AAMPLOG(eLOGLEVEL_ERROR,  FORMAT, ##__VA_ARGS__)
+#define NOTICE(FORMAT, ...) 	AAMPLOG_GP(eLOGLEVEL_INFO, FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define WARNING(FORMAT, ...) 	AAMPLOG_GP(eLOGLEVEL_WARN, FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define ERROR(FORMAT, ...) 	AAMPLOG_GP(eLOGLEVEL_ERROR,  FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 #endif
 
 
@@ -306,7 +306,7 @@ public:
 			INFO("demux : sending remaining bytes. es.len %d", (int)es.len);
 			send();
 		}
-		AAMPLOG_INFO("Demuxer: count %d in duration %f", sentESCount, duration);
+		AAMPLOG_INFO(aamp->mConfig, "Demuxer: count %d in duration %f", sentESCount, duration);
 		reset();
 	}
 
@@ -2312,7 +2312,7 @@ void TSProcessor::sendQueuedSegment(long long basepts, double updatedStartPosito
 			}
 			if(!demuxAndSend(m_queuedSegment, m_queuedSegmentLen, m_queuedSegmentPos, m_queuedSegmentDuration, m_queuedSegmentDiscontinuous ))
 			{
-				AAMPLOG_WARN("demuxAndSend");  //CID:90622- checked return
+				AAMPLOG_WARN(aamp->mConfig, "demuxAndSend");  //CID:90622- checked return
 			}
 		}
 		else

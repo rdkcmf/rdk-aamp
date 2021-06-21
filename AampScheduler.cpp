@@ -85,12 +85,12 @@ int AampScheduler::ScheduleTask(AsyncTaskObj obj)
 		else
 		{
 			// Operation is skipped here, this might happen due to race conditions during normal operation, hence setting as info log
-			AAMPLOG_INFO("Warning: Attempting to schedule a task when scheduler is locked out, skipping operation!!");
+			AAMPLOG_INFO_GP( "Warning: Attempting to schedule a task when scheduler is locked out, skipping operation!!");
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("Attempting to schedule a task when scheduler is not running, undefined behavior!");
+		AAMPLOG_ERR_GP("Attempting to schedule a task when scheduler is not running, undefined behavior!");
 	}
 	return id;
 }
@@ -107,12 +107,12 @@ void AampScheduler::ExecuteAsyncTask()
 	{
 		if (mTaskQueue.empty())
 		{
-			AAMPLOG_WARN("Waiting for any functions to be queued!!");
+			AAMPLOG_WARN_GP("Waiting for any functions to be queued!!");
 			mQCond.wait(lock);
 		}
 		else
 		{
-			AAMPLOG_WARN("Found entry in function queue!!");
+			AAMPLOG_WARN_GP("Found entry in function queue!!");
 			AsyncTaskObj obj = mTaskQueue.front();
 			mTaskQueue.pop_front();
 			if (obj.mId != AAMP_SCHEDULER_ID_INVALID)
@@ -121,7 +121,7 @@ void AampScheduler::ExecuteAsyncTask()
 			}
 			else
 			{
-				AAMPLOG_ERR("Scheduler found a task with invalid ID, skip task!");
+				AAMPLOG_ERR_GP("Scheduler found a task with invalid ID, skip task!");
 				continue;
 			}
 
@@ -150,7 +150,7 @@ void AampScheduler::RemoveAllTasks()
 	std::lock_guard<std::mutex>lock(mQMutex);
 	if (!mTaskQueue.empty())
 	{
-		AAMPLOG_WARN("Clearing up %d entries from mFuncQueue", mTaskQueue.size());
+		AAMPLOG_WARN_GP("Clearing up %d entries from mFuncQueue", mTaskQueue.size());
 		mTaskQueue.clear();
 	}
 	// A cleanup process is in progress, we should temporarily disable any new tasks from getting scheduled.

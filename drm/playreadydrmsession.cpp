@@ -569,7 +569,7 @@ int PlayReadyDRMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 {
 	if(!key)
 	{
-		AAMPLOG_ERR("PlayReadyDRMSession: Cannot Process Null Key ");
+		AAMPLOG_ERR_GP("PlayReadyDRMSession: Cannot Process Null Key ");
 		return 0; //err
 	}
 

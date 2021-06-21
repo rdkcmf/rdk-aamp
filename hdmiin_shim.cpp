@@ -53,7 +53,7 @@ StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(class PrivateInstance
  */
 StreamAbstractionAAMP_HDMIIN::~StreamAbstractionAAMP_HDMIIN()
 {
-	AAMPLOG_WARN("destructor ");
+	AAMPLOG_WARN(aamp->mConfig, "destructor ");
 }
 /**
  *   @brief  Initialize a newly created object.
@@ -100,7 +100,7 @@ void StreamAbstractionAAMP_HDMIIN::Stop(bool clearChannelData)
  */
 std::vector<StreamInfo*> StreamAbstractionAAMP_HDMIIN::GetAvailableThumbnailTracks(void)
 { // STUB
-	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN: Enter");
+	AAMPLOG_WARN(aamp->mConfig, "StreamAbstractionAAMP_HDMIIN: Enter");
 	return std::vector<StreamInfo*>();
 }
 
@@ -130,7 +130,7 @@ void StreamAbstractionAAMP_HDMIIN::OnVideoStreamInfoUpdate(const JsonObject& par
 {
         std::string message;
         parameters.ToString(message);
-        AAMPLOG_WARN("%s",message.c_str());
+        AAMPLOG_WARN(aamp->mConfig, "%s",message.c_str());
 
         JsonObject videoInfoObj = parameters;
         VideoScanType videoScanType = (videoInfoObj["progressive"].Boolean() ? eVIDEOSCAN_PROGRESSIVE : eVIDEOSCAN_INTERLACED);

@@ -379,6 +379,7 @@ typedef struct ConfigString
 class AampConfig
 {
 public:
+	int playerId;
 	// Had to define as public as globalConfig loggin var is used multiple files
 	// TODO when player level logging is done, need to remove this
 	AampLogManager logging;                 /**< Aamp log manager class*/

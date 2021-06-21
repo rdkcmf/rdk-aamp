@@ -51,12 +51,12 @@ void AampSubtecCCManager::EnsureHALInitialized()
 	{
 		if(subtecConnector::initHal() == CC_VL_OS_API_RESULT_SUCCESS)
 		{
-			AAMPLOG_WARN("AampSubtecCCManager: calling subtecConnector::initHal() - success");
+			AAMPLOG_WARN_GP("AampSubtecCCManager: calling subtecConnector::initHal() - success");
 			mHALInitialized = true;
 		}
 		else
 		{
-			AAMPLOG_WARN("AampSubtecCCManager: calling subtecConnector::initHal() - failure");
+			AAMPLOG_WARN_GP("AampSubtecCCManager: calling subtecConnector::initHal() - failure");
 		}
 	}
 };
@@ -71,12 +71,12 @@ void AampSubtecCCManager::EnsureRendererCommsInitialized()
 	{
 		if(subtecConnector::initPacketSender() == CC_VL_OS_API_RESULT_SUCCESS)
 		{
-			AAMPLOG_WARN("AampSubtecCCManager: calling subtecConnector::initPacketSender() - success");
+			AAMPLOG_WARN_GP("AampSubtecCCManager: calling subtecConnector::initPacketSender() - success");
 			mRendererInitialized = true;
 		}
 		else
 		{
-			AAMPLOG_WARN("AampSubtecCCManager: calling subtecConnector::initPacketSender() - failure");
+			AAMPLOG_WARN_GP("AampSubtecCCManager: calling subtecConnector::initPacketSender() - failure");
 		}
 	}
 };
@@ -86,7 +86,7 @@ void AampSubtecCCManager::EnsureRendererCommsInitialized()
  */
 void AampSubtecCCManager::Release(void)
 {
-	AAMPLOG_WARN("AampSubtecCCManager: Enter");
+	AAMPLOG_WARN_GP("AampSubtecCCManager: Enter");
 	subtecConnector::resetChannel();
 	if(mHALInitialized)
 	{
@@ -148,7 +148,7 @@ int AampSubtecCCManager::SetAnalogChannel(unsigned int id)
  */
 void AampSubtecCCManager::EnsureRendererStateConsistency()
 {
-	AAMPLOG_WARN("AampSubtecCCManager: Enter");
+	AAMPLOG_WARN_GP("AampSubtecCCManager: Enter");
 	if(mEnabled)
 	{
 		Start();

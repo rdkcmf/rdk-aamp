@@ -32,7 +32,7 @@ public:
     {
         SubtitleMimeType type = eSUB_TYPE_UNKNOWN;
 
-        AAMPLOG_INFO("createSubtitleParser: mimeType %s\n", mimeType.c_str());
+        AAMPLOG_INFO(aamp->mConfig, "createSubtitleParser: mimeType %s\n", mimeType.c_str());
 
         if (!mimeType.compare("text/vtt"))
             type = eSUB_TYPE_WEBVTT;
@@ -45,7 +45,7 @@ public:
 
     static std::unique_ptr<SubtitleParser> createSubtitleParser(PrivateInstanceAAMP *aamp, SubtitleMimeType mimeType)
     {
-        AAMPLOG_INFO("createSubtitleParser: mimeType: %d\n", mimeType);
+        AAMPLOG_INFO(aamp->mConfig, "createSubtitleParser: mimeType: %d\n", mimeType);
         std::unique_ptr<SubtitleParser> empty;
         
         try {
@@ -64,12 +64,12 @@ public:
                 case eSUB_TYPE_TTML:
                     return make_unique<TtmlSubtecParser>(aamp, mimeType);
                 default:
-                    AAMPLOG_WARN("Unknown subtitle parser type %d, returning empty", mimeType);
+                    AAMPLOG_WARN(aamp->mConfig, "Unknown subtitle parser type %d, returning empty", mimeType);
                     break;
             }
         } catch (const std::runtime_error &e) {
-            AAMPLOG_WARN("%s", e.what());
-            AAMPLOG_WARN("Failed on SubtitleParser construction - returning empty");
+            AAMPLOG_WARN(aamp->mConfig, "%s", e.what());
+            AAMPLOG_WARN(aamp->mConfig, "Failed on SubtitleParser construction - returning empty");
         }
 
         return empty;

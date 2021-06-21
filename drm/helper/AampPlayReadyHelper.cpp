@@ -51,7 +51,7 @@ bool AampPlayReadyHelper::parsePssh(const uint8_t* initData, uint32_t initDataLe
 	// Extract key
 	unsigned char *keydata = aamp_ExtractDataFromPssh(reinterpret_cast<const char*>(initData),
 			initDataLen, KEYID_TAG_START, KEYID_TAG_END, &keyIdLen);
-	//AAMPLOG_INFO("pr keyid: %s keyIdlen: %d", keydata, keyIdLen);
+	//AAMPLOG_INFO_GP("pr keyid: %s keyIdlen: %d", keydata, keyIdLen);
 
 	if (keydata)
 	{
@@ -60,7 +60,7 @@ bool AampPlayReadyHelper::parsePssh(const uint8_t* initData, uint32_t initDataLe
 
 		if (decodedDataLen != PLAYREADY_DECODED_KEY_ID_LEN)
 		{
-			AAMPLOG_ERR("Invalid key size found while extracting PR Decoded-KeyID-Length: %d (PR KeyID: %s  KeyID-Length: %d)", decodedDataLen, keydata, keyIdLen);
+			AAMPLOG_ERR_GP("Invalid key size found while extracting PR Decoded-KeyID-Length: %d (PR KeyID: %s  KeyID-Length: %d)", decodedDataLen, keydata, keyIdLen);
 		}
 		else
 		{

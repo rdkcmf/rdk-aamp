@@ -98,7 +98,7 @@ static int getColor(gsw_CcAttribType attributeIndex, gsw_CcType ccType, std::str
 	static bool flagForMalloc = false;
 	static const int MAX_COLOR_BUFFER_LEN = ((GSW_MAX_CC_COLOR_NAME_LENGTH > 8 ? GSW_MAX_CC_COLOR_NAME_LENGTH : 8) + 1);
 	unsigned int ccSizeOfCaps = 0;
-	AAMPLOG_TRACE("input: %s", input.c_str());
+	AAMPLOG_TRACE_GP("input: %s", input.c_str());
 
 	if (!input.empty() && colorOut)
 	{
@@ -117,10 +117,10 @@ static int getColor(gsw_CcAttribType attributeIndex, gsw_CcType ccType, std::str
 		const char *inputStr = input.c_str();
 		for (unsigned int i = 0; i < ccSizeOfCaps; i++)
 		{
-			AAMPLOG_TRACE("color caps: %s", ccColorCaps[i]->name);
+			AAMPLOG_TRACE_GP("color caps: %s", ccColorCaps[i]->name);
 			if (0 == strncasecmp(ccColorCaps[i]->name, inputStr, GSW_MAX_CC_COLOR_NAME_LENGTH))
 			{
-				AAMPLOG_TRACE("found match %s", ccColorCaps[i]->name);
+				AAMPLOG_TRACE_GP("found match %s", ccColorCaps[i]->name);
 				memcpy(colorOut, ccColorCaps[i], sizeof (gsw_CcColor));
 				found = true;
 				break;
@@ -128,12 +128,12 @@ static int getColor(gsw_CcAttribType attributeIndex, gsw_CcType ccType, std::str
 		}
 		if(!found)
 		{
-			AAMPLOG_ERR("Unsupported color type %s", inputStr);
+			AAMPLOG_ERR_GP("Unsupported color type %s", inputStr);
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("Input is NULL!");
+		AAMPLOG_ERR_GP("Input is NULL!");
 		return -1;
 	}
 	return 0;
@@ -148,7 +148,7 @@ static int getColor(gsw_CcAttribType attributeIndex, gsw_CcType ccType, std::str
  */
 static int getTextStyle(std::string input, gsw_CcTextStyle *textStyleOut)
 {
-	AAMPLOG_TRACE("input: %s", input.c_str());
+	AAMPLOG_TRACE_GP("input: %s", input.c_str());
 	if (!input.empty() && textStyleOut)
 	{
 		const char *inputStr = input.c_str();
@@ -166,12 +166,12 @@ static int getTextStyle(std::string input, gsw_CcTextStyle *textStyleOut)
 		}
 		else
 		{
-			AAMPLOG_ERR("Unsupported text style  %s", inputStr);
+			AAMPLOG_ERR_GP("Unsupported text style  %s", inputStr);
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("Input is NULL");
+		AAMPLOG_ERR_GP("Input is NULL");
 		return -1;
 	}
 	return 0;
@@ -186,7 +186,7 @@ static int getTextStyle(std::string input, gsw_CcTextStyle *textStyleOut)
  */
 static int getEdgeType(std::string input, gsw_CcEdgeType *edgeTypeOut)
 {
-	AAMPLOG_TRACE("input: %s", input.c_str());
+	AAMPLOG_TRACE_GP("input: %s", input.c_str());
 	if (!input.empty() && edgeTypeOut)
 	{
 		const char *inputStr = input.c_str();
@@ -222,12 +222,12 @@ static int getEdgeType(std::string input, gsw_CcEdgeType *edgeTypeOut)
 		}
 		else
 		{
-			AAMPLOG_ERR("Unsupported edge type %s", inputStr);
+			AAMPLOG_ERR_GP("Unsupported edge type %s", inputStr);
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("Input is NULL");
+		AAMPLOG_ERR_GP("Input is NULL");
 		return -1;
 	}
 	return 0;
@@ -242,7 +242,7 @@ static int getEdgeType(std::string input, gsw_CcEdgeType *edgeTypeOut)
  */
 static int getFontStyle(std::string input, gsw_CcFontStyle *fontStyleOut)
 {
-	AAMPLOG_TRACE("input: %s", input.c_str());
+	AAMPLOG_TRACE_GP("input: %s", input.c_str());
 	if (!input.empty() && fontStyleOut)
 	{
 		const char *inputStr = input.c_str();
@@ -289,12 +289,12 @@ static int getFontStyle(std::string input, gsw_CcFontStyle *fontStyleOut)
 		}
 		else
 		{
-			AAMPLOG_ERR("Unsupported font style type %s", inputStr);
+			AAMPLOG_ERR_GP("Unsupported font style type %s", inputStr);
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("Input is NULL");
+		AAMPLOG_ERR_GP("Input is NULL");
 		return -1;
 	}
 	return 0;
@@ -309,7 +309,7 @@ static int getFontStyle(std::string input, gsw_CcFontStyle *fontStyleOut)
  */
 static int getFontSize(std::string input, gsw_CcFontSize *fontSizeOut)
 {
-	AAMPLOG_TRACE("input: %s", input.c_str());
+	AAMPLOG_TRACE_GP("input: %s", input.c_str());
 	if (!input.empty() && fontSizeOut)
 	{
 		const char *inputStr = input.c_str();
@@ -332,12 +332,12 @@ static int getFontSize(std::string input, gsw_CcFontSize *fontSizeOut)
 		}
 		else
 		{
-			AAMPLOG_ERR("Unsupported font size type %s", inputStr);
+			AAMPLOG_ERR_GP("Unsupported font size type %s", inputStr);
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("Input is NULL");
+		AAMPLOG_ERR_GP("Input is NULL");
 		return -1;
 	}
 	return 0;
@@ -352,7 +352,7 @@ static int getFontSize(std::string input, gsw_CcFontSize *fontSizeOut)
  */
 static int getOpacity(std::string input, gsw_CcOpacity *opacityOut)
 {
-	AAMPLOG_TRACE("input: %s", input.c_str());
+	AAMPLOG_TRACE_GP("input: %s", input.c_str());
 	if (!input.empty() && opacityOut)
 	{
 		const char *inputStr = input.c_str();
@@ -378,12 +378,12 @@ static int getOpacity(std::string input, gsw_CcOpacity *opacityOut)
 		}
 		else
 		{
-			AAMPLOG_ERR("Unsupported opacity type %s", inputStr);
+			AAMPLOG_ERR_GP("Unsupported opacity type %s", inputStr);
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("Input is NULL");
+		AAMPLOG_ERR_GP("Input is NULL");
 		return -1;
 	}
 	return 0;
@@ -399,7 +399,7 @@ int AampCCManagerBase::SetStyle(const std::string &options)
 try
 {
 	EnsureRendererCommsInitialized();
-	AAMPLOG_WARN("AampCCManagerBase: Enter");
+	AAMPLOG_WARN_GP("AampCCManagerBase: Enter");
 
 	int ret = -1;
 	/*
@@ -531,7 +531,7 @@ try
 		}
 		else
 		{
-			AAMPLOG_WARN("AampCCManagerBase: received optionsJson but result attributeMask is 0");
+			AAMPLOG_WARN_GP("AampCCManagerBase: received optionsJson but result attributeMask is 0");
 		}
 
 	}
@@ -540,7 +540,7 @@ try
 }
 catch(const AampJsonParseException& e)
 {
-	AAMPLOG_ERR("AampCCManagerBase: AampJsonParseException - %s", e.what());
+	AAMPLOG_ERR_GP("AampCCManagerBase: AampJsonParseException - %s", e.what());
 	return -1;
 }
 
@@ -553,14 +553,14 @@ catch(const AampJsonParseException& e)
 void AampCCManagerBase::Stop()
 {
 	EnsureRendererCommsInitialized();
-	AAMPLOG_WARN("AampCCManagerBase: mEnabled=%d", mEnabled);
+	AAMPLOG_WARN_GP("AampCCManagerBase: mEnabled=%d", mEnabled);
 	StopRendering();
 }
 
 void AampCCManagerBase::Start()
 {
 	EnsureInitialized();
-	AAMPLOG_WARN("AampCCManagerBase: mEnabled=%d", mEnabled);
+	AAMPLOG_WARN_GP("AampCCManagerBase: mEnabled=%d", mEnabled);
 	StartRendering();
 }
 
@@ -568,11 +568,11 @@ int AampCCManagerBase::Init(void *handle)
 {
 	if(Initialize(handle) != 0)
 	{
-		AAMPLOG_WARN("AampCCManagerBase: Initialize failure ");
+		AAMPLOG_WARN_GP("AampCCManagerBase: Initialize failure ");
 		return -1;
 	}
 
-	AAMPLOG_WARN("AampCCManagerBase: Start CC with video dec handle: %p and mEnabled: %d", handle, mEnabled);
+	AAMPLOG_WARN_GP("AampCCManagerBase: Start CC with video dec handle: %p and mEnabled: %d", handle, mEnabled);
 
 	if (mEnabled)
 	{
@@ -588,7 +588,7 @@ int AampCCManagerBase::Init(void *handle)
 
 void AampCCManagerBase::SetTrickplayStatus(bool on)
 {
-	AAMPLOG_WARN("AampCCManagerBase: trickplay status(%d)", on);
+	AAMPLOG_WARN_GP("AampCCManagerBase: trickplay status(%d)", on);
 	if (on)
 	{
 		// When trickplay starts, stop CC rendering
@@ -611,7 +611,7 @@ void AampCCManagerBase::SetTrickplayStatus(bool on)
 void AampCCManagerBase::SetParentalControlStatus(bool locked)
 {
 	EnsureInitialized();
-	AAMPLOG_WARN("AampCCManagerBase: lock status(%s)", (locked)?"true":"false");
+	AAMPLOG_WARN_GP("AampCCManagerBase: lock status(%s)", (locked)?"true":"false");
 	if (locked)
 	{
 		// When parental control locked, stop CC rendering
@@ -677,17 +677,17 @@ int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 				//Hope this will not happen in realtime
 				trackNum = 0;
 			}
-			AAMPLOG_WARN("AampCCManagerBase: Force CC track format to 608 and trackNum to %d!", trackNum);
+			AAMPLOG_WARN_GP("AampCCManagerBase: Force CC track format to 608 and trackNum to %d!", trackNum);
 		}
 		else
 		{
 			//Force to 708
 			finalFormat = eCLOSEDCAPTION_FORMAT_708;
-			AAMPLOG_WARN("AampCCManagerBase: Force CC track format to 708!");
+			AAMPLOG_WARN_GP("AampCCManagerBase: Force CC track format to 708!");
 		}
 	}
 
-	AAMPLOG_WARN("AampCCManagerBase: Set CC format(%d) trackNum(%d)", finalFormat, trackNum);
+	AAMPLOG_WARN_GP("AampCCManagerBase: Set CC format(%d) trackNum(%d)", finalFormat, trackNum);
 
 	if (finalFormat == eCLOSEDCAPTION_FORMAT_708 && (trackNum > 0 && trackNum <= 63))
 	{
@@ -700,12 +700,12 @@ int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 	}
 	else
 	{
-		AAMPLOG_ERR("AampCCManagerBase: Invalid track number or format, ignoring it!");
+		AAMPLOG_ERR_GP("AampCCManagerBase: Invalid track number or format, ignoring it!");
 	}
 
 	if(0 != ret)
 	{
-		AAMPLOG_ERR("AampCCManagerBase: Failed to set trackNum(%d) and format(%d) with ret - %d", trackNum, finalFormat, ret);
+		AAMPLOG_ERR_GP("AampCCManagerBase: Failed to set trackNum(%d) and format(%d) with ret - %d", trackNum, finalFormat, ret);
 	}
 	return ret;
 }
@@ -717,7 +717,7 @@ int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
  */
 void AampCCManagerBase::RestoreCC()
 {
-	AAMPLOG_WARN("AampCCManagerBase: mEnabled: %d, mTrickplayStarted: %d, mParentalCtrlLocked: %d, mCCHandle: %s",
+	AAMPLOG_WARN_GP("AampCCManagerBase: mEnabled: %d, mTrickplayStarted: %d, mParentalCtrlLocked: %d, mCCHandle: %s",
 			mEnabled, mTrickplayStarted, mParentalCtrlLocked, (CheckCCHandle()) ? "set" : "not set");
 
 	SetTrack(GetTrack());
@@ -733,7 +733,7 @@ int AampCCManagerBase::SetStatus(bool enable)
 {
 	int ret = 0;
 	mEnabled = enable;
-	AAMPLOG_WARN("AampCCManagerBase: mEnabled: %d, mTrickplayStarted: %d, mParentalCtrlLocked: %d, mCCHandle: %s",
+	AAMPLOG_WARN_GP("AampCCManagerBase: mEnabled: %d, mTrickplayStarted: %d, mParentalCtrlLocked: %d, mCCHandle: %s",
 				mEnabled, mTrickplayStarted, mParentalCtrlLocked, (CheckCCHandle()) ? "set" : "not set");
 	if (!mTrickplayStarted && !mParentalCtrlLocked && CheckCCHandle())
 	{

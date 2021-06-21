@@ -141,7 +141,7 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz)
 
 	if (size > maxSz)
 	{
-		AAMPLOG_WARN("Box[%s] Size error:size[%u] > maxSz[%u]\n",type, size, maxSz);
+		AAMPLOG_WARN_GP("Box[%s] Size error:size[%u] > maxSz[%u]\n",type, size, maxSz);
 	}
 	else if (IS_TYPE(type, MOOV))
 	{

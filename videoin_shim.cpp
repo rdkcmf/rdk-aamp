@@ -52,7 +52,7 @@ using namespace WPEFramework;
  */
 AAMPStatusType StreamAbstractionAAMP_VIDEOIN::Init(TuneType tuneType)
 {
-	AAMPLOG_WARN("%s Function not implemented",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s Function not implemented",mName.c_str());
 }
 
 AAMPStatusType StreamAbstractionAAMP_VIDEOIN::InitHelper(TuneType tuneType)
@@ -82,7 +82,7 @@ StreamAbstractionAAMP_VIDEOIN::StreamAbstractionAAMP_VIDEOIN( const std::string 
 #endif
 {
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
-	AAMPLOG_WARN("%s Constructor",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s Constructor",mName.c_str());
     thunderAccessObj.ActivatePlugin();
 #endif
 }
@@ -92,7 +92,7 @@ StreamAbstractionAAMP_VIDEOIN::StreamAbstractionAAMP_VIDEOIN( const std::string 
  */
 StreamAbstractionAAMP_VIDEOIN::~StreamAbstractionAAMP_VIDEOIN()
 {
-	AAMPLOG_WARN("%s destructor",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s destructor",mName.c_str());
 	for (auto const& evtName : mRegisteredEvents) {
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
 		thunderAccessObj.UnSubscribeEvent(_T(evtName));
@@ -106,7 +106,7 @@ StreamAbstractionAAMP_VIDEOIN::~StreamAbstractionAAMP_VIDEOIN()
  */
 void StreamAbstractionAAMP_VIDEOIN::Start(void)
 {
-	AAMPLOG_WARN("%s Function not implemented",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s Function not implemented",mName.c_str());
 }
 
 /**
@@ -115,7 +115,7 @@ void StreamAbstractionAAMP_VIDEOIN::Start(void)
 
 void StreamAbstractionAAMP_VIDEOIN::StartHelper(int port, const std::string & methodName)
 {
-	AAMPLOG_WARN("%s method:%s port:%d",mName.c_str(),methodName.c_str(),port);
+	AAMPLOG_WARN(aamp->mConfig, "%s method:%s port:%d",mName.c_str(),methodName.c_str(),port);
 
 	videoInputPort = port;
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
@@ -133,7 +133,7 @@ void StreamAbstractionAAMP_VIDEOIN::StopHelper(const std::string & methodName)
 {
 	if( videoInputPort>=0 )
 	{
-		AAMPLOG_WARN("%s method:%s",mName.c_str(),methodName.c_str());
+		AAMPLOG_WARN(aamp->mConfig, "%s method:%s",mName.c_str(),methodName.c_str());
 
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
     		JsonObject param;
@@ -150,7 +150,7 @@ void StreamAbstractionAAMP_VIDEOIN::StopHelper(const std::string & methodName)
 */
 void StreamAbstractionAAMP_VIDEOIN::Stop(bool clearChannelData)
 {
-	AAMPLOG_WARN("%s Function not implemented",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s Function not implemented",mName.c_str());
 }
 
 bool StreamAbstractionAAMP_VIDEOIN::GetScreenResolution(int & screenWidth, int & screenHeight)
@@ -166,7 +166,7 @@ bool StreamAbstractionAAMP_VIDEOIN::GetScreenResolution(int & screenWidth, int &
 	{
 		screenWidth = result["w"].Number();
 		screenHeight = result["h"].Number();
-		AAMPLOG_INFO("%s screenWidth:%d screenHeight:%d ",mName.c_str(),screenWidth, screenHeight);
+		AAMPLOG_INFO(aamp->mConfig, "%s screenWidth:%d screenHeight:%d ",mName.c_str(),screenWidth, screenHeight);
 		bRetVal = true;
 	}
 	return bRetVal;
@@ -202,7 +202,7 @@ void StreamAbstractionAAMP_VIDEOIN::SetVideoRectangle(int x, int y, int w, int h
 	param["y"] = (int) (y * height_ratio);
 	param["w"] = (int) (w * width_ratio);
 	param["h"] = (int) (h * height_ratio);
-	AAMPLOG_WARN("%s x:%d y:%d w:%d h:%d w-ratio:%f h-ratio:%f",mName.c_str(),x,y,w,h,width_ratio,height_ratio);
+	AAMPLOG_WARN(aamp->mConfig, "%s x:%d y:%d w:%d h:%d w-ratio:%f h-ratio:%f",mName.c_str(),x,y,w,h,width_ratio,height_ratio);
 	thunderAccessObj.InvokeJSONRPC("setVideoRectangle", param, result);
 #endif
 }
@@ -212,7 +212,7 @@ void StreamAbstractionAAMP_VIDEOIN::SetVideoRectangle(int x, int y, int w, int h
  */
 void StreamAbstractionAAMP_VIDEOIN::DumpProfiles(void)
 { // STUB
-	AAMPLOG_WARN("%s Function not implemented",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s Function not implemented",mName.c_str());
 }
 
 /**
@@ -224,7 +224,7 @@ void StreamAbstractionAAMP_VIDEOIN::DumpProfiles(void)
  */
 void StreamAbstractionAAMP_VIDEOIN::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat)
 { // STUB
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
     primaryOutputFormat = FORMAT_INVALID;
     audioOutputFormat = FORMAT_INVALID;
     auxAudioOutputFormat = FORMAT_INVALID;
@@ -238,7 +238,7 @@ void StreamAbstractionAAMP_VIDEOIN::GetStreamFormat(StreamOutputFormat &primaryO
  */
 MediaTrack* StreamAbstractionAAMP_VIDEOIN::GetMediaTrack(TrackType type)
 { // STUB
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
     return NULL;
 }
 
@@ -249,7 +249,7 @@ MediaTrack* StreamAbstractionAAMP_VIDEOIN::GetMediaTrack(TrackType type)
  */
 double StreamAbstractionAAMP_VIDEOIN::GetStreamPosition()
 { // STUB
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
     return 0.0;
 }
 
@@ -261,7 +261,7 @@ double StreamAbstractionAAMP_VIDEOIN::GetStreamPosition()
  */
 StreamInfo* StreamAbstractionAAMP_VIDEOIN::GetStreamInfo(int idx)
 { // STUB
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
     return NULL;
 }
 
@@ -272,19 +272,19 @@ StreamInfo* StreamAbstractionAAMP_VIDEOIN::GetStreamInfo(int idx)
  */
 double StreamAbstractionAAMP_VIDEOIN::GetFirstPTS()
 { // STUB
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
     return 0.0;
 }
 
 double StreamAbstractionAAMP_VIDEOIN::GetBufferedDuration()
 { // STUB
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
 	return -1.0;
 }
 
 bool StreamAbstractionAAMP_VIDEOIN::IsInitialCachingSupported()
 {
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
 	return false;
 }
 
@@ -295,7 +295,7 @@ bool StreamAbstractionAAMP_VIDEOIN::IsInitialCachingSupported()
  */
 int StreamAbstractionAAMP_VIDEOIN::GetBWIndex(long bitrate)
 {
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
     return 0;
 }
 
@@ -305,7 +305,7 @@ int StreamAbstractionAAMP_VIDEOIN::GetBWIndex(long bitrate)
  */
 std::vector<long> StreamAbstractionAAMP_VIDEOIN::GetVideoBitrates(void)
 { // STUB
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
     return std::vector<long>();
 }
 
@@ -315,7 +315,7 @@ std::vector<long> StreamAbstractionAAMP_VIDEOIN::GetVideoBitrates(void)
 */
 long StreamAbstractionAAMP_VIDEOIN::GetMaxBitrate()
 { // STUB
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
     return 0;
 }
 
@@ -325,7 +325,7 @@ long StreamAbstractionAAMP_VIDEOIN::GetMaxBitrate()
  */
 std::vector<long> StreamAbstractionAAMP_VIDEOIN::GetAudioBitrates(void)
 { // STUB
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
     return std::vector<long>();
 }
 
@@ -334,7 +334,7 @@ std::vector<long> StreamAbstractionAAMP_VIDEOIN::GetAudioBitrates(void)
 */
 void StreamAbstractionAAMP_VIDEOIN::StopInjection(void)
 { // STUB - discontinuity related
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
 }
 
 /**
@@ -342,7 +342,7 @@ void StreamAbstractionAAMP_VIDEOIN::StopInjection(void)
 */
 void StreamAbstractionAAMP_VIDEOIN::StartInjection(void)
 { // STUB - discontinuity related
-	AAMPLOG_WARN("%s ",mName.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s ",mName.c_str());
 }
 
 
@@ -384,7 +384,7 @@ void StreamAbstractionAAMP_VIDEOIN::OnInputStatusChanged(const JsonObject& param
 {
 	std::string message;
 	parameters.ToString(message);
-	AAMPLOG_WARN("%s",message.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s",message.c_str());
 
 	std::string strStatus = parameters["status"].String();
 
@@ -411,7 +411,7 @@ void StreamAbstractionAAMP_VIDEOIN::OnSignalChanged (const JsonObject& parameter
 {
 	std::string message;
 	parameters.ToString(message);
-	AAMPLOG_WARN("%s",message.c_str());
+	AAMPLOG_WARN(aamp->mConfig, "%s",message.c_str());
 
 	std::string strReason;
 	std::string strStatus = parameters["signalStatus"].String();
@@ -438,7 +438,7 @@ void StreamAbstractionAAMP_VIDEOIN::OnSignalChanged (const JsonObject& parameter
 
 	if(!strReason.empty())
 	{
-		AAMPLOG_WARN("GENERATING BLOCKED EVNET :%s",strReason.c_str());
+		AAMPLOG_WARN(aamp->mConfig, "GENERATING BLOCKED EVNET :%s",strReason.c_str());
 		aamp->SendBlockedEvent(strReason);
 	}
 }

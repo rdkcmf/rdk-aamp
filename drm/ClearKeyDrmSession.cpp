@@ -76,7 +76,7 @@ void ClearKeySession::initAampDRMSession()
 #else
 	EVP_CIPHER_CTX_init(OPEN_SSL_CONTEXT);
 #endif
-	AAMPLOG_ERR("ClearKeySession: enter ");
+	AAMPLOG_ERR_GP("ClearKeySession: enter ");
 }
 
 /**
@@ -123,7 +123,7 @@ static unsigned char * extractKeyIdFromPssh(const char* psshData, int dataLength
 	memset(key_id, 0, 16 + 1);
 	strncpy(reinterpret_cast<char*>(key_id), psshData + header, 16);
 	*len = (int)16;
-	AAMPLOG_INFO("ck keyid: %s keyIdlen: %d", key_id, 16);
+	AAMPLOG_INFO_GP("ck keyid: %s keyIdlen: %d", key_id, 16);
 	if(gpGlobalConfig->logging.trace)
 	{
 		DumpBlob(key_id, 16);
@@ -148,27 +148,27 @@ void ClearKeySession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		keyId = extractKeyIdFromPssh(reinterpret_cast<const char*>(f_pbInitData),f_cbInitData, &keyIDLen);
 		if (keyId == NULL)
 		{
-			AAMPLOG_ERR("ClearKeySession: ERROR: Key Id not found in initdata");
+			AAMPLOG_ERR_GP("ClearKeySession: ERROR: Key Id not found in initdata");
 			m_eKeyState = KEY_ERROR;
 		}
 		else
 		{
 			if(keyIDLen != AES_CTR_KID_LEN)
 			{
-				AAMPLOG_ERR("ClearKeySession: ERROR: Invalid keyID length %d", keyIDLen);
+				AAMPLOG_ERR_GP("ClearKeySession: ERROR: Invalid keyID length %d", keyIDLen);
 				m_eKeyState = KEY_ERROR;
 			}
 			else
 			{
 				setKeyId(reinterpret_cast<const char*>(keyId), keyIDLen);
-				AAMPLOG_ERR("ClearKeySession: Session generated for clearkey");
+				AAMPLOG_ERR_GP("ClearKeySession: Session generated for clearkey");
 			}
 			free(keyId);
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("Invalid init data");
+		AAMPLOG_ERR_GP("Invalid init data");
 		m_eKeyState = KEY_ERROR;
 	}
 	return;
@@ -216,7 +216,7 @@ DrmData * ClearKeySession::aampGenerateKeyRequest(string& destinationURL, uint32
 	DrmData *licenseChallenge = NULL;
 	if(NULL == m_keyId || m_keyIdLen <= 0)
 	{
-		AAMPLOG_ERR("ClearKeySession: Error generating license request ");
+		AAMPLOG_ERR_GP("ClearKeySession: Error generating license request ");
 	}
 	else
 	{
@@ -235,7 +235,7 @@ DrmData * ClearKeySession::aampGenerateKeyRequest(string& destinationURL, uint32
 					char* requestBody = cJSON_PrintUnformatted(licenseRequest);
 					if(requestBody)
 					{
-						AAMPLOG_INFO("Generated license request : %s", requestBody);
+						AAMPLOG_INFO_GP("Generated license request : %s", requestBody);
 						licenseChallenge = new DrmData(reinterpret_cast<unsigned char*>(requestBody), strlen(requestBody));
 						m_eKeyState = KEY_PENDING;
 						cJSON_free(requestBody);
@@ -261,12 +261,12 @@ int ClearKeySession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 	int ret = 0;
 	if (!key)
 	{
-		AAMPLOG_ERR("ClearKeySession: Cannot Process Null Key ");
+		AAMPLOG_ERR_GP("ClearKeySession: Cannot Process Null Key ");
 		return ret;
 	}
 
 	std::string keyDataStr((const char*)key->getData(), key->getDataLength());
-	AAMPLOG_INFO("ClearKeySession: Processing license response %s", keyDataStr.c_str());
+	AAMPLOG_INFO_GP("ClearKeySession: Processing license response %s", keyDataStr.c_str());
 	if (m_eKeyState == KEY_PENDING)
 	{
 		cJSON *licenseResponse = cJSON_Parse(keyDataStr.c_str());
@@ -307,12 +307,12 @@ int ClearKeySession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 						{
 							m_keyLen = resKeyLen;
 							m_eKeyState = KEY_READY;
-							AAMPLOG_INFO("ClearKeySession: Got key from license response keyLength %d", m_keyLen);
+							AAMPLOG_INFO_GP("ClearKeySession: Got key from license response keyLength %d", m_keyLen);
 							ret = 1;
 						}
 						else
 						{
-							AAMPLOG_ERR("ClearKeySession: ERROR : Failed parse Key from response");
+							AAMPLOG_ERR_GP("ClearKeySession: ERROR : Failed parse Key from response");
 							if (m_keyStr)
 							{
 								free (m_keyStr);
@@ -323,7 +323,7 @@ int ClearKeySession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 					}
 					else
 					{
-						AAMPLOG_ERR("ClearKeySession: ERROR : Failed parse KeyID/invalid keyID, from response");
+						AAMPLOG_ERR_GP("ClearKeySession: ERROR : Failed parse KeyID/invalid keyID, from response");
 						m_eKeyState = KEY_ERROR;
 					}
 					if (resKeyId)
@@ -333,7 +333,7 @@ int ClearKeySession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 				}
 				else
 				{
-					AAMPLOG_ERR("ClearKeySession: ERROR : Failed parse Key info, from response");
+					AAMPLOG_ERR_GP("ClearKeySession: ERROR : Failed parse Key info, from response");
 					m_eKeyState = KEY_ERROR;
 				}
 			}
@@ -341,13 +341,13 @@ int ClearKeySession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 		}
 		else
 		{
-			AAMPLOG_ERR("ClearKeySession: ERROR : Failed parse response JSON");
+			AAMPLOG_ERR_GP("ClearKeySession: ERROR : Failed parse response JSON");
 			m_eKeyState = KEY_ERROR;
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("ClearKeySession: ERROR : Invalid DRM state : DRMState %d", m_eKeyState);
+		AAMPLOG_ERR_GP("ClearKeySession: ERROR : Invalid DRM state : DRMState %d", m_eKeyState);
 	}
 	return ret;
 }
@@ -381,7 +381,7 @@ int ClearKeySession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuf
 
 	if(!(ivBuffer && buffer && (subSampleCount == 0 || subSamplesBuffer)))
 	{
-		AAMPLOG_ERR(
+		AAMPLOG_ERR_GP(
 		"ClearKeySession: ERROR : Ivalid buffer ivBuffer(%p), buffer(%p), subSamplesBuffer(%p) ",
 		ivBuffer, buffer, subSamplesBuffer);
 	}
@@ -390,13 +390,13 @@ int ClearKeySession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuf
 		bufferMapped = gst_buffer_map(buffer, &bufferMap,static_cast<GstMapFlags>(GST_MAP_READWRITE));
 		if (!bufferMapped)
 		{
-			AAMPLOG_ERR("ClearKeySession: ERROR : Failed to map buffer");
+			AAMPLOG_ERR_GP("ClearKeySession: ERROR : Failed to map buffer");
 		}
 
 		ivMapped = gst_buffer_map(ivBuffer, &ivMap, GST_MAP_READ);
 		if (!ivMapped)
 		{
-			AAMPLOG_ERR("ClearKeySession: ERROR : Failed to map ivBuffer");
+			AAMPLOG_ERR_GP("ClearKeySession: ERROR : Failed to map ivBuffer");
 		}
 
 		if(subSampleCount > 0)
@@ -404,7 +404,7 @@ int ClearKeySession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuf
 			subSampleMapped = gst_buffer_map(subSamplesBuffer, &subsampleMap, GST_MAP_READ);
 			if (!subSampleMapped)
 			{
-				AAMPLOG_ERR("ClearKeySession: ERROR : Failed to map subSamplesBuffer");
+				AAMPLOG_ERR_GP("ClearKeySession: ERROR : Failed to map subSamplesBuffer");
 			}
 		}
 	}
@@ -427,7 +427,7 @@ int ClearKeySession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuf
 					if (!gst_byte_reader_get_uint16_be(reader, &nBytesClear)
 							|| !gst_byte_reader_get_uint32_be(reader, &nBytesEncrypted))
 					{
-						AAMPLOG_ERR("ClearKeySession: ERROR : Failed to read from subsamples reader");
+						AAMPLOG_ERR_GP("ClearKeySession: ERROR : Failed to read from subsamples reader");
 						cbData = 0;
 						break;
 					}
@@ -472,7 +472,7 @@ int ClearKeySession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuf
 						if (!gst_byte_reader_get_uint16_be(reader, &nBytesClear)
 								|| !gst_byte_reader_get_uint32_be(reader, &nBytesEncrypted))
 						{
-							AAMPLOG_ERR("ClearKeySession: ERROR : Failed to read from subsamples reader");
+							AAMPLOG_ERR_GP("ClearKeySession: ERROR : Failed to read from subsamples reader");
 							retVal = 1;
 							break;
 						}
@@ -491,7 +491,7 @@ int ClearKeySession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuf
 		}//reader end if
 		else
 		{
-			AAMPLOG_ERR("ClearKeySession: ERROR : Failed to allocate subsample reader");
+			AAMPLOG_ERR_GP("ClearKeySession: ERROR : Failed to allocate subsample reader");
 		}
 	}
 
@@ -555,7 +555,7 @@ int ClearKeySession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 			}
 			else
 			{
-				AAMPLOG_TRACE("ClearKeySession: invalid IV size %u", f_cbIV);
+				AAMPLOG_TRACE_GP("ClearKeySession: invalid IV size %u", f_cbIV);
 			}
 		}
 
@@ -565,28 +565,28 @@ int ClearKeySession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 
 			if(!EVP_DecryptInit_ex(OPEN_SSL_CONTEXT, EVP_aes_128_ctr(), NULL, m_keyStr, ivBuff))
 			{
-				AAMPLOG_TRACE( "ClearKeySession: EVP_DecryptInit_ex failed");
+				AAMPLOG_TRACE_GP( "ClearKeySession: EVP_DecryptInit_ex failed");
 			}
 			else
 			{
 				if (!EVP_DecryptUpdate(OPEN_SSL_CONTEXT,(unsigned char*) decryptedDataBuf, (int*) &decLen, (const unsigned char*) payloadData,
 					payloadDataSize))
 				{
-					AAMPLOG_TRACE("ClearKeySession: EVP_DecryptUpdate failed");
+					AAMPLOG_TRACE_GP("ClearKeySession: EVP_DecryptUpdate failed");
 				}
 				else
 				{
 					decryptedDataLen = decLen;
 					decLen = 0;
-					AAMPLOG_TRACE("ClearKeySession: EVP_DecryptUpdate success decryptedDataLen = %d payload Data length = %d", (int) decryptedDataLen, (int)payloadDataSize);
+					AAMPLOG_TRACE_GP("ClearKeySession: EVP_DecryptUpdate success decryptedDataLen = %d payload Data length = %d", (int) decryptedDataLen, (int)payloadDataSize);
 					if (!EVP_DecryptFinal_ex(OPEN_SSL_CONTEXT, (unsigned char*) (decryptedDataBuf + decryptedDataLen), (int*) &decLen))
 					{
-						AAMPLOG_TRACE("ClearKeySession: EVP_DecryptFinal_ex failed mDrmState = %d", (int) m_eKeyState);
+						AAMPLOG_TRACE_GP("ClearKeySession: EVP_DecryptFinal_ex failed mDrmState = %d", (int) m_eKeyState);
 					}
 					else
 					{
 						decryptedDataLen += decLen;
-						AAMPLOG_TRACE("ClearKeySession: decrypt success");
+						AAMPLOG_TRACE_GP("ClearKeySession: decrypt success");
 						status = 0;
 					}
 				}
@@ -607,7 +607,7 @@ int ClearKeySession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 	}
 	else
 	{
-		AAMPLOG_ERR( "ClearKeySession: key not ready! mDrmState = %d", m_eKeyState);
+		AAMPLOG_ERR_GP( "ClearKeySession: key not ready! mDrmState = %d", m_eKeyState);
 	}
 	pthread_mutex_unlock(&decryptMutex);
 	return status;

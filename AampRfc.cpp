@@ -48,12 +48,12 @@ namespace RFCSettings
         tr181ErrorCode_t status = getParam((char*)AAMP_RFC_CALLERID, parameter, &param);
         if (tr181Success == status)
         {
-            AAMPLOG_TRACE("RFC Parameter for %s is %s type = %d", parameter, param.value, param.type);
+            AAMPLOG_TRACE_GP("RFC Parameter for %s is %s type = %d", parameter, param.value, param.type);
             strhost = std::string(param.value);
         }
         else
         {
-            AAMPLOG_ERR("get RFC Parameter for %s Failed : %s type = %d", parameter, getTR181ErrorString(status), param.type);
+            AAMPLOG_ERR_GP("get RFC Parameter for %s Failed : %s type = %d", parameter, getTR181ErrorString(status), param.type);
         }    
         return strhost;
     }

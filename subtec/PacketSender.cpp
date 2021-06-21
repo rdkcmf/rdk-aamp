@@ -29,7 +29,7 @@ void runWorkerTask(void *ctx)
         pkt->senderTask();
     }
     catch (const std::exception& e) {
-        AAMPLOG_WARN("PacketSender: Error in run %s", e.what());
+        AAMPLOG_WARN_GP("PacketSender: Error in run %s", e.what());
     }
 }
 
@@ -79,10 +79,10 @@ bool PacketSender::Init(const char *socket_path)
             ret = false;
         }
         else
-            AAMPLOG_WARN("senderTask started");
+            AAMPLOG_WARN_GP("senderTask started");
     }
     else
-        AAMPLOG_WARN("PacketSender::Init already running");
+        AAMPLOG_WARN_GP("PacketSender::Init already running");
         
     return ret;
 }
@@ -92,7 +92,7 @@ void PacketSender::SendPacket(PacketPtr && packet)
     std::unique_lock<std::mutex> lock(mPktMutex);
     uint32_t type = packet->getType();
     std::string typeString = Packet::getTypeString(type);
-    AAMPLOG_TRACE("PacketSender: - queue size %lu type %s:%d counter:%d\n", 
+    AAMPLOG_TRACE_GP("PacketSender: - queue size %lu type %s:%d counter:%d\n", 
         mPacketQueue.size(), typeString.c_str(), type, packet->getCounter());
 
     mPacketQueue.push(std::move(packet));
@@ -110,7 +110,7 @@ void PacketSender::senderTask()
         {
             sendPacket(std::move(mPacketQueue.front()));
             mPacketQueue.pop();
-            AAMPLOG_TRACE("PacketSender: queue size %lu", mPacketQueue.size());
+            AAMPLOG_TRACE_GP("PacketSender: queue size %lu", mPacketQueue.size());
         }
     } while(running);
 }
@@ -134,7 +134,7 @@ void PacketSender::sendPacket(PacketPtr && pkt)
     auto buffer = pkt->getBytes();
     size_t size =  static_cast<ssize_t>(buffer.size());
     auto written = ::write(mSubtecSocketHandle, &buffer[0], size);
-    AAMPLOG_TRACE("PacketSender: Written %ld bytes with size %ld", written, size);
+    AAMPLOG_TRACE_GP("PacketSender: Written %ld bytes with size %ld", written, size);
 }
 
 bool PacketSender::initSenderTask()
@@ -143,7 +143,7 @@ bool PacketSender::initSenderTask()
         mSendThread = std::thread(runWorkerTask, this);
     }
     catch (const std::exception& e) {
-        AAMPLOG_WARN("PacketSender: Error in initSenderTask: %s", e.what());
+        AAMPLOG_WARN_GP("PacketSender: Error in initSenderTask: %s", e.what());
         return false;
     }
     
@@ -186,7 +186,7 @@ bool PacketSender::initSocket(const char *socket_path)
         logprintf("PacketSender: %s - cannot connect to address \'%s\'", __func__, socket_path);
         return false;
     }
-    AAMPLOG_INFO("PacketSender: Initialised with socket_path %s", socket_path);
+    AAMPLOG_INFO_GP("PacketSender: Initialised with socket_path %s", socket_path);
 
     return true;
 }

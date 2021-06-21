@@ -19,7 +19,7 @@ int AAMPOCDMBasicSessionAdapter::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 	{
 		if (!m_drmHelper->getMemorySystem()->encode(payloadData, payloadDataSize, vdata))
 		{
-			AAMPLOG_WARN("Failed to encode memory for transmission");
+			AAMPLOG_WARN_GP("Failed to encode memory for transmission");
 			return -1;
 		}
 		sizeToSend = vdata.size();
@@ -37,13 +37,13 @@ int AAMPOCDMBasicSessionAdapter::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 		{
 			m_drmHelper->getMemorySystem()->terminateEarly();
 		}
-		AAMPLOG_INFO("decrypt returned : %d", retvalue);
+		AAMPLOG_INFO_GP("decrypt returned : %d", retvalue);
 	}
 	else if (m_drmHelper->getMemorySystem() != nullptr)
 	{
 		if (!m_drmHelper->getMemorySystem()->decode(dataToSend, sizeToSend, const_cast<uint8_t*>(payloadData), payloadDataSize))
 		{
-			AAMPLOG_WARN("Failed to decode memory for transmission");
+			AAMPLOG_WARN_GP("Failed to decode memory for transmission");
 			return -1;
 		}
 	}	

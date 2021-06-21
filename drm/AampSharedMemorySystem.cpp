@@ -38,7 +38,7 @@ bool AampSharedMemorySystem::encode(const uint8_t *dataIn, uint32_t dataInSz, st
 	
 	if (shmHandle < 0) 
 	{
-		AAMPLOG_WARN("Failed to create Shared memory object: %d", errno);
+		AAMPLOG_WARN_GP("Failed to create Shared memory object: %d", errno);
 		return false;
 	}
 
@@ -48,14 +48,14 @@ bool AampSharedMemorySystem::encode(const uint8_t *dataIn, uint32_t dataInSz, st
 	int status = ftruncate(shmHandle, dataInSz);
 	if (status < 0) 
 	{
-		AAMPLOG_WARN("Failed to truncate the Shared memory object %d", status);
+		AAMPLOG_WARN_GP("Failed to truncate the Shared memory object %d", status);
 		return false;
 	}
 
 	void *dataWr = mmap(NULL, dataInSz, PROT_WRITE | PROT_READ, MAP_SHARED, shmHandle, 0);
 	if (dataWr == 0) 
 	{
-		AAMPLOG_WARN("Failed to map the Shared memory object %d", errno);
+		AAMPLOG_WARN_GP("Failed to map the Shared memory object %d", errno);
 		return false;
 	}
 	
@@ -64,7 +64,7 @@ bool AampSharedMemorySystem::encode(const uint8_t *dataIn, uint32_t dataInSz, st
 	status = munmap(dataWr, dataInSz);
 	if (status < 0)
 	{
-		AAMPLOG_WARN("Failed to unmap the Shared memory object %d", errno);
+		AAMPLOG_WARN_GP("Failed to unmap the Shared memory object %d", errno);
 		return false;
 	}
 	// Only send the size of the shared memory, nothing else
@@ -88,13 +88,13 @@ bool AampSharedMemorySystem::decode(const uint8_t * dataIn, uint32_t dataInSz, u
 	
 	if (shmHandle < 0) 
 	{
-		AAMPLOG_WARN("Failed to create Shared memory object: %d", errno);
+		AAMPLOG_WARN_GP("Failed to create Shared memory object: %d", errno);
 		return false;
 	}
 
 	if (dataInSz != sizeof(AampSharedMemoryInterchangeBuffer))
 	{
-		AAMPLOG_WARN("Wrong data packet size, expected %d, got %d", sizeof(AampSharedMemoryInterchangeBuffer), dataInSz);
+		AAMPLOG_WARN_GP("Wrong data packet size, expected %d, got %d", sizeof(AampSharedMemoryInterchangeBuffer), dataInSz);
 		return false;
 	}
 	// This will close the SM object regardless
@@ -105,20 +105,20 @@ bool AampSharedMemorySystem::decode(const uint8_t * dataIn, uint32_t dataInSz, u
 	void *dataRd = mmap(NULL, packetSize, PROT_READ, MAP_SHARED, shmHandle, 0);
 	if (dataRd == 0) 
 	{
-		AAMPLOG_WARN("Failed to map the Shared memory object %d", errno);
+		AAMPLOG_WARN_GP("Failed to map the Shared memory object %d", errno);
 		return false;
 	}
 	
 	if (packetSize > dataOutSz)
 	{
-		AAMPLOG_WARN("Received data is bigger than provided buffer. %d > %d", packetSize, dataOutSz);
+		AAMPLOG_WARN_GP("Received data is bigger than provided buffer. %d > %d", packetSize, dataOutSz);
 	}
 	memmove(dataOut, dataRd, std::min(packetSize, dataOutSz));
 	
 	int status = munmap(dataRd, packetSize);
 	if (status < 0)
 	{
-		AAMPLOG_WARN("Failed to unmap the Shared memory object %d", errno);
+		AAMPLOG_WARN_GP("Failed to unmap the Shared memory object %d", errno);
 		return false;
 	}
 	

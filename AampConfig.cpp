@@ -230,7 +230,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
  *
  * @return None
  */
-AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAampDevCmdTable()
+AampConfig::AampConfig():playerId(0),mAampLookupTable(),mChannelOverrideMap(),logging(),mAampDevCmdTable()
 {
 	for(int i=0; i<sizeof(ConfigLookUpTable) / sizeof(AampConfigLookupEntry); ++i)
 	{

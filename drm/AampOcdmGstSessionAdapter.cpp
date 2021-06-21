@@ -137,7 +137,7 @@ int AAMPOCDMGSTSessionAdapter::decrypt(GstBuffer *keyIDBuffer, GstBuffer *ivBuff
 #else
 				KeyStatus keyStatus = opencdm_session_status(m_pOpenCDMSession, mappedKeyID,mappedKeyIDSize );
 #endif
-				AAMPLOG_INFO("AAMPOCDMSessionAdapter: decrypt returned : %d key status is : %d", retValue, keyStatus);
+				AAMPLOG_INFO_GP("AAMPOCDMSessionAdapter: decrypt returned : %d key status is : %d", retValue, keyStatus);
 #ifdef USE_THUNDER_OCDM_API_0_2
 				if (keyStatus == OutputRestricted){
 #else

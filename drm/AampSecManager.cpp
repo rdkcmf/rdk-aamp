@@ -133,7 +133,7 @@ bool AampSecManager::AcquireLicense(const char* licenseUrl, const char* moneyTra
 #ifdef DEBUG_SECMAMANER
 	std::string params;
 	param.ToString(params);
-	AAMPLOG_WARN("SecManager openPlaybackSession param: %s", params.c_str());
+	AAMPLOG_WARN_GP("SecManager openPlaybackSession param: %s", params.c_str());
 #endif
 
 	{
@@ -146,23 +146,23 @@ bool AampSecManager::AcquireLicense(const char* licenseUrl, const char* moneyTra
 #ifdef DEBUG_SECMAMANER
 		std::string output;
 		response.ToString(output);
-		AAMPLOG_WARN("SecManager openPlaybackSession o/p: %s", output.c_str());
+		AAMPLOG_WARN_GP("SecManager openPlaybackSession o/p: %s", output.c_str());
 #endif
 		if (response["success"].Boolean())
 		{
 			std::string license = response["license"].String();
-			AAMPLOG_TRACE("SecManager obtained license with length: %d and data: %s", license.size(), license.c_str());
+			AAMPLOG_TRACE_GP("SecManager obtained license with length: %d and data: %s", license.size(), license.c_str());
 			if (!license.empty())
 			{
 				// Here license is base64 encoded
 				unsigned char * licenseDecoded = NULL;
 				size_t licenseDecodedLen = 0;
 				licenseDecoded = base64_Decode(license.c_str(), &licenseDecodedLen);
-				AAMPLOG_TRACE("SecManager license decoded len: %d and data: %p", licenseDecodedLen, licenseDecoded);
+				AAMPLOG_TRACE_GP("SecManager license decoded len: %d and data: %p", licenseDecodedLen, licenseDecoded);
 
 				if (licenseDecoded != NULL && licenseDecodedLen != 0)
 				{
-					AAMPLOG_INFO("SecManager license post base64 decode length: %d", *licenseResponseLength);
+					AAMPLOG_INFO_GP("SecManager license post base64 decode length: %d", *licenseResponseLength);
 					*licenseResponse = (char*) malloc(licenseDecodedLen);
 					if (*licenseResponse)
 					{
@@ -171,14 +171,14 @@ bool AampSecManager::AcquireLicense(const char* licenseUrl, const char* moneyTra
 					}
 					else
 					{
-						AAMPLOG_ERR("SecManager failed to allocate memory for license!");
+						AAMPLOG_ERR_GP("SecManager failed to allocate memory for license!");
 					}
 					free(licenseDecoded);
 					ret = true;
 				}
 				else
 				{
-					AAMPLOG_ERR("SecManager license base64 decode failed!");
+					AAMPLOG_ERR_GP("SecManager license base64 decode failed!");
 				}
 			}
 		}
@@ -194,7 +194,7 @@ bool AampSecManager::AcquireLicense(const char* licenseUrl, const char* moneyTra
 	}
 	else
 	{
-		AAMPLOG_ERR("SecManager openPlaybackSession failed");
+		AAMPLOG_ERR_GP("SecManager openPlaybackSession failed");
 	}
 	return ret;
 }
@@ -212,7 +212,7 @@ void AampSecManager::UpdateSessionState(int64_t sessionId, bool active)
 	JsonObject param;
 	param["clientId"] = "aamp";
 	param["sessionId"] = sessionId;
-	AAMPLOG_INFO("SecManager call setPlaybackSessionState for ID: %" PRId64 " and state: %d", sessionId, active);
+	AAMPLOG_INFO_GP("SecManager call setPlaybackSessionState for ID: %" PRId64 " and state: %d", sessionId, active);
 	if (active)
 	{
 		param["sessionState"] = "active";
@@ -233,12 +233,12 @@ void AampSecManager::UpdateSessionState(int64_t sessionId, bool active)
 		{
 			std::string responseStr;
 			result.ToString(responseStr);
-			AAMPLOG_ERR("SecManager setPlaybackSessionState failed for ID: %" PRId64 ", active:%d and result: %s", sessionId, active, responseStr.c_str());
+			AAMPLOG_ERR_GP("SecManager setPlaybackSessionState failed for ID: %" PRId64 ", active:%d and result: %s", sessionId, active, responseStr.c_str());
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("SecManager setPlaybackSessionState failed for ID: %" PRId64 " and active: %d", sessionId, active);
+		AAMPLOG_ERR_GP("SecManager setPlaybackSessionState failed for ID: %" PRId64 " and active: %d", sessionId, active);
 	}
 }
 
@@ -254,7 +254,7 @@ void AampSecManager::ReleaseSession(int64_t sessionId)
 	JsonObject param;
 	param["clientId"] = "aamp";
 	param["sessionId"] = sessionId;
-	AAMPLOG_INFO("SecManager call closePlaybackSession for ID: %" PRId64 "", sessionId);
+	AAMPLOG_INFO_GP("SecManager call closePlaybackSession for ID: %" PRId64 "", sessionId);
 
 	{
 		std::lock_guard<std::mutex> lock(mMutex);
@@ -267,11 +267,11 @@ void AampSecManager::ReleaseSession(int64_t sessionId)
 		{
 			std::string responseStr;
 			result.ToString(responseStr);
-			AAMPLOG_ERR("SecManager closePlaybackSession failed for ID: %" PRId64 " and result: %s", sessionId, responseStr.c_str());
+			AAMPLOG_ERR_GP("SecManager closePlaybackSession failed for ID: %" PRId64 " and result: %s", sessionId, responseStr.c_str());
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("SecManager closePlaybackSession failed for ID: %" PRId64 "", sessionId);
+		AAMPLOG_ERR_GP("SecManager closePlaybackSession failed for ID: %" PRId64 "", sessionId);
 	}
 }

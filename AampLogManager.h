@@ -42,9 +42,9 @@
  * if gpGlobalConfig is not initialized, skip logging
  * if gpGlobalConfig is initialized, check the LogLevel
  */
-#define AAMPLOG_CFG(LEVEL, FORMAT, FUNCTION, LINE, ...) \
+#define AAMPLOG_GP(LEVEL, FORMAT, FUNCTION, LINE, ...) \
                 do { if (gpGlobalConfig && gpGlobalConfig->logging.isLogLevelAllowed(LEVEL)) { \
-                                logprintf_cfg(FUNCTION, LINE, FORMAT, ##__VA_ARGS__); \
+                                logprintf_gp(FUNCTION, LINE, FORMAT, ##__VA_ARGS__); \
                 } } while (0)
 
 /**
@@ -53,9 +53,9 @@
  * if gpGlobalConfig is not initialized, skip logging
  * if gpGlobalConfig is initialized, check the LogLevel
  */
-#define AAMPLOG(LEVEL,FORMAT, ...) \
+#define AAMPLOG(LEVEL, cfg, FUNCTION, LINE, FORMAT, ...) \
 		do { if (gpGlobalConfig && gpGlobalConfig->logging.isLogLevelAllowed(LEVEL)) { \
-				logprintf(FORMAT, ##__VA_ARGS__); \
+				logprintf_cfg(cfg->playerId, FUNCTION, LINE, FORMAT, ##__VA_ARGS__); \
 		} } while (0)
 
 /**
@@ -70,15 +70,23 @@
 /**
  * @brief AAMP logging defines, this can be enabled through setLogLevel() as per the need
  */
-#define AAMPLOG_TRACE(FORMAT, ...) AAMPLOG_CFG(eLOGLEVEL_TRACE, FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-#define AAMPLOG_INFO(FORMAT, ...) AAMPLOG_CFG(eLOGLEVEL_INFO,  FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-#define AAMPLOG_WARN(FORMAT, ...) AAMPLOG_CFG(eLOGLEVEL_WARN, FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-#define AAMPLOG_ERR(FORMAT, ...) AAMPLOG_CFG(eLOGLEVEL_ERROR,  FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define AAMPLOG_TRACE(cfg, FORMAT, ...) AAMPLOG(eLOGLEVEL_TRACE, cfg, __FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_INFO(cfg, FORMAT, ...) AAMPLOG(eLOGLEVEL_INFO, cfg, __FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_WARN(cfg, FORMAT, ...) AAMPLOG(eLOGLEVEL_WARN, cfg, __FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_ERR(cfg, FORMAT, ...) AAMPLOG(eLOGLEVEL_ERROR, cfg, __FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__)
 
-#define AAMPLOG_FAILOVER(FORMAT, ...) \
+#define AAMPLOG_FAILOVER(cfg, FORMAT, ...) \
 		if (gpGlobalConfig->logging.failover) { \
-				logprintf_cfg(__FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__); \
+				logprintf_cfg(cfg->playerId, __FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__); \
 		}
+
+/**
+ * @brief AAMP logging defines, this can be enabled through setLogLevel() as per the need
+ */
+#define AAMPLOG_TRACE_GP(FORMAT, ...) AAMPLOG_GP(eLOGLEVEL_TRACE, FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define AAMPLOG_INFO_GP(FORMAT, ...) AAMPLOG_GP(eLOGLEVEL_INFO,  FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define AAMPLOG_WARN_GP(FORMAT, ...) AAMPLOG_GP(eLOGLEVEL_WARN, FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+#define AAMPLOG_ERR_GP(FORMAT, ...) AAMPLOG_GP(eLOGLEVEL_ERROR,  FORMAT, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 
 /**
  * @brief maximum supported mediatype for latency logging
@@ -279,7 +287,16 @@ extern void logprintf(const char *format, ...);
  * @param[in] format - printf style string
  * @retuen void
  */
-extern void logprintf_cfg(const char *function, int line, const char *format, ...);
+extern void logprintf_gp(const char *function, int line, const char *format, ...);
+
+/* Context-free utility function */
+
+/**
+ * @brief Print logs to console / log file
+ * @param[in] format - printf style string
+ * @retuen void
+ */
+extern void logprintf_cfg(int playerId, const char *function, int line, const char *format, ...);
 
 /**
  * @brief Compactly log blobs of binary data

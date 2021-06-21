@@ -91,7 +91,7 @@ std::string convertCueToTtmlString(int id, VTTCue *cue, double startTime)
 		ss << "</p>\n";
 	}
 	
-	AAMPLOG_TRACE("%s\n", ss.str().c_str());
+	AAMPLOG_TRACE_GP("%s\n", ss.str().c_str());
 	
 	return ss.str();
 }
@@ -101,7 +101,7 @@ WebVTTSubtecDevParser::WebVTTSubtecDevParser(PrivateInstanceAAMP *aamp, Subtitle
 {
 	if (!PacketSender::Instance()->Init())
 	{
-		AAMPLOG_WARN("Init failed - subtitle parsing disabled\n");
+		AAMPLOG_WARN(mAamp->mConfig, "Init failed - subtitle parsing disabled\n");
 		throw std::runtime_error("PacketSender init failed");
 	}
 	m_channel = make_unique<TtmlChannel>();
@@ -144,7 +144,7 @@ void WebVTTSubtecDevParser::reset()
 
 void WebVTTSubtecDevParser::updateTimestamp(unsigned long long positionMs)
 {
-	AAMPLOG_TRACE("timestamp: %lldms\n", positionMs );
+	AAMPLOG_TRACE(mAamp->mConfig, "timestamp: %lldms\n", positionMs );
 	m_channel->SendTimestampPacket(positionMs);
 }
 
@@ -199,7 +199,7 @@ std::string WebVTTSubtecDevParser::getVttAsTtml()
 		{
 			VTTCue *cue = mVttQueue.front();
 			mVttQueue.pop();
-			AAMPLOG_TRACE("mStart %.3f mStartPos %.3f mPtsOffset %lld", cue->mStart, mStartPos, mPtsOffset);
+			AAMPLOG_TRACE(mAamp->mConfig, "mStart %.3f mStartPos %.3f mPtsOffset %lld", cue->mStart, mStartPos, mPtsOffset);
 			int start = cue->mStart;
 			if (start > 0)
 			{	
@@ -207,15 +207,15 @@ std::string WebVTTSubtecDevParser::getVttAsTtml()
 			}
 			else
 			{
-				AAMPLOG_TRACE("queue size %zu cue start %.3f", mVttQueue.size(), cue->mStart);
+				AAMPLOG_TRACE(mAamp->mConfig, "queue size %zu cue start %.3f", mVttQueue.size(), cue->mStart);
 			}
 			delete cue;
 		}
 	}
 	else
 	{
-		AAMPLOG_TRACE("cue queue empty");
-		AAMPLOG_INFO("Outgoing WebVTT file with start pos %.3fs is EMPTY", mStartPos / 1000.0);
+		AAMPLOG_TRACE(mAamp->mConfig, "cue queue empty");
+		AAMPLOG_INFO(mAamp->mConfig, "Outgoing WebVTT file with start pos %.3fs is EMPTY", mStartPos / 1000.0);
 	}
 
 	ss += "</div>\n";

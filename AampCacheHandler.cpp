@@ -59,7 +59,7 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 				bool cacheStoreReady = true;
 				if(mMaxPlaylistCacheSize != PLAYLIST_CACHE_SIZE_UNLIMITED  && ((mCacheStoredSize + buffer->len) > mMaxPlaylistCacheSize))
 				{
-					AAMPLOG_WARN("Count[%d]Avail[%d]Needed[%d] Reached max cache size ",mPlaylistCache.size(),mCacheStoredSize,buffer->len);
+					AAMPLOG_WARN_GP("Count[%d]Avail[%d]Needed[%d] Reached max cache size ",mPlaylistCache.size(),mCacheStoredSize,buffer->len);
 					cacheStoreReady = AllocatePlaylistCacheSlot(fileType,buffer->len);
 				}
 				if(cacheStoreReady)
@@ -73,7 +73,7 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 					tmpData->mFileType = fileType;
 					mPlaylistCache[url] = tmpData;
 					mCacheStoredSize += buffer->len;
-					AAMPLOG_INFO("Inserted. url %s", url.c_str());
+					AAMPLOG_INFO_GP("Inserted. url %s", url.c_str());
 					// There are cases where Main url and effective url will be different ( for Main manifest)
 					// Need to store both the entries with same content data 
 					// When retune happens within aamp due to failure , effective url wll be asked to read from cached manifest
@@ -91,7 +91,7 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 							newtmpData->mDuplicateEntry = true;
 							newtmpData->mFileType = fileType;
 							mPlaylistCache[effectiveUrl] = newtmpData;
-							AAMPLOG_INFO("Added an effective url entry %s", effectiveUrl.c_str());
+							AAMPLOG_INFO_GP("Added an effective url entry %s", effectiveUrl.c_str());
 						}
 					}
 				}
@@ -142,7 +142,7 @@ bool AampCacheHandler::RetrieveFromPlaylistCache(const std::string url, Growable
  */
 void AampCacheHandler::ClearPlaylistCache()
 {
-	AAMPLOG_INFO("cache size %d", (int)mPlaylistCache.size());
+	AAMPLOG_INFO_GP("cache size %d", (int)mPlaylistCache.size());
 	PlaylistCacheIter it = mPlaylistCache.begin();
 	for (;it != mPlaylistCache.end(); it++)
 	{
@@ -240,7 +240,7 @@ void AampCacheHandler::Init()
 
 	if(0 != pthread_create(&mAsyncCleanUpTaskThreadId, NULL, &AampCacheThreadFunction, this))
 	{
-		AAMPLOG_ERR("Failed to create AampCacheHandler thread errno = %d, %s", errno, strerror(errno));
+		AAMPLOG_ERR_GP("Failed to create AampCacheHandler thread errno = %d, %s", errno, strerror(errno));
 	}
 	else
 	{
@@ -266,7 +266,7 @@ void AampCacheHandler::ClearCacheHandler()
 		int rc = pthread_join(mAsyncCleanUpTaskThreadId, &ptr);
 		if (rc != 0)
 		{
-			AAMPLOG_ERR("***pthread_join AsyncCacheCleanUpTask returned %d(%s)", rc, strerror(rc));
+			AAMPLOG_ERR_GP("***pthread_join AsyncCacheCleanUpTask returned %d(%s)", rc, strerror(rc));
 		}
 	}
 	ClearPlaylistCache();
@@ -337,7 +337,7 @@ void AampCacheHandler::AsyncCacheCleanUpTask()
 
 			if(ETIMEDOUT == pthread_cond_timedwait(&mCondVar, &mCondVarMutex, &ts))
 			{
-				AAMPLOG_INFO("[%p] Cacheflush timed out", this);
+				AAMPLOG_INFO_GP("[%p] Cacheflush timed out", this);
 				ClearPlaylistCache();
 			}
 		}
@@ -356,7 +356,7 @@ void AampCacheHandler::SetMaxPlaylistCacheSize(int maxPlaylistCacheSz)
 {
 	pthread_mutex_lock(&mMutex);
 	mMaxPlaylistCacheSize = maxPlaylistCacheSz;
-	AAMPLOG_WARN("Setting mMaxPlaylistCacheSize to :%d",maxPlaylistCacheSz);
+	AAMPLOG_WARN_GP("Setting mMaxPlaylistCacheSize to :%d",maxPlaylistCacheSz);
 	pthread_mutex_unlock(&mMutex);	
 }
 /**

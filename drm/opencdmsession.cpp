@@ -323,7 +323,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 	else if(keyStatus == media::OpenCdm::KeyStatus::HWError)
 	{
 		// BCOM-3537 - SAGE Hang .. Need to restart the wpecdmi process and then self kill player to recover
-		AAMPLOG_WARN("processKey: Update() returned HWError.Restarting process...");
+		AAMPLOG_WARN_GP("processKey: Update() returned HWError.Restarting process...");
 		int systemResult = -1;
 		// In Release another process handles opencdm which needs to be restarts .In Sprint this process is not available.
 		// So check if process exists before killing it .
@@ -333,7 +333,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 			systemResult = system("pkill -9 WPEcdmi");
 			if(systemResult != 0)
 			{
-				AAMPLOG_WARN("Unable to shutdown WPEcdmi process.%d", systemResult);
+				AAMPLOG_WARN_GP("Unable to shutdown WPEcdmi process.%d", systemResult);
 			}
 		}
 		else
@@ -345,7 +345,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 				systemResult = system("pkill -9 WPEFramework");
 				if(systemResult != 0)
 				{
-					AAMPLOG_WARN("Unable to shutdown WPEFramework process.%d", systemResult);
+					AAMPLOG_WARN_GP("Unable to shutdown WPEFramework process.%d", systemResult);
 				}
 			}
 		}
@@ -360,17 +360,17 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 	{
 		if(keyStatus == media::OpenCdm::KeyStatus::OutputRestricted)
 		{	
-			AAMPLOG_WARN("processKey: Update() Output restricted keystatus: %d", (int) keyStatus);
+			AAMPLOG_WARN_GP("processKey: Update() Output restricted keystatus: %d", (int) keyStatus);
 			retvalue = HDCP_OUTPUT_PROTECTION_FAILURE;
 		}
 		else if(keyStatus == media::OpenCdm::KeyStatus::OutputRestrictedHDCP22)
 		{
-			AAMPLOG_WARN("processKey: Update() Output Compliance error keystatus: %d", (int) keyStatus);
+			AAMPLOG_WARN_GP("processKey: Update() Output Compliance error keystatus: %d", (int) keyStatus);
 			retvalue = HDCP_COMPLIANCE_CHECK_FAILURE;
 		}
 		else
 		{
-			AAMPLOG_WARN("processKey: Update() returned keystatus: %d", (int) keyStatus);
+			AAMPLOG_WARN_GP("processKey: Update() returned keystatus: %d", (int) keyStatus);
 		}
 		m_eKeyState = KEY_ERROR;
 		pthread_mutex_unlock(&decryptMutex);
@@ -429,7 +429,7 @@ int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 	if(retvalue != 0)
 	{
 		media::OpenCdm::KeyStatus keyStatus = m_pOpencdm->Status();
-		AAMPLOG_INFO("decrypt returned : %d key status is : %d", retvalue,keyStatus);
+		AAMPLOG_INFO_GP("decrypt returned : %d key status is : %d", retvalue,keyStatus);
 		if(keyStatus == media::OpenCdm::KeyStatus::OutputRestricted){
 			retvalue =  HDCP_OUTPUT_PROTECTION_FAILURE;
 		}

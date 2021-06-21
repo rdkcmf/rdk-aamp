@@ -80,7 +80,7 @@ bool IsoBmffBuffer::parseBoxInternal(const std::vector<Box*> *boxes, const char 
 	for (size_t i = 0; i < boxes->size(); i++)
 	{
 		Box *box = boxes->at(i);
-		AAMPLOG_TRACE("Offset[%u] Type[%s] Size[%u]\n", box->getOffset(), box->getType(), box->getSize());
+		AAMPLOG_TRACE_GP("Offset[%u] Type[%s] Size[%u]\n", box->getOffset(), box->getType(), box->getSize());
 		if (IS_TYPE(box->getType(), name))
 		{
 			size_t offset = box->getOffset() + BOX_HEADER_SIZE;
@@ -268,18 +268,18 @@ void IsoBmffBuffer::printBoxesInternal(const std::vector<Box*> *boxes)
 	for (size_t i = 0; i < boxes->size(); i++)
 	{
 		Box *box = boxes->at(i);
-		AAMPLOG_WARN("Offset[%u] Type[%s] Size[%u]\n", box->getOffset(), box->getType(), box->getSize());
+		AAMPLOG_WARN_GP("Offset[%u] Type[%s] Size[%u]\n", box->getOffset(), box->getType(), box->getSize());
 		if (IS_TYPE(box->getType(), Box::TFDT))
 		{
-			AAMPLOG_WARN("****Base Media Decode Time: %lld \n", dynamic_cast<TfdtBox *>(box)->getBaseMDT());
+			AAMPLOG_WARN_GP("****Base Media Decode Time: %lld \n", dynamic_cast<TfdtBox *>(box)->getBaseMDT());
 		}
 		else if (IS_TYPE(box->getType(), Box::MVHD))
 		{
-			AAMPLOG_WARN("**** TimeScale from MVHD: %u \n", dynamic_cast<MvhdBox *>(box)->getTimeScale());
+			AAMPLOG_WARN_GP("**** TimeScale from MVHD: %u \n", dynamic_cast<MvhdBox *>(box)->getTimeScale());
 		}
 		else if (IS_TYPE(box->getType(), Box::MDHD))
 		{
-			AAMPLOG_WARN("**** TimeScale from MDHD: %u \n", dynamic_cast<MdhdBox *>(box)->getTimeScale());
+			AAMPLOG_WARN_GP("**** TimeScale from MDHD: %u \n", dynamic_cast<MdhdBox *>(box)->getTimeScale());
 		}
 
 		if (box->hasChildren())

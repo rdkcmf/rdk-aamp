@@ -90,7 +90,7 @@ AAMPOCDMSessionAdapter::~AAMPOCDMSessionAdapter()
 void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData)
 {
-	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
+	AAMPLOG_INFO_GP( "at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 
 	pthread_mutex_lock(&decryptMutex);
 
@@ -144,7 +144,7 @@ void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 
 void AAMPOCDMSessionAdapter::processOCDMChallenge(const char destUrl[], const uint8_t challenge[], const uint16_t challengeSize) {
 
-	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
+	AAMPLOG_INFO_GP( "at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 
 	const std::string challengeData(reinterpret_cast<const char *>(challenge), challengeSize);
 	const std::set<std::string> individualisationTypes = {"individualization-request", "3"};
@@ -177,7 +177,7 @@ void AAMPOCDMSessionAdapter::processOCDMChallenge(const char destUrl[], const ui
 }
 
 void AAMPOCDMSessionAdapter::keyUpdateOCDM(const uint8_t key[], const uint8_t keySize) {
-	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
+	AAMPLOG_INFO_GP( "at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	if (m_pOpenCDMSession) {
 		m_keyStatus = opencdm_session_status(m_pOpenCDMSession, key, keySize);
 		m_keyStateIndeterminate = false;
@@ -191,13 +191,13 @@ void AAMPOCDMSessionAdapter::keyUpdateOCDM(const uint8_t key[], const uint8_t ke
 }
 
 void AAMPOCDMSessionAdapter::keysUpdatedOCDM() {
-	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
+	AAMPLOG_INFO_GP( "at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	m_keyStatusReady.signal();
 }
 
 DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL, uint32_t timeout)
 {
-	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
+	AAMPLOG_INFO_GP( "at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	DrmData * result = NULL;
 
 	m_eKeyState = KEY_ERROR;
@@ -216,10 +216,10 @@ DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL,
 			m_eKeyState = KEY_PENDING;
 		}
 		else {
-			AAMPLOG_WARN("Empty keyRequest");
+			AAMPLOG_WARN_GP("Empty keyRequest");
 		}
 	} else {
-		AAMPLOG_WARN("Timed out waiting for keyRequest");
+		AAMPLOG_WARN_GP("Timed out waiting for keyRequest");
 	}
 
 	return result;
@@ -228,7 +228,7 @@ DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL,
 
 int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 {
-	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
+	AAMPLOG_INFO_GP( "at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	int retValue = -1;
 
 	const uint8_t* keyMessage = key ? key->getData() : nullptr;
@@ -238,7 +238,7 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 
 	if (keyMessage)
 	{
-		AAMPLOG_INFO("Calling opencdm_session_update, key length=%u", keyMessageLength);
+		AAMPLOG_INFO_GP( "Calling opencdm_session_update, key length=%u", keyMessageLength);
 		status = opencdm_session_update(m_pOpenCDMSession, keyMessage, keyMessageLength);
 	}
 	else
@@ -246,7 +246,7 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 		// If no key data has been provided then this suggests the key acquisition
 		// will be performed by the DRM implementation itself. Hence there is no
 		// need to call opencdm_session_update
-		AAMPLOG_INFO("NULL key data provided, assuming external key acquisition");
+		AAMPLOG_INFO_GP( "NULL key data provided, assuming external key acquisition");
 	}
 
 	if (status == OpenCDMError::ERROR_NONE) {
@@ -275,7 +275,7 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 #endif
 		{
 			// BCOM-3537 - SAGE Hang .. Need to restart the wpecdmi process and then self kill player to recover
-			AAMPLOG_WARN("processKey: Update() returned HWError.Restarting process...");
+			AAMPLOG_WARN_GP("processKey: Update() returned HWError.Restarting process...");
 			int systemResult = -1;
 			// In Release another process handles opencdm which needs to be restarts .In Sprint this process is not available.
 			// So check if process exists before killing it .
@@ -285,7 +285,7 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 				systemResult = system("pkill -9 WPEcdmi");
 				if(systemResult != 0)
 				{
-					AAMPLOG_WARN("Unable to shutdown WPEcdmi process.%d", systemResult);
+					AAMPLOG_WARN_GP("Unable to shutdown WPEcdmi process.%d", systemResult);
 				}
 			}
 			else
@@ -297,7 +297,7 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 					systemResult = system("pkill -9 WPEFramework");
 					if(systemResult != 0)
 					{
-						AAMPLOG_WARN("Unable to shutdown WPEFramework process.%d", systemResult);
+						AAMPLOG_WARN_GP("Unable to shutdown WPEFramework process.%d", systemResult);
 					}
 				}
 			}
@@ -307,7 +307,7 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 			// Now kill self
 			if(kill(getpid(), SIGKILL) < 0)
 			{
-				AAMPLOG_WARN("Kill Failed = %d", errno);  //CID:88415 - checked return
+				AAMPLOG_WARN_GP("Kill Failed = %d", errno);  //CID:88415 - checked return
 			}
 		}
 		else {
@@ -317,7 +317,7 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 			if(m_keyStatus == KeyStatus::OutputRestricted)
 #endif
 			{
-				AAMPLOG_WARN("processKey: Update() Output restricted keystatus: %d", (int) m_keyStatus);
+				AAMPLOG_WARN_GP("processKey: Update() Output restricted keystatus: %d", (int) m_keyStatus);
 				retValue = HDCP_OUTPUT_PROTECTION_FAILURE;
 			}
 #ifdef USE_THUNDER_OCDM_API_0_2
@@ -326,12 +326,12 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 			else if(m_keyStatus == KeyStatus::OutputRestrictedHDCP22)
 #endif
 			{
-				AAMPLOG_WARN("processKey: Update() Output Compliance error keystatus: %d", (int) m_keyStatus);
+				AAMPLOG_WARN_GP("processKey: Update() Output Compliance error keystatus: %d", (int) m_keyStatus);
 				retValue = HDCP_COMPLIANCE_CHECK_FAILURE;
 			}
 			else
 			{
-				AAMPLOG_WARN("processKey: Update() returned keystatus: %d", (int) m_keyStatus);
+				AAMPLOG_WARN_GP("processKey: Update() returned keystatus: %d", (int) m_keyStatus);
 				retValue = (int) m_keyStatus;
 			}
 			m_eKeyState = KEY_ERROR;
@@ -387,7 +387,7 @@ bool AAMPOCDMSessionAdapter::verifyOutputProtection()
 		if (!m_pOutputProtection->isHDCPConnection2_2())
 		{
 			// UHD and not HDCP 2.2
-			AAMPLOG_WARN("UHD source but not HDCP 2.2. FAILING decrypt");
+			AAMPLOG_WARN_GP("UHD source but not HDCP 2.2. FAILING decrypt");
 			return false;
 		}
 	}

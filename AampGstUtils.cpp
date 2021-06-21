@@ -93,11 +93,11 @@ GstCaps* GetGstCaps(StreamOutputFormat format)
 					"systemstream", G_TYPE_BOOLEAN, FALSE, NULL);
 			break;  //CID:81305 - Using break statement
 		case FORMAT_UNKNOWN:
-			AAMPLOG_WARN("Unknown format %d", format);
+			AAMPLOG_WARN_GP("Unknown format %d", format);
 			break;
 		case FORMAT_INVALID:
 		default:
-			AAMPLOG_WARN("Unsupported format %d", format);
+			AAMPLOG_WARN_GP("Unsupported format %d", format);
 			break;
 	}
 	return caps;

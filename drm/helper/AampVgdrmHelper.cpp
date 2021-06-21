@@ -56,7 +56,7 @@ void AampVgdrmHelper::getKey(std::vector<uint8_t>& keyID) const
 {
 	if ((mDrmInfo.keyURI.length() != 40) && (mDrmInfo.keyURI.length() != 48))
 	{
-		AAMPLOG_ERR("Invalid key URI: %s", mDrmInfo.keyURI);
+		AAMPLOG_ERR_GP("Invalid key URI: %s", mDrmInfo.keyURI);
 		return;
 	}
 
@@ -65,7 +65,7 @@ void AampVgdrmHelper::getKey(std::vector<uint8_t>& keyID) const
 
 	if ((KEY_PAYLOAD_OFFSET + (2 * keyLen)) > mDrmInfo.keyURI.length())
 	{
-		AAMPLOG_ERR("Invalid key length extracted from URI: %d", keyLen);
+		AAMPLOG_ERR_GP("Invalid key length extracted from URI: %d", keyLen);
 		return;
 	}
 

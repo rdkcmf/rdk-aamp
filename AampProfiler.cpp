@@ -55,7 +55,7 @@ void ProfileEventAAMP::addtuneEvent(ProfilerBucketType pbt, unsigned int start, 
 {
 	if (pbt >= PROFILE_BUCKET_TYPE_COUNT)
 	{
-		AAMPLOG_WARN("bucketId=%d > PROFILE_BUCKET_TYPE_COUNT. How did it happen?", pbt);
+		AAMPLOG_WARN_GP("bucketId=%d > PROFILE_BUCKET_TYPE_COUNT. How did it happen?", pbt);
 		return;
 	}
 
@@ -209,7 +209,7 @@ void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int stream
 		snprintf(tuneTimeStrPrefix, sizeof(tuneTimeStrPrefix), "%s PLAYER[%d] IP_AAMP_TUNETIME", playerActiveMode.c_str(),playerId);
 	}
 
-	AAMPLOG_WARN("%s:%d,%d,%lld," // prefix, version, build, tuneStartBaseUTCMS
+	AAMPLOG_WARN_GP("%s:%d,%d,%lld," // prefix, version, build, tuneStartBaseUTCMS
 		"%d,%d,%d," 	// main manifest (start,total,err)
 		"%d,%d,%d," 	// video playlist (start,total,err)
 		"%d,%d,%d," 	// audio playlist (start,total,err)
@@ -315,7 +315,7 @@ void ProfileEventAAMP::GetClassicTuneTimeInfo(bool success, int tuneRetries, int
 			xreTimeBuckets[TuneTimeStartStream],xreTimeBuckets[TuneTimeStreaming],streamType,tuneRetries,firstTuneType,(long long)NOW_SYSTEM_TS_MS
 	);
 #ifndef CREATE_PIPE_SESSION_TO_XRE
-	AAMPLOG_WARN("AAMP=>XRE: %s", TuneTimeInfoStr);
+	AAMPLOG_WARN_GP("AAMP=>XRE: %s", TuneTimeInfoStr);
 #endif
 }
 
@@ -419,7 +419,7 @@ void ProfileEventAAMP::SetTuneFailCode(int tuneFailCode, ProfilerBucketType fail
 {
 	if(!mTuneFailErrorCode)
 	{
-		AAMPLOG_INFO("Tune Fail: ProfilerBucketType: %d, tuneFailCode: %d", failBucketType, tuneFailCode);
+		AAMPLOG_INFO_GP( "Tune Fail: ProfilerBucketType: %d, tuneFailCode: %d", failBucketType, tuneFailCode);
 		mTuneFailErrorCode = tuneFailCode;
 		mTuneFailBucketType = failBucketType;
 	}

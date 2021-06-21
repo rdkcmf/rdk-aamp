@@ -25,7 +25,7 @@ TtmlSubtecParser::TtmlSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType t
 {
 	if (!PacketSender::Instance()->Init())
 	{
-		AAMPLOG_INFO("Init failed - subtitle parsing disabled\n");
+		AAMPLOG_INFO(mAamp->mConfig, "Init failed - subtitle parsing disabled\n");
 		throw std::runtime_error("PacketSender init failed");
 	}
 	m_channel = make_unique<TtmlChannel>();
@@ -79,11 +79,11 @@ bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double positi
 		m_channel->SendDataPacket(std::move(data));
 
 		free(mdat);
-		AAMPLOG_TRACE("Sent buffer with size %zu position %.3f\n", bufferLen, position);
+		AAMPLOG_TRACE(mAamp->mConfig, "Sent buffer with size %zu position %.3f\n", bufferLen, position);
 	}
 	else
 	{
-		AAMPLOG_INFO("Init Segment");
+		AAMPLOG_INFO(mAamp->mConfig, "Init Segment");
 	}
 	return true;
 }
