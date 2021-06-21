@@ -266,6 +266,19 @@ struct ConfigChannelInfo
 	std::string uri;
 };
 
+/**
+ * @struct customJson
+ * @brief Holds information of a custom JSON array
+ */
+
+struct customJson
+{
+        customJson() : config(), configValue()
+        { }
+        std::string config;
+        std::string configValue;
+};
+
 
 /**
  * @brief AAMP Config lookup table structure
@@ -400,6 +413,7 @@ public:
 	static void SetCfgDrive(char drivename);
 	bool GetAampConfigJSONStr(std::string &str);
 	bool GetDeveloperConfigData(std::string &key,std::string &value);
+	void CustomArrayRead( cJSON *customArray );
 
 	////////// Special Functions /////////////////////////
 	std::string GetUserAgentString();

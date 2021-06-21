@@ -660,6 +660,9 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 		cJSON *cfgdata = cJSON_Parse(jsonbuffer);
 		if(cfgdata != NULL)
 		{
+			cJSON *custom = cJSON_GetObjectItem(cfgdata, "Custom");
+			if(custom != NULL){
+			CustomArrayRead( custom );}
 			std::string keyname;
 			for (auto it = mAampLookupTable.begin(); it != mAampLookupTable.end(); ++it)
 			{
@@ -792,6 +795,36 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 	}
 	return retval;
 }
+/**
+ * @brief CustomArrayRead - Function to Read Custom JSON Array
+ * * @param[in] customArray - input string where custom config json will be stored
+ **/
+void AampConfig::CustomArrayRead( cJSON *customArray )
+{
+	std::string keyname;
+	customJson customValues;
+	std::vector<struct customJson>vCustom;
+	cJSON *customVal=NULL;
+	cJSON *searchVal=NULL;
+	int length = cJSON_GetArraySize(customArray);
+	if(customArray != NULL)
+	{
+		for(int i = 0; i < length ; i++){
+			customVal = cJSON_GetArrayItem(customArray,i);
+			for (auto it = mAampLookupTable.begin(); it != mAampLookupTable.end(); ++it){
+				keyname =  it->first;
+				searchVal = cJSON_GetObjectItem(customVal,keyname.c_str());
+				if(searchVal){
+				customValues.config = keyname;
+				customValues.configValue = searchVal->valuestring;
+				vCustom.push_back(customValues);
+				}
+			}
+		}
+	}
+}
+		
+
 
 /**
  * @brief GetAampConfigJSONStr - Function to Complete Config as JSON str
