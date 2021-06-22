@@ -110,10 +110,9 @@ public:
 	 * @param buffer : Data to decrypt.
 	 * @param subSampleCount : Number of subsamples.
 	 * @param subSamplesBuffer : Subsamples buffer.
-	 * @param caps : Caps of the media that is currently being decrypted
 	 * @retval Returns status of decrypt request.
 	 */
-	virtual int decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer, GstCaps* caps = NULL);
+	virtual int decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer);
 
 	/**
 	 * @brief Function to decrypt stream  buffer.
