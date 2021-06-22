@@ -362,7 +362,7 @@ int ClearKeySession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
  * @retval Returns 0 on success.
  */
 int ClearKeySession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount,
-                GstBuffer* subSamplesBuffer)
+                GstBuffer* subSamplesBuffer, GstCaps* caps)
 {
 	int retVal = 1;
 	uint8_t *pbData = NULL;
