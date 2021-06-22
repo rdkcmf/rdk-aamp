@@ -91,9 +91,9 @@ OpenCDMError opencdm_session_update(struct OpenCDMSession* session,
 	return retValue;
 }
 
-OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, GstBuffer* buffer,
+OpenCDMError opencdm_gstreamer_session_decrypt_ex(struct OpenCDMSession* session, GstBuffer* buffer,
 											   GstBuffer* subSample, const uint32_t subSampleCount,
-											   GstBuffer* IV, GstBuffer* keyID, uint32_t initWithLast15)
+											   GstBuffer* IV, GstBuffer* keyID, uint32_t initWithLast15, GstCaps *caps = NULL)
 {
 	return ERROR_NONE;
 }
