@@ -273,6 +273,7 @@ struct AAMPGstPlayerPriv
 static const char* GstPluginNamePR = "aampplayreadydecryptor";
 static const char* GstPluginNameWV = "aampwidevinedecryptor";
 static const char* GstPluginNameCK = "aampclearkeydecryptor";
+static const char* GstPluginNameVMX = "aampverimatrixdecryptor";
 
 /**
  * @brief Called from the mainloop when a message is available on the bus
@@ -1724,7 +1725,8 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 			*/
 			if(aamp_StartsWith(GST_OBJECT_NAME(msg->src), GstPluginNamePR) == true ||
 			   aamp_StartsWith(GST_OBJECT_NAME(msg->src), GstPluginNameWV) == true ||
-			   aamp_StartsWith(GST_OBJECT_NAME(msg->src), GstPluginNameCK) == true) 
+			   aamp_StartsWith(GST_OBJECT_NAME(msg->src), GstPluginNameCK) == true ||
+			   aamp_StartsWith(GST_OBJECT_NAME(msg->src), GstPluginNameVMX) == true) 
 			{
 				AAMPLOG_WARN("AAMPGstPlayer setting aamp instance for %s decryptor", GST_OBJECT_NAME(msg->src));
 				GValue val = { 0, };
@@ -4271,6 +4273,19 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins(AampLogManager *mLogObj)
 	else
 	{
 		AAMPLOG_WARN("AAMPGstPlayer: %s plugin priority set to GST_RANK_PRIMARY + 111", GstPluginNameCK);
+		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
+		gst_object_unref(pluginFeature);
+	}
+
+	pluginFeature = gst_registry_lookup_feature(registry, GstPluginNameVMX);
+
+	if (pluginFeature == NULL)
+	{
+		AAMPLOG_ERR("AAMPGstPlayer::%s():%d %s plugin feature not available", __FUNCTION__, __LINE__, GstPluginNameVMX);
+	}
+	else
+	{
+		AAMPLOG_WARN("AAMPGstPlayer::%s():%d %s plugin priority set to GST_RANK_PRIMARY + 111", __FUNCTION__, __LINE__, GstPluginNameVMX);
 		gst_plugin_feature_set_rank(pluginFeature, GST_RANK_PRIMARY + 111);
 		gst_object_unref(pluginFeature);
 	}
