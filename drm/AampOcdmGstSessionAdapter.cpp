@@ -351,3 +351,51 @@ int AAMPOCDMGSTSessionAdapter::decrypt(GstBuffer *keyIDBuffer, GstBuffer *ivBuff
 	}
 	return retValue;
 }
+
+int AAMPOCDMGSTSessionAdapter::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV, const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData)
+{
+	int retValue = -1;
+
+	if (m_pOpenCDMSession)
+	{
+		uint64_t start_decrypt_time;
+		uint64_t end_decrypt_time;
+
+		if (!verifyOutputProtection())
+		{
+			return HDCP_COMPLIANCE_CHECK_FAILURE;
+		}
+
+		pthread_mutex_lock(&decryptMutex);
+		start_decrypt_time = GetCurrentTimeStampInMSec();
+		retValue = opencdm_session_decrypt(m_pOpenCDMSession, (uint8_t *)payloadData, payloadDataSize, f_pbIV, f_cbIV, NULL, 0, 0);
+		end_decrypt_time = GetCurrentTimeStampInMSec();
+		if (retValue != 0)
+		{
+#ifdef USE_THUNDER_OCDM_API_0_2
+			KeyStatus keyStatus = opencdm_session_status(m_pOpenCDMSession, NULL, 0);
+#else
+			KeyStatus keyStatus = opencdm_session_status(m_pOpenCDMSession, NULL, 0);
+#endif
+			AAMPLOG_INFO("AAMPOCDMSessionAdapter:%s : decrypt returned : %d key status is : %d", __FUNCTION__, retValue, keyStatus);
+#ifdef USE_THUNDER_OCDM_API_0_2
+			if (keyStatus == OutputRestricted){
+#else
+			if(keyStatus == KeyStatus::OutputRestricted){
+#endif
+				retValue = HDCP_OUTPUT_PROTECTION_FAILURE;
+			}
+#ifdef USE_THUNDER_OCDM_API_0_2
+			else if (keyStatus == OutputRestrictedHDCP22){
+#else
+			else if(keyStatus == KeyStatus::OutputRestrictedHDCP22){
+#endif
+				retValue = HDCP_COMPLIANCE_CHECK_FAILURE;
+			}
+		}
+
+		pthread_mutex_unlock(&decryptMutex);
+	}
+	return retValue;
+}
+

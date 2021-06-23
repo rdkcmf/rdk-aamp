@@ -271,11 +271,19 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 		memset(psshData, 0x00 , psshDataStr.length() + 1);
 		strncpy(psshData, psshDataStr.c_str(), psshDataStr.length());
 
-		data = base64_Decode(psshData, &dataLength);
-		
-		/* No more use */
-		free(psshData);
-		psshData = NULL;
+		if(drmHelper->friendlyName().compare("Verimatrix") == 0)
+		{
+			logprintf("%s:%d Verimatrix DRM.", __FUNCTION__, __LINE__);
+			data = (unsigned char *)psshData;
+			dataLength = psshDataStr.length();
+		}
+		else
+		{
+			data = base64_Decode(psshData, &dataLength);
+			/* No more use */
+			free(psshData);
+			psshData = NULL;
+		}
 
 		if (dataLength == 0)
 		{
