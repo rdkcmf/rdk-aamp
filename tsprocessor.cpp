@@ -90,7 +90,7 @@ void print_nop(const char *format, ...){}
 #define PATPMT_MAX_SIZE (2*1024)
 
 /** Maximum PTS value */
-#define MAX_PTS (0x1FFFFFFFF)
+#define MAX_PTS (0x1FFFFFFFFLL)
 
 /** Maximum descriptor present for a elementary stream */
 #define MAX_DESCRIPTOR (4)
@@ -168,6 +168,38 @@ enum StreamType
 };
 
 /**
+  * @brief extract 33 bit timestamp from ts packet header
+ * @param ptr pointer to first of five bytes encoding a 33 bit PTS timestamp
+ * @return 33 bit unsigned integer (which fits in long long)
+ */
+static unsigned long long Extract33BitTimestamp( const unsigned char *ptr )
+{
+	unsigned long long v; // this is to hold a 64bit integer, lowest 36 bits contain a timestamp with markers
+	v = (unsigned long long) (ptr[0] & 0x0F) << 32
+		| (unsigned long long) ptr[1] << 24 | (unsigned long long) ptr[2] << 16
+		| (unsigned long long) ptr[3] << 8 | (unsigned long long) ptr[4];
+	unsigned long long timeStamp = 0;
+	timeStamp |= (v >> 3) & (0x0007ULL << 30); // top 3 bits, shifted left by 3, other bits zeroed out
+	timeStamp |= (v >> 2) & (0x7fff << 15); // middle 15 bits
+	timeStamp |= (v >> 1) & (0x7fff << 0); // bottom 15 bits
+
+#if 0	// Hack to simulate PTS rollover
+	static unsigned long long timeAdjust;
+	static bool init;
+	if( !init )
+	{
+		// adjust to simulate rollover after 10s of playback
+		timeAdjust = (0x1ffffff-90000*10) - timeStamp;
+		init = true;
+	}
+	timeStamp += timeAdjust;
+#endif
+
+	return timeStamp;
+}
+
+
+/**
  * @class Demuxer
  * @brief Software demuxer of MPEGTS
  */
@@ -198,36 +230,33 @@ private:
 	 */
 	void send()
 	{
-		if ((base_pts > current_pts) || (current_dts && base_pts > current_dts))
+		double pts = position;
+		double dts;
+		
+		unsigned long long dt = current_pts - base_pts;
+		dt &= MAX_PTS;
+		if (!trickmode)
 		{
-			WARNING("Discard ES Type %d position %f base_pts %llu current_pts %llu diff %f seconds length %d", type, position, base_pts, current_pts, (double)(base_pts - current_pts) / 90000, (int)es.len );
+			pts += (double)(dt) / 90000;
+		}
+		if (!trickmode && current_dts)
+		{
+			dts = position + (double)(dt) / 90000;
 		}
 		else
 		{
-			double pts = position;
-			double dts;
-			if (!trickmode)
+			dts = pts;
+		}
+		
+		DEBUG_DEMUX("Send : pts %f dts %f", pts, dts);
+		DEBUG_DEMUX("position %f base_pts %llu current_pts %llu diff %f seconds length %d", position, base_pts, current_pts, (double)(current_pts - base_pts) / 90000, (int)es.len );
+		aamp->SendStream(type, es.ptr, es.len, pts, dts, duration);
+		if (gpGlobalConfig->logging.info)
+		{
+			sentESCount++;
+			if(0 == (sentESCount % 150 ))
 			{
-				pts += (double)(current_pts - base_pts) / 90000;
-			}
-			if (!trickmode && current_dts)
-			{
-				dts = position + (double)(current_dts - base_pts) / 90000;
-			}
-			else
-			{
-				dts = pts;
-			}
-			DEBUG_DEMUX("Send : pts %f dts %f", pts, dts);
-			DEBUG_DEMUX("position %f base_pts %llu current_pts %llu diff %f seconds length %d", position, base_pts, current_pts, (double)(current_pts - base_pts) / 90000, (int)es.len );
-			aamp->SendStream(type, es.ptr, es.len, pts, dts, duration);
-			if (gpGlobalConfig->logging.info)
-			{
-				sentESCount++;
-				if(0 == (sentESCount % 150 ))
-				{
-					logprintf("Demuxer::%s:%d: type %d sent %d packets", __FUNCTION__, __LINE__, (int)type, sentESCount);
-				}
+				logprintf("Demuxer::%s:%d: type %d sent %d packets", __FUNCTION__, __LINE__, (int)type, sentESCount);
 			}
 		}
 		es.len = 0;
@@ -385,14 +414,7 @@ public:
 					{
 						if ((pesStart[7] & 0x80) && ((pesStart[9] & 0x20) == 0x20))
 						{
-							unsigned long long v; // this is to hold a 64bit integer, lowest 36 bits contain a timestamp with markers
-							v = (unsigned long long) (pesStart[9] & 0x0F) << 32
-								| (unsigned long long) pesStart[10] << 24 | (unsigned long long) pesStart[11] << 16
-								| (unsigned long long) pesStart[12] << 8 | (unsigned long long) pesStart[13];
-							unsigned long long timeStamp = 0;
-							timeStamp |= (v >> 3) & (0x0007ULL << 30); // top 3 bits, shifted left by 3, other bits zeroed out
-							timeStamp |= (v >> 2) & (0x7fff << 15); // middle 15 bits
-							timeStamp |= (v >> 1) & (0x7fff << 0); // bottom 15 bits
+							unsigned long long timeStamp = Extract33BitTimestamp(&pesStart[9]);
 							current_pts = timeStamp;
 							DEBUG("PTS updated %llu", current_pts);
 							if(!finalized_base_pts)
@@ -454,17 +476,7 @@ public:
 
 						if (((pesStart[7] & 0xC0) == 0xC0) && ((pesStart[14] & 0x1) == 0x01))
 						{
-							unsigned long long v; // this is to hold a 64bit integer, lowest 36 bits contain a timestamp with markers
-							v = (unsigned long long) (pesStart[14] & 0x0F) << 32
-								| (unsigned long long) pesStart[15] << 24 | (unsigned long long) pesStart[16] << 16
-								| (unsigned long long) pesStart[17] << 8 | (unsigned long long) pesStart[18];
-							unsigned long long timeStamp = 0;
-							timeStamp |= (v >> 3) & (0x0007ULL << 30); // top 3 bits, shifted left by 3, other bits zeroed out
-							timeStamp |= (v >> 2) & (0x7fff << 15); // middle 15 bits
-							timeStamp |= (v >> 1) & (0x7fff << 0); // bottom 15 bits
-							DEBUG("dts : %llu ", timeStamp);
-
-							current_dts = timeStamp;
+							current_dts = Extract33BitTimestamp(&pesStart[14]);
 						}
 						else
 						{
@@ -507,7 +519,7 @@ public:
 			}
 			if ((current_pts < base_pts) && !(gpGlobalConfig->syncAudioFragmanets))
 			{
-				if (finalized_base_pts && !allowPtsRewind) 
+				if (finalized_base_pts && !allowPtsRewind)
 				{
 					WARNING("Type[%d] current_pts[%llu] < base_pts[%llu], ptsError", (int)type, current_pts, base_pts);
 					ptsError = true;
@@ -985,7 +997,7 @@ void TSProcessor::insertPCR(unsigned char *packet, int pid)
 	packet[i + 3] = (0x20 | (m_continuityCounters[pid] & 0x0F));
 	packet[i + 4] = 0xB7; // 1 byte of adaptation data, but require length of 183 when no payload is indicated
 	packet[i + 5] = 0x10; // PCR
-	currPCR = ((m_currRateAdjustedPTS - 10000) & 0x1FFFFFFFFLL);
+	currPCR = ((m_currRateAdjustedPTS - 10000) & MAX_PTS);
 	TRACE1("TSProcessor::insertPCR: m_currRateAdjustedPTS= %llx currPCR= %llx", m_currRateAdjustedPTS, currPCR);
 	writePCR(&packet[i + 6], currPCR, true);
 	for (int i = 6 + 6 + m_ttsSize; i < m_packetSize; i++)
@@ -1271,7 +1283,7 @@ void TSProcessor::sendDiscontinuity(double position)
 
 	// Set inital PCR value based on first PTS
 	currPTS = m_currentPTS;
-	currPCR = ((currPTS - 10000) & 0x1FFFFFFFFLL);
+	currPCR = ((currPTS - 10000) & MAX_PTS);
 	if (!m_haveBaseTime)
 	{
 		if (m_playModeNext == PlayMode_retimestamp_Ionly)
@@ -3019,7 +3031,7 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 					  if (m_basePCR < 0) m_basePCR = PCR;
 					  if (m_playMode == PlayMode_retimestamp_Ionly)
 					  {
-						  rateAdjustedPCR = ((m_currRateAdjustedPTS - 10000) & 0x1FFFFFFFFLL);
+						  rateAdjustedPCR = ((m_currRateAdjustedPTS - 10000) & MAX_PTS);
 					  }
 					  else
 					  {
@@ -3038,7 +3050,7 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 								  }
 							  }
 						  }
-						  rateAdjustedPCR = (((long long)(timeOffset / m_absPlayRate + 0.5) + m_segmentBaseTime) & 0x1FFFFFFFFLL);
+						  rateAdjustedPCR = (((long long)(timeOffset / m_absPlayRate + 0.5) + m_segmentBaseTime) & MAX_PTS);
 					  }
 					  m_currRateAdjustedPCR = rateAdjustedPCR;
 					  ++m_pcrPerPTSCount;
@@ -3094,7 +3106,7 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 								  if (!m_haveBaseTime && (m_playMode == PlayMode_retimestamp_Ionly))
 								  {
 									  m_haveBaseTime = true;
-									  m_baseTime = ((PTS - ((long long)(90000 / (m_apparentFrameRate*rm)))) & 0x1FFFFFFFFLL);
+									  m_baseTime = ((PTS - ((long long)(90000 / (m_apparentFrameRate*rm)))) & MAX_PTS);
 									  m_segmentBaseTime = m_baseTime;
 									  TRACE2("have baseTime %llx from pid %x PTS", m_baseTime, pid);
 								  }
@@ -3107,7 +3119,7 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 									  {
 										  if (m_currRateAdjustedPCR != 0)
 										  {
-											  rateAdjustedPTS = ((m_currRateAdjustedPCR + 10000) & 0x1FFFFFFFFLL);
+											  rateAdjustedPTS = ((m_currRateAdjustedPCR + 10000) & MAX_PTS);
 											  TRACE2("Updated rateAdjustedPTS to %lld m_currRateAdjustedPCR %lld", rateAdjustedPTS, m_currRateAdjustedPCR);
 										  }
 										  else
@@ -3119,7 +3131,7 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 									  }
 									  else
 									  {
-										  rateAdjustedPTS = ((m_currRateAdjustedPTS + interFrameDelay) & 0x1FFFFFFFFLL);
+										  rateAdjustedPTS = ((m_currRateAdjustedPTS + interFrameDelay) & MAX_PTS);
 										  TRACE2("Updated rateAdjustedPTS to %lld m_currRateAdjustedPTS %lld interFrameDelay %lld", rateAdjustedPTS, m_currRateAdjustedPTS, interFrameDelay);
 										  /*Don't increment pts with interFrameDelay if already done for the segment.*/
 										  if (m_framesProcessedInSegment > 0)
@@ -3137,7 +3149,7 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 
 										  if (updatePCR)
 										  {
-											  long long rateAdjustedPCR = ((rateAdjustedPTS - 10000) & 0x1FFFFFFFFLL);
+											  long long rateAdjustedPCR = ((rateAdjustedPTS - 10000) & MAX_PTS);
 
 											  m_currRateAdjustedPCR = rateAdjustedPCR;
 										  }
@@ -3146,7 +3158,7 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 								  }
 								  else
 								  {
-									  rateAdjustedPTS = (((long long)(timeOffset / m_absPlayRate + 0.5) + m_segmentBaseTime) & 0x1FFFFFFFFLL);
+									  rateAdjustedPTS = (((long long)(timeOffset / m_absPlayRate + 0.5) + m_segmentBaseTime) & MAX_PTS);
 								  }
 								  if (pid == m_pcrPid)
 								  {
@@ -3178,7 +3190,7 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 									  {
 										  timeOffset = DTS - m_baseTime;
 										  if (m_playRate < 0) timeOffset = -timeOffset;
-										  rateAdjustedDTS = (((long long)(timeOffset / m_absPlayRate + 0.5) + m_segmentBaseTime) & 0x1FFFFFFFFLL);
+										  rateAdjustedDTS = (((long long)(timeOffset / m_absPlayRate + 0.5) + m_segmentBaseTime) & MAX_PTS);
 									  }
 								  }
 								  if (validDTS)
@@ -3295,7 +3307,7 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 		  // the PCR values don't repeat
 		  if (m_currRateAdjustedPCR <= m_prevRateAdjustedPCR)
 		  {
-			  m_currRateAdjustedPCR = ((long long)(m_currRateAdjustedPCR + (90000 / (m_apparentFrameRate*rm) + m_pcrPerPTSCount * 8)) & 0x1FFFFFFFFLL);
+			  m_currRateAdjustedPCR = ((long long)(m_currRateAdjustedPCR + (90000 / (m_apparentFrameRate*rm) + m_pcrPerPTSCount * 8)) & MAX_PTS);
 		  }
 		  TRACE2("m_currRateAdjustedPCR %lld(%lld ms) diff %lld ms", m_currRateAdjustedPCR, m_currRateAdjustedPCR / 90, (m_currRateAdjustedPCR - m_prevRateAdjustedPCR) / 90);
 		  m_prevRateAdjustedPCR = m_currRateAdjustedPCR;
