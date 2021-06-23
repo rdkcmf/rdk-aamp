@@ -1378,6 +1378,8 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 						|| aamp_StartsWith(GST_OBJECT_NAME(msg->src), "fakesink") )
 				{
 					_this->privateContext->audio_sink = (GstElement *) msg->src;
+					// Apply audio settings that may have been set before pipeline was ready
+					_this->setVolumeOrMuteUnMute();
 				}
 #endif
 
