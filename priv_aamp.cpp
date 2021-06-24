@@ -141,6 +141,8 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 
 static bool activeInterfaceWifi = false;
 
+static char previousInterface[10] = "";
+
 /**
  * @struct ChannelInfo 
  * @brief Holds information of a channel
@@ -683,7 +685,11 @@ void getActiveInterfaceEventHandler (const char *owner, IARM_EventId_t eventId, 
 
 	IARM_BUS_NetSrvMgr_Iface_EventData_t *param = (IARM_BUS_NetSrvMgr_Iface_EventData_t *) data;
 
-	AAMPLOG_WARN("getActiveInterfaceEventHandler EventId %d activeinterface %s", eventId,  param->activeIface);
+	if (NULL == strstr (param->activeIface, previousInterface) || (strlen(previousInterface) == 0))
+	{
+		strcpy(previousInterface, param->activeIface);
+		AAMPLOG_WARN("getActiveInterfaceEventHandler EventId %d activeinterface %s", eventId,  param->activeIface);
+	}
 
 	if (NULL != strstr (param->activeIface, "wlan"))
 	{
