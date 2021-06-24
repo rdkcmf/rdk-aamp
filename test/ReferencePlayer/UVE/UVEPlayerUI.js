@@ -37,7 +37,7 @@ function playPause() {
         document.getElementById("contentURL").innerHTML = "URL: " + urls[0].url;
         resetPlayer();
         resetUIOnNewAsset();
-        loadUrl(urls[0]);
+        loadUrl(urls[0], true);
     } else {
         // If it was a trick play operation
         if ( playbackSpeeds[playbackRateIndex] != 1 ) {
@@ -245,6 +245,7 @@ function changeCCStyle() {
         }
     }
 }
+
 //function to jump to user entered position
 function jumpToPPosition() {
     if(document.getElementById("jumpPosition").value) {
@@ -602,9 +603,9 @@ var HTML5PlayerControls = function() {
             case 0:
                     playPause();
                     break;
-	    case 1:
-		    toggleVideo();
-		    break;
+            case 1:
+                    toggleVideo();
+                    break;
             case 2:
                     fastrwd();
                     break;

@@ -200,7 +200,7 @@ class AAMPPlayer {
      * URI of the Media being played by the Video Engine
      */
     load(url, foreground) {
-		console.log("Url received: " + url);
+        console.log("Url received: " + url);
         this.url = url;
         this.player.load(url, foreground);
     }
@@ -407,7 +407,7 @@ class AAMPPlayer {
     }
 
     removeEventListener(eventName, eventHandler) {
-        return this.player.addEventListener(eventName, eventHandler, null);
+        return this.player.removeEventListener(eventName, eventHandler, null);
     }
 
     /**
@@ -454,6 +454,13 @@ class AAMPPlayer {
     }
 
     /**
+     * Set Alternate Content
+     */
+    setAlternateContent(reservationObject, callback) {
+	this.player.setAlternateContent(reservationObject, callback);
+    }
+
+    /**
      * Get available audio track info
      */
     getAvailableAudioTracks() {
@@ -475,13 +482,6 @@ class AAMPPlayer {
     }
 
     /**
-     * Set Alternate Content
-     */
-    setAlternateContent(reservationObject, callback) {
-	this.player.setAlternateContent(reservationObject, callback);
-    }
-
-   /**
      * Get the closed caption style options
      */
     getTextStyleOptions() {
