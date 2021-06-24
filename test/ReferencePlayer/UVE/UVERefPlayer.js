@@ -199,14 +199,15 @@ var defaultInitConfig = {
     //useAverageBandwidth: true,
 
     /**
+     * Enable PreCaching of Playlist and TimeWindow for Cache(minutes)
+     */
+    //preCachePlaylistTime: 5
+
+    /**
      * Progress Report Interval (in seconds)
      */
     //progressReportingInterval: 2,
 
-    /**
-     * Enable PreCaching of Playlist and TimeWindow for Cache(minutes)
-     */
-    //preCachePlaylistTime: 5
     /**
      * enable unpaired discontinuity retune config
      */
@@ -250,6 +251,52 @@ window.onload = function() {
     resetUIOnNewAsset();
 
     //loadUrl(urls[urlIndex]);
+}
+
+function resetSubtitles(emptyBuffers) {
+    console.log("Inside resetSubtitles");
+    if (displayTimer !== undefined) {
+        clearTimeout(displayTimer);
+        displayTimer = undefined;
+    }
+    if (subtitleTimer !== undefined) {
+        clearTimeout(subtitleTimer);
+        subtitleTimer = undefined;
+    }
+    document.getElementById("subtitleText").innerHTML = "";
+    //Empty all cues
+    if (emptyBuffers === true) {
+        vttCueBuffer = [];
+    }
+}
+
+function displaySubtitle(cue, positionMS) {
+    var timeOffset = cue.start - positionMS;
+    if (timeOffset <= 0) {
+        //no need of timer
+        console.log("webvtt timeOffset: " + timeOffset + " cue: " + JSON.stringify(cue));
+        vttCueBuffer.shift();
+        document.getElementById("subtitleText").innerHTML = cue.text;
+        subtitleTimer = setTimeout(function() {
+            document.getElementById("subtitleText").innerHTML = "";
+            if (vttCueBuffer.length > 0) {
+                displaySubtitle(vttCueBuffer[0], positionMS + cue.duration);
+            } else {
+                displayTimer = undefined;
+                subtitleTimer = undefined;
+            }
+        }, cue.duration);
+    } else {
+        displayTimer = setTimeout(function() {
+            displaySubtitle(cue, positionMS + timeOffset);
+        }, timeOffset);
+    }
+}
+
+function webvttDataHandler(event) {
+    console.log("webvtt data listener event: " + JSON.stringify(event));
+    var subText = event.text.replace(/\n/g, "<br />");
+    vttCueBuffer.push(new VTTCue(event.start, event.duration, subText));
 }
 
 function playbackStateChanged(event) {
@@ -321,12 +368,20 @@ function playbackStateChanged(event) {
 
             break;
         case playerStatesEnum.playing:
+            //Stop vtt rendering
+            if (playerState === playerStatesEnum.seeking) {
+                resetSubtitles(true);
+            }
             playerState = playerStatesEnum.playing;
             break;
         case playerStatesEnum.paused:
             playerState = playerStatesEnum.paused;
             break;
         case playerStatesEnum.seeking:
+            //Stop vtt rendering
+            if (playerState === playerStatesEnum.paused || playerState === playerStatesEnum.playing) {
+                resetSubtitles(true);
+            }
             playerState = playerStatesEnum.seeking;
             break;
         default:
@@ -352,14 +407,20 @@ function mediaSpeedChanged(event) {
     console.log("Media speed changed event: " + JSON.stringify(event));
     var currentRate = event.speed;
     console.log("Speed Changed [" + playbackSpeeds[playbackRateIndex] + "] -> [" + currentRate + "]");
+
     if (currentRate != undefined) {
+        //Stop vtt rendering
+        if (currentRate !== 1) {
+            resetSubtitles(currentRate !== 0);
+        }
+
         if (currentRate != 0) {
             playbackRateIndex = playbackSpeeds.indexOf(currentRate);
         } else {
-                playbackRateIndex = playbackSpeeds.indexOf(1);
+            playbackRateIndex = playbackSpeeds.indexOf(1);
         }
         if (currentRate != 0 && currentRate != 1){
-                showTrickmodeOverlay(currentRate);
+            showTrickmodeOverlay(currentRate);
         }
 
         if (currentRate === 1) {
@@ -616,16 +677,17 @@ function playbackSeeked(event) {
     console.log("Play Seeked " + JSON.stringify(event));
 }
 
-function bulkMetadataHandler(event) {
-    console.log("Bulk TimedMetadata : " + JSON.stringify(event));
-}
-
 function tuneProfiling(event) {
     console.log("Tune Profiling Data: " + event.microData);
 }
 
+function bulkMetadataHandler(event) {
+    console.log("Bulk TimedMetadata : " + JSON.stringify(event));
+}
+
+
 function createAAMPPlayer(){
-    var newPlayer = new AAMPPlayer();
+    var newPlayer = new AAMPPlayer("UVE-Ref-Player");
     newPlayer.addEventListener("playbackStateChanged", playbackStateChanged);
     newPlayer.addEventListener("playbackCompleted", mediaEndReached);
     newPlayer.addEventListener("playbackSpeedChanged", mediaSpeedChanged);
@@ -648,6 +710,7 @@ function createAAMPPlayer(){
     newPlayer.addEventListener("reservationEnd", reservationEnd);
     newPlayer.addEventListener("seeked", playbackSeeked);
     newPlayer.addEventListener("tuneProfiling", tuneProfiling);
+    //newPlayer.addEventListener("bulkTimedMetadata", bulkMetadataHandler);
     newPlayer.addEventListener("id3Metadata", id3Metadata);
     //Can add generic callback for ad resolved event or assign unique through setAlternateContent
     //newPlayer.addEventListener("adResolved", adResolvedCallback);
@@ -656,6 +719,8 @@ function createAAMPPlayer(){
 
 // helper functions
 function resetPlayer() {
+    resetSubtitles(true);
+
     if (playerState !== playerStatesEnum.idle) {
         playerObj.stop();
     }
@@ -664,31 +729,8 @@ function resetPlayer() {
         playerObj = null;
     }
 
+    playerObj = createAAMPPlayer();
 
-    playerObj = new AAMPPlayer("UVE-Ref-Player");
-    playerObj.addEventListener("playbackStateChanged", playbackStateChanged);
-    playerObj.addEventListener("playbackCompleted", mediaEndReached);
-    playerObj.addEventListener("playbackSpeedChanged", mediaSpeedChanged);
-    playerObj.addEventListener("bitrateChanged", bitrateChanged);
-    playerObj.addEventListener("playbackFailed", mediaPlaybackFailed);
-    playerObj.addEventListener("mediaMetadata", mediaMetadataParsed);
-    playerObj.addEventListener("timedMetadata", subscribedTagNotifier);
-    playerObj.addEventListener("playbackProgressUpdate", mediaProgressUpdate);
-    playerObj.addEventListener("playbackStarted", mediaPlaybackStarted);
-    playerObj.addEventListener("bufferingChanged", bufferingChangedHandler);
-    playerObj.addEventListener("durationChanged", mediaDurationChanged);
-    playerObj.addEventListener("decoderAvailable", decoderHandleAvailable);
-    playerObj.addEventListener("anomalyReport", anomalyEventHandler);
-    playerObj.addEventListener("seeked", playbackSeeked);
-    playerObj.addEventListener("tuneProfiling", tuneProfiling);
-    playerObj.addEventListener("reservationStart", reservationStart);
-    playerObj.addEventListener("placementStart", placementStart);
-    playerObj.addEventListener("placementProgress", placementProgress);
-    playerObj.addEventListener("placementError", placementError);
-    playerObj.addEventListener("placementEnd", placementEnd);
-    playerObj.addEventListener("reservationEnd", reservationEnd);
-    //Can add generic callback for ad resolved event or assign unique through setAlternateContent
-    //playerObj.addEventListener("adResolved", adResolvedCallback);
     playerState = playerStatesEnum.idle;
 
     //Subscribe to interested tags from playlist
@@ -715,8 +757,8 @@ function generateInitConfigObject (urlObject) {
     return initConfigObject;
 }
 
-function loadUrl(urlObject) {
-    console.log("UrlObject received: " + urlObject);
+function loadUrl(urlObject, isLive) {
+    console.log("loadUrl: UrlObject received: " + urlObject);
     //set custom HTTP headers for HTTP manifest/fragment/license requests. Example provided below
     //For manifest/fragment request - playerObj.addCustomHTTPHeader("Authentication-Token:", "12345");
     //For license request - playerObj.addCustomHTTPHeader("Content-Type:", "application/octet-stream", true);
@@ -735,7 +777,7 @@ function loadUrl(urlObject) {
         initConfiguration.nativeCCRendering = true;
     }
     playerObj.initConfig(initConfiguration);
-    playerObj.load(urlObject.url);
+    playerObj.load(urlObject.url, true);
 }
 
 function StopCachedChannel() {
