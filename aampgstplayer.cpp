@@ -2286,8 +2286,17 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 	}
 	else
 	{
+#if !defined(BRCM)
+		maxBytes = len0;
+#else
 		//For TS, if using playersinkbin, broadcom plugins has buffer size limitation.
 		maxBytes = MAX_BYTES_TO_SEND;
+		if (maxBytes < len0)
+		{
+			AAMPLOG_WARN("%s:%d Truncated mediatype %d buffer to %d bytes from %d bytes",
+					  __FUNCTION__, __LINE__, mediaType, maxBytes, len0);
+		}
+#endif
 	}
 #ifdef TRACE_VID_PTS
 	if (mediaType == eMEDIATYPE_VIDEO && privateContext->rate != AAMP_NORMAL_PLAY_RATE)
