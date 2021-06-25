@@ -73,7 +73,7 @@ public:
 	void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len, MediaType type);
 	void ClearProtectionEvent();
 	void StopBuffering(bool forceStop);
-
+    bool AdjustPlayBackRate(double position, double rate);
 
 	struct AAMPGstPlayerPriv *privateContext;
 	AAMPGstPlayer(PrivateInstanceAAMP *aamp

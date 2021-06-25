@@ -28,9 +28,10 @@
 #include "StreamAbstractionAAMP.h"
 #include <string>
 #include <stdint.h>
-#include "libdash/IMPD.h"
+#include "libdash/mpd/MPD.h"
 #include "libdash/INode.h"
 #include "libdash/IDASHManager.h"
+#include "libdash/IProducerReferenceTime.h"
 #include "libdash/xml/Node.h"
 #include "libdash/helpers/Time.h"
 #include "libdash/xml/DOMParser.h"
@@ -182,12 +183,15 @@ public:
 	bool FetchFragment( class MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance, bool discontinuity = false );
 	bool PushNextFragment( class MediaStreamContext *pMediaStreamContext, unsigned int curlInstance);
 	double GetFirstPeriodStartTime(void);
+	void MonitorLatency();
 	void StartSubtitleParser() override;
 
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
 	void FetcherLoop();
 	StreamInfo* GetStreamInfo(int idx) override;
+	bool CheckLLProfileAvailable(IMPD *mpd);
+	bool ParseMPDLLData(MPD* mpd, AampLLDashServiceData &stAampLLDashServiceData);
 	AAMPStatusType UpdateMPD(bool init = false);
 	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false, bool reportBulkMet = false);
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit, bool reportBulkMeta=false);
@@ -212,6 +216,9 @@ private:
 	void UpdateLanguageList();
 	int GetBestAudioTrackByLanguage(int &desiredRepIdx,AudioType &selectedCodecType);
 	int GetPreferredAudioTrackByLanguage();
+	bool CheckProducerReferenceTimeUTCTimeMatch(IProducerReferenceTime *pRT);
+	void PrintProducerReferenceTimeAtrributes(IProducerReferenceTime *pRT);
+	IProducerReferenceTime *GetProducerReferenceTimeForAdaptationSet(IAdaptationSet *adaptationSet);
 	std::string GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet );
 	AAMPStatusType GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
 	int GetDrmPrefs(const std::string& uuid);
@@ -222,6 +229,9 @@ private:
 	std::string GetVssVirtualStreamID();
 	bool IsMatchingLanguageAndMimeType(MediaType type, std::string lang, IAdaptationSet *adaptationSet, int &representationIndex);
 	void GetFragmentUrl( std::string& fragmentUrl, const FragmentDescriptor *fragmentDescriptor, std::string media);
+	double GetEncoderDisplayLatency();
+	void StartLatencyMonitorThread();
+	LatencyStatus GetLatencyStatus() { return latencyStatus; }
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
 	double seekPosition;
@@ -308,6 +318,11 @@ private:
 	std::vector<StreamInfo*> thumbnailtrack;
 	std::vector<TileInfo> indexedTileInfo;
 	double mFirstPeriodStartTime; /*< First period start time for progress report*/
+
+	LatencyStatus latencyStatus;     /**< Latency status of the playback*/
+	LatencyStatus prevLatencyStatus; /**< Previous latency status of the playback*/
+	bool latencyMonitorThreadStarted; /**< Monitor latency thread  status*/
+	pthread_t latencyMonitorThreadID; /**< Fragment injector thread id*/
 };
 
 #endif //FRAGMENTCOLLECTOR_MPD_H_

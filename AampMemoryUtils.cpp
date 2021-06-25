@@ -76,6 +76,33 @@ void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len
 }
 
 /**
+ * @brief Move data to buffer
+ * @param buffer Growable buffer object pointer
+ * @param ptr Buffer to Move
+ * @param len Buffer size
+ */
+void aamp_MoveBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len)
+{
+	/* remove parsed data from memory */
+	if (buffer->ptr && ptr)
+	{
+        if(buffer->avail >= len)
+        {
+            memmove(&buffer->ptr[0], ptr, len);
+            buffer->len = len;
+        }
+        else
+        {
+            AAMPLOG_WARN("%s:%d WARNING - Something is wrong!! Trying to move more than available!!!", __FUNCTION__, __LINE__);
+        }
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d WARNING - NULL pointer input!!!", __FUNCTION__, __LINE__);
+	}
+}
+
+/**
  * @brief Append nul character to buffer
  * @param buffer buffer in which nul to be append
  */

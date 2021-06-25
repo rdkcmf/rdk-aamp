@@ -60,6 +60,14 @@ void aamp_Malloc(struct GrowableBuffer *buffer, size_t len);
 void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len);
 
 /**
+ * @brief Move data to buffer
+ * @param buffer Growable buffer object pointer
+ * @param ptr Buffer to Move
+ * @param len Buffer size
+ */
+void aamp_MoveBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len);
+
+/**
  * @brief Append nul character to buffer
  * @param buffer buffer in which nul to be append
  */

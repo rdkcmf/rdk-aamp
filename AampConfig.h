@@ -168,6 +168,11 @@ typedef enum
 	eAAMPConfig_WideVineKIDWorkaround,                          /**< SkyDE Store workaround to pick WV DRM Key Id from different location */
 	eAAMPConfig_SyncAudioFragments,							/** Flag to enable Audio Video Fragment Sync */
 	eAAMPConfig_RepairIframes,								/*** Enable fragment repair (Stripping and box size correction) for iframe tracks */
+	eAAMPConfig_EnableLowLatencyDash,                           			/** Enables Low Latency Dash */
+	eAAMPConfig_DisableLowLatencyMonitor,                   				/** Enables Low Latency Monitor Thread */
+	eAAMPConfig_DisableLowLatencyABR,							/** Enables Low Latency ABR handling */
+	eAAMPConfig_DisableLowLatencyCorrection,                    			/** Enables Low Latency Correction handling */
+	eAAMPConfig_EnableLowLatencyOffsetMin,                                /** Enables Low Latency Offset Min handling */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
@@ -210,6 +215,10 @@ typedef enum
 	eAAMPConfig_SourceSetupTimeout, 							/**<Timeout value wait for GStreamer appsource setup to complete*/
 	eAAMPConfig_DownloadDelay,
 	eAAMPConfig_LivePauseBehavior,                                                          /**< player paused state behavior */
+	eAAMPConfig_LatencyMonitorDelay,                            				/**< Latency Monitor Delay */
+	eAAMPConfig_LatencyMonitorInterval,                         				/**< Latency Monitor Interval */
+	eAAMPConfig_MaxFragmentChunkCached,                         				/**< fragment chunk cache length*/
+	eAAMPConfig_ABRChunkThresholdSize,                         				/**< AAMP ABR Chunk threshold size*/
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,

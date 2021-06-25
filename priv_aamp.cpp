@@ -23,6 +23,8 @@
  */
 #include "isobmffprocessor.h"
 #include "priv_aamp.h"
+#include "isobmffbuffer.h"
+#include "AampFnLogger.h"
 #include "AampConstants.h"
 #include "AampCacheHandler.h"
 #include "AampUtils.h"
@@ -31,6 +33,7 @@
 #include "admanager_mpd.h"
 #include "fragmentcollector_hls.h"
 #include "fragmentcollector_progressive.h"
+#include "MediaStreamContext.h"
 #include "hdmiin_shim.h"
 #include "compositein_shim.h"
 #include "ota_shim.h"
@@ -61,6 +64,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <uuid/uuid.h>
+#include <string.h>
 
 #define LOCAL_HOST_IP       "127.0.0.1"
 #define AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS (20*1000LL)
@@ -102,6 +106,7 @@
 #define CONTENT_ENCODING_STRING		"Content-Encoding:"
 #define FOG_RECORDING_ID_STRING		"Fog-Recording-Id:"
 #define CAPPED_PROFILE_STRING 		"Profile-Capped:"
+#define TRANSFER_ENCODING_STRING		"Transfer-Encoding:"
 
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
@@ -147,6 +152,23 @@ static char previousInterface[10] = "";
  * @struct CurlCallbackContext
  * @brief context during curl callbacks
  */
+struct CurlCbContextSyncTime
+{
+    PrivateInstanceAAMP *aamp;
+    GrowableBuffer *buffer;
+
+    CurlCbContextSyncTime() : aamp(NULL), buffer(NULL){}
+    CurlCbContextSyncTime(PrivateInstanceAAMP *_aamp, GrowableBuffer *_buffer) : aamp(_aamp),buffer(_buffer){}
+    ~CurlCbContextSyncTime() {}
+
+    CurlCbContextSyncTime(const CurlCbContextSyncTime &other) = delete;
+    CurlCbContextSyncTime& operator=(const CurlCbContextSyncTime& other) = delete;
+};
+
+/**
+ * @struct CurlCallbackContext
+ * @brief context during curl callbacks
+ */
 struct CurlCallbackContext
 {
 	PrivateInstanceAAMP *aamp;
@@ -156,12 +178,15 @@ struct CurlCallbackContext
 	httpRespHeaderData *responseHeaderData;
 	long bitrate;
 	bool downloadIsEncoded;
+	//represents transfer-encoding based download
+	bool chunkedDownload;
+	std::string remoteUrl;
 
-	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false), fileType(eMEDIATYPE_DEFAULT), allResponseHeadersForErrorLogging{""}
+	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false), chunkedDownload(false),  fileType(eMEDIATYPE_DEFAULT), remoteUrl(""), allResponseHeadersForErrorLogging{""}
 	{
 
 	}
-	CurlCallbackContext(PrivateInstanceAAMP *_aamp, GrowableBuffer *_buffer) : aamp(_aamp), buffer(_buffer), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false), fileType(eMEDIATYPE_DEFAULT), allResponseHeadersForErrorLogging{""}{}
+	CurlCallbackContext(PrivateInstanceAAMP *_aamp, GrowableBuffer *_buffer) : aamp(_aamp), buffer(_buffer), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false),  chunkedDownload(false), fileType(eMEDIATYPE_DEFAULT), remoteUrl(""), allResponseHeadersForErrorLogging{""}{}
 
 	~CurlCallbackContext() {}
 
@@ -176,14 +201,26 @@ struct CurlCallbackContext
 struct CurlProgressCbContext
 {
 	PrivateInstanceAAMP *aamp;
-	CurlProgressCbContext() : aamp(NULL), downloadStartTime(-1), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1) {}
-	CurlProgressCbContext(PrivateInstanceAAMP *_aamp, long long _downloadStartTime) : aamp(_aamp), downloadStartTime(_downloadStartTime), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1) {}
+	MediaType fileType;
+	CurlProgressCbContext() : aamp(NULL), fileType(eMEDIATYPE_DEFAULT), downloadStartTime(-1), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1), downloadNow(-1), downloadNowUpdatedTime(-1), dlStarted(false), fragmentDurationMs(-1), remoteUrl("") {}
+	CurlProgressCbContext(PrivateInstanceAAMP *_aamp, long long _downloadStartTime) : aamp(_aamp), fileType(eMEDIATYPE_DEFAULT),downloadStartTime(_downloadStartTime), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1), downloadNow(-1), downloadNowUpdatedTime(-1), dlStarted(false), fragmentDurationMs(-1), remoteUrl("") {}
+
+	~CurlProgressCbContext() {}
+
+        CurlProgressCbContext(const CurlProgressCbContext &other) = delete;
+        CurlProgressCbContext& operator=(const CurlProgressCbContext& other) = delete;
+
 	long long downloadStartTime;
 	long long downloadUpdatedTime;
 	long startTimeout;
 	long stallTimeout;
 	double downloadSize;
 	CurlAbortReason abortReason;
+	double downloadNow;
+	long long downloadNowUpdatedTime;
+	bool dlStarted;
+	int fragmentDurationMs;
+	std::string remoteUrl;
 };
 
 /**
@@ -789,7 +826,43 @@ static int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& va
 
 // End of helper functions for loading configuration
 
+
+static std::string getTimeStamp(time_t epochTime, const char* format = "%Y-%m-%dT%H:%M:%S.%f%Z")
+{
+   char timestamp[64] = {0};
+   strftime(timestamp, sizeof(timestamp), format, localtime(&epochTime));
+   return timestamp;
+}
+
+static time_t convertTimeToEpoch(const char* theTime, const char* format = "%Y-%m-%dT%H:%M:%S.%f%Z")
+{
+   std::tm tmTime;
+   memset(&tmTime, 0, sizeof(tmTime));
+   strptime(theTime, format, &tmTime);
+   return mktime(&tmTime);
+}
+
 // Curl callback functions
+
+/**
+ * @brief write callback to be used by CURL
+ * @param ptr pointer to buffer containing the data
+ * @param size size of the buffer
+ * @param nmemb number of bytes
+ * @param userdata CurlCallbackContext pointer
+ * @retval size consumed or 0 if interrupted
+ */
+static size_t SyncTime_write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    size_t ret = 0;
+    CurlCbContextSyncTime *context = (CurlCbContextSyncTime *)userdata;
+    pthread_mutex_lock(&context->aamp->mLock);
+    size_t numBytesForBlock = size*nmemb;
+    aamp_AppendBytes(context->buffer, ptr, numBytesForBlock);
+    ret = numBytesForBlock;
+    pthread_mutex_unlock(&context->aamp->mLock);
+    return ret;
+}
 
 /**
  * @brief write callback to be used by CURL
@@ -801,21 +874,68 @@ static int ReadConfigNumericHelper(std::string buf, const char* prefixPtr, T& va
  */
 static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
 {
-	size_t ret = 0;
-	CurlCallbackContext *context = (CurlCallbackContext *)userdata;
-	pthread_mutex_lock(&context->aamp->mLock);
-	if (context->aamp->mDownloadsEnabled)
-	{
-		size_t numBytesForBlock = size*nmemb;
-		aamp_AppendBytes(context->buffer, ptr, numBytesForBlock);
-		ret = numBytesForBlock;
-	}
-	else
-	{
-		logprintf("write_callback - interrupted");
-	}
-	pthread_mutex_unlock(&context->aamp->mLock);
-	return ret;
+    size_t ret = 0;
+    CurlCallbackContext *context = (CurlCallbackContext *)userdata;
+    if(!context) return ret;
+
+    pthread_mutex_lock(&context->aamp->mLock);
+    if (context->aamp->mDownloadsEnabled)
+    {
+        size_t numBytesForBlock = size*nmemb;
+        aamp_AppendBytes(context->buffer, ptr, numBytesForBlock);
+        ret = numBytesForBlock;
+
+        if(context->aamp->GetLLDashServiceData()->lowLatencyMode &&
+        (context->fileType == eMEDIATYPE_INIT_VIDEO ||
+         context->fileType ==  eMEDIATYPE_INIT_AUDIO))
+        {
+            IsoBmffBuffer isobuf;
+            isobuf.setBuffer(reinterpret_cast<uint8_t *>(ptr), numBytesForBlock);
+            isobuf.parseBuffer();
+#ifdef AAMP_DEBUG_LL_CURL_WRITE
+            logprintf("%s:%d [%d] Buffer Length: %d", __FUNCTION__, __LINE__, context->fileType, context->buffer->len);
+#endif
+            //Print box details
+            //isobuf.printBoxes();
+            if(isobuf.isInitSegment())
+            {
+                uint32_t timeScale = 0;
+                isobuf.getTimeScale(timeScale);
+                if(context->fileType == eMEDIATYPE_INIT_VIDEO)
+                {
+#ifdef AAMP_DEBUG_LL_CURL_WRITE
+                    logprintf("%s:%d Video TimeScale  [%d]", __FUNCTION__, __LINE__, timeScale);
+#endif
+                    context->aamp->SetLLDashVidTimeScale(timeScale);
+                }
+                else
+                {
+#ifdef AAMP_DEBUG_LL_CURL_WRITE
+                    logprintf("%s:%d Audio TimeScale  [%d]", __FUNCTION__, __LINE__, timeScale);
+#endif
+                    context->aamp->SetLLDashAudTimeScale(timeScale);
+                }
+            }
+            isobuf.destroyBoxes();
+        }
+        else  if(context->aamp->GetLLDashServiceData()->lowLatencyMode &&
+                 (context->fileType == eMEDIATYPE_VIDEO ||
+                  context->fileType ==  eMEDIATYPE_AUDIO ||
+                  context->fileType ==  eMEDIATYPE_SUBTITLE))
+        {
+		MediaStreamContext *mCtx = context->aamp->GetMediaStreamContext(context->fileType);
+		if(mCtx)
+		{
+			mCtx->CacheFragmentChunk(context->fileType, ptr, numBytesForBlock,context->remoteUrl);
+		}
+        }
+    }
+    else
+    {
+        logprintf("write_callback - interrupted");
+    }
+    pthread_mutex_unlock(&context->aamp->mLock);
+    return ret;
 }
 
 /**
@@ -913,7 +1033,10 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
                 startPos = STRLEN_LITERAL(CAPPED_PROFILE_STRING);
                 isProfileCapHeader = true;
         }
-
+	else if (STARTS_WITH_IGNORE_CASE(ptr, TRANSFER_ENCODING_STRING ))
+	{
+		context->chunkedDownload = true;
+	}
 	else if (0 == context->buffer->avail)
 	{
 		if (STARTS_WITH_IGNORE_CASE(ptr, CONTENTLENGTH_STRING))
@@ -980,6 +1103,130 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 }
 
 /**
+ * @brief Convert to string and add suffix k, M, G
+ * @param bytes Speed
+ * @param ptr String buffer
+ * @retval ptr Converted String buffer
+ */
+char* ConvertSpeedToStr(long bps, char *str)
+{
+    #define ONE_KILO  1024
+    #define ONE_MEGA ((1024) * ONE_KILO)
+
+    if(bps < 100000)
+        snprintf(str, 6, "%5ld", bps);
+
+    else if(bps < (10000 * ONE_KILO))
+      snprintf(str, 6, "%4ld" "k", bps/ONE_KILO);
+
+    else if(bps < (100 * ONE_MEGA))
+        snprintf(str, 6, "%2ld" ".%0ld" "M", bps/ONE_MEGA,
+            (bps%ONE_MEGA) / (ONE_MEGA/10) );
+    else
+      snprintf(str, 6, "%4ld" "M", bps/ONE_MEGA);
+
+    return str;
+}
+
+/**
+ * @brief Check if it is Good to capture speed sample
+ * @param long Time Diff
+ * @retval bool Good to Estimate
+ */
+bool IsGoodToEstimate(long time_diff) {
+
+    return time_diff >= DEFAULT_ABR_ELAPSED_MILLIS_FOR_ESTIMATE;
+}
+
+/**
+ * @brief Get Current Content Download Speed
+ * @param ptr aamp context
+ * @param enum File Type
+ * @param bool Download start flag
+ * @param long Download start time
+ * @param double current downloaded bytes
+ * @retval bps bits per second
+ */
+long getCurrentContentDownloadSpeed(PrivateInstanceAAMP *aamp,
+                                    MediaType fileType, //File Type Download
+                                    bool bDownloadStart,
+                                    long start,
+                                    double dlnow) // downloaded bytes so far)
+{
+    long bitsPerSecond = 0;
+    long time_now = 0;
+    long time_diff = 0;
+    long dl_diff = 0;
+    char buffer[2][6] = {0,};
+
+    struct SpeedCache* speedcache = NULL;
+    speedcache = aamp->GetLLDashSpeedCache();
+
+    if(!aamp->GetLowLatencyStartABR())
+    {
+        speedcache->last_sample_time_val = start;
+    }
+
+    time_now = NOW_STEADY_TS_MS;
+    time_diff = (time_now - speedcache->last_sample_time_val);
+
+    if(bDownloadStart)
+    {
+        speedcache->prev_dlnow = 0;
+    }
+
+    dl_diff = (long)dlnow -  speedcache->prev_dlnow;
+
+    long prevdlnow = speedcache->prev_dlnow;
+    speedcache->prev_dlnow = dlnow;
+
+    long currentTotalDownloaded = 0;
+    long total_dl_diff  = 0;
+    currentTotalDownloaded = speedcache->totalDownloaded + dl_diff;
+    total_dl_diff = currentTotalDownloaded - speedcache->prevSampleTotalDownloaded;
+    if(total_dl_diff<=0) total_dl_diff = 0;
+
+    //AAMPLOG_INFO("%s:%d [%d] prev_dlnow: %ld dlnow: %ld dl_diff: %ld total_dl_diff: %ld Current Total Download: %ld Previous Total Download: %ld",__FUNCTION__,__LINE__,fileType, prevdlnow, (long)dlnow, dl_diff,total_dl_diff,currentTotalDownloaded, speedcache->prevSampleTotalDownloaded);
+
+    if(IsGoodToEstimate(time_diff))
+    {
+        speedcache->last_sample_time_val = time_now;
+
+        //speed @ bits per second
+        speedcache->speed_now = ((long)(total_dl_diff / time_diff)* 8000);
+
+        AAMPLOG_TRACE("%s:%d [%d] SAMPLE(Chunk) - time_diff: %ld, total_dl_diff: %ld Current Total Download: %ld Previous Total Download: %ld speedcache->speed_now: %ld speed_from_prev_sample: %s",__FUNCTION__,__LINE__,fileType,time_diff,total_dl_diff,currentTotalDownloaded, speedcache->prevSampleTotalDownloaded, speedcache->speed_now, ConvertSpeedToStr(speedcache->speed_now, buffer[0]));
+
+        double weight = std::sqrt((double)total_dl_diff);
+        speedcache->weightedBitsPerSecond += weight * speedcache->speed_now;
+        speedcache->totalWeight += weight;
+        speedcache->mChunkSpeedData.push_back(std::make_pair(weight ,speedcache->speed_now));
+
+        AAMPLOG_TRACE("%s:%d [%d] SAMPLE(Chunk) - weight: %lf, speedcache->weightedBitsPerSecond: %lf speedcache->totalWeight: %lf weight-first: %lf, bps-first: %ld",__FUNCTION__,__LINE__,fileType,weight,speedcache->weightedBitsPerSecond,speedcache->totalWeight, speedcache->mChunkSpeedData.at(0).first,speedcache->mChunkSpeedData.at(0).second);
+
+        if(speedcache->mChunkSpeedData.size() > MAX_LOW_LATENCY_DASH_ABR_SPEEDSTORE_SIZE)
+        {
+            speedcache->totalWeight -= (speedcache->mChunkSpeedData.at(0).first);
+            speedcache->weightedBitsPerSecond -= (speedcache->mChunkSpeedData.at(0).first * speedcache->mChunkSpeedData.at(0).second);
+            speedcache->mChunkSpeedData.erase(speedcache->mChunkSpeedData.begin());
+            //Speed Data Count is good to estimate bps
+            bitsPerSecond = speedcache->weightedBitsPerSecond/speedcache->totalWeight;
+            AAMPLOG_TRACE("%s:%d [%d] SAMPLE(Chunk) - speedcache->weightedBitsPerSecond: %lf speedcache->totalWeight: %lf estimated-bps: %ld estimated-speed: %s",__FUNCTION__,__LINE__,fileType,speedcache->weightedBitsPerSecond,speedcache->totalWeight, bitsPerSecond, ConvertSpeedToStr(bitsPerSecond, buffer[1]));
+        }
+
+        speedcache->prevSampleTotalDownloaded = currentTotalDownloaded;
+    }
+    else
+    {
+        AAMPLOG_TRACE("%s:%d [%d] Ignore Speed Calculation -> time_diff [%ld]",__FUNCTION__,__LINE__,fileType, time_diff);
+    }
+    
+    speedcache->totalDownloaded += dl_diff;
+    
+    return bitsPerSecond;
+  }
+
+/**
  * @brief
  * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
  * @param dltotal total bytes expected to download
@@ -996,7 +1243,63 @@ static int progress_callback(
 	double ulnow // uploaded bytes so far
 	)
 {
-	CurlProgressCbContext *context = (CurlProgressCbContext *)clientp;
+        CurlProgressCbContext *context = (CurlProgressCbContext *)clientp;
+        PrivateInstanceAAMP *aamp = context->aamp;
+        AampConfig *mConfig = context->aamp->mConfig;
+
+        if(context->aamp->GetLLDashServiceData()->lowLatencyMode &&
+           context->fileType == eMEDIATYPE_VIDEO &&
+           context->aamp->CheckABREnabled() &&
+           !(ISCONFIGSET_PRIV(eAAMPConfig_DisableLowLatencyABR)))
+        {
+            //logprintf("%s:%d [%d] dltotal: %.0f , dlnow: %.0f, ultotal: %.0f, ulnow: %.0f, time: %.0f\n",__FUNCTION__, __LINE__, context->fileType,
+            //          dltotal, dlnow, ultotal, ulnow, difftime(time(NULL), 0));
+
+            int  AbrChunkThresholdSize = 0;
+            GETCONFIGVALUE(eAAMPConfig_ABRChunkThresholdSize,AbrChunkThresholdSize);
+
+            if (/*(dlnow > AbrChunkThresholdSize) &&*/ (context->downloadNow != dlnow))
+        	{
+                long downloadbps = 0;
+
+                context->downloadNow = dlnow;
+                context->downloadNowUpdatedTime = NOW_STEADY_TS_MS;
+                
+                if(!aamp->GetLowLatencyStartABR())
+                {
+                    //Reset speedcache when Fragment download Starts
+                    struct SpeedCache* speedcache = NULL;
+                    speedcache = aamp->GetLLDashSpeedCache();
+                    memset(speedcache, 0x00, sizeof(struct SpeedCache));
+                }
+
+                downloadbps = getCurrentContentDownloadSpeed(aamp, context->fileType, context->dlStarted, (long)context->downloadStartTime, dlnow);
+                
+                if(context->dlStarted)
+                {
+                    context->dlStarted = false;
+                }
+                
+                if(!aamp->GetLowLatencyStartABR())
+                {
+                    aamp->SetLowLatencyStartABR(true);
+                }
+                
+                if(downloadbps)
+                {
+                    long currentProfilebps  = context->aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
+        
+                    pthread_mutex_lock(&context->aamp->mLock);
+                    context->aamp->mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,downloadbps));
+
+                    //logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
+                    if(context->aamp->mAbrBitrateData.size() > DEFAULT_ABR_CHUNK_CACHE_LENGTH)
+                        context->aamp->mAbrBitrateData.erase(context->aamp->mAbrBitrateData.begin());
+                    pthread_mutex_unlock(&context->aamp->mLock);
+                }
+            }
+        }
+
 	int rc = 0;
 	context->aamp->SyncBegin();
 	if (!context->aamp->mDownloadsEnabled)
@@ -1215,6 +1518,18 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mAuxFormat(FORMAT_INVALID), mAuxAudioLanguage()
 	, mAbsoluteEndPosition(0), mIsLiveStream(false)
 	, id3MetadataCallbackIdleTaskId(0), id3MetadataCallbackTaskPending(false), lastId3DataLen(0), lastId3Data(NULL)
+	, mAampLLDashServiceData{}
+	, bLowLatencyServiceConfigured(false)
+	, mLLDashCurrentPlayRate(AAMP_NORMAL_PLAY_RATE)
+	, mLLDashRateCorrectionCount(0)
+	, mLLDashRetuneCount(0)
+	, vidTimeScale(0)
+	, audTimeScale(0)
+	, speedCache {}
+	, mTime (0)
+	, mCurrentLatency(0)
+	, mLiveOffsetAppRequest(false)
+	, bLowLatencyStartABR(false)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -1378,6 +1693,26 @@ void PrivateInstanceAAMP::SyncBegin(void)
 void PrivateInstanceAAMP::SyncEnd(void)
 {
 	pthread_mutex_unlock(&mLock);
+}
+
+/**
+ *   @brief Report progress event
+ *   @param[in]  bool - Flag to include base PTS
+ *   @return long long - Video PTS
+ */
+long long PrivateInstanceAAMP::GetVideoPTS(bool bAddVideoBasePTS)
+{
+    /*For HLS, tsprocessor.cpp removes the base PTS value and sends to gstreamer.
+    **In order to report PTS of video currently being played out, we add the base PTS
+    **to video PTS received from gstreamer
+    */
+    /*For DASH,mVideoBasePTS value will be zero */
+    long long videoPTS = -1;
+    videoPTS = mStreamSink->GetVideoPTS();
+    if(bAddVideoBasePTS)
+       videoPTS += mVideoBasePTS;
+    logprintf("Video-PTS=%lld, mVideoBasePTS=%lld Add VideoBase PTS[%d]",videoPTS,mVideoBasePTS,bAddVideoBasePTS);
+    return videoPTS;
 }
 
 /**
@@ -2870,6 +3205,7 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 	GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheLife,abrCacheLife); 
 
 	pthread_mutex_lock(&mLock);
+
 	for (bitrateIter = mAbrBitrateData.begin(); bitrateIter != mAbrBitrateData.end();)
 	{
 		//logprintf("[%s][%d] Sz[%d] TimeCheck Pre[%lld] Sto[%lld] diff[%lld] bw[%ld] ",__FUNCTION__,__LINE__,mAbrBitrateData.size(),presentTime,(*bitrateIter).first,(presentTime - (*bitrateIter).first),(long)(*bitrateIter).second);
@@ -2916,7 +3252,7 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 			else
 			{
 				avg += (*tmpDataIter);
-				tmpDataIter++;	
+				tmpDataIter++;
 			}
 		}
 		if (tmpData.size())
@@ -2924,7 +3260,7 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 			//logprintf("[%s][%d] NwBW with newlogic size[%d] avg[%ld] ",__FUNCTION__,__LINE__,tmpData.size(), avg/tmpData.size());
 			ret = (avg/tmpData.size());
 			mAvailableBandwidth = ret;
-		}	
+		}
 		else
 		{
 			//logprintf("[%s][%d] No prior data available for abr , return -1 ",__FUNCTION__,__LINE__);
@@ -2977,6 +3313,86 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
 			return "Unknown";
 	}
 }
+bool PrivateInstanceAAMP::GetNetworkTime(enum UtcTiming timingType, const std::string& remoteUrl, long *http_error, CurlRequest request)
+{
+    bool ret = false;
+
+    CURLcode res;
+    long httpCode = -1;
+
+    if(eCURL_GET != request)
+        return ret;
+
+    CURL *curl = curl_easy_init();
+    if(curl)
+    {
+        AAMPLOG_TRACE("%s: %s, %d", __FUNCTION__, remoteUrl.c_str(), request);
+        GrowableBuffer buffer = {0,};
+
+        CurlCbContextSyncTime context(this, &buffer);
+
+        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, SyncTime_write_callback);
+        curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
+        curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
+        curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        if(!ISCONFIGSET_PRIV(eAAMPConfig_SslVerifyPeer)){
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+        }
+        curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
+
+        res = curl_easy_perform(curl);
+        if (res == CURLE_OK)
+        {
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+            if ((httpCode == 204) || (httpCode == 200))
+            {
+                if(buffer.len)
+                {
+                    time_t currentTime;
+                    currentTime     = time(0);
+                    struct tm *localTime;
+                    localTime       = localtime(&currentTime);
+                    struct tm *stGMT;
+                    stGMT           = gmtime(&currentTime);
+                    time_t currentTimeGMT;
+                    currentTimeGMT  = mktime(stGMT);
+
+                    //2021-06-15T18:11:39Z - UTC Zulu
+                    //2021-06-15T19:03:48.795Z - <ProducerReferenceTime> WallClk UTC Zulu
+                    const char* format = "%Y-%m-%dT%H:%M:%SZ";
+                    mTime = convertTimeToEpoch((const char*)buffer.ptr, format);
+                    logprintf("%s:%d ProducerReferenceTime Wallclock (Epoch): [%ld]", __FUNCTION__, __LINE__, mTime);
+
+                    aamp_Free(&buffer);
+
+                    ret = true;
+                }
+            }
+            else
+            {
+                AAMPLOG_ERR("%s:%d Returned [%d]", __FUNCTION__, __LINE__, httpCode);
+            }
+        }
+        else
+        {
+            AAMPLOG_ERR("%s::%d Failed to perform curl request, result:%d", __FUNCTION__, __LINE__, res);
+        }
+
+        if(httpCode > 0)
+        {
+            *http_error = httpCode;
+        }
+
+        curl_easy_cleanup(curl);
+    }
+
+    return ret;
+}
 
 /**
  * @brief Fetch a file from CDN
@@ -2991,7 +3407,7 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
  * @param fragmentDurationSeconds to know the current fragment length in case fragment fetch
  * @retval true if success
  */
-bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *buffer, std::string& effectiveUrl, 
+bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *buffer, std::string& effectiveUrl,
 				long * http_error, double *downloadTime, const char *range, unsigned int curlInstance, 
 				bool resetBuffer, MediaType fileType, long *bitrate, int * fogError,
 				double fragmentDurationSeconds)
@@ -3007,8 +3423,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 	struct curl_slist* httpHeaders = NULL;
 	CURLcode res = CURLE_OK;
 	int fragmentDurationMs = (int)(fragmentDurationSeconds*1000);/*convert to MS */
-	int insertDownloadDelay=0;
-	GETCONFIGVALUE_PRIV(eAAMPConfig_DownloadDelay,insertDownloadDelay);
 	if (simType == eMEDIATYPE_INIT_VIDEO || simType == eMEDIATYPE_INIT_AUDIO || simType == eMEDIATYPE_INIT_AUX_AUDIO)
 	{
 		int InitFragmentRetryCount;
@@ -3055,7 +3469,11 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		if (curl)
 		{
 			curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
-
+			if(this->mAampLLDashServiceData.lowLatencyMode)
+			{
+				curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+				context.remoteUrl = remoteUrl;
+			}
 			context.aamp = this;
 			context.buffer = buffer;
 			context.responseHeaderData = &httpRespHeaders[curlInstance];
@@ -3075,6 +3493,16 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 			CurlProgressCbContext progressCtx;
 			progressCtx.aamp = this;
+			progressCtx.fileType = simType;
+			progressCtx.dlStarted = true;
+			progressCtx.fragmentDurationMs = fragmentDurationMs;
+
+			if(this->mAampLLDashServiceData.lowLatencyMode &&
+			(simType == eMEDIATYPE_VIDEO))
+			{
+				progressCtx.remoteUrl = remoteUrl;
+			}
+
 			//Disable download stall detection checks for FOG playback done by JS PP
 			if(simType == eMEDIATYPE_MANIFEST || simType == eMEDIATYPE_PLAYLIST_VIDEO ||
 				simType == eMEDIATYPE_PLAYLIST_AUDIO || simType == eMEDIATYPE_PLAYLIST_SUBTITLE ||
@@ -3197,11 +3625,16 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				long long tStartTime = NOW_STEADY_TS_MS;
 				CURLcode res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
 
-				/* optionally locally induce extra per-download latency */
-		if( insertDownloadDelay > 0 )
-		{
-			InterruptableMsSleep( insertDownloadDelay );
-		}
+				if(!mAampLLDashServiceData.lowLatencyMode)
+				{
+					int insertDownloadDelay=0;
+					GETCONFIGVALUE_PRIV(eAAMPConfig_DownloadDelay,insertDownloadDelay);
+					/* optionally locally induce extra per-download latency */
+					if( insertDownloadDelay > 0 )
+					{
+						InterruptableMsSleep( insertDownloadDelay );
+					}
+				}
 
 				long long tEndTime = NOW_STEADY_TS_MS;
 				downloadAttempt++;
@@ -3305,6 +3738,16 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					{
 						if(mpStreamAbstractionAAMP)
 						{
+							if(this->mAampLLDashServiceData.lowLatencyMode && (simType == eMEDIATYPE_AUDIO ||
+                                                                               simType == eMEDIATYPE_VIDEO ))
+							{
+								MediaStreamContext *mCtx = GetMediaStreamContext(simType);
+								if(mCtx)
+								{
+									mCtx->CleanChunkCache();
+								}
+							}
+
 							if( simType == eMEDIATYPE_MANIFEST ||
 								simType == eMEDIATYPE_AUDIO ||
 								simType == eMEDIATYPE_VIDEO ||
@@ -3430,23 +3873,29 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				GETCONFIGVALUE_PRIV(eAAMPConfig_ABRThresholdSize,AbrThresholdSize);	
 				if(buffer->len > AbrThresholdSize)
 				{
+					char buf[6] = {0,};
 					long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
 					long currentProfilebps  = mpStreamAbstractionAAMP->GetVideoBitrate();
-					// extra coding to avoid picking lower profile
 
-					if(downloadbps < currentProfilebps && fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2)
+					AAMPLOG_TRACE("%s:%d [%d] SAMPLE(FULL) - buffer->len: %d downloadTimeMS: %d downloadbps: %ld currentProfilebps: %ld speed: %s",__FUNCTION__,__LINE__,fileType,buffer->len, downloadTimeMS, downloadbps,currentProfilebps,ConvertSpeedToStr(downloadbps, buf));
+
+					if(!GetLLDashServiceData()->lowLatencyMode ||
+					( GetLLDashServiceData()->lowLatencyMode  && ISCONFIGSET_PRIV(eAAMPConfig_DisableLowLatencyABR)))
 					{
-						downloadbps = currentProfilebps;
+						// extra coding to avoid picking lower profile
+						if(downloadbps < currentProfilebps && fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2)
+						{
+							downloadbps = currentProfilebps;
+						}
+						pthread_mutex_lock(&mLock);
+						mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,downloadbps));
+						int  abrCacheLength;
+						GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheLength,abrCacheLength);
+						//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
+						if(mAbrBitrateData.size() > abrCacheLength)
+							mAbrBitrateData.erase(mAbrBitrateData.begin());
+						pthread_mutex_unlock(&mLock);
 					}
-					
-					pthread_mutex_lock(&mLock);
-					mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,downloadbps));
-					int  abrCacheLength;
-					GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheLength,abrCacheLength); 
-					//logprintf("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
-					if(mAbrBitrateData.size() > abrCacheLength)
-						mAbrBitrateData.erase(mAbrBitrateData.begin());
-					pthread_mutex_unlock(&mLock);
 				}
 			}
 		}
@@ -4545,44 +4994,45 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_LicenseServerUrl,std::string(remapLicenseUrl));
 		}
 	}
+    
+	//Add Custom Header via config
+	{
+		std::string customLicenseHeaderStr;
+		GETCONFIGVALUE_PRIV(eAAMPConfig_CustomHeaderLicense,customLicenseHeaderStr);
+		if(!customLicenseHeaderStr.empty())
+		{
+			if (gpGlobalConfig->logging.curlLicense)
+			{
+				logprintf("%s:%d CustomHeader :%s",__FUNCTION__,__LINE__,customLicenseHeaderStr.c_str());
+			}
+			char* token = NULL;
+			char* tokenHeader = NULL;
+			char* str = (char*) customLicenseHeaderStr.c_str();
+			
+			while ((token = strtok_r(str, ";", &str)))
+			{
+				int headerTokenIndex = 0;
+				std::string headerName;
+				std::vector<std::string> headerValue;
+				
+				while ((tokenHeader = strtok_r(token, ":", &token)))
+				{
+					if(headerTokenIndex == 0)
+						headerName = tokenHeader;
+					else if(headerTokenIndex == 1)
+						headerValue.push_back(std::string(tokenHeader));
+					else
+						break;
 
-        //Add Custom Header via config
-        {
-                std::string customLicenseHeaderStr;
-                GETCONFIGVALUE_PRIV(eAAMPConfig_CustomHeaderLicense,customLicenseHeaderStr);
-                if(!customLicenseHeaderStr.empty())
-                {
-                        if (gpGlobalConfig->logging.curlLicense)
-                        {
-                                logprintf("%s:%d CustomHeader :%s",__FUNCTION__,__LINE__,customLicenseHeaderStr.c_str());
-                        }
-                        char* token = NULL;
-                        char* tokenHeader = NULL;
-                        char* str = (char*) customLicenseHeaderStr.c_str();
-
-                        while ((token = strtok_r(str, ";", &str)))
-                        {
-                                int headerTokenIndex = 0;
-                                std::string headerName;
-                                std::vector<std::string> headerValue;
-                                while ((tokenHeader = strtok_r(token, ":", &token)))
-                                {
-                                        if(headerTokenIndex == 0)
-                                                headerName = tokenHeader;
-                                        else if(headerTokenIndex == 1)
-                                                headerValue.push_back(std::string(tokenHeader));
-                                        else
-                                                break;
-
-                                        headerTokenIndex++;
-                                }
-                                if(!headerName.empty() && !headerValue.empty())
-                                {
-                                        AddCustomHTTPHeader(headerName, headerValue, true);
-                                }
-                        }
-                }
-        }
+					headerTokenIndex++;
+				}
+				if(!headerName.empty() && !headerValue.empty())
+				{
+					AddCustomHTTPHeader(headerName, headerValue, true);
+				}
+			}
+		}
+	}
 
 	/** Least priority operator setting will override the value only if it is not set from dev config **/ 
 	SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_WideVineKIDWorkaround,IsWideVineKIDWorkaround(mainManifestUrl));
@@ -4612,6 +5062,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		mIscDVR = true;
 	}
+
+	SetLowLatencyServiceConfigured(false);
 
 	UpdateLiveOffset();
 #ifdef AAMP_CC_ENABLED
@@ -4852,8 +5304,8 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 		int fogError;
 
 		CurlInit(eCURLINSTANCE_MANIFEST_PLAYLIST, 1, GetNetworkProxy());
-		bool gotManifest = GetFile(
-							url,
+
+		bool gotManifest = GetFile(url,
 							&sniffedBytes,
 							effectiveUrl,
 							&http_error,
@@ -5318,8 +5770,7 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::stri
  * @param http_code http code
  * @retval true on success, false on failure
  */
-bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl,std::string& effectiveUrl, struct GrowableBuffer *fragment, 
-					unsigned int curlInstance, const char *range, MediaType fileType,long * http_code, double *downloadTime, long *bitrate,int * fogError, double fragmentDurationSeconds)
+bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl,std::string& effectiveUrl, struct GrowableBuffer *fragment, unsigned int curlInstance, const char *range, MediaType fileType,long * http_code, double *downloadTime, long *bitrate,int * fogError, double fragmentDurationSeconds)
 {
 	bool ret = true;
 	profiler.ProfileBegin(bucketType);
@@ -6303,6 +6754,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		const char* errorString  =  (errorType == eGST_ERROR_PTS) ? "PTS ERROR" :
 									(errorType == eGST_ERROR_UNDERFLOW) ? "Underflow" :
 									(errorType == eSTALL_AFTER_DISCONTINUITY) ? "Stall After Discontinuity" :
+									(errorType == eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED)?"LL DASH Max Correction Reached":
 									(errorType == eGST_ERROR_GST_PIPELINE_INTERNAL) ? "GstPipeline Internal Error" : "STARTTIME RESET";
 
 		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"), errorString);
@@ -9046,7 +9498,6 @@ unsigned char* PrivateInstanceAAMP::ReplaceKeyIDPsshData(const unsigned char *In
 	return NULL;
 }
 
-
 /**
  * @brief Report ID3 metadata events
  *
@@ -9086,4 +9537,205 @@ void PrivateInstanceAAMP::FlushLastId3Data()
 		g_free(lastId3Data);
 		lastId3Data = NULL;
 	}
+}
+
+/**
+ *   @brief Sets  Low Latency Service Data
+ *
+ *   @param[in]  AampLLDashServiceData - Low Latency Service Data from MPD
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetLLDashServiceData(AampLLDashServiceData &stAampLLDashServiceData)
+{
+    this->mAampLLDashServiceData = stAampLLDashServiceData;
+}
+
+/**
+ *   @brief Gets  Low Latency Service Data
+ *
+ *   @return AampLLDashServiceData*
+ */
+AampLLDashServiceData*  PrivateInstanceAAMP::GetLLDashServiceData(void)
+{
+    return &this->mAampLLDashServiceData;
+}
+
+/**
+ *   @brief Sets  Low Video TimeScale
+ *
+ *   @param[in]  uint32_t - vidTimeScale
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetLLDashVidTimeScale(uint32_t vidTimeScale)
+{
+    this->vidTimeScale = vidTimeScale;
+}
+
+/**
+ *   @brief Gets  Video TimeScale
+ *
+ *   @return uint32_t
+ */
+uint32_t  PrivateInstanceAAMP::GetLLDashVidTimeScale(void)
+{
+    return vidTimeScale;
+}
+
+/**
+ *   @brief Sets  Low Audio TimeScale
+ *
+ *   @param[in]  uint32_t - vidTimeScale
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetLLDashAudTimeScale(uint32_t audTimeScale)
+{
+    this->audTimeScale = audTimeScale;
+}
+
+/**
+ *   @brief Gets  Audio TimeScale
+ *
+ *   @return uint32_t
+ */
+uint32_t  PrivateInstanceAAMP::GetLLDashAudTimeScale(void)
+{
+    return audTimeScale;
+}
+
+/**
+ *   @brief Sets  Speed Cache
+ *
+ *   @param[in]  struct SpeedCache - Speed Cache
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetLLDashSpeedCache(struct SpeedCache &speedCache)
+{
+    this->speedCache = speedCache;
+}
+
+/**
+ *   @brief Gets  Speed Cache
+ *
+ *   @return struct SpeedCache*
+ */
+struct SpeedCache* PrivateInstanceAAMP::GetLLDashSpeedCache()
+{
+    return &speedCache;
+}
+
+/**
+ *     @brief Get LiveOffset Request flag Status
+ *
+ *     @return bool
+ */
+bool PrivateInstanceAAMP::GetLiveOffsetAppRequest()
+{
+    return mLiveOffsetAppRequest;
+}
+
+/**
+ *     @brief Set LiveOffset Request Status
+ *     @param[in]  bool - flag
+ *     @return void
+ */
+void PrivateInstanceAAMP::SetLiveOffsetAppRequest(bool LiveOffsetAppRequest)
+{
+    this->mLiveOffsetAppRequest = LiveOffsetAppRequest;
+}
+
+/**
+ *     @brief Get Low Latency ABR Start Status
+ *     @return bool
+ */
+bool PrivateInstanceAAMP::GetLowLatencyStartABR()
+{
+    return bLowLatencyStartABR;
+}
+
+/**
+ *     @brief Set Low Latency ABR Start Status
+ *     @param[in]  bool - flag
+ *     @return void
+ */
+void PrivateInstanceAAMP::SetLowLatencyStartABR(bool bStart)
+{
+    bLowLatencyStartABR = bStart;
+}
+
+/**
+ *     @brief Get Low Latency Service Configuration Status
+ *     @return bool
+ */
+bool PrivateInstanceAAMP::GetLowLatencyServiceConfigured()
+{
+    return bLowLatencyServiceConfigured;
+}
+
+/**
+ *     @brief Set Low Latency Service Configuration Status
+ *     @param[in]  bool - flag
+ *     @return void
+ */
+void PrivateInstanceAAMP::SetLowLatencyServiceConfigured(bool bConfig)
+{
+    bLowLatencyServiceConfigured = bConfig;
+}
+
+/**
+ *     @brief Get Utc Time
+ *
+ *     @return bool
+ */
+time_t PrivateInstanceAAMP::GetUtcTime()
+{
+    return mTime;
+}
+
+/**
+ *     @brief Set Utc Time
+ *     @param[in]  bool - flag
+ *     @return void
+ */
+void PrivateInstanceAAMP::SetUtcTime(time_t time)
+{
+    this->mTime = time;
+}
+
+/**
+ *     @brief Get Current Latency
+ *
+ *     @return long
+ */
+long PrivateInstanceAAMP::GetCurrentLatency()
+{
+    return mCurrentLatency;
+}
+
+/**
+ *     @brief Set Current Latency
+ *     @param[in]  long
+ *     @return void
+ */
+void PrivateInstanceAAMP::SetCurrentLatency(long currentLatency)
+{
+    this->mCurrentLatency = currentLatency;
+}
+
+/**
+*     @brief Get Media Stream Context
+*     @param[in]  MediaType
+*     @return MediaStreamContext*
+*/
+MediaStreamContext* PrivateInstanceAAMP::GetMediaStreamContext(MediaType type)
+{
+    if(mpStreamAbstractionAAMP &&
+    (type == eMEDIATYPE_VIDEO ||
+     type == eMEDIATYPE_AUDIO ||
+     type == eMEDIATYPE_SUBTITLE ||
+     type == eMEDIATYPE_AUX_AUDIO))
+    {
+        MediaStreamContext* context = (MediaStreamContext*)mpStreamAbstractionAAMP->GetMediaTrack((TrackType)type);
+        return context;
+    }
+    return NULL;
 }

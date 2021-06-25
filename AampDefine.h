@@ -92,6 +92,16 @@
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
 
+#define DEFAULT_LATENCY_MONITOR_DELAY			5					/**< Latency Monitor Delay */
+#define DEFAULT_LATENCY_MONITOR_INTERVAL		2					/**< Latency monitor Interval */
+#define DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK	20					/**< Default cached fragement chunks per track */
+#define DEFAULT_ABR_CHUNK_CACHE_LENGTH			10					/**< Default ABR chunk cache length */
+#define DEFAULT_AAMP_ABR_CHUNK_THRESHOLD_SIZE		(DEFAULT_AAMP_ABR_THRESHOLD_SIZE)	/**< aamp abr Chunk threshold size */
+#define DEFAULT_ABR_CHUNK_SPEEDCNT			10					/**< Chunk Speed Count Store Size */
+#define DEFAULT_ABR_ELAPSED_MILLIS_FOR_ESTIMATE		100					/**< Duration(ms) to check Chunk Speed */
+#define DEFAULT_ABR_BYTES_TRANSFERRED_FOR_ESTIMATE	(512 * 1024)				/**< 512K */
+
+
 /**
  * @brief Enumeration for TUNED Event Configuration
  */
@@ -129,6 +139,19 @@ typedef enum
 	AAMP_DEV_CFG_SETTING            = 5,            // Highest priority
 	AAMP_MAX_SETTING
 }ConfigPriority;
+
+/**
+ * @brief Latency status
+ */
+enum LatencyStatus
+{
+    LATENCY_STATUS_UNKNOWN=-1,
+    LATENCY_STATUS_MIN,
+    LATENCY_STATUS_THRESHOLD_MIN,
+    LATENCY_STATUS_THRESHOLD,
+    LATENCY_STATUS_THRESHOLD_MAX,
+    LATENCY_STATUS_MAX
+};
 
 #endif
 

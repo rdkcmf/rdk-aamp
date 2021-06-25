@@ -219,7 +219,16 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"customHeaderLicense",eAAMPConfig_CustomHeaderLicense,-1,-1},
 	{"syncAudioFragments",eAAMPConfig_SyncAudioFragments,-1,-1},
 	{"preferredAudioLanguage",eAAMPConfig_PreferredAudioLanguage,-1,-1},
-	{"repairIframes",eAAMPConfig_RepairIframes,-1,-1}
+	{"repairIframes",eAAMPConfig_RepairIframes,-1,-1},
+	{"enableLowLatencyDash",eAAMPConfig_EnableLowLatencyDash,-1,-1},
+	{"disableLowLatencyMonitor",eAAMPConfig_DisableLowLatencyMonitor,-1,-1},
+	{"disableLowLatencyABR",eAAMPConfig_DisableLowLatencyABR,-1,-1},
+	{"disableLowLatencyCorrection",eAAMPConfig_DisableLowLatencyCorrection,-1,-1},
+	{"latencyMonitorDelay",eAAMPConfig_LatencyMonitorDelay,-1,-1},
+	{"latencyMonitorInterval",eAAMPConfig_LatencyMonitorInterval,-1,-1},
+	{"downloadBufferChunks",eAAMPConfig_MaxFragmentChunkCached,-1,-1},
+	{"abrChunkThresholdSize",eAAMPConfig_ABRChunkThresholdSize,-1,-1},
+	{"enableLowLatencyOffsetMin",eAAMPConfig_EnableLowLatencyOffsetMin,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -341,6 +350,11 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_WideVineKIDWorkaround].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_SyncAudioFragments].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_RepairIframes].value                  	=       false;
+	bAampCfgValue[eAAMPConfig_EnableLowLatencyDash].value			=	false;
+	bAampCfgValue[eAAMPConfig_DisableLowLatencyABR].value		    	=	true;
+	bAampCfgValue[eAAMPConfig_DisableLowLatencyMonitor].value		=	false;
+	bAampCfgValue[eAAMPConfig_DisableLowLatencyCorrection].value		=	true;
+	bAampCfgValue[eAAMPConfig_EnableLowLatencyOffsetMin].value      	=	true;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
@@ -383,6 +397,10 @@ void AampConfig::Initialize()
 	iAampCfgValue[eAAMPConfig_MaxABRNWBufferRampUp-eAAMPConfig_IntStartValue].value         =       AAMP_HIGH_BUFFER_BEFORE_RAMPUP;
 	iAampCfgValue[eAAMPConfig_DownloadDelay-eAAMPConfig_IntStartValue].value         	=       0;
 	iAampCfgValue[eAAMPConfig_LivePauseBehavior-eAAMPConfig_IntStartValue].value            =       ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE;
+	iAampCfgValue[eAAMPConfig_LatencyMonitorDelay-eAAMPConfig_IntStartValue].value          =       DEFAULT_LATENCY_MONITOR_DELAY;
+	iAampCfgValue[eAAMPConfig_LatencyMonitorInterval-eAAMPConfig_IntStartValue].value       =       DEFAULT_LATENCY_MONITOR_INTERVAL;
+	iAampCfgValue[eAAMPConfig_MaxFragmentChunkCached-eAAMPConfig_IntStartValue].value       =       DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK;
+	iAampCfgValue[eAAMPConfig_ABRChunkThresholdSize-eAAMPConfig_IntStartValue].value        = 	DEFAULT_AAMP_ABR_CHUNK_THRESHOLD_SIZE;
 
 	///////////////// Following for long data types /////////////////////////////
 	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value	=	DEFAULT_DISCONTINUITY_TIMEOUT;
@@ -1255,6 +1273,12 @@ void AampConfig::ReadOperatorConfiguration()
 
 	}
 
+	const char *env_enable_lld = getenv("LOW_LATENCY_DASH");
+	if(env_enable_lld)
+	{
+		logprintf("LOW_LATENCY_DASH present: Enabling LOW_LATENCY_DASH");
+		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_EnableLowLatencyDash,true);
+	}
 }
 
 

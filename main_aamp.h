@@ -325,6 +325,15 @@ public:
 	 */
 	virtual void Flush(double position = 0, int rate = AAMP_NORMAL_PLAY_RATE, bool shouldTearDown = true){}
 
+	/**
+	 *   @brief Flush the pipeline
+	 *
+	 *   @param[in]  position - playback position
+	 *   @param[in]  rate - Speed
+	 *   @param[in]  shouldTearDown - if pipeline is not in a valid state, tear down pipeline
+	 *   @return void
+	 */
+	virtual bool AdjustPlayBackRate(double position, double rate){ return true; }
 
 	/**
 	 *   @brief Enabled or disable playback pause

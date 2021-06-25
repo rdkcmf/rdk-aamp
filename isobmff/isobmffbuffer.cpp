@@ -24,6 +24,7 @@
 
 #include "isobmffbuffer.h"
 #include "priv_aamp.h" //Required for AAMPLOG_WARN
+#include <string.h>
 
 /**
  * @brief IsoBmffBuffer destructor
@@ -61,6 +62,10 @@ bool IsoBmffBuffer::parseBuffer(bool correctBoxSize)
 	while (curOffset < bufSize)
 	{
 		Box *box = Box::constructBox(buffer+curOffset, bufSize - curOffset, correctBoxSize);
+		if( ((bufSize - curOffset) < 4) || ( (bufSize - curOffset) < box->getSize()) )
+		{
+			chunkedBox = box;
+		}
 		box->setOffset(curOffset);
 		boxes.push_back(box);
 		curOffset += box->getSize();
@@ -68,6 +73,12 @@ bool IsoBmffBuffer::parseBuffer(bool correctBoxSize)
 	return !!(boxes.size());
 }
 
+/**
+ * @brief Get mdat buffer handle and size from parsed buffer
+ * @param[out] uint8_t * - mdat buffer pointer
+ * @param[out] size_t - size of mdat buffer
+ * @return true if mdat buffer is available. false otherwise
+ */
 bool IsoBmffBuffer::parseMdatBox(uint8_t *buf, size_t &size)
 {
 	return parseBoxInternal(&boxes, Box::MDAT, buf, size);
@@ -75,6 +86,15 @@ bool IsoBmffBuffer::parseMdatBox(uint8_t *buf, size_t &size)
 
 #define BOX_HEADER_SIZE 8
 
+/**
+ * @brief parse ISOBMFF boxes of a type in a parsed buffer
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @param[in] const char * - box name to get
+ * @param[out] uint8_t * - mdat buffer pointer
+ * @param[out] size_t - size of mdat buffer
+ * @return bool
+ */
 bool IsoBmffBuffer::parseBoxInternal(const std::vector<Box*> *boxes, const char *name, uint8_t *buf, size_t &size)
 {
 	for (size_t i = 0; i < boxes->size(); i++)
@@ -92,11 +112,24 @@ bool IsoBmffBuffer::parseBoxInternal(const std::vector<Box*> *boxes, const char 
 	return false;
 }
 
+/**
+ * @brief Get mdat buffer size
+ * @param[out] size_t - size of mdat buffer
+ * @return true if buffer size available. false otherwise
+ */
 bool IsoBmffBuffer::getMdatBoxSize(size_t &size)
 {
 	return getBoxSizeInternal(&boxes, Box::MDAT, size);
 }
 
+/**
+ * @brief get ISOBMFF box size of a type
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @param[in] const char * - box name to get
+ * @param[out] size_t - size of mdat buffer
+ * @return bool
+ */
 bool IsoBmffBuffer::getBoxSizeInternal(const std::vector<Box*> *boxes, const char *name, size_t &size)
 {
 	for (size_t i = 0; i < boxes->size(); i++)
@@ -213,6 +246,15 @@ bool IsoBmffBuffer::getFirstPTS(uint64_t &pts)
 }
 
 /**
+ * @brief Print PTS of buffer
+ * @return tvoid
+ */
+void IsoBmffBuffer::PrintPTS(void)
+{
+    return printPTSInternal(&boxes);
+}
+
+/**
  * @brief Get TimeScale value of buffer
  *
  * @param[in] boxes - ISOBMFF boxes
@@ -268,18 +310,18 @@ void IsoBmffBuffer::printBoxesInternal(const std::vector<Box*> *boxes)
 	for (size_t i = 0; i < boxes->size(); i++)
 	{
 		Box *box = boxes->at(i);
-		AAMPLOG_WARN("Offset[%u] Type[%s] Size[%u]\n", box->getOffset(), box->getType(), box->getSize());
+		AAMPLOG_WARN("Offset[%u] Type[%s] Size[%u]", box->getOffset(), box->getType(), box->getSize());
 		if (IS_TYPE(box->getType(), Box::TFDT))
 		{
-			AAMPLOG_WARN("****Base Media Decode Time: %lld \n", dynamic_cast<TfdtBox *>(box)->getBaseMDT());
+			AAMPLOG_WARN("****Base Media Decode Time: %lld", dynamic_cast<TfdtBox *>(box)->getBaseMDT());
 		}
 		else if (IS_TYPE(box->getType(), Box::MVHD))
 		{
-			AAMPLOG_WARN("**** TimeScale from MVHD: %u \n", dynamic_cast<MvhdBox *>(box)->getTimeScale());
+			AAMPLOG_WARN("**** TimeScale from MVHD: %u", dynamic_cast<MvhdBox *>(box)->getTimeScale());
 		}
 		else if (IS_TYPE(box->getType(), Box::MDHD))
 		{
-			AAMPLOG_WARN("**** TimeScale from MDHD: %u \n", dynamic_cast<MdhdBox *>(box)->getTimeScale());
+			AAMPLOG_WARN("**** TimeScale from MDHD: %u", dynamic_cast<MdhdBox *>(box)->getTimeScale());
 		}
 
 		if (box->hasChildren())
@@ -360,3 +402,243 @@ bool IsoBmffBuffer::getMessageData(uint8_t* &message, uint32_t &messageLen)
 	bool foundEmsg = false;
 	return getMessageInternal(&boxes, message, messageLen, foundEmsg);
 }
+
+/**
+ * @brief get ISOBMFF box list of a type in a parsed buffer
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @param[in] const char * - box name to get
+ * @param[out] size_t - size of mdat buffer
+ * @return bool
+ */
+bool IsoBmffBuffer::getBoxesInternal(const std::vector<Box*> *boxes, const char *name, std::vector<Box*> *pBoxes)
+{
+    size_t size =boxes->size();
+    //Adjust size when chunked box is available
+    if(chunkedBox)
+    {
+        size -= 1;
+    }
+    for (size_t i = 0; i < size; i++)
+    {
+        Box *box = boxes->at(i);
+
+        if (IS_TYPE(box->getType(), name))
+        {
+            pBoxes->push_back(box);
+        }
+    }
+    return !!(pBoxes->size());
+}
+
+/**
+ * @brief Check mdat buffer count in parsed buffer
+ * @param[out] size_t - mdat box count
+ * @return true if mdat count available. false otherwise
+ */
+bool IsoBmffBuffer::getMdatBoxCount(size_t &count)
+{
+    std::vector<Box*> mdatBoxes;
+    bool bParse = false;
+    bParse = getBoxesInternal(&boxes ,Box::MDAT, &mdatBoxes);
+    count = mdatBoxes.size();
+    return bParse;
+}
+
+/**
+ * @brief Print ISOBMFF mdat boxes in parsed buffer
+ *
+ * @return void
+ */
+void IsoBmffBuffer::printMdatBoxes()
+{
+    std::vector<Box*> mdatBoxes;
+    bool bParse = false;
+    bParse = getBoxesInternal(&boxes ,Box::MDAT, &mdatBoxes);
+    printBoxesInternal(&mdatBoxes);
+}
+
+/**
+ * @brief Get list of box handle in parsed bufferr using name
+ * @param[in] const char * - box name to get
+ * @param[out] std::vector<Box*> - List of box handles of a type in a parsed buffer
+ * @return true if Box found. false otherwise
+ */
+bool IsoBmffBuffer::getTypeOfBoxes(const char *name, std::vector<Box*> &stBoxes)
+{
+    bool bParse = false;
+    bParse = getBoxesInternal(&boxes ,name, &stBoxes);
+    return bParse;
+}
+
+/**
+ * @brief Get list of box handles in a parsed buffer
+ *
+ * @return Box handle if Chunk box found in a parsed buffer. NULL otherwise
+ */
+Box* IsoBmffBuffer::getChunkedfBox() const
+{
+    return this->chunkedBox;
+}
+
+/**
+ * @brief Get list of box handles in a parsed buffer
+ *
+ * @return Box handle list if Box found at index given. NULL otherwise
+ */
+std::vector<Box*> *IsoBmffBuffer::getParsedBoxes()
+{
+    return &this->boxes;
+}
+
+/**
+ * @brief Get box handle in parsed bufferr using name
+ * @param[in] const char * - box name to get
+ * @param[out] size_t - index of box in a parsed buffer
+ * @return Box handle if Box found at index given. NULL otherwise
+ */
+Box*  IsoBmffBuffer::getBox(const char *name, size_t &index)
+{
+    Box *pBox = NULL;
+    index = -1;
+    for (size_t i = 0; i < boxes.size(); i++)
+    {
+        pBox = boxes.at(i);
+        if (IS_TYPE(pBox->getType(), name))
+        {
+            index = i;
+            break;
+        }
+        pBox = NULL;
+    }
+    return pBox;
+}
+
+/**
+ * @brief Get box handle in parsed bufferr using index
+ * @param[out] size_t - index of box in a parsed buffer
+ * @return Box handle if Box found at index given. NULL otherwise
+ */
+Box* IsoBmffBuffer::getBoxAtIndex(size_t index)
+{
+    if(index != -1)
+        return boxes.at(index);
+    else
+        return NULL;
+}
+
+/**
+ * @brief Print ISOBMFF box PTS
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @return void
+ */
+void IsoBmffBuffer::printPTSInternal(const std::vector<Box*> *boxes)
+{
+    for (size_t i = 0; i < boxes->size(); i++)
+    {
+        Box *box = boxes->at(i);
+
+        if (IS_TYPE(box->getType(), Box::TFDT))
+        {
+            AAMPLOG_WARN("****Base Media Decode Time: %lld", dynamic_cast<TfdtBox *>(box)->getBaseMDT());
+        }
+
+        if (box->hasChildren())
+        {
+            printBoxesInternal(box->getChildren());
+        }
+    }
+}
+
+/**
+ * @brief Get ISOBMFF box Sample Duration
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @return uint64_t - duration  value
+ */
+uint64_t IsoBmffBuffer::getSampleDurationInernal(const std::vector<Box*> *boxes)
+{
+    if(!boxes) return 0;
+
+    for (size_t i = boxes->size()-1; i >= 0; i--)
+    {
+        Box *box = boxes->at(i);
+        uint64_t duration = 0;
+        if (IS_TYPE(box->getType(), Box::TRUN))
+        {
+            //AAMPLOG_WARN("****TRUN BOX SIZE: %d \n", box->getSize());
+            duration = dynamic_cast<TrunBox *>(box)->getSampleDuration();
+            //AAMPLOG_WARN("****DURATION: %lld \n", duration);
+            if(duration) return duration;
+        }
+        else if (IS_TYPE(box->getType(), Box::TFHD))
+        {
+            //AAMPLOG_WARN("****TFHD BOX SIZE: %d \n", box->getSize());
+            duration = dynamic_cast<TfhdBox *>(box)->getSampleDuration();
+            //AAMPLOG_WARN("****DURATION: %lld \n", duration);
+            if(duration) return duration;
+        }
+
+        if (IS_TYPE(box->getType(), Box::TRAF) && box->hasChildren())
+        {
+            return getSampleDurationInernal(box->getChildren());
+        }
+    }
+}
+
+/**
+ * @brief Get ISOBMFF box Sample Duration
+ *
+ * @param[in] box - ISOBMFF box
+ * @param[in] uint64_t* -  duration to get
+ * @return void
+ */
+void IsoBmffBuffer::getSampleDuration(Box *box, uint64_t &fduration)
+{
+    if (box->hasChildren())
+    {
+        fduration = getSampleDurationInernal(box->getChildren());
+    }
+}
+
+/**
+ * @brief Get ISOBMFF box PTS
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @return uint64_t - PTS value
+ */
+uint64_t IsoBmffBuffer::getPtsInternal(const std::vector<Box*> *boxes)
+{
+    for (size_t i = 0; i < boxes->size(); i++)
+    {
+        Box *box = boxes->at(i);
+
+        if (IS_TYPE(box->getType(), Box::TFDT))
+        {
+            AAMPLOG_WARN("****Base Media Decode Time: %lld", dynamic_cast<TfdtBox *>(box)->getBaseMDT());
+            return dynamic_cast<TfdtBox *>(box)->getBaseMDT();
+        }
+
+        if (box->hasChildren())
+        {
+            return getPtsInternal(box->getChildren());
+        }
+    }
+}
+
+/**
+ * @brief Get ISOBMFF box PTS
+ *
+ * @param[in] boxe - ISOBMFF box
+ * @param[in] uint64_t* -  PTS to get
+ * @return void
+ */
+void IsoBmffBuffer::getPts(Box *box, uint64_t &fpts)
+{
+    if (box->hasChildren())
+    {
+        fpts = getPtsInternal(box->getChildren());
+    }
+}
+

@@ -69,8 +69,6 @@ static const char *mMediaFormatName[] =
 #define AAMP_TRACK_COUNT 4              /**< internal use - audio+video+sub+aux track */
 #define DEFAULT_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + 1) // One for Manifest/Playlist + Number of tracks
 #define AAMP_DRM_CURL_COUNT 4           /**< audio+video+sub+aux track DRMs */
-#define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
-#define AAMP_CDVR_LIVE_OFFSET 30 	/**< Live offset in seconds for CDVR hot recording */
 //#define CURL_FRAGMENT_DL_TIMEOUT 10L    /**< Curl timeout for fragment download */
 #define DEFAULT_PLAYLIST_DL_TIMEOUT 10L /**< Curl timeout for playlist download */
 #define DEFAULT_CURL_TIMEOUT 5L         /**< Default timeout for Curl downloads */
@@ -95,6 +93,16 @@ static const char *mMediaFormatName[] =
 #define VSS_VIRTUAL_STREAM_ID_KEY_STR "content:xcal:virtualStreamId"
 #define VSS_VIRTUAL_STREAM_ID_PREFIX "urn:merlin:linear:stream:"
 #define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"
+
+//Low Latency DASH SERVICE PROFILE URL
+#define LL_DASH_SERVICE_PROFILE "http://www.dashif.org/guidelines/low-latency-live-v5"
+#define URN_UTC_HTTP_XSDATE "urn:mpeg:dash:utc:http-xsdate:2014"
+#define URN_UTC_HTTP_ISO "urn:mpeg:dash:utc:http-iso:2014"
+#define URN_UTC_HTTP_NTP "urn:mpeg:dash:utc:http-ntp:2014"
+#define MAX_LOW_LATENCY_DASH_CORRECTION_ALLOWED 100
+#define MAX_LOW_LATENCY_DASH_RETUNE_ALLOWED 2
+
+#define MAX_LOW_LATENCY_DASH_ABR_SPEEDSTORE_SIZE 10
 
 /*1 for debugging video track, 2 for audio track, 4 for subtitle track and 7 for all*/
 /*#define AAMP_DEBUG_FETCH_INJECT 0x001 */
@@ -167,7 +175,8 @@ enum PlaybackErrorType
 	eGST_ERROR_OUTPUT_PROTECTION_ERROR,     /**< Output Protection error */
 	eDASH_ERROR_STARTTIME_RESET,    /**< Start time reset of DASH */
 	eSTALL_AFTER_DISCONTINUITY,		/** Playback stall after notifying discontinuity */
-	eGST_ERROR_GST_PIPELINE_INTERNAL	/** GstPipeline Internal Error */
+	eGST_ERROR_GST_PIPELINE_INTERNAL,	/** GstPipeline Internal Error */
+	eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED /**Low Latency Dash Max Correction Reached**/
 };
 
 
@@ -269,6 +278,19 @@ enum CurlRequest
 	eCURL_GET,
 	eCURL_POST,
 	eCURL_DELETE
+};
+
+/**
+ *
+ * @enum UTC TIMING
+ *
+ */
+enum UtcTiming
+{
+    eUTC_HTTP_INVALID,
+    eUTC_HTTP_XSDATE,
+    eUTC_HTTP_ISO,
+    eUTC_HTTP_NTP
 };
 
 /**
@@ -389,6 +411,39 @@ struct ListenerData {
 	ListenerData* pNext;                /**< Next listener */
 };
 
+struct SpeedCache
+{
+    long last_sample_time_val;
+    long prev_dlnow;
+    long prevSampleTotalDownloaded;
+    long totalDownloaded;
+    long speed_now;
+    long start_val;
+    bool bStart;
+
+    double totalWeight;
+    double weightedBitsPerSecond;
+    std::vector< std::pair<double,long> > mChunkSpeedData;
+
+    SpeedCache() : last_sample_time_val(0), prev_dlnow(0), prevSampleTotalDownloaded(0), totalDownloaded(0), speed_now(0), start_val(0), bStart(false) , totalWeight(0), weightedBitsPerSecond(0), mChunkSpeedData()
+    {
+    }
+};
+
+/**
+ * @brief To store Low Latency Service configurtions
+ */
+struct AampLLDashServiceData {
+    bool lowLatencyMode; /**< LL Playback mode enabled */
+    bool strictSpecConformance; /**< Check for Strict LL Dash spec conformace*/
+    int targetLatency;    /**< Target Latency of playback */
+    int minLatency;    /**< Minimum Latency of playback */
+    int maxLatency;   /**< Maximum Latency of playback */
+    int latencyThreshold; /**<Latency when play rate correction kicks-in*/
+    double minPlaybackRate; /**< Minimum playback rate for playback */
+    double maxPlaybackRate; /**< Maximum playback rate for playback */
+    UtcTiming utcTiming;
+};
 
 class AudioTrackTuple
 {
@@ -646,6 +701,8 @@ public:
 	bool mTSBEnabled;
 	bool mIscDVR;
 	double mLiveOffset;
+	int mLLDashRateCorrectionCount;
+	int mLLDashRetuneCount;
 	long mNetworkTimeoutMs;
 	long mManifestTimeoutMs;
 	long mPlaylistTimeoutMs;
@@ -831,6 +888,17 @@ public:
 	 */
 	AampCurlInstance GetPlaylistCurlInstance(MediaType type, bool IsInitDnld=true);
 
+	/**
+	* @brief Download a file from the server
+	*
+	* @param[in] UtcTiming - Timing Type
+	* @param[in] remoteUrl - File URL
+	* @param[in] http_error - HTTP error code
+	* @param[in] CurlRequest - request type
+	* @param[out] buffer - Pointer to the output buffer
+	* @return bool status
+	*/
+	bool GetNetworkTime(enum UtcTiming timingtype, const std::string& remoteUrl, long *http_error, CurlRequest request);
 
 	/**
 	 * @brief Download a file from the server
@@ -901,7 +969,7 @@ public:
 	 * @param[out] fogError - Error from FOG
 	 * @return void
 	 */
-	bool LoadFragment( ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, double * downloadTime = NULL, long *bitrate = NULL, int * fogError = NULL, double fragmentDurationSec = 0);
+	bool LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, double * downloadTime = NULL, long *bitrate = NULL, int * fogError = NULL, double fragmentDurationSec = 0);
 
 	/**
 	 * @brief Push fragment to the gstreamer
@@ -1122,6 +1190,12 @@ public:
 	 */
 	void UpdateRefreshPlaylistInterval(float maxIntervalSecs);
 
+	/**
+	*   @brief Report progress event
+	*   @param[in]  bool - Flag to include base PTS
+	*   @return long long - Video PTS
+	*/
+	long long GetVideoPTS(bool bAddVideoBasePTS);
 	/**
 	 *   @brief Report progress event
 	 *
@@ -2227,6 +2301,12 @@ public:
 	void SetVssVirtualStreamID(std::string streamID) { mVssVirtualStreamId = streamID;}
 
 	/**
+	*   @brief getTuneType Function to check what is the tuneType
+	*  @return Bool TuneType
+	*/
+	TuneType GetTuneType()  { return mTuneType; }
+
+	/**
 	 *   @brief IsNewTune Function to check if tune is New tune or retune
 	 *
 	 *   @return Bool True on new tune
@@ -3012,6 +3092,161 @@ public:
 	 */
 	std::string GetAuxiliaryAudioLanguage() { return mAuxAudioLanguage; }
 
+	/**
+	*   @brief Sets  Low Latency Service Data
+	*
+	*   @param[in]  AampLLDashServiceData - Low Latency Service Data from MPD
+	*   @return void
+	*/
+	void SetLLDashServiceData(AampLLDashServiceData &stAampLLDashServiceData);
+
+	/**
+	*   @brief Gets  Low Latency Service Data
+	*
+	*   @return AampLLDashServiceData*
+	*/
+	AampLLDashServiceData* GetLLDashServiceData(void);
+
+	/**
+	*   @brief Sets  Low Video TimeScale
+	*
+	*   @param[in]  uint32_t - vidTimeScale
+	*   @return void
+	*/
+	void SetLLDashVidTimeScale(uint32_t vidTimeScale);
+
+	/**
+	*   @brief Gets  Video TimeScale
+	*
+	*   @return uint32_t
+	*/
+	uint32_t  GetLLDashVidTimeScale(void);
+
+	/**
+	*   @brief Sets  Low Audio TimeScale
+	*
+	*   @param[in]  uint32_t - audTimeScale
+	*   @return void
+	*/
+	void SetLLDashAudTimeScale(uint32_t audTimeScale);
+
+	/**
+	*   @brief Gets  Audio TimeScale
+	*
+	*   @return uint32_t
+	*/
+	uint32_t  GetLLDashAudTimeScale(void);
+
+	/**
+	*   @brief Sets  Speed Cache
+	*
+	*   @param[in]  struct SpeedCache - Speed Cache
+	*   @return void
+	*/
+	void SetLLDashSpeedCache(struct SpeedCache &speedCache);
+
+	/**
+	*   @brief Gets  Speed Cache
+	*
+	*   @return struct SpeedCache speedCache*
+	*/
+	struct SpeedCache * GetLLDashSpeedCache();
+
+	 /**
+	*   @brief Sets  Low latency play rate
+	*
+	*   @param[in]  rate - playback rate to set
+	*   @return void
+	*/
+	void SetLLDashCurrentPlayBackRate(double rate)
+	{
+			mLLDashCurrentPlayRate = rate;
+	}
+
+	/**
+	*   @brief Gets  Low Latency current play back rate
+	*
+	*   @return double
+	*/
+	double GetLLDashCurrentPlayBackRate(void)
+	{
+		return mLLDashCurrentPlayRate;
+	}
+
+	/**
+	*     @brief Get LiveOffset Request flag Status
+	*     @return bool
+	*/
+	bool GetLiveOffsetAppRequest();
+
+	/**
+	*     @brief Set LiveOffset Request Status
+	*     @param[in]  bool - flag
+	*     @return void
+	*/
+	void SetLiveOffsetAppRequest(bool LiveOffsetAppRequest);
+
+	/**
+	*     @brief Get Low Latency ABR Start Status
+	*     @return bool
+	*/
+	bool GetLowLatencyStartABR();
+
+	/**
+	*     @brief Set Low Latency ABR Start Status
+	*     @param[in]  bool - flag
+	*     @return void
+	*/
+	void SetLowLatencyStartABR(bool bStart);
+    
+	/**
+	*     @brief Get Low Latency Service Configuration Status
+	*     @return bool
+	*/
+	bool GetLowLatencyServiceConfigured();
+
+	/**
+	*     @brief Set Low Latency Service Configuration Status
+	*     @param[in]  bool - flag
+	*     @return void
+	*/
+	void SetLowLatencyServiceConfigured(bool bConfig);
+
+	/**
+	*     @brief Get Utc Time
+	*
+	*     @return time_t
+	*/
+	time_t GetUtcTime();
+
+	/**
+	*     @brief Set Utc Time
+	*     @param[in]  time_t - Utc Time
+	*     @return void
+	*/
+	void SetUtcTime(time_t time);
+
+	/**
+	*     @brief Get Current Latency
+	*
+	*     @return long
+	*/
+	long GetCurrentLatency();
+
+	/**
+	*     @brief Set Current Latency
+	*     @param[in]  long
+	*     @return void
+	*/
+	void SetCurrentLatency(long currentLatency);
+    
+        /**
+        *     @brief Get Media Stream Context
+        *     @param[in]  MediaType
+        *     @return MediaStreamContext*
+        */
+	class MediaStreamContext* GetMediaStreamContext(MediaType type);
+
 private:
 
 	/**
@@ -3166,6 +3401,16 @@ private:
 	int mHarvestCountLimit;	// Harvest count 
 	int mHarvestConfig;		// Harvest config
 	std::string mAuxAudioLanguage; /**< auxiliary audio language */
+	AampLLDashServiceData mAampLLDashServiceData; /**< Low Latency Service Configuration Data */
+	bool bLowLatencyServiceConfigured;
+	double mLLDashCurrentPlayRate; /**<Low Latency Current play Rate */
+	uint32_t vidTimeScale;
+	uint32_t audTimeScale;
+	struct SpeedCache speedCache;
+	bool bLowLatencyStartABR;
+	bool mLiveOffsetAppRequest;
+	time_t mTime;
+	long mCurrentLatency;
 };
 
 /**
