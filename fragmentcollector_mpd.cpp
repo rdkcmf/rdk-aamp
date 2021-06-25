@@ -8361,10 +8361,10 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 	bool trackEmpty = thumbnailtrack.empty();
 	if(trackEmpty || indexedTileInfo.empty())
 	{
-		int idx = 0;
-		int w, h;
-		int bandwidth = 0;
-		bool done = false;
+		int w, h, bandwidth = 0, periodIndex = 0, idx = 0;
+		bool isAdPeriod = true, done = false;
+		double adDuration = 0;
+		long int prevStartNumber = -1;
 		{
 			for(IPeriod* tempPeriod : mpd->GetPeriods())
 			{
@@ -8374,6 +8374,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 				{
 					if( IsContentType(adaptationSets.at(j), eMEDIATYPE_IMAGE) )
 					{
+						isAdPeriod = false;
 						const std::vector<IRepresentation *> representation = adaptationSets.at(j)->GetRepresentation();
 						for (int repIndex = 0; repIndex < representation.size(); repIndex++)
 						{
@@ -8430,67 +8431,82 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 								thumbnailtrack.push_back(tmp);
 								traceprintf("In %s thumbnailtrack bandwidth=%d width=%d height=%d",__FUNCTION__, tmp->bandwidthBitsPerSecond, tmp->resolution.width, tmp->resolution.height);
 							}
-						}	// end of representation loop
-						if((thumbnailtrack.size() > thumbIndexValue) && thumbnailtrack[thumbIndexValue]->bandwidthBitsPerSecond == (long)bandwidth)
-						{
-							const ISegmentTemplate *segRep = NULL;
-							const ISegmentTemplate *segAdap = NULL;
-							segAdap = adaptationSets.at(j)->GetSegmentTemplate();
-							//segRep = representation.at(repIndex)->GetSegmentTemplate();
-							SegmentTemplates segmentTemplates(segRep, segAdap);
-							if( segmentTemplates.HasSegmentTemplate() )
+							if((thumbnailtrack.size() > thumbIndexValue) && thumbnailtrack[thumbIndexValue]->bandwidthBitsPerSecond == (long)bandwidth)
 							{
-								const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
-								uint32_t timeScale = segmentTemplates.GetTimescale();
-								uint64_t startNumber = segmentTemplates.GetStartNumber();
-								std::string media = segmentTemplates.Getmedia();
-								if (segmentTimeline)
+								const ISegmentTemplate *segRep = NULL;
+								const ISegmentTemplate *segAdap = NULL;
+								segAdap = adaptationSets.at(j)->GetSegmentTemplate();
+								segRep = representation.at(repIndex)->GetSegmentTemplate();
+								SegmentTemplates segmentTemplates(segRep, segAdap);
+								if( segmentTemplates.HasSegmentTemplate() )
 								{
-									traceprintf("In %s - segment timeline",__FUNCTION__);
-									std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
-									int timeLineIndex = 0;
-									uint64_t durationMs = 0;
-									while (timeLineIndex < timelines.size())
+									const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
+									uint32_t timeScale = segmentTemplates.GetTimescale();
+									long int startNumber = segmentTemplates.GetStartNumber();
+									std::string media = segmentTemplates.Getmedia();
+									if (segmentTimeline)
 									{
-										ITimeline *timeline = timelines.at(timeLineIndex);
-										double startTime = timeline->GetStartTime() / timeScale;
-										int repeatCount = timeline->GetRepeatCount();
-										uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale) * 1000;
-										while( repeatCount-- >= 0 )
+										traceprintf("In %s - segment timeline",__FUNCTION__);
+										std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
+										int timeLineIndex = 0;
+										uint64_t durationMs = 0;
+										while (timeLineIndex < timelines.size())
 										{
-											std::string tmedia = media;
-											TileInfo tileInfo;
-											memset( &tileInfo,0,sizeof(tileInfo) );
-											tileInfo.startTime = durationMs / timeScale;
-											durationMs += ( timelineDurationMs );
-											traceprintf("In %s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "]", __FUNCTION__, timeLineIndex, timelines.size(), durationMs);
-											replace(tmedia, "Number", startNumber);
-											char *ptr = strndup(tmedia.c_str(), tmedia.size());
-											tileInfo.url = ptr;
-											traceprintf("tileInfo.url%s:%p",tileInfo.url, ptr);
-											tileInfo.posterDuration = ((double)segmentTemplates.GetDuration()) / (timeScale * w * h);
-											tileInfo.tileSetDuration = ComputeFragmentDuration(timeline->GetDuration(), timeScale);
-											tileInfo.numRows = h;
-											tileInfo.numCols = w;
-											traceprintf("StartTime:%f posterDuration:%d tileSetDuration:%f numRows:%d numCols:%d",tileInfo.startTime,tileInfo.posterDuration,tileInfo.tileSetDuration,tileInfo.numRows,tileInfo.numCols);
-											indexedTileInfo.push_back(tileInfo);
-											startNumber++;
-										}
-										timeLineIndex++;
-									}	// emd of timeLine loop
-								}
-								else
-								{
-									// Segment base.
+											if( prevStartNumber == startNumber )
+											{
+												/* TODO: This is temporary workaround for MT Ad streams which has redunant tile information
+												   This entire condition has to be removed once the manifest is fixed. */
+												timeLineIndex++;
+												startNumber++;
+												continue;
+											}
+											ITimeline *timeline = timelines.at(timeLineIndex);
+											double startTime = timeline->GetStartTime() / timeScale;
+											int repeatCount = timeline->GetRepeatCount();
+											uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale);
+											while( repeatCount-- >= 0 )
+											{
+												std::string tmedia = media;
+												TileInfo tileInfo;
+												memset( &tileInfo,0,sizeof(tileInfo) );
+												tileInfo.startTime = startTime + ( adDuration / timeScale) ;
+												traceprintf("In %s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "] startTime:%f adDuration:%f repeatCount:%d", __FUNCTION__, timeLineIndex, timelines.size(), durationMs, startTime, adDuration, repeatCount);
+												startTime += ( timelineDurationMs );
+												replace(tmedia, "Number", startNumber);
+												char *ptr = strndup(tmedia.c_str(), tmedia.size());
+												tileInfo.url = ptr;
+												traceprintf("tileInfo.url%s:%p",tileInfo.url, ptr);
+												tileInfo.posterDuration = ((double)segmentTemplates.GetDuration()) / (timeScale * w * h);
+												tileInfo.tileSetDuration = ComputeFragmentDuration(timeline->GetDuration(), timeScale);
+												tileInfo.numRows = h;
+												tileInfo.numCols = w;
+												traceprintf("TileInfo - StartTime:%f posterDuration:%d tileSetDuration:%f numRows:%d numCols:%d",tileInfo.startTime,tileInfo.posterDuration,tileInfo.tileSetDuration,tileInfo.numRows,tileInfo.numCols);
+												indexedTileInfo.push_back(tileInfo);
+												startNumber++;
+											}
+											timeLineIndex++;
+										}	// emd of timeLine loop
+										prevStartNumber = startNumber - 1;
+									}
+									else
+									{
+										// Segment base.
+									}
 								}
 							}
-						}
+						}	// end of representation loop
 					}	// if content type is IMAGE
 				}	// end of adaptation set loop
-//				if((thumbIndexValue < 0) && !done)
+				if((thumbIndexValue < 0) && done)
 				{
 					break;
 				}
+				if ( isAdPeriod )
+				{
+					adDuration += aamp_GetPeriodDuration(mpd, periodIndex, 0);
+				}
+				isAdPeriod = true;
+				periodIndex++;
 			}	// end of Period loop
 		}	// end of thumbnail track size
 	}
