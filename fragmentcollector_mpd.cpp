@@ -8280,9 +8280,10 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 	bool trackEmpty = thumbnailtrack.empty();
 	if(trackEmpty || indexedTileInfo.empty())
 	{
-		int idx = 0;
-		int w, h;
-		bool done = false;
+		int w, h, bandwidth = 0, periodIndex = 0, idx = 0;
+		bool isAdPeriod = true, done = false;
+		double adDuration = 0;
+		long int prevStartNumber = -1;
 		{
 			for(IPeriod* tempPeriod : mpd->GetPeriods())
 			{
@@ -8292,6 +8293,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 				{
 					if( IsContentType(adaptationSets.at(j), eMEDIATYPE_IMAGE) )
 					{
+						isAdPeriod = false;
 						const std::vector<IRepresentation *> representation = adaptationSets.at(j)->GetRepresentation();
 						for (int repIndex = 0; repIndex < representation.size(); repIndex++)
 						{
@@ -8337,7 +8339,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 									AAMPLOG_WARN("%s:%d :  xml is null", __FUNCTION__, __LINE__);  //CID:81118 - Null Returns
 								}
 							}	// end of sub node loop
-							int bandwidth = rep->GetBandwidth();
+							bandwidth = rep->GetBandwidth();
 							if(thumbIndexValue < 0 || trackEmpty)
 							{
 								std::string mimeType = rep->GetMimeType();
@@ -8359,7 +8361,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 								{
 									const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
 									uint32_t timeScale = segmentTemplates.GetTimescale();
-									uint64_t startNumber = segmentTemplates.GetStartNumber();
+									long int startNumber = segmentTemplates.GetStartNumber();
 									std::string media = segmentTemplates.Getmedia();
 									if (segmentTimeline)
 									{
@@ -8369,28 +8371,41 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 										uint64_t durationMs = 0;
 										while (timeLineIndex < timelines.size())
 										{
-											std::string tmedia = media;
-											TileInfo tileInfo;
-											memset( &tileInfo,0,sizeof(tileInfo) );
+											if( prevStartNumber == startNumber )
+											{
+												/* TODO: This is temporary workaround for MT Ad streams which has redunant tile information
+												   This entire condition has to be removed once the manifest is fixed. */
+												timeLineIndex++;
+												startNumber++;
+												continue;
+											}
 											ITimeline *timeline = timelines.at(timeLineIndex);
 											double startTime = timeline->GetStartTime() / timeScale;
-											uint32_t repeatCount = timeline->GetRepeatCount();
-											uint32_t timelineDurationMs = timeline->GetDuration() * 1000 / timeScale;
-											durationMs += ((repeatCount + 1) * timelineDurationMs);
-											traceprintf("In %s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "]", __FUNCTION__, timeLineIndex, timelines.size(), durationMs);
-											replace(tmedia, "Number", timeLineIndex);
-											char *ptr = strndup(tmedia.c_str(), tmedia.size());
-											tileInfo.url = ptr;
-											traceprintf("tileInfo.url%s:%p",tileInfo.url, ptr);
-											tileInfo.startTime = startTime;
-											tileInfo.posterDuration = ((double)segmentTemplates.GetDuration()) / (timeScale * w * h);
-											tileInfo.tileSetDuration = ComputeFragmentDuration(timeline->GetDuration(), timeScale);
-											tileInfo.numRows = h;
-											tileInfo.numCols = w;
-											traceprintf("StartTime:%f posterDuration:%d tileSetDuration:%f numRows:%d numCols:%d",tileInfo.startTime,tileInfo.posterDuration,tileInfo.tileSetDuration,tileInfo.numRows,tileInfo.numCols);
+											int repeatCount = timeline->GetRepeatCount();
+											uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale);
+											while( repeatCount-- >= 0 )
+											{
+												std::string tmedia = media;
+												TileInfo tileInfo;
+												memset( &tileInfo,0,sizeof(tileInfo) );
+												tileInfo.startTime = startTime + ( adDuration / timeScale) ;
+												traceprintf("In %s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "] startTime:%f adDuration:%f repeatCount:%d", __FUNCTION__, timeLineIndex, timelines.size(), durationMs, startTime, adDuration, repeatCount);
+												startTime += ( timelineDurationMs );
+												replace(tmedia, "Number", startNumber);
+												char *ptr = strndup(tmedia.c_str(), tmedia.size());
+												tileInfo.url = ptr;
+												traceprintf("tileInfo.url%s:%p",tileInfo.url, ptr);
+												tileInfo.posterDuration = ((double)segmentTemplates.GetDuration()) / (timeScale * w * h);
+												tileInfo.tileSetDuration = ComputeFragmentDuration(timeline->GetDuration(), timeScale);
+												tileInfo.numRows = h;
+												tileInfo.numCols = w;
+												traceprintf("TileInfo - StartTime:%f posterDuration:%d tileSetDuration:%f numRows:%d numCols:%d",tileInfo.startTime,tileInfo.posterDuration,tileInfo.tileSetDuration,tileInfo.numRows,tileInfo.numCols);
+												indexedTileInfo.push_back(tileInfo);
+												startNumber++;
+											}
 											timeLineIndex++;
-											indexedTileInfo.push_back(tileInfo);
-										}
+										}	// emd of timeLine loop
+										prevStartNumber = startNumber - 1;
 									}
 									else
 									{
@@ -8401,10 +8416,16 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 						}	// end of representation loop
 					}	// if content type is IMAGE
 				}	// end of adaptation set loop
-				if((thumbIndexValue < 0) && !done)
+				if((thumbIndexValue < 0) && done)
 				{
 					break;
 				}
+				if ( isAdPeriod )
+				{
+					adDuration += aamp_GetPeriodDuration(mpd, periodIndex, 0);
+				}
+				isAdPeriod = true;
+				periodIndex++;
 			}	// end of Period loop
 		}	// end of thumbnail track size
 	}
@@ -8527,8 +8548,25 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_MPD::GetThumbnailRangeData(doub
 		if(updateBaseParam)
 		{
 			updateBaseParam = false;
-			std::string url = tmpdata.url;
-			*baseurl = url.substr(0,url.find_last_of("/\\")+1);
+			std::string url;
+			if( url.compare(0, 7, "http://")==0 || url.compare(0, 8, "https://")==0 )
+			{
+				url = tmpdata.url;
+				*baseurl = url.substr(0,url.find_last_of("/\\")+1);
+			}
+			else
+			{
+				const std::vector<IBaseUrl *>*baseUrls = &mpd->GetBaseUrls();
+				if ( baseUrls->size() > 0 )
+				{
+					*baseurl = baseUrls->at(0)->GetUrl();
+				}
+				else
+				{
+					url = aamp->GetManifestUrl();
+					*baseurl = url.substr(0,url.find_last_of("/\\")+1);
+				}
+			}
 			*width = thumbnailtrack[aamp->mthumbIndexValue]->resolution.width;
 			*height = thumbnailtrack[aamp->mthumbIndexValue]->resolution.height;
 			*raw_w = thumbnailtrack[aamp->mthumbIndexValue]->resolution.width * tileInfo.numCols;
