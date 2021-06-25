@@ -3428,6 +3428,14 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 				{
 					format = FORMAT_AUDIO_ES_AAC;
 				}
+				else if ( extension == ".ac3" )
+				{
+					format = FORMAT_AUDIO_ES_AC3;
+				}
+				else if ( extension == ".ec3" )
+				{
+					format = FORMAT_AUDIO_ES_EC3;
+				}
 				else if ( extension == ".vtt" || extension == ".webvtt" )
 				{
 					format = FORMAT_SUBTITLE_WEBVTT;
@@ -4579,6 +4587,22 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					continue;
 				}
 
+				// Elementary stream, we can skip playContext creation
+				if (FORMAT_AUDIO_ES_AC3 == format)
+				{
+					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_AC3", ts->name);
+					ts->streamOutputFormat = FORMAT_AUDIO_ES_AC3;
+					continue;
+				}
+
+				// Elementary stream, we can skip playContext creation
+				if (FORMAT_AUDIO_ES_EC3 == format)
+				{
+					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_EC3", ts->name);
+					ts->streamOutputFormat = FORMAT_AUDIO_ES_EC3;
+					continue;
+				}
+
 				if (eMEDIATYPE_SUBTITLE == iTrack)
 				{
 					bool subtitleDisabled = false;
@@ -5127,7 +5151,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			logprintf("StreamAbstractionAAMP_HLS::%s:%d: Setting setProgressEventOffset value of %.3f ms", __FUNCTION__, __LINE__, offset);
 			subtitle->mSubtitleParser->setProgressEventOffset(offset);
 		}
-
 	
 		if (rate == AAMP_NORMAL_PLAY_RATE)
 		{
@@ -5137,7 +5160,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			// So enforcing this strictly for normal playrate
 
 			// DELIA-42052 
-			for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
+			for (int iTrack = 0; iTrack <= AAMP_TRACK_COUNT - 1; iTrack++)
 			{
 				TrackState *ts = trackState[iTrack];
 				if(ts->enabled)
@@ -5145,6 +5168,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					ts->fragmentURI = ts->GetNextFragmentUriFromPlaylist(true);
 					ts->playTarget = ts->playlistPosition;
 					ts->playTargetBufferCalc = ts->playTarget;
+				}
+
+				if(ISCONFIGSET(eAAMPConfig_SyncAudioFragments) && !(ISCONFIGSET(eAAMPConfig_MidFragmentSeek)) && iTrack == 0)
+				{
+					audio->playTarget = ts->playTarget;
 				}
 			}
 			//Set live adusted position to seekPosition
@@ -5183,7 +5211,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				SeekPosUpdate(video->playTarget);
 			}
-			
+
 			logprintf("%s seekPosition updated with corrected playtarget : %f midSeekPtsOffset : %f",__FUNCTION__,seekPosition,midSeekPtsOffset);
 		}
 
@@ -6253,13 +6281,13 @@ void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsi
  * @brief Signal start of subtitle renderering - should be sent at start of video presentation
  * 
  */
-void StreamAbstractionAAMP_HLS::StartSubtitleParser(unsigned long long firstPts)
+void StreamAbstractionAAMP_HLS::StartSubtitleParser()
 {
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
 	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
 	{
-		logprintf("%s: sending timestamp %0.2f / %lld", __FUNCTION__, firstPts);
-		subtitle->mSubtitleParser->init(seekPosition, firstPts);
+		AAMPLOG_INFO("%s: sending init %.3f", __FUNCTION__, mFirstPTS * 1000.0);
+		subtitle->mSubtitleParser->init(seekPosition, static_cast<unsigned long long>(mFirstPTS * 1000.0));
 		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
 	}
 }
@@ -7479,7 +7507,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 			mAbrManager.updateProfile();
 		}
 	}
-	else if(rate == AAMP_NORMAL_PLAY_RATE)
+	else if(rate == AAMP_NORMAL_PLAY_RATE || rate == AAMP_RATE_PAUSE)
 	{
 		// Filters to add a video track
 		// 1. It should match the audio groupId selected

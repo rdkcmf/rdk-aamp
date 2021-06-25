@@ -168,6 +168,7 @@ typedef enum
 	eAAMPConfig_EnableAccessAttributes,							/*** Usage of Access Attributes in VSS */
 	eAAMPConfig_EnableLowLatencyDash,                           /** Enables Low Latency Dash */
 	eAAMPConfig_DisableLowLatencyMonitor,                       /** Enables Low Latency Monitor Thread */
+	eAAMPConfig_SyncAudioFragments,
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
@@ -259,6 +260,7 @@ typedef enum
 	eAAMPConfig_LicenseProxy,									/**<License Proxy */
 	eAAMPConfig_SessionToken,									/**<Session Token  */
 	eAAMPConfig_LogLevel,										/**< New Configuration to overide info/debug/trace */
+	eAAMPConfig_CustomHeaderLicense,                            					/**<custom header string data to be appended to curl License request*/
 	eAAMPConfig_StringMaxValue,
 	eAAMPConfig_MaxValue
 }AAMPConfigSettings;
@@ -269,11 +271,12 @@ typedef enum
  */
 struct ConfigChannelInfo
 {
-	ConfigChannelInfo() : name(), uri()
+	ConfigChannelInfo() : name(), uri(), licenseUri()
 	{
 	}
 	std::string name;
 	std::string uri;
+	std::string licenseUri;
 };
 
 
@@ -403,11 +406,11 @@ public:
 	bool GetConfigValue(AAMPConfigSettings cfg, double &value);
 	bool GetConfigValue(AAMPConfigSettings cfg , int &value);
 	const char * GetChannelOverride(const std::string chName);
+	const char * GetChannelLicenseOverride(const std::string chName);
 	bool ProcessConfigJson(const char *, ConfigPriority owner );
 	bool ProcessConfigText(std::string &cfg, ConfigPriority owner );
 	void RestoreConfiguration(ConfigPriority owner);
 	void ConfigureLogSettings();
-	static void SetCfgDrive(char drivename);
 	bool GetAampConfigJSONStr(std::string &str);
 	bool GetDeveloperConfigData(std::string &key,std::string &value);
 
@@ -444,10 +447,6 @@ private:
 	typedef std::list<ConfigChannelInfo> ChannelMap ;
 	typedef std::list<ConfigChannelInfo>::iterator ChannelMapIter ;
 	ChannelMap mChannelOverrideMap;
-#ifdef WIN32
-	static std::string cWindowsCfg;
-	static std::string cWindowsJsonCfg;
-#endif
 };
 
 extern AampConfig  *gpGlobalConfig;

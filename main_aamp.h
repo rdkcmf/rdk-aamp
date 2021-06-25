@@ -172,8 +172,8 @@ struct AudioTrackInfo
 	{
 	}
 
-	AudioTrackInfo(std::string idx, std::string lang,std::string trackName, std::string codecStr, int pk, std::string conType, std::string mixType):
-			index(idx), language(lang), rendition(), name(trackName),
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, int pk, std::string conType, std::string mixType):
+			index(idx), language(lang), rendition(rend), name(trackName),
 			codec(codecStr), characteristics(), channels(0), bandwidth(-1), primaryKey(pk),
                         contentType(conType), mixType(mixType)
 	{
@@ -1501,6 +1501,7 @@ public:
 	void SetUseAbsoluteTimeline(bool configState);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
+	std::shared_ptr<PrivateInstanceAAMP> sp_aamp; /* shared pointer for aamp resource */
 
 	AampConfig mConfig;
 private:

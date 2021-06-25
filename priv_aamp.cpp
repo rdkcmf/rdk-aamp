@@ -147,20 +147,7 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 
 static bool activeInterfaceWifi = false;
 
-/**
- * @struct ChannelInfo 
- * @brief Holds information of a channel
- */
-struct ChannelInfo
-{
-	ChannelInfo() : name(), uri()
-	{
-	}
-	std::string name;
-	std::string uri;
-};
-
-static std::list<ChannelInfo> mChannelOverrideMap;
+static char previousInterface[10] = "";
 
 /**
  * @struct CurlCallbackContext
@@ -333,6 +320,7 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 	bool retValue = true;
 	PrivateInstanceAAMP* aamp = (PrivateInstanceAAMP* )ptr;
 	aamp->NotifyFirstBufferProcessed();
+	aamp->ResetTrickStartUTCTime();
 	TuneType tuneType = eTUNETYPE_SEEK;
 
 	if (!aamp->mSeekFromPausedState && (aamp->rate == AAMP_NORMAL_PLAY_RATE))
@@ -701,7 +689,11 @@ void getActiveInterfaceEventHandler (const char *owner, IARM_EventId_t eventId, 
 
 	IARM_BUS_NetSrvMgr_Iface_EventData_t *param = (IARM_BUS_NetSrvMgr_Iface_EventData_t *) data;
 
-	AAMPLOG_WARN("getActiveInterfaceEventHandler EventId %d activeinterface %s", eventId,  param->activeIface);
+	if (NULL == strstr (param->activeIface, previousInterface) || (strlen(previousInterface) == 0))
+	{
+		strcpy(previousInterface, param->activeIface);
+		AAMPLOG_WARN("getActiveInterfaceEventHandler EventId %d activeinterface %s", eventId,  param->activeIface);
+	}
 
 	if (NULL != strstr (param->activeIface, "wlan"))
 	{
@@ -1386,7 +1378,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	/*playStartUTCMS(0), */durationSeconds(0.0), culledSeconds(0.0), culledOffset(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000),
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
-	m_fd(-1), mIsLive(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
+	m_fd(-1), mIsLive(false), mLogTune(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
 	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(ContentType_UNKNOWN), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
@@ -1675,28 +1667,34 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 
 		ProgressEventPtr evt = std::make_shared<ProgressEvent>(duration, position, start, end, speed, videoPTS, bufferedDuration);
         
-		if (gpGlobalConfig->logging.progress)
+		mReportProgressPosn = position;
+
+		if (trickStartUTCMS >= 0)
 		{
-			static int tick;
-			if ((tick++ % 4) == 0)
+			if (gpGlobalConfig->logging.progress)
 			{
-				logprintf("aamp pos: [%ld..%ld..%ld..%lld..%ld]",
-					(long)(start / 1000),
-					(long)(position / 1000),
-					(long)(end / 1000),
-					(long long) videoPTS,
-					(long)(bufferedDuration / 1000) );
+				static int tick;
+				if ((tick++ % 4) == 0)
+				{
+					logprintf("aamp pos: [%ld..%ld..%ld..%lld..%ld]",
+						(long)(start / 1000),
+						(long)(position / 1000),
+						(long)(end / 1000),
+						(long long) videoPTS,
+						(long)(bufferedDuration / 1000) );
+				}
+			}
+
+			if (sync)
+			{
+				SendEventSync(evt);
+			}
+			else
+			{
+				SendEventAsync(evt);
 			}
 		}
-		mReportProgressPosn = position;
-		if (sync)
-		{
-			SendEventSync(evt);
-		}
-		else
-		{
-			SendEventAsync(evt);
-		}
+
 		mReportProgressTime = aamp_GetCurrentTimeMS();
 	}
 }
@@ -2575,7 +2573,7 @@ void PrivateInstanceAAMP::NotifyOnEnteringLive()
 void PrivateInstanceAAMP::ScheduleEvent(AsyncEventDescriptor* e)
 {
 	//TODO protect mEventListener
-	e->aamp = this;
+	e->aamp = shared_from_this();
 	guint callbackID = g_idle_add_full(mEventPriority, SendAsynchronousEvent, e, AsyncEventDestroyNotify);
 	SetCallbackAsPending(callbackID);
 }
@@ -2617,16 +2615,19 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 
 	if (!mTuneCompleted)
 	{
-		char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
-		profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
-		SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
-		if(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents))
+		if(mLogTune)
 		{
-			sendTuneMetrics(success);
+			char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
+			mLogTune = false;
+			profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
+			SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
+			if(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents))
+			{
+				sendTuneMetrics(success);
+			}
+			mTuneCompleted = true;
+			mFirstTune = false;
 		}
-		mTuneCompleted = true;
-		mFirstTune = false;
-
 		AAMPAnomalyMessageType eMsgType = AAMPAnomalyMessageType::ANOMALY_TRACE;
 		if(mTuneAttempts > 1 )
 		{
@@ -4813,8 +4814,53 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	const char *remapUrl = mConfig->GetChannelOverride(mainManifestUrl);
 	if (remapUrl )
 	{
+		const char *remapLicenseUrl = NULL;
 		mainManifestUrl = remapUrl;
+		remapLicenseUrl = mConfig->GetChannelLicenseOverride(mainManifestUrl);
+		if (remapLicenseUrl )
+		{
+			AAMPLOG_INFO("%s %d Channel License Url Override: [%s]", __FUNCTION__,__LINE__, remapLicenseUrl);
+			SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_LicenseServerUrl,std::string(remapLicenseUrl));
+		}
 	}
+
+        //Add Custom Header via config
+        {
+                std::string customLicenseHeaderStr;
+                GETCONFIGVALUE_PRIV(eAAMPConfig_CustomHeaderLicense,customLicenseHeaderStr);
+                if(!customLicenseHeaderStr.empty())
+                {
+                        if (gpGlobalConfig->logging.curlLicense)
+                        {
+                                logprintf("%s:%d CustomHeader :%s",__FUNCTION__,__LINE__,customLicenseHeaderStr.c_str());
+                        }
+                        char* token = NULL;
+                        char* tokenHeader = NULL;
+                        char* str = (char*) customLicenseHeaderStr.c_str();
+
+                        while ((token = strtok_r(str, ";", &str)))
+                        {
+                                int headerTokenIndex = 0;
+                                std::string headerName;
+                                std::vector<std::string> headerValue;
+                                while ((tokenHeader = strtok_r(token, ":", &token)))
+                                {
+                                        if(headerTokenIndex == 0)
+                                                headerName = tokenHeader;
+                                        else if(headerTokenIndex == 1)
+                                                headerValue.push_back(std::string(tokenHeader));
+                                        else
+                                                break;
+
+                                        headerTokenIndex++;
+                                }
+                                if(!headerName.empty() && !headerValue.empty())
+                                {
+                                        AddCustomHTTPHeader(headerName, headerValue, true);
+                                }
+                        }
+                }
+        }
 
 	/** Least priority operator setting will override the value only if it is not set from dev config **/ 
 	SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_WideVineKIDWorkaround,IsWideVineKIDWorkaround(mainManifestUrl));
@@ -4860,6 +4906,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		mTuneAttempts = 1;	//Only the first attempt is xreInitiated.
 		mPlayerLoadTime = NOW_STEADY_TS_MS;
+		mLogTune = true;
 	}
 	else
 	{
@@ -5907,12 +5954,10 @@ void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
 			{
 				//logprintf("sleep interrupted!");
 			}
-#ifndef WIN32
 			else if (ETIMEDOUT != ret)
 			{
 				logprintf("sleep - condition wait failed %s", strerror(ret));
 			}
-#endif
 		}
 		pthread_mutex_unlock(&mLock);
 	}
@@ -7255,6 +7300,14 @@ void PrivateInstanceAAMP::SendStalledErrorEvent(bool isStalledBeforePlay)
 	SendErrorEvent(AAMP_TUNE_PLAYBACK_STALLED, errorDesc);
 }
 
+void PrivateInstanceAAMP::UpdateSubtitleTimestamp()
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->StartSubtitleParser();
+	}
+}
+
 /**
  * @brief Notifiy first buffer is processed
  */
@@ -7268,8 +7321,17 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	{
 		SetState(eSTATE_PLAYING);
 	}
-	trickStartUTCMS = aamp_GetCurrentTimeMS();
+	//trickStartUTCMS = aamp_GetCurrentTimeMS(); // moved to ResetTrickStartUTCTime()
 	logprintf("%s:%d : seek pos %.3f", __FUNCTION__, __LINE__, seek_pos_seconds);
+	
+}
+
+/**
+ * @brief Reset trick start position
+ */
+void PrivateInstanceAAMP::ResetTrickStartUTCTime()
+{
+	trickStartUTCMS = aamp_GetCurrentTimeMS();
 }
 
 /**
@@ -7945,12 +8007,7 @@ void PrivateInstanceAAMP::NotifyFirstVideoPTS(unsigned long long pts, unsigned l
 void PrivateInstanceAAMP::NotifyVideoBasePTS(unsigned long long basepts, unsigned long timeScale)
 {
 	mVideoBasePTS = basepts;
-	AAMPLOG_INFO("mVideoBasePTS::%llu\n", mVideoBasePTS);
-	if (mpStreamAbstractionAAMP)
-	{
-		mpStreamAbstractionAAMP->StartSubtitleParser(mVideoBasePTS / 90.0);
-	}
-
+	AAMPLOG_INFO("mVideoBasePTS::%llus", mVideoBasePTS);
 }
 
 /**
@@ -9086,7 +9143,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			{
 				if(mMediaFormat == eMEDIAFORMAT_OTA)
 				{
-					mpStreamAbstractionAAMP->SetAudioTrackByLanguage(languageList);
+					mpStreamAbstractionAAMP->SetPreferredAudioLanguages();
 				}
 				else
 				{

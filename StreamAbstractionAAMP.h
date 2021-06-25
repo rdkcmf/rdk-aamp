@@ -989,8 +989,8 @@ public:
 	 * @brief Kicks off subtitle display - sent at start of video presentation
 	 * 
 	 */
-	virtual void StartSubtitleParser(unsigned long long firstPts) { };
-
+	virtual void StartSubtitleParser() { };
+	
 	/**
 	 *   @brief Waits subtitle track injection until caught up with audio track.
 	 *          Used internally by injection logic
@@ -1148,6 +1148,14 @@ public:
           * @param[in]
           */
         virtual void SetAudioTrackByLanguage(const char* lang) {}
+
+        /**
+          * @brief SetPreferredAudioLanguages set the preferred audio languages and rendition. [currently for OTA]
+          *
+          * @param[in]
+          * @param[in]
+          */
+        virtual void SetPreferredAudioLanguages() {}
 
 		/**
           * @brief Send a MUTE/UNMUTE packet to the subtitle renderer

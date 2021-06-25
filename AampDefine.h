@@ -20,10 +20,6 @@
 #ifndef __AAMP_DEFINE_H__
 #define __AAMP_DEFINE_H__
 #include <limits.h>
-#ifdef WIN32
-#define AAMP_CFG_PATH "c:/tmp/aamp.cfg"
-#define AAMP_JSON_PATH "c:/tmp/aamp.json"
-#else
 
 #ifdef UNIT_TEST_ENABLED
 #define AAMP_CFG_PATH "aamp.cfg"
@@ -31,7 +27,6 @@
 #else
 #define AAMP_CFG_PATH "/opt/aamp.cfg"
 #define AAMP_JSON_PATH "/opt/aampcfg.json"
-#endif
 #endif
 
 

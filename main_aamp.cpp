@@ -41,14 +41,9 @@
 #include "aampgstplayer.h"
 
 #include <dlfcn.h>
-
-#ifdef WIN32
-#include "conio.h"
-#else
 #include <termios.h>
 #include <errno.h>
 #include <regex>
-#endif //WIN32
 
 #ifdef USE_SECMANAGER
 #include "AampSecManager.h"
@@ -106,7 +101,7 @@ std::mutex PlayerInstanceAAMP::mPrvAampMtx;
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
-	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL(),mAsyncRunning(false),mConfig()
+	) : aamp(NULL), sp_aamp(nullptr), mInternalStreamSink(NULL), mJSBinding_DL(),mAsyncRunning(false),mConfig()
 {
 
 #ifdef IARM_MGR
@@ -168,7 +163,8 @@ if(!iarmInitialized)
 	// App can modify the configuration set
 	mConfig = *gpGlobalConfig;
 
-	aamp = new PrivateInstanceAAMP(&mConfig);
+	sp_aamp = std::make_shared<PrivateInstanceAAMP>(&mConfig);
+	aamp = sp_aamp.get();
 	if (NULL == streamSink)
 	{
 		mInternalStreamSink = new AAMPGstPlayer(aamp
@@ -212,7 +208,6 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 			}
 		}
 		std::lock_guard<std::mutex> lock (mPrvAampMtx);
-		delete aamp;
 		aamp = NULL;
 	}
 	if (mInternalStreamSink)
@@ -518,16 +513,19 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
 			return;
 		}
-		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (AAMP_NORMAL_PLAY_RATE == rate))
+		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (0 != rate))
 		{
 			AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s.", __FUNCTION__, __LINE__, aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
 			aamp->mbPlayEnabled = true;
-			aamp->LogPlayerPreBuffered();
-			aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mAuxFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus(), aamp->mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
-			aamp->mpStreamAbstractionAAMP->StartInjection();
-			aamp->mStreamSink->Stream();
-			aamp->pipeline_paused = false;
-			return;
+			if (AAMP_NORMAL_PLAY_RATE == rate)
+			{
+				aamp->LogPlayerPreBuffered();
+				aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mAuxFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus(), aamp->mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
+				aamp->mpStreamAbstractionAAMP->StartInjection();
+				aamp->mStreamSink->Stream();
+				aamp->pipeline_paused = false;
+				return;
+			}
 		}
 		bool retValue = true;
 		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE)
@@ -641,6 +639,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 					aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
 					retValue = aamp->mStreamSink->Pause(false, false);
 					aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
+					aamp->ResetTrickStartUTCTime();
 				}
 				aamp->pipeline_paused = false;
 				aamp->ResumeDownloads();
@@ -887,12 +886,42 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 {
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	logprintf("aamp_SetRateAndSeek(%d)(%f)", rate, secondsRelativeToTuneTime);
-	aamp->AcquireStreamLock();
-	aamp->TeardownStream(false);
-	aamp->seek_pos_seconds = secondsRelativeToTuneTime;
-	aamp->rate = rate;
-	aamp->TuneHelper(eTUNETYPE_SEEK);
-	aamp->ReleaseStreamLock();
+	if (!IsValidRate(rate))
+	{
+		AAMPLOG_WARN("%s:%d SetRate ignored!! Invalid rate (%d)", __FUNCTION__, __LINE__, rate);
+		return;
+	}
+
+	if (aamp->mpStreamAbstractionAAMP)
+	{
+		if ((!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0))
+		{
+			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
+			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
+			return;
+		}
+		aamp->AcquireStreamLock();
+		aamp->TeardownStream(false);
+		aamp->seek_pos_seconds = secondsRelativeToTuneTime;
+		aamp->rate = rate;
+		aamp->TuneHelper(eTUNETYPE_SEEK);
+		aamp->ReleaseStreamLock();
+		if(rate == 0)
+		{
+			if (!aamp->pipeline_paused)
+			{
+				logprintf("Pausing Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
+				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
+				aamp->StopDownloads();
+				bool retValue = aamp->mStreamSink->Pause(true, false);
+				aamp->pipeline_paused = true;
+			}
+		}
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d aamp_SetRateAndSeek rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", __FUNCTION__, __LINE__, aamp->rate, aamp->mpStreamAbstractionAAMP, state);
+	}
 }
 
 /**

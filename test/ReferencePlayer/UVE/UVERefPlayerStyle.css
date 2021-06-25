@@ -27,24 +27,31 @@ body {
 }
 
 #cacheOnly {
-    margin-left: 17%;
+    margin-left: 25%;
 }
 
 #videoURLs {
-    margin-left: 24%;
-    width: 15%;
+    margin-left: 32%;
+    width: 12%;
+}
+
+#audioTracks {
+    position: fixed;
+    margin-left: 2%;
+    width: 8%;
+    margin-top: 2%;
 }
 
 #ccTracks {
     position: fixed;
-    margin-left: 2%;
-    width: 7%;
+    margin-left: 11%;
+    width: 6%;
     margin-top: 2%;
 }
 
 #ccStyles {
     position: fixed;
-    margin-left: 9.5%;
+    margin-left: 18%;
     width: 6%;
     margin-top: 2%;
 }
@@ -54,7 +61,7 @@ body {
 }
 
 #seekState {
-    margin-left: 20%;
+    margin-left: 17%;
 }
 
 #seekBar {
@@ -118,4 +125,24 @@ input[type=text]:focus {
 
 #okButton {
     text-align: center;
+}
+
+#audioTitle {
+    position: fixed;
+    margin-top: -4%;
+    margin-left: 3.5%;
+    font-family: Verdana, Geneva, sans-serif;
+    letter-spacing: 3px;
+    font-size: 12px;
+    z-index: 50;
+}
+
+#ccTitle {
+    position: fixed;
+    margin-top: -4%;
+    margin-left: 12.5%;
+    font-family: Verdana, Geneva, sans-serif;
+    letter-spacing: 3px;
+    font-size: 12px;
+    z-index: 50;
 }

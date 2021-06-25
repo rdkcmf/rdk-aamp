@@ -668,12 +668,13 @@ static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentInd
 	unsigned int earliest_presentation_time = Read32(f);
 	unsigned int first_offset = Read32(f);
 	unsigned int count = Read32(f);
-	for (unsigned int i = 0; i < count; i++)
+	if( segmentIndex<count )
 	{
+		start += 12*segmentIndex;
 		*referenced_size = Read32(f);
 		*referenced_duration = Read32(f)/(float)timescale;
 		unsigned int flags = Read32(f);
-		if (i == segmentIndex) return true;
+		return true;
 	}
 	return false;
 }
@@ -1531,11 +1532,11 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					char range[128];
 					sprintf(range, "%" PRIu64 "-%" PRIu64 "", pMediaStreamContext->fragmentOffset, pMediaStreamContext->fragmentOffset + referenced_size - 1);
 					AAMPLOG_INFO("%s:%d %s [%s]", __FUNCTION__, __LINE__,getMediaTypeName(pMediaStreamContext->mediaType), range);
-					if(pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, 0.0, range ))
+					if(pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, fragmentDuration, range ))
 					{
 						pMediaStreamContext->fragmentTime += fragmentDuration;
 						pMediaStreamContext->fragmentOffset += referenced_size;
-						pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
+						//pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						retval = true;
 					}
 				}
@@ -2007,7 +2008,7 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, fragmentIndex++, &referenced_size, &fragmentDuration))
 					{
 						fragmentTime += fragmentDuration;
-						fragmentTime = ceil(fragmentTime * 1000.0) / 1000.0;
+						//fragmentTime = ceil(fragmentTime * 1000.0) / 1000.0;
 						pMediaStreamContext->fragmentOffset += referenced_size;
 					}
 					else
@@ -2019,6 +2020,7 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					}
 				}
 				
+				mFirstPTS = fragmentTime;
 				//updated seeked position
 				pMediaStreamContext->fragmentIndex = fragmentIndex;
 				pMediaStreamContext->fragmentTime = fragmentTime;
@@ -2488,18 +2490,20 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 		const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
 		if (!node.empty())
 		{
-			std::string tagName = node.at(0)->GetName();
-			if (tagName.find("pssh") != std::string::npos)
-			{
-				string psshData = node.at(0)->GetText();
-				data = base64_Decode(psshData.c_str(), &dataLength);
-				if (0 == dataLength)
+			for(int i=0; i < node.size(); i++){
+				std::string tagName = node.at(i)->GetName();
+				if (tagName.find("pssh") != std::string::npos)
 				{
-					AAMPLOG_WARN("%s:%d base64_Decode of pssh resulted in 0 length", __FUNCTION__, __LINE__);
-					if (data)
+					string psshData = node.at(i)->GetText();
+					data = base64_Decode(psshData.c_str(), &dataLength);
+					if (0 == dataLength)
 					{
-						free(data);
-						data = NULL;
+						AAMPLOG_WARN("%s:%d base64_Decode of pssh resulted in 0 length", __FUNCTION__, __LINE__);
+						if (data)
+						{
+							free(data);
+							data = NULL;
+						}
 					}
 				}
 			}
@@ -5211,6 +5215,17 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 	return bestTrack;
 }
 
+void StreamAbstractionAAMP_MPD::StartSubtitleParser()
+{
+	struct MediaStreamContext *subtitle = mMediaStreamContext[eMEDIATYPE_SUBTITLE];
+	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
+	{
+		AAMPLOG_INFO("%s: sending init %.3f", __FUNCTION__, seekPosition);
+		subtitle->mSubtitleParser->init(seekPosition, 0);
+		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
+	}
+}
+
 /**
  * @brief Does stream selection
  * @param newTune true if this is a new tune
@@ -5305,6 +5320,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 						}
 						else if (IsMatchingLanguageAndMimeType((MediaType)i, aamp->mSubLanguage, adaptationSet, selRepresentationIndex) == true)
 						{
+							AAMPLOG_INFO("%s:%d matched default sub language %s [%d]", __FUNCTION__, __LINE__, aamp->mSubLanguage.c_str(), iAdaptationSet);
 							selAdaptationSetIndex = iAdaptationSet;
 						}
 						
@@ -5316,14 +5332,8 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 								mimeType = (adaptationSet->GetRepresentation().at(selRepresentationIndex))->GetMimeType();
 							}
 							tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
-							
 							pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, mimeType);
-							if (pMediaStreamContext->mSubtitleParser) 
-							{
-								pMediaStreamContext->mSubtitleParser->init(seekPosition, 0);
-								pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
-							}
-							else
+							if (!pMediaStreamContext->mSubtitleParser)
 							{
 								pMediaStreamContext->enabled = false;
 								selAdaptationSetIndex = -1;
@@ -5531,7 +5541,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 				aamp->previousAudioType = selectedCodecType;
 				SetESChangeStatus();
 			}
-			logprintf("StreamAbstractionAAMP_MPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]\n",
+			logprintf("StreamAbstractionAAMP_MPD::%s %d > Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]",
 				__FUNCTION__, __LINE__, getMediaTypeName(MediaType(i)),selAdaptationSetIndex,selRepresentationIndex,(mNumberOfTracks+1) );
 
 			ProcessContentProtection(period->GetAdaptationSets().at(selAdaptationSetIndex),(MediaType)i);
@@ -5540,11 +5550,11 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 
 		if(selAdaptationSetIndex < 0 && rate == 1)
 		{
-			logprintf("StreamAbstractionAAMP_MPD::%s %d > No valid adaptation set found for Media[%s]\n",
+			logprintf("StreamAbstractionAAMP_MPD::%s %d > No valid adaptation set found for Media[%s]",
 				__FUNCTION__, __LINE__, getMediaTypeName(MediaType(i)));
 		}
 
-		logprintf("StreamAbstractionAAMP_MPD::%s %d > Media[%s] %s\n",
+		logprintf("StreamAbstractionAAMP_MPD::%s %d > Media[%s] %s",
 			__FUNCTION__, __LINE__, getMediaTypeName(MediaType(i)), pMediaStreamContext->enabled?"enabled":"disabled");
 
 		//RDK-27796, we need this hack for cases where subtitle is not enabled, but auxiliary audio track is enabled
@@ -6438,7 +6448,11 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 							if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 							{
 								pMediaStreamContext->profileChanged = false;
-								if(!pMediaStreamContext->CacheFragment(fragmentUrl, (eCURLINSTANCE_VIDEO + pMediaStreamContext->mediaType), pMediaStreamContext->fragmentTime, 0, range.c_str(), true ))
+								if(!pMediaStreamContext->CacheFragment(fragmentUrl,
+									getCurlInstanceByMediaType(pMediaStreamContext->mediaType),
+									pMediaStreamContext->fragmentTime,
+									0, // duration - zero for init fragment
+									range.c_str(), true ))
 								{
 									logprintf("StreamAbstractionAAMP_MPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 								}
@@ -6550,7 +6564,12 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 									if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 									{
 										pMediaStreamContext->profileChanged = false;
-										if(!pMediaStreamContext->CacheFragment(fragmentUrl, (eCURLINSTANCE_VIDEO + pMediaStreamContext->mediaType), pMediaStreamContext->fragmentTime, 0.0, range.c_str(), true ))
+										if(!pMediaStreamContext->CacheFragment(fragmentUrl,
+												getCurlInstanceByMediaType(pMediaStreamContext->mediaType),
+												pMediaStreamContext->fragmentTime,
+												0.0, // duration - zero for init fragment
+												range.c_str(),
+												true ))
 										{
 											logprintf("StreamAbstractionAAMP_MPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 										}
@@ -8145,6 +8164,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 	{
 		int idx = 0;
 		int w, h;
+		int bandwidth = 0;
 		bool done = false;
 		{
 			for(IPeriod* tempPeriod : mpd->GetPeriods())
@@ -8200,7 +8220,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 									AAMPLOG_WARN("%s:%d :  xml is null", __FUNCTION__, __LINE__);  //CID:81118 - Null Returns
 								}
 							}	// end of sub node loop
-							int bandwidth = rep->GetBandwidth();
+							bandwidth = rep->GetBandwidth();
 							if(thumbIndexValue < 0 || trackEmpty)
 							{
 								std::string mimeType = rep->GetMimeType();
@@ -8211,60 +8231,64 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 								thumbnailtrack.push_back(tmp);
 								traceprintf("In %s thumbnailtrack bandwidth=%d width=%d height=%d",__FUNCTION__, tmp->bandwidthBitsPerSecond, tmp->resolution.width, tmp->resolution.height);
 							}
-							if((thumbnailtrack.size() > thumbIndexValue) && thumbnailtrack[thumbIndexValue]->bandwidthBitsPerSecond == (long)bandwidth)
+						}	// end of representation loop
+						if((thumbnailtrack.size() > thumbIndexValue) && thumbnailtrack[thumbIndexValue]->bandwidthBitsPerSecond == (long)bandwidth)
+						{
+							const ISegmentTemplate *segRep = NULL;
+							const ISegmentTemplate *segAdap = NULL;
+							segAdap = adaptationSets.at(j)->GetSegmentTemplate();
+							//segRep = representation.at(repIndex)->GetSegmentTemplate();
+							SegmentTemplates segmentTemplates(segRep, segAdap);
+							if( segmentTemplates.HasSegmentTemplate() )
 							{
-								const ISegmentTemplate *segRep = NULL;
-								const ISegmentTemplate *segAdap = NULL;
-								segAdap = adaptationSets.at(j)->GetSegmentTemplate();
-								segRep = representation.at(repIndex)->GetSegmentTemplate();
-								SegmentTemplates segmentTemplates(segRep, segAdap);
-								if( segmentTemplates.HasSegmentTemplate() )
+								const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
+								uint32_t timeScale = segmentTemplates.GetTimescale();
+								uint64_t startNumber = segmentTemplates.GetStartNumber();
+								std::string media = segmentTemplates.Getmedia();
+								if (segmentTimeline)
 								{
-									const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
-									uint32_t timeScale = segmentTemplates.GetTimescale();
-									uint64_t startNumber = segmentTemplates.GetStartNumber();
-									std::string media = segmentTemplates.Getmedia();
-									if (segmentTimeline)
+									traceprintf("In %s - segment timeline",__FUNCTION__);
+									std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
+									int timeLineIndex = 0;
+									uint64_t durationMs = 0;
+									while (timeLineIndex < timelines.size())
 									{
-										traceprintf("In %s - segment timeline",__FUNCTION__);
-										std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
-										int timeLineIndex = 0;
-										uint64_t durationMs = 0;
-										while (timeLineIndex < timelines.size())
+										ITimeline *timeline = timelines.at(timeLineIndex);
+										double startTime = timeline->GetStartTime() / timeScale;
+										int repeatCount = timeline->GetRepeatCount();
+										uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale) * 1000;
+										while( repeatCount-- >= 0 )
 										{
 											std::string tmedia = media;
 											TileInfo tileInfo;
 											memset( &tileInfo,0,sizeof(tileInfo) );
-											ITimeline *timeline = timelines.at(timeLineIndex);
-											double startTime = timeline->GetStartTime() / timeScale;
-											uint32_t repeatCount = timeline->GetRepeatCount();
-											uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale) * 1000;
-											durationMs += ((repeatCount + 1) * timelineDurationMs);
+											tileInfo.startTime = durationMs / timeScale;
+											durationMs += ( timelineDurationMs );
 											traceprintf("In %s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "]", __FUNCTION__, timeLineIndex, timelines.size(), durationMs);
-											replace(tmedia, "Number", timeLineIndex);
+											replace(tmedia, "Number", startNumber);
 											char *ptr = strndup(tmedia.c_str(), tmedia.size());
 											tileInfo.url = ptr;
 											traceprintf("tileInfo.url%s:%p",tileInfo.url, ptr);
-											tileInfo.startTime = startTime;
 											tileInfo.posterDuration = ((double)segmentTemplates.GetDuration()) / (timeScale * w * h);
 											tileInfo.tileSetDuration = ComputeFragmentDuration(timeline->GetDuration(), timeScale);
 											tileInfo.numRows = h;
 											tileInfo.numCols = w;
 											traceprintf("StartTime:%f posterDuration:%d tileSetDuration:%f numRows:%d numCols:%d",tileInfo.startTime,tileInfo.posterDuration,tileInfo.tileSetDuration,tileInfo.numRows,tileInfo.numCols);
-											timeLineIndex++;
 											indexedTileInfo.push_back(tileInfo);
+											startNumber++;
 										}
-									}
-									else
-									{
-										// Segment base.
-									}
+										timeLineIndex++;
+									}	// emd of timeLine loop
+								}
+								else
+								{
+									// Segment base.
 								}
 							}
-						}	// end of representation loop
+						}
 					}	// if content type is IMAGE
 				}	// end of adaptation set loop
-				if((thumbIndexValue < 0) && !done)
+//				if((thumbIndexValue < 0) && !done)
 				{
 					break;
 				}
@@ -8393,8 +8417,25 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_MPD::GetThumbnailRangeData(doub
 		if(updateBaseParam)
 		{
 			updateBaseParam = false;
-			std::string url = tmpdata.url;
-			*baseurl = url.substr(0,url.find_last_of("/\\")+1);
+			std::string url;
+			if( url.compare(0, 7, "http://")==0 || url.compare(0, 8, "https://")==0 )
+			{
+				url = tmpdata.url;
+				*baseurl = url.substr(0,url.find_last_of("/\\")+1);
+			}
+			else
+			{
+				const std::vector<IBaseUrl *>*baseUrls = &mpd->GetBaseUrls();
+				if ( baseUrls->size() > 0 )
+				{
+					*baseurl = baseUrls->at(0)->GetUrl();
+				}
+				else
+				{
+					url = aamp->GetManifestUrl();
+					*baseurl = url.substr(0,url.find_last_of("/\\")+1);
+				}
+			}
 			*width = thumbnailtrack[aamp->mthumbIndexValue]->resolution.width;
 			*height = thumbnailtrack[aamp->mthumbIndexValue]->resolution.height;
 			*raw_w = thumbnailtrack[aamp->mthumbIndexValue]->resolution.width * tileInfo.numCols;
