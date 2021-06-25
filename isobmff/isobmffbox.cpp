@@ -105,7 +105,7 @@ void Box::setOffset(uint32_t os)
  *
  * @return offset of box
  */
-uint32_t Box::getOffset()
+uint32_t Box::getOffset() const
 {
 	return offset;
 }
@@ -135,7 +135,7 @@ const std::vector<Box*> *Box::getChildren()
  *
  * @return box size
  */
-uint32_t Box::getSize()
+uint32_t Box::getSize() const
 {
 	return size;
 }
@@ -151,6 +151,33 @@ const char *Box::getType()
 }
 
 /**
+ * @brief Get box type
+ *
+ * @return box type
+ */
+const char* Box::getBoxType() const
+{
+    if ((!IS_TYPE(type, MOOV)) ||
+        (!IS_TYPE(type, MDIA)) ||
+        (!IS_TYPE(type, MOOF)) ||
+        (!IS_TYPE(type, TRAF)) ||
+        (!IS_TYPE(type, TFDT)) ||
+        (!IS_TYPE(type, MVHD)) ||
+        (!IS_TYPE(type, MDHD)) ||
+        (!IS_TYPE(type, TFDT)) ||
+        (!IS_TYPE(type, FTYP)) ||
+        (!IS_TYPE(type, STYP)) ||
+        (!IS_TYPE(type, SIDX)) ||
+        (!IS_TYPE(type, PRFT)) ||
+        (!IS_TYPE(type, MDAT)))
+    {
+        return "UKWN";
+    }
+    return type;
+}
+
+
+/**
  * @brief Static function to construct a Box object
  *
  * @param[in] hdr - pointer to box
@@ -161,25 +188,42 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, bool correctBoxSize)
 {
 	L_RESTART:
 	uint8_t *hdr_start = hdr;
-	uint32_t size = READ_U32(hdr);
+	uint32_t size = 0;
 	uint8_t type[5];
-	READ_U8(type, hdr, 4);
-	type[4] = '\0';
+	if(maxSz < 4)
+	{
+		AAMPLOG_WARN("Box data < 4 bytes. Can't determine Size & Type");
+        	return new Box(maxSz, (const char *)"UKWN");
+    	}
+    	else if(maxSz >= 4 && maxSz < 8)
+    	{
+		AAMPLOG_WARN("Box Size between >4 but <8 bytes. Can't determine Type");
+		//size = READ_U32(hdr);
+		return new Box(maxSz, (const char *)"UKWN");
+    	}
+    	else
+    	{
+        	size = READ_U32(hdr);
+        	READ_U8(type, hdr, 4);
+        	type[4] = '\0';
+    	}
 
 	if (size > maxSz)
 	{
-		if(correctBoxSize)
-		{
-			//Fix box size to handle cases like receiving whole file for HTTP range requests 
-			AAMPLOG_WARN("%s:%d: Box[%s] fixing size error:size[%u] > maxSz[%u]\n",__FUNCTION__, __LINE__, type, size, maxSz);
-			hdr = hdr_start;
-			WRITE_U32(hdr,maxSz);
-			goto L_RESTART;
-		}
-		else
-		{
-			AAMPLOG_WARN("Box[%s] Size error:size[%u] > maxSz[%u]\n",type, size, maxSz);
-		}
+                if(correctBoxSize)
+                {
+                        //Fix box size to handle cases like receiving whole file for HTTP range requests
+			AAMPLOG_WARN("%s:%d: Box[%s] fixing size error:size[%u] > maxSz[%u]",__FUNCTION__, __LINE__, type, size, maxSz);
+                        hdr = hdr_start;
+                        WRITE_U32(hdr,maxSz);
+                        goto L_RESTART;
+                }
+                else
+                {
+#ifdef AAMP_DEBUG_BOX_CONSTRUCT
+                    AAMPLOG_WARN("Box[%s] Size error:size[%u] > maxSz[%u]",type, size, maxSz);
+#endif
+                }
 	}
 	else if (IS_TYPE(type, MOOV))
 	{
@@ -201,9 +245,17 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, bool correctBoxSize)
 	{
 		return GenericContainerBox::constructContainer(size, TRAF, hdr);
 	}
+	else if (IS_TYPE(type, TFHD))
+	{
+		return TfhdBox::constructTfhdBox(size,  hdr);
+	}
 	else if (IS_TYPE(type, TFDT))
 	{
 		return TfdtBox::constructTfdtBox(size,  hdr);
+	}
+	else if (IS_TYPE(type, TRUN))
+	{
+		return TrunBox::constructTrunBox(size,  hdr);
 	}
 	else if (IS_TYPE(type, MVHD))
 	{
@@ -216,6 +268,10 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, bool correctBoxSize)
 	else if (IS_TYPE(type, EMSG))
 	{
 		return EmsgBox::constructEmsgBox(size, hdr);
+	}
+	else if (IS_TYPE(type, PRFT))
+	{
+		return PrftBox::constructPrftBox(size,  hdr);
 	}
 
 	return new Box(size, (const char *)type);
@@ -237,9 +293,11 @@ GenericContainerBox::GenericContainerBox(uint32_t sz, const char btype[4]) : Box
  */
 GenericContainerBox::~GenericContainerBox()
 {
-	for (size_t i = 0; i < children.size(); i++)
+	for (unsigned int i = children.size(); i>0;)
 	{
+		--i;
 		delete children.at(i);
+		children.pop_back();
 	}
 	children.clear();
 }
@@ -518,7 +576,6 @@ TfdtBox* TfdtBox::constructTfdtBox(uint32_t sz, uint8_t *ptr)
 	FullBox fbox(sz, Box::TFDT, version, flags);
 	return new TfdtBox(fbox, mdt);
 }
-
 
 /**
  * @brief EmsgBox constructor
@@ -856,4 +913,259 @@ EmsgBox* EmsgBox::constructEmsgBox(uint32_t sz, uint8_t *ptr)
 		}
 	}
 	return retBox;
+}
+
+/**
+ * @brief TrunBox constructor
+ *
+ * @param[in] sz - box size
+ * @param[in] mdt - sampleDuration value
+ */
+TrunBox::TrunBox(uint32_t sz, uint64_t sampleDuration) : FullBox(sz, Box::TRUN, 0, 0), duration(sampleDuration)
+{
+}
+
+/**
+ * @brief TrunBox constructor
+ *
+ * @param[in] fbox - box object
+ * @param[in] mdt - BaseMediaDecodeTime value
+ */
+TrunBox::TrunBox(FullBox &fbox, uint64_t sampleDuration) : FullBox(fbox), duration(sampleDuration)
+{
+}
+
+/**
+ * @brief Set SampleDuration value
+ *
+ * @param[in] sampleDuration - Sample Duration value
+ * @return void
+ */
+void TrunBox::setSampleDuration(uint64_t sampleDuration)
+{
+    duration = sampleDuration;
+}
+
+/**
+ * @brief Get sampleDuration value
+ *
+ * @return sampleDuration value
+ */
+uint64_t TrunBox::getSampleDuration()
+{
+    return duration;
+}
+
+/**
+ * @brief Static function to construct a TrunBox object
+ *
+ * @param[in] sz - box size
+ * @param[in] ptr - pointer to box
+ * @return newly constructed TrunBox object
+ */
+TrunBox* TrunBox::constructTrunBox(uint32_t sz, uint8_t *ptr)
+{
+	const uint32_t TRUN_FLAG_DATA_OFFSET_PRESENT                    = 0x0001;
+	const uint32_t TRUN_FLAG_FIRST_SAMPLE_FLAGS_PRESENT             = 0x0004;
+	const uint32_t TRUN_FLAG_SAMPLE_DURATION_PRESENT                = 0x0100;
+	const uint32_t TRUN_FLAG_SAMPLE_SIZE_PRESENT                    = 0x0200;
+	const uint32_t TRUN_FLAG_SAMPLE_FLAGS_PRESENT                   = 0x0400;
+	const uint32_t TRUN_FLAG_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT = 0x0800;
+
+	uint8_t version = READ_VERSION(ptr);
+	uint32_t flags  = READ_FLAGS(ptr);
+	uint64_t sampleDuration = 0;//1001000; //fix-Me
+	uint32_t sample_count = 0;
+	uint32_t sample_duration = 0;
+	uint32_t sample_size = 0;
+	uint32_t sample_flags = 0;
+	uint32_t sample_composition_time_offset = 0;
+	uint32_t discard;
+	uint32_t totalSampleDuration = 0;
+
+	uint32_t record_fields_count = 0;
+
+	// count the number of bits set to 1 in the second byte of the flags
+	for (unsigned int i=0; i<8; i++)
+	{
+		if (flags & (1<<(i+8))) ++record_fields_count;
+	}
+
+	sample_count = READ_U32(ptr);
+
+	discard = READ_U32(ptr);
+
+	for (unsigned int i=0; i<sample_count; i++)
+	{
+		if (flags & TRUN_FLAG_SAMPLE_DURATION_PRESENT)
+		{
+			sample_duration = READ_U32(ptr);
+			totalSampleDuration += sample_duration;
+		}
+		if (flags & TRUN_FLAG_SAMPLE_SIZE_PRESENT)
+		{
+			sample_size = READ_U32(ptr);
+		}
+		if (flags & TRUN_FLAG_SAMPLE_FLAGS_PRESENT)
+		{
+			sample_flags = READ_U32(ptr);
+		}
+		if (flags & TRUN_FLAG_SAMPLE_COMPOSITION_TIME_OFFSET_PRESENT)
+		{
+			sample_composition_time_offset = READ_U32(ptr);
+		}
+	}
+	FullBox fbox(sz, Box::TRUN, version, flags);
+	return new TrunBox(fbox, totalSampleDuration);
+}
+
+TfhdBox::TfhdBox(uint32_t sz, uint64_t default_duration) : FullBox(sz, Box::TFHD, 0, 0), duration(default_duration)
+{
+
+}
+
+TfhdBox::TfhdBox(FullBox &fbox, uint64_t default_duration) : FullBox(fbox), duration(default_duration)
+{
+
+}
+
+void TfhdBox::setSampleDuration(uint64_t default_duration)
+{
+    duration = default_duration;
+}
+
+uint64_t TfhdBox::getSampleDuration()
+{
+    return duration;
+}
+
+/**
+ * @brief Static function to construct a TfhdBox object
+ *
+ * @param[in] sz - box size
+ * @param[in] ptr - pointer to box
+ * @return newly constructed TfhdBox object
+ */
+TfhdBox* TfhdBox::constructTfhdBox(uint32_t sz, uint8_t *ptr)
+{
+    uint8_t version = READ_VERSION(ptr); //8
+    uint32_t flags  = READ_FLAGS(ptr); //24
+
+    const uint32_t TFHD_FLAG_BASE_DATA_OFFSET_PRESENT            = 0x00001;
+    const uint32_t TFHD_FLAG_SAMPLE_DESCRIPTION_INDEX_PRESENT    = 0x00002;
+    const uint32_t TFHD_FLAG_DEFAULT_SAMPLE_DURATION_PRESENT     = 0x00008;
+    const uint32_t TFHD_FLAG_DEFAULT_SAMPLE_SIZE_PRESENT         = 0x00010;
+    const uint32_t TFHD_FLAG_DEFAULT_SAMPLE_FLAGS_PRESENT        = 0x00020;
+    const uint32_t TFHD_FLAG_DURATION_IS_EMPTY                   = 0x10000;
+    const uint32_t TFHD_FLAG_DEFAULT_BASE_IS_MOOF                = 0x20000;
+
+    uint32_t TrackId;
+    uint32_t BaseDataOffset;
+    uint32_t SampleDescriptionIndex;
+    uint32_t DefaultSampleDuration;
+    uint32_t DefaultSampleSize;
+    uint32_t DefaultSampleFlags;
+
+    TrackId = READ_U32(ptr);
+    if (flags & TFHD_FLAG_BASE_DATA_OFFSET_PRESENT) {
+        BaseDataOffset = READ_64(ptr);
+    } else {
+        BaseDataOffset = 0;
+    }
+    if (flags & TFHD_FLAG_SAMPLE_DESCRIPTION_INDEX_PRESENT) {
+        SampleDescriptionIndex = READ_U32(ptr);
+    } else {
+        SampleDescriptionIndex = 1;
+    }
+    if (flags & TFHD_FLAG_DEFAULT_SAMPLE_DURATION_PRESENT) {
+        DefaultSampleDuration = READ_U32(ptr);
+    } else {
+        DefaultSampleDuration = 0;
+    }
+    if (flags & TFHD_FLAG_DEFAULT_SAMPLE_SIZE_PRESENT) {
+        DefaultSampleSize = READ_U32(ptr);
+    } else {
+        DefaultSampleSize = 0;
+    }
+    if (flags & TFHD_FLAG_DEFAULT_SAMPLE_FLAGS_PRESENT) {
+        DefaultSampleFlags = READ_U32(ptr);
+    } else {
+        DefaultSampleFlags = 0;
+    }
+
+//    logprintf("TFHD constructTfhdBox TrackId: %d",TrackId );
+//    logprintf("TFHD constructTfhdBox BaseDataOffset: %d",BaseDataOffset );
+//    logprintf("TFHD constructTfhdBox SampleDescriptionIndex: %d",SampleDescriptionIndex);
+//    logprintf("TFHD constructTfhdBox DefaultSampleDuration: %d",DefaultSampleDuration );
+//    logprintf("TFHD constructTfhdBox DefaultSampleSize: %d",DefaultSampleSize );
+//    logprintf("TFHD constructTfhdBox DefaultSampleFlags: %d",DefaultSampleFlags );
+
+    FullBox fbox(sz, Box::TFHD, version, flags);
+    return new TfhdBox(fbox, DefaultSampleDuration);
+}
+
+PrftBox::PrftBox(uint32_t sz, uint32_t trackId, uint64_t ntpTs, uint64_t mediaTime) : FullBox(sz, Box::PRFT, 0, 0), track_id(trackId), ntp_ts(ntpTs), media_time(mediaTime)
+{
+
+}
+
+PrftBox::PrftBox(FullBox &fbox, uint32_t trackId, uint64_t ntpTs, uint64_t mediaTime) : FullBox(fbox), track_id(trackId), ntp_ts(ntpTs), media_time(mediaTime)
+{
+
+}
+
+void PrftBox::setTrackId(uint32_t trackId)
+{
+    track_id = trackId;
+}
+
+uint32_t PrftBox::getTrackId()
+{
+    return track_id;
+}
+
+void PrftBox::setNtpTs(uint64_t ntpTs)
+{
+    ntp_ts = ntpTs;
+}
+
+uint64_t PrftBox::getNtpTs()
+{
+    return ntp_ts;
+}
+
+void PrftBox::setMediaTime(uint64_t mediaTime)
+{
+    media_time = mediaTime;
+}
+
+uint64_t PrftBox::getMediaTime()
+{
+    return media_time;
+}
+
+/**
+ * @brief Static function to construct a PrftBox object
+ *
+ * @param[in] sz - box size
+ * @param[in] ptr - pointer to box
+ * @return newly constructed PrftBox object
+ */
+PrftBox* PrftBox::constructPrftBox(uint32_t sz, uint8_t *ptr)
+{
+    uint8_t version = READ_VERSION(ptr); //8
+    uint32_t flags  = READ_FLAGS(ptr); //24
+
+    uint32_t track_id = 0; // reference track ID
+    track_id = READ_U32(ptr);
+    uint64_t ntp_ts = 0; // NTP time stamp
+    ntp_ts = READ_64(ptr);
+    uint64_t pts = 0; //media time
+    pts = READ_64(ptr);
+//    logprintf("PRFT constructPrftBox TrackId: %d",track_id );
+//    logprintf("PRFT constructPrftBox Ntp TS: %llu",ntp_ts );
+//    logprintf("PRFT constructPrftBox Media Time: %ld",pts);
+    FullBox fbox(sz, Box::PRFT, version, flags);
+
+    return new PrftBox(fbox, track_id, ntp_ts, pts);
 }

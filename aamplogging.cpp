@@ -549,4 +549,4 @@ void DumpBlob(const unsigned char *ptr, size_t len)
 }
 /**
  * @}
- */
+*/

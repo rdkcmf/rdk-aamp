@@ -24,6 +24,7 @@
 
 #include "StreamAbstractionAAMP.h"
 #include "AampUtils.h"
+#include "isobmffbuffer.h"
 #include <assert.h>
 #include <errno.h>
 #include <math.h>
@@ -32,6 +33,8 @@
 #include <cmath>
 
 #define AAMP_BUFFER_MONITOR_GREEN_THRESHOLD 4 //2 fragments for MSO specific linear streams.
+//#define AAMP_DEBUG_INJECT_CHUNK
+//#define AAMP_DEBUG_FETCH_INJECT 1
 
 using namespace std;
 
@@ -178,6 +181,8 @@ void MediaTrack::MonitorBufferHealth()
 void MediaTrack::UpdateTSAfterInject()
 {
 	pthread_mutex_lock(&mutex);
+	AAMPLOG_TRACE("%s:%d [%s] Free cachedFragment[%d] numberOfFragmentsCached %d", __FUNCTION__, __LINE__,
+			name, fragmentIdxToInject, numberOfFragmentsCached);
 	aamp_Free(&cachedFragment[fragmentIdxToInject].fragment);
 	memset(&cachedFragment[fragmentIdxToInject], 0, sizeof(CachedFragment));
 	fragmentIdxToInject++;
@@ -196,6 +201,44 @@ void MediaTrack::UpdateTSAfterInject()
 	pthread_cond_signal(&fragmentInjected);
 	pthread_mutex_unlock(&mutex);
 }
+
+/**
+ * @brief Updates internal state after a fragment inject
+ */
+void MediaTrack::UpdateTSAfterChunkInject()
+{
+	pthread_mutex_lock(&mutex);
+	//Free Chunk Cache Buffer
+        aamp_Free(&cachedFragmentChunks[fragmentChunkIdxToInject].fragmentChunk);
+        memset(&cachedFragmentChunks[fragmentChunkIdxToInject], 0, sizeof(CachedFragmentChunk));
+
+	aamp_Free(&parsedBufferChunk);
+	memset(&parsedBufferChunk, 0x00, sizeof(GrowableBuffer));
+
+	//increment Inject Index
+	fragmentChunkIdxToInject = (++fragmentChunkIdxToInject) % maxCachedFragmentChunksPerTrack;
+	if(numberOfFragmentChunksCached > 0) numberOfFragmentChunksCached--;
+
+	AAMPLOG_TRACE("%s:%d [%s] updated fragmentChunkIdxToInject = %d numberOfFragmentChunksCached %d", __FUNCTION__, __LINE__,
+			name, fragmentChunkIdxToInject, numberOfFragmentChunksCached);
+
+	pthread_cond_signal(&fragmentChunkInjected);
+	pthread_mutex_unlock(&mutex);
+}
+
+
+/**
+ * @brief Receives cached fragment and injects to sink.
+ *
+ * @param[in] cachedFragmentChunk - contains fragment  Chunk to be processed and injected
+ * @param[out] fragmentChunkDiscarded - true if fragment is discarded.
+ */
+void MediaTrack::InjectFragmentChunkInternal(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration)
+{
+	aamp->SendStreamTransfer(mediaType, buffer,
+                     fpts, fdts, fDuration);
+
+} // InjectFragmentChunkInternal
 
 /**
  * @brief Updates internal state after a fragment fetch
@@ -273,6 +316,31 @@ void MediaTrack::UpdateTSAfterFetch()
 	}
 }
 
+/**
+ * @brief Updates internal state after a fragment fetch
+ */
+void MediaTrack::UpdateTSAfterChunkFetch()
+{
+	pthread_mutex_lock(&mutex);
+
+	numberOfFragmentChunksCached++;
+
+	AAMPLOG_TRACE("%s:%d [%s] numberOfFragmentChunksCached++ [%d]",__FUNCTION__, __LINE__, name,numberOfFragmentChunksCached);
+
+	//this should never HIT
+	assert(numberOfFragmentChunksCached <= maxCachedFragmentChunksPerTrack);
+
+	fragmentChunkIdxToFetch = (fragmentChunkIdxToFetch+1) % maxCachedFragmentChunksPerTrack;
+
+	AAMPLOG_TRACE("%s:%d [%s] updated fragmentChunkIdxToFetch [%d] numberOfFragmentChunksCached [%d]",
+			__FUNCTION__, __LINE__, name, fragmentChunkIdxToFetch, numberOfFragmentChunksCached);
+
+	totalFragmentChunksDownloaded++;
+	pthread_cond_signal(&fragmentChunkFetched);
+	pthread_mutex_unlock(&mutex);
+
+	AAMPLOG_TRACE("%s:%d [%s] pthread_cond_signal(fragmentChunkFetched)",__FUNCTION__, __LINE__, name);
+}
 
 /**
  * @brief Wait until a free fragment is available.
@@ -417,6 +485,124 @@ bool MediaTrack::WaitForCachedFragmentAvailable()
 	return ret;
 }
 
+/**
+ * @brief Wait until a cached fragment chunk is Injected.
+ * @retval true if fragment chunk injected , false on abort.
+ */
+bool MediaTrack::WaitForCachedFragmentChunkInjected(int timeoutMs)
+{
+	bool ret = true;
+	int pthreadReturnValue = 0;
+	pthread_mutex_lock(&mutex);
+
+	if ((numberOfFragmentChunksCached == maxCachedFragmentChunksPerTrack) && !(abort || abortInjectChunk))
+	{
+		if (timeoutMs >= 0)
+		{
+			struct timespec tspec = aamp_GetTimespec(timeoutMs);
+
+			pthreadReturnValue = pthread_cond_timedwait(&fragmentChunkInjected, &mutex, &tspec);
+
+			if (ETIMEDOUT == pthreadReturnValue)
+			{
+				ret = false;
+			}
+			else if (0 != pthreadReturnValue)
+			{
+				AAMPLOG_WARN("%s:%d [%s] pthread_cond_timedwait returned %s", __FUNCTION__, __LINE__, name, strerror(pthreadReturnValue));
+				ret = false;
+			}
+		}
+		else
+		{
+			AAMPLOG_TRACE("%s:%d [%s] waiting for fragmentChunkInjected condition", __FUNCTION__, __LINE__, name);
+			pthreadReturnValue = pthread_cond_wait(&fragmentChunkInjected, &mutex);
+
+			if (0 != pthreadReturnValue)
+			{
+				AAMPLOG_WARN("%s:%d [%s] pthread_cond_wait returned %s", __FUNCTION__, __LINE__, name, strerror(pthreadReturnValue));
+				ret = false;
+			}
+			AAMPLOG_TRACE("%s:%d [%s] wait complete for fragmentChunkInjected", __FUNCTION__, __LINE__, name);
+		}
+	}
+	if(abort || abortInjectChunk)
+	{
+		AAMPLOG_TRACE("%s:%d [%s] abort set, returning false", __FUNCTION__, __LINE__, name);
+		ret = false;
+	}
+
+	AAMPLOG_TRACE("%s:%d [%s] fragmentChunkIdxToFetch = %d numberOfFragmentChunksCached %d",
+			__FUNCTION__, __LINE__, name, fragmentChunkIdxToFetch, numberOfFragmentChunksCached);
+
+    pthread_mutex_unlock(&mutex);
+    return ret;
+}
+
+/**
+ * @brief Wait until a cached fragment chunk is available.
+ * @retval true if fragment available, false on abort.
+ */
+bool MediaTrack::WaitForCachedFragmentChunkAvailable()
+{
+	bool ret = true;
+	pthread_mutex_lock(&mutex);
+
+	AAMPLOG_TRACE("%s:%d [%s] Acquired MUTEX ==> fragmentChunkIdxToInject = %d numberOfFragmentChunksCached %d ret = %d abort = %d abortInjectChunk = %d cleanChunkCache = %d", __FUNCTION__, __LINE__, name, fragmentChunkIdxToInject, numberOfFragmentChunksCached, ret, abort, abortInjectChunk, cleanChunkCache);
+
+	if(cleanChunkCache )
+	{
+		AAMPLOG_TRACE("%s:%d [%s]numberOfFragmentChunksCached %d ", __FUNCTION__, __LINE__, name, numberOfFragmentChunksCached);
+
+		if((!cleanChunkCacheInitiated) && numberOfFragmentChunksCached == 0 )
+		{
+			logprintf("%s:%d [%s] Ignore Chunk Inject(After) - Cleanup In-progress!!!", __FUNCTION__, __LINE__, name);
+			cleanChunkCacheInitiated = true;
+
+			for (int i = 0; i < DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK; i++)
+			{
+				aamp_Free(&cachedFragmentChunks[i].fragmentChunk);
+				memset(&cachedFragmentChunks[i], 0, sizeof(CachedFragmentChunk));
+			}
+			aamp_Free(&unparsedBufferChunk);
+			memset(&unparsedBufferChunk, 0x00, sizeof(GrowableBuffer));
+			aamp_Free(&parsedBufferChunk);
+			memset(&parsedBufferChunk, 0x00, sizeof(GrowableBuffer));
+		}
+
+		if( numberOfFragmentChunksCached == 0)
+		{
+			pthread_cond_signal(&fragmentChunkClean);
+			pthread_mutex_unlock(&mutex);
+		}
+		return ret;
+	}
+
+	if ((numberOfFragmentChunksCached == 0) && !(abort || abortInjectChunk || cleanChunkCache))
+	{
+		AAMPLOG_TRACE("## %s:%d [%s] Waiting for CachedFragment to be available, eosReached=%d ##", __FUNCTION__, __LINE__, name, eosReached);
+
+		if (!eosReached)
+		{
+			int pthreadReturnValue = 0;
+			pthreadReturnValue = pthread_cond_wait(&fragmentChunkFetched, &mutex);
+			if (0 != pthreadReturnValue)
+			{
+				AAMPLOG_WARN("%s:%d [%s] pthread_cond_wait(fragmentChunkFetched) returned %s", __FUNCTION__, __LINE__, name, strerror(pthreadReturnValue));
+			}
+			AAMPLOG_TRACE("%s:%d [%s] wait complete for fragmentChunkFetched", __FUNCTION__, __LINE__, name);
+		}
+	}
+
+
+	ret = !(abort || abortInjectChunk);
+
+	AAMPLOG_TRACE("%s:%d [%s] fragmentChunkIdxToInject = %d numberOfFragmentChunksCached %d ret = %d abort = %d abortInjectChunk = %d",
+			 __FUNCTION__, __LINE__, name, fragmentChunkIdxToInject, numberOfFragmentChunksCached, ret, abort, abortInjectChunk);
+
+	pthread_mutex_unlock(&mutex);
+	return ret;
+}
 
 /**
  * @brief Aborts wait for fragment.
@@ -435,7 +621,16 @@ void MediaTrack::AbortWaitForCachedAndFreeFragment(bool immediate)
 		}
 #endif
 		pthread_cond_signal(&fragmentInjected);
-
+		if(aamp->GetLLDashServiceData()->lowLatencyMode)
+		{
+			AAMPLOG_TRACE("%s:%d [%s] signal fragmentChunkInjected condition", __FUNCTION__, __LINE__, name);
+			pthread_cond_signal(&fragmentChunkInjected);
+		}
+	}
+	if(aamp->GetLLDashServiceData()->lowLatencyMode)
+	{
+		AAMPLOG_TRACE("%s:%d [%s] signal fragmentChunkFetched condition", __FUNCTION__, __LINE__, name);
+		pthread_cond_signal(&fragmentChunkFetched);
 	}
 	pthread_cond_signal(&aamp->waitforplaystart);
 	pthread_cond_signal(&fragmentFetched);
@@ -451,11 +646,19 @@ void MediaTrack::AbortWaitForCachedAndFreeFragment(bool immediate)
 void MediaTrack::AbortWaitForCachedFragment()
 {
 	pthread_mutex_lock(&mutex);
+
+	if(aamp->GetLLDashServiceData()->lowLatencyMode)
+	{
+		abortInjectChunk = true;
+		AAMPLOG_TRACE("%s:%d [%s] signal fragmentChunkFetched condition", __FUNCTION__, __LINE__, name);
+		pthread_cond_signal(&fragmentChunkFetched);
+	}
+
 	abortInject = true;
 #ifdef AAMP_DEBUG_FETCH_INJECT
 	if ((1 << type) & AAMP_DEBUG_FETCH_INJECT)
 	{
-		logprintf("%s:%d [%s] signal fragmentInjected condition", __FUNCTION__, __LINE__, name);
+		logprintf("%s:%d [%s] signal fragmentFetched condition", __FUNCTION__, __LINE__, name);
 	}
 #endif
 	pthread_cond_signal(&fragmentFetched);
@@ -465,12 +668,264 @@ void MediaTrack::AbortWaitForCachedFragment()
 }
 
 /**
+ * @brief Process next cached fragment chunk
+ */
+bool MediaTrack::ProcessFragmentChunk()
+{
+	//Get Cache buffer
+	CachedFragmentChunk* cachedFragmentChunk = &this->cachedFragmentChunks[fragmentChunkIdxToInject];
+	if(cachedFragmentChunk != NULL && NULL == cachedFragmentChunk->fragmentChunk.ptr)
+	{
+		AAMPLOG_TRACE("%s:%d [%s] Ignore NULL Chunk - cachedFragmentChunk->fragmentChunk.len %d", __FUNCTION__, __LINE__, name, cachedFragmentChunk->fragmentChunk.len);
+		return false;
+	}
+
+	size_t requiredLength = cachedFragmentChunk->fragmentChunk.len + unparsedBufferChunk.len;
+	AAMPLOG_TRACE("%s:%d [%s] cachedFragmentChunk->fragmentChunk.len [%d] to unparsedBufferChunk.len [%d] Required Len [%d]", __FUNCTION__, __LINE__, name, cachedFragmentChunk->fragmentChunk.len, unparsedBufferChunk.len, requiredLength);
+
+	//Append Cache buffer to unparsed buffer for processing
+	aamp_AppendBytes(&unparsedBufferChunk, cachedFragmentChunk->fragmentChunk.ptr, cachedFragmentChunk->fragmentChunk.len);
+
+#if 0  //enable to avoid small buffer processing
+	if(cachedFragmentChunk->fragmentChunk.len < 500)
+	{
+		AAMPLOG_TRACE("%s:%d [%s] cachedFragmentChunk->fragmentChunk.len [%d] Ignoring", __FUNCTION__, __LINE__, name, cachedFragmentChunk->fragmentChunk.len);
+		return true;
+	}
+#endif
+	//Parse Chunk Data
+	IsoBmffBuffer isobuf;                   /**< Fragment Chunk buffer box parser*/
+	const Box *pBox = NULL;
+	std::vector<Box*> *pBoxes;
+	std::vector<Box*> boxes;
+	size_t mdatCount = 0;
+	size_t parsedBoxCount = 0;
+	char *unParsedBuffer = NULL;
+	size_t parsedBufferSize = 0, unParsedBufferSize = 0;
+	
+	unParsedBuffer = unparsedBufferChunk.ptr;
+	unParsedBufferSize = parsedBufferSize = unparsedBufferChunk.len;
+
+	isobuf.setBuffer(reinterpret_cast<uint8_t *>(unparsedBufferChunk.ptr), unparsedBufferChunk.len);
+
+	AAMPLOG_TRACE("%s:%d [%s] Unparsed Buffer Size: %d", __FUNCTION__, __LINE__, name,unparsedBufferChunk.len);
+
+	bool bParse = false;
+	try
+	{
+		bParse = isobuf.parseBuffer();
+	}
+	catch( std::bad_alloc& ba)
+	{
+		AAMPLOG_ERR("%s %d: Bad allocation: %s", __FUNCTION__, __LINE__, ba.what() );
+	}
+	catch( std::exception &e)
+	{
+		AAMPLOG_ERR("%s %d: Unhandled exception: %s", __FUNCTION__, __LINE__, e.what() );
+	}
+	catch( ... )
+	{
+		AAMPLOG_ERR("%s %d:  Unknown exception", __FUNCTION__, __LINE__ );
+	}
+	if(!bParse)
+	{
+		AAMPLOG_INFO("%s:%d [%s] No Box available in cache chunk: fragmentChunkIdxToInject %d", __FUNCTION__, __LINE__, name, fragmentChunkIdxToInject);
+		return true;
+	}
+	//Print box details
+	//isobuf.printBoxes();
+
+	isobuf.getMdatBoxCount(mdatCount);
+	if(!mdatCount)
+	{
+		noMDATCount++;
+		AAMPLOG_TRACE("%s:%d [%s] No MDAT Found. Exit noMDATCount=%d fragmentChunkIdxToInject=%d", __FUNCTION__, __LINE__, name,noMDATCount, fragmentChunkIdxToInject);
+		isobuf.destroyBoxes();
+		if(noMDATCount > MAX_MDAT_NOT_FOUND_COUNT)
+		{
+			//AAMPLOG_WARN("%s:%d [%s] scheduling retune since noMDATCount is [%d]", __FUNCTION__, __LINE__, name,noMDATCount);
+			AAMPLOG_WARN("%s:%d [%s] scheduling retune REQUIRED since noMDATCount is [%d]", __FUNCTION__, __LINE__, name,noMDATCount);
+			aamp->ScheduleRetune(eDASH_LOW_LATENCY_INPUT_PROTECTION_ERROR,eMEDIATYPE_VIDEO);
+		}
+		return true;
+	}
+	noMDATCount = 0;
+	totalMdatCount += mdatCount;
+	AAMPLOG_TRACE("%s:%d [%s] MDAT count found: %d, Total Found: %d", __FUNCTION__, __LINE__, name,  mdatCount, totalMdatCount );
+
+	pBoxes = isobuf.getParsedBoxes();
+	parsedBoxCount = pBoxes->size();
+
+	pBox = isobuf.getChunkedfBox();
+	if(pBox)
+	{
+		parsedBoxCount--;
+
+		AAMPLOG_TRACE("%s:%d [%s] MDAT Chunk Found - Actual Parsed Box Count: %d", __FUNCTION__, __LINE__, name,parsedBoxCount);
+		AAMPLOG_TRACE("%s:%d [%s] Chunk Offset[%u] Chunk Type[%s] Chunk Size[%u]\n", __FUNCTION__, __LINE__, name, pBox->getOffset(), pBox->getBoxType(), pBox->getSize());
+	}
+	if(mdatCount)
+	{
+		int lastMDatIndex = -1;
+		//Get Last MDAT box
+		for(int i=parsedBoxCount-1;i>=0;i--)
+		{
+			Box *box = pBoxes->at(i);
+			if (IS_TYPE(box->getType(), Box::MDAT))
+			{
+				lastMDatIndex = i;
+
+				AAMPLOG_TRACE("%s:%d [%s] Last MDAT Index : %d", __FUNCTION__, __LINE__, name,lastMDatIndex);
+
+				//Calculate unparsed buffer based on last MDAT
+				unParsedBuffer += (box->getOffset()+box->getSize()); //increment buffer pointer to chunk offset
+				unParsedBufferSize -= (box->getOffset()+box->getSize()); //decerese by parsed buffer size
+
+				parsedBufferSize -= unParsedBufferSize; //get parsed buf size
+
+				AAMPLOG_TRACE("%s:%d [%s] parsedBufferSize : %d updated unParsedBufferSize: %d Total Buf Size processed: %d", __FUNCTION__, __LINE__, name,parsedBufferSize,unParsedBufferSize,parsedBufferSize+unParsedBufferSize);
+
+				break;
+			}
+		}
+
+		uint64_t fPts = 0;
+		double fpts = 0.0;
+		uint64_t fDuration = 0;
+		double fduration = 0.0;
+		uint64_t totalChunkDuration = 0.0;
+
+		//logprintf("===========Base Media Decode Time Start================");
+		//isobuf.PrintPTS();
+		//logprintf("============Base Media Decode Time End===============");
+
+		for(int i=0;i<lastMDatIndex;i++)
+		{
+			Box *box = pBoxes->at(i);
+#ifdef AAMP_DEBUG_INJECT_CHUNK
+			logprintf("%s:%d [%s] Type: %s", __FUNCTION__, __LINE__, name,box->getType());
+#endif
+			if (IS_TYPE(box->getType(), Box::MOOF))
+			{
+				isobuf.getSampleDuration(box, fDuration);
+				totalChunkDuration += fDuration;
+#ifdef AAMP_DEBUG_INJECT_CHUNK
+				logprintf("%s:%d [%s] fDuration = %lld, totalChunkDuration = %lld", __FUNCTION__, __LINE__, name,fDuration, totalChunkDuration);
+#endif
+			}
+		}
+		//get PTS of buffer
+		bool bParse = isobuf.getFirstPTS(fPts);
+		if (bParse)
+		{
+			AAMPLOG_TRACE("%s:%d [%s] fPts %lld", __FUNCTION__, __LINE__,name, fPts);
+		}
+
+		uint32_t timeScale = 0;
+		if(type == eTRACK_VIDEO)
+		{
+			timeScale = aamp->GetLLDashVidTimeScale();
+		}
+		else if(type == eTRACK_AUDIO)
+		{
+			timeScale = aamp->GetLLDashAudTimeScale();
+		}
+
+		if(!timeScale)
+		{
+			//FIX-ME-Read from MPD INSTEAD
+			timeScale = GetContext()->GetCurrPeriodTimeScale();
+			if(!timeScale)
+			{
+				timeScale = 10000000.0;
+				AAMPLOG_WARN("%s:%d [%s] Empty timeScale!!! Using default timeScale=%d", __FUNCTION__, __LINE__, name, timeScale);
+			}
+		}
+
+		fpts = fPts/(timeScale*1.0);
+		fduration = totalChunkDuration/(timeScale*1.0);
+
+		//Prepeare parsed buffer
+		aamp_AppendBytes(&parsedBufferChunk, unparsedBufferChunk.ptr, parsedBufferSize);
+#ifdef AAMP_DEBUG_INJECT_CHUNK
+		IsoBmffBuffer isobufTest;
+		//TEST CODE for PARSED DATA COMPELTENESS
+		isobufTest.setBuffer(reinterpret_cast<uint8_t *>(parsedBufferChunk.ptr), parsedBufferChunk.len);
+		isobufTest.parseBuffer();
+		if(isobufTest.getChunkedfBox())
+		{
+			logprintf("%s:%d [%s] CHUNK Found in parsed buffer. Something is wrong", __FUNCTION__, __LINE__, name);
+		}
+		else
+		{
+			logprintf("%s:%d [%s] No CHUNK Found in parsed buffer. All Good to Send", __FUNCTION__, __LINE__, name);
+		}
+		//isobufTest.printBoxes();
+		isobufTest.destroyBoxes();
+#endif
+
+		InjectFragmentChunkInternal((MediaType)type,&parsedBufferChunk , fpts, fpts, fduration);
+		totalInjectedChunksDuration += fduration;
+	}
+
+	// Move unparsed data sections to beginning
+	//Available size remains same
+	//This buffer should be released on Track cleanup
+	if(unParsedBufferSize)
+	{
+		AAMPLOG_TRACE("%s:%d [%s] unparsed[%p] unparsed_size[%u]", __FUNCTION__, __LINE__, name,unParsedBuffer,unParsedBufferSize);
+
+		GrowableBuffer tempBuffer;
+		memset(&tempBuffer,0x00,sizeof(GrowableBuffer));
+		aamp_AppendBytes(&tempBuffer,unParsedBuffer,unParsedBufferSize);
+		aamp_Free(&unparsedBufferChunk);
+		memset(&unparsedBufferChunk,0x00,sizeof(GrowableBuffer));
+		aamp_AppendBytes(&unparsedBufferChunk,tempBuffer.ptr,tempBuffer.len);
+		aamp_Free(&tempBuffer);
+		memset(&tempBuffer,0x00,sizeof(GrowableBuffer));
+	}
+	else
+	{
+		AAMPLOG_TRACE("%s:%d [%s] Set Unparsed Buffer chunk Empty...", __FUNCTION__, __LINE__, name);
+		aamp_Free(&unparsedBufferChunk);
+		memset(&unparsedBufferChunk, 0x00, sizeof(GrowableBuffer));
+	}
+	isobuf.destroyBoxes();
+	return true;
+}
+
+/**
+ * @brief Inject next cached fragment
+ */
+bool MediaTrack::InjectFragmentChunk()
+{
+    bool ret = true;
+
+    if (WaitForCachedFragmentChunkAvailable())
+    {
+        bool bIgnore = true;
+        bIgnore = ProcessFragmentChunk();
+        if(bIgnore)
+            UpdateTSAfterChunkInject();
+    }
+    else
+    {
+        logprintf("WaitForCachedFragmentChunkAvailable %s aborted", name);
+        ret = false;
+    }
+    return ret;
+}
+
+/**
  * @brief Inject next cached fragment
  */
 bool MediaTrack::InjectFragment()
 {
 	bool ret = true;
-	aamp->BlockUntilGstreamerWantsData(NULL, 0, type);
+	if(!aamp->GetLLDashServiceData()->lowLatencyMode)
+	{
+		aamp->BlockUntilGstreamerWantsData(NULL, 0, type);
+	}
 
 	if (WaitForCachedFragmentAvailable())
 	{
@@ -677,6 +1132,30 @@ static void *FragmentInjector(void *arg)
 	return NULL;
 }
 
+/**
+ * @brief Fragment Chunk injector thread
+ * @param arg Pointer to MediaTrack
+ * @retval NULL
+ */
+static void *FragmentChunkInjector(void *arg)
+{
+	MediaTrack *track = (MediaTrack *)arg;
+	bool bFlag = false;
+	if(track->type == eTRACK_VIDEO)
+	{
+		bFlag = aamp_pthread_setname(pthread_self(), "VideoChunkInjector");
+	}
+	else if(track->type == eTRACK_AUDIO)
+	{
+		bFlag = aamp_pthread_setname(pthread_self(), "AudioChunkInjector");
+	}
+	if(!bFlag)
+	{
+		AAMPLOG_WARN("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
+	}
+	track->RunInjectChunkLoop();
+	return NULL;
+}
 
 
 /**
@@ -698,73 +1177,112 @@ void MediaTrack::StartInjectLoop()
 	}
 }
 
+/**
+ * @brief Starts inject loop of track
+ */
+void MediaTrack::StartInjectChunkLoop()
+{
+	abort = false;
+	abortInjectChunk = false;
+	discontinuityProcessed = false;
+	assert(!fragmentChunkInjectorThreadStarted);
+	if (0 == pthread_create(&fragmentChunkInjectorThreadID, NULL, &FragmentChunkInjector, this))
+	{
+		fragmentChunkInjectorThreadStarted = true;
+	}
+	else
+	{
+        AAMPLOG_WARN("Failed to create FragmentChunkInjector thread");
+	}
+}
 
 /**
  * @brief Injection loop - use internally by injection logic
  */
 void MediaTrack::RunInjectLoop()
 {
-	AAMPLOG_WARN("fragment injector started. track %s", name);
-	bool notifyFirstFragment = true;
-	bool keepInjecting = true;
-	if ((AAMP_NORMAL_PLAY_RATE == aamp->rate) && !bufferMonitorThreadStarted )
-	{
-		if (0 == pthread_create(&bufferMonitorThreadID, NULL, &BufferHealthMonitor, this))
-		{
-			bufferMonitorThreadStarted = true;
-		}
-		else
-		{
-			logprintf("Failed to create BufferHealthMonitor thread errno = %d, %s", errno, strerror(errno));
-		}
-	}
-	totalInjectedDuration = 0;
-	while (aamp->DownloadsAreEnabled() && keepInjecting)
-	{
-		if (!InjectFragment())
-		{
-			keepInjecting = false;
-		}
-		if (notifyFirstFragment && type != eTRACK_SUBTITLE && type != eTRACK_AUX_AUDIO)
-		{
-			notifyFirstFragment = false;
-			GetContext()->NotifyFirstFragmentInjected();
-		}
-		// BCOM-2959  -- Disable audio video balancing for CDVR content .. 
-		// CDVR Content includes eac3 audio, the duration of audio doesnt match with video
-		// and hence balancing fetch/inject not needed for CDVR
-		if(!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback) && !aamp->IsCDVRContent())
-		{
-			StreamAbstractionAAMP* pContext = GetContext();
-			if(pContext != NULL)
-			{
-				if(eTRACK_AUDIO == type)
-				{
-					pContext->WaitForVideoTrackCatchup();
-				}
-				else if (eTRACK_VIDEO == type)
-				{
-					pContext->ReassessAndResumeAudioTrack(false);
-				}
-				else if (eTRACK_SUBTITLE == type)
-				{
-					pContext->WaitForAudioTrackCatchup();
-				}
+    AAMPLOG_WARN("fragment injector started. track %s", name);
+    bool notifyFirstFragment = true;
+    bool keepInjecting = true;
+    if ((AAMP_NORMAL_PLAY_RATE == aamp->rate) && !bufferMonitorThreadStarted )
+
+    {
+        if (0 == pthread_create(&bufferMonitorThreadID, NULL, &BufferHealthMonitor, this))
+        {
+            bufferMonitorThreadStarted = true;
+        }
+        else
+        {
+            logprintf("Failed to create BufferHealthMonitor thread errno = %d, %s", errno, strerror(errno));
+        }
+    }
+    totalInjectedDuration = 0;
+    while (aamp->DownloadsAreEnabled() && keepInjecting)
+    {
+        if (!InjectFragment())
+        {
+            keepInjecting = false;
+        }
+        if (notifyFirstFragment && type != eTRACK_SUBTITLE)
+        {
+            notifyFirstFragment = false;
+            GetContext()->NotifyFirstFragmentInjected();
+        }
+        // BCOM-2959  -- Disable audio video balancing for CDVR content ..
+        // CDVR Content includes eac3 audio, the duration of audio doesnt match with video
+        // and hence balancing fetch/inject not needed for CDVR
+        if(!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback) && !aamp->IsCDVRContent())
+        {
+            StreamAbstractionAAMP* pContext = GetContext();
+            if(pContext != NULL)
+            {
+                if(eTRACK_AUDIO == type)
+                {
+                    pContext->WaitForVideoTrackCatchup();
+                }
+                else if (eTRACK_VIDEO == type)
+                {
+                    pContext->ReassessAndResumeAudioTrack(false);
+                }
+                else if (eTRACK_SUBTITLE == type)
+                {
+                    pContext->WaitForAudioTrackCatchup();
+                }
 				else if (eTRACK_AUX_AUDIO == type)
 				{
 					pContext->WaitForVideoTrackCatchupForAux();
 				}
-			}
-			else
-			{
-				AAMPLOG_WARN("%s:%d :  GetContext  is null", __FUNCTION__, __LINE__);  //CID:85546 - Null Return
-			}
-		}
-	}
-	abortInject = true;
-	AAMPLOG_WARN("fragment injector done. track %s", name);
+            }
+            else
+            {
+                AAMPLOG_WARN("%s:%d :  GetContext  is null", __FUNCTION__, __LINE__);  //CID:85546 - Null Return
+            }
+        }
+    }
+    abortInject = true;
+    AAMPLOG_WARN("fragment injector done. track %s", name);
 }
 
+/**
+ * @brief Injection loop - use internally by injection logic
+ */
+void MediaTrack::RunInjectChunkLoop()
+{
+	AAMPLOG_WARN("fragment Chunk injector started. track %s", name);
+	bool notifyFirstFragmentChunk = true;
+	bool keepInjectingChunk = true;
+
+	totalInjectedChunksDuration = 0;
+	while (aamp->DownloadsAreEnabled() && keepInjectingChunk)
+	{
+		if (!InjectFragmentChunk())
+		{
+			keepInjectingChunk = false;
+		}
+	}
+	abortInjectChunk = true;
+	AAMPLOG_WARN("fragment chunk injector done. track %s", name);
+}
 
 /**
  * @brief Stop inject loop of track
@@ -788,6 +1306,27 @@ void MediaTrack::StopInjectLoop()
 	fragmentInjectorThreadStarted = false;
 }
 
+/**
+ * @brief Stop inject chunk loop of track
+ */
+void MediaTrack::StopInjectChunkLoop()
+{
+	if (fragmentChunkInjectorThreadStarted)
+	{
+		int rc = pthread_join(fragmentChunkInjectorThreadID, NULL);
+		if (rc != 0)
+		{
+			logprintf("***pthread_join fragmentInjectorChunkThread returned %d(%s)", rc, strerror(rc));
+		}
+#ifdef TRACE
+		else
+		{
+			logprintf("joined fragmentInjectorChunkThread");
+		}
+#endif
+	}
+	fragmentChunkInjectorThreadStarted = false;
+}
 
 /**
  * @brief Check if a track is enabled
@@ -819,6 +1358,34 @@ CachedFragment* MediaTrack::GetFetchBuffer(bool initialize)
 	return cachedFragment;
 }
 
+/**
+ * @brief Get buffer to fetch chunk and cache next fragment chunk
+ * @param[in] initialize true to initialize the fragment chunk
+ * @retval Pointer to fragment chunk buffer.
+ */
+CachedFragmentChunk* MediaTrack::GetFetchChunkBuffer(bool initialize)
+{
+	if(fragmentChunkIdxToFetch <0 || fragmentChunkIdxToFetch >= maxCachedFragmentChunksPerTrack)
+	{
+		AAMPLOG_WARN("%s:%d [%s] OUT OF RANGE => fragmentChunkIdxToFetch: %d", __FUNCTION__, __LINE__,name,fragmentChunkIdxToFetch);
+		return NULL;
+	}
+
+	CachedFragmentChunk* cachedFragmentChunk = NULL;
+	cachedFragmentChunk = &this->cachedFragmentChunks[fragmentChunkIdxToFetch];
+
+	AAMPLOG_TRACE("%s:%d [%s] fragmentChunkIdxToFetch: %d cachedFragmentChunk: %p", __FUNCTION__, __LINE__,name, fragmentChunkIdxToFetch, cachedFragmentChunk);
+
+	if(initialize && cachedFragmentChunk)
+	{
+		if (cachedFragmentChunk->fragmentChunk.ptr)
+		{
+			AAMPLOG_WARN("%s:%d [%s] fragmentChunk.ptr[%p] already set - possible memory leak (len=[%d],avail=[%d])", __FUNCTION__, __LINE__,name, cachedFragmentChunk->fragmentChunk.ptr, cachedFragmentChunk->fragmentChunk.len,cachedFragmentChunk->fragmentChunk.avail);
+		}
+		memset(&cachedFragmentChunk->fragmentChunk, 0x00, sizeof(GrowableBuffer));
+	}
+	return cachedFragmentChunk;
+}
 
 /**
  * @brief Set current bandwidth of track
@@ -870,32 +1437,97 @@ void MediaTrack::FlushFragments()
 }
 
 /**
+* @brief Cleans all cached fragment Chunks and unparsed buffer
+*
+* @return void
+*/
+void MediaTrack::CleanChunkCache()
+{
+	pthread_mutex_lock(&mutex);
+	logprintf("%s:%d Clean Chunk Cache",__FUNCTION__, __LINE__);
+
+	cleanChunkCache = true;
+	pthread_cond_signal(&fragmentChunkFetched);
+
+	int pthreadReturnValue = 0;
+	pthreadReturnValue = pthread_cond_wait(&fragmentChunkClean, &mutex);
+	if (0 != pthreadReturnValue)
+	{
+		AAMPLOG_WARN("%s:%d [%s] pthread_cond_wait(fragmentChunkClean) returned %s", __FUNCTION__, __LINE__, name, strerror(pthreadReturnValue));
+	}
+	logprintf("%s:%d [%s] wait complete for fragmentChunkClean", __FUNCTION__, __LINE__, name);
+
+	cleanChunkCache = false;
+	cleanChunkCacheInitiated = false;
+	pthread_mutex_unlock(&mutex);
+}
+
+/**
+ * @brief Flushes all cached fragment Chunks
+ *
+ * @return void
+ */
+void MediaTrack::FlushFragmentChunks()
+{
+	logprintf("%s:%d [%s]",__FUNCTION__, __LINE__, name);
+
+	for (int i = 0; i < maxCachedFragmentChunksPerTrack; i++)
+	{
+		aamp_Free(&cachedFragmentChunks[i].fragmentChunk);
+		memset(&cachedFragmentChunks[i], 0, sizeof(CachedFragmentChunk));
+	}
+	aamp_Free(&unparsedBufferChunk);
+	memset(&unparsedBufferChunk, 0x00, sizeof(GrowableBuffer));
+	aamp_Free(&parsedBufferChunk);
+	memset(&parsedBufferChunk, 0x00, sizeof(GrowableBuffer));
+
+	fragmentChunkIdxToInject = 0;
+	fragmentChunkIdxToFetch = 0;
+	numberOfFragmentChunksCached = 0;
+	totalFragmentChunksDownloaded = 0;
+	totalInjectedChunksDuration = 0;
+}
+
+/**
  * @brief MediaTrack Constructor
  * @param type Type of track
  * @param aamp Pointer to associated aamp instance
  * @param name Name of the track
  */
 MediaTrack::MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* name) :
-		eosReached(false), enabled(false), numberOfFragmentsCached(0), fragmentIdxToInject(0),
-		fragmentIdxToFetch(0), abort(false), fragmentInjectorThreadID(0), bufferMonitorThreadID(0), totalFragmentsDownloaded(0),
-		fragmentInjectorThreadStarted(false), bufferMonitorThreadStarted(false), totalInjectedDuration(0), currentInitialCacheDurationSeconds(0),
-		sinkBufferIsFull(false), cachingCompleted(false), fragmentDurationSeconds(0), segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
+		eosReached(false), enabled(false), numberOfFragmentsCached(0), numberOfFragmentChunksCached(0), fragmentIdxToInject(0), fragmentChunkIdxToInject(0),
+fragmentIdxToFetch(0), fragmentChunkIdxToFetch(0), abort(false), fragmentInjectorThreadID(0), fragmentChunkInjectorThreadID(0),bufferMonitorThreadID(0), totalFragmentsDownloaded(0), totalFragmentChunksDownloaded(0),
+		fragmentInjectorThreadStarted(false), fragmentChunkInjectorThreadStarted(false),bufferMonitorThreadStarted(false), totalInjectedDuration(0), totalInjectedChunksDuration(0), currentInitialCacheDurationSeconds(0),
+		sinkBufferIsFull(false), cachingCompleted(false), fragmentDurationSeconds(0),  segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN),
 		bandwidthBitsPerSecond(0), totalFetchedDuration(0),
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
 		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false),
-		mSubtitleParser(), refreshSubtitles(false), maxCachedFragmentsPerTrack(0)
+		mSubtitleParser(), refreshSubtitles(false), maxCachedFragmentsPerTrack(0),
+		totalMdatCount(0), cachedFragmentChunks{}, unparsedBufferChunk{}, parsedBufferChunk{}, fragmentChunkFetched(), fragmentChunkInjected(), abortInjectChunk(false), maxCachedFragmentChunksPerTrack(0),
+		fragmentChunkClean(), cleanChunkCache(false),cleanChunkCacheInitiated(false), noMDATCount(0)
 {
-        GETCONFIGVALUE(eAAMPConfig_MaxFragmentCached,maxCachedFragmentsPerTrack);
+	GETCONFIGVALUE(eAAMPConfig_MaxFragmentCached,maxCachedFragmentsPerTrack);
 	cachedFragment = new CachedFragment[maxCachedFragmentsPerTrack];
 	for(int X =0; X< maxCachedFragmentsPerTrack; ++X){
 		memset(&cachedFragment[X], 0, sizeof(CachedFragment));
 	}
+
+	if(aamp->GetLLDashServiceData()->lowLatencyMode)
+	{
+		GETCONFIGVALUE(eAAMPConfig_MaxFragmentChunkCached,maxCachedFragmentChunksPerTrack);
+		for(int X =0; X< DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK; ++X)
+			memset(&cachedFragmentChunks[X], 0x00, sizeof(CachedFragmentChunk));
+
+		pthread_cond_init(&fragmentChunkFetched, NULL);
+		pthread_cond_init(&fragmentChunkInjected, NULL);
+		pthread_cond_init(&fragmentChunkClean, NULL);
+	}
+
 	pthread_cond_init(&fragmentFetched, NULL);
 	pthread_cond_init(&fragmentInjected, NULL);
 	pthread_mutex_init(&mutex, NULL);
 }
-
 
 /**
  * @brief MediaTrack Destructor
@@ -922,16 +1554,32 @@ MediaTrack::~MediaTrack()
 		// DELIA-45035: For debugging purpose
 		logprintf("In MediaTrack destructor - fragmentInjectorThreads are still running, signalling cond variable");
 	}
+	if (fragmentChunkInjectorThreadStarted)
+	{
+		// DELIA-45035: For debugging purpose
+		logprintf("In MediaTrack destructor - fragmentChunkInjectorThreads are still running, signalling cond variable");
+	}
 
-	for (int j=0; j< maxCachedFragmentsPerTrack; j++)
+	if(aamp->GetLLDashServiceData()->lowLatencyMode)
+	{
+		FlushFragmentChunks();
+		pthread_cond_destroy(&fragmentChunkFetched);
+		pthread_cond_destroy(&fragmentChunkInjected);
+		pthread_cond_destroy(&fragmentChunkClean);
+	}
+    
+	for (int j = 0; j < maxCachedFragmentsPerTrack; j++)
 	{
 		aamp_Free(&cachedFragment[j].fragment);
+		memset(&cachedFragment[j], 0x00, sizeof(CachedFragment));
 	}
+
 	if(cachedFragment)
 	{
 		delete [] cachedFragment;
 		cachedFragment = NULL;
 	}
+	
 	pthread_cond_destroy(&fragmentFetched);
 	pthread_cond_destroy(&fragmentInjected);
 	pthread_mutex_destroy(&mutex);

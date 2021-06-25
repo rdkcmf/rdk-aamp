@@ -136,6 +136,10 @@ useAbsoluteTimeline		Enable Report Progress report position based on Availabilit
 id3				Enable/Disable ID3 tag.Default is false
 repairIframes		Enable/Disable iframe fragment repair (stripping and box adjustment) for HLS mp4 when whole file is received for ranged request. Default is false
 sharedSSL			Enabled/Disable curl shared SSL session. Default is true
+enableLowLatencyDash		Enable/Disable Low Latency Dash. Default is false
+disableLowLatencyMonitor	Enable/Disable Low Latency Monitor. Default is true
+disableLowLatencyABR		Enable/Disable Low Latency ABR. Default is true
+disableLowLatencyCorrection	Enable/Disable Low Latency Correction. Default is true
 
 // Integer inputs
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune
@@ -195,6 +199,9 @@ onTuneRate			Tune rate.Default is INT_MAX
 dashMaxDrmSessions		Max drm sessions that can be cached by AampDRMSessionManager.Default is 3
 log				New Configuration to overide info/debug/trace.Default is 0
 livePauseBehavior               Player paused state behavior.Default is 0(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE)
+latencyMonitorDelay		Low Latency Monitor delay.Default is 5(DEFAULT_LATENCY_MONITOR_DELAY)
+latencyMonitorInterval	Low Latency Monitor Interval.Default is 2(DEFAULT_LATENCY_MONITOR_INTERVAL)
+downloadBufferChunks		Low Latency Fragment chunk cache length (defaults 20 chunks)
 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets

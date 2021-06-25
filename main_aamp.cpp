@@ -1273,6 +1273,7 @@ void PlayerInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 void PlayerInstanceAAMP::SetLiveOffset(int liveoffset)
 {
 	ERROR_STATE_CHECK_VOID();
+	aamp->SetLiveOffsetAppRequest(true);
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LiveOffset,(double)liveoffset);
 }
 

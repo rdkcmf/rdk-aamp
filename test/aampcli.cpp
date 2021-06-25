@@ -931,7 +931,14 @@ static void ProcessCliCommand( char *cmd )
 		}
 		else
 		{
-			mSingleton->Tune(cmd);
+			if (memcmp(cmd, "live", 4) == 0)
+			{
+				mSingleton->SeekToLive();
+			}
+			else
+			{
+				mSingleton->Tune(cmd);
+			}
 		}
 	}
 	else if( memcmp(cmd, "next", 4) == 0 )

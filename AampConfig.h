@@ -174,12 +174,17 @@ typedef enum
 	eAAMPConfig_Disable4K,							/** Enalbe/Disable 4K stream support*/
 	eAAMPConfig_EnableSharedSSLSession,                                             /** Enable/Disable config for shared ssl session reuse */
 	eAAMPConfig_InterruptHandling,							/**<Enables Config for network interrupt handling*/
+	eAAMPConfig_EnableLowLatencyDash,                           			/** Enables Low Latency Dash */
+	eAAMPConfig_DisableLowLatencyMonitor,                   				/** Enables Low Latency Monitor Thread */
+	eAAMPConfig_DisableLowLatencyABR,							/** Enables Low Latency ABR handling */
+	eAAMPConfig_DisableLowLatencyCorrection,                    			/** Enables Low Latency Correction handling */
+	eAAMPConfig_EnableLowLatencyOffsetMin,                                /** Enables Low Latency Offset Min handling */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
 	eAAMPConfig_HarvestCountLimit,									/**< Number of files to be harvested */
 	eAAMPConfig_HarvestConfig,									/**< Indicate type of file to be  harvest */
-	eAAMPConfig_ABRCacheLife,									/**< Adaptive bitrate cache life in seconds*/
+	eAAMPConfig_ABRCacheLife,								/**< Adaptive bitrate cache life in seconds*/
 	eAAMPConfig_ABRCacheLength,									/**< Adaptive bitrate cache length*/
 	eAAMPConfig_TimeShiftBufferLength,								/**< TSB length*/
 	eAAMPConfig_ABRCacheOutlier,								/**< Adaptive bitrate outlier, if values goes beyond this*/
@@ -218,6 +223,10 @@ typedef enum
 	eAAMPConfig_LivePauseBehavior,                                                          /**< player paused state behavior */
 	eAAMPConfig_GstVideoBufBytes,                                                           /**< Gstreamer Max Video buffering bytes*/
 	eAAMPConfig_GstAudioBufBytes,                                                           /**< Gstreamer Max Audio buffering bytes*/
+	eAAMPConfig_LatencyMonitorDelay,                            				/**< Latency Monitor Delay */
+	eAAMPConfig_LatencyMonitorInterval,                         				/**< Latency Monitor Interval */
+	eAAMPConfig_MaxFragmentChunkCached,                         				/**< fragment chunk cache length*/
+	eAAMPConfig_ABRChunkThresholdSize,                         				/**< AAMP ABR Chunk threshold size*/
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,
