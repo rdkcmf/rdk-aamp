@@ -4211,6 +4211,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	else
 	{
 		prevPositionMiliseconds = -1;
+		int volume = audio_volume;
 		double updatedSeekPosition = mpStreamAbstractionAAMP->GetStreamPosition();
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
 		UpdateProfileCappedStatus();
@@ -4271,10 +4272,21 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			*/
 			mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
 		}
+		else if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
+		{
+			mStreamSink->Flush(updatedSeekPosition, rate);
+			// ff trick mode, mp4 content is single file and muted audio to avoid glitch
+			if (rate > AAMP_NORMAL_PLAY_RATE)
+			{
+				volume = 0;
+			}
+			// reset seek_pos after updating playback start, since mp4 content provide absolute position value
+			seek_pos_seconds = 0;
+		}
 #endif
 		mStreamSink->SetVideoZoom(zoom_mode);
 		mStreamSink->SetVideoMute(video_muted);
-		mStreamSink->SetAudioVolume(audio_volume);
+		mStreamSink->SetAudioVolume(volume);
 		if (mbPlayEnabled)
 		{
 			mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mpStreamAbstractionAAMP->GetESChangeStatus(), mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
@@ -5628,7 +5640,6 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 			long long elapsedTime = aamp_GetCurrentTimeMS() - trickStartUTCMS;
 			positionMiliseconds += (((elapsedTime > 1000) ? elapsedTime : 0) * rate);
 		}
-
 		if ((-1 != prevPositionMiliseconds) && (AAMP_NORMAL_PLAY_RATE == rate))
 		{
 			long long diff = positionMiliseconds - prevPositionMiliseconds;
@@ -5667,7 +5678,6 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 			}
 		}
 	}
-
 	prevPositionMiliseconds = positionMiliseconds;
 	return positionMiliseconds;
 }
