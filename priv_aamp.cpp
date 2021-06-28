@@ -7745,9 +7745,10 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 			int idx = 0;
 			do
 			{
-				InterruptableMsSleep(sleepTimeBetweenDnld);
 				if(DownloadsAreEnabled())
 				{
+					InterruptableMsSleep(sleepTimeBetweenDnld);
+
 					// First check if the file is already in Cache
 					PreCacheUrlStruct newelem = mPreCacheDnldList.at(idx);
 					
@@ -7777,6 +7778,10 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 					{
 						// wait for seek to complete 
 						sleep(1);
+					}
+					else
+					{
+						usleep(500000); // call sleep for other stats except seeking and prepared, otherwise this thread will run in highest priority until the state changes.
 					}
 				}
 				GetState(state);
