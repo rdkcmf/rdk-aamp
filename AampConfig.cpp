@@ -49,7 +49,7 @@ template void AampConfig::SetConfigValue<bool>(ConfigPriority owner, AAMPConfigS
 std::string AampConfig::cWindowsCfg= AAMP_CFG_PATH;
 std::string AampConfig::cWindowsJsonCfg = AAMP_JSON_PATH;
 #endif
-
+static ConfigPriority customOwner;
 /**
  * @brief AAMP Config Owners enum-string mapping table
  */
@@ -60,7 +60,7 @@ static AampOwnerLookupEntry OwnerLookUpTable[] =
 	{"oper",AAMP_OPERATOR_SETTING},
 	{"stream",AAMP_STREAM_SETTING},
 	{"app",AAMP_APPLICATION_SETTING},
-	{"tune",AAMP_APPLICATION_SETTING},
+	{"tune",AAMP_TUNE_SETTING},
 	{"cfg",AAMP_DEV_CFG_SETTING},
 	{"unknown",AAMP_MAX_SETTING}
 };
@@ -230,7 +230,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
  *
  * @return None
  */
-AampConfig::AampConfig():playerId(0),mAampLookupTable(),mChannelOverrideMap(),logging(),mAampDevCmdTable()
+AampConfig::AampConfig():playerId(0),mAampLookupTable(),mChannelOverrideMap(),logging(),mAampDevCmdTable(),vCustom(),vCustomIt()
 {
 	for(int i=0; i<sizeof(ConfigLookUpTable) / sizeof(AampConfigLookupEntry); ++i)
 	{
@@ -662,7 +662,7 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 		{
 			cJSON *custom = cJSON_GetObjectItem(cfgdata, "Custom");
 			if(custom != NULL){
-			CustomArrayRead( custom );}
+			CustomArrayRead( custom,owner );}
 			std::string keyname;
 			for (auto it = mAampLookupTable.begin(); it != mAampLookupTable.end(); ++it)
 			{
@@ -798,19 +798,29 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 /**
  * @brief CustomArrayRead - Function to Read Custom JSON Array
  * * @param[in] customArray - input string where custom config json will be stored
+ * * @param[in] owner - ownership of configs will be stored
  **/
-void AampConfig::CustomArrayRead( cJSON *customArray )
+void AampConfig::CustomArrayRead( cJSON *customArray,ConfigPriority owner )
 {
 	std::string keyname;
 	customJson customValues;
-	std::vector<struct customJson>vCustom;
 	cJSON *customVal=NULL;
 	cJSON *searchVal=NULL;
+	customOwner = owner;
 	int length = cJSON_GetArraySize(customArray);
 	if(customArray != NULL)
 	{
 		for(int i = 0; i < length ; i++){
 			customVal = cJSON_GetArrayItem(customArray,i);
+			if(searchVal = cJSON_GetObjectItem(customVal,"url")){
+				keyname = "url";}
+			else if(searchVal = cJSON_GetObjectItem(customVal,"playerId")){
+				keyname = "playerId";}
+			else if(searchVal = cJSON_GetObjectItem(customVal,"appName")){
+				keyname = "appName";}
+			customValues.config = keyname;
+			customValues.configValue = searchVal->valuestring;
+			vCustom.push_back(customValues);
 			for (auto it = mAampLookupTable.begin(); it != mAampLookupTable.end(); ++it){
 				keyname =  it->first;
 				searchVal = cJSON_GetObjectItem(customVal,keyname.c_str());
@@ -821,9 +831,206 @@ void AampConfig::CustomArrayRead( cJSON *customArray )
 				}
 			}
 		}
+		for(int i = 0; i < vCustom.size(); i++)
+		{
+			logprintf("Custom Values listed %s %s \n",vCustom[i].config.c_str(),vCustom[i].configValue.c_str());
+		}
 	}
 }
 		
+/**
+ * @brief CustomSearch - Function to apply custom settings
+ *
+ * @param[in] str  - input string where url name will be stored
+ * @param[in] int  - input int variable where playerId will be stored
+ * @param[in] str  - input string where appname will be stored
+ * @return true
+ */
+bool AampConfig::CustomSearch( std::string url, int playerId , std::string appname)
+{
+	bool found = false;
+	logprintf("url %s playerid %d appname %s \n",url.c_str(),playerId,appname.c_str());
+	std::string url_custom = url;
+	std::string playerId_custom = std::to_string(playerId);
+	std::string appName_custom = appname;
+	std::string keyname;
+	std::string player = "url";
+	std::string urlName = "playerId";
+	std::string appName = "appName";
+	size_t foundurl;
+	int index = 0;
+	do{
+	auto it = std::find_if( vCustom.begin(), vCustom.end(),[](const customJson & item) { return item.config == "url"; });
+	if (it != vCustom.end())
+	{
+		int distance = std::distance(vCustom.begin(),it);
+		foundurl = url_custom.find(vCustom[distance].configValue);
+		if( foundurl != std::string::npos){
+		index = distance;
+		logprintf("FOUND URL %s \n", vCustom[index].configValue.c_str());
+		found = true;
+		break;}
+	}
+	auto it1 = std::find_if( vCustom.begin(), vCustom.end(),[](const customJson & item) { return item.config == "playerId"; });
+	if (it1 != vCustom.end())
+	{
+		int distance = std::distance(vCustom.begin(),it1);
+		foundurl = playerId_custom.find(vCustom[distance].configValue);
+		if( foundurl != std::string::npos){
+		index = distance;
+		logprintf("FOUND PLAYERID %s \n", vCustom[index].configValue.c_str());
+		found = true;
+		break;}
+	}
+	auto it2 = std::find_if( vCustom.begin(), vCustom.end(),[](const customJson & item) { return item.config == "appName"; });
+	if (it2 != vCustom.end())
+	{
+		int distance = std::distance(vCustom.begin(),it2);
+		foundurl = appName_custom.find(vCustom[distance].configValue);
+		if( foundurl != std::string::npos){
+		index = distance;
+		logprintf("FOUND AAPNAME %s \n",vCustom[index].configValue.c_str());
+		found = true;
+		break;}
+	}
+	if((vCustom.size()!=0) && ((it != vCustom.end())|| (it1 != vCustom.end()) || (it2 != vCustom.end())))
+	{
+		for( int i = 0; i < vCustom.size(); i++ )
+		{
+			for (auto it = mAampLookupTable.begin(); it != mAampLookupTable.end(); ++it)
+			{
+				AampConfigLookupEntry cfg = it->second;
+                                AAMPConfigSettings cfgEnum = cfg.cfgEntryValue;
+                                keyname =  it->first;
+				if(strcmp(vCustom[i].config.c_str(),keyname.c_str()) == 0)
+                                {
+					if(cfgEnum < eAAMPConfig_BoolMaxValue )
+					{
+						if( bAampCfgValue[cfgEnum].owner == AAMP_DEV_CFG_SETTING )
+ 						{
+							bAampCfgValue[cfgEnum].owner = bAampCfgValue[cfgEnum].lastowner;
+							bAampCfgValue[cfgEnum].value = bAampCfgValue[cfgEnum].lastvalue;
+						}
+ 					}
+					else if(cfgEnum > eAAMPConfig_IntStartValue && cfgEnum < eAAMPConfig_IntMaxValue)
+					{
+						if(iAampCfgValue[cfgEnum-eAAMPConfig_IntStartValue].owner == AAMP_DEV_CFG_SETTING )
+						{
+ 							iAampCfgValue[cfgEnum-eAAMPConfig_IntStartValue].owner = iAampCfgValue[cfgEnum-eAAMPConfig_IntStartValue].lastowner;
+ 							iAampCfgValue[cfgEnum-eAAMPConfig_IntStartValue].value = iAampCfgValue[cfgEnum-eAAMPConfig_IntStartValue].lastvalue;
+						}
+					}
+					else if(cfgEnum > eAAMPConfig_LongStartValue && cfgEnum < eAAMPConfig_LongMaxValue)
+					{
+						if(lAampCfgValue[cfgEnum-eAAMPConfig_LongStartValue].owner == AAMP_DEV_CFG_SETTING )
+						{
+							lAampCfgValue[cfgEnum-eAAMPConfig_LongStartValue].owner = lAampCfgValue[cfgEnum-eAAMPConfig_LongStartValue].lastowner;
+							lAampCfgValue[cfgEnum-eAAMPConfig_LongStartValue].value = lAampCfgValue[cfgEnum-eAAMPConfig_LongStartValue].lastvalue;
+						}
+					}
+					else if(cfgEnum > eAAMPConfig_DoubleStartValue && cfgEnum < eAAMPConfig_DoubleMaxValue)
+					{
+						if(dAampCfgValue[cfgEnum-eAAMPConfig_DoubleStartValue].owner == AAMP_DEV_CFG_SETTING ) 
+						{
+							dAampCfgValue[cfgEnum-eAAMPConfig_DoubleStartValue].owner = dAampCfgValue[cfgEnum-eAAMPConfig_DoubleStartValue].lastowner;
+							dAampCfgValue[cfgEnum-eAAMPConfig_DoubleStartValue].value = dAampCfgValue[cfgEnum-eAAMPConfig_DoubleStartValue].lastvalue;
+						}
+					}
+					else if(cfgEnum > eAAMPConfig_StringStartValue && cfgEnum < eAAMPConfig_StringMaxValue)
+					{
+						if(sAampCfgValue[cfgEnum-eAAMPConfig_StringStartValue].owner == AAMP_DEV_CFG_SETTING )
+						{
+							sAampCfgValue[cfgEnum-eAAMPConfig_StringStartValue].owner = sAampCfgValue[cfgEnum-eAAMPConfig_StringStartValue].lastowner;
+							sAampCfgValue[cfgEnum-eAAMPConfig_StringStartValue].value = sAampCfgValue[cfgEnum-eAAMPConfig_StringStartValue].lastvalue;
+						}
+					}
+				}
+			}
+		}
+	}
+        logprintf("Not applicable values \n");
+	}while (0);
+
+	if (found == false)
+	{
+		return false;
+	}
+	for( int i = index+1; i < vCustom.size(); i++ )
+	{
+		if(vCustom[i].config == urlName){
+		break;}
+		else if(vCustom[i].config == player){
+		break;}
+		else if(vCustom[i].config == appName){
+		break;}
+		else{
+		for (auto it = mAampLookupTable.begin(); it != mAampLookupTable.end(); ++it)
+		{
+			AampConfigLookupEntry cfg = it->second;
+			AAMPConfigSettings cfgEnum = cfg.cfgEntryValue;
+			keyname =  it->first;
+			if(strcmp(vCustom[i].config.c_str(),keyname.c_str()) == 0)
+			{
+				if(cfgEnum < eAAMPConfig_BoolMaxValue )
+				{
+					if(strcmp(vCustom[i].configValue.c_str(),"true") == 0)
+					{
+						SetConfigValue<bool>(customOwner,cfgEnum,true);
+					}
+					else
+					{
+						SetConfigValue<bool>(customOwner,cfgEnum,false);
+					}
+				}
+				else if(cfgEnum > eAAMPConfig_IntStartValue && cfgEnum < eAAMPConfig_IntMaxValue)
+				{
+					int conv = atoi(vCustom[i].configValue.c_str());
+					if(ValidateRange(keyname,conv))
+					{
+						SetConfigValue<int>(customOwner,cfgEnum,conv);
+					}
+					else
+					{
+						logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+					}
+				}
+				else if(cfgEnum > eAAMPConfig_LongStartValue && cfgEnum < eAAMPConfig_LongMaxValue)
+				{
+					long conv = atol(vCustom[i].configValue.c_str());
+					if(ValidateRange(keyname,conv))
+					{
+						SetConfigValue<long>(customOwner,cfgEnum,conv);
+					}
+					else
+					{
+						logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+					}
+				}
+				else if(cfgEnum > eAAMPConfig_DoubleStartValue && cfgEnum < eAAMPConfig_DoubleMaxValue)
+				{
+					double conv= (double)atof(vCustom[i].configValue.c_str());
+					if(ValidateRange(keyname,conv))
+					{
+						SetConfigValue<double>(customOwner,cfgEnum,conv);
+					}
+					else
+					{
+						logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+					}
+				}
+				else if(cfgEnum > eAAMPConfig_StringStartValue && cfgEnum < eAAMPConfig_StringMaxValue)
+				{
+					SetConfigValue<std::string>(customOwner,cfgEnum,std::string(vCustom[i].configValue.c_str()));
+				}
+			}
+		}}
+	}
+	return true;
+}
+
+
+
+
 
 
 /**

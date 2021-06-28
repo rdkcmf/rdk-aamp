@@ -4435,7 +4435,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	{
 		mainManifestUrl = remapUrl;
 	}
-
+	mConfig->CustomSearch(mainManifestUrl,mPlayerId,mAppName);
 	/** Least priority operator setting will override the value only if it is not set from dev config **/ 
 	SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_WideVineKIDWorkaround,IsWideVineKIDWorkaround(mainManifestUrl));
 	mIsWVKIDWorkaround = ISCONFIGSET_PRIV(eAAMPConfig_WideVineKIDWorkaround);

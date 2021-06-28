@@ -414,7 +414,8 @@ public:
 	static void SetCfgDrive(char drivename);
 	bool GetAampConfigJSONStr(std::string &str);
 	bool GetDeveloperConfigData(std::string &key,std::string &value);
-	void CustomArrayRead( cJSON *customArray );
+	void CustomArrayRead( cJSON *customArray,ConfigPriority owner );
+	bool CustomSearch( std::string url, int playerId , std::string appname);
 
 	////////// Special Functions /////////////////////////
 	std::string GetUserAgentString();
@@ -441,6 +442,8 @@ private:
 	typedef std::map<std::string, std::string> DevCmds;
 	typedef std::map<std::string, std::string>::iterator DevCmdsIter;
 	DevCmds mAampDevCmdTable;
+	std::vector<struct customJson>vCustom;
+	std::vector<struct customJson>::iterator vCustomIt;
 	ConfigBool	bAampCfgValue[eAAMPConfig_BoolMaxValue];								// Stores bool configuration
 	ConfigInt	iAampCfgValue[eAAMPConfig_IntMaxValue-eAAMPConfig_IntStartValue];		// Stores int configuration
 	ConfigLong	lAampCfgValue[eAAMPConfig_LongMaxValue-eAAMPConfig_LongStartValue];		// Stores long configuration
