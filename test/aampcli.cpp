@@ -46,10 +46,11 @@
 #include <list>
 #include <sstream>
 #include <string>
-//#include <stdio.h>
+#include <ctype.h>
 #include <gst/gst.h>
 #include <priv_aamp.h>
 #include <main_aamp.h>
+#include "AampConfig.h"
 #include "../StreamAbstractionAAMP.h"
 
 #define MAX_BUFFER_LENGTH 4096
@@ -106,7 +107,7 @@ typedef enum{
 	eAAMP_SET_SubscribedTags,
 	eAAMP_SET_LicenseServerUrl,
 	eAAMP_SET_AnonymousRequest,
-	eAAMP_SET_VodTrickplayFps,
+	eAAMP_SET_VodTrickplayFps = 10,
 	eAAMP_SET_LinearTrickplayFps,
 	eAAMP_SET_LiveOffset,
 	eAAMP_SET_StallErrorCode,
@@ -116,7 +117,7 @@ typedef enum{
 	eAAMP_SET_InitialBitrate,
 	eAAMP_SET_InitialBitrate4k,
 	eAAMP_SET_NetworkTimeout,
-	eAAMP_SET_ManifestTimeout,
+	eAAMP_SET_ManifestTimeout = 20,
 	eAAMP_SET_DownloadBufferSize,
 	eAAMP_SET_PreferredDrm,
 	eAAMP_SET_StereoOnlyPlayback,
@@ -126,7 +127,7 @@ typedef enum{
 	eAAMP_SET_DownloadStallTimeout,
 	eAAMP_SET_DownloadStartTimeout,
 	eAAMP_SET_PreferredSubtitleLang,
-	eAAMP_SET_ParallelPlaylistDL,
+	eAAMP_SET_ParallelPlaylistDL = 30,
 	eAAMP_SET_PreferredLanguages,
 	eAAMP_SET_RampDownLimit,
 	eAAMP_SET_InitRampdownLimit,
@@ -136,7 +137,7 @@ typedef enum{
 	eAAMP_SET_MaximumDrmDecryptFailCount,
 	eAAMP_SET_RegisterForID3MetadataEvents,
 	eAAMP_SET_InitialBufferDuration,
-	eAAMP_SET_AudioTrack,
+	eAAMP_SET_AudioTrack = 40,
 	eAAMP_SET_TextTrack,
 	eAAMP_SET_CCStatus,
 	eAAMP_SET_CCStyle,
@@ -144,7 +145,8 @@ typedef enum{
 	eAAMP_SET_PropagateUriParam,
 	eAAMP_SET_ThumbnailTrack,
 	eAAMP_SET_SslVerifyPeer,
-	eAAMP_SET_PausedBehavior
+	eAAMP_SET_PausedBehavior,
+	eAAMP_SET_DownloadDelayOnFetch = 49
 }AAMPSetTypes;
 
 /**
@@ -600,7 +602,9 @@ void ShowHelpSet(){
 	printf("set 44 <x>            // Set a predefined CC style option (x = 1/2/3)\n");
 	printf("set 45 <x>            // Set propagate uri parameters: (int x = 0 to disable)\n");
 	printf("set 46 <x>            // Set Thumbnail Track (int x = Thumbnail Index)\n");
-	printf("set 47 <x>            // Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"\n");
+	printf("set 47 <x>            // Set Ssl Verify Peer flag (x = 1 for enabling)\n");
+	printf("set 48 <x>            // Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"\n");
+	printf("set 49 <x>            // Set delay while downloading fragments (unsigned int x = download delay in ms)\n");
 	printf("******************************************************************************************\n");
 }
 
@@ -716,7 +720,7 @@ public:
 		case AAMP_EVENT_PROGRESS:
 			{
 				ProgressEventPtr ev = std::dynamic_pointer_cast<ProgressEvent>(e);
-				printf("[AAMPCLI] AAMP_EVENT_PROGRESS\n\tDuration=%lf\n\tposition=%lf\n\tstart=%lf\n\tend=%lf\n\tcurrRate=%f\n\tBufferedDuration=%lf\n\tPTS=%lld",ev->getDuration(),ev->getPosition(),ev->getStart(),ev->getEnd(),ev->getSpeed(),ev->getBufferedDuration(),ev->getPTS());
+				printf("[AAMPCLI] AAMP_EVENT_PROGRESS\n\tDuration=%lf\n\tposition=%lf\n\tstart=%lf\n\tend=%lf\n\tcurrRate=%f\n\tBufferedDuration=%lf\n\tPTS=%lld\n",ev->getDuration(),ev->getPosition(),ev->getStart(),ev->getEnd(),ev->getSpeed(),ev->getBufferedDuration(),ev->getPTS());
 				break;
 			}
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
@@ -735,20 +739,8 @@ public:
 				printf("[AAMPCLI] AAMP_EVENT_AUDIO_TRACKS_CHANGED");
 				break;
 		case AAMP_EVENT_ID3_METADATA:
-			{
 				printf("[AAMPCLI] AAMP_EVENT_ID3_METADATA\n");
-				ID3MetadataEventPtr ev = std::dynamic_pointer_cast<ID3MetadataEvent>(e);
-				std::vector<uint8_t> metadata = ev->getMetadata();
-				int len = ev->getMetadataSize();
-				printf("[AAMPCLI] ID3 payload, length %d bytes:", len);
-				printf("\t");
-				for (int i = 0; i < len; i++)
-				{
-					printf("%c", metadata[i]);
-				}
-				printf("\n");
 				break;
-			}
 		case AAMP_EVENT_BLOCKED :
 			{
 				BlockedEventPtr ev = std::dynamic_pointer_cast<BlockedEvent>(e);
@@ -822,7 +814,20 @@ static void TuneToChannel( VirtualChannelInfo &channel )
 	const char *name = channel.name.c_str();
 	const char *locator = channel.uri.c_str();
 	printf( "TUNING to '%s' %s\n", name, locator );
-	mSingleton->Tune(locator);
+	if (mSingleton->GetAsyncTuneConfig())
+	{
+		std::string &uri = channel.uri;
+		mSingleton->ScheduleTask(AsyncTaskObj([uri](void *data)
+					{
+						PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+						logprintf("Calling tune via async tune, uri:%s!!", uri.c_str());
+						instance->Tune(uri.c_str());
+					}, (void *)mSingleton));
+	}
+	else
+	{
+		mSingleton->Tune(channel.uri.c_str());
+	}
 }
 
 /**
@@ -857,6 +862,7 @@ static void ProcessCliCommand( char *cmd )
 	long grace = 0;
 	long time = -1;
 	bool eventChange=false;
+	unsigned int DownloadDelayInMs = 0;
 	trim(&cmd);
 	while( *cmd==' ' ) cmd++;
 	if (cmd[0] == 0)
@@ -877,7 +883,20 @@ static void ProcessCliCommand( char *cmd )
 	}
 	else if (IsTuneScheme(cmd))
 	{
-		mSingleton->Tune(cmd);
+		if (mSingleton->GetAsyncTuneConfig())
+		{
+			std::string uri = cmd;
+			mSingleton->ScheduleTask(AsyncTaskObj([uri](void *data)
+						{
+							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+							logprintf("Calling tune via async tune, uri:%s!!", uri.c_str());
+							instance->Tune(uri.c_str());
+						}, (void *)mSingleton));
+		}
+		else
+		{
+			mSingleton->Tune(cmd);
+		}
 	}
 	else if( memcmp(cmd, "next", 4) == 0 )
 	{
@@ -961,7 +980,20 @@ static void ProcessCliCommand( char *cmd )
 	}
 	else if (sscanf(cmd, "seek %lf %d", &seconds, &keepPaused) >= 1)
 	{
-		mSingleton->Seek(seconds, (keepPaused==1) );
+		bool seekWhilePaused = (keepPaused==1);
+		if (mSingleton->GetAsyncTuneConfig())
+		{
+			mSingleton->ScheduleTask(AsyncTaskObj([seconds, seekWhilePaused](void *data)
+							{
+								PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+								logprintf("Calling seek via async tune, seconds:%lf!!", seconds);
+								instance->Seek(seconds, seekWhilePaused);
+							}, (void *)mSingleton));
+		}
+		else
+		{
+			mSingleton->Seek(seconds, (keepPaused==1) );
+		}
 		keepPaused = 0;
 	}
 	else if (strcmp(cmd, "sf") == 0)
@@ -1702,6 +1734,15 @@ static void ProcessCliCommand( char *cmd )
 					printf("[AAMPCLI] Setting ThumbnailTrack : %s\n",mSingleton->SetThumbnailTrack(rate)?"Success":"Failure");
 					break;
 				}
+				case eAAMP_SET_DownloadDelayOnFetch:
+				{
+						logprintf("Matched Command eAAMP_SET_DownloadDelayOnFetch - %s",cmd);
+						sscanf(cmd, "set %d %d", &opt, &DownloadDelayInMs);
+						mSingleton->ApplyArtificialDownloadDelay(DownloadDelayInMs);
+						break;
+				}
+
+
 				case eAAMP_SET_PausedBehavior:
 				{
 					char behavior[24];
@@ -2243,9 +2284,18 @@ static std::string GetNextFieldFromCSV( const char **pptr )
 	const char *delim = ptr;
 	const char *next = ptr;
 
+	if (!isprint(*ptr) && *ptr != '\0')
+	{  // Skip BOM UTF-8 start codes and not end of string
+		while (!isprint(*ptr) && *ptr != '\0')
+		{
+			ptr++;
+		}
+		delim = ptr;
+	}
+	
 	if( *ptr=='\"' )
-	{
-		ptr++; // skip startquote
+	{ // Skip startquote
+		ptr++;
 		delim  = strchr(ptr,'\"');
 		if( delim )
 		{
@@ -2257,8 +2307,8 @@ static std::string GetNextFieldFromCSV( const char **pptr )
 		}
 	}
 	else
-	{
-		while( *delim>=' ' && *delim!=',' )
+	{  // Include space and greater chars and not , and not end of string
+		while( *delim >= ' ' && *delim != ',' && *delim != '\0')
 		{
 			delim++;
 		}
@@ -2279,10 +2329,18 @@ static void LoadVirtualChannelMapFromCSV( FILE *f )
 		VirtualChannelInfo channelInfo;
 		const char *ptr = buf;
 		std::string channelNumber = GetNextFieldFromCSV( &ptr );
+		// invalid input results in 0 -- !VIRTUAL_CHANNEL_VALID, will be auto assigned
 		channelInfo.channelNumber = atoi(channelNumber.c_str());
 		channelInfo.name = GetNextFieldFromCSV(&ptr);
 		channelInfo.uri = GetNextFieldFromCSV(&ptr);
-		mVirtualChannelMap.Add( channelInfo );
+		if (!channelInfo.name.empty() && !channelInfo.uri.empty())
+		{
+			mVirtualChannelMap.Add( channelInfo );
+		}
+		else
+		{ // no name, no uri, no service
+			printf("[AAMPCLI] can not parse virtual channel '%s'\n", buf);
+		}
 	}
 }
 
@@ -2319,7 +2377,8 @@ static void LoadVirtualChannelMapLegacyFormat( FILE *f )
 		}
 		
 		VirtualChannelInfo channelInfo;		// extract channel number
-		channelInfo.channelNumber = atoi(ptr);  // invalid input results in 0 -- !VIRTUAL_CHANNEL_VALID
+		// invalid input results in 0 -- !VIRTUAL_CHANNEL_VALID, will be auto assigned
+		channelInfo.channelNumber = atoi(ptr);
 		while( *ptr>='0' && *ptr<='9' ) ptr++;
 		ptr = skipwhitespace(ptr);
 		
@@ -2376,6 +2435,7 @@ int main(int argc, char **argv)
 	ABRManager mAbrManager;
 
 	/* Set log directory path for AAMP and ABR Manager */
+	AampConfig::SetCfgDrive(driveName);
 	mLogManager.setLogAndCfgDirectory(driveName);
 	mAbrManager.setLogDirectory(driveName);
 

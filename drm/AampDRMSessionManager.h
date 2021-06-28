@@ -153,6 +153,7 @@ private:
 	bool curlSessionAbort;
 	bool licenseRequestAbort;
 	bool mEnableAccessAtrributes;
+	int mMaxDRMSessions;
 
 	AampDRMSessionManager(const AampDRMSessionManager &) = delete;
 	AampDRMSessionManager& operator=(const AampDRMSessionManager &) = delete;
@@ -163,7 +164,7 @@ private:
 			double dlnow, double ultotal, double ulnow );
 public:
 
-	AampDRMSessionManager();
+	AampDRMSessionManager(int maxDrmSessions);
 
 	void initializeDrmSessions();
 
@@ -180,7 +181,7 @@ public:
 	DrmData * getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
 			const AampChallengeInfo& challengeInfo, const PrivateInstanceAAMP* aampInstance, int32_t *httpCode, int32_t *httpExtStatusCode, DrmMetaDataEventPtr eventHandle);
 #endif
-	DrmData * getLicense(AampLicenseRequest &licRequest, int32_t *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isContentMetadataAvailable = false, char* licenseProxy = NULL);
+	DrmData * getLicense(AampLicenseRequest &licRequest, int32_t *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isContentMetadataAvailable = false, std::string licenseProxy="");
 
 	bool IsKeyIdUsable(std::vector<uint8_t> keyIdArray);
 
@@ -202,7 +203,7 @@ public:
 
 	void setLicenseRequestAbort(bool isAbort);
 
-	const char* getAccessToken(int &tokenLength, long &error_code);
+	const char* getAccessToken(int &tokenLength, long &error_code ,bool bSslPeerVerify);
 
 	KeyState getDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int &selectedSlot, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance, bool isPrimarySession = false);
 
@@ -218,7 +219,8 @@ public:
 			shared_ptr<DrmData> licenseResponse, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance);
 
 	bool configureLicenseServerParameters(std::shared_ptr<AampDrmHelper> drmHelper, AampLicenseRequest& licRequest,
-			char* licenseServerProxy, const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance);
+			std::string &licenseServerProxy, const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance);
+
 };
 
 typedef struct writeCallbackData{

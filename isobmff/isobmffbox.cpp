@@ -23,7 +23,7 @@
 */
 
 #include "isobmffbox.h"
-#include "GlobalConfigAAMP.h" //Required for AAMPLOG_WARN
+#include "AampConfig.h"
 #include <stddef.h>
 
 /**

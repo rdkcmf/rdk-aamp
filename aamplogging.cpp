@@ -24,7 +24,6 @@
 
 #include <iomanip>
 #include <algorithm>
-
 #include "priv_aamp.h"
 using namespace std;
 
@@ -537,9 +536,8 @@ void DumpBlob(const unsigned char *ptr, size_t len)
 		}
 		if (fit < 4 || ptr==fin )
 		{
-			*dst++ = '\n';
 			*dst++ = 0x00;
-			printf(">>>\t%s", buf);
+			logprintf("%s", buf);
 			dst = buf;
 			fit = FIT_CHARS;
 		}

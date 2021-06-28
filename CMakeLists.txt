@@ -120,10 +120,10 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     _base64.cpp
                     AampMemoryUtils.cpp
                     AampCacheHandler.cpp
+                    AampScheduler.cpp
                     AampUtils.cpp
                     AampJsonObject.cpp
                     AampProfiler.cpp
-                    GlobalConfigAAMP.cpp
                     AampEvent.cpp
                     AampEventListener.cpp
                     ota_shim.cpp
@@ -142,6 +142,7 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     tsprocessor.cpp
                     drm/aes/aamp_aes.cpp
                     aamplogging.cpp
+		    AampConfig.cpp
                     subtitle/webvttParser.cpp
                     isobmff/isobmffbox.cpp
                     isobmff/isobmffbuffer.cpp
@@ -217,11 +218,12 @@ if(CMAKE_BUILD_SUBTEC_TEST)
         # avoid cmake failure on OSX
             set(CMAKE_MACOSX_RPATH 1)
     else()
-        #set(AAMP_SUBTEC_TEST_DEFINES "${AAMP_SUBTEC_TEST_DEFINES} -DSUBTEC_PACKET_DEBUG")
-        #add_executable(subtectest ${AAMP_SUBTEC_SOURCES} subtec/test/subtec_test.cpp)
-        #set_target_properties(subtectest PROPERTIES COMPILE_FLAGS "${AAMP_SUBTEC_TEST_DEFINES}")
-        #target_link_libraries(subtectest "-lpthread")
-        #install(TARGETS subtectest DESTINATION bin)
+        set(AAMP_SUBTEC_TEST_DEFINES "${AAMP_SUBTEC_TEST_DEFINES} -DSUBTEC_PACKET_DEBUG")
+        add_executable(subtectest ${AAMP_SUBTEC_SOURCES} subtec/test/subtec_test.cpp)
+        set_target_properties(subtectest PROPERTIES COMPILE_FLAGS "${AAMP_SUBTEC_TEST_DEFINES}")
+        target_link_libraries(subtectest "-lpthread")
+        install(TARGETS subtectest DESTINATION bin)
+        message("CMAKE_BUILD_SUBTEC_TEST set")
     endif()
 endif()
 
@@ -229,10 +231,14 @@ set(AAMP_SUBTEC_CLASS_SOURCES subtec/WebVttSubtecParser.cpp subtec/TtmlSubtecPar
 set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ${AAMP_SUBTEC_SOURCES} ${AAMP_SUBTEC_CLASS_SOURCES})
 include_directories(subtec)
 
+#To enable session based stats for latency histogram
+set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DSESSION_STATS")
+set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lmetrics")
+
 if(CMAKE_AVE_DRM)
 	message("CMAKE_AVE_DRM set, adding stubs")
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -laveadapter -lAVEPlayer -lmetrics")
-	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAVE_DRM -DSESSION_STATS")
+	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAVE_DRM")
 	set(AAMP_CLI_SOURCES ${AAMP_CLI_SOURCES} drm/ave/StubsForAVEPlayer.cpp)
 	#Linking QT libraries to libaamp will make local stubs obsolete for aamp-cli
 	if(NOT CMAKE_QT5WEBKIT_JSBINDINGS AND CMAKE_WPEWEBKIT_JSBINDINGS)
@@ -521,12 +527,12 @@ install(TARGETS aamp-cli DESTINATION bin)
 install(TARGETS playbintest DESTINATION bin)
 
 install(TARGETS aamp DESTINATION lib PUBLIC_HEADER DESTINATION include PRIVATE_HEADER DESTINATION include)
-install(FILES AampEvent.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.h AampMediaType.h
-  drm/AampDrmData.h drm/AampDrmInfo.h drm/AampDrmMediaFormat.h AampDrmCallbacks.h AampLogManager.h GlobalConfigAAMP.h
+install(FILES AampEvent.h AampConfig.h AampDefine.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.h AampMediaType.h
+  drm/AampDrmData.h drm/AampDrmInfo.h drm/AampDrmMediaFormat.h AampDrmCallbacks.h AampLogManager.h 
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h
   drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h
   AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h
-  AampGstUtils.h AampRfc.h
+  AampGstUtils.h AampRfc.h AampScheduler.h
   DESTINATION include)
 
 if (CMAKE_AAMP_RFC_REQUIRED)

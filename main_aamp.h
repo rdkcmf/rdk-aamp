@@ -51,6 +51,8 @@
 
 #include "AampDrmSystems.h"
 #include "AampMediaType.h"
+#include "AampScheduler.h"
+#include "AampConfig.h"
 
 /*! \mainpage
  *
@@ -80,17 +82,6 @@ struct TuneFailureMap
 	const char* description;        /**< Textual description */
 };
 
-#define MAX_ERROR_DESCRIPTION_LENGTH 128
-#define MAX_ANOMALY_BUFF_SIZE   256
-
-// Player supported play/trick-play rates.
-#define AAMP_RATE_TRICKPLAY_MAX		64
-#define AAMP_NORMAL_PLAY_RATE		1
-#define AAMP_RATE_PAUSE			0
-#define AAMP_RATE_INVALID		INT_MAX
-
-#define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
-#define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
 
 /**
  * @brief Media types for telemetry
@@ -511,7 +502,7 @@ public:
 /**
  * @brief Player interface class for the JS pluggin.
  */
-class PlayerInstanceAAMP
+class PlayerInstanceAAMP : public AampScheduler
 {
 public:
 	/**
@@ -574,14 +565,13 @@ public:
 	 *   @return void
 	 */
 	void Stop(bool sendStateChangeEvent = true);
-
+	
 	/**
-	 *	 @brief Check given rate is valid.
+	 *	 @brief API to reset configuration across tunes if same player instance used
 	 *
-	 *	 @param[in]  rate - Rate of playback.
-	 *	 @retval return true if the given rate is valid.
 	 */
-	bool IsValidRate(int rate);
+	void ResetConfiguration();
+
 	/**
 	 *   @brief Set playback rate.
 	 *
@@ -883,9 +873,9 @@ public:
 	void SetReportInterval(int reportIntervalMS);
 
 	/**
-	 *	 @brief To set the max retry attempts for init frag curl timeout failures
+	 *   @brief To set the max retry attempts for init frag curl timeout failures
 	 *
-	 *	 @param  count - max attempt for timeout retry count
+	 *   @param  count - max attempt for timeout retry count
 	 */
 	void SetInitFragTimeoutRetryCount(int count);
 
@@ -1107,7 +1097,6 @@ public:
          */
         void SetOutputResolutionCheck(bool bValue);
 
-
 	/**
 	 *   @brief Set Matching BaseUrl Config Configuration
 	 *
@@ -1123,6 +1112,14 @@ public:
          *   @return void
          */
 	void SetPropagateUriParameters(bool bValue);
+
+        /**
+         *   @brief to optionally configure simulated per-download network latency for negative testing
+         *
+         *   @param[in] DownloadDelayInMs - default value: zero
+         *   @return void
+         */
+        void ApplyArtificialDownloadDelay(unsigned int DownloadDelayInMs);
 
 	/**
 	 *   @brief to configure ssl verify peer parameter
@@ -1397,6 +1394,13 @@ public:
 	void EnableContentRestrictions();
 
 	/**
+	 * @brief Enable/Disable async operation 
+	 *
+	 * @return void
+	 */
+	void AsyncStartStop();
+
+	/**
 	 *   @brief Enable/disable configuration to persist ABR profile over seek/SAP
 	 *
 	 *   @param[in] value - To enable/disable configuration
@@ -1431,9 +1435,43 @@ public:
 	 *   @param[in] int behavior
 	 */
 	void SetPausedBehavior(int behavior);
+	/**
+	* @brief InitAAMPConfig - Initialize the media player session with json config
+	*/
+	bool InitAAMPConfig(char *jsonStr);
+	/**
+	* @brief GetAAMPConfig - GetAamp Config as JSON string 
+	*/
+	std::string GetAAMPConfig();
+
+	/**
+         *   @brief To set UseAbsoluteTimeline for DASH
+         *
+         *   @param[in] bool enable/disable configuration
+         */
+	void SetUseAbsoluteTimeline(bool configState);
+
+	/**
+	 *   @brief Enable async operation and initialize resources
+	 *
+	 *   @return void
+	 */
+	void EnableAsyncOperation();
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
+
+	AampConfig mConfig;
 private:
+	
+	/**
+	 *	 @brief Check given rate is valid.
+	 *
+	 *	 @param[in]  rate - Rate of playback.
+	 *	 @retval return true if the given rate is valid.
+	 */
+	bool IsValidRate(int rate);
+
+private:	
 
 	/**
 	 *   @brief Stop playback and release resources.
@@ -1442,9 +1480,11 @@ private:
 	 *   @return void
 	 */
 	void StopInternal(bool sendStateChangeEvent);
+
 	StreamSink* mInternalStreamSink;    /**< Pointer to stream sink */
 	void* mJSBinding_DL;                /**< Handle to AAMP plugin dynamic lib.  */
 	static std::mutex mPrvAampMtx;      /**< Mutex to protect aamp instance in GetState() */
+	bool mAsyncRunning;                 /**< Flag denotes if async mode is on or not */
 };
 
 #endif // MAINAAMP_H

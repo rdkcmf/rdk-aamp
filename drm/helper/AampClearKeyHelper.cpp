@@ -20,7 +20,7 @@
 #include "AampClearKeyHelper.h"
 #include "AampJsonObject.h"
 
-#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 #include "AampConstants.h"
 
 static AampClearKeyHelperFactory clearkey_helper_factory;
@@ -85,7 +85,7 @@ void AampClearKeyHelper::generateLicenseRequest(const AampChallengeInfo& challen
 		if (!mDrmInfo.keyURI.empty())
 		{
 			std::string keyURI;
-			aamp_ResolveURL(keyURI, mDrmInfo.manifestURL, mDrmInfo.keyURI.c_str());
+			aamp_ResolveURL(keyURI, mDrmInfo.manifestURL, mDrmInfo.keyURI.c_str(), mDrmInfo.bPropagateUriParams);
 			licenseRequest.url = keyURI;
 		}
 		else

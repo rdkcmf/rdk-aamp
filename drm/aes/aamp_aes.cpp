@@ -121,7 +121,7 @@ void AesDec::AcquireKey()
 	{
 		logprintf("%s:%d: pthread_setname_np failed", __FUNCTION__, __LINE__);
 	}
-	aamp_ResolveURL(keyURI, mDrmInfo.manifestURL, mDrmInfo.keyURI.c_str());
+	aamp_ResolveURL(keyURI, mDrmInfo.manifestURL, mDrmInfo.keyURI.c_str(), mDrmInfo.bPropagateUriParams);
 	logprintf("%s:%d: Key acquisition start uri = %s", __FUNCTION__, __LINE__, keyURI.c_str());
 	bool fetched = mpAamp->GetFile(keyURI, &mAesKeyBuf, tempEffectiveUrl, &http_error, &downloadTime, NULL, mCurlInstance, true, eMEDIATYPE_LICENCE);
 	if (fetched)

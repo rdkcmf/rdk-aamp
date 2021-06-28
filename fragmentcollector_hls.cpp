@@ -89,7 +89,7 @@ extern int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDat
 extern void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp);
 #endif 
 
-#define UseProgramDateTimeIfAvailable() (gpGlobalConfig->hlsAVTrackSyncUsingStartTime || aamp->mIsVSS)
+#define UseProgramDateTimeIfAvailable() (ISCONFIGSET(eAAMPConfig_HLSAVTrackSyncUsingStartTime) || aamp->mIsVSS)
 /**
 * \struct	FormatMap
 * \brief	FormatMap structure for stream codec/format information
@@ -791,7 +791,7 @@ static void * TrackPLDownloader(void *arg)
 static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 #ifdef AAMP_HLS_DRM
 		/** If fragments are CDM encrypted KC **/
-		if (aamp->fragmentCdmEncrypted && gpGlobalConfig->fragmp4LicensePrefetch){
+		if (aamp->fragmentCdmEncrypted && ISCONFIGSET(eAAMPConfig_Fragmp4PrefetchLicense)){
 			pthread_mutex_lock(&aamp->drmParserMutex);
 			DrmSessionDataInfo* drmDataToUse = NULL;
 			for (int i=0; i < aamp->aesCtrAttrDataList.size(); i++ ){
@@ -815,23 +815,10 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 
 void static setupStreamInfo(struct HlsStreamInfo * streamInfo, int streamNo)
 {
-	memset(streamInfo, 0, sizeof(HlsStreamInfo));
-	std::vector<std::string> values;
-	std::string keyName {"stream.default"};
-	int width = gpGlobalConfig->getUnknownValue(keyName + ".width", DEFAULT_STREAM_WIDTH);
-	int height = gpGlobalConfig->getUnknownValue(keyName + ".height", DEFAULT_STREAM_HEIGHT);
-	double framerate = gpGlobalConfig->getUnknownValue(keyName + ".framerate", DEFAULT_STREAM_FRAMERATE);
-	const std::string& codecs = gpGlobalConfig->getUnknownValue(keyName + ".codecs");
-
-	keyName = "stream.";
-	char itoaBuf[12] = {0};
-	snprintf(itoaBuf, sizeof(itoaBuf) -1, "%d", streamNo);
-	keyName += itoaBuf;
-	keyName += ".default";
-	streamInfo->resolution.width = gpGlobalConfig->getUnknownValue(keyName + ".width", width);
-	streamInfo->resolution.height = gpGlobalConfig->getUnknownValue(keyName + ".height", height);
-	streamInfo->resolution.framerate = gpGlobalConfig->getUnknownValue(keyName + ".framerate", framerate);
-	streamInfo->codecs = gpGlobalConfig->getUnknownValue(keyName + ".codecs", codecs).c_str();
+	memset(streamInfo, 0, sizeof(HlsStreamInfo));	
+	streamInfo->resolution.width = DEFAULT_STREAM_WIDTH;
+	streamInfo->resolution.height = DEFAULT_STREAM_HEIGHT;
+	streamInfo->resolution.framerate = DEFAULT_STREAM_FRAMERATE;
 }
 
 /**
@@ -875,6 +862,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 	mProfileCount = 0;
 	vProfileCount = iFrameCount = lineNum = 0;
 	mAbrManager.clearProfiles();
+	bool useavgbw = ISCONFIGSET(eAAMPConfig_AvgBWForABR);
 #ifdef AVE_DRM
 	//clear previouse data
 	setCustomLicensePayLoad(NULL);
@@ -897,7 +885,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 						next = mystrpbrk(next);
 					}
 
-					if(streamInfo->averageBandwidth !=0 && mUseAvgBandwidthForABR)
+					if(streamInfo->averageBandwidth !=0 && useavgbw)
 					{
 						streamInfo->bandwidthBitsPerSecond = streamInfo->averageBandwidth;
 					}
@@ -919,7 +907,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 						next = mystrpbrk(next);
 					}
 
-					if(streamInfo->averageBandwidth !=0 && mUseAvgBandwidthForABR)
+					if(streamInfo->averageBandwidth !=0 && useavgbw)
 					{
 						streamInfo->bandwidthBitsPerSecond = streamInfo->averageBandwidth;
 					}
@@ -938,7 +926,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 						streamInfo->uri = next;
 						next = mystrpbrk(next);
 					}
-					if(streamInfo->averageBandwidth!=0 && mUseAvgBandwidthForABR)
+					if(streamInfo->averageBandwidth!=0 && useavgbw)
 					{
 						streamInfo->bandwidthBitsPerSecond = streamInfo->averageBandwidth;
 					}
@@ -1041,23 +1029,19 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 				{ // i.e. "TIME-OFFSET=2.336, PRECISE=YES" - specifies the preferred point in the video to start playback; not yet supported
 
 					// check if App has not configured any liveoffset
-					if(!aamp->mNewLiveOffsetflag)
 					{
 						double offsetval = ParseXStartTimeOffset(ptr);
 						if (offsetval != 0)
 						{
 							if(!aamp->IsLiveAdjustRequired())
 							{
-								// if aamp cfg offset is not set or App has not set the value  , then configure
-								if(gpGlobalConfig->cdvrliveOffset == -1)
-								aamp->mLiveOffset = abs(offsetval);
+								SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_CDVRLiveOffset,(double)abs(offsetval));
 							}
 							else
 							{
-								// if aamp cfg offset is not set or App has not set the value , then configure
-								if(gpGlobalConfig->liveOffset == -1)
-								aamp->mLiveOffset = abs(offsetval);
+								SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_LiveOffset,(double)abs(offsetval));
 							}
+							aamp->UpdateLiveOffset();
 							logprintf("%s WARNING:found EXT-X-START in MainManifest Offset:%f  liveOffset:%f",__FUNCTION__,offsetval,aamp->mLiveOffset);
 						}
 					}
@@ -1072,7 +1056,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 #ifdef AAMP_HLS_DRM
 				else if (startswith(&ptr, "-X-SESSION-KEY:"))
 				{
-						if (gpGlobalConfig->fragmp4LicensePrefetch)
+						if (ISCONFIGSET(eAAMPConfig_Fragmp4PrefetchLicense))
 						{
 							size_t len;
 							len = FindLineLength(ptr);
@@ -1854,7 +1838,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 		{
 			std::string fragmentUrl;
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
-			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, fragmentURI);
+			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, fragmentURI , ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 			traceprintf("Got next fragment url %s fragmentEncrypted %d discontinuity %d mDrmMethod %d", fragmentUrl, fragmentEncrypted, (int)discontinuity, mDrmMethod);
 
 			aamp->profiler.ProfileBegin(mediaTrackBucketTypes[type]);
@@ -2482,7 +2466,7 @@ void TrackState::SetDrmContext()
 
 	//CID:93939 - Removed the drmContextUpdated variable which is initialized but not used
 	DrmMetadataNode* drmMetadataIdx = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-
+	mDrmInfo.bPropagateUriParams = ISCONFIGSET(eAAMPConfig_PropogateURIParam);
 	if(drmMetadataIdx)
 	{
 		logprintf("TrackState::[%s][%s] Enter mCMSha1Hash [%p] mDrmMetaDataIndexPosition %d", __FUNCTION__,name, mCMSha1Hash,
@@ -2504,7 +2488,7 @@ void TrackState::SetDrmContext()
 	else if (AampHlsDrmSessionManager::getInstance().isDrmSupported(mDrmInfo))
 	{
 		// OCDM-based DRM decryption is available via the HLS OCDM bridge
-		AAMPLOG_INFO("%s:%d Drm support available", __FUNCTION__, __LINE__);
+		AAMPLOG_INFO("%s:%d Drm support available", __FUNCTION__, __LINE__);		
 		mDrm = AampHlsDrmSessionManager::getInstance().createSession(aamp, mDrmInfo,(MediaType)(type));
 		if (!mDrm)
 		{
@@ -2805,7 +2789,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 					//drmMetadataIdx = mDrmMetaDataIndexPosition;
 					if(mDrmMethod == eDRM_KEY_METHOD_SAMPLE_AES_CTR){
 #ifdef AAMP_HLS_DRM
-						if (gpGlobalConfig->fragmp4LicensePrefetch){
+						if (ISCONFIGSET(eAAMPConfig_Fragmp4PrefetchLicense)){
 							pthread_mutex_lock(&aamp->drmParserMutex);
 							attrNameData* aesCtrAttrData = new attrNameData(keyinfo.mKeyTagStr); 
 							if (std::find(aamp->aesCtrAttrDataList.begin(), aamp->aesCtrAttrDataList.end(), 
@@ -2860,22 +2844,19 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				{
 					// X-Start can have two attributes . Time-Offset & Precise .
 					// check if App has not configured any liveoffset
-					if(!aamp->mNewLiveOffsetflag)
 					{
-					 	double offsetval = ParseXStartTimeOffset(ptr);
-		                             	if(!aamp->IsLiveAdjustRequired())
-         					{
-                                                      	// if aamp cfg offset is not set or App has not set the value  , then configure
-                                                       	if(gpGlobalConfig->cdvrliveOffset == -1)
-                                                                SetXStartTimeOffset(offsetval);
-                                                }
-                                                else
-                                                {
-                                                        // if aamp cfg offset is not set or App has not set the value , then configure
-                                                        if(gpGlobalConfig->liveOffset == -1)
-								SetXStartTimeOffset(offsetval);
-                                                }
-                                        }
+						double offsetval = ParseXStartTimeOffset(ptr);
+						if(!aamp->IsLiveAdjustRequired())
+						{
+							SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_CDVRLiveOffset,offsetval);
+						}
+						else
+						{
+							SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_LiveOffset,offsetval);
+						}
+						aamp->UpdateLiveOffset();
+						SetXStartTimeOffset(aamp->mLiveOffset);
+					}
 				}
 				else if (startswith(&ptr,"-X-ENDLIST"))
 				{
@@ -3033,7 +3014,7 @@ void TrackState::ABRProfileChanged()
 	if(pcontext != NULL)
 	{
 		traceprintf("%s:%d playlistPosition %f", __FUNCTION__,__LINE__, playlistPosition);
-		aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), pcontext);
+		aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), pcontext , ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 		pthread_mutex_lock(&mutex);
 		//playlistPosition reset will be done by RefreshPlaylist once playlist downloaded successfully
 		//refreshPlaylist is used to reset the profile index if playlist download fails! Be careful with it.
@@ -3087,7 +3068,7 @@ void TrackState::RefreshPlaylist(void)
 	// failed to read from cache , then download it
 	if(!bCacheRead)
 	{
-		if(!aamp->mParallelFetchPlaylistRefresh)
+		if(!ISCONFIGSET(eAAMPConfig_PlaylistParallelRefresh))
 		{
 			// Lock the mutex if parallel fetch is disabled. So that other thread blocks here
 			pthread_mutex_lock(&aamp->mParallelPlaylistFetchLock);
@@ -3115,7 +3096,7 @@ void TrackState::RefreshPlaylist(void)
 		(void) aamp->GetFile (mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, actualType);  //CID:89271 - checked return
 		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,dnldCurlInstance);
 
-		if(!aamp->mParallelFetchPlaylistRefresh)
+		if(!ISCONFIGSET(eAAMPConfig_PlaylistParallelRefresh))
 		{
 			pthread_mutex_unlock(&aamp->mParallelPlaylistFetchLock);
 		}
@@ -3220,10 +3201,10 @@ void TrackState::RefreshPlaylist(void)
 bool StreamAbstractionAAMP_HLS::FilterAudioCodecBasedOnConfig(StreamOutputFormat audioFormat)
 {
 	bool ignoreProfile = false;
-	bool bDisableEC3 = aamp->mDisableEC3;
-	bool bDisableAC3 = aamp->mDisableEC3;
+	bool bDisableEC3 = ISCONFIGSET(eAAMPConfig_DisableEC3);
+	bool bDisableAC3 = bDisableEC3;
 	// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
-	bool bDisableATMOS = (aamp->mDisableEC3) ? true : aamp->mDisableATMOS;
+	bool bDisableATMOS = (bDisableEC3) ? true : ISCONFIGSET(eAAMPConfig_DisableATMOS);
 
 	switch (audioFormat)
 	{
@@ -3263,7 +3244,7 @@ bool StreamAbstractionAAMP_HLS::FilterAudioCodecBasedOnConfig(StreamOutputFormat
 ***************************************************************************/
 int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 {
-	int bestTrack = 0;
+	int bestTrack = -1;
 	int bestScore = -1;
 	for( int i=0; i<mMediaCount; i++ )
 	{
@@ -3353,13 +3334,13 @@ const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, Strea
 			{
 				playlistURI = mediaInfo[currentTextTrackProfileIndex].uri;
 				mTextTrackIndex = std::to_string(currentTextTrackProfileIndex);
-				aamp->UpdateSubtitleLanguageSelection(mediaInfo[currentTextTrackProfileIndex].language);
+				SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_SubTitleLanguage,(std::string)mediaInfo[currentTextTrackProfileIndex].language);
 				if (format) *format = (mediaInfo[currentTextTrackProfileIndex].type == eMEDIATYPE_SUBTITLE) ? FORMAT_SUBTITLE_WEBVTT : FORMAT_UNKNOWN;
 				logprintf("StreamAbstractionAAMP_HLS::%s():%d subtitle found language %s, uri %s", __FUNCTION__, __LINE__, mediaInfo[currentTextTrackProfileIndex].language, playlistURI);
 			}
 			else
 			{
-				logprintf("StreamAbstractionAAMP_HLS::%s():%d Couldn't find subtitle URI for preferred language: %s", __FUNCTION__, __LINE__, aamp->mSubLanguage);
+				logprintf("StreamAbstractionAAMP_HLS::%s():%d Couldn't find subtitle URI for preferred language: %s", __FUNCTION__, __LINE__, aamp->mSubLanguage.c_str());
 				*format = FORMAT_INVALID;
 			}
 		}
@@ -3969,7 +3950,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 std::string StreamAbstractionAAMP_HLS::GetLanguageCode(int iMedia)
 {
 	std::string lang = this->mediaInfo[iMedia].language;
-	lang = Getiso639map_NormalizeLanguageCode(lang);
+	lang = Getiso639map_NormalizeLanguageCode(lang,aamp->GetLangCodePreference());
 	return lang;
 }
 
@@ -4028,6 +4009,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		else
 		{
 			logprintf("Manifest download failed : http response : %d", (int) http_error);
+			retval = eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
 		}
 	}
 	if (!this->mainManifest.len && aamp->DownloadsAreEnabled()) //!aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl()))
@@ -4045,7 +4027,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 #ifdef AAMP_HLS_DRM
 		AampDRMSessionManager *sessionMgr = aamp->mDRMSessionManager;
-		bool forceClearSession = (!aamp->mLicenseCaching && (tuneType == eTUNETYPE_NEW_NORMAL));
+		bool forceClearSession = (!ISCONFIGSET(eAAMPConfig_SetLicenseCaching) && (tuneType == eTUNETYPE_NEW_NORMAL));
 		sessionMgr->clearDrmSession(forceClearSession);
 		sessionMgr->clearFailedKeyIds();
 		sessionMgr->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
@@ -4063,7 +4045,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					struct HlsStreamInfo *streamInfo = &this->streamInfo[mProfileCount];
 					setupStreamInfo(streamInfo, mProfileCount);
 					streamInfo->uri = aamp->GetManifestUrl().c_str();
-					aamp->SetVideoBitrate(-1);
+					SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_EnableABR,false);
 					mainManifestResult = eAAMPSTATUS_OK;
 					AAMPLOG_INFO("StreamAbstractionAAMP_HLS::%s:%d Playlist only playback.", __FUNCTION__, __LINE__);
 				}
@@ -4092,9 +4074,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			if (!newTune)
 			{
 				long persistedBandwidth = aamp->GetPersistedBandwidth();
+				long defaultBitRate 	= aamp->GetDefaultBitrate();
 				//We were tuning to a lesser profile previously, so we use it as starting profile
 				// XIONE-2039 If bitrate to be persisted during trickplay is true, set persisted BW as default init BW
-				if (persistedBandwidth > 0 && (persistedBandwidth < gpGlobalConfig->defaultBitrate || aamp->IsBitRatePersistedOverSeek()))
+				if (persistedBandwidth > 0 && (persistedBandwidth < defaultBitRate || aamp->IsBitRatePersistedOverSeek()))
 				{
 					mAbrManager.setDefaultInitBitrate(persistedBandwidth);
 				}
@@ -4166,7 +4149,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			const char *uri = GetPlaylistURI((TrackType)iTrack, &ts->streamOutputFormat);
 			if (uri)
 			{
-				aamp_ResolveURL(ts->mPlaylistUrl, aamp->GetManifestUrl(), uri);
+				aamp_ResolveURL(ts->mPlaylistUrl, aamp->GetManifestUrl(), uri, ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 				if(ts->streamOutputFormat != FORMAT_INVALID)
 				{
 					ts->enabled = true;
@@ -4189,7 +4172,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			video->SetCurrentBandWidth(GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond);
 		}
 
-		if(gpGlobalConfig->bAudioOnlyPlayback)
+		if(ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 		{
 			if(audio->enabled)
 			{
@@ -4216,7 +4199,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 			if(!audio->playlist.len)
 			{
-				if (aamp->mParallelFetchPlaylist)
+				if (ISCONFIGSET(eAAMPConfig_PlaylistParallelFetch))
 				{
 					int ret = pthread_create(&trackPLDownloadThreadID, NULL, TrackPLDownloader, audio);
 					if(ret != 0)
@@ -4246,10 +4229,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				int limitCount = 0;
 				int numberOfLimit = 0;
 
-				if (gpGlobalConfig->mInitRampdownLimit){
-					numberOfLimit = gpGlobalConfig->mInitRampdownLimit;
-				}
-
+				GETCONFIGVALUE(eAAMPConfig_InitRampDownLimit,numberOfLimit);
 				do{
 					video->FetchPlaylist();
 					limitCount++;
@@ -4269,7 +4249,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						GetStreamInfo(GetMaxBWProfile())->bandwidthBitsPerSecond);
 						const char *uri = GetPlaylistURI(eTRACK_VIDEO, &video->streamOutputFormat);
 						if (uri){
-							aamp_ResolveURL(video->mPlaylistUrl, aamp->GetManifestUrl(), uri);
+							aamp_ResolveURL(video->mPlaylistUrl, aamp->GetManifestUrl(), uri ,ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 
 						}else{
 							AAMPLOG_ERR("StreamAbstractionAAMP_HLS:: %s:%d Failed to get URL after %d rampdown attempts", 
@@ -4330,18 +4310,16 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			return eAAMPSTATUS_PLAYLIST_AUDIO_DOWNLOAD_ERROR;
 		}
 
-		bool bSetStatePreparing = false;
-
 		if (rate != AAMP_NORMAL_PLAY_RATE)
 		{
 			trickplayMode = true;
 			if(aamp->IsTSBSupported())
 			{
-				mTrickPlayFPS = gpGlobalConfig->linearTrickplayFPS;
+				GETCONFIGVALUE(eAAMPConfig_LinearTrickPlayFPS,mTrickPlayFPS);				
 			}
 			else
 			{
-				mTrickPlayFPS = gpGlobalConfig->vodTrickplayFPS;
+				GETCONFIGVALUE(eAAMPConfig_VODTrickPlayFPS,mTrickPlayFPS); 				
 			}
 		}
 		else
@@ -4402,24 +4380,13 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				// Send Metadata for Video playlist
 				if(iTrack == eTRACK_VIDEO)
 				{
-					ts->FindTimedMetadata(aamp->mBulkTimedMetadata , true);
-					if(aamp->mBulkTimedMetadata && newTune)
+					bool bMetadata = ISCONFIGSET(eAAMPConfig_BulkTimedMetaReport);
+					ts->FindTimedMetadata(bMetadata, true);
+					if(bMetadata && newTune)
 					{
 						// Send bulk report
 						aamp->ReportBulkTimedMetadata();
 					}
-				}
-
-				if (newTune && needMetadata)
-				{
-					needMetadata = false;
-					std::vector<long> bitrateList;
-					bitrateList = GetVideoBitrates();
-					aamp->mIsIframeTrackPresent = mIframeAvailable;
-					aamp->SendMediaMetadataEvent((ts->mDuration * 1000.0), mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
-					// Delay "preparing" state until all tracks have been processed.
-					// JS Player assumes all onTimedMetadata event fire before "preparing" state.
-					bSetStatePreparing = true;
 				}
 
 				if (iTrack == eMEDIATYPE_VIDEO)
@@ -4461,7 +4428,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 							AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Unsupported media format for audio or video - FORMAT_ISO_BMFF", __FUNCTION__, __LINE__);
 							subtitle->streamOutputFormat = FORMAT_INVALID;
 							subtitle->fragmentURI = NULL;
-							//mSubtitleParser will be deleted in destructor, so unhandled here
 							subtitle->enabled = false;
 						}
 					}
@@ -4497,6 +4463,13 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						ts->streamOutputFormat = format;
 						SubtitleMimeType type = (format == FORMAT_SUBTITLE_WEBVTT) ? eSUB_TYPE_WEBVTT : eSUB_TYPE_UNKNOWN;
 						ts->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, type);
+						if (!ts->mSubtitleParser) 
+						{
+							ts->streamOutputFormat = FORMAT_INVALID;
+							ts->fragmentURI = NULL;
+							ts->enabled = false;
+						}
+						aamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE);
 					}
 					else
 					{
@@ -4513,12 +4486,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						// Creation of playContext is required only for TS fragments
 						if (format == FORMAT_MPEGTS)
 						{
-							if (gpGlobalConfig->gAampDemuxHLSAudioTsTrack)
+							if (ISCONFIGSET(eAAMPConfig_DemuxAudioHLSTrack))
 							{
 								logprintf("StreamAbstractionAAMP_HLS::%s : Configure audio TS track demuxing", __FUNCTION__);
 								ts->playContext = new TSProcessor(aamp, eStreamOp_DEMUX_AUDIO);
-							}
-							else if (gpGlobalConfig->gAampMergeAudioTrack)
+							}							
+							else
 							{
 								logprintf("Configure audio TS track to queue");
 								ts->playContext = new TSProcessor(aamp, eStreamOp_QUEUE_AUDIO);
@@ -4555,8 +4528,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						ts->enabled = false;
 					}
 				}
-				else if ((gpGlobalConfig->gAampDemuxHLSVideoTsTrack && (rate == AAMP_NORMAL_PLAY_RATE))
-						|| (gpGlobalConfig->demuxHLSVideoTsTrackTM && (rate != AAMP_NORMAL_PLAY_RATE)))
+				else if ((ISCONFIGSET(eAAMPConfig_DemuxVideoHLSTrack) && (rate == AAMP_NORMAL_PLAY_RATE))
+						|| (ISCONFIGSET(eAAMPConfig_DemuxHLSVideoTsTrackTM)&& (rate != AAMP_NORMAL_PLAY_RATE)))
 				{
 					/*Populate format from codec data*/
 					format = GetStreamOutputFormatForTrack(eTRACK_VIDEO);
@@ -4581,7 +4554,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 							// Even if audio info is not present in manifest, we let TSProcessor run a full sweep
 							// If audio is found, then TSProcessor will configure stream sink accordingly
-							if(!gpGlobalConfig->bAudioOnlyPlayback)
+							if(!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 							{
 								// For muxed tracks, demux audio and video
 								demuxOp = eStreamOp_DEMUX_ALL;
@@ -4640,14 +4613,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					}
 					else
 					{
-						this->trickplayMode = true;
+						this->trickplayMode = true;						
 						if(aamp->IsTSBSupported())
 						{
-							mTrickPlayFPS = gpGlobalConfig->linearTrickplayFPS;
+							GETCONFIGVALUE(eAAMPConfig_LinearTrickPlayFPS,mTrickPlayFPS);							
 						}
 						else
 						{
-							mTrickPlayFPS = gpGlobalConfig->vodTrickplayFPS;
+							GETCONFIGVALUE(eAAMPConfig_VODTrickPlayFPS,mTrickPlayFPS); 							
 						}
 						ts->playContext->setRate(this->rate, PlayMode_retimestamp_Ionly);
 						ts->playContext->setFrameRateForTM(mTrickPlayFPS);
@@ -4669,11 +4642,32 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			return eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
 		}
 
-		if (bSetStatePreparing)
+		if (newTune && needMetadata)
+		{
+			needMetadata = false;
+			std::vector<long> bitrateList = GetVideoBitrates();
+			aamp->mIsIframeTrackPresent = mIframeAvailable;
+			double duration = 0;
+			if (trackState[eTRACK_VIDEO]->enabled && trackState[eTRACK_VIDEO]->mDuration != 0)
+			{
+				duration = trackState[eTRACK_VIDEO]->mDuration;
+			}
+			else if (trackState[eTRACK_AUDIO]->enabled && trackState[eTRACK_AUDIO]->mDuration != 0)
+			{
+				duration = trackState[eTRACK_AUDIO]->mDuration;
+			}
+			else
+			{
+				AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s:%d No valid duration found in audio and video, sending duration as 0", __FUNCTION__, __LINE__);
+			}
+			aamp->SendMediaMetadataEvent((duration * 1000.0), mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
+			// Delay "preparing" state until all tracks have been processed.
+			// JS Player assumes all onTimedMetadata event fire before "preparing" state.
 			aamp->SetState(eSTATE_PREPARING);
+		}
 
 		//Currently un-used playlist indexed event, might save some JS overhead
-		if (!gpGlobalConfig->disablePlaylistIndexEvent)
+		if (!ISCONFIGSET(eAAMPConfig_DisablePlaylistIndexEvent))
 		{
 			aamp->SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_PLAYLIST_INDEXED));
 		}
@@ -4691,11 +4685,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}	
 			}	
 
-			TunedEventConfig tunedEventConfig =  aamp->IsLive() ?
-					aamp->mTuneEventConfigLive : aamp->mTuneEventConfigVod;
-			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == tunedEventConfig)
+			
+			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == aamp->GetTuneEventConfig(aamp->IsLive()))
 			{
-				if (aamp->SendTunedEvent())
+				if (aamp->SendTunedEvent(!aamp->GetAsyncTuneConfig()))
 				{
 					logprintf("aamp: hls - sent tune event after indexing playlist");
 				}
@@ -4763,7 +4756,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 			else
 			{
-				if(!gpGlobalConfig->bAudioOnlyPlayback)
+				if(!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 				{
 					bool syncDone = false;
 					if (!liveAdjust && video->mDiscontinuityIndexCount && (video->mDiscontinuityIndexCount == audio->mDiscontinuityIndexCount))
@@ -4853,7 +4846,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 		}
 		/*Adjust for discontinuity*/
-		if ((audio->enabled) && (aamp->IsLive()) && !gpGlobalConfig->bAudioOnlyPlayback)
+		if ((audio->enabled) && (aamp->IsLive()) && !ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 		{
 			int discontinuityIndexCount = video->mDiscontinuityIndexCount;
 			if (discontinuityIndexCount > 0)
@@ -4931,7 +4924,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		subtitle->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
 		/*Use start timestamp as zero when audio is not elementary stream*/
 		mStartTimestampZero = ((video->streamOutputFormat == FORMAT_ISO_BMFF || audio->streamOutputFormat == FORMAT_ISO_BMFF) || (rate == AAMP_NORMAL_PLAY_RATE && (!audio->enabled || audio->playContext)));
-		if (subtitle->enabled && subtitle->mSubtitleParser != NULL)
+		if (subtitle->enabled && subtitle->mSubtitleParser)
 		{
 			//Need to set reportProgressOffset to subtitleParser
 			//playTarget becomes seek_pos_seconds and playlistPosition is the acutal position in playlist
@@ -4967,7 +4960,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 			}
 			//Set live adusted position to seekPosition
-			if(gpGlobalConfig->midFragmentSeekEnabled)
+			if(ISCONFIGSET(eAAMPConfig_MidFragmentSeek))
 			{
 				midSeekPtsOffset = seekPosition - video->playTarget;
 				if(midSeekPtsOffset > video->fragmentDurationSeconds/2)
@@ -4980,7 +4973,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						{
 							// To prevent underflow when seeked to end of fragment.
 							// Added +1 to ensure next fragment is fetched.
-							aamp->SetInitialBufferDuration((int)video->fragmentDurationSeconds + 1);
+							SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_InitialBuffer,(int)video->fragmentDurationSeconds + 1);	
 							aamp->midFragmentSeekCache = true;
 						}
 					}
@@ -4988,7 +4981,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				else if(aamp->midFragmentSeekCache)
 				{
 					// Resetting fragment cache when seeked to first half of the fragment duration.
-					aamp->SetInitialBufferDuration(0);
+					SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_InitialBuffer,0);
 					aamp->midFragmentSeekCache = false;
 				}
 
@@ -5009,14 +5002,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		// negative buffer calculation fix
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
 		{
-			if (seekPosition < aamp->culledSeconds)
+			if (aamp->culledSeconds > 0)
 			{
 				trackState[iTrack]->playTargetBufferCalc = aamp->culledSeconds + seekPosition;
 			}
 		}
 
 
-		if (newTune && gpGlobalConfig->prefetchIframePlaylist)
+		if (newTune && ISCONFIGSET(eAAMPConfig_PrefetchIFramePlaylistDL))
 		{
 			int iframeStreamIdx = GetIframeTrack();
 			if (0 <= iframeStreamIdx)
@@ -5025,7 +5018,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				std::string defaultIframePlaylistEffectiveUrl;
 				GrowableBuffer defaultIframePlaylist;
 				HlsStreamInfo *streamInfo = (HlsStreamInfo *)GetStreamInfo(iframeStreamIdx);
-				aamp_ResolveURL(defaultIframePlaylistUrl, aamp->GetManifestUrl(), streamInfo->uri);
+				aamp_ResolveURL(defaultIframePlaylistUrl, aamp->GetManifestUrl(), streamInfo->uri, ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 				traceprintf("StreamAbstractionAAMP_HLS::%s:%d : Downloading iframe playlist", __FUNCTION__, __LINE__);
 				bool bFiledownloaded = false;
 				if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
@@ -5100,7 +5093,7 @@ void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 	{
 		// Add Video and IFrame Profiles
 		PreCacheUrlStruct newelem;
-		aamp_ResolveURL(newelem.url, aamp->GetManifestUrl(), streamInfo[idx].uri);
+		aamp_ResolveURL(newelem.url, aamp->GetManifestUrl(), streamInfo[idx].uri, ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 		newelem.type = streamInfo[idx].isIframeTrack?eMEDIATYPE_PLAYLIST_IFRAME:eMEDIATYPE_PLAYLIST_VIDEO;
 		dnldList.push_back(newelem);
 	}
@@ -5112,7 +5105,7 @@ void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 		{
 			//std::string url;
 			PreCacheUrlStruct newelem;
-			aamp_ResolveURL(newelem.url, aamp->GetManifestUrl(), mediaInfo[cnt].uri);
+			aamp_ResolveURL(newelem.url, aamp->GetManifestUrl(), mediaInfo[cnt].uri ,ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 			newelem.type = mediaInfo[cnt].type;
 			dnldList.push_back(newelem);
 		}
@@ -5151,7 +5144,7 @@ double StreamAbstractionAAMP_HLS::GetFirstPTS()
 		{
 			pts += mFirstPTS;
 		}
-		if(gpGlobalConfig->midFragmentSeekEnabled)
+		if(ISCONFIGSET(eAAMPConfig_MidFragmentSeek))
 		{
 			pts += midSeekPtsOffset;
 		}
@@ -5195,7 +5188,7 @@ void TrackState::SwitchSubtitleTrack()
 		AAMPLOG_INFO("%s:%d Preparing to flush fragments and switch playlist", __FUNCTION__, __LINE__);
 		// Flush all counters, reset the playlist URL and refresh the playlist
 		FlushFragments();
-		aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), context->GetPlaylistURI(type));
+		aamp_ResolveURL(mPlaylistUrl, aamp->GetManifestUrl(), context->GetPlaylistURI(type),ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 		RefreshPlaylist();
 
 		playTarget = 0.0;
@@ -5273,10 +5266,6 @@ void TrackState::RunFetchLoop()
 					if (aamp->CheckABREnabled())
 					{
 						context->CheckForProfileChange();
-					}
-					else if (!context->aamp->IsTSBSupported())
-					{
-						context->CheckUserProfileChangeReq();
 					}
 				}
 			}
@@ -5442,21 +5431,20 @@ static void *FragmentCollector(void *arg)
 * @param aamp[in] PrivateInstanceAAMP pointer
 * @param seekpos[in] Seek position
 * @param rate[in] Rate of playback
-* @param enableThrottle[in] throttle enable/disable flag
 * @return void
 ***************************************************************************/
-StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle) : StreamAbstractionAAMP(aamp),
+StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate) : StreamAbstractionAAMP(aamp),
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
-	enableThrottle(enableThrottle), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0), midSeekPtsOffset(0),
+	enableThrottle(false), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0), midSeekPtsOffset(0),
 	lastSelectedProfileIndex(0), segDLFailCount(0), segDrmDecryptFailCount(0), mMediaCount(0),mProfileCount(0),
-	mUseAvgBandwidthForABR(false), mLangList(),mIframeAvailable(false), thumbnailManifest(), indexedTileInfo(),
+	mLangList(),mIframeAvailable(false), thumbnailManifest(), indexedTileInfo(),
 	mFirstPTS(0)
 {
 #ifndef AVE_DRM
        logprintf("PlayerInstanceAAMP() : AVE DRM disabled");
 #endif
 	trickplayMode = false;
-
+	enableThrottle = ISCONFIGSET(eAAMPConfig_Throttle);
 	logprintf("hls fragment collector seekpos = %f", seekpos);
 	if (rate == AAMP_NORMAL_PLAY_RATE)
 	{
@@ -5471,7 +5459,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *
 	memset(&trackState[0], 0x00, sizeof(trackState));
 	aamp->CurlInit(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT,aamp->GetNetworkProxy());
 	memset(streamInfo, 0, sizeof(*streamInfo));
-	mUseAvgBandwidthForABR = aamp->mUseAvgBandwidthForABR;
+
 }
 /***************************************************************************
 * @fn TrackState
@@ -5530,7 +5518,9 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 TrackState::~TrackState()
 {
 	aamp_Free(&playlist.ptr);
-	for (int j=0; j< gpGlobalConfig->maxCachedFragmentsPerTrack; j++)
+	int  maxCachedFragmentsPerTrack;
+	GETCONFIGVALUE(eAAMPConfig_MaxFragmentCached,maxCachedFragmentsPerTrack); 
+	for (int j=0; j< maxCachedFragmentsPerTrack; j++)
 	{
 		aamp_Free(&cachedFragment[j].fragment.ptr);
 	}
@@ -5538,10 +5528,6 @@ TrackState::~TrackState()
 	if (playContext)
 	{
 		delete playContext;
-	}
-	if (mSubtitleParser)
-	{
-		delete mSubtitleParser;
 	}
 	if (mCMSha1Hash)
 	{
@@ -5961,7 +5947,7 @@ bool StreamAbstractionAAMP_HLS::SetThumbnailTrack( int thumbIndex )
 				aamp->mthumbIndexValue = iProfile;
 
 				std::string url;
-				aamp_ResolveURL(url, aamp->GetManifestUrl(), streamInfo->uri);
+				aamp_ResolveURL(url, aamp->GetManifestUrl(), streamInfo->uri,ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 				long http_error = 0;
 				double downloadTime = 0;
 				std::string tempEffectiveUrl;
@@ -6055,7 +6041,7 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(doub
 		}
 
 		std::string url;
-		aamp_ResolveURL(url, aamp->GetManifestUrl(), streaminfo->uri);
+		aamp_ResolveURL(url, aamp->GetManifestUrl(), streaminfo->uri, ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 		*baseurl = url.substr(0,url.find_last_of("/\\")+1);
 		*width = streaminfo->resolution.width;
 		*height = streaminfo->resolution.height;
@@ -6074,13 +6060,19 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(doub
 void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale)
 {
 	mFirstPTS = ((double)pts / (double)timeScale);
+}
 
-	//start subtitles
+/**
+ * @brief Signal start of subtitle renderering - should be sent at start of video presentation
+ * 
+ */
+void StreamAbstractionAAMP_HLS::StartSubtitleParser(unsigned long long firstPts)
+{
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
-	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser != NULL)
+	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
 	{
-		//position within playlist and pts in ms
-		subtitle->mSubtitleParser->init(seekPosition, pts);
+		logprintf("%s: sending timestamp %0.2f / %lld", __FUNCTION__, firstPts);
+		subtitle->mSubtitleParser->init(seekPosition, firstPts);
 		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
 	}
 }
@@ -6088,12 +6080,12 @@ void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsi
 void StreamAbstractionAAMP_HLS::NotifyPlaybackPaused(bool pause)
 {
 	StreamAbstractionAAMP::NotifyPlaybackPaused(pause);
-	
+
 	AAMPLOG_INFO("%s: pause %d\n", __FUNCTION__, pause);
-	
+
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
 
-	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser != NULL)
+	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser)
 	{
 		subtitle->mSubtitleParser->pause(pause);
 	}
@@ -6510,7 +6502,7 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 
 	while (aamp->DownloadsAreEnabled())
 	{
-		if(aamp->mNewAdBreakerEnabled)
+		if(ISCONFIGSET(eAAMPConfig_NewDiscontinuity))
 		{
 			// No condition to check DiscontinuityCount.Possible that in next refresh it will be available, 
 			// Case where one discontinnuity in one track ,but other track not having it	
@@ -6943,7 +6935,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 		if (!uri.empty())
 		{
 			std::string fragmentUrl;
-			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, uri.c_str());
+			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, uri.c_str(), ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 			std::string tempEffectiveUrl;
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
 			AAMPLOG_WARN("TrackState::%s:%d [%s] init-fragment = %s", __FUNCTION__, __LINE__, name, fragmentUrl.c_str());
@@ -7123,7 +7115,7 @@ void TrackState::RestoreDrmState()
 void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 {
 	double totalDuration = 0.0;
-	if (gpGlobalConfig->enableSubscribedTags && (eTRACK_VIDEO == type))
+	if (ISCONFIGSET(eAAMPConfig_EnableSubscribedTags) && (eTRACK_VIDEO == type))
 	{
 		pthread_mutex_lock(&mPlaylistMutex);
 		if (playlist.ptr)
@@ -7201,7 +7193,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 	long minBitrate = aamp->GetMinimumBitrate();
 	long maxBitrate = aamp->GetMaximumBitrate();
 	bool iProfileCapped = false;
-	bool resolutionCheckEnabled = aamp->mOutputResolutionCheckEnabled;
+	bool resolutionCheckEnabled = ISCONFIGSET(eAAMPConfig_LimitResolution); 
 	if(resolutionCheckEnabled && (0 == aamp->mDisplayWidth || 0 == aamp->mDisplayHeight))
 	{
 		resolutionCheckEnabled = false;
@@ -7283,10 +7275,10 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 		// 3. Make sure filters for disableATMOS/disableEC3/disableAAC is applied
 
 		// Get the initial configuration to filter the profiles
-		bool bDisableEC3 = aamp->mDisableEC3;
-		bool bDisableAC3 = aamp->mDisableEC3;
+		bool bDisableEC3 = ISCONFIGSET(eAAMPConfig_DisableEC3);
+		bool bDisableAC3 = bDisableEC3;
 		// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
-		bool bDisableATMOS = (aamp->mDisableEC3) ? true : aamp->mDisableATMOS;
+		bool bDisableATMOS = (bDisableEC3) ? true : ISCONFIGSET(eAAMPConfig_DisableATMOS);
 		bool bDisableAAC = false;
 
 		// Check if any demuxed audio exists , if muxed it will be -1
@@ -7598,7 +7590,7 @@ void StreamAbstractionAAMP_HLS::ConfigureTextTrack()
 	}
 	else
 	{
-		if (aamp->mSubLanguage[0])
+		if (!aamp->mSubLanguage.empty())
 		{
 			currentTextTrackProfileIndex = GetMediaIndexForLanguage(aamp->mSubLanguage, eTRACK_SUBTITLE);
 		}

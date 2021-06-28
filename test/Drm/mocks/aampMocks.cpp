@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "AampDRMutils.h"
-#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 #include "priv_aamp.h"
 
 #include "CppUTest/TestHarness.h"
@@ -15,15 +15,15 @@
 //#define ENABLE_LOGGING
 #define TEST_LOG_LEVEL eLOGLEVEL_TRACE
 
-std::shared_ptr<GlobalConfigAAMP> gGlobalConfig;
-GlobalConfigAAMP *gpGlobalConfig;
+std::shared_ptr<AampConfig> gGlobalConfig;
+AampConfig *gpGlobalConfig;
 
 static std::unordered_map<std::string, std::vector<std::string>> fCustomHeaders;
 
 void MockAampReset(void)
 {
 	MemoryLeakWarningPlugin::turnOffNewDeleteOverloads();
-	gGlobalConfig = std::make_shared<GlobalConfigAAMP>();
+	gGlobalConfig = std::make_shared<AampConfig>();
 	MemoryLeakWarningPlugin::turnOnNewDeleteOverloads();
 
 	gpGlobalConfig = gGlobalConfig.get();

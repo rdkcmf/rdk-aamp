@@ -389,7 +389,7 @@ public:
 	/// Function to to handle parse and indexing of individual tracks 
 	void IndexPlaylist(TrackState *trackState);
 	/// Constructor 
-	StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate, bool enableThrottle);
+	StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
 	/// Copy Constructor
 	StreamAbstractionAAMP_HLS(const StreamAbstractionAAMP_HLS&) = delete;
 	/// Destructor 
@@ -480,6 +480,9 @@ public:
 	/// Function to notify first video pts value from tsprocessor/demux. Kept public as its called from outside StreamAbstraction class
 	void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale);
 
+	// Signals subtitle renderer to begin presentation
+	void StartSubtitleParser(unsigned long long firstPts);
+
 	/// Function to get matching mediaInfo index for a language and track type
 	int GetMediaIndexForLanguage(std::string lang, TrackType type);
 
@@ -511,7 +514,6 @@ private:
 	int mMediaCount;						/**< Number of media in the stream */
 	int mProfileCount;						/**< Number of Video/Iframe in the stream */
 	bool mIframeAvailable;					/**< True if iframe available in the stream */
-	bool mUseAvgBandwidthForABR;
 	std::set<std::string> mLangList; /**< Available language list */
 	double mFirstPTS; /**< First video PTS in seconds */
 };

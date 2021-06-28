@@ -47,6 +47,7 @@ using namespace dash::helpers;
 
 /*Common MPD util functions (admanager_mpd.cpp and fragmentcollector_mpd.cpp */
 uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumber);
+double aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(IPeriod * period);
 uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t mpdDownloadTime = 0);
 Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd = false);
 uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd);
@@ -56,6 +57,103 @@ struct ProfileInfo
 	int adaptationSetIndex;
 	int representationIndex;
 };
+
+/**
+ * @struct FragmentDescriptor
+ * @brief Stores information of dash fragment
+ */
+struct FragmentDescriptor
+{
+private :
+	const std::vector<IBaseUrl *>*baseUrls;
+	std::string matchingBaseURL;
+public :
+	std::string manifestUrl;
+	uint32_t Bandwidth;
+	std::string RepresentationID;
+	uint64_t Number;
+	double Time;
+	bool bUseMatchingBaseUrl;
+
+	FragmentDescriptor() : manifestUrl(""), baseUrls (NULL), Bandwidth(0), Number(0), Time(0), RepresentationID(""),matchingBaseURL(""),bUseMatchingBaseUrl(false)
+	{
+	}
+	
+	FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), baseUrls(p.baseUrls), Bandwidth(p.Bandwidth), RepresentationID(p.RepresentationID), Number(p.Number), Time(p.Time),matchingBaseURL(p.matchingBaseURL),bUseMatchingBaseUrl(p.bUseMatchingBaseUrl)
+	{
+	}
+
+	FragmentDescriptor& operator=(const FragmentDescriptor &p)
+	{
+		manifestUrl = p.manifestUrl;
+		baseUrls = p.baseUrls;
+		RepresentationID.assign(p.RepresentationID);
+		Bandwidth = p.Bandwidth;
+		Number = p.Number;
+		Time = p.Time;
+		matchingBaseURL = p.matchingBaseURL;
+		return *this;
+	}
+
+	const std::vector<IBaseUrl *>*  GetBaseURLs() const
+	{
+		return baseUrls;
+	}
+
+	std::string GetMatchingBaseUrl() const
+	{
+		return matchingBaseURL;
+	}
+	void SetBaseURLs(const std::vector<IBaseUrl *>* baseurls )
+	{
+		if(baseurls)
+		{
+			this->baseUrls = baseurls;
+			if(this->baseUrls->size() > 0 )
+			{
+				// use baseurl which matches with host from manifest.
+				if(bUseMatchingBaseUrl)
+				{
+					std::string prefHost = aamp_getHostFromURL(manifestUrl);
+					for (auto & item : *this->baseUrls) {
+						std::string itemUrl =item->GetUrl();
+						std::string host  = aamp_getHostFromURL(itemUrl);
+						if(0 == prefHost.compare(host))
+						{
+							this->matchingBaseURL = item->GetUrl();
+							return; // return here, we are done
+						}
+					}
+				}
+				//we are here means useMatchingBaseUrl not enabled or host did not match
+				// hence initialize default to first baseurl
+				this->matchingBaseURL = this->baseUrls->at(0)->GetUrl();
+			}
+			else
+			{
+				this->matchingBaseURL.clear();
+			}
+		}
+	}
+
+};
+
+/**
+ * @struct PeriodInfo
+ * @brief Stores details about available periods in mpd
+ */
+
+struct PeriodInfo {
+	std::string periodId;
+	uint64_t startTime;
+	uint32_t timeScale;
+	double duration;
+
+	PeriodInfo() : periodId(""), startTime(0), duration(0.0), timeScale(0)
+	{
+	}
+};
+
 
 /**
  * @class StreamAbstractionAAMP_MPD
@@ -98,6 +196,7 @@ public:
 	int64_t GetMinUpdateDuration() { return mMinUpdateDurationMs;}
 	bool FetchFragment( class MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance, bool discontinuity = false );
 	bool PushNextFragment( class MediaStreamContext *pMediaStreamContext, unsigned int curlInstance);
+	double GetFirstPeriodStartTime(void);
 
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
@@ -135,6 +234,7 @@ private:
 	bool CheckForVssTags();
 	std::string GetVssVirtualStreamID();
 	bool IsMatchingLanguageAndMimeType(MediaType type, std::string lang, IAdaptationSet *adaptationSet, int &representationIndex);
+	void GetFragmentUrl( std::string& fragmentUrl, const FragmentDescriptor *fragmentDescriptor, std::string media);
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
 	double seekPosition;
@@ -220,6 +320,7 @@ private:
 #endif
 	std::vector<StreamInfo*> thumbnailtrack;
 	std::vector<TileInfo> indexedTileInfo;
+	double mFirstPeriodStartTime; /*< First period start time for progress report*/
 };
 
 #endif //FRAGMENTCOLLECTOR_MPD_H_

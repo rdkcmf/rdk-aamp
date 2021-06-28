@@ -390,8 +390,10 @@ public:
 	int segDrmDecryptFailCount;         /**< Segment decryption failure count*/
 	int mSegInjectFailCount;            /**< Segment Inject/Decode fail count */
 	TrackType type;                     /**< Media type of the track*/
-	SubtitleParser* mSubtitleParser;    /**< Parser for subtitle data*/
+	std::unique_ptr<SubtitleParser> mSubtitleParser;    /**< Parser for subtitle data*/
 	bool refreshSubtitles;              /**< Switch subtitle track in the FetchLoop */
+	int maxCachedFragmentsPerTrack;
+
 protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */
@@ -495,7 +497,6 @@ public:
 	 *   @return current position of stream.
 	 */
 	virtual double GetStreamPosition() = 0;
-
 	/**
 	 *   @brief  Get PTS of first sample.
 	 *
@@ -721,6 +722,8 @@ public:
 
 	double GetElapsedTime();
 
+	virtual double GetFirstPeriodStartTime() { return 0; }
+	virtual double GetFirstPeriodDynamicStartTime() { return 0; }
 	/**
 	 *   @brief Check for ramp down limit reached by player
 	 *   @return true if limit reached, false otherwise
@@ -821,10 +824,6 @@ public:
 	 */
 	void SetVideoBitrate(long bitrate);
 
-	/**
-	 *   @brief Check if a preferred bitrate is set and change profile accordingly.
-	 */
-	void CheckUserProfileChangeReq(void);
 
 	/**
 	 *   @brief Get available video bitrates.
@@ -868,10 +867,16 @@ public:
 	 *   @brief Receives first video PTS for the current playback
 	 *
 	 *   @param[in] pts - pts value
-	 *   @param[in] timeScale - time scale value 
+	 *   @param[in] timeScale - time scale value
 	 */
 	virtual void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale) { };
-	
+
+	/**
+	 * @brief Kicks off subtitle display - sent at start of video presentation
+	 * 
+	 */
+	virtual void StartSubtitleParser(unsigned long long firstPts) { };
+
 	/**
 	 *   @brief Waits subtitle track injection until caught up with audio track.
 	 *          Used internally by injection logic
@@ -1038,14 +1043,7 @@ public:
           */
 	void MuteSubtitles(bool mute);
 
-	/**
-          * @brief Send a timestamp packet to the subtitle renderer
-	  * based on GetStreamPosition()
-          *
-          */
-	void UpdateSubtitleTimestamp();
-
-       /**
+		/**
 	 * @brief Blocks aux track injection until caught up with video track.
 	 *        Used internally by injection logic
 	 *
@@ -1129,6 +1127,10 @@ private:
 	int mABRHighBufferCounter;	    /**< ABR High buffer counter */
 	int mABRLowBufferCounter;	    /**< ABR Low Buffer counter */
 	int mMaxBufferCountCheck;
+	int mABRMaxBuffer;			/**< ABR ramp up buffer*/
+	int mABRCacheLength;			/**< ABR cache length*/
+	int mABRMinBuffer;			/**< ABR ramp down buffer*/
+	int mABRNwConsistency;			/**< ABR Network consistency*/
 	bool mESChangeStatus;               /**< flag value which is used to call pipeline configuration if the audio type changed in mid stream */
 	double mLastVideoFragParsedTimeMS;  /**< timestamp when last video fragment was parsed */
 

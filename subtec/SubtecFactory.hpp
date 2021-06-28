@@ -23,47 +23,55 @@
 #include "WebVttSubtecParser.hpp"
 #include "TtmlSubtecParser.hpp"
 #include "subtitleParser.h" //required for gpGlobalConfig also
+#include "SubtecPacket.hpp" // for make_unique
 
 class SubtecFactory
 {
 public:
-    static SubtitleParser* createSubtitleParser(PrivateInstanceAAMP *aamp, std::string mimeType)
+    static std::unique_ptr<SubtitleParser> createSubtitleParser(PrivateInstanceAAMP *aamp, std::string mimeType)
     {
         SubtitleMimeType type = eSUB_TYPE_UNKNOWN;
-        
+
         AAMPLOG_INFO("createSubtitleParser: mimeType %s\n", mimeType.c_str());
-        
+
         if (!mimeType.compare("text/vtt"))
             type = eSUB_TYPE_WEBVTT;
         else if (!mimeType.compare("application/ttml+xml") ||
                 !mimeType.compare("application/mp4"))
             type = eSUB_TYPE_TTML;
-        
-        if (type != eSUB_TYPE_UNKNOWN)
-            return createSubtitleParser(aamp, type);
-            
-        return nullptr;
+
+        return createSubtitleParser(aamp, type);
     }
-    
-    static SubtitleParser* createSubtitleParser(PrivateInstanceAAMP *aamp, SubtitleMimeType mimeType)
+
+    static std::unique_ptr<SubtitleParser> createSubtitleParser(PrivateInstanceAAMP *aamp, SubtitleMimeType mimeType)
     {
         AAMPLOG_INFO("createSubtitleParser: mimeType: %d\n", mimeType);
-        switch (mimeType)
-        {
-            case eSUB_TYPE_WEBVTT:
-                // If JavaScript cue listeners have been registered use WebVTTParser,
-                // otherwise use subtec
-                if (!aamp->WebVTTCueListenersRegistered())
-                    if (gpGlobalConfig->bWebVttNative)
-                        return new WebVTTSubtecParser(aamp, mimeType);
+        std::unique_ptr<SubtitleParser> empty;
+        
+        try {
+            switch (mimeType)
+            {
+                case eSUB_TYPE_WEBVTT:
+                    // If JavaScript cue listeners have been registered use WebVTTParser,
+                    // otherwise use subtec
+                    if (!aamp->WebVTTCueListenersRegistered())
+			if (ISCONFIGSET(eAAMPConfig_WebVTTNative))
+                            return make_unique<WebVTTSubtecParser>(aamp, mimeType);
+                        else
+                            return make_unique<WebVTTSubtecDevParser>(aamp, mimeType);
                     else
-                        return new WebVTTSubtecDevParser(aamp, mimeType);
-                else
-                    return new WebVTTParser(aamp, mimeType);
-            case eSUB_TYPE_TTML:
-                return new TtmlSubtecParser(aamp, mimeType);
-            default:
-                return nullptr;
+                        return make_unique<WebVTTParser>(aamp, mimeType);
+                case eSUB_TYPE_TTML:
+                    return make_unique<TtmlSubtecParser>(aamp, mimeType);
+                default:
+                    AAMPLOG_WARN("%s:  Unknown subtitle parser type %d, returning empty", __FUNCTION__, mimeType);
+                    break;
+            }
+        } catch (const std::runtime_error &e) {
+            AAMPLOG_WARN("%s:  %s", __FUNCTION__, e.what());
+            AAMPLOG_WARN("%s:  Failed on SubtitleParser construction - returning empty", __FUNCTION__);
         }
+
+        return empty;
     }
 };

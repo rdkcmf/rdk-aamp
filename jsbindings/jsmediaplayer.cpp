@@ -47,71 +47,6 @@ extern "C"
 	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
 }
 
-static pthread_t tuneThreadId;
-static bool tuneThreadIdIsValid = false;
-static bool bTuneInProgress = false;
-
-/**
- * @class AsyncTune
- * @brief AsyncTune implementation for Ref-Player
- */
-class AsyncTune
-{
-public:
-	/**
-	 * @brief AsyncTune Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] string-url - playback url
-	 */
-	AsyncTune(class PlayerInstanceAAMP* aamp, std::string url)
-			: _aamp(aamp)
-			, _url(url)
-	{
-		/* NOP */
-	}
-
-	/**
-	 * @brief AsyncTune Destructor
-	 */
-	virtual ~AsyncTune()
-	{
-		/* NOP */
-	}
-
-	/**
-	 * @brief AsyncTune Copy Constructor
-	 */
-	AsyncTune(const AsyncTune&) = delete;
-
-	/**
-	 * @brief AsyncTune Assignment operator overloading
-	 */
-	AsyncTune& operator=(const AsyncTune&) = delete;
-
-public:
-	class PlayerInstanceAAMP* _aamp;
-	std::string _url;
-};
-
-/**
- * @brief Async Tune function.
- * @param arg passed as parameter during the async tune
- */
-static void* do_AsyncTune(void* arg)
-{
-	class AsyncTune* pAsyncTune = (class AsyncTune*)arg;
-	const char* szUrl = pAsyncTune->_url.c_str();
-
-	INFO("[AAMP_JS] %s() ASYNC_TUNE START url='%s'", __FUNCTION__, szUrl);
-
-	pAsyncTune->_aamp->Tune(szUrl);
-
-	INFO("[AAMP_JS] %s() ASYNC_TUNE FINISH url='%s'", __FUNCTION__, szUrl);
-	delete pAsyncTune;
-
-	return NULL;
-}
-
 /**
  * @struct AAMPMediaPlayer_JS
  * @brief Private data structure of AAMPMediaPlayer JS object
@@ -271,6 +206,7 @@ enum ConfigParamType
 	ePARAM_LICENSE_CACHING,
 	ePARAM_PAUSED_BEHAVIOR,
 	ePARAM_LIMIT_RESOLUTION,
+	ePARAM_USE_ABSOLUTE_TIMELINE,
 	ePARAM_MAX_COUNT
 };
 
@@ -346,6 +282,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_LICENSE_CACHING, "setLicenseCaching"},
 	{ ePARAM_PAUSED_BEHAVIOR, "livePauseBehavior"},
 	{ ePARAM_LIMIT_RESOLUTION, "limitResolution"},
+	{ ePARAM_USE_ABSOLUTE_TIMELINE, "useAbsoluteTimeline"},
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -688,54 +625,31 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 		{
 			url = aamp_JSValueToCString(ctx, arguments[0], exception);
 
-			if(privObj->_aamp->GetAsyncTuneConfig())	
+			if(privObj->_aamp->GetAsyncTuneConfig())
 			{
-				if (bTuneInProgress)
-				{
-					void* status;
-					INFO("[AAMP_JS] %s() ASYNC_TUNE JOIN", __FUNCTION__);
-					pthread_join(tuneThreadId, &status);
-					bTuneInProgress = false;
-					tuneThreadIdIsValid = false;
-				}
+				const std::string manifest = std::string(url);
+				const std::string cType = (contentType != NULL) ? std::string(contentType) : std::string();
+				const std::string traceId = (strTraceId != NULL) ? std::string(strTraceId) : std::string();
 
-				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
 				INFO("[AAMP_JS] %s() ASYNC_TUNE CREATE url='%s'", __FUNCTION__, url);
-
-				std::string urlString(url);
-				class AsyncTune* asyncTune = new AsyncTune(privObj->_aamp, urlString);
-				int err = pthread_create(&tuneThreadId, NULL, do_AsyncTune, asyncTune);
-				bTuneInProgress = (err == 0);
-				tuneThreadIdIsValid = (err == 0);
-				delete [] url;
+				privObj->_aamp->ScheduleTask(AsyncTaskObj(
+							[manifest, autoPlay, cType, bFirstAttempt, bFinalAttempt, traceId](void *data)
+							{
+								PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+								instance->Tune(manifest.c_str(), autoPlay, cType.c_str(), bFirstAttempt, bFinalAttempt, traceId.c_str());
+							}, (void *) privObj->_aamp));
 			}
 			else
 			{
-				if(bTuneInProgress && tuneThreadIdIsValid)
-				{
-					// if previous tune was Async and next tune app changed the configuration
-					// safe to check and join the thread 
-					void* status;
-	                                INFO("[AAMP_JS] %s() ASYNC_TUNE JOIN", __FUNCTION__);
-	                                pthread_join(tuneThreadId, &status);
-	                                bTuneInProgress = false;
-	                                tuneThreadIdIsValid = false;
-				}
 				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
 				privObj->_aamp->Tune(url, autoPlay, contentType, bFirstAttempt, bFinalAttempt,strTraceId);
 
-				delete [] url;
-				if (contentType)
-				{
-					delete[] contentType;
-				}
-
-				if (strTraceId)
-				{
-					delete[] strTraceId;
-				}
 			}
 
+			delete [] url;
+			delete[] contentType;
+			delete[] strTraceId;
+		
 			break;
 		}
 
@@ -783,7 +697,25 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		bool useRole = false; //default value in func arg
 		int enableVideoRectangle = -1; //-1: value not passed, 0: false, 1:true
 		int numConfigParams = sizeof(initialConfigParamNames)/sizeof(initialConfigParamNames[0]);
-
+#if 0  // to be enabled after Seek and SetPreferred Language is fixed
+		bool jsonparsingdone=false;
+		char *jsonStr = aamp_JSValueToJSONCString(ctx,arguments[0], exception);
+		if (jsonStr != NULL)
+		{
+			ERROR("%s(): InitConfig input from App : %s", __FUNCTION__, jsonStr);
+			if(privObj->_aamp->InitAAMPConfig(jsonStr))
+			{
+				jsonparsingdone=true;
+			}
+			delete[] jsonStr;
+		}
+		else
+		{
+			ERROR("%s(): InitConfig Failed to create JSON String", __FUNCTION__);
+		}
+		if(!jsonparsingdone)
+		{
+#endif
 		JSObjectRef initConfigObj = JSValueToObject(ctx, arguments[0], &_exception);
 		if (initConfigObj == NULL || _exception != NULL)
 		{
@@ -860,6 +792,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_SSL_VERIFY_PEER:
 			case ePARAM_LICENSE_CACHING:
 			case ePARAM_LIMIT_RESOLUTION:
+			case ePARAM_USE_ABSOLUTE_TIMELINE:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -949,6 +882,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_PARALLELPLAYLISTREFRESH:
 					privObj->_aamp->SetParallelPlaylistRefresh(valueAsBoolean);
 					break;
+				case ePARAM_ASYNCTUNE:
+					privObj->_aamp->SetAsyncTuneConfig(valueAsBoolean);
+					break;
 				case ePARAM_USE_WESTEROS_SINK:
 					privObj->_aamp->SetWesterosSinkConfig(valueAsBoolean);
 					break;
@@ -973,9 +909,6 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_PRECACHEPLAYLISTTIME:
 					privObj->_aamp->SetPreCacheTimeWindow((int) valueAsNumber);
 					break;					
-				case ePARAM_ASYNCTUNE:
-					privObj->_aamp->SetAsyncTuneConfig(valueAsBoolean);
-					break;
 				case ePARAM_INITIALBUFFER:
 					privObj->_aamp->SetInitialBufferDuration((int) valueAsNumber);
 					break;
@@ -1049,6 +982,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 				case ePARAM_LIMIT_RESOLUTION:
                                         privObj->_aamp->SetOutputResolutionCheck(valueAsBoolean);
                                         break;
+				case ePARAM_USE_ABSOLUTE_TIMELINE:
+					privObj->_aamp->SetUseAbsoluteTimeline(valueAsBoolean);
+					break;
 				default: //ePARAM_MAX_COUNT
 					break;
 				}
@@ -1065,6 +1001,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		{
 			privObj->_aamp->EnableVideoRectangle(enableVideoRectangle == 1);
 		}
+#if 0		
+		}
+#endif
 	}
 	else
 	{
@@ -1096,7 +1035,19 @@ JSValueRef AAMPMediaPlayerJS_play (JSContextRef ctx, JSObjectRef function, JSObj
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call play() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	privObj->_aamp->SetRate(AAMP_NORMAL_PLAY_RATE);
+	if (privObj->_aamp->GetAsyncTuneConfig())
+	{
+		privObj->_aamp->ScheduleTask(AsyncTaskObj(
+					[](void *data)
+					{
+						PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+						instance->SetRate(AAMP_NORMAL_PLAY_RATE);
+					}, (void *) privObj->_aamp));
+	}
+	else
+	{
+		privObj->_aamp->SetRate(AAMP_NORMAL_PLAY_RATE);
+	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
@@ -1148,7 +1099,19 @@ JSValueRef AAMPMediaPlayerJS_pause (JSContextRef ctx, JSObjectRef function, JSOb
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call pause() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	privObj->_aamp->SetRate(0);
+	if (privObj->_aamp->GetAsyncTuneConfig())
+	{
+		privObj->_aamp->ScheduleTask(AsyncTaskObj(
+					[](void *data)
+					{
+						PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+						instance->SetRate(0);
+					}, (void *) privObj->_aamp));
+	}
+	else
+	{
+		privObj->_aamp->SetRate(0);
+	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
@@ -1206,7 +1169,19 @@ JSValueRef AAMPMediaPlayerJS_seek (JSContextRef ctx, JSObjectRef function, JSObj
 		double newSeekPos = JSValueToNumber(ctx, arguments[0], exception);
 		bool keepPaused = (argumentCount == 2)? JSValueToBoolean(ctx, arguments[1]) : false;
 
-		privObj->_aamp->Seek(newSeekPos, keepPaused);
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			privObj->_aamp->ScheduleTask(AsyncTaskObj(
+						[newSeekPos, keepPaused](void *data)
+						{
+							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+							instance->Seek(newSeekPos, keepPaused);
+						}, (void *) privObj->_aamp));
+		}
+		else
+		{
+			privObj->_aamp->Seek(newSeekPos, keepPaused);
+		}
 	}
 	else
 	{
@@ -1312,7 +1287,6 @@ JSValueRef AAMPMediaPlayerJS_getAvailableThumbnailTracks (JSContextRef ctx, JSOb
  */
 JSValueRef AAMPMediaPlayerJS_setThumbnailTrack (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj)
@@ -1775,7 +1749,19 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 		int index = (int) JSValueToNumber(ctx, arguments[0], NULL);
 		if (index >= 0)
 		{
-			privObj->_aamp->SetAudioTrack(index);
+			if (privObj->_aamp->GetAsyncTuneConfig())
+			{
+				privObj->_aamp->ScheduleTask(AsyncTaskObj(
+							[index](void *data)
+							{
+								PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+								instance->SetAudioTrack(index);
+							}, (void *) privObj->_aamp));
+			}
+			else
+			{
+				privObj->_aamp->SetAudioTrack(index);
+			}
 		}
 		else
 		{
@@ -1949,7 +1935,20 @@ JSValueRef AAMPMediaPlayerJS_setAudioLanguage (JSContextRef ctx, JSObjectRef fun
 	if (argumentCount == 1)
 	{
 		const char *lang = aamp_JSValueToCString(ctx, arguments[0], exception);
-		privObj->_aamp->SetLanguage(lang);
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			std::string language = std::string(lang);
+			privObj->_aamp->ScheduleTask(AsyncTaskObj(
+						[language](void *data)
+						{
+							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+							instance->SetLanguage(language.c_str());
+						}, (void *) privObj->_aamp));
+		}
+		else
+		{
+			privObj->_aamp->SetLanguage(lang);
+		}
 		delete[] lang;
 	}
 	else
@@ -2015,7 +2014,19 @@ JSValueRef AAMPMediaPlayerJS_setPlaybackRate (JSContextRef ctx, JSObjectRef func
 		{
 			overshootCorrection = (int) JSValueToNumber(ctx, arguments[1], exception);
 		}
-		privObj->_aamp->SetRate(rate, overshootCorrection);
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			privObj->_aamp->ScheduleTask(AsyncTaskObj(
+						[rate, overshootCorrection](void *data)
+						{
+							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+							instance->SetRate(rate, overshootCorrection);
+						}, (void *) privObj->_aamp));
+		}
+		else
+		{
+			privObj->_aamp->SetRate(rate, overshootCorrection);
+		}
 	}
 	else
 	{
@@ -2416,7 +2427,19 @@ JSValueRef AAMPMediaPlayerJS_setVideoRect (JSContextRef ctx, JSObjectRef functio
 		int y = (int) JSValueToNumber(ctx, arguments[1], exception);
 		int w = (int) JSValueToNumber(ctx, arguments[2], exception);
 		int h = (int) JSValueToNumber(ctx, arguments[3], exception);
-		privObj->_aamp->SetVideoRectangle(x,y,w,h);
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			privObj->_aamp->ScheduleTask(AsyncTaskObj(
+						[x, y, w, h](void *data)
+						{
+							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+							instance->SetVideoRectangle(x, y, w, h);
+						}, (void *) privObj->_aamp));
+		}
+		else
+		{
+			privObj->_aamp->SetVideoRectangle(x, y, w, h);
+		}
 	}
 	else
 	{
