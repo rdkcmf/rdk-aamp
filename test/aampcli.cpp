@@ -42,11 +42,11 @@
 #endif
 #include <stdlib.h>
 #include <stddef.h>
-#include <stdio.h>
 #include <errno.h>
 #include <list>
-#include <string.h>
+#include <sstream>
 #include <string>
+//#include <stdio.h>
 #include <gst/gst.h>
 #include <priv_aamp.h>
 #include <main_aamp.h>
@@ -1348,25 +1348,32 @@ static void ProcessCliCommand( char *cmd )
 					}
 					break;
                                 }
-				case eAAMP_SET_PreferredLanguages:
-				{
-					logprintf("Matched Command eAAMP_SET_PreferredLanguages - %s ", cmd);
-					const char* listStart = NULL;
-					const char* listEnd = NULL;
-					if((listStart = strchr(cmd, '"')) == NULL
-							|| ( strlen(listStart+1) && (listEnd = strchr(listStart+1, '"')) == NULL) )
-					{
-						logprintf("preferred languages string has to be wrapped with \" \" ie \"eng, ger\"");
-						break;
-					}
 
-					std::string preferredLanguages(listStart+1, listEnd-listStart-1);
-					if(!preferredLanguages.empty())
-						mSingleton->SetPreferredLanguages(preferredLanguages.c_str());
-					else
-						mSingleton->SetPreferredLanguages(NULL);
-					break;
+				case eAAMP_SET_PreferredLanguages:
+                {
+                    char preferredLanguages[128];
+                    char rendition[32];
+                    memset(preferredLanguages, 0, sizeof(preferredLanguages));
+                    memset(rendition, 0, sizeof(rendition));
+                    printf("[AAMPCLI] Matched Command eAAMP_SET_PreferredLanguages - %s \n", cmd);
+                    
+                    if (sscanf(cmd, "set %d %s %s", &opt, preferredLanguages, rendition) == 3){
+                            printf("[AAMPCLI] setting PreferredLanguages (%s) with rendition (%s) \n" ,
+                                            preferredLanguages, rendition);  
+                            mSingleton->SetPreferredLanguages(preferredLanguages, rendition);
+                    }
+                    else if (sscanf(cmd, "set %d %s", &opt, preferredLanguages) == 2)
+                    {
+                            printf("[AAMPCLI] setting PreferredLanguages (%s) \n",preferredLanguages );  
+                            mSingleton->SetPreferredLanguages(preferredLanguages);
+                    }
+                    else
+                    {
+                            printf("[AAMPCLI] set preferred languages must be run with atleast 1 argument\n");
+                    }
+                    break;
 				}
+
 				case eAAMP_SET_InitRampdownLimit:
                                 {
 					int rampDownLimit;
@@ -1452,7 +1459,21 @@ static void ProcessCliCommand( char *cmd )
 
 					}
 					break;
-                                }
+				}
+				
+				case eAAMP_SET_LanguageFormat:
+				{
+					LangCodePreference preference;
+					int preferenceInt = 0;
+					int bDescriptiveAudioTrack = 0;
+					if (sscanf(cmd, "set %d %d %d", &opt, &preferenceInt, &bDescriptiveAudioTrack  ) >= 2)
+					{
+						preference = (LangCodePreference) preferenceInt;
+						mSingleton->SetLanguageFormat(preference, bDescriptiveAudioTrack!=0 );
+					}
+					break;
+				}
+
 				case eAAMP_SET_InitialBufferDuration:
 				{
 					int duration;
@@ -1466,10 +1487,53 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_AudioTrack:
 				{
 					int track;
-					logprintf("Matched Command eAAMP_SET_AudioTrack - %s ", cmd);
+					char strTrackInfo[512];
+					memset(strTrackInfo, '\0', sizeof(strTrackInfo));
+					printf("[AAMPCLI] Matched Command eAAMP_SET_AudioTrack - %s \n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &track) == 2)
 					{
 						mSingleton->SetAudioTrack(track);
+					}
+					else if (sscanf(cmd, "set %d %s", &opt, strTrackInfo) == 2)
+					{
+						std::string substr = "";
+						std::string language = "";
+						std::string rendition = "";
+						std::string codec = "";
+						int channel = 0;
+                                                std::stringstream ss(strTrackInfo);
+						/** "language,rendition,codec,channel" **/
+						/*language */
+						if (std::getline(ss, substr, ',')){
+							if(!substr.empty()){
+								language = substr;
+							}
+						} 
+
+						/*rendition */
+                                                if (std::getline(ss, substr, ',')){
+							if(!substr.empty()){
+								rendition = substr;
+							}
+						} 
+
+						/*codec TODO:not supported now */
+						if (std::getline(ss, substr, ',')){
+                                                        if(!substr.empty()){
+								codec = substr;
+							}
+						} 
+
+						/*channel TODO:not supported now */
+						if (std::getline(ss, substr, ',')){	
+                                                        if(!substr.empty()){
+								channel = std::stoi(substr);
+							}
+						} 
+						printf("[AAMPCLI] Selecting audio track based on language  - %s rendition - %s codec = %s channel = %d\n", 
+						language.c_str(), rendition.c_str(), codec.c_str(), channel);
+						mSingleton->SetAudioTrack(language, rendition, codec, channel);
+
 					}
 					break;
 				}
@@ -1522,16 +1586,7 @@ static void ProcessCliCommand( char *cmd )
 					}
 					break;
 				}
-				case eAAMP_SET_LanguageFormat:
-				{
-					LangCodePreference preference;
-					bool useRole;
-					if (sscanf(cmd, "set %d %d %d", &opt, &preference, &useRole) == 3)
-					{
-						mSingleton->SetLanguageFormat(preference, useRole);
-					}
-					break;
-                                }
+
 				case eAAMP_SET_PropagateUriParam:
                                 {
                                         int propagateUriParam;

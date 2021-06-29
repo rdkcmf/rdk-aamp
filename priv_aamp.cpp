@@ -1045,11 +1045,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->decoderUnavailableStrict = true;
 			logprintf("decoderunavailablestrict:%s", gpGlobalConfig->decoderUnavailableStrict ? "on" : "off");
 		}
-		else if( cfg.compare("descriptiveaudiotrack") == 0 )
-		{
-			gpGlobalConfig->bDescriptiveAudioTrack  = true;
-			logprintf("descriptiveaudiotrack:%s", gpGlobalConfig->bDescriptiveAudioTrack ? "on" : "off");
-		}
+//		else if( cfg.compare("descriptiveaudiotrack") == 0 )
+//		{
+//			gpGlobalConfig->bDescriptiveAudioTrack  = true;
+//			logprintf("descriptiveaudiotrack:%s", gpGlobalConfig->bDescriptiveAudioTrack ? "on" : "off");
+//		}
 		else if( ReadConfigNumericHelper( cfg, "langcodepref=", value) == 1 )
 		{
 			const char *langCodePrefName[] =
@@ -1930,7 +1930,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	mDiscontinuityTuneOperationInProgress(false), mContentType(ContentType_UNKNOWN), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
 	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(), mVssVirtualStreamId(), mFogErrorString(""),
-	mCurrentLanguageIndex(0), noExplicitUserLanguageSelection(true), languageSetByUser(false), preferredLanguagesString(), preferredLanguagesList(),
+	mCurrentLanguageIndex(0),
+	preferredLanguagesString(), preferredLanguagesList(),
 #ifdef SESSION_STATS
 	mVideoEnd(NULL),
 #endif
@@ -1968,7 +1969,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS), mUseRetuneForGSTInternalError(true)
 	, mLicenseServerUrls(), mFragmentCachingRequired(false), mFragmentCachingLock()
 	, mPauseOnFirstVideoFrameDisp(false)
-	, mPreferredAudioTrack(), mPreferredTextTrack(), mFirstVideoFrameDisplayedEnabled(false)
+	, /* mPreferredAudioTrack(), */ mPreferredTextTrack(), mFirstVideoFrameDisplayedEnabled(false)
 	, mSessionToken(), mCacheMaxSize(0)
 	, midFragmentSeekCache(false)
 	, mEnableSeekableRange(false), mReportVideoPTS(false)
@@ -1979,14 +1980,15 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mthumbIndexValue(0)
 	, mManifestRefreshCount (0)
 	, mIsWVKIDWorkaround(false)
+	, preferredRenditionString(""), preferredRenditionList(), preferredCodecString(""), preferredCodecList(), mAudioTuple()
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	mDRMSessionManager = new AampDRMSessionManager();
 #endif
 	pthread_cond_init(&mDownloadsDisabled, NULL);
-	strcpy(language,"en");
-	iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
+//	strcpy(language,"en");
+//	iso639map_NormalizeLanguageCode( language, GetLangCodePreference() );
     
 	memset(mSubLanguage, '\0', MAX_LANGUAGE_TAG_LENGTH);
 	if (!gpGlobalConfig->mSubtitleLanguage.empty())
@@ -6683,8 +6685,8 @@ void PrivateInstanceAAMP::Stop()
   
 	mSeekOperationInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
-	mPreferredAudioTrack = AudioTrackInfo();
-	mPreferredTextTrack = TextTrackInfo();
+	//mPreferredAudioTrack = AudioTrackInfo(); // reset
+	mPreferredTextTrack = TextTrackInfo(); // reset
 	// send signal to any thread waiting for play
 	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
@@ -7923,57 +7925,14 @@ void PrivateInstanceAAMP::UpdateSubtitleTimestamp()
 }
 
 /**
- * @brief Update audio language selection
- * @param lang string corresponding to language
- * @param checkBeforeOverwrite - if set will do additional checks before overwriting user setting
- */
-void PrivateInstanceAAMP::UpdateAudioLanguageSelection(const char *lang, bool checkBeforeOverwrite)
-{
-	bool overwriteSetting = true;
-	if (checkBeforeOverwrite)
-	{
-		// Check if the user provided language is present in the available language list
-		// in which case this is just temporary and no need to overwrite user settings
-		for (int cnt = 0; cnt < mMaxLanguageCount; cnt++)
-		{
-			if(strncmp(mLanguageList[cnt], language, MAX_LANGUAGE_TAG_LENGTH) == 0)
-			{
-				overwriteSetting = false;
-				break;
-			}
-		}
-
-	}
-
-	if (overwriteSetting)
-	{
-		if (strncmp(language, lang, MAX_LANGUAGE_TAG_LENGTH) != 0)
-		{
-			AAMPLOG_WARN("%s:%d Update audio language from (%s) -> (%s)", __FUNCTION__, __LINE__, language, lang);
-			strncpy(language, lang, MAX_LANGUAGE_TAG_LENGTH);
-			language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
-		}
-	}
-	noExplicitUserLanguageSelection = false;
-
-	for (int cnt=0; cnt < mMaxLanguageCount; cnt ++)
-	{
-		if(strncmp(mLanguageList[cnt],lang,MAX_LANGUAGE_TAG_LENGTH) == 0)
-		{
-			mCurrentLanguageIndex = cnt; // needed?
-			break;
-		}
-	}
-}
-
-/**
  * @brief Update subtitle language selection
  * @param lang string corresponding to language
  */
 void PrivateInstanceAAMP::UpdateSubtitleLanguageSelection(const char *lang)
 {
 	strncpy(mSubLanguage, lang, MAX_LANGUAGE_TAG_LENGTH);
-	language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+	//language[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
+	mSubLanguage[MAX_LANGUAGE_TAG_LENGTH-1] = '\0';
 }
 
 /**
@@ -9594,40 +9553,6 @@ std::string PrivateInstanceAAMP::GetLicenseServerUrlForDrm(DRMSystems type)
 }
 
 /**
- *   @brief Set audio track
- *
- *   @param[in] trackId index of audio track in available track list
- *   @return void
- */
-void PrivateInstanceAAMP::SetAudioTrack(int trackId)
-{
-	if (mpStreamAbstractionAAMP)
-	{
-		std::vector<AudioTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableAudioTracks();
-		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
-		{
-			SetPreferredAudioTrack(tracks[trackId]);
-			// TODO: Confirm if required
-			languageSetByUser = true;
-			if (mMediaFormat == eMEDIAFORMAT_OTA)
-			{
-				mpStreamAbstractionAAMP->SetAudioTrack(trackId);
-			}
-			else
-			{
-				discardEnteringLiveEvt = true;
-
-				seek_pos_seconds = GetPositionMilliseconds() / 1000.0;
-				TeardownStream(false);
-				TuneHelper(eTUNETYPE_SEEK);
-
-				discardEnteringLiveEvt = false;
-			}
-		}
-	}
-}
-
-/**
  *   @brief Get current audio track index
  *
  *   @return int - index of current audio track in available track list
@@ -10288,3 +10213,67 @@ unsigned char* PrivateInstanceAAMP::ReplaceKeyIDPsshData(const unsigned char *In
 	}
 	return NULL;
 }
+
+/**
+ *   @brief Set optional preferred language list
+ *   @param[in] languageList - string with comma-delimited language list in ISO-639
+ *             from most to least preferred. Set NULL to clear current list.
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition )
+{
+	preferredLanguagesString.clear();
+	preferredLanguagesList.clear();
+	if(languageList != NULL)
+	{
+		preferredLanguagesString = std::string(languageList);
+		std::istringstream ss(preferredLanguagesString);
+		std::string lng;
+		while(std::getline(ss, lng, ','))
+		{
+			preferredLanguagesList.push_back(lng);
+			AAMPLOG_INFO("%s:%d: Parsed preferred lang: %s", __FUNCTION__, __LINE__,
+					lng.c_str());
+		}
+
+		preferredLanguagesString = std::string(languageList);
+	}
+
+	AAMPLOG_INFO("%s:%d: Number of preferred languages: %d", __FUNCTION__, __LINE__,
+			preferredLanguagesList.size());
+	
+
+	if( preferredRendition )
+	{
+                AAMPLOG_INFO("%s:%d: Setting rendition %s", __FUNCTION__, __LINE__, preferredRendition);
+		preferredRenditionString = std::string(preferredRendition);
+	}
+	else
+	{
+		preferredRenditionString.clear();
+	}
+
+	PrivAAMPState state;
+	GetState(state);
+	if (state != eSTATE_IDLE && state != eSTATE_RELEASED && state != eSTATE_ERROR )
+	{ // active playback session; apply immediately
+		if (mpStreamAbstractionAAMP)
+		{
+			if(mMediaFormat == eMEDIAFORMAT_OTA)
+			{
+				mpStreamAbstractionAAMP->SetAudioTrackByLanguage(languageList);
+			}
+			else
+			{
+				discardEnteringLiveEvt = true;
+			
+				seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+				TeardownStream(false);
+				TuneHelper(eTUNETYPE_SEEK);
+				discardEnteringLiveEvt = false;
+			}
+		}
+	}
+}
+

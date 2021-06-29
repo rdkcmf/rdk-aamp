@@ -57,7 +57,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	mSubtitleLanguage(), enableClientDai(false), playAdFromCDN(false), mEnableVideoEndEvent(true),
 	discontinuityTimeout(DEFAULT_DISCONTINUITY_TIMEOUT), bReportVideoPTS(eUndefinedState), mEnableRectPropertyCfg(eUndefinedState),
 	decoderUnavailableStrict(false), aampAbrThresholdSize(DEFAULT_AAMP_ABR_THRESHOLD_SIZE),
-	langCodePreference(0), bDescriptiveAudioTrack(false), useAppSrcForProgressivePlayback(false), reportBufferEvent(true),
+	langCodePreference(0), useAppSrcForProgressivePlayback(false), reportBufferEvent(true),
 	manifestTimeoutMs(-1), fragmp4LicensePrefetch(true), enableBulkTimedMetaReport(eUndefinedState), playlistTimeoutMs(-1),
 	mAsyncTuneConfig(eUndefinedState), mWesterosSinkConfig(eUndefinedState), mPropagateUriParameters(eTrueState), aampRemovePersistent(0), preplaybuffercount(DEFAULT_PREBUFFER_COUNT),
 	mUseAverageBWForABR(eUndefinedState), mPreCacheTimeWindow(0), parallelPlaylistRefresh(eUndefinedState),

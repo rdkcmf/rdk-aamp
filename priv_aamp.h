@@ -368,6 +368,37 @@ struct ListenerData {
 };
 
 
+class AudioTrackTuple
+{
+	public:
+		std::string language;
+		std::string rendition;
+		std::string codec;
+		unsigned int bitrate;
+		unsigned int channel;
+
+	public:
+		AudioTrackTuple(): language(""),rendition(""),codec(""),bitrate(0), channel(0){}
+
+		void setAudioTrackTuple(std::string language="",  std::string rendition="", std::string codec="", unsigned int channel=0)
+		{
+			this->language = language;
+			this->rendition = rendition;
+			this->codec = codec;
+			this->channel = channel;
+			this->bitrate = 0;
+		}
+
+		void clear(void)
+		{
+			this->language = "";
+			this->rendition = "";
+			this->codec = "";
+			this->bitrate = 0;
+			this->channel = 0;
+		}
+};
+
 #ifdef AAMP_HLS_DRM
 /**
  *	\Class attrNameData
@@ -615,14 +646,17 @@ public:
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
 	int rate; // most recent (non-zero) play rate for non-paused content
 	bool pipeline_paused; // true if pipeline is paused
-	char language[MAX_LANGUAGE_TAG_LENGTH];  // current language set
-	bool noExplicitUserLanguageSelection; //true until not updated apart constructor
-	bool languageSetByUser; //initially 'false', set 'true' once language[] is set by user (also with the same as init value)
+	
 	char mLanguageList[MAX_LANGUAGE_COUNT][MAX_LANGUAGE_TAG_LENGTH]; // list of languages in stream
 	int mCurrentLanguageIndex; // Index of current selected lang in mLanguageList, this is used for VideoStat event data collection
 	int  mMaxLanguageCount;
 	std::string preferredLanguagesString; // unparsed string with preferred languages in format "lang1,lang2,.."
 	std::vector<std::string> preferredLanguagesList; // list of preferred languages from most-preferred to the least
+	std::string preferredRenditionString; // unparsed string with preferred renditions in format "rendition1,rendition2,.."
+	std::vector<std::string> preferredRenditionList; // list of preferred rendition from most-preferred to the least
+	std::string preferredCodecString; // unparsed string with preferred codecs in format "codec1,codec2,.."
+	std::vector<std::string> preferredCodecList; //String array to store codec preference
+	AudioTrackTuple mAudioTuple;
 	VideoZoomMode zoom_mode;
 	bool video_muted;
 	bool subtitles_muted;
@@ -2664,7 +2698,7 @@ public:
 	 *   @param[in] track - audio track info object
 	 *   @return void
 	 */
-	void SetPreferredAudioTrack(const AudioTrackInfo track) { mPreferredAudioTrack = track; }
+	//void SetPreferredAudioTrack(const AudioTrackInfo track) { mPreferredAudioTrack = track; }
 
 	/**
 	 *   @brief Set preferred text track
@@ -2680,7 +2714,7 @@ public:
 	 *
 	 *   @return AudioTrackInfo - preferred audio track object
 	 */
-	const AudioTrackInfo &GetPreferredAudioTrack() { return mPreferredAudioTrack; }
+	//const AudioTrackInfo &GetPreferredAudioTrack() { return mPreferredAudioTrack; }
 
 	/**
 	 *   @brief Get preferred text track
@@ -2792,6 +2826,15 @@ public:
 	 *   @return bool - true if enabled
 	 */
 	bool IsBitRatePersistedOverSeek() { return mPersistBitRateOverSeek; }
+
+	/**
+	 *   @brief Set optional preferred language list
+	 *   @param[in] languageList - string with comma-delimited language list in ISO-639
+	 *             from most to least preferred. Set NULL to clear current list.
+	 *
+	 *   @return void
+	 */
+	void SetPreferredLanguages(const char *languageList, const char *preferredRenditio = NULL );
 
 private:
 
@@ -2918,7 +2961,7 @@ private:
 	bool mFragmentCachingRequired; /**< True if fragment caching is required or ongoing */
 	pthread_mutex_t mFragmentCachingLock; /**< To sync fragment initial caching operations */
 	bool mPauseOnFirstVideoFrameDisp; /**< True if pause AAMP after displaying first video frame */
-	AudioTrackInfo mPreferredAudioTrack; /**< Preferred audio track from available tracks in asset */
+//	AudioTrackInfo mPreferredAudioTrack; /**< Preferred audio track from available tracks in asset */
 	TextTrackInfo mPreferredTextTrack; /**< Preferred text track from available tracks in asset */
 	bool mFirstVideoFrameDisplayedEnabled; /** Set True to enable call to NotifyFirstVideoFrameDisplayed() from Sink */
 	int mCacheMaxSize;
