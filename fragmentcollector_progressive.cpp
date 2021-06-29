@@ -157,6 +157,7 @@ void StreamAbstractionAAMP_PROGRESSIVE::FetcherLoop()
     }
     else
     {
+	    aamp->ResetTrickStartUTCTime();
 	    // send TunedEvent after first chunk injected - this is hint for XRE to hide the "tuning overcard"
 	    aamp->SendTunedEvent(false);
     }
