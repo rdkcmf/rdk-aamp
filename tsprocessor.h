@@ -98,6 +98,39 @@ typedef enum
 	ePC_Track_Both
 }TrackToDemux;
 
+
+struct uint33_t
+{
+    uint64_t value : 33;
+    inline constexpr operator double() const { return static_cast<double>(value);}
+    inline constexpr operator bool() const { return static_cast<bool>(value);}
+    uint33_t& operator=(const uint64_t& i) { value = i; return *this;}
+
+    constexpr static uint33_t max_value() {return {0x1ffffffff};};
+};
+
+inline constexpr uint33_t operator+(const uint33_t& l, const uint33_t& r) { return {l.value + r.value}; }
+inline constexpr uint33_t operator-(const uint33_t& l, const uint33_t& r) { return {l.value - r.value}; }
+inline constexpr bool operator<(const uint33_t& l, const uint33_t& r) { return l.value < r.value; }
+inline constexpr bool operator>(const uint33_t& l, const uint33_t& r) { return r < l; }
+
+inline constexpr bool operator==(const uint33_t& l, const uint33_t& r) { return l.value == r.value; }
+inline constexpr bool operator!=(const uint33_t& l, const uint33_t& r) { return !(l == r);}
+
+template<typename Integer>
+inline constexpr bool operator==(const uint33_t& l, const Integer& r) { return l == uint33_t{static_cast<uint64_t>(r)}; }
+
+template<typename Integer>
+inline constexpr bool operator!=(const uint33_t& l, const Integer& r) { return !(l == r);}
+
+template<typename Integer>
+inline constexpr bool operator==(const Integer& l, const uint33_t& r) { return r == l; }
+
+template<typename Integer>
+inline constexpr bool operator!=(const Integer& l, const uint33_t& r) { return !(l == r);}
+
+
+
 /**
 * @class TSProcessor
 * @brief MPEG TS Processor. Supports software Demuxer/ PTS re-stamping for trickmode.
@@ -164,7 +197,7 @@ class TSProcessor : public MediaProcessor
       int m_currFrameLength;
       long long m_currFrameOffset;
 
-      bool m_trickExcludeAudio;      
+      bool m_trickExcludeAudio;
       int m_PatPmtLen;
       unsigned char *m_PatPmt;
       int m_PatPmtTrickLen;
@@ -197,7 +230,7 @@ class TSProcessor : public MediaProcessor
       unsigned char m_continuityCounters[8192];
       unsigned char m_pidFilter[8192];
       unsigned char m_pidFilterTrick[8192];
-      
+
       unsigned char *m_nullPFrame;
       int m_nullPFrameLength;
       int m_nullPFrameNextCount;
@@ -220,7 +253,7 @@ class TSProcessor : public MediaProcessor
       long long m_lastThrottleRealTime;
       long long m_baseThrottleContentTime;
       long long m_baseThrottleRealTime;
-      long long m_throttlePTS;
+      uint33_t m_throttlePTS;
       bool m_insertPCR;
       int m_emulationPreventionCapacity;
       int m_emulationPreventionOffset;
@@ -252,13 +285,13 @@ class TSProcessor : public MediaProcessor
 
       H264SPS m_SPS[32];
       H264PPS m_PPS[256];
-      int m_currSPSId;      
+      int m_currSPSId;
       int m_picOrderCount;
       bool m_updatePicOrderCount;
 
       bool processBuffer(unsigned char *buffer, int size, bool &insPatPmt);
       long long getCurrentTime();
-      bool throttle(); 
+      bool throttle();
       void sendDiscontinuity(double position);
       void setupThrottle(int segmentDurationMs);
       bool demuxAndSend(const void *ptr, size_t len, double fTimestamp, double fDuration, bool discontinuous, TrackToDemux trackToDemux = ePC_Track_Both);
@@ -275,7 +308,7 @@ class TSProcessor : public MediaProcessor
       bool m_indexAudio; //!< If PCR Pid matches with any Audio PIDs associated for a recording, the value will be set to 1
       bool m_haveAspect; //!< Set to 1 when it found aspect ratio of current video
       bool m_haveFirstPTS; //!< The value is set to 1 if first PTS found from a recording after examining few KB of initial data
-      long long m_currentPTS; //!< Store the current PTS value of a recording
+      uint33_t m_currentPTS; //!< Store the current PTS value of a recording
       int m_pmtCollectorNextContinuity; //!< Keeps next continuity counter for PMT packet at the time of examine the TS Buffer
       int m_pmtCollectorSectionLength; //!< Update section length while examining PMT table
       int m_pmtCollectorOffset; //!< If it is set, process subsequent parts of multi-packet PMT
@@ -287,7 +320,7 @@ class TSProcessor : public MediaProcessor
       bool m_dsmccComponentFound; //!< True if DSMCC found
       RecordingComponent m_dsmccComponent; //!< Digital storage media command and control (DSM-CC) Component
 
-      long long m_actualStartPTS;
+      uint33_t m_actualStartPTS;
 
       int m_throttleMaxDelayMs;
       int m_throttleMaxDiffSegments;
