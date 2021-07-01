@@ -65,6 +65,7 @@ public:
 	void SetAudioVolume(int volume);
 	void setVolumeOrMuteUnMute(void);
 	bool IsCacheEmpty(MediaType mediaType);
+	void ResetEOSSignalledFlag();
 	bool CheckForPTSChangeWithTimeout(long timeout);
 	void NotifyFragmentCachingComplete();
 	void NotifyFragmentCachingOngoing();

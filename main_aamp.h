@@ -427,6 +427,11 @@ public:
 	virtual bool IsCacheEmpty(MediaType mediaType){ return true; };
 
 	/**
+	 * @brief Reset EOS SignalledFlag
+	 */
+	virtual void ResetEOSSignalledFlag(){};
+
+	/**
 	 *   @brief API to notify that fragment caching done
 	 *
 	 *   @return void
