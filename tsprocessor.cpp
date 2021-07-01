@@ -92,7 +92,7 @@ void print_nop(const char *format, ...){}
 #define PAT_TABLE_ENTRY_SIZE (4)
 
 /** Maximum PTS value */
-#define MAX_PTS (0x1FFFFFFFF)
+#define MAX_PTS (uint33_t::max_value().value)
 
 /** Maximum descriptor present for a elementary stream */
 #define MAX_DESCRIPTOR (4)
@@ -124,7 +124,7 @@ void print_nop(const char *format, ...){}
 #define PES_MIN_DATA (PES_HEADER_LENGTH+3)
 #define ADAPTATION_FIELD_PRESENT(mpegbuf) ((mpegbuf[3] & 0x20) == 0x20)
 #define PES_PAYLOAD_LENGTH(pesStart) (pesStart[4]<<8|pesStart[5])
-#define MAX_FIRST_PTS_OFFSET (45000) /*500 ms*/
+#define MAX_FIRST_PTS_OFFSET (uint33_t{45000}) /*500 ms*/
 
 #define DESCRIPTOR_TAG_SUBTITLE 0x59
 #define DESCRIPTOR_TAG_AC3 0x6A
@@ -169,6 +169,53 @@ enum StreamType
 	eSTREAM_TYPE_SDDS_AUDIO1 = 0x94  // SDDS Audio
 };
 
+static unsigned long long mTimeAdjust;
+static bool mbInduceRollover;
+void tsdemuxer_InduceRollover( bool enable )
+{ // for use by aampcli.exe - allows induced PTS rollover to be triggered or (re)disabled
+	mTimeAdjust = 0;
+	mbInduceRollover = enable;
+}
+
+/**
+ * @brief extract 33 bit timestamp from ts packet header
+ * @param ptr pointer to first of five bytes encoding a 33 bit PTS timestamp
+ * @return 33 bit unsigned integer (which fits in long long)
+ */
+static uint33_t Extract33BitTimestamp( const unsigned char *ptr )
+{
+	unsigned long long v; // this is to hold a 64bit integer, lowest 36 bits contain a timestamp with markers
+	v = (unsigned long long) (ptr[0] & 0x0F) << 32
+		| (unsigned long long) ptr[1] << 24 | (unsigned long long) ptr[2] << 16
+		| (unsigned long long) ptr[3] << 8 | (unsigned long long) ptr[4];
+	unsigned long long timeStamp = 0;
+	timeStamp |= (v >> 3) & (0x0007ULL << 30); // top 3 bits, shifted left by 3, other bits zeroed out
+	timeStamp |= (v >> 2) & (0x7fff << 15); // middle 15 bits
+	timeStamp |= (v >> 1) & (0x7fff << 0); // bottom 15 bits
+
+	if( mbInduceRollover )
+	{
+		mTimeAdjust = (MAX_PTS-90000*10) - timeStamp;
+		mbInduceRollover = false;
+	}
+	timeStamp += mTimeAdjust;
+	return {timeStamp};
+}
+
+/**
+ * @brief std::exchange for pre-c++14 compiler
+ * @param obj	-	object whose value to replace
+ * @param new_value	-	the value to assign to obj
+ * @return The old value of obj
+ */
+template<class T, class U = T>
+T exchange(T& obj, U&& new_value)
+{
+    T old_value = std::move(obj);
+    obj = std::forward<U>(new_value);
+    return old_value;
+}
+
 /**
  * @class Demuxer
  * @brief Software demuxer of MPEGTS
@@ -184,15 +231,16 @@ private:
 	GrowableBuffer es;
 	double position;
 	double duration;
-	unsigned long long base_pts;
-	unsigned long long current_pts;
-	unsigned long long current_dts;
-	unsigned long long first_pts;
+	uint33_t base_pts;
+	uint33_t current_pts;
+	uint33_t current_dts;
+	uint33_t first_pts;
 	MediaType type;
 	bool trickmode;
 	bool finalized_base_pts;
 	int sentESCount;
 	bool allowPtsRewind;
+	bool reached_steady_state;
 
 
 	/**
@@ -200,36 +248,50 @@ private:
 	 */
 	void send()
 	{
-		if ((base_pts > current_pts) || (current_dts && base_pts > current_dts))
+		if( !reached_steady_state )
 		{
-			WARNING("Discard ES Type %d position %f base_pts %llu current_pts %llu diff %f seconds length %d", type, position, base_pts, current_pts, (double)(base_pts - current_pts) / 90000, (int)es.len );
+			if ((base_pts > current_pts)
+				|| (current_dts && base_pts > current_dts))
+			{
+				WARNING("Discard ES Type %d position %f base_pts %llu current_pts %llu diff %f seconds length %d",
+					type, position, base_pts.value, current_pts.value, (double)(base_pts - current_pts) / 90000, (int)es.len );
+				es.len = 0;
+				return;
+			}
+
+			if (base_pts + uint33_t::half_max() > current_pts + uint33_t::half_max())
+			{
+				WARNING("Discard ES Type %d position %f base_pts %llu current_pts %llu base_pts+half_max %llu current_pts+half_max %llu",
+					type, position, base_pts.value, current_pts.value, (base_pts+uint33_t::half_max()).value, (current_pts+uint33_t::half_max()).value);
+				es.len = 0;
+				return;
+			}
+			reached_steady_state = true;
+		}
+
+		double pts = position;
+		double dts;
+		if (!trickmode)
+		{
+			pts += (double)(current_pts - base_pts) / 90000;
+		}
+		if (!trickmode && current_dts)
+		{
+			dts = position + (double)(current_dts - base_pts) / 90000;
 		}
 		else
 		{
-			double pts = position;
-			double dts;
-			if (!trickmode)
+			dts = pts;
+		}
+		DEBUG_DEMUX("Send : pts %f dts %f", pts, dts);
+		DEBUG_DEMUX("position %f base_pts %llu current_pts %llu diff %f seconds length %d", position, base_pts, current_pts, (double)(current_pts - base_pts) / 90000, (int)es.len );
+		aamp->SendStream(type, es.ptr, es.len, pts, dts, duration);
+		if (gpGlobalConfig->logging.info)
+		{
+			sentESCount++;
+			if(0 == (sentESCount % 150 ))
 			{
-				pts += (double)(current_pts - base_pts) / 90000;
-			}
-			if (!trickmode && current_dts)
-			{
-				dts = position + (double)(current_dts - base_pts) / 90000;
-			}
-			else
-			{
-				dts = pts;
-			}
-			DEBUG_DEMUX("Send : pts %f dts %f", pts, dts);
-			DEBUG_DEMUX("position %f base_pts %llu current_pts %llu diff %f seconds length %d", position, base_pts, current_pts, (double)(current_pts - base_pts) / 90000, (int)es.len );
-			aamp->SendStream(type, es.ptr, es.len, pts, dts, duration);
-			if (gpGlobalConfig->logging.info)
-			{
-				sentESCount++;
-				if(0 == (sentESCount % 150 ))
-				{
-					logprintf("Demuxer::%s:%d: type %d sent %d packets", __FUNCTION__, __LINE__, (int)type, sentESCount);
-				}
+				logprintf("Demuxer::%s:%d: type %d sent %d packets", __FUNCTION__, __LINE__, (int)type, sentESCount);
 			}
 		}
 		es.len = 0;
@@ -243,9 +305,9 @@ public:
 	 */
 	Demuxer(class PrivateInstanceAAMP *aamp,MediaType type) : aamp(aamp), pes_state(0),
 		pes_header_ext_len(0), pes_header_ext_read(0), pes_header(),
-		es(), position(0), duration(0), base_pts(0), current_pts(0),
-		current_dts(0), type(type), trickmode(false), finalized_base_pts(false),
-		sentESCount(0), allowPtsRewind(false), first_pts(0)
+		es(), position(0), duration(0), base_pts{0}, current_pts{0},
+		current_dts{0}, type(type), trickmode(false), finalized_base_pts(false),
+		sentESCount(0), allowPtsRewind(false), first_pts{0}, reached_steady_state(false)
 	{
 		init(0, 0, false, true);
 	}
@@ -347,7 +409,7 @@ public:
 	 */
 	unsigned long long getBasePTS()
 	{
-		return base_pts;
+		return base_pts.value;
 	}
 
 
@@ -386,16 +448,14 @@ public:
 					{
 						if ((pesStart[7] & 0x80) && ((pesStart[9] & 0x20) == 0x20))
 						{
-							unsigned long long v; // this is to hold a 64bit integer, lowest 36 bits contain a timestamp with markers
-							v = (unsigned long long) (pesStart[9] & 0x0F) << 32
-								| (unsigned long long) pesStart[10] << 24 | (unsigned long long) pesStart[11] << 16
-								| (unsigned long long) pesStart[12] << 8 | (unsigned long long) pesStart[13];
-							unsigned long long timeStamp = 0;
-							timeStamp |= (v >> 3) & (0x0007ULL << 30); // top 3 bits, shifted left by 3, other bits zeroed out
-							timeStamp |= (v >> 2) & (0x7fff << 15); // middle 15 bits
-							timeStamp |= (v >> 1) & (0x7fff << 0); // bottom 15 bits
+							const uint33_t timeStamp = Extract33BitTimestamp(&pesStart[9]);
+							auto prev_pts = exchange(current_pts, timeStamp);
+							if(prev_pts > current_pts && prev_pts - current_pts > uint33_t::half_max())
+							{//pts may come out of order so prev>current is not sufficient to detect the rollover
+								WARNING("PTS Rollover type:%d %llu -> %llu ", type, prev_pts.value, current_pts.value);
+							}
 							current_pts = timeStamp;
-							DEBUG("PTS updated %llu", current_pts);
+							DEBUG("PTS updated %llu", current_pts.value);
 							if(!finalized_base_pts)
 							{
 								finalized_base_pts = true;
@@ -408,16 +468,9 @@ public:
 									}
 									else
 									{
-										long long delta = current_pts - base_pts;
-										if (delta > MAX_FIRST_PTS_OFFSET)
+										if(current_pts < base_pts)
 										{
-											unsigned long long orig_base_pts = base_pts;
-											base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
-											NOTICE("Type[%d] delta[%lld] > MAX_FIRST_PTS_OFFSET, current_pts[%llu] base_pts[%llu]->[%llu]", type, delta, current_pts, orig_base_pts, base_pts);
-										}
-										else if (delta < 0 )
-										{
-											unsigned long long orig_base_pts = base_pts;
+											auto orig_base_pts = base_pts;
 											if (current_pts > MAX_FIRST_PTS_OFFSET)
 											{
 												base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
@@ -426,11 +479,24 @@ public:
 											{
 												base_pts = current_pts;
 											}
-											WARNING("Type[%d] delta[%lld] < 0, base_pts[%llu]->[%llu]", type, delta, orig_base_pts, base_pts);
+											WARNING("Type[%d] current_pts[%llu] < base_pts[%llu], base_pts[%llu]->[%llu]",
+												type, current_pts.value, base_pts.value, orig_base_pts.value, base_pts.value);
 										}
-										else
+										else /*current_pts >= base_pts*/
 										{
-											NOTICE("Type[%d] PTS in range.delta[%lld] <= MAX_FIRST_PTS_OFFSET base_pts[%llu]", type, delta, base_pts);
+											auto delta = current_pts - base_pts;
+											if (MAX_FIRST_PTS_OFFSET < delta)
+											{
+												auto orig_base_pts = base_pts;
+												base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
+												NOTICE("Type[%d] delta[%lld] > MAX_FIRST_PTS_OFFSET, current_pts[%llu] base_pts[%llu]->[%llu]",
+													type, delta.value, current_pts.value, orig_base_pts.value, base_pts.value);
+											}
+											else
+											{
+												NOTICE("Type[%d] PTS in range.delta[%lld] <= MAX_FIRST_PTS_OFFSET base_pts[%llu]",
+													type, delta.value, base_pts.value);
+											}
 										}
 									}
 								}
@@ -455,17 +521,7 @@ public:
 
 						if (((pesStart[7] & 0xC0) == 0xC0) && ((pesStart[14] & 0x1) == 0x01))
 						{
-							unsigned long long v; // this is to hold a 64bit integer, lowest 36 bits contain a timestamp with markers
-							v = (unsigned long long) (pesStart[14] & 0x0F) << 32
-								| (unsigned long long) pesStart[15] << 24 | (unsigned long long) pesStart[16] << 16
-								| (unsigned long long) pesStart[17] << 8 | (unsigned long long) pesStart[18];
-							unsigned long long timeStamp = 0;
-							timeStamp |= (v >> 3) & (0x0007ULL << 30); // top 3 bits, shifted left by 3, other bits zeroed out
-							timeStamp |= (v >> 2) & (0x7fff << 15); // middle 15 bits
-							timeStamp |= (v >> 1) & (0x7fff << 0); // bottom 15 bits
-							DEBUG("dts : %llu ", timeStamp);
-
-							current_dts = timeStamp;
+							current_dts = Extract33BitTimestamp(&pesStart[14]);
 						}
 						else
 						{
@@ -506,26 +562,13 @@ public:
 				}
 				DEBUG(" PES_PAYLOAD_LENGTH %d", PES_PAYLOAD_LENGTH(pesStart));
 			}
-			if (current_pts < base_pts)
-			{
-				if (finalized_base_pts && !allowPtsRewind) 
-				{
-					WARNING("Type[%d] current_pts[%llu] < base_pts[%llu], ptsError", (int)type, current_pts, base_pts);
-					ptsError = true;
-					return;
-				}
-				// It's not so bad, reset to current
-				INFO("current_pts[%llu] < non-finalised base_pts[%llu], reset", current_pts, base_pts);
-				base_pts = current_pts;
-			}
-
 			if (first_pts == 0)
 			{
 				first_pts = current_pts;
 				//Notify first video PTS to AAMP for VTT initialization
 				if (!trickmode && type == eMEDIATYPE_VIDEO)
 				{
-					aamp->NotifyFirstVideoPTS(first_pts);
+					aamp->NotifyFirstVideoPTS(first_pts.value);
 					//Notifying BasePTS value for media progress event
 					aamp->NotifyVideoBasePTS(getBasePTS());
 				}
@@ -794,13 +837,13 @@ TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamO
 	m_frameWidth(FRAME_WIDTH_MAX), m_frameHeight(FRAME_HEIGHT_MAX), m_scanForFrameSize(false), m_scanRemainderSize(0),
 	m_scanRemainderLimit(SCAN_REMAINDER_SIZE_MPEG2), m_isH264(false), m_isMCChannel(false), m_isInterlaced(false), m_isInterlacedKnown(false),
 	m_throttle(true), m_haveThrottleBase(false), m_lastThrottleContentTime(-1LL), m_lastThrottleRealTime(-1LL),
-	m_baseThrottleContentTime(-1LL), m_baseThrottleRealTime(-1LL), m_throttlePTS(-1LL), m_insertPCR(false),
+	m_baseThrottleContentTime(-1LL), m_baseThrottleRealTime(-1LL), m_throttlePTS{uint33_t::max_value()}, m_insertPCR(false),
 	m_scanSkipPacketsEnabled(false), m_currSPSId(0), m_picOrderCount(0), m_updatePicOrderCount(false),
 	m_havePAT(false), m_versionPAT(0), m_program(0), m_pmtPid(0), m_havePMT(false), m_versionPMT(-1), m_indexAudio(false),
-	m_haveAspect(false), m_haveFirstPTS(false), m_currentPTS(-1), m_pmtCollectorNextContinuity(0),
+	m_haveAspect(false), m_haveFirstPTS(false), m_currentPTS(uint33_t::max_value()), m_pmtCollectorNextContinuity(0),
 	m_pmtCollectorSectionLength(0), m_pmtCollectorOffset(0), m_pmtCollector(NULL),
 	m_scrambledWarningIssued(false), m_checkContinuity(false), videoComponentCount(0), audioComponentCount(0),
-	m_actualStartPTS(-1LL), m_throttleMaxDelayMs(DEFAULT_THROTTLE_MAX_DELAY_MS),
+	m_actualStartPTS{uint33_t::max_value()}, m_throttleMaxDelayMs(DEFAULT_THROTTLE_MAX_DELAY_MS),
 	m_throttleMaxDiffSegments(DEFAULT_THROTTLE_MAX_DIFF_SEGMENTS_MS),
 	m_throttleDelayIgnoredMs(DEFAULT_THROTTLE_DELAY_IGNORED_MS), m_throttleDelayForDiscontinuityMs(DEFAULT_THROTTLE_DELAY_FOR_DISCONTINUITY_MS),
 	m_throttleCond(), m_basePTSCond(), m_mutex(), m_enabled(true), m_processing(false), m_framesProcessedInSegment(0),
@@ -1271,7 +1314,7 @@ void TSProcessor::sendDiscontinuity(double position)
 	bool haveInsertPCR = false;
 
 	// Set inital PCR value based on first PTS
-	currPTS = m_currentPTS;
+	currPTS = m_currentPTS.value;
 	currPCR = ((currPTS - 10000) & 0x1FFFFFFFFLL);
 	if (!m_haveBaseTime)
 	{
@@ -1443,7 +1486,7 @@ bool TSProcessor::throttle()
 	{
 		// Track content time via PTS values compared to real time and don't
 		// let data get more than 200 ms ahead of real time.
-		long long contentTime = ((m_playRate != 1.0) ? m_throttlePTS : m_actualStartPTS);
+		long long contentTime = ((m_playRate != 1.0) ? m_throttlePTS.value : m_actualStartPTS.value);
 		if (contentTime != -1LL)
 		{
 			long long now, contentTimeDiff, realTimeDiff;
@@ -1568,7 +1611,7 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 	insPatPmt = false;
 	bool removePatPmt = false;
 	m_packetStartAfterFirstPTS = -1;
-  
+
 	if ((m_playRate != 1.0) || (eStreamOp_SEND_VIDEO_AND_QUEUED_AUDIO == m_streamOperation))
 	{
 		insPatPmt = true;
@@ -1607,15 +1650,15 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 		{
 			if ((pid != 0x1FFF) && (packet[3] & 0x10))
 			{
-				continuity = (packet[3] & 0x0F);			
-				int expected = m_continuityCounters[pid]; 
+				continuity = (packet[3] & 0x0F);
+				int expected = m_continuityCounters[pid];
 				expected = ((expected + 1) & 0xF); //CID:94829 - No effect
 				if (expected != continuity)
 				{
 					WARNING("input SPTS discontinuity on pid %X (%d instead of %d) offset %llx",
 						pid, continuity, expected, (long long)(packetCount*m_packetSize));
 				}
-				
+
 				m_continuityCounters[pid] = continuity;
 			}
 		}
@@ -1648,23 +1691,23 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 							dumpPacket(packet, m_packetSize);
 
 							int length = ((packet[payloadOffset + 2] & 0x0F) << 8) + (packet[payloadOffset + 3]);
-							
+
 							if (length >= PAT_SPTS_SIZE)
 							{
 								int patTableIndex = payloadOffset + 9; 				// PAT table start
 								int patTableEndIndex = payloadOffset + length -1; 	// end of PAT table
-								
+
 								m_havePAT = true;
 								m_versionPAT = version;
-								
+
 								do {
 									m_program = ((packet[patTableIndex + 0] << 8) + packet[patTableIndex + 1]);
 									m_pmtPid = (((packet[patTableIndex + 2] & 0x1F) << 8) + packet[patTableIndex + 3]);
-									
+
 									patTableIndex += PAT_TABLE_ENTRY_SIZE;
 									// Find first program number not 0 or until end of PAT
 								} while (m_program == 0 && patTableIndex < patTableEndIndex);
-									
+
 								if ((m_program != 0) && (m_pmtPid != 0))
 								{
 									if (length > PAT_SPTS_SIZE)
@@ -1895,66 +1938,50 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 							if (packet[payloadOffset + 7] & 0x80)
 							{
 								// PTS
-								long long PTS;
+								uint33_t PTS;
+								bool validPTS;
+								{
+									long long result;
+									validPTS = readTimeStamp(&packet[payloadOffset + 9], result);
+									PTS = result;
+								}
 
-								bool validPTS = readTimeStamp(&packet[payloadOffset + 9], PTS);
 								if (validPTS)
 								{
+
 									m_packetStartAfterFirstPTS = (packet - buffer) + PACKET_SIZE;
-									long long diffPTS = 0;
+									uint33_t diffPTS {0};
 
-									if (m_actualStartPTS != -1LL)
+									constexpr auto tenSecAsPTS = uint33_t{10ULL * 90000ULL};
+									constexpr auto twelveSecAsPTS = uint33_t{12ULL * 90000ULL};
+
+									if (m_actualStartPTS != uint33_t::max_value())
 									{
-										bool wrapAround = false;
-										if ((m_currentPTS > MAX_PTS - 3LL * 90000LL) && (PTS < 3LL * 90000L))
-										{
-											wrapAround = true;
-										}
-										else if ((PTS > MAX_PTS - 3LL * 90000LL) && (m_currentPTS < 3LL * 90000LL))
-										{
-											wrapAround = true;
-										}
 
-										if (!wrapAround)
-										{
-											if (m_currentPTS <= PTS)
-											{
-												// Normal case
-												diffPTS = PTS - m_currentPTS;
-											}
-											else
-											{
-												// Out of order PTS from transport ordering 
-												diffPTS = m_currentPTS - PTS;
-											}
-										}
-										else
-										{
-											INFO("RecordContext: pts rollover: 0x%llx to 0x%llx", m_currentPTS, PTS);
-										}
+										diffPTS = PTS - m_currentPTS;
 									}
 
 									// Consider a difference of 10 or more seconds a discontinuity
-									if (diffPTS >= 10 * 90000LL)
+									if (diffPTS > tenSecAsPTS)
 									{
-										if ((diffPTS < 12 * 90000LL))// && (m_recording->getGOPSize(0) < 4) )
+										if ((diffPTS < twelveSecAsPTS))// && (m_recording->getGOPSize(0) < 4) )
 										{
 											// This is a music channel with a slow rate of video frames
 											// so ignore the PTS jump
 										}
 										else
 										{
-											INFO("RecordContext: pts discontinuity: %llx to %llx", m_currentPTS, PTS);
+											INFO("RecordContext: pts discontinuity: %llx to %llx", m_currentPTS.value, PTS.value);
 											m_currentPTS = PTS;
 										}
 									}
 									else
 									{
 										m_currentPTS = PTS;
-										if (m_actualStartPTS == -1LL)
+										if (m_actualStartPTS == uint33_t::max_value())
 										{
 											m_actualStartPTS = PTS;
-											TRACE2("Updated m_actualStartPTS to %lld", m_actualStartPTS);
+											TRACE2("Updated m_actualStartPTS to %lld", m_actualStartPTS.value);
 										}
 									}
 
@@ -2574,7 +2601,7 @@ bool TSProcessor::processStartCode(unsigned char *buffer, bool& keepScanning, in
 							getBits(p, mask, 2);
 						}
 
-						// frame_num      
+						// frame_num
 						getBits(p, mask, pSPS->log2MaxFrameNumMinus4 + 4);
 
 						if (!pSPS->frameMBSOnlyFlag)
@@ -2608,9 +2635,9 @@ bool TSProcessor::processStartCode(unsigned char *buffer, bool& keepScanning, in
 				}
 			}
 			break;
-		case 2:  // Slice data partiton A         
-		case 3:  // Slice data partiton B         
-		case 4:  // Slice data partiton C         
+		case 2:  // Slice data partiton A
+		case 3:  // Slice data partiton B
+		case 4:  // Slice data partiton C
 			break;
 		case 6:  // SEI
 			break;
@@ -2691,7 +2718,7 @@ bool TSProcessor::processStartCode(unsigned char *buffer, bool& keepScanning, in
 				if ((m_playMode != PlayMode_retimestamp_Ionly) || !m_updatePicOrderCount)
 				{
 					// For IOnly we need to keep scanning in order to update
-					// pic_order_cnt_lsb values                     
+					// pic_order_cnt_lsb values
 					m_scanForFrameSize = false;
 					keepScanning = false;
 				}
@@ -3044,7 +3071,7 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 								  timeOffsetBase = m_baseTime - m_basePCR;
 								  if (timeOffset < timeOffsetBase)
 								  {
-									  // When playing in reverse, a gven frame may contain multiple PCR values 
+									  // When playing in reverse, a gven frame may contain multiple PCR values
 									  // and we must keep them all increasing in value
 									  timeOffset = timeOffsetBase + (timeOffsetBase - timeOffset);
 								  }
@@ -3163,7 +3190,7 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 								  if (pid == m_pcrPid)
 								  {
 									  m_throttlePTS = rateAdjustedPTS;
-									  TRACE2("Updated throttlePTS to %lld", m_throttlePTS);
+									  TRACE2("Updated throttlePTS to %lld", m_throttlePTS.value);
 								  }
 								  writeTimeStamp(&packet[tsbase], packet[tsbase] >> 4, rateAdjustedPTS);
 								  m_lastPTSOfSegment = PTS;
@@ -3453,7 +3480,7 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 		pmtVersion = 1;
 	}
 
-	// Establish pmt and pcr   
+	// Establish pmt and pcr
 	pcrPidFound = false;
 	if (pmtPid == -1)
 	{
@@ -3527,7 +3554,7 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 		}
 
 		// With older recordings, the pcr pid was set incorrectly in the
-		// meta-data - it was actually the original pmt pid.  If the pcrPid 
+		// meta-data - it was actually the original pmt pid.  If the pcrPid
 		// wasn't found in the components, fall back to a pes pid.
 		if (videoComponentCount)
 		{
@@ -3622,7 +3649,7 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 			patPacket[i + 11] = 0x00; // Section #
 			patPacket[i + 12] = 0x00; // Last section #
 
-			// 16 bit program number of stream 
+			// 16 bit program number of stream
 			patPacket[i + 13] = (prognum >> 8) & 0xFF;
 			patPacket[i + 14] = prognum & 0xFF;
 
@@ -3668,7 +3695,7 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 			pmtPacket[i + 6] = (0xB0 | ((pmtSectionLen >> 8) & 0xF));
 			pmtPacket[i + 7] = (pmtSectionLen & 0xFF); //lower 8 bits of Section length
 
-			// 16 bit program number of stream 
+			// 16 bit program number of stream
 			pmtPacket[i + 8] = (prognum >> 8) & 0xFF;
 			pmtPacket[i + 9] = prognum & 0xFF;
 
@@ -4056,11 +4083,11 @@ unsigned char* TSProcessor::createNullPFrame(int width, int height, int *nullPFr
 	sliceBitLen += 5; // quantiser_scale_code (00001)
 	sliceBitLen += 1; // extra_slice_bit (0)
 	sliceBitLen += 1; // macroblock_address_inc (1)
-	sliceBitLen += 3; // macroblock_type (001) [MC not coded] 
+	sliceBitLen += 3; // macroblock_type (001) [MC not coded]
 	sliceBitLen += 1; // motion_code[0][0][0] (1) [+0 Horz]
 	sliceBitLen += 1; // motion_code[0][0][1] (1) [+0 Vert]
 	sliceBitLen += (escapeCount * 11 + skipCodeNumBits);  // macroblock_address_inc for frame blockWidth-1
-	sliceBitLen += 3; // macroblock_type (001) [MC not coded] 
+	sliceBitLen += 3; // macroblock_type (001) [MC not coded]
 	sliceBitLen += 1; // motion_code[0][0][0] (1) [+0 Horz]
 	sliceBitLen += 1; // motion_code[0][0][1] (1) [+0 Vert]
 
@@ -4090,11 +4117,11 @@ unsigned char* TSProcessor::createNullPFrame(int width, int height, int *nullPFr
 	slice[1] = 0x00;
 	slice[2] = 0x01;
 	slice[3] = 0x01;
-	slice[4] = 0x0A;  //quantiser_scale_factor (0000 1) extra_slice_bit (0), 
+	slice[4] = 0x0A;  //quantiser_scale_factor (0000 1) extra_slice_bit (0),
 	//macroblock_address_inc (1), first bit of macroblock_type (001)
 	i = 5;
-	accum = 0x07;     //last two bits of macroblock_type (001), 
-	//motion_code[0][0][0] (1) [+0 Horz] 
+	accum = 0x07;     //last two bits of macroblock_type (001),
+	//motion_code[0][0][0] (1) [+0 Horz]
 	//motion_code[0][0][1] (1) [+0 Vert]
 	bitcount = 4;
 	for (j = 0; j < escapeCount; ++j)
@@ -4276,7 +4303,7 @@ bool TSProcessor::processSeqParameterSet(unsigned char *p, int length)
 		}
 	}
 
-	// max_num_ref_frames   
+	// max_num_ref_frames
 	getUExpGolomb(p, mask);
 
 	// gaps_in_frame_num_value_allowed_flag
