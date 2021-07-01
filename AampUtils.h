@@ -169,13 +169,6 @@ bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaTyp
  */
 int getHarvestConfigForMedia(MediaType fileType);
 /**
- * @brief Get harvest path to dump the files
- * @return harvest path
- */
-
-std::string getDefaultHarvestPath();
-
-/**
  * @brief Get compatible trickplay for 6s cadense of iframe track from the given rates
  * @param rate input rate
  */
@@ -187,4 +180,10 @@ int getWorkingTrickplayRate(int rate);
  */
 int getPseudoTrickplayRate(int rate);
 
+/**
+ * @brief Get harvest path to dump the files
+ * @return harvest path
+ */
+
+void getDefaultHarvestPath(std::string &);
 #endif  /* __AAMP_UTILS_H__ */

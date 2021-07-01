@@ -3409,7 +3409,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestPath,harvestPath);
 				if(harvestPath.empty() )
 				{
-					harvestPath = getDefaultHarvestPath();
+					getDefaultHarvestPath(harvestPath);
 					AAMPLOG_WARN("Harvest path has not configured, taking default path %s", harvestPath.c_str());
 				}
 				if(aamp_WriteFile(remoteUrl, buffer->ptr, buffer->len, fileType, mManifestRefreshCount,harvestPath.c_str()))
