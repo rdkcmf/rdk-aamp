@@ -1568,6 +1568,11 @@ public:
 	bool IsSinkCacheEmpty(MediaType mediaType);
 
 	/**
+	 * @brief Reset EOS SignalledFlag
+	 */
+	void ResetEOSSignalledFlag();
+
+	/**
 	 *   @brief Notify fragment caching complete
 	 *
 	 *   @return void

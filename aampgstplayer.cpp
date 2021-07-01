@@ -3659,6 +3659,14 @@ long long AAMPGstPlayer::GetVideoPTS(void)
 }
 
 /**
+ * @brief Reset EOS SignalledFlag
+ */
+void AAMPGstPlayer::ResetEOSSignalledFlag()
+{
+	privateContext->eosSignalled = false;
+}
+
+/**
  * @brief Check if cache empty for a media type
  * @param[in] mediaType stream type
  * @retval true if cache empty

@@ -2000,6 +2000,7 @@ bool StreamAbstractionAAMP::IsEOSReached()
 			if (!eos)
 			{
 				AAMPLOG_WARN("%s:%d EOS not seen by track: %s, skip check for rest of the tracks", __FUNCTION__, __LINE__, track->name);
+				aamp->ResetEOSSignalledFlag();
 				break;
 			}
 		}
