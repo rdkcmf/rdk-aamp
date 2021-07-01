@@ -762,26 +762,18 @@ static class myAAMPEventListener *myEventListener;
 static bool IsTuneScheme(const char *cmd)
 {
 	bool isTuneScheme = false;
-	
-	if (memcmp(cmd, "http", 4) == 0)
+	const char *protocol[5] = { "http:","https:","live:","hdmiin:","file:" };
+	for( int i=0; i<5; i++ )
 	{
-		isTuneScheme = true;
-	}
-	else if (memcmp(cmd, "live", 4) == 0)
-	{
-		isTuneScheme = true;
-	}
-	else if (memcmp(cmd, "hdmiin", 6) == 0)
-	{
-		isTuneScheme = true;
-	}
-	else if (memcmp(cmd, "file", 4) == 0)
-	{
-		isTuneScheme = true;
+		size_t len = strlen(protocol[i]);
+		if( memcmp( cmd, protocol[i],len )==0 )
+		{
+			isTuneScheme=true;
+			break;
+		}
 	}
 	return isTuneScheme;
 }
-
 
 inline void StopCachedChannel()
 {
