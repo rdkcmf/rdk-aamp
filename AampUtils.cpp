@@ -72,9 +72,9 @@ long long aamp_GetCurrentTimeMS(void)
  * @param void
  * @return character pointer indicating default dump path
  */
-std::string getDefaultHarvestPath()
+void getDefaultHarvestPath(std::string &value)
 {
-        std::string value = "/aamp/";
+        value = "/aamp/";
 /* In case of linux and mac simulator use home directory to dump the data as default */
 #ifdef AAMP_SIMULATOR_BUILD
         char *ptr = getenv("HOME");
@@ -89,7 +89,7 @@ std::string getDefaultHarvestPath()
 #else
         value.insert(0,"/opt");
 #endif
-        return value;
+        return ;
 }
 
 /**
