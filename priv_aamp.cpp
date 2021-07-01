@@ -6353,6 +6353,14 @@ bool PrivateInstanceAAMP::IsSinkCacheEmpty(MediaType mediaType)
 }
 
 /**
+ * @brief Reset EOS SignalledFlag
+ */
+void PrivateInstanceAAMP::ResetEOSSignalledFlag()
+{
+	return mStreamSink->ResetEOSSignalledFlag();
+}
+
+/**
  * @brief Notification on completing fragment caching
  */
 void PrivateInstanceAAMP::NotifyFragmentCachingComplete()
