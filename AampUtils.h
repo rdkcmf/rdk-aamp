@@ -173,5 +173,5 @@ int getHarvestConfigForMedia(MediaType fileType);
  * @brief Get harvest path to dump the files
  * @return harvest path
  */
-std::string getDefaultHarvestPath();
+void getDefaultHarvestPath(std::string &);
 #endif  /* __AAMP_UTILS_H__ */
