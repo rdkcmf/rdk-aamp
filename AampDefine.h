@@ -30,6 +30,9 @@
 #endif
 
 
+#define AAMP_VERSION "3.3"
+#define AAMP_TUNETIME_VERSION 4
+
 //Stringification of Macro :  use two levels of macros
 #define MACRO_TO_STRING(s) X_STR(s)
 #define X_STR(s) #s
@@ -65,7 +68,7 @@
 #define MAX_SEG_DRM_DECRYPT_FAIL_COUNT 10           /**< Max segment decryption failures to identify a playback failure. */
 #define MAX_SEG_INJECT_FAIL_COUNT 10                /**< Max segment injection failure to identify a playback failure. */
 #define AAMP_USERAGENT_BASE_STRING	"Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE"	/**< Base User agent string,it will be appneded with AAMP_USERAGENT_SUFFIX */
-#define AAMP_USERAGENT_SUFFIX		"AAMP/2.0.0"    /**< Version string of AAMP Player */
+#define AAMP_USERAGENT_SUFFIX		"AAMP/"+AAMP_VERSION    /**< Version string of AAMP Player */
 #define DEFAULT_AAMP_ABR_THRESHOLD_SIZE (6000)		/**< aamp abr threshold size */
 #define DEFAULT_PREBUFFER_COUNT (2)
 #define AAMP_LOW_BUFFER_BEFORE_RAMPDOWN 10 // 10sec buffer before rampdown
