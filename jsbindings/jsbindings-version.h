@@ -20,12 +20,13 @@
 #ifndef __JSBINDINGS_VERSION_H__
 #define __JSBINDINGS_VERSION_H__
 
+#include "AampDefine.h"
 /*
  * @file jsbindings-version.h
  * @brief Holds the AAMP JS bindings version information.
  */
 
-#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION "3.3"
+#define AAMP_UNIFIED_VIDEO_ENGINE_VERSION AAMP_VERSION
 
 // GLOBAL_AAMP_NATIVEBINDING_VERSION is no longer used as this will be deprecated in future
 //#define GLOBAL_AAMP_NATIVEBINDING_VERSION "2.7"

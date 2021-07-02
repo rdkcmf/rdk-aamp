@@ -209,7 +209,7 @@ void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int stream
 		snprintf(tuneTimeStrPrefix, sizeof(tuneTimeStrPrefix), "%s PLAYER[%d] IP_AAMP_TUNETIME", playerActiveMode.c_str(),playerId);
 	}
 
-	AAMPLOG_WARN("%s:%d,%d,%lld," // prefix, version, build, tuneStartBaseUTCMS
+	AAMPLOG_WARN("%s:%d,%s,%lld," // prefix, version, build, tuneStartBaseUTCMS
 		"%d,%d,%d," 	// main manifest (start,total,err)
 		"%d,%d,%d," 	// video playlist (start,total,err)
 		"%d,%d,%d," 	// audio playlist (start,total,err)
@@ -230,8 +230,8 @@ void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int stream
 		// TODO: settop type, flags, isFOGEnabled, isDDPlus, isDemuxed, assetDurationMs
 
 		tuneTimeStrPrefix,
-		4, // version for this protocol, initially zero
-		0, // build - incremented when there are significant player changes/optimizations
+		AAMP_TUNETIME_VERSION, // version for this protocol, initially zero
+		AAMP_VERSION, // build - incremented when there are significant player changes/optimizations
 		tuneStartBaseUTCMS, // when tune logically started from AAMP perspective
 
 		buckets[PROFILE_BUCKET_MANIFEST].tStart, bucketDuration(PROFILE_BUCKET_MANIFEST), buckets[PROFILE_BUCKET_MANIFEST].errorCount,
