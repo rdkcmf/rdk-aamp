@@ -254,7 +254,7 @@ public:
 	long mTimeoutForSourceSetup; /**< Max time to wait for gstreamer source to complete setup*/
 	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
 	PausedBehavior mPausedBehavior; /**< Configuration for player paused state behavior */
-
+	TriState enableRepairIframes; /*** Enable fragment repair (Stripping and box size correction) for iframe tracks */
 public:
 
 	/**

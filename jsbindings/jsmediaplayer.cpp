@@ -251,6 +251,7 @@ enum ConfigParamType
 	ePARAM_REPORT_VIDEO_PTS,
 	ePARAM_PROPAGATE_URI_PARAMETERS,
 	ePARAM_PAUSED_BEHAVIOR,
+	ePARAM_REPAIR_IFRAMES,
 	ePARAM_MAX_COUNT
 };
 
@@ -320,6 +321,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_REPORT_VIDEO_PTS, "reportVideoPTS" },
 	{ ePARAM_PROPAGATE_URI_PARAMETERS, "propagateUriParameters"},
 	{ ePARAM_PAUSED_BEHAVIOR, "livePauseBehavior"},
+	{ ePARAM_REPAIR_IFRAMES, "repairIframes" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -818,6 +820,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_ENABLE_SEEKABLE_RANGE:
 			case ePARAM_REPORT_VIDEO_PTS:
 			case ePARAM_PROPAGATE_URI_PARAMETERS:
+			case ePARAM_REPAIR_IFRAMES:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -986,6 +989,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_PAUSED_BEHAVIOR:
 					privObj->_aamp->SetPausedBehavior((int) valueAsNumber);
+					break;
+				case ePARAM_REPAIR_IFRAMES:
+					privObj->_aamp->SetRepairIframes(valueAsBoolean);
 					break;
 				default: //ePARAM_MAX_COUNT
 					break;

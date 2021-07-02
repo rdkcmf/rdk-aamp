@@ -1349,6 +1349,13 @@ public:
 	 *   @param[in] int behavior
 	 */
 	void SetPausedBehavior(int behavior);
+	
+	/**
+	*   @brief To set the repairIframes flag
+	*
+	*   @param[in] bool enable/disable configuration
+	*/
+	void SetRepairIframes(bool bValue);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 private:

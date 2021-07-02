@@ -323,9 +323,10 @@ public:
 	long long indexFirstMediaSequenceNumber; /**< first media sequence number from indexed manifest */
 
 	char *fragmentURI; /**< pointer (into playlist) to URI of current fragment-of-interest */
-	long long lastPlaylistDownloadTimeMS; /**< UTC time at which playlist was downloaded */
-	int byteRangeLength; /**< state for \#EXT-X-BYTERANGE fragments */
-	int byteRangeOffset; /**< state for \#EXT-X-BYTERANGE fragments */
+	long long lastPlaylistDownloadTimeMS; /**< UTC time at which playlist was downloaded */  
+        
+	size_t byteRangeLength; /**< state for \#EXT-X-BYTERANGE fragments */
+	size_t byteRangeOffset; /**< state for \#EXT-X-BYTERANGE fragments */
 
 	long long nextMediaSequenceNumber; /**< media sequence number following current fragment-of-interest */
 	double playlistPosition; /**< playlist-relative time of most recent fragment-of-interest; -1 if undefined */

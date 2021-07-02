@@ -581,6 +581,7 @@ public:
 	bool mEnableRectPropertyEnabled;
 	bool mAsyncTuneEnabled;
 	bool mBulkTimedMetadata;
+	bool mRepairIframes;
 	bool mDisableEC3;
 	bool mDisableATMOS;
 	bool mForceEC3;
@@ -1943,6 +1944,12 @@ public:
 	*
 	*/
 	void ConfigureBulkTimedMetadata();
+	
+	/**
+	 *   @brief To set repair iframes configuration
+	 *
+	 */
+	void ConfigureRepairIframes();
 
 	/**
 	 *	 @brief To set unpaired discontinuity retune configuration
@@ -2709,6 +2716,14 @@ public:
 	 *   @param[in] enabled - true if enabled
 	 */
 	void SetReportVideoPTS(bool enabled);
+
+	
+	/**
+	*   @brief To set the repairIframes flag
+	*
+	*   @param[in] bool enable/disable configuration
+	*/
+	void SetRepairIframes(bool bvalue);
 
 private:
 

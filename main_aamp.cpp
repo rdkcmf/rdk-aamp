@@ -1977,6 +1977,18 @@ void PlayerInstanceAAMP::SetPausedBehavior(int behavior)
 	    }
 	}
 }
+
+
+/**
+*   @brief To set the repairIframes flag
+*
+*   @param[in] bool enable/disable configuration
+*/
+void PlayerInstanceAAMP::SetRepairIframes(bool bValue)
+{
+	ERROR_STATE_CHECK_VOID();
+	aamp->SetRepairIframes(bValue);
+}
 /**
  * @}
  */
