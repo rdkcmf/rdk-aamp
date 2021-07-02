@@ -21,7 +21,7 @@
  * @file priv_aamp.cpp
  * @brief Advanced Adaptive Media Player (AAMP) PrivateInstanceAAMP impl
  */
-
+#include "isobmffprocessor.h"
 #include "priv_aamp.h"
 #include "AampConstants.h"
 #include "AampCacheHandler.h"
@@ -1188,6 +1188,11 @@ static void ProcessConfigEntry(std::string cfg)
 			gpGlobalConfig->enableBulkTimedMetaReport = (TriState)(value != 0);
 			logprintf("bulk-timedmeta-report=%d", value);
 		}
+		else if (ReadConfigNumericHelper(cfg, "repairIframes=", value) == 1)
+		{
+			gpGlobalConfig->enableRepairIframes = (TriState)(value != 0);
+			logprintf("repairIframes=%d", value);
+		}
 		else if (ReadConfigNumericHelper(cfg, "useRetuneForUnpairedDiscontinuity=", value) == 1)
 		{
 			gpGlobalConfig->useRetuneForUnpairedDiscontinuity = (TriState)(value != 0);
@@ -1988,7 +1993,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP() : mAbrBitrateData(), mLock(), mMutexA
 	, mProfileCappedStatus(false)
 	, mDisplayWidth(0)
 	, mDisplayHeight(0)
-    	, preferredRenditionString(""), preferredRenditionList(), preferredCodecString(""), preferredCodecList(), mAudioTuple() 
+    	, preferredRenditionString(""), preferredRenditionList(), preferredCodecString(""), preferredCodecList(), mAudioTuple(),
+	mRepairIframes(false)
 {
 	LazilyLoadConfigIfNeeded();
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
@@ -4359,6 +4365,38 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		}
 	}
 
+	if( mRepairIframes && NULL != range && '\0' != range[0] && 200 == http_code && NULL != buffer->ptr && FORMAT_ISO_BMFF == this->mVideoFormat)
+	{
+		AAMPLOG_INFO( "%s:%d: Received HTTP 200 for ranged request (chunked iframe: %s: %s), starting to strip the fragment", __FUNCTION__, __LINE__, range, remoteUrl.c_str() );
+		size_t start;
+		size_t end;
+		try {
+			if(2 == sscanf(range, "%zu-%zu", &start, &end))
+			{
+				// #EXT-X-BYTERANGE:19301@88 from manifest is equivalent to 88-19388 in HTTP range request
+				size_t len = (end - start) + 1;
+				if( buffer->len >= len)
+				{
+					memmove(buffer->ptr, buffer->ptr + start, len);
+					buffer->len=len;
+				}
+					
+				// hack - repair wrong size in box
+				IsoBmffBuffer repair;
+				repair.setBuffer((uint8_t *)buffer->ptr, buffer->len);
+				repair.parseBuffer(true); //correctBoxSize=true
+				AAMPLOG_INFO("%s:%d: Stripping the fragment for range request completed", __FUNCTION__, __LINE__);
+			}
+			else
+			{
+				AAMPLOG_ERR("%s:%d: Stripping the fragment for range request failed, failed to parse range string", __FUNCTION__, __LINE__);
+			}
+		}
+		catch (std::exception &e)
+		{
+				AAMPLOG_ERR("%s:%d: Stripping the fragment for ranged request failed (%s)", __FUNCTION__, __LINE__, e.what());
+		}
+	}
 	return ret;
 }
 
@@ -5188,6 +5226,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	ConfigureParallelFetch();
 	ConfigureDashParallelFragmentDownload();
 	ConfigureBulkTimedMetadata();
+	ConfigureRepairIframes();
 	ConfigureRetuneForUnpairedDiscontinuity();
 	ConfigureRetuneForGSTInternalError();
 	ConfigureWesterosSink();
@@ -8457,6 +8496,19 @@ void PrivateInstanceAAMP::ConfigureBulkTimedMetadata()
 }
 
 /**
+ *   @brief To set repair iframes configuration
+ *
+ */
+void PrivateInstanceAAMP::ConfigureRepairIframes()
+{
+		if(gpGlobalConfig->enableRepairIframes != eUndefinedState)
+		{
+			mRepairIframes = (bool)gpGlobalConfig->enableRepairIframes;
+		}
+}
+
+
+/**
  *   @brief To set unpaired discontinuity retune configuration
  *
  */
@@ -10303,4 +10355,15 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 		AAMPLOG_INFO("%s:%d: Discarding set lanuage(s) (%s) and rendition (%s) since already set", __FUNCTION__, __LINE__, 
 		languageList?languageList:"", preferredRendition?preferredRendition:"");
 	}
+}
+
+/**
+*   @brief To set the repairIframes flag
+*
+*   @param[in] bool enable/disable configuration
+*/
+void PrivateInstanceAAMP::SetRepairIframes(bool bValue)
+{
+	mRepairIframes = bValue;
+	AAMPLOG_INFO("%s:%d  RepairIframes Config from App : %d " ,__FUNCTION__,__LINE__,bValue);
 }

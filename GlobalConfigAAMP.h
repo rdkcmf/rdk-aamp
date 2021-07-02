@@ -255,7 +255,7 @@ public:
 	TriState mEnableSeekableRange; /*** To force enable seekable range reporting in progress event */
 	TriState mPersistBitRateOverSeek; /**< Flag indicates if video profile have to be persisted during SAP/Seek */
 	PausedBehavior mPausedBehavior; /**< Configuration for player paused state behavior */
-
+	TriState enableRepairIframes; /*** Enable fragment repair (Stripping and box size correction) for iframe tracks */
 public:
 
 	/**
