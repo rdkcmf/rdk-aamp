@@ -1293,6 +1293,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 	case GST_MESSAGE_DURATION:
 	case GST_MESSAGE_LATENCY:
 	case GST_MESSAGE_NEW_CLOCK:
+	case GST_MESSAGE_RESET_TIME:
 		break;
 	case GST_MESSAGE_APPLICATION:
 		const GstStructure *msgS;
