@@ -1252,9 +1252,9 @@ char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 				if (offsetDelim)
 				{
 					*offsetDelim++ = 0x00;
-					byteRangeOffset = atoi(offsetDelim);
+					sscanf(offsetDelim, "%zu", &byteRangeOffset);
 				}
-				byteRangeLength = atoi(temp);
+				sscanf(temp, "%zu", &byteRangeLength);
 			}
 			/*Skip to next line*/
 			while (fragmentInfo[0] != CHAR_LF)
@@ -1336,8 +1336,8 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 {
 	char *ptr = fragmentURI;
 	char *rc = NULL;
-	int byteRangeLength = 0; // default, when optional byterange offset is left unspecified
-	int byteRangeOffset = 0;
+	size_t byteRangeLength = 0; // default, when optional byterange offset is left unspecified
+	size_t byteRangeOffset = 0;
 	bool discontinuity = false;
 	const char* programDateTime = NULL;
 
@@ -1407,15 +1407,16 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					if (offsetDelim)
 					{
 						*offsetDelim++ = 0x00;
-						byteRangeOffset = atoi(offsetDelim);
+						sscanf(offsetDelim, "%zu", &byteRangeOffset);
 					}
-					byteRangeLength = atoi(temp);
+					sscanf(temp, "%zu", &byteRangeLength);
+
 					mByteOffsetCalculation = true;
 					if (0 != byteRangeLength && 0 == byteRangeOffset)
 					{
 						byteRangeOffset = this->byteRangeOffset + this->byteRangeLength;
 					}
-					AAMPLOG_TRACE("%s:%d byteRangeOffset:%d Last played fragment Offset:%d byteRangeLength:%d Last fragment Length:%d", __FUNCTION__,__LINE__, byteRangeOffset, this->byteRangeOffset, byteRangeLength, this->byteRangeLength);
+					AAMPLOG_TRACE("%s:%d byteRangeOffset:%zu Last played fragment Offset:%zu byteRangeLength:%zu Last fragment Length:%zu", __FUNCTION__,__LINE__, byteRangeOffset, this->byteRangeOffset, byteRangeLength, this->byteRangeLength);
 				}
 				else if (startswith(&ptr, "-X-TARGETDURATION:"))
 				{ // max media segment duration; required; appears once
@@ -1845,8 +1846,8 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			char rangeStr[128];
 			if (byteRangeLength)
 			{
-				int next = byteRangeOffset + byteRangeLength;
-				sprintf(rangeStr, "%d-%d", byteRangeOffset, next - 1);
+				size_t next = byteRangeOffset + byteRangeLength;
+				sprintf(rangeStr, "%zu-%zu", byteRangeOffset, next - 1);
 				logprintf("FetchFragmentHelper rangeStr %s ", rangeStr);
 
 				range = rangeStr;

@@ -1462,6 +1462,12 @@ public:
 	 *   @return void
 	 */
 	void EnableAsyncOperation();
+	/**
+	 *   @brief To set the repairIframes flag
+	 *
+	 *   @param[in] bool enable/disable configuration
+	 */
+	void SetRepairIframes(bool configState);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 	std::shared_ptr<PrivateInstanceAAMP> sp_aamp; /* shared pointer for aamp resource */
