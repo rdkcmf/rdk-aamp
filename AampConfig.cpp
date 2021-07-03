@@ -220,7 +220,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"limitResolution",eAAMPConfig_LimitResolution,-1,-1},
 	{"useAbsoluteTimeline",eAAMPConfig_UseAbsoluteTimeline,-1,-1},
 	{"id3",eAAMPConfig_ID3Logging,-1,-1},
-	{"SkyStoreDE",eAAMPConfig_WideVineKIDWorkaround,-1,-1}
+	{"SkyStoreDE",eAAMPConfig_WideVineKIDWorkaround,-1,-1},
+	{"repairIframes",eAAMPConfig_RepairIframes,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -340,7 +341,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_LimitResolution].value                        =       false;
 	bAampCfgValue[eAAMPConfig_UseAbsoluteTimeline].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_WideVineKIDWorkaround].value                  	=       false;
-
+	bAampCfgValue[eAAMPConfig_RepairIframes].value                  	=       false;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;

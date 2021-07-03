@@ -2339,6 +2339,19 @@ void PlayerInstanceAAMP::SetUseAbsoluteTimeline(bool configState)
 
 }
 
+
+/**
+		 *   @brief To set the repairIframes flag
+		 *
+		 *   @param[in] bool enable/disable configuration
+		 */
+void PlayerInstanceAAMP::SetRepairIframes(bool configState)
+{
+	ERROR_STATE_CHECK_VOID();
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RepairIframes,configState);
+
+}
+
 /**
 * @brief InitAAMPConfig - Initialize the media player session with json config
 */
