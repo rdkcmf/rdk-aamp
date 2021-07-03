@@ -166,6 +166,7 @@ typedef enum
 	eAAMPConfig_UseAbsoluteTimeline,					/**Enable Report Progress report position based on Availability Start Time **/
 	eAAMPConfig_EnableAccessAttributes,							/*** Usage of Access Attributes in VSS */
 	eAAMPConfig_WideVineKIDWorkaround,                          /**< SkyDE Store workaround to pick WV DRM Key Id from different location */
+	eAAMPConfig_RepairIframes,								/*** Enable fragment repair (Stripping and box size correction) for iframe tracks */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
