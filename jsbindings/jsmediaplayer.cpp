@@ -209,6 +209,7 @@ enum ConfigParamType
 	ePARAM_LIMIT_RESOLUTION,
 	ePARAM_PAUSED_BEHAVIOR,
 	ePARAM_USE_ABSOLUTE_TIMELINE,
+	ePARAM_REPAIR_IFRAMES,
 	ePARAM_MAX_COUNT
 };
 
@@ -286,6 +287,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_LIMIT_RESOLUTION, "limitResolution"},
 	{ ePARAM_PAUSED_BEHAVIOR, "livePauseBehavior"},
 	{ ePARAM_USE_ABSOLUTE_TIMELINE, "useAbsoluteTimeline"},
+	{ ePARAM_REPAIR_IFRAMES, "repairIframes" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -797,6 +799,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_LICENSE_CACHING:
 			case ePARAM_LIMIT_RESOLUTION:
 			case ePARAM_USE_ABSOLUTE_TIMELINE:
+			case ePARAM_REPAIR_IFRAMES:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -991,6 +994,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 					break;
 				case ePARAM_USE_ABSOLUTE_TIMELINE:
 					privObj->_aamp->SetUseAbsoluteTimeline(valueAsBoolean);
+					break;
+				case ePARAM_REPAIR_IFRAMES:
+					privObj->_aamp->SetRepairIframes(valueAsBoolean);
 					break;
 				default: //ePARAM_MAX_COUNT
 					break;

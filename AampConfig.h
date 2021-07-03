@@ -167,6 +167,7 @@ typedef enum
 	eAAMPConfig_WideVineKIDWorkaround,                          /**< SkyDE Store workaround to pick WV DRM Key Id from different location */
 	eAAMPConfig_EnableAccessAttributes,							/*** Usage of Access Attributes in VSS */
 	eAAMPConfig_SyncAudioFragments,
+	eAAMPConfig_RepairIframes,								/*** Enable fragment repair (Stripping and box size correction) for iframe tracks */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,

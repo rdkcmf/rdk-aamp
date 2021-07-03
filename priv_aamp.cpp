@@ -21,7 +21,7 @@
  * @file priv_aamp.cpp
  * @brief Advanced Adaptive Media Player (AAMP) PrivateInstanceAAMP impl
  */
-
+#include "isobmffprocessor.h"
 #include "priv_aamp.h"
 #include "AampConstants.h"
 #include "AampCacheHandler.h"
@@ -3641,6 +3641,39 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 			default:
 				break;
+		}
+	}
+	//Stip downloaded chunked Iframes when ranged requests receives 200 as HTTP response for HLS MP4
+	if(  mConfig->IsConfigSet(eAAMPConfig_RepairIframes) && NULL != range && '\0' != range[0] && 200 == http_code && NULL != buffer->ptr && FORMAT_ISO_BMFF == this->mVideoFormat)
+	{
+		AAMPLOG_INFO( "%s:%d: Received HTTP 200 for ranged request (chunked iframe: %s: %s), starting to strip the fragment", __FUNCTION__, __LINE__, range, remoteUrl.c_str() );
+		size_t start;
+		size_t end;
+		try {
+			if(2 == sscanf(range, "%zu-%zu", &start, &end))
+			{
+				// #EXT-X-BYTERANGE:19301@88 from manifest is equivalent to 88-19388 in HTTP range request
+				size_t len = (end - start) + 1;
+				if( buffer->len >= len)
+				{	
+					memmove(buffer->ptr, buffer->ptr + start, len);
+					buffer->len=len;
+				}
+			
+				// hack - repair wrong size in box
+				IsoBmffBuffer repair;
+				repair.setBuffer((uint8_t *)buffer->ptr, buffer->len);
+				repair.parseBuffer();
+				AAMPLOG_INFO("%s:%d: Stripping the fragment for range request completed", __FUNCTION__, __LINE__);
+			}
+			else
+			{
+				AAMPLOG_ERR("%s:%d: Stripping the fragment for range request failed, failed to parse range string", __FUNCTION__, __LINE__);
+			}
+		}
+		catch (std::exception &e)
+		{
+				AAMPLOG_ERR("%s:%d: Stripping the fragment for ranged request failed (%s)", __FUNCTION__, __LINE__, e.what());
 		}
 	}
 
