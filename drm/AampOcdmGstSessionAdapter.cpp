@@ -124,7 +124,7 @@ int AAMPOCDMGSTSessionAdapter::decrypt(GstBuffer *keyIDBuffer, GstBuffer *ivBuff
 		pthread_mutex_lock(&decryptMutex);
 		start_decrypt_time = GetCurrentTimeStampInMSec();
 
-		if (AAMPOCDMGSTSessionDecrypt)
+		if (AAMPOCDMGSTSessionDecrypt && !gst_caps_is_empty(caps))
 			retValue = AAMPOCDMGSTSessionDecrypt(m_pOpenCDMSession, buffer, subSamplesBuffer, subSampleCount, ivBuffer, keyIDBuffer, 0, caps);
 		else
 			retValue = opencdm_gstreamer_session_decrypt(m_pOpenCDMSession, buffer, subSamplesBuffer, subSampleCount, ivBuffer, keyIDBuffer, 0);
