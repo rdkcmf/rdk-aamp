@@ -1185,6 +1185,12 @@ public:
 	*/
 	bool IsCDVRContent() { return (mContentType==ContentType_CDVR || mIscDVR);}
 	/**
+	* @brief Checking whether OTA content or not
+	*
+	* @return True or False
+	*/
+	bool IsOTAContent() { return (mContentType==ContentType_OTA);}
+	/**
 	 * @brief Report timed metadata
 	 *
 	 * @param[in] timeMS - Time in milliseconds

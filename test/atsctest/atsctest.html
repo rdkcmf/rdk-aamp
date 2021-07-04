@@ -632,11 +632,7 @@ function playChannel()
 	}
 	else
 	{
-		if( aampPlayer )
-		{
-			aampPlayer.stop(); // needed for AMLOGIC-550 workaround?
-		}
-		else
+		if(aampPlayer == null)
 		{
 			aampPlayer = new AAMPMediaPlayer();
 			aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
@@ -648,7 +644,9 @@ function playChannel()
 			aampPlayer.initConfig(ccInitConfigParam);
 			console.log("Using  ccInitConfigParam");
 		}
+		clog("playChannel:"+strLocator);
 		aampPlayer.load(strLocator);
+		//aampPlayer.load(strLocator, true, {"contentType":"OTA"});
 	}
 	isPlaying = true;
 }
@@ -670,11 +668,7 @@ function playChannelFromURL()
 	}
 	else
 	{
-		if( aampPlayer )
-		{
-			aampPlayer.stop(); // needed for AMLOGIC-550 workaround?
-		}
-		else
+		if(aampPlayer == null)
 		{
 			aampPlayer = new AAMPMediaPlayer();
 			aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);
@@ -696,11 +690,7 @@ function playHdmiin(url)
         }
         else
         {
-                if( aampPlayer )
-                {
-                        aampPlayer.stop();
-                }
-                else
+                if(aampPlayer == null)
                 {
                         aampPlayer = new AAMPMediaPlayer();
                         aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);
@@ -758,6 +748,7 @@ var chMapElement = document.getElementById("chMap");
 		aampPlayer.addEventListener("bitrateChanged", bitrateChangedEventHandler, null);;
 		clog("Tuning:"+strLocator);
 		aampPlayer.load(strLocator);
+		//aampPlayer.load(strLocator, true, {"contentType":"OTA"});
 	
 	isPlaying = true;
 }
@@ -1092,7 +1083,7 @@ function bitrateChangedEventHandler(event) {
 		<input type="button" value="composite_in" onclick="playHdmiin(compositein);"/>
 		<input type="button" value="hdmiin1" onclick="playHdmiin(hdmiin1);"/>
 		<input type="button" value="hdmiin2" onclick="playHdmiin(hdmiin2);"/>
-		<input type="button" value="hdmiin3" onclick="playHdmiin(hdmiin3);"/>
+		<input type="button" value="directTune" onclick="directTune();"/>
 		<input type="button" value="full" onclick="SetRectangle(0,0,1,1);"/>
 		<input type="button" value="TR" onclick="SetRectangle(0.5,0,0.5,0.5);"/>
 		<input type="button" value="TL" onclick="SetRectangle(0.0,0,0.5,0.5);"/>
