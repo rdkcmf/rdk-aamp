@@ -321,8 +321,19 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
 {
 	PrivAAMPState state;
 	aamp->GetState(state);
+        bool IsOTAtoOTA =  false;
 
-	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED))
+	if((aamp->IsOTAContent()) && (NULL != mainManifestUrl))
+	{
+		/* OTA to OTA tune does not need to call stop. */
+		std::string urlStr(mainManifestUrl); // for convenience, convert to std::string
+		if((urlStr.rfind("live:",0)==0) || (urlStr.rfind("tune:",0)==0))
+		{
+			IsOTAtoOTA = true;
+		}
+	}
+
+	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED) && (!IsOTAtoOTA))
 	{
 		//Calling tune without closing previous tune
 		StopInternal(false);
