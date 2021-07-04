@@ -98,7 +98,6 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 				/* For consistency, during first tune, first move to
 				 PREPARED state to match normal IPTV flow sequence */
 				aamp->SetState(eSTATE_PREPARED);
-                                aamp->SetContentType("OTA");
 				tuned = true;
 				aamp->LogFirstFrame();
 				aamp->LogTuneComplete();
@@ -166,6 +165,8 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
     prevDisplyInfo = "";
     prevBlockedReason = "";
     tuned = false;
+
+    aamp->SetContentType("OTA");
 
     thunderAccessObj.ActivatePlugin();
     mediaSettingsObj.ActivatePlugin();
@@ -328,6 +329,13 @@ void StreamAbstractionAAMP_OTA::Start(void)
 */
 void StreamAbstractionAAMP_OTA::Stop(bool clearChannelData)
 {
+	/*StreamAbstractionAAMP::Stop is being called twice
+	  PrivateInstanceAAMP::Stop calls Stop with clearChannelData set to true
+	  PrivateInstanceAAMP::TeardownStream calls Stop with clearChannelData set to false
+	  Hence avoiding the Stop with clearChannelData set to false*/
+	if(!clearChannelData)
+		return;
+
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
         /*
         Request : {"jsonrpc":"2.0", "id":3, "method": "org.rdk.MediaPlayer.1.stop", "params":{ "id":"MainPlayer"} }
