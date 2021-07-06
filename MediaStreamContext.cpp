@@ -109,7 +109,14 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
             if (mSkipSegmentOnError)
             {
                 // Skip segment on error, and increse fail count
-                segDLFailCount += 1;
+                if(aamp->mIsInterruptHandlingEnabled && aamp->mTSBEnabled && 504 == http_code)
+                {
+                    AAMPLOG_INFO("%s:%d Skipping fog error 504...", __FUNCTION__, __LINE__);
+                }
+                else
+                {
+                    segDLFailCount += 1;
+                }
             }
             else
             {

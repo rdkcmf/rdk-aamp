@@ -782,6 +782,12 @@ public:
 				printf("[AAMPCLI] AAMP_EVENT_WATERMARK_SESSION_UPDATE SessionHandle:%d Status:%d System:%s\n" ,ev->getSessionHandle(), ev->getStatus(), ev->getSystem().c_str());
 				break;
 			}
+		case AAMP_EVENT_CONTENT_GAP :
+			{
+				ContentGapEventPtr ev = std::dynamic_pointer_cast<ContentGapEvent>(e);
+				printf("[AAMPCLI] AAMP_EVENT_CONTENT_GAP\n\tStart:%lf\n\tDuration:%lf", ev->getTime(), ev->getDuration());
+				break;
+			}
 		default:
 			break;
 		}

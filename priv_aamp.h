@@ -380,6 +380,41 @@ public:
 
 
 /**
+ * @brief Class for Content gap information
+ */
+class ContentGapInfo
+{
+public:
+
+	/**
+	 * @brief ContentGapInfo Constructor
+	 */
+	ContentGapInfo() : _timeMS(0), _id(""), _durationMS(-1), _complete(false) {}
+
+	/**
+	 * @brief ContentGapInfo Constructor
+	 *
+	 * @param[in] timeMS - Time in milliseconds
+	 * @param[in] id - Content gap ID
+	 * @param[in] duration - Total duration of gap identified
+	 */
+	ContentGapInfo(long long timeMS, std::string id, double durMS) : _timeMS(timeMS), _id(id), _complete(false), _durationMS(durMS)
+	{
+		if(durMS > 0)
+		{
+			_complete = true;
+		}
+	}
+
+public:
+	long long _timeMS;     /**< Time in milliseconds */
+	std::string _id;         /**< Id of the content gap information. (period ID of new dash period after gap) */
+	double      _durationMS; /**< Duration in milliseconds */
+	bool _complete;			/**< Flag to indicate whether gap info is complete or not */
+};
+
+
+/**
  * @brief Function pointer for the idle task
  * @param[in] arg - Arguments
  * @return Idle task status
@@ -744,6 +779,7 @@ public:
 	std::vector<std::string> subscribedTags;
 	std::vector<TimedMetadata> timedMetadata;
 	std::vector<TimedMetadata> timedMetadataNew;
+	std::vector<ContentGapInfo> contentGaps;
 	bool mIsIframeTrackPresent;				/**< flag to check iframe track availability*/
 
 	/* START: Added As Part of DELIA-28363 and DELIA-28247 */
@@ -857,6 +893,7 @@ public:
 	 */
 	void FlushLastId3Data();
 
+	bool mIsInterruptHandlingEnabled;	/**< Flag used to enable position jump events for interrupt handling */
 	/**
 	 * @brief Curl initialization function
 	 *
@@ -1401,6 +1438,16 @@ public:
 	 * @return void
 	 */
 	void ReportBulkTimedMetadata();
+
+	/**
+	 * @brief Report content gap
+	 *
+	 * @param[in] timeMS - Time in milliseconds
+	 * @param[in] id - Identifier of the TimedMetadata
+	 * @param[in] durationMS - Duration in milliseconds
+	 * @return void
+	 */
+	void ReportContentGap(long long timeMS, std::string id, double durationMS = -1);
 
 	/**
 	 * @brief sleep only if aamp downloads are enabled.

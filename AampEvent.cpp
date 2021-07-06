@@ -1275,3 +1275,36 @@ const std::string &DrmMessageEvent::getMessage() const
 {
 	return mMessage;
 }
+
+
+/*
+ * @brief ContentGapEvent Constructor
+ * @param[in] time      - Time of event
+ * @param[in] duration   - Duration of event
+ */
+ContentGapEvent::ContentGapEvent(double time, double duration):
+		AAMPEventObject(AAMP_EVENT_CONTENT_GAP)
+		, mTime(time), mDuration(duration)
+{
+
+}
+
+/**
+ * @brief Get Time
+ *
+ * @return Time of the ContentGap
+ */
+double ContentGapEvent::getTime() const
+{
+	return mTime;
+}
+
+/**
+ * @brief Get Duration
+ *
+ * @return Duration (in MS) of the ContentGap
+ */
+double ContentGapEvent::getDuration() const
+{
+	return mDuration;
+}

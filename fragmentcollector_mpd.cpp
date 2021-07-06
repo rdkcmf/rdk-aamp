@@ -67,6 +67,7 @@
 #define MIN_DELAY_BETWEEN_MPD_UPDATE_MS (500) // 500mSec
 #define MIN_TSB_BUFFER_DEPTH 6 //6 seconds from 4.3.3.2.2 in https://dashif.org/docs/DASH-IF-IOP-v4.2-clean.htm
 #define VSS_DASH_EARLY_AVAILABLE_PERIOD_PREFIX "vss-"
+#define FOG_INSERTED_PERIOD_ID_PREFIX "FogPeriod"
 #define INVALID_VOD_DURATION  (0)
 
 /**
@@ -188,11 +189,6 @@ public:
 		return initialization;
 	}
 }; // SegmentTemplates
-
-/**
- * @brief Check if the given period is empty
- */
-static bool IsEmptyPeriod(IPeriod *period);
 
 /**
  * @class HeaderFetchParams
@@ -2262,6 +2258,10 @@ AAMPStatusType StreamAbstractionAAMP_MPD::GetMpdFromManfiest(const GrowableBuffe
 					{
 						aamp->ReportTimedMetadata(false);
 					}
+					if(mIsFogTSB && aamp->mIsInterruptHandlingEnabled)
+					{
+						FindPeriodGapsAndReport();
+					}
 					ret = AAMPStatusType::eAAMPSTATUS_OK;
 #else
 					size_t prevPrdCnt = mCdaiObject->mAdBreaks.size();
@@ -3178,7 +3178,7 @@ double StreamAbstractionAAMP_MPD::GetPeriodDuration(IMPD *mpd, int periodIndex)
 					{
 						nextStartStr = mpd->GetPeriods().at(periodIndex+1)->GetStart();
 					}
-					if(!curStartStr.empty() && (!nextStartStr.empty()) && !mIsFogTSB )
+					if(!curStartStr.empty() && (!nextStartStr.empty()) && !mIsFogTSB)
 					{
 						double  curPeriodStartMs = 0;
 						double  nextPeriodStartMs = 0;
@@ -3741,7 +3741,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		for (unsigned iPeriod = 0; iPeriod < numPeriods; iPeriod++)
 		{//TODO -  test with streams having multiple periods.
 			IPeriod *period = mpd->GetPeriods().at(iPeriod);
-			if(IsEmptyPeriod(period))
+			if(IsEmptyPeriod(period, mIsFogTSB))
 			{
 				// Empty Period . Ignore processing, continue to next.
 				continue;
@@ -3904,7 +3904,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				{
 					mCurrentPeriodIdx--;
 					IPeriod *period = mpd->GetPeriods().at(mCurrentPeriodIdx);
-					if( !IsEmptyPeriod(period) )
+					if( !IsEmptyPeriod(period, mIsFogTSB) )
 					{ // found last non-empty period
 						break;
 					}
@@ -4073,7 +4073,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				double durMs = 0;
 				for(int periodIter = 0; periodIter < mpd->GetPeriods().size(); periodIter++)
 				{
-					if(!IsEmptyPeriod(mpd->GetPeriods().at(periodIter)))
+					if(!IsEmptyPeriod(mpd->GetPeriods().at(periodIter), mIsFogTSB))
 					{
 						durMs += GetPeriodDuration(mpd, periodIter);
 					}
@@ -4396,9 +4396,10 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 /**
  * @brief Check if Period is empty or not
  * @param Period
+ * @param bool isFogPeriod
  * @retval Return true on empty Period
  */
-bool StreamAbstractionAAMP_MPD::IsEmptyPeriod(IPeriod *period)
+bool StreamAbstractionAAMP_MPD::IsEmptyPeriod(IPeriod *period, bool isFogPeriod)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	bool isEmptyPeriod = true;
@@ -4422,7 +4423,10 @@ bool StreamAbstractionAAMP_MPD::IsEmptyPeriod(IPeriod *period)
 			ISegmentTemplate *segmentTemplate = adaptationSet->GetSegmentTemplate();
 			if (segmentTemplate)
 			{
-				isEmptyPeriod = false;
+				if(!isFogPeriod || (0 != segmentTemplate->GetDuration()))
+				{
+					isEmptyPeriod = false;
+				}
 			}
 			else
 			{
@@ -4436,7 +4440,10 @@ bool StreamAbstractionAAMP_MPD::IsEmptyPeriod(IPeriod *period)
 					segmentTemplate = representation->GetSegmentTemplate();
 					if(segmentTemplate)
 					{
-						isEmptyPeriod = false;
+						if(!isFogPeriod || (0 != segmentTemplate->GetDuration()))
+						{
+							isEmptyPeriod = false;
+						}
 					}
 					else
 					{
@@ -4469,7 +4476,53 @@ bool StreamAbstractionAAMP_MPD::IsEmptyPeriod(IPeriod *period)
 }
 
 
-
+/**
+ * @brief Check if Period is empty or not
+ * @param Period
+ * @retval Return true on empty Period
+ */
+void StreamAbstractionAAMP_MPD::FindPeriodGapsAndReport()
+{
+	double positionMs = aamp->culledSeconds * 1000;
+	double prevPeriodEndMs = 0 , curPeriodStartMs = 0;
+	for(int i = 0; i< mpd->GetPeriods().size(); i++)
+	{
+		auto tempPeriod = mpd->GetPeriods().at(i);
+		std::string curPeriodStartStr = tempPeriod->GetStart();
+		if(!curPeriodStartStr.empty())
+		{
+			curPeriodStartMs = ParseISO8601Duration(curPeriodStartStr.c_str());
+		}
+		if (STARTS_WITH_IGNORE_CASE(tempPeriod->GetId().c_str(), FOG_INSERTED_PERIOD_ID_PREFIX))
+		{
+			if(IsEmptyPeriod(tempPeriod, mIsFogTSB) && (tempPeriod->GetAdaptationSets().size() > 0))
+			{
+				// Empty period indicates that the gap is growing, report event without duration
+				aamp->ReportContentGap(positionMs, tempPeriod->GetId());
+			}
+			else
+			{
+				// Non empty  event indicates that the gap is complete.
+				if(curPeriodStartMs > 0 && prevPeriodEndMs > 0)
+				{
+					double periodGapMS = (curPeriodStartMs - prevPeriodEndMs);
+					aamp->ReportContentGap(positionMs, tempPeriod->GetId(), periodGapMS);
+				}
+			}
+		}
+		else if (prevPeriodEndMs > 0 && (std::round((curPeriodStartMs - prevPeriodEndMs) / 1000) > 0))
+		{
+			// Gap in between periods, but period ID changed after interrupt
+			// Fog skips duplicate period and inserts fragments in new period.
+			double periodGapMS = (curPeriodStartMs - prevPeriodEndMs);
+			aamp->ReportContentGap(positionMs, tempPeriod->GetId(), periodGapMS);
+		}
+		if(IsEmptyPeriod(tempPeriod, mIsFogTSB)) continue;
+		double periodDuration = aamp_GetPeriodDuration(mpd, i, mLastPlaylistDownloadTimeMs);
+		positionMs += periodDuration;
+		prevPeriodEndMs = curPeriodStartMs + periodDuration;
+	}
+}
 
 /**
  * @brief Find timed metadata from mainifest
@@ -7103,66 +7156,6 @@ void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 	}
 }
 
-
-/**
- * @brief Check if the given period is empty
- */
-static bool IsEmptyPeriod(IPeriod *period)
-{
-	FN_TRACE_F_MPD( __FUNCTION__ );
-	bool isEmptyPeriod = true;
-	const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
-	size_t numAdaptationSets = period->GetAdaptationSets().size();
-	for (int iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
-	{
-		IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
-		IRepresentation *representation = NULL;
-		ISegmentTemplate *segmentTemplate = adaptationSet->GetSegmentTemplate();
-		if (segmentTemplate)
-		{
-			isEmptyPeriod = false;
-		}
-		else
-		{
-			if(adaptationSet->GetRepresentation().size() > 0)
-			{
-				//Get first representation in the adapatation set
-				representation = adaptationSet->GetRepresentation().at(0);
-			}
-			if(representation)
-			{
-				segmentTemplate = representation->GetSegmentTemplate();
-				if(segmentTemplate)
-				{
-					isEmptyPeriod = false;
-				}
-				else
-				{
-					ISegmentList *segmentList = representation->GetSegmentList();
-					if(segmentList)
-					{
-						isEmptyPeriod = false;
-					}
-					else
-					{
-						ISegmentBase *segmentBase = representation->GetSegmentBase();
-						if(segmentBase)
-						{
-							isEmptyPeriod = false;
-						}
-					}
-				}
-			}
-		}
-
-		if(!isEmptyPeriod)
-		{
-			break;
-		}
-	}
-	return isEmptyPeriod;
-}
-
 /**
  * @brief Fetches and caches audio fragment parallelly for video fragment.
  */
@@ -7305,7 +7298,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 			// Calculate lower boundary of playable periods, discard empty periods at the start
 			for(auto temp : availablePeriods)
 			{
-				if(IsEmptyPeriod(temp))
+				if(IsEmptyPeriod(temp, mIsFogTSB))
 				{
 					lowerBoundary++;
 					continue;
@@ -7315,7 +7308,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 			// Calculate upper boundary of playable periods, discard empty periods at the end
 			for(auto iter = availablePeriods.rbegin() ; iter != availablePeriods.rend(); iter++ )
 			{
-				if(IsEmptyPeriod(*iter))
+				if(IsEmptyPeriod(*iter, mIsFogTSB))
 				{
 					upperBoundary--;
 					continue;
@@ -7412,7 +7405,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 
 						vector <IAdaptationSet*> adapatationSets = newPeriod->GetAdaptationSets();
 						int adaptationSetCount = adapatationSets.size();
-						if(0 == adaptationSetCount || IsEmptyPeriod(newPeriod))
+						if(0 == adaptationSetCount || IsEmptyPeriod(newPeriod, mIsFogTSB))
 						{
 							/*To Handle non fog scenarios where empty periods are
 							* present after mpd update causing issues (DELIA-29879)
@@ -7472,7 +7465,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 					{
 						/*DELIA-47914:  If next period is empty, period ID change is  not processing.
 						Will check the period change for the same period in the next iteration.*/
-						if(adaptationSetCount > 0 || !IsEmptyPeriod(mCurrentPeriod))
+						if(adaptationSetCount > 0 || !IsEmptyPeriod(mCurrentPeriod , mIsFogTSB))
 						{
 							logprintf("Period ID changed from \'%s\' to \'%s\' [BasePeriodId=\'%s\']", currentPeriodId.c_str(),mCurrentPeriod->GetId().c_str(), mBasePeriodId.c_str());
 							currentPeriodId = mCurrentPeriod->GetId();
@@ -7552,9 +7545,10 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
 						mPeriodStartTime = GetPeriodStartTime(mpd, mCurrentPeriodIdx);
 						mPeriodDuration = GetPeriodDuration(mpd, mCurrentPeriodIdx);
+
 						for(int periodIter = 0; periodIter < mpd->GetPeriods().size(); periodIter++)
 						{
-							if(!IsEmptyPeriod(mpd->GetPeriods().at(periodIter)))
+							if(!IsEmptyPeriod(mpd->GetPeriods().at(periodIter), mIsFogTSB))
 							{
 								durMs += GetPeriodDuration(mpd, periodIter);
 							}

@@ -1530,6 +1530,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, bLowLatencyStartABR(false)
 	, mbUsingExternalPlayer (false)
 	, seiTimecode()
+	, mIsInterruptHandlingEnabled(false), contentGaps()
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -1891,6 +1892,22 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 		else
 		{
 			iter++;
+		}
+	}
+
+	// Remove contentGaps vector based on culling.
+	if(mIsInterruptHandlingEnabled)
+	{
+		for (auto iter = contentGaps.begin(); iter != contentGaps.end();)
+		{
+			if (iter->_timeMS != 0 && iter->_timeMS < limitMs)
+			{
+				iter = contentGaps.erase(iter);
+			}
+			else
+			{
+				iter++;
+			}
 		}
 	}
 
@@ -5069,6 +5086,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mServiceZone.clear(); //clear the value if present
 	mIsIframeTrackPresent = false;
 	mCurrentDrm = nullptr;
+	mIsInterruptHandlingEnabled = strcasestr(mainManifestUrl, "networkInterruption=true");
 
 	// DELIA-47965: Calling SetContentType without checking contentType != NULL, so that
 	// mContentType will be reset to ContentType_UNKNOWN at the start of tune by default
@@ -6615,6 +6633,94 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 		}
 	}
 }
+
+
+/**
+ * @brief Report contentGap events
+ * @param timeMilliseconds time in milliseconds
+ * @param id - Identifier of the TimedMetadata
+ * @param durationMS - Duration in milliseconds
+ */
+void PrivateInstanceAAMP::ReportContentGap(long long timeMilliseconds, std::string id, double durationMS)
+{
+	bool bFireEvent = false;
+	bool ignoreMetaAdd = false;
+	// Check if contentGap was already reported
+	std::vector<ContentGapInfo>::iterator iter;
+
+	for (iter = contentGaps.begin(); iter != contentGaps.end(); iter++)
+	{
+		if ((timeMilliseconds >= iter->_timeMS-1000 && timeMilliseconds <= iter->_timeMS+1000 ))
+		{
+			if(iter->_id == id)
+			{
+				// Already same exists , ignore if periodGap information is complete.
+				if(iter->_complete)
+				{
+					ignoreMetaAdd = true;
+					break;
+				}
+				else
+				{
+					if(durationMS >= 0)
+					{
+						// New request with duration, mark complete and report it.
+						iter->_durationMS = durationMS;
+						iter->_complete = true;
+					}
+					else
+					{
+						// Duplicate report request, already processed
+						ignoreMetaAdd = true;
+						break;
+					}
+				}
+			}
+			else
+			{
+				continue;
+			}
+		}
+		else if (iter->_timeMS < timeMilliseconds)
+		{
+			// move to next entry
+			continue;
+		}
+		else if (iter->_timeMS > timeMilliseconds)
+		{
+			break;
+		}
+	}
+
+	if(!ignoreMetaAdd)
+	{
+		bFireEvent = true;
+		if(iter == contentGaps.end())
+		{
+			contentGaps.push_back(ContentGapInfo(timeMilliseconds, id, durationMS));
+		}
+		else
+		{
+			contentGaps.insert(iter, ContentGapInfo(timeMilliseconds, id, durationMS));
+		}
+	}
+
+
+	if (bFireEvent)
+	{
+		ContentGapEventPtr eventData = std::make_shared<ContentGapEvent>(timeMilliseconds, durationMS);
+		AAMPLOG_INFO("aamp contentGap: start: %ld duration: %ld", (long)(timeMilliseconds), (long) durationMS);
+		if (GetAsyncTuneConfig() || aamp_GetSourceID() == 0)
+		{
+			SendEventAsync(eventData);
+		}
+		else
+		{
+			SendEventSync(eventData);
+		}
+	}
+}
+
 
 /**
  * @brief Notify first frame is displayed. Sends CC handle event to listeners.
