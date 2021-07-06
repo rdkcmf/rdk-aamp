@@ -1282,6 +1282,50 @@ public:
 };
 
 /**
+ * @class AAMP_JSListener_ContentGap
+ * @brief Event listener impl for AAMP_EVENT_CONTENT_GAP event.
+ */
+class AAMP_JSListener_ContentGap : public AAMP_JSListener
+{
+public:
+	/**
+	 * @brief AAMP_JSListener_ContentGap Constructor
+	 * @param[in] aamp instance of AAMP_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_JSListener_ContentGap(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[in] context JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEventPtr& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		ContentGapEventPtr evt = std::dynamic_pointer_cast<ContentGapEvent>(e);
+		JSStringRef name;
+
+		double time = evt->getTime();
+		double durationMs = evt->getDuration();
+
+		name = JSStringCreateWithUTF8CString("time");
+		JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, std::round(time)), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(name);
+
+		if (durationMs >= 0)
+		{
+			name = JSStringCreateWithUTF8CString("duration");
+			JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, (int)durationMs), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(name);
+		}
+	}
+};
+
+/**
  * @class AAMP_JSListener_StatusChanged
  * @brief Event listener for STATUS_CHANGED AAMP event
  */
@@ -1875,6 +1919,10 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	else if(type == AAMP_EVENT_TIMED_METADATA)
 	{
 		pListener = new AAMP_JSListener_TimedMetadata(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_CONTENT_GAP)
+	{
+		pListener = new AAMP_JSListener_ContentGap(aamp, type, jsCallback);
 	}
 	else if(type == AAMP_EVENT_STATE_CHANGED)
 	{

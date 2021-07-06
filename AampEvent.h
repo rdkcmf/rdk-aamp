@@ -80,6 +80,7 @@ typedef enum
 	AAMP_EVENT_ID3_METADATA,		/**< 36, ID3 metadata from audio stream */
 	AAMP_EVENT_DRM_MESSAGE,         	/**< 37, Message from the DRM system */
 	AAMP_EVENT_BLOCKED,         	        /**< 38, ATSC AV BLOCKED Event*/
+	AAMP_EVENT_CONTENT_GAP,			/**< 39, Content gap event for progress gap reporting*/
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -406,6 +407,13 @@ struct AAMPEvent
 		{
 			const char *data;
 		} drmMessage;
+
+		struct
+		{
+			long long timeMilliseconds;		/**< Playback position - relative to tune time - starts at zero */
+			double durationMilliSeconds;	/**< Duration of the gap */
+		} contentGap;
+
 	} data;
 
 	/**
@@ -1944,6 +1952,46 @@ public:
 	const std::string &getReason() const { return mReason; }
 };
 
+/**
+ * @brief Class for the Content gap event
+ */
+class ContentGapEvent: public AAMPEventObject
+{
+	double mTime;			/**< Playback position in MS- relative to tune time - starts at zero */
+	double mDuration;		/**< Duration of the timed event in MS */
+
+public:
+	ContentGapEvent() = delete;
+	ContentGapEvent(const ContentGapEvent&) = delete;
+	ContentGapEvent& operator=(const ContentGapEvent&) = delete;
+
+	/*
+	 * @brief ContentGapEvent Constructor
+	 * @param[in] time      - Time of event
+	 * @param[in] duration   - Duration of event
+	 */
+	ContentGapEvent(double time, double duration);
+
+	/**
+	 * @brief ContentGapEvent Destructor
+	 */
+	virtual ~ContentGapEvent() { }
+
+	/**
+	 * @brief Get Time
+	 *
+	 * @return Time of the ContentGap
+	 */
+	double getTime() const;
+
+	/**
+	 * @brief Get Duration
+	 *
+	 * @return Duration (in MS) of the ContentGap
+	 */
+	double getDuration() const;
+};
+
 using AAMPEventPtr = std::shared_ptr<AAMPEventObject>;
 using MediaErrorEventPtr = std::shared_ptr<MediaErrorEvent>;
 using SpeedChangedEventPtr = std::shared_ptr<SpeedChangedEvent>;
@@ -1968,6 +2016,7 @@ using MetricsDataEventPtr = std::shared_ptr<MetricsDataEvent>;
 using ID3MetadataEventPtr = std::shared_ptr<ID3MetadataEvent>;
 using DrmMessageEventPtr = std::shared_ptr<DrmMessageEvent>;
 using BlockedEventPtr = std::shared_ptr<BlockedEvent>;
+using ContentGapEventPtr = std::shared_ptr<ContentGapEvent>;
 
 #endif /* __AAMP_EVENTS_H__ */
 

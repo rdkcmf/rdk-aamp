@@ -780,6 +780,12 @@ public:
 				printf("[AAMPCLI] AAMP_EVENT_BLOCKED Reason:%s\n" ,ev->getReason().c_str());
 				break;
 			}
+		case AAMP_EVENT_CONTENT_GAP :
+			{
+				ContentGapEventPtr ev = std::dynamic_pointer_cast<ContentGapEvent>(e);
+				printf("[AAMPCLI] AAMP_EVENT_CONTENT_GAP\n\tStart:%llf\n\tDuration:%lf\n", ev->getTime(), ev->getDuration());
+				break;
+			}
 		default:
 			break;
 		}

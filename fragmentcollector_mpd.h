@@ -218,7 +218,7 @@ private:
 	AAMPStatusType GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
 	int GetDrmPrefs(const std::string& uuid);
 	std::string GetPreferredDrmUUID();
-	bool IsEmptyPeriod(IPeriod *period);
+	bool IsEmptyPeriod(IPeriod *period, bool isFogPeriod = false);
 	void GetAvailableVSSPeriods(std::vector<IPeriod*>& PeriodIds);
 	bool CheckForVssTags();
 	std::string GetVssVirtualStreamID();
@@ -303,6 +303,7 @@ private:
 	
 	void SetAudioTrackInfo(const std::vector<AudioTrackInfo> &tracks, const std::string &trackIndex);
 	void SetTextTrackInfo(const std::vector<TextTrackInfo> &tracks, const std::string &trackIndex);
+	void FindPeriodGapsAndReport();
 	
 #ifdef AAMP_MPD_DRM
 	void ProcessEAPLicenseRequest(void);

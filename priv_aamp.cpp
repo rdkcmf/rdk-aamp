@@ -1216,6 +1216,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mCCId(0)
 	, seiTimecode()
 	, mIsFakeTune(false)
+	, contentGaps()
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -1423,7 +1424,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 		else
 		{	//DELIA-49735 - Report Progress report position based on Availability Start Time
 			start = (culledSeconds*1000.0);
-			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && (mProgressReportOffset > 0) && IsLiveStream() && !mTSBEnabled)
+			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && (mProgressReportOffset >= 0) && IsLiveStream() && !IsUninterruptedTSB())
 			{
 				end = (mAbsoluteEndPosition * 1000);
 			}
@@ -1470,6 +1471,14 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 		}
 
 		mReportProgressPosn = position;
+
+		if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling) && mTSBEnabled)
+		{
+			// Reporting relative positions for Fog TSB with interrupt handling
+			start -= (mProgressReportOffset * 1000);
+			position -= (mProgressReportOffset * 1000);
+			end -= (mProgressReportOffset * 1000);
+		}
 
 		if (trickStartUTCMS >= 0 && bProcessEvent)
 		{
@@ -1578,6 +1587,22 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 		else
 		{
 			iter++;
+		}
+	}
+
+	// Remove contentGaps vector based on culling.
+	if(ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling))
+	{
+		for (auto iter = contentGaps.begin(); iter != contentGaps.end();)
+		{
+			if (iter->_timeMS != 0 && iter->_timeMS < limitMs)
+			{
+				iter = contentGaps.erase(iter);
+			}
+			else
+			{
+				iter++;
+			}
 		}
 	}
 
@@ -2275,7 +2300,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 				seek_pos_seconds = newPosition;
 			}
 
-			if(!mTSBEnabled && (mMediaFormat == eMEDIAFORMAT_DASH))
+			if(!IsUninterruptedTSB() && (mMediaFormat == eMEDIAFORMAT_DASH))
 			{
 				startTimeofFirstSample = mpStreamAbstractionAAMP->GetStartTimeOfFirstPTS() / 1000;
 				if(startTimeofFirstSample > 0)
@@ -4328,7 +4353,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		double updatedSeekPosition = mpStreamAbstractionAAMP->GetStreamPosition();
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
 		// Adjust seek_pos_second based on adjusted stream position and discontinuity start time for absolute progress reports
-		if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && !ISCONFIGSET_PRIV(eAAMPConfig_MidFragmentSeek) && !mTSBEnabled)
+		if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && !ISCONFIGSET_PRIV(eAAMPConfig_MidFragmentSeek) && !IsUninterruptedTSB())
 		{
 			double startTimeOfDiscontinuity = mpStreamAbstractionAAMP->GetStartTimeOfFirstPTS() / 1000;
 			if(startTimeOfDiscontinuity > 0)
@@ -4668,6 +4693,12 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mServiceZone.clear(); //clear the value if present
 	mIsIframeTrackPresent = false;
 	mCurrentDrm = nullptr;
+	SETCONFIGVALUE_PRIV(AAMP_STREAM_SETTING, eAAMPConfig_InterruptHandling, (mTSBEnabled && strcasestr(mainManifestUrl, "networkInterruption=true")));
+	if(!ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling))
+	{
+		AAMPLOG_INFO("%s:%d Absolute timeline reporting enabled for interrupt enabled TSB stream", __FUNCTION__, __LINE__);
+		SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING, eAAMPConfig_UseAbsoluteTimeline, true);
+	}
 
 	// DELIA-47965: Calling SetContentType without checking contentType != NULL, so that
 	// mContentType will be reset to ContentType_UNKNOWN at the start of tune by default
@@ -6257,6 +6288,94 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 		}
 	}
 }
+
+
+/**
+ * @brief Report contentGap events
+ * @param timeMilliseconds time in milliseconds
+ * @param id - Identifier of the TimedMetadata
+ * @param durationMS - Duration in milliseconds
+ */
+void PrivateInstanceAAMP::ReportContentGap(long long timeMilliseconds, std::string id, double durationMS)
+{
+	bool bFireEvent = false;
+	bool ignoreMetaAdd = false;
+	// Check if contentGap was already reported
+	std::vector<ContentGapInfo>::iterator iter;
+
+	for (iter = contentGaps.begin(); iter != contentGaps.end(); iter++)
+	{
+		if ((timeMilliseconds >= iter->_timeMS-1000 && timeMilliseconds <= iter->_timeMS+1000 ))
+		{
+			if(iter->_id == id)
+			{
+				// Already same exists , ignore if periodGap information is complete.
+				if(iter->_complete)
+				{
+					ignoreMetaAdd = true;
+					break;
+				}
+				else
+				{
+					if(durationMS >= 0)
+					{
+						// New request with duration, mark complete and report it.
+						iter->_durationMS = durationMS;
+						iter->_complete = true;
+					}
+					else
+					{
+						// Duplicate report request, already processed
+						ignoreMetaAdd = true;
+						break;
+					}
+				}
+			}
+			else
+			{
+				continue;
+			}
+		}
+		else if (iter->_timeMS < timeMilliseconds)
+		{
+			// move to next entry
+			continue;
+		}
+		else if (iter->_timeMS > timeMilliseconds)
+		{
+			break;
+		}
+	}
+
+	if(!ignoreMetaAdd)
+	{
+		bFireEvent = true;
+		if(iter == contentGaps.end())
+		{
+			contentGaps.push_back(ContentGapInfo(timeMilliseconds, id, durationMS));
+		}
+		else
+		{
+			contentGaps.insert(iter, ContentGapInfo(timeMilliseconds, id, durationMS));
+		}
+	}
+
+
+	if (bFireEvent)
+	{
+		ContentGapEventPtr eventData = std::make_shared<ContentGapEvent>(timeMilliseconds, durationMS);
+		AAMPLOG_INFO("aamp contentGap: start: %lld duration: %ld", timeMilliseconds, (long) durationMS);
+		if (GetAsyncTuneConfig() || aamp_GetSourceID() == 0)
+		{
+			SendEventAsync(eventData);
+		}
+		else
+		{
+			SendEventSync(eventData);
+		}
+	}
+}
+
 
 /**
  * @brief Notify first frame is displayed. Sends CC handle event to listeners.

@@ -820,9 +820,16 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 			return;
 		}
 
+		if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET(eAAMPConfig_InterruptHandling) && aamp->IsTSBSupported())
+		{
+			secondsRelativeToTuneTime += aamp->mProgressReportOffset;
+			logprintf("aamp_Seek position adjusted to absolute value for TSB : %lf", __FUNCTION__, secondsRelativeToTuneTime);
+		}
+
 		if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
 		{
 			double currPositionSecs = aamp->GetPositionMilliseconds() / 1000.00;
+
 			if (isSeekToLive || secondsRelativeToTuneTime >= currPositionSecs)
 			{
 				logprintf("%s():Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", __FUNCTION__, secondsRelativeToTuneTime, currPositionSecs, isSeekToLive);

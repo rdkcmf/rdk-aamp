@@ -223,7 +223,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"gstAudioBufBytes", eAAMPConfig_GstAudioBufBytes,-1,-1},
 	{"seiTimeCode",eAAMPConfig_SEITimeCode,-1,-1},
 	{"disable4K" , eAAMPConfig_Disable4K, -1, -1},
-	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, -1,-1}
+	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, -1,-1},
+	{"tsbInterruptHandling", eAAMPConfig_InterruptHandling, -1, -1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -346,6 +347,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_Disable4K].value                              =       true;
 #endif
 	bAampCfgValue[eAAMPConfig_EnableSharedSSLSession].value			=	true;
+	bAampCfgValue[eAAMPConfig_InterruptHandling].value			=	false;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;

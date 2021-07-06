@@ -1294,6 +1294,50 @@ public:
 };
 
 /**
+ * @class AAMP_Listener_ContentGap
+ * @brief Event listener impl for AAMP_EVENT_CONTENT_GAP event.
+ */
+class AAMP_Listener_ContentGap : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_ContentGap Constructor
+	 * @param[in] aamp instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_ContentGap(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set properties to JS event object
+	 * @param[in] ev AAMP event object
+	 * @param[out] jsEventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
+	{
+		ContentGapEventPtr evt = std::dynamic_pointer_cast<ContentGapEvent>(ev);
+		JSStringRef prop;
+
+		double time = evt->getTime();
+		double durationMs = evt->getDuration();
+
+		prop = JSStringCreateWithUTF8CString("time");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, std::round(time)), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		if (durationMs >= 0)
+		{
+			prop = JSStringCreateWithUTF8CString("duration");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, (int)durationMs), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+		}
+	}
+};
+
+/**
  * @brief AAMP_JSEventListener Constructor
  * @param[in] obj instance of PrivAAMPStruct_JS
  * @param[in] type event type
@@ -1462,6 +1506,9 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 			break;
 		case AAMP_EVENT_BLOCKED:
 			pListener = new AAMP_Listener_Blocked(obj, type, jsCallback);
+			break;
+		case AAMP_EVENT_CONTENT_GAP:
+			pListener = new AAMP_Listener_ContentGap(obj, type, jsCallback);
 			break;
 		// Following events are not having payload and hence falls under default case
 		// AAMP_EVENT_EOS, AAMP_EVENT_TUNED, AAMP_EVENT_ENTERING_LIVE,
