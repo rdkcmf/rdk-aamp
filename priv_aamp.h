@@ -735,6 +735,9 @@ public:
 	double mProgressReportOffset; /**< Offset time for progress reporting */
 	double mAbsoluteEndPosition; /**< Live Edge position for absolute reporting */
 	AampConfig *mConfig;
+
+	bool mbUsingExternalPlayer; /**<Playback using external players eg:OTA, HDMIIN,Composite*/
+
 	/**
 	 * @brief Curl initialization function
 	 *

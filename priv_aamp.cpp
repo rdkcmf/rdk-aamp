@@ -1196,6 +1196,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mIsWVKIDWorkaround(false)
 	, mAuxFormat(FORMAT_INVALID), mAuxAudioLanguage()
 	, mAbsoluteEndPosition(0), mIsLiveStream(false)
+	, mbUsingExternalPlayer (false)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -3921,7 +3922,10 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 				AAMPLOG_WARN("%s:%d CC Release - skipped ", __FUNCTION__, __LINE__);
 			}
 #endif
-			mStreamSink->Stop(!newTune);
+			if(!mbUsingExternalPlayer)
+			{
+				mStreamSink->Stop(!newTune);
+			}
 		}
 	}
 	else
@@ -4352,17 +4356,23 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			seek_pos_seconds = 0;
 		}
 #endif
-		mStreamSink->SetVideoZoom(zoom_mode);
-		mStreamSink->SetVideoMute(video_muted);
-		mStreamSink->SetAudioVolume(volume);
-		if (mbPlayEnabled)
+		if (!mbUsingExternalPlayer)
 		{
-			mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mpStreamAbstractionAAMP->GetESChangeStatus(), mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
+			mStreamSink->SetVideoZoom(zoom_mode);
+			mStreamSink->SetVideoMute(video_muted);
+			mStreamSink->SetAudioVolume(volume);
+			if (mbPlayEnabled)
+			{
+				mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mpStreamAbstractionAAMP->GetESChangeStatus(), mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
+			}
 		}
 		mpStreamAbstractionAAMP->ResetESChangeStatus();
 		mpStreamAbstractionAAMP->Start();
-		if (mbPlayEnabled)
-			mStreamSink->Stream();
+		if (!mbUsingExternalPlayer)
+		{
+			if (mbPlayEnabled)
+				mStreamSink->Stream();
+		}
 	}
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
@@ -4466,6 +4476,24 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		getAampCacheHandler()->SetMaxPlaylistCacheSize(PLAYLIST_CACHE_SIZE_UNLIMITED);
 	}
 	mAudioDecoderStreamSync = audioDecoderStreamSync;
+ 
+	const char *remapUrl = mConfig->GetChannelOverride(mainManifestUrl);
+	if (remapUrl )
+	{
+		const char *remapLicenseUrl = NULL;
+		mainManifestUrl = remapUrl;
+		remapLicenseUrl = mConfig->GetChannelLicenseOverride(mainManifestUrl);
+		if (remapLicenseUrl )
+		{
+			AAMPLOG_INFO("%s %d Channel License Url Override: [%s]", __FUNCTION__,__LINE__, remapLicenseUrl);
+			SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_LicenseServerUrl,std::string(remapLicenseUrl));
+		}
+	}
+
+	mMediaFormat = GetMediaFormatType(mainManifestUrl);
+
+	mbUsingExternalPlayer = (mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat== eMEDIAFORMAT_HDMI) || (mMediaFormat==eMEDIAFORMAT_COMPOSITE);
+
 	if (NULL == mStreamSink)
 	{
 		mStreamSink = new AAMPGstPlayer(this);
@@ -4475,7 +4503,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	 * if aamp->Tune is called, aamp plugins should be used, so set priority to a greater value
 	 * than that of that of webkit plugins*/
 	static bool gstPluginsInitialized = false;
-	if (!gstPluginsInitialized)
+	if ((!gstPluginsInitialized) && (!mbUsingExternalPlayer))
 	{
 		gstPluginsInitialized = true;
 		AAMPGstPlayer::InitializeAAMPGstreamerPlugins();
@@ -4511,18 +4539,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		httpRespHeaders[i].data.clear();
 	}
 
-	const char *remapUrl = mConfig->GetChannelOverride(mainManifestUrl);
-	if (remapUrl )
-	{
-		const char *remapLicenseUrl = NULL;
-		mainManifestUrl = remapUrl;
-		remapLicenseUrl = mConfig->GetChannelLicenseOverride(mainManifestUrl);
-		if (remapLicenseUrl )
-		{
-			AAMPLOG_INFO("%s %d Channel License Url Override: [%s]", __FUNCTION__,__LINE__, remapLicenseUrl);
-			SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_LicenseServerUrl,std::string(remapLicenseUrl));
-		}
-	}
 
         //Add Custom Header via config
         {
@@ -4573,7 +4589,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 
 	std::tie(mManifestUrl, mDrmInitData) = ExtractDrmInitData(mainManifestUrl);
-	mMediaFormat = GetMediaFormatType(mainManifestUrl);
+	logprintf("contentType = %s mMediaFormat = %d", contentType, mMediaFormat);
 	
 	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
