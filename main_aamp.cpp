@@ -525,7 +525,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		rate = getWorkingTrickplayRate(rate);
 	}
 
-	if (aamp->mpStreamAbstractionAAMP)
+	if (aamp->mpStreamAbstractionAAMP && !(aamp->mbUsingExternalPlayer))
 	{
 		if (!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0 && aamp->mMediaFormat != eMEDIAFORMAT_PROGRESSIVE)
 		{

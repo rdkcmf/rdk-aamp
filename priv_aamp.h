@@ -811,6 +811,7 @@ public:
 	std::atomic<bool> id3MetadataCallbackTaskPending; //Set if an id3 metadata callback is pending
 	int32_t lastId3DataLen; // last sent ID3 data length
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
+	bool mbUsingExternalPlayer; /**<Playback using external players eg:OTA, HDMIIN,Composite*/
 
 	/**
 	 * @brief Report ID3 metadata events
