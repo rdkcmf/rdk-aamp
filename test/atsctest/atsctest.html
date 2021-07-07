@@ -35,6 +35,9 @@ select:focus {
 <script src="URLs.js"></script> 
 
 <script>
+	// listRotate will have channel edge index values -1 or 0 or last channel index
+	var listRotate = -1; 
+
 	function log(text)
 	{
 		console.log(text);
@@ -581,9 +584,25 @@ window.onkeydown = function(elt)
 		//down - 174, up - 175
 		
 		case 40: // down
+			var chMapElement = document.getElementById("chMap");
+			if(chMapElement.selectedIndex == chMapElement.length - 1) {
+				// if kepressed down while being on the last channel in the list
+				document.getElementById("chMap").selectedIndex = 0;
+				listRotate = 0;
+			} else {
+				listRotate = -1;
+			}
 			break;
 			
 		case 38: // up
+		var chMapElement = document.getElementById("chMap");
+			if(chMapElement.selectedIndex == 0) {
+				// if kepressed up while being on the first channel in the list
+				document.getElementById("chMap").selectedIndex = chMapElement.length-1;
+				listRotate = chMapElement.length-1;
+			} else {
+				listRotate = -1;
+			}
 			break;
 
 		//case 33: // ch up
@@ -600,7 +619,7 @@ window.onkeydown = function(elt)
 		case 32: // space
 		if( focusIndex == 0 )
 		{
-			playChannel(true);
+			playChannel();
 		}
 		//log("focus index: " + focusIndex);
 		//log("elem: " +navElements[focusIndex].id);
@@ -646,7 +665,8 @@ function playChannel()
 		}
 		clog("playChannel:"+strLocator);
 		aampPlayer.load(strLocator);
-		//aampPlayer.load(strLocator, true, {"contentType":"OTA"});
+		//aampPlayer.load(strLocator, true, {"contentType":"OTA"});
+
 	}
 	isPlaying = true;
 }
@@ -718,9 +738,13 @@ function toggleVistoggleVis(divId) {
 
 function onChannelMapNav()
 {
-	var chMapElement = document.getElementById("chMap");
-    var selectedValue = chMapElement.options[chMapElement.selectedIndex].value;
-    //clog(selectedValue);
+	if(listRotate!=-1) {
+		// switch the index if the change is happening on the last and final elements of the list
+		document.getElementById("chMap").selectedIndex = listRotate;
+	}
+
+	// automatically start channel playback on navigation
+	playChannel();
 }
 
 /**
@@ -859,6 +883,24 @@ function setAudioTrack() {
 	var track = audioListElement.options[audioListElement.selectedIndex].value;
 	console.log("Invoked setAudioTrack with track " +track);
 	aampPlayer.setAudioTrack(track);
+}
+
+/**
+ * Sets AD on/off
+ */
+function setADstatus(status) {
+    if( status == 0 )
+        {
+                aampPlayer.setPreferredAudioLanguage("eng", "NORMAL");
+                console.log("Invoked with setPreferredAudioLanguage with eng,NORMAL");
+                setGuideText("Invoked with setPreferredAudioLanguage with eng,NORMAL");
+        }
+        else
+        {
+                aampPlayer.setPreferredAudioLanguage("fre,spa", "VISUALLY_IMPAIRED");
+                console.log("Invoked with setPreferredAudioLanguage with fre,spa,VISUALLY_IMPAIRED");
+                setGuideText("Invoked with setPreferredAudioLanguage with fre,spa,VISUALLY_IMPAIRED");
+        }
 }
 
 /**
@@ -1073,7 +1115,7 @@ function bitrateChangedEventHandler(event) {
 	</div>
 	
 	<div id="content">
-		<select id = "chMap" size="10" onchange="onChannelMapNav();" onclick="playChannel();"></select>
+		<select id = "chMap" size="10" onchange="onChannelMapNav();"></select>
 
 		<input type="button" value="startScan" onclick="startScan();"/>
 		<input type="button" value="abortScan" onclick="abortScan();"/>
@@ -1103,6 +1145,8 @@ function bitrateChangedEventHandler(event) {
 		<!-- <input type="button" value="Preferred-Eng" onclick="SetPreferredLanguages(`eng`);"/> -->
 		<input type="button" value="Preferred-Eng,Spa" onclick="SetPreferredLanguages(en_spaInitConfig);"/>
 		<input type="button" value="Preferred-Spa,Eng" onclick="SetPreferredLanguages(spa_enInitConfig);"/>
+		<input type="button" value="AD-ON" onclick="setADstatus(1);"/>
+		<input type="button" value="AD-OFF" onclick="setADstatus(0);"/>
 
 		<input type="button" value="ipVM-ON" onclick="setVideoMute(1);"/>
 		<input type="button" value="ipVM-OFF" onclick="setVideoMute(0);"/>
