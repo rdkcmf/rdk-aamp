@@ -8867,6 +8867,10 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				{
 					mpStreamAbstractionAAMP->SetPreferredAudioLanguages();
 				}
+				else if((mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE))
+				{
+					/*Avoid retuning in case of HEMIIN and COMPOSITE IN*/
+				}
 				else
 				{
 					discardEnteringLiveEvt = true;
