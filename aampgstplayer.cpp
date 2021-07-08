@@ -803,25 +803,23 @@ bool AAMPGstPlayer_isVideoOrAudioDecoder(const char* name, AAMPGstPlayer * _this
 	{
 		isAudioOrVideoDecoder = true;
 	}
+#if defined (REALTEKCE)
+	else if (aamp_StartsWith(name, "omx"))
+	{
+		isAudioOrVideoDecoder = true;
+	}
+#else
 	else if (_this->privateContext->using_westerossink && aamp_StartsWith(name, "westerossink"))
 	{
 		isAudioOrVideoDecoder = true;
 	}
+#endif
 	else if (aamp_StartsWith(name, "brcmaudiodecoder"))
 	{
 		isAudioOrVideoDecoder = true;
 	}
-#if defined (REALTEKCE)
-	else if (aamp_StartsWith(name, "omx")
-			|| aamp_StartsWith(name, "westerossink")
-			|| aamp_StartsWith(name, "rtkv1sink")
-			|| aamp_StartsWith(name, "rtkaudiosink")
-			|| aamp_StartsWith(name, "alsasink")
-			|| aamp_StartsWith(name, "fakesink"))
-	{
-		isAudioOrVideoDecoder = true;
-	}
-#endif
+
+
 	return isAudioOrVideoDecoder;
 }
 
@@ -1224,24 +1222,32 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				}
 			}
 #endif
-			if (old_state == GST_STATE_NULL && new_state == GST_STATE_READY)
+		}
+
+        if ((NULL != msg->src) &&
+#if defined(REALTEKCE)
+            AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this)
+#else
+            AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this)
+#endif
+            )
+	{
+            if (old_state == GST_STATE_NULL && new_state == GST_STATE_READY)
 			{
 				g_signal_connect(msg->src, "buffer-underflow-callback",
 					G_CALLBACK(AAMPGstPlayer_OnGstBufferUnderflowCb), _this);
 				g_signal_connect(msg->src, "pts-error-callback",
 					G_CALLBACK(AAMPGstPlayer_OnGstPtsErrorCb), _this);
+#if !defined(REALTEKCE)
 				// To register decode-error-callback for video decoder source alone
-#ifdef REALTEKCE
-				if (AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
-#else
 				if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
-#endif
 				{
 					g_signal_connect(msg->src, "decode-error-callback",
 						G_CALLBACK(AAMPGstPlayer_OnGstDecodeErrorCb), _this);
 				}
+#endif
 			}
-		}
+	}
 		break;
 
 	case GST_MESSAGE_TAG:
@@ -1408,24 +1414,28 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #endif
 
 				}
-#if defined(REALTEKCE)
-				else if (AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
-				{
-					type_check_instance("bus_sync_handle: connecting first-video-frame-callback", (GstElement *) msg->src);
-					g_signal_connect(msg->src, "first-video-frame-callback",
-                                                                        G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
-					g_object_set(msg->src, "report_decode_errors", TRUE, NULL);
-				}
-#endif
 				else
 				{
 					_this->privateContext->audio_dec = (GstElement *) msg->src;
 					type_check_instance("bus_sync_handle: audio_dec ", _this->privateContext->audio_dec);
+#if !defined(REALTEKCE)
 					g_signal_connect(msg->src, "first-audio-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
+#endif
 				}
 			}
+#if defined(REALTEKCE)
+            if ((NULL != msg->src) && AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
+            {
+                type_check_instance("bus_sync_handle: connecting first-video-frame-callback", (GstElement *) msg->src);
+                g_signal_connect(msg->src, "first-video-frame-callback",
+                                                                        G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
+            }
 
+            if ((NULL != msg->src) && aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink"))
+                g_signal_connect(msg->src, "first-audio-frame",
+                                    G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
+#endif
 #else
 			if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink") == true)
 			{
