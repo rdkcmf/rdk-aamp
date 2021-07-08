@@ -1794,7 +1794,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			 *Second block is for LIVE, where boundaries are
 						 *  mPeriodStartTime and currentTime
 			 */
-			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time > mPeriodEndTime))
+			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentTime > (mPeriodStartTime + mPeriodDuration/1000)))
 							|| (rate < 0 )))
 					|| (mIsLiveStream && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
 							|| (pMediaStreamContext->fragmentDescriptor.Time < mPeriodStartTime))))  //CID:93022 - No effect
@@ -7456,7 +7456,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 
 			while(iPeriod < numPeriods && !exitFetchLoop)  //CID:95090 - No effect
 			{
-				bool periodChanged = (iPeriod != mCurrentPeriodIdx) | (mBasePeriodId != mpd->GetPeriods().at(mCurrentPeriodIdx)->GetId());
+				bool periodChanged = (iPeriod != mCurrentPeriodIdx) || (mBasePeriodId != mpd->GetPeriods().at(mCurrentPeriodIdx)->GetId());
 				if (periodChanged || mpdChanged || adStateChanged)
 				{
 					bool discontinuity = false;
@@ -7756,6 +7756,11 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 											mStartTimeOfFirstPTS = ((aamp->culledSeconds + startTime - (GetPeriodStartTime(mpd, 0) - mAvailabilityStartTime)) * 1000);
 										}
 									}
+								}
+								else if(nextSegmentTime != segmentStartTime)
+								{
+									discontinuity = true;
+									logprintf("StreamAbstractionAAMP_MPD::%s:%d discontinuity detected", __FUNCTION__, __LINE__);
 								}
 								else
 								{

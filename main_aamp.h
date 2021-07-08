@@ -256,7 +256,7 @@ public:
 	 *   @param[in]  bESChangeStatus - Flag to keep force configure the pipeline value
 	 *   @return void
 	 */
-	virtual void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus)=0;
+	virtual void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus, bool setReadyAfterPipelineCreation=false)=0;
 
 	/**
 	 *   @brief  API to send audio/video buffer into the sink.

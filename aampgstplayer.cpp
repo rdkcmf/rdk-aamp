@@ -2469,7 +2469,7 @@ void AAMPGstPlayer::Stream()
  * @param[in] audioFormat audio format
  * @param[in] bESChangeStatus
  */
-void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus)
+void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus, bool setReadyAfterPipelineCreation)
 {
 	logprintf("AAMPGstPlayer::%s %d > format %d audioFormat %d", __FUNCTION__, __LINE__, format, audioFormat);
 	StreamOutputFormat newFormat[AAMP_TRACK_COUNT];
@@ -2501,6 +2501,10 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	bool configureStream[AAMP_TRACK_COUNT];
 	memset(configureStream, 0, sizeof(configureStream));
 
+	if (setReadyAfterPipelineCreation && gst_element_set_state(this->privateContext->pipeline, GST_STATE_READY) == GST_STATE_CHANGE_FAILURE)
+	{
+		logprintf("AAMPGstPlayer_Configure GST_STATE_READY failed");
+	}
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
 		media_stream *stream = &privateContext->stream[i];
