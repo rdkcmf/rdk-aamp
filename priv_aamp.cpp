@@ -2279,15 +2279,19 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
  */
 void PrivateInstanceAAMP::NotifyEOSReached()
 {
-	logprintf("%s: Enter . processingDiscontinuity %d",__FUNCTION__, (mProcessingDiscontinuity[eMEDIATYPE_VIDEO] || mProcessingDiscontinuity[eMEDIATYPE_AUDIO]));
-	if (!IsDiscontinuityProcessPending())
+	bool isDiscontinuity = IsDiscontinuityProcessPending();
+	bool isLive = IsLive();
+	
+	logprintf("%s: Enter . processingDiscontinuity %d isLive %d", __FUNCTION__, isDiscontinuity, isLive);
+	
+	if (!isDiscontinuity)
 	{
 		if (!mpStreamAbstractionAAMP->IsEOSReached())
 		{
 			AAMPLOG_ERR("%s: Bogus EOS event received from GStreamer, discarding it!", __FUNCTION__);
 			return;
 		}
-		if (!IsLive() && rate > 0)
+		if (!isLive && rate > 0)
 		{
 			SetState(eSTATE_COMPLETE);
 			SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_EOS));
@@ -4152,6 +4156,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		{
 			mCdaiObject = new CDAIObject(this);    //Placeholder to reject the SetAlternateContents()
 		}
+		// Set to false so that EOS events can be sent. Flag value was whatever previous asset had set it to.
+		SetIsLive(false);
 	}
 	else if (mMediaFormat == eMEDIAFORMAT_HDMI)
 	{
