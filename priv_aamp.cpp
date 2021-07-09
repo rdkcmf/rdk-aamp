@@ -1200,6 +1200,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
 	int maxDrmSession;
 	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxDASHDRMSessions,maxDrmSession);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioLanguage,preferredLanguagesString);
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	mDRMSessionManager = new AampDRMSessionManager(maxDrmSession);
 #endif
