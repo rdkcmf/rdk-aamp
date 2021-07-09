@@ -250,6 +250,7 @@ typedef enum
 	eAAMPConfig_SessionToken,									/**<Session Token  */
 	eAAMPConfig_LogLevel,										/**< New Configuration to overide info/debug/trace */
 	eAAMPConfig_CustomHeaderLicense,                            					/**<custom header string data to be appended to curl License request*/
+	eAAMPConfig_PreferredAudioLanguage,								/**< PreferredAudioLanguage*/
 	eAAMPConfig_StringMaxValue,
 	eAAMPConfig_MaxValue
 }AAMPConfigSettings;
