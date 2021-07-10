@@ -2130,8 +2130,16 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 		}
 	}
 #endif
-
-	SendEventAsync(std::make_shared<SpeedChangedEvent>(rate));
+	//Hack For DELIA-51318 convert the incoming rates into acceptable rates
+	if(ISCONFIGSET_PRIV(eAAMPConfig_RepairIframes))
+	{
+		AAMPLOG_WARN("%s:%d mRepairIframes is set, sending pseudo rate %d for the actual rate %d", __FUNCTION__, __LINE__, getPseudoTrickplayRate(rate), rate);
+		SendEventAsync(std::make_shared<SpeedChangedEvent>(getPseudoTrickplayRate(rate)));
+	}
+	else
+	{
+		SendEventAsync(std::make_shared<SpeedChangedEvent>(rate));
+	}
 }
 
 /**
