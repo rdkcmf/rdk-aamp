@@ -172,5 +172,19 @@ int getHarvestConfigForMedia(MediaType fileType);
  * @brief Get harvest path to dump the files
  * @return harvest path
  */
+
 std::string getDefaultHarvestPath();
+
+/**
+ * @brief Get compatible trickplay for 6s cadense of iframe track from the given rates
+ * @param rate input rate
+ */
+int getWorkingTrickplayRate(int rate);
+
+/**
+ * @brief Get reverse map the working rates to the rates given by platform player
+ * @param rate working rate
+ */
+int getPseudoTrickplayRate(int rate);
+
 #endif  /* __AAMP_UTILS_H__ */
