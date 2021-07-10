@@ -445,6 +445,12 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		AAMPLOG_WARN("%s:%d SetRate ignored!! Invalid rate (%d)", __FUNCTION__, __LINE__, rate);
 		return;
 	}
+	//Hack For DELIA-51318 convert the incoming rates into acceptable rates
+	if(aamp->mRepairIframes)
+	{
+		AAMPLOG_WARN("%s:%d mRepairIframes is true, setting actual rate %d for the recieved rate %d", __FUNCTION__, __LINE__, getWorkingTrickplayRate(rate), rate);
+		rate = getWorkingTrickplayRate(rate);
+	}
 
 	if (aamp->mpStreamAbstractionAAMP)
 	{
@@ -808,6 +814,12 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 	logprintf("aamp_SetRateAndSeek(%d)(%f)", rate, secondsRelativeToTuneTime);
 	aamp->TeardownStream(false);
 	aamp->seek_pos_seconds = secondsRelativeToTuneTime;
+	//Hack For DELIA-51318 convert the incoming rates into acceptable rates
+	if(aamp->mRepairIframes)
+	{
+		AAMPLOG_WARN("%s:%d mRepairIframes is true, setting actual rate %d for the recieved rate %d", __FUNCTION__, __LINE__, getWorkingTrickplayRate(rate), rate);
+		rate = getWorkingTrickplayRate(rate);
+	}
 	aamp->rate = rate;
 	aamp->TuneHelper(eTUNETYPE_SEEK);
 }
