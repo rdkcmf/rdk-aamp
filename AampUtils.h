@@ -161,4 +161,16 @@ struct timespec aamp_GetTimespec(int timeInMs);
  */
 void aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count);
 
+/**
+ * @brief Get compatible trickplay for 6s cadense of iframe track from the given rates
+ * @param rate input rate
+ */
+int getWorkingTrickplayRate(int rate);
+
+/**
+ * @brief Get reverse map the working rates to the rates given by platform player
+ * @param rate working rate
+ */
+int getPseudoTrickplayRate(int rate);
+
 #endif  /* __AAMP_UTILS_H__ */
