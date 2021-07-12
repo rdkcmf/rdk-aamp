@@ -652,10 +652,24 @@ int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 	}
 	else if (track.size() > 2 && aamp_StartsWith(track.c_str(), "CC"))
 	{
-		// Value between 1 - 8
+		// Value between 1 - 4
 		// Set as analog channel
 		finalFormat = eCLOSEDCAPTION_FORMAT_608;
 		trackNum = ((int)track[2] - 48);
+	}
+	else if (track.size() > 3 && aamp_StartsWith(track.c_str(), "TXT"))
+	{
+		// Value between 5 - 8
+		// Set as analog channel
+		finalFormat = eCLOSEDCAPTION_FORMAT_608;
+		trackNum = ((int)track[3] - 48) + 4;
+	}
+	else if (track.size() > 4 && aamp_StartsWith(track.c_str(), "TEXT"))
+	{
+		// Value between 5 - 8
+		// Set as analog channel
+		finalFormat = eCLOSEDCAPTION_FORMAT_608;
+		trackNum = ((int)track[4] - 48) + 4;
 	}
 	else if (track.size() > 7 && aamp_StartsWith(track.c_str(), "SERVICE"))
 	{
@@ -687,7 +701,7 @@ int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 		}
 	}
 
-	AAMPLOG_WARN("AampCCManagerBase::%s %d Set CC format(%d) trackNum(%d)", __FUNCTION__, __LINE__, finalFormat, trackNum);
+	AAMPLOG_WARN("AampCCManagerBase::%s %d Set CC InstreamId '%s' format(%d) trackNum(%d)", __FUNCTION__, __LINE__, track.c_str(), finalFormat, trackNum);
 
 	if (finalFormat == eCLOSEDCAPTION_FORMAT_708 && (trackNum > 0 && trackNum <= 63))
 	{
