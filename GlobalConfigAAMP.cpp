@@ -85,6 +85,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	, licenseCaching(eUndefinedState)
 	, mPausedBehavior(ePAUSED_BEHAVIOR_MAX)
 	, bLimitResolution(eUndefinedState)
+	, enableRepairIframes(eUndefinedState)
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
 	//onVideoInfo depends on the metrics received from pipe.
