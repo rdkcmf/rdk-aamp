@@ -4876,6 +4876,18 @@ void PrivateInstanceAAMP::CheckForDiscontinuityStall(MediaType mediaType)
 	GETCONFIGVALUE_PRIV(eAAMPConfig_DiscontinuityTimeout,discontinuityTimeoutValue);
 	if(!(mStreamSink->CheckForPTSChangeWithTimeout(discontinuityTimeoutValue)))
 	{
+		pthread_mutex_lock(&mLock);
+
+		if (mDiscontinuityTuneOperationId != 0 || mDiscontinuityTuneOperationInProgress)
+		{
+			logprintf("PrivateInstanceAAMP::%s:%d: Ignored retune!! Discontinuity handler already spawned(%d) or inprogress(%d)",
+							__FUNCTION__, __LINE__, mDiscontinuityTuneOperationId, mDiscontinuityTuneOperationInProgress);
+			pthread_mutex_unlock(&mLock);
+			return;
+		}
+
+		pthread_mutex_unlock(&mLock);
+
 		AAMPLOG_INFO("%s:%d : No change in PTS for more than %ld ms, schedule retune!",__FUNCTION__, __LINE__, discontinuityTimeoutValue);
 		mProcessingDiscontinuity[eMEDIATYPE_VIDEO] = false;
 		mProcessingDiscontinuity[eMEDIATYPE_AUDIO] = false;
@@ -6191,9 +6203,9 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		{
 			if (mDiscontinuityTuneOperationId != 0 || mDiscontinuityTuneOperationInProgress)
 			{
-				pthread_mutex_unlock(&mLock);
 				logprintf("PrivateInstanceAAMP::%s:%d: Discontinuity Tune handler already spawned(%d) or inprogress(%d)",
 					__FUNCTION__, __LINE__, mDiscontinuityTuneOperationId, mDiscontinuityTuneOperationInProgress);
+				pthread_mutex_unlock(&mLock);
 				return;
 			}
 			mDiscontinuityTuneOperationId = ScheduleAsyncTask(PrivateInstanceAAMP_ProcessDiscontinuity, (void *)this);
