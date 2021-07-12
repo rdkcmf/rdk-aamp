@@ -697,7 +697,7 @@ public:
 		case AAMP_EVENT_STATE_CHANGED:
 			{
 				StateChangedEventPtr ev = std::dynamic_pointer_cast<StateChangedEvent>(e);
-				printf("[AAMPCLI] AAMP_EVENT_STATE_CHANGED: %s (%d)", StringifyPrivAAMPState(ev->getState()), ev->getState());
+				printf("[AAMPCLI] AAMP_EVENT_STATE_CHANGED: %s (%d)\n", StringifyPrivAAMPState(ev->getState()), ev->getState());
 				break;
 			}
 		case AAMP_EVENT_SEEKED:
@@ -728,14 +728,14 @@ public:
 			}
 		case AAMP_EVENT_TUNED:
 				{
-					printf("[AAMPCLI] AAMP_EVENT_TUNED");
+					printf("[AAMPCLI] AAMP_EVENT_TUNED\n");
 					break;
 				}
 		case AAMP_EVENT_TUNE_FAILED:
 				{
 					MediaErrorEventPtr ev = std::dynamic_pointer_cast<MediaErrorEvent>(e);
 					mTuneFailureDescription = ev->getDescription();
-					printf("[AAMPCLI] AAMP_EVENT_TUNE_FAILED reason=%s",mTuneFailureDescription.c_str());
+					printf("[AAMPCLI] AAMP_EVENT_TUNE_FAILED reason=%s\n",mTuneFailureDescription.c_str());
 					break;
 				}
 		case AAMP_EVENT_SPEED_CHANGED:
@@ -751,10 +751,10 @@ public:
 					break;
 				}
 		case AAMP_EVENT_EOS:
-				printf("[AAMPCLI] AAMP_EVENT_EOS");
+				printf("[AAMPCLI] AAMP_EVENT_EOS\n");
 				break;
 		case AAMP_EVENT_PLAYLIST_INDEXED:
-				printf("[AAMPCLI] AAMP_EVENT_PLAYLIST_INDEXED");
+				printf("[AAMPCLI] AAMP_EVENT_PLAYLIST_INDEXED\n");
 				break;
 		case AAMP_EVENT_PROGRESS:
 			{
@@ -770,17 +770,17 @@ public:
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
 			{
 				CCHandleEventPtr ev = std::dynamic_pointer_cast<CCHandleEvent>(e);
-				printf("[AAMPCLI] AAMP_EVENT_CC_HANDLE_RECEIVED CCHandle=%lu",ev->getCCHandle());
+				printf("[AAMPCLI] AAMP_EVENT_CC_HANDLE_RECEIVED CCHandle=%lu\n",ev->getCCHandle());
 				break;
 			}
 		case AAMP_EVENT_BITRATE_CHANGED:
 			{
 				BitrateChangeEventPtr ev = std::dynamic_pointer_cast<BitrateChangeEvent>(e);
-				printf("[AAMPCLI] AAMP_EVENT_BITRATE_CHANGED\n\tbitrate=%ld\n\tdescription=\"%s\"\n\tresolution=%dx%d@%ffps\n\ttime=%d\n\tposition=%lf", ev->getBitrate(), ev->getDescription().c_str(), ev->getWidth(), ev->getHeight(), ev->getFrameRate(), ev->getTime(), ev->getPosition());
+				printf("[AAMPCLI] AAMP_EVENT_BITRATE_CHANGED\n\tbitrate=%ld\n\tdescription=\"%s\"\n\tresolution=%dx%d@%ffps\n\ttime=%d\n\tposition=%lf\n", ev->getBitrate(), ev->getDescription().c_str(), ev->getWidth(), ev->getHeight(), ev->getFrameRate(), ev->getTime(), ev->getPosition());
 				break;
 			}
 		case AAMP_EVENT_AUDIO_TRACKS_CHANGED:
-				printf("[AAMPCLI] AAMP_EVENT_AUDIO_TRACKS_CHANGED");
+				printf("[AAMPCLI] AAMP_EVENT_AUDIO_TRACKS_CHANGED\n");
 				break;
 		case AAMP_EVENT_ID3_METADATA:
 				printf("[AAMPCLI] AAMP_EVENT_ID3_METADATA\n");
