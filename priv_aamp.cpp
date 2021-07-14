@@ -3649,7 +3649,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				// hack - repair wrong size in box
 				IsoBmffBuffer repair;
 				repair.setBuffer((uint8_t *)buffer->ptr, buffer->len);
-				repair.parseBuffer();
+				repair.parseBuffer(true);  //correctBoxSize=true
 				AAMPLOG_INFO("%s:%d: Stripping the fragment for range request completed", __FUNCTION__, __LINE__);
 			}
 			else
