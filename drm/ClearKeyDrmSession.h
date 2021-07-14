@@ -129,7 +129,7 @@ public:
 	 * @retval Returns 0 on success.
 	 */
 	int decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount,
-				GstBuffer* subSamplesBuffer);
+				GstBuffer* subSamplesBuffer, GstCaps* caps);
 
 	/**
 	 * @brief Get the current state of DRM Session.
