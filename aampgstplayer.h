@@ -45,7 +45,7 @@ class AAMPGstPlayer : public StreamSink
 {
 public:
 	class PrivateInstanceAAMP *aamp;
-	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, bool bESChangeStatus);
+	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux);
 	void Send(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration);
 	void Send(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double duration);
 	void EndOfStreamReached(MediaType type);
@@ -105,6 +105,9 @@ private:
 	void DisconnectCallbacks();
 	void FlushLastId3Data();
 
+	bool WaitForSourceSetup(MediaType mediaType);
+	void ForwardBuffersToAuxPipeline(GstBuffer *buffer);
+	bool ForwardAudioBuffersToAux();
 	pthread_mutex_t mBufferingLock;
 	pthread_mutex_t mProtectionLock;
 };
