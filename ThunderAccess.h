@@ -55,8 +55,6 @@ private:
     JSONRPC::LinkType<Core::JSON::IElement> *remoteObject;
     /*The Remote object connected to controller Plugin*/
     JSONRPC::LinkType<Core::JSON::IElement> *controllerObject;
-    /*For Authentication token*/
-    string query;
     std::string pluginCallsign;
 };
 #endif // THUNDERACCESS_H_
