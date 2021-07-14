@@ -55,12 +55,12 @@ void IsoBmffBuffer::setBuffer(uint8_t *buf, size_t sz)
  *
  * @return true if parse was successful. false otherwise
  */
-bool IsoBmffBuffer::parseBuffer()
+bool IsoBmffBuffer::parseBuffer(bool correctBoxSize)
 {
 	size_t curOffset = 0;
 	while (curOffset < bufSize)
 	{
-		Box *box = Box::constructBox(buffer+curOffset, bufSize - curOffset);
+		Box *box = Box::constructBox(buffer+curOffset, bufSize - curOffset, correctBoxSize);
 		box->setOffset(curOffset);
 		boxes.push_back(box);
 		curOffset += box->getSize();

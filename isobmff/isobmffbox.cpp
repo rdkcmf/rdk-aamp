@@ -132,7 +132,7 @@ const char *Box::getType()
  * @param[in] maxSz - box size
  * @return newly constructed Box object
  */
-Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz)
+Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, bool correctBoxSize)
 {
 	L_RESTART:
 	uint8_t *hdr_start = hdr;
@@ -143,11 +143,18 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz)
 
 	if (size > maxSz)
 	{
-		//Fix box size to handle cases like receiving whole file for HTTP range requests 
-		AAMPLOG_WARN("%s:%d: Box[%s] fixing size error:size[%u] > maxSz[%u]\n",__FUNCTION__, __LINE__, type, size, maxSz);
-		hdr = hdr_start;
-		WRITE_U32(hdr,maxSz);
-		goto L_RESTART;
+		if(correctBoxSize)
+		{
+			//Fix box size to handle cases like receiving whole file for HTTP range requests 
+			AAMPLOG_WARN("%s:%d: Box[%s] fixing size error:size[%u] > maxSz[%u]\n",__FUNCTION__, __LINE__, type, size, maxSz);
+			hdr = hdr_start;
+			WRITE_U32(hdr,maxSz);
+			goto L_RESTART;
+		}
+		else
+		{
+			AAMPLOG_WARN("Box[%s] Size error:size[%u] > maxSz[%u]\n",type, size, maxSz);
+		}
 	}
 	else if (IS_TYPE(type, MOOV))
 	{
