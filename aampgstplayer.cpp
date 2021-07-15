@@ -2705,20 +2705,6 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 	}
 }
 
-void AAMPGstPlayer::DisconnectCallbacks()
-{
-	if(privateContext->video_dec)
-	{
-		type_check_instance("AAMPGstPlayer::DisconnectCallbacks: video_dec ", privateContext->video_dec);
-		g_signal_handlers_disconnect_by_data(privateContext->video_dec, this);
-	}
-	if(privateContext->audio_dec)
-	{
-		type_check_instance("AAMPGstPlayer::DisconnectCallbacks: audio_dec ", privateContext->audio_dec);
-		g_signal_handlers_disconnect_by_data(privateContext->audio_dec, this);
-	}
-}
-
 void AAMPGstPlayer::FlushLastId3Data()
 {
 	if(privateContext->lastId3Data)
@@ -2816,9 +2802,6 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 		GstState current;
 		GstState pending;
 		privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
-#ifndef INTELCE
-		DisconnectCallbacks();
-#endif
 		if(GST_STATE_CHANGE_FAILURE == gst_element_get_state(privateContext->pipeline, &current, &pending, 0))
 		{
 			logprintf("AAMPGstPlayer::%s: Pipeline is in FAILURE state : current %s  pending %s", __FUNCTION__,gst_element_state_get_name(current), gst_element_state_get_name(pending));

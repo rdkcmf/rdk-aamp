@@ -102,7 +102,6 @@ private:
 	void DestroyPipeline();
 	static bool initialized;
 	void Flush(void);
-	void DisconnectCallbacks();
 	void FlushLastId3Data();
 
 	bool WaitForSourceSetup(MediaType mediaType);
