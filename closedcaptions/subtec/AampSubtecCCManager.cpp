@@ -84,7 +84,7 @@ void AampSubtecCCManager::EnsureRendererCommsInitialized()
 /**
  * @brief Release CC resources
  */
-void AampSubtecCCManager::Release(void)
+void AampSubtecCCManager::ReleaseResources(void)
 {
 	AAMPLOG_WARN("AampSubtecCCManager::%s %d", __FUNCTION__, __LINE__);
 	subtecConnector::resetChannel();

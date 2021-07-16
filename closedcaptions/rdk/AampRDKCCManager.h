@@ -38,11 +38,6 @@ class AampRDKCCManager : public AampCCManagerBase
 public:
 
 	/**
-	 * @brief Release CC resources
-	 */
-	void Release(void) override;
-
-	/**
 	 * @brief Constructor
 	 */
 	AampRDKCCManager() = default;
@@ -56,6 +51,12 @@ public:
 	AampRDKCCManager& operator=(const AampRDKCCManager&) = delete;
 
 private:
+
+	/**
+	 * @brief Release CC resources
+	 */
+	void ReleaseResources(void) override;
+
 	/**
 	 * @brief To start CC rendering
 	 *

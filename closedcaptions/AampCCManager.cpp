@@ -756,11 +756,30 @@ int AampCCManagerBase::SetStatus(bool enable)
 		// called when the required operations are completed
 		if (mEnabled)
 		{
-			Start();
+			const auto prevValue = stateRefCounter.fetch_add(1);
+			AAMPLOG_TRACE("AampCCManagerBase::%s %d mEnabled: %d, prevValue=%d, actualValue=%d", __FUNCTION__, __LINE__, mEnabled, prevValue, prevValue+1);
+			if(prevValue>=0) //test for prevValue>=0 because now we've added 1 so the actual value is >=1
+			{
+				Start();
+			}
+			else
+			{
+				AAMPLOG_WARN("AampCCManagerBase::%s %d skipping start - stateRefCounter = %d", __FUNCTION__, __LINE__, prevValue+1);
+			}
 		}
 		else
 		{
-			Stop();
+			const auto prevValue = stateRefCounter.fetch_sub(1);
+			AAMPLOG_TRACE("AampCCManagerBase::%s %d mEnabled: %d, prevValue=%d, actualValue=%d", __FUNCTION__, __LINE__, mEnabled, prevValue, prevValue-1);
+			if(prevValue<=1) //test for prevValue<=1 because now we've substracted 1 so the actual value is <=0
+			{
+				stateRefCounter.store(0);
+				Stop();
+			}
+			else
+			{
+				AAMPLOG_WARN("AampCCManagerBase::%s %d skipping stop - stateRefCounter=%d", __FUNCTION__, __LINE__, prevValue-1);
+			}
 		}
 	}
 	return ret;
@@ -802,5 +821,25 @@ void AampCCManager::DestroyInstance()
 	{
 		delete mInstance;
 		mInstance = NULL;
+	}
+}
+
+/**
+ * @brief Release resources
+ *
+ * @return void
+ */
+void AampCCManagerBase::Release()
+{
+	const auto prevValue = stateRefCounter.fetch_sub(1);
+	AAMPLOG_TRACE("AampCCManagerBase::%s %d  prevValue=%d, actualValue=%d", __FUNCTION__, __LINE__, prevValue, prevValue-1);
+	if(prevValue<=1) //test for prevValue<=1 because now we've substracted 1 so the actual value is <=0
+	{
+		stateRefCounter.store(0); //let's clean-up the state after release
+		ReleaseResources();
+	}
+	else
+	{
+		AAMPLOG_WARN("AampCCManagerBase::%s %d skipping ReleaseResources - stateRefCounter = %d", __FUNCTION__, __LINE__, prevValue-1);
 	}
 }

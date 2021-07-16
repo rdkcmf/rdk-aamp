@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 #include "main_aamp.h"
+#include <atomic>
 
 /**
  * @brief Different CC formats
@@ -56,7 +57,7 @@ public:
 	/**
 	 * @brief Release CC resources
 	 */
-	virtual void Release(void) = 0;
+	void Release(void);
 
 	/**
 	 * @brief Enable/disable CC rendering
@@ -200,6 +201,13 @@ protected:
 	virtual int SetAnalogChannel(unsigned int id) = 0;
 
 	/**
+	 * @brief Release CC resources
+	 *
+	 * @return void
+	 */
+	virtual void ReleaseResources() = 0;
+
+	/**
 	 * @brief validate mCCHandle
 	 *
 	 * @return bool
@@ -227,6 +235,7 @@ protected:
 	bool mEnabled{false}; /**< true if CC rendering enabled, false otherwise */
 	bool mTrickplayStarted{false}; /** If a trickplay is going on or not */
 	bool mParentalCtrlLocked{false}; /** If Parental Control lock enabled on not */
+	std::atomic_int stateRefCounter{0};
 };
 
 class AampCCManager
