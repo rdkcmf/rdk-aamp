@@ -2578,10 +2578,9 @@ AAMPStatusType StreamAbstractionAAMP_MPD::GetMpdFromManfiest(const GrowableBuffe
 					mIsLiveManifest = !(mpd->GetType() == "static");
 					aamp->SetIsLive(mIsLiveManifest);
 					FindTimedMetadata(mpd, root, init, bMetadata);
-					if(bMetadata && init && aamp->IsNewTune())
+					if(!init)
 					{
-						// Send bulk report
-						aamp->ReportBulkTimedMetadata();
+						aamp->ReportTimedMetadata(false);
 					}
 					ret = AAMPStatusType::eAAMPSTATUS_OK;
 #else
@@ -4251,7 +4250,9 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		}
 
 		StreamSelection(true, forceSpeedsChangedEvent);
-
+		//DELIA-51402 - calling ReportTimedMetadata function after drm creation in order
+		//to reduce the delay caused
+		aamp->ReportTimedMetadata(true);
 		if(mAudioType == eAUDIO_UNSUPPORTED)
 		{
 			retval = eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
@@ -4799,7 +4800,7 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 						if (infoNode->HasAttribute("value")) {
 							const std::string& content = infoNode->GetAttributeValue("value");
 
-							AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-CONTENT-IDENTIFIER:%s", 0.0f, content.c_str());
+							AAMPLOG_TRACE("TimedMetadata: @%1.3f #EXT-X-CONTENT-IDENTIFIER:%s", 0.0f, content.c_str());
 
 							for (int i = 0; i < aamp->subscribedTags.size(); i++)
 							{
@@ -4812,7 +4813,7 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 									}
 									else
 									{
-										aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(), init);
+										aamp->SaveNewTimedMetadata(0, tag.c_str(), content.c_str(), content.size());
 									}
 									break;
 								}
@@ -4832,7 +4833,7 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 					if (ID == "identityADS" && node->HasAttribute("value")) {
 						const std::string& content = node->GetAttributeValue("value");
 
-						AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-IDENTITY-ADS:%s", 0.0f, content.c_str());
+						AAMPLOG_TRACE("TimedMetadata: @%1.3f #EXT-X-IDENTITY-ADS:%s", 0.0f, content.c_str());
 
 						for (int i = 0; i < aamp->subscribedTags.size(); i++)
 						{
@@ -4844,7 +4845,7 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 								}
 								else
 								{
-									aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(), init);
+									aamp->SaveNewTimedMetadata(0, tag.c_str(), content.c_str(), content.size());
 								}
 								
 								break;
@@ -4855,7 +4856,7 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 					if (ID == "messageRef" && node->HasAttribute("value")) {
 						const std::string& content = node->GetAttributeValue("value");
 
-						AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-MESSAGE-REF:%s", 0.0f, content.c_str());
+						AAMPLOG_TRACE("TimedMetadata: @%1.3f #EXT-X-MESSAGE-REF:%s", 0.0f, content.c_str());
 
 						for (int i = 0; i < aamp->subscribedTags.size(); i++)
 						{
@@ -4867,7 +4868,7 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 								}
 								else
 								{
-									aamp->ReportTimedMetadata(0, tag.c_str(), content.c_str(), content.size(), init);
+									aamp->SaveNewTimedMetadata(0, tag.c_str(), content.c_str(), content.size());
 								}
 								break;
 							}
@@ -4927,7 +4928,7 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodSupplementalProperty(Node* node, st
 						s << ",PSN=true";
 
 						std::string content = s.str();
-						AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-CUE:%s", start, content.c_str());
+						AAMPLOG_TRACE("TimedMetadata: @%1.3f #EXT-X-CUE:%s", start, content.c_str());
 
 						for (int i = 0; i < aamp->subscribedTags.size(); i++)
 						{
@@ -4939,7 +4940,7 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodSupplementalProperty(Node* node, st
 								}
 								else
 								{
-									aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size(), isInit);
+									aamp->SaveNewTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
 								}
 								break;
 							}
@@ -5021,7 +5022,7 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodAssetIdentifier(Node* node, uint64_
 					s << ",DURATION=" << std::fixed << std::setprecision(3) << duration;
 
 					std::string content = s.str();
-					AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-ASSET-ID:%s", start, content.c_str());
+					AAMPLOG_TRACE("TimedMetadata: @%1.3f #EXT-X-ASSET-ID:%s", start, content.c_str());
 
 					for (int i = 0; i < aamp->subscribedTags.size(); i++)
 					{
@@ -5033,7 +5034,7 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodAssetIdentifier(Node* node, uint64_
 							}
 							else
 							{
-								aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size(), isInit);
+								aamp->SaveNewTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
 							}
 							break;
 						}
@@ -5057,7 +5058,7 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodAssetIdentifier(Node* node, uint64_
 				}
 			}
 			std::string content = s.str();
-			AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-SOURCE-STREAM:%s", start, content.c_str());
+			AAMPLOG_TRACE("TimedMetadata: @%1.3f #EXT-X-SOURCE-STREAM:%s", start, content.c_str());
 
 			for (int i = 0; i < aamp->subscribedTags.size(); i++)
 			{
@@ -5069,7 +5070,7 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodAssetIdentifier(Node* node, uint64_
 					}
 					else
 					{
-						aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size(), isInit);
+						aamp->SaveNewTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
 					}
 					break;
 				}
@@ -5116,8 +5117,7 @@ bool StreamAbstractionAAMP_MPD::ProcessEventStream(uint64_t startMS, IPeriod * p
 					}
 					else
 					{
-						AAMPLOG_INFO("%s:%d :  Sending timedMetadata for VOD SCTE35 event for the period, %s", __FUNCTION__, __LINE__, prdId.c_str()); 
-						aamp->ReportTimedMetadata(startMS, "SCTE35", scte35.first.c_str(), scte35.first.size(), false, prdId.c_str(), scte35.second);
+						aamp->SaveNewTimedMetadata(startMS, "SCTE35", scte35.first.c_str(), scte35.first.size(), prdId.c_str(), scte35.second);
 					}
 				}
 			}
@@ -5251,7 +5251,7 @@ void StreamAbstractionAAMP_MPD::ProcessTrickModeRestriction(Node* node, const st
 		}
 
 		std::string content = s.str();
-		AAMPLOG_INFO("TimedMetadata: @%1.3f #EXT-X-TRICKMODE-RESTRICTION:%s", start, content.c_str());
+		AAMPLOG_TRACE("TimedMetadata: @%1.3f #EXT-X-TRICKMODE-RESTRICTION:%s", start, content.c_str());
 
 		for (int i = 0; i < aamp->subscribedTags.size(); i++)
 		{
@@ -5263,7 +5263,7 @@ void StreamAbstractionAAMP_MPD::ProcessTrickModeRestriction(Node* node, const st
 				}
 				else
 				{
-					aamp->ReportTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size(), isInit);
+					aamp->SaveNewTimedMetadata((long long)startMS, tag.c_str(), content.c_str(), content.size());
 				}
 				break;
 			}
