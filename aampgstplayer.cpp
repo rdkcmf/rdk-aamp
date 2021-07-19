@@ -1065,7 +1065,7 @@ static gboolean buffering_timeout (gpointer data)
 			DRM key acquisition can end after injection, and buffering is not expected
 			to be completed by the 1 second timeout
 			*/
-			if (G_UNLIKELY(((mediaFormatRet != eMEDIAFORMAT_DASH) || (mediaFormatRet != eMEDIAFORMAT_PROGRESSIVE) || (mediaFormatRet != eMEDIAFORMAT_HLS_MP4)) && (privateContext->buffering_timeout_cnt == 0 ) && _this->aamp->mConfig->IsConfigSet(eAAMPConfig_ReTuneOnBufferingTimeout) && (privateContext->numberOfVideoBuffersSent > 0)))
+			if (G_UNLIKELY(((mediaFormatRet != eMEDIAFORMAT_DASH) && (mediaFormatRet != eMEDIAFORMAT_PROGRESSIVE) && (mediaFormatRet != eMEDIAFORMAT_HLS_MP4)) && (privateContext->buffering_timeout_cnt == 0) && _this->aamp->mConfig->IsConfigSet(eAAMPConfig_ReTuneOnBufferingTimeout) && (privateContext->numberOfVideoBuffersSent > 0)))
 			{
 				logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d  bytes %u  frames %u", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent, bytes, frames);
 				privateContext->buffering_in_progress = false;
@@ -3526,7 +3526,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			logprintf("AAMPGstPlayer::%s:%d Pipeline is in %s state position %f ret %d\n", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position, ret);
 			MediaFormat mediaFormatRet;
 			mediaFormatRet = aamp->GetMediaFormatTypeEnum();
-			if (((mediaFormatRet != eMEDIAFORMAT_DASH) || (mediaFormatRet != eMEDIAFORMAT_PROGRESSIVE) || (mediaFormatRet != eMEDIAFORMAT_HLS_MP4)) && (current == GST_STATE_PAUSED))
+			if (((mediaFormatRet != eMEDIAFORMAT_DASH) && (mediaFormatRet != eMEDIAFORMAT_PROGRESSIVE) && (mediaFormatRet != eMEDIAFORMAT_HLS_MP4)) && (current == GST_STATE_PAUSED))
 			{
 				/*
 				 * Changing the Pipeline state to GST_STATE_PLAYING temporarily to keep Gstreamer continue sending data to Decoder during gst_element_seek().
