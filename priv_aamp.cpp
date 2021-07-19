@@ -1129,7 +1129,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN),isPreferredDRMConfigured(false),
 	mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET), 
 	seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
-	video_muted(false), subtitles_muted(true), audio_volume(100), subscribedTags(), timedMetadata(), IsTuneTypeNew(false), trickStartUTCMS(-1),mLogTimetoTopProfile(true),
+	video_muted(false), subtitles_muted(true), audio_volume(100), subscribedTags(), timedMetadata(), timedMetadataNew(), IsTuneTypeNew(false), trickStartUTCMS(-1),mLogTimetoTopProfile(true),
 	durationSeconds(0.0), culledSeconds(0.0), culledOffset(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000),
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
@@ -5911,6 +5911,36 @@ void PrivateInstanceAAMP::SaveTimedMetadata(long long timeMilliseconds, const ch
 }
 
 /**
+ * @brief SaveNewTimedMetadata Function to store Metadata and reporting event one by one after DRM Initialization
+ *
+ */
+void PrivateInstanceAAMP::SaveNewTimedMetadata(long long timeMilliseconds, const char* szName, const char* szContent, int nb, const char* id, double durationMS)
+{
+	std::string content(szContent, nb);
+	timedMetadataNew.push_back(TimedMetadata(timeMilliseconds, std::string((szName == NULL) ? "" : szName), content, std::string((id == NULL) ? "" : id), durationMS));
+}
+
+/**
+ *@brief ReportTimedMetadata Function to send timedMetadata
+ *
+ */
+void PrivateInstanceAAMP::ReportTimedMetadata(bool init)
+{
+	bool bMetadata = ISCONFIGSET_PRIV(eAAMPConfig_BulkTimedMetaReport);
+	if(bMetadata && init && IsNewTune())
+	{
+		ReportBulkTimedMetadata();
+	}
+	else
+	{
+		std::vector<TimedMetadata>::iterator iter;
+		for (iter = timedMetadataNew.begin(); iter != timedMetadataNew.end(); iter++){
+			ReportTimedMetadata(iter->_timeMS, iter->_name.c_str(), iter->_content.c_str(), iter->_content.size(), init, iter->_id.c_str(), iter->_durationMS);
+		}
+		timedMetadataNew.clear();
+	}
+}
+/**
  * @brief ReportBulkTimedMetadata Function to send bulk timedMetadata in json format 
  *
  */
@@ -7267,7 +7297,7 @@ void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t sta
 		std::string adId("");
 		std::string url("");
 		mCdaiObject->SetAlternateContents(adBreakId, adId, url, startMS, breakdur);	//A placeholder to avoid multiple scte35 event firing for the same adbreak
-		ReportTimedMetadata(aamp_GetCurrentTimeMS(), "SCTE35", scte35.c_str(), scte35.size(), false, adBreakId.c_str(), breakdur);
+		SaveNewTimedMetadata(aamp_GetCurrentTimeMS(), "SCTE35", scte35.c_str(), scte35.size(), adBreakId.c_str(), breakdur);
 	}
 }
 
