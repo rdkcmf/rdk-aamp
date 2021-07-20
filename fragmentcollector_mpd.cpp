@@ -331,12 +331,8 @@ public:
 			aamp_Free(&cachedFragment->fragment.ptr);
 			if( aamp->DownloadsAreEnabled())
 			{
-				logprintf("%s:%d LoadFragment failed", __FUNCTION__, __LINE__);
-
-				if (initSegment)
-				{
-					logprintf("%s:%d Init fragment fetch failed. fragmentUrl %s", __FUNCTION__, __LINE__, fragmentUrl.c_str());
-				}
+			
+				logprintf("%s:%d %sfragment fetch failed -- fragmentUrl %s", __FUNCTION__, __LINE__, (initSegment)?"Init ":" ", fragmentUrl.c_str());
 
 				if (mSkipSegmentOnError)
 				{
@@ -1268,7 +1264,7 @@ bool StreamAbstractionAAMP_MPD::FetchFragment(MediaStreamContext *pMediaStreamCo
 	{
 		if(!fragmentSaved)
 		{
-		logprintf("StreamAbstractionAAMP_MPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
+		//logprintf("StreamAbstractionAAMP_MPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 			if(mCdaiObject->mAdState == AdState::IN_ADBREAK_AD_PLAYING && (isInitializationSegment || pMediaStreamContext->segDLFailCount >= MAX_AD_SEG_DOWNLOAD_FAIL_COUNT))
 			{
 				logprintf("StreamAbstractionAAMP_MPD::%s:%d [CDAI] Ad fragment not available. Playback failed.", __FUNCTION__, __LINE__);
@@ -1906,7 +1902,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 							AAMPLOG_INFO("%s [%s]", getMediaTypeName(pMediaStreamContext->mediaType), segmentURL->GetMediaRange().c_str());
 							if(!pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, 0.0, segmentURL->GetMediaRange().c_str() ))
 							{
-								logprintf("StreamAbstractionAAMP_MPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
+								AAMPLOG_TRACE("StreamAbstractionAAMP_MPD::%s:%d did not cache fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 							}
 						}
 						else //We are procesing the custom segment list provided by Fog for DASH TSB
@@ -6780,7 +6776,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 									0, // duration - zero for init fragment
 									range.c_str(), true ))
 								{
-									logprintf("StreamAbstractionAAMP_MPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
+									AAMPLOG_TRACE("StreamAbstractionAAMP_MPD::%s:%d did not cache fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 								}
 							}
 						}
@@ -6897,7 +6893,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 												range.c_str(),
 												true ))
 										{
-											logprintf("StreamAbstractionAAMP_MPD::%s:%d failed. fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
+											AAMPLOG_TRACE("StreamAbstractionAAMP_MPD::%s:%d did not cache fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 										}
 									}
 								}
@@ -7047,7 +7043,7 @@ void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 											bool temp =  mMediaStreamContext[i]->CacheFragment(fragmentUrl, (eCURLINSTANCE_VIDEO + mMediaStreamContext[i]->mediaType), mMediaStreamContext[i]->fragmentTime, 0.0, NULL, true);
 											if(!temp)
 											{
-												AAMPLOG_WARN("%s:%d: Error at  pthread_create", __FUNCTION__, __LINE__);  //CID:84438 - checked return
+												AAMPLOG_TRACE("StreamAbstractionAAMP_MPD::%s:%d did not cache fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), mMediaStreamContext[i]->fragmentTime); //CID:84438 - checked return
 											}
 										}
 										delete fragmentDescriptor;
