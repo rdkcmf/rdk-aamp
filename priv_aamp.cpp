@@ -1385,9 +1385,8 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		else
 		{	//DELIA-49735 - Report Progress report position based on Availability Start Time
 			start = (culledSeconds*1000.0);
-			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && (mProgressReportOffset > 0) && IsLive() && !mTSBEnabled)
+			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && (mProgressReportOffset > 0) && IsLiveStream() && !mTSBEnabled)
 			{
-				position += (mProgressReportOffset*1000);
 				end = (mAbsoluteEndPosition * 1000);
 			}
 			else
@@ -2222,12 +2221,12 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 				seek_pos_seconds = newPosition;
 			}
 
-			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && IsLiveStream() && !mTSBEnabled)
+			if(!mTSBEnabled && (mMediaFormat == eMEDIAFORMAT_DASH))
 			{
 				startTimeofFirstSample = mpStreamAbstractionAAMP->GetStartTimeOfFirstPTS() / 1000;
 				if(startTimeofFirstSample > 0)
 				{
-					AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Position is updated wrt start time of discontinuity : %lf", __FUNCTION__, __LINE__, startTimeofFirstSample);
+					AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Position is updated to start time of discontinuity : %lf", __FUNCTION__, __LINE__, startTimeofFirstSample);
 					seek_pos_seconds = startTimeofFirstSample;
 				}
 			}
@@ -4137,7 +4136,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	trickStartUTCMS = -1;
 
 	double playlistSeekPos = seek_pos_seconds - culledSeconds;
-	culledOffset = culledSeconds;
 	AAMPLOG_INFO("%s:%d playlistSeek : %f seek_pos_seconds:%f culledSeconds : %f ",__FUNCTION__,__LINE__,playlistSeekPos,seek_pos_seconds,culledSeconds);
 	if (playlistSeekPos < 0)
 	{
@@ -4290,6 +4288,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 				AAMPLOG_WARN("%s:%d Position adjusted discontinuity start: %lf, Abs position: %lf", __FUNCTION__, __LINE__, startTimeOfDiscontinuity, seek_pos_seconds);
 			}
 		}
+		culledOffset = culledSeconds;
 		UpdateProfileCappedStatus();
 #ifndef AAMP_STOP_SINK_ON_SEEK
 		logprintf("%s:%d Updated seek_pos_seconds %f culledSeconds :%f",__FUNCTION__,__LINE__, seek_pos_seconds,culledSeconds);
