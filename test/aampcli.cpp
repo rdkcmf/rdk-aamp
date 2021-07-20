@@ -1020,14 +1020,7 @@ static void ProcessCliCommand( char *cmd )
 	}
 	else if (sscanf(cmd, "ff%d", &rate) == 1)
 	{
-		if (rate >= 128)
-		{
-			printf("[AAMPCLI] Speed not supported.\n");
-		}
-		else
-		{
-			mSingleton->SetRate((float)rate);
-		}
+		mSingleton->SetRate((float)rate);
 	}
 	else if (strcmp(cmd, "play") == 0)
 	{
@@ -1039,14 +1032,7 @@ static void ProcessCliCommand( char *cmd )
 	}
 	else if (sscanf(cmd, "rw%d", &rate) == 1)
 	{
-		if (rate >= 128)
-		{
-			printf("[AAMPCLI] Speed not supported.\n");
-		}
-		else
-		{
-			mSingleton->SetRate((float)(-rate));
-		}
+		mSingleton->SetRate((float)(-rate));
 	}
 	else if (sscanf(cmd, "bps %d", &rate) == 1)
 	{
