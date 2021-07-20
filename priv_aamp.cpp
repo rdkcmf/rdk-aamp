@@ -1387,9 +1387,8 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		else
 		{	//DELIA-49735 - Report Progress report position based on Availability Start Time
 			start = (culledSeconds*1000.0);
-			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && (mProgressReportOffset > 0) && IsLive() && !mTSBEnabled)
+			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && (mProgressReportOffset > 0) && IsLiveStream() && !mTSBEnabled)
 			{
-				position += (mProgressReportOffset*1000);
 				end = (mAbsoluteEndPosition * 1000);
 			}
 			else
@@ -2224,12 +2223,12 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 				seek_pos_seconds = newPosition;
 			}
 
-			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && IsLiveStream() && !mTSBEnabled)
+			if(!mTSBEnabled && (mMediaFormat == eMEDIAFORMAT_DASH))
 			{
 				startTimeofFirstSample = mpStreamAbstractionAAMP->GetStartTimeOfFirstPTS() / 1000;
 				if(startTimeofFirstSample > 0)
 				{
-					AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Position is updated wrt start time of discontinuity : %lf", __FUNCTION__, __LINE__, startTimeofFirstSample);
+					AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d Position is updated to start time of discontinuity : %lf", __FUNCTION__, __LINE__, startTimeofFirstSample);
 					seek_pos_seconds = startTimeofFirstSample;
 				}
 			}
