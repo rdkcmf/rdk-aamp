@@ -48,7 +48,7 @@ using namespace dash::helpers;
 /*Common MPD util functions (admanager_mpd.cpp and fragmentcollector_mpd.cpp */
 uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumber);
 double aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(IPeriod * period);
-uint64_t aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t mpdDownloadTime = 0);
+double aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t mpdDownloadTime = 0);
 Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd = false);
 uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd);
 
