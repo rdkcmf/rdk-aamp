@@ -48,7 +48,7 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	vodTrickplayFPS(TRICKPLAY_NETWORK_PLAYBACK_FPS),vodTrickplayFPSLocalOverride(false), linearTrickplayFPS(TRICKPLAY_TSB_PLAYBACK_FPS),
 	linearTrickplayFPSLocalOverride(false), stallErrorCode(DEFAULT_STALL_ERROR_CODE), stallTimeoutInMS(DEFAULT_STALL_DETECTION_TIMEOUT),
 	httpProxy(0), reportProgressInterval(0), mpdDiscontinuityHandling(true), mpdDiscontinuityHandlingCdvr(true), bForceHttp(false),
-	internalReTune(true), bAudioOnlyPlayback(false), gstreamerBufferingBeforePlay(true),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
+	internalReTune(true), bAudioOnlyPlayback(false),licenseRetryWaitTime(DEF_LICENSE_REQ_RETRY_WAIT_TIME),
 	iframeBitrate(0), iframeBitrate4K(0),ptsErrorThreshold(MAX_PTS_ERRORS_THRESHOLD), ckLicenseServerURL(NULL),
 	curlStallTimeout(0), curlDownloadStartTimeout(0), enableMicroEvents(false), enablePROutputProtection(false),
 	reTuneOnBufferingTimeout(true), gMaxPlaylistCacheSize(0), waitTimeBeforeRetryHttp5xxMS(DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS),
@@ -85,8 +85,10 @@ GlobalConfigAAMP::GlobalConfigAAMP():
 	, licenseCaching(eUndefinedState)
 #ifdef REALTEKCE
 	, bDisableUnderflow(true)
+	, gstreamerBufferingBeforePlay(false)
 #else
 	, bDisableUnderflow(false)
+	, gstreamerBufferingBeforePlay(true)
 #endif
 {
 	//XRE sends onStreamPlaying while receiving onTuned event.
