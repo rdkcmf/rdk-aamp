@@ -536,7 +536,7 @@ int ClearKeySession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 		uint8_t *decryptedDataBuf = (uint8_t *)malloc(payloadDataSize);
 		uint32_t decryptedDataLen = 0;
 		uint8_t *ivBuff = NULL;
-		if(!decryptedDataBuf)
+		if(decryptedDataBuf)
 		{
 			memset(decryptedDataBuf, 0, payloadDataSize);
 			if(f_cbIV == 8)//8 byte IV need to pad with 0 before decrypt
