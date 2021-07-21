@@ -76,6 +76,29 @@ const char* MediaTrack::GetBufferHealthStatusString(BufferHealthStatus status)
 }
 
 /**
+ * @brief Get buffer Status of track
+ */
+BufferHealthStatus MediaTrack::GetBufferStatus()
+{
+    BufferHealthStatus bStatus = BUFFER_STATUS_GREEN;
+    double bufferedTime = totalInjectedDuration - GetContext()->GetElapsedTime();
+    if ( (numberOfFragmentsCached <= 0) && (bufferedTime <= AAMP_BUFFER_MONITOR_GREEN_THRESHOLD))
+    {
+        logprintf("%s:%d [%s] bufferedTime %f totalInjectedDuration %f elapsed time %f",__FUNCTION__, __LINE__,
+                name, bufferedTime, totalInjectedDuration, GetContext()->GetElapsedTime());
+        if (bufferedTime <= 0)
+        {
+            bStatus = BUFFER_STATUS_RED;
+        }
+        else
+        {
+            bStatus = BUFFER_STATUS_YELLOW;
+        }
+    }
+    return bStatus;
+}
+
+/**
  * @brief Monitors buffer health of track
  */
 void MediaTrack::MonitorBufferHealth()
@@ -100,31 +123,7 @@ void MediaTrack::MonitorBufferHealth()
 		pthread_mutex_lock(&mutex);
 		if (aamp->DownloadsAreEnabled() && !abort)
 		{
-			if ( numberOfFragmentsCached > 0)
-			{
-				bufferStatus = BUFFER_STATUS_GREEN;
-			}
-			else
-			{
-				double bufferedTime = totalInjectedDuration - GetContext()->GetElapsedTime();
-				if (bufferedTime > AAMP_BUFFER_MONITOR_GREEN_THRESHOLD)
-				{
-					bufferStatus = BUFFER_STATUS_GREEN;
-				}
-				else
-				{
-					logprintf("%s:%d [%s] bufferedTime %f totalInjectedDuration %f elapsed time %f",__FUNCTION__, __LINE__,
-							name, bufferedTime, totalInjectedDuration, GetContext()->GetElapsedTime());
-					if (bufferedTime <= 0)
-					{
-						bufferStatus = BUFFER_STATUS_RED;
-					}
-					else
-					{
-						bufferStatus = BUFFER_STATUS_YELLOW;
-					}
-				}
-			}
+			bufferStatus = GetBufferStatus();
 			if (bufferStatus != prevBufferStatus)
 			{
 				logprintf("aamp: track[%s] buffering %s->%s", name, GetBufferHealthStatusString(prevBufferStatus),
