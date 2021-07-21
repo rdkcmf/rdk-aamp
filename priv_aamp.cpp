@@ -6184,15 +6184,15 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		}
 		pthread_mutex_unlock(&mStreamLock);
 
-		if((ISCONFIGSET_PRIV(eAAMPConfig_ReportBufferEvent)) && (errorType == eGST_ERROR_UNDERFLOW) && (trackType == eMEDIATYPE_VIDEO))
+		if((ISCONFIGSET_PRIV(eAAMPConfig_ReportBufferEvent)) &&
+		(errorType == eGST_ERROR_UNDERFLOW) &&
+		(trackType == eMEDIATYPE_VIDEO) &&
+		(mpStreamAbstractionAAMP->GetMediaTrack((TrackType)trackType)->GetBufferStatus() == BUFFER_STATUS_RED))
 		{
 			SendBufferChangeEvent(true);  // Buffer state changed, buffer Under flow started
-			if ( false == pipeline_paused )
+			if (!pipeline_paused &&  !PausePipeline(true, true))
 			{
-				if ( true != PausePipeline(true, true) )
-				{
 					AAMPLOG_ERR("%s(): Failed to pause the Pipeline", __FUNCTION__);
-				}
 			}
 		}
 
@@ -6204,8 +6204,6 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"), errorString);
 		bool activeAAMPFound = false;
 		pthread_mutex_lock(&gMutex);
-                int ptsErrorThresholdValue;
-                GETCONFIGVALUE_PRIV(eAAMPConfig_PTSErrorThreshold,ptsErrorThresholdValue);
 		for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
 		{
 			if (this == iter->pAAMP)
@@ -6217,11 +6215,12 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 				}
 				else
 				{
-
 					if(eGST_ERROR_PTS == errorType || eGST_ERROR_UNDERFLOW == errorType)
 					{
 						long long now = aamp_GetCurrentTimeMS();
 						long long lastErrorReportedTimeMs = lastUnderFlowTimeMs[trackType];
+						int ptsErrorThresholdValue = 0;
+						GETCONFIGVALUE_PRIV(eAAMPConfig_PTSErrorThreshold,ptsErrorThresholdValue);
 						if (lastErrorReportedTimeMs)
 						{
 							long long diffMs = (now - lastErrorReportedTimeMs);
