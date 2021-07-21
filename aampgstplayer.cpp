@@ -970,25 +970,17 @@ static void AAMPGstPlayer_OnGstBufferUnderflowCb(GstElement* object, guint arg0,
 
 		_this->privateContext->stream[type].bufferUnderrun = true;
 
-		if (_this->privateContext->stream[type].eosReached)
+		if ((_this->privateContext->stream[type].eosReached) && (_this->privateContext->rate > 0))
 		{
-			if (_this->privateContext->rate > 0)
+			if (!privateContext->ptsCheckForEosOnUnderflowIdleTaskId)
 			{
-				if (!privateContext->ptsCheckForEosOnUnderflowIdleTaskId)
-				{
-					privateContext->lastKnownPTS =_this->GetVideoPTS();
-					privateContext->ptsUpdatedTimeMS = NOW_STEADY_TS_MS;
-					privateContext->ptsCheckForEosOnUnderflowIdleTaskId = g_timeout_add(AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW, VideoDecoderPtsCheckerForEOS, _this);
-				}
-				else
-				{
-					logprintf("%s:%d : ptsCheckForEosOnUnderflowIdleTask ID %d already running, ignore underflow", __FUNCTION__, __LINE__, (int)privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
-				}
+				privateContext->lastKnownPTS =_this->GetVideoPTS();
+				privateContext->ptsUpdatedTimeMS = NOW_STEADY_TS_MS;
+				privateContext->ptsCheckForEosOnUnderflowIdleTaskId = g_timeout_add(AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW, VideoDecoderPtsCheckerForEOS, _this);
 			}
 			else
 			{
-				logprintf("%s:%d : Mediatype %d underrun, when eosReached is %d", __FUNCTION__, __LINE__, type, _this->privateContext->stream[type].eosReached);
-				_this->aamp->ScheduleRetune(eGST_ERROR_UNDERFLOW, type);
+				logprintf("%s:%d : ptsCheckForEosOnUnderflowIdleTask ID %d already running, ignore underflow", __FUNCTION__, __LINE__, (int)privateContext->ptsCheckForEosOnUnderflowIdleTaskId);
 			}
 		}
 		else

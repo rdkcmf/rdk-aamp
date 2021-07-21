@@ -288,6 +288,13 @@ public:
 	void ScheduleBufferHealthMonitor();
 
 	/**
+	* @brief Get buffer Status of track
+	*
+	* @return BufferHealthStatus
+	*/
+	BufferHealthStatus GetBufferStatus();
+
+	/**
 	 * @brief Get buffer health status
 	 *
 	 * @return current buffer health status
