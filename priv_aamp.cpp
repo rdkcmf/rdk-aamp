@@ -1118,6 +1118,24 @@ static void curl_unlock_callback(CURL *curl, curl_lock_data data, curl_lock_acce
 	pthread_mutex_unlock(&gCurlInitMutex);
 }
 
+/**
+ * @brief Idle callback to notify ID3 metadata event
+ * @param[in] user_data pointer to Id3CallbackData object containing AAMPGstPlayer instance
+ * @retval G_SOURCE_REMOVE, if the source should be removed
+ */
+static gboolean IdleCallbackOnId3Metadata(gpointer user_data)
+{
+        Id3CallbackData *id3 = (Id3CallbackData*)user_data;
+
+        id3->aamp->SendId3MetadataEvent(id3->data, id3->schemeIdUri, id3->value, id3->timeScale, id3->presentationTime, id3->eventDuration, id3->id, id3->timestampOffset);
+        id3->aamp->id3MetadataCallbackTaskPending = false;
+        id3->aamp->id3MetadataCallbackIdleTaskId = 0;
+
+        delete id3;
+
+        return G_SOURCE_REMOVE;
+}
+
 // End of curl callback functions
 
 /**
@@ -1188,6 +1206,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mConfig (config),mSubLanguage(), mHarvestCountLimit(0), mHarvestConfig(0)
 	, mIsWVKIDWorkaround(false)
 	, mAbsoluteEndPosition(0), mIsLiveStream(false)
+	, id3MetadataCallbackIdleTaskId(0), id3MetadataCallbackTaskPending(false), lastId3DataLen(0), lastId3Data(NULL)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -5858,6 +5877,16 @@ void PrivateInstanceAAMP::Stop()
 	}
 
 	TeardownStream(true);
+
+	if (id3MetadataCallbackTaskPending)
+	{
+		logprintf("%s %d > Remove id3MetadataCallbackIdleTaskId %d", __FUNCTION__, __LINE__, id3MetadataCallbackIdleTaskId);
+		RemoveAsyncTask(id3MetadataCallbackIdleTaskId);
+		id3MetadataCallbackTaskPending = false;
+		id3MetadataCallbackIdleTaskId = 0;
+	}
+	FlushLastId3Data();
+
 	pthread_mutex_lock(&mEventLock);
 	if (mPendingAsyncEvents.size() > 0)
 	{
@@ -7759,9 +7788,9 @@ void PrivateInstanceAAMP::GetCustomLicenseHeaders(std::unordered_map<std::string
  *   @param[in] data pointer to ID3 metadata.
  *   @param[in] length length of ID3 metadata.
  */
-void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data)
+void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data, std::string &schIDUri, std::string &id3Value, uint32_t timeScale, uint64_t presentationTime, uint32_t eventDuration, uint32_t id, uint64_t timestampOffset)
 {
-	ID3MetadataEventPtr e = std::make_shared<ID3MetadataEvent>(data);
+	ID3MetadataEventPtr e = std::make_shared<ID3MetadataEvent>(data, schIDUri, id3Value, timeScale, presentationTime, eventDuration, id, timestampOffset);
 	if (gpGlobalConfig->logging.id3)
 	{
 		std::vector<uint8_t> metadata = e->getMetadata();
@@ -7774,7 +7803,7 @@ void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data)
 		if (metadataLen > 0 )
 		{
 			tag << " payload: ";
-	
+
 			for (int i = 0; i < metadataLen; i++)
 			{
 				if (std::isprint(metadata[i]))
@@ -7787,8 +7816,9 @@ void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data)
 		// Logger has a maximum message size limit, warn if too big
 		// Current large ID3 tag size is 1055, but printable < MAX_DEBUG_LOG_BUFF_SIZE.
 		std::string tagLog(tag.str());
-		logprintf("%s", tag.str().c_str());
-		
+		AAMPLOG_INFO("%s", tag.str().c_str());
+		AAMPLOG_INFO("{schemeIdUri:\"%s\",value:\"%s\",presentationTime:%" PRIu64 ",timeScale:%" PRIu32 ",eventDuration:%" PRIu32 ",id:%" PRIu32 ",timestampOffset:%" PRIu64 "}",e->getSchemeIdUri().c_str(), e->getValue().c_str(), e->getPresentationTime(), e->getTimeScale(), e->getEventDuration(), e->getId(), e->getTimestampOffset());
+
 		if (printableLen > MAX_DEBUG_LOG_BUFF_SIZE)
 		{
 			AAMPLOG_WARN("%s:%d ID3 log was truncated, original size %d (printable %d)" ,__FUNCTION__,__LINE__, metadataLen, printableLen);
@@ -8896,4 +8926,116 @@ unsigned char* PrivateInstanceAAMP::ReplaceKeyIDPsshData(const unsigned char *In
 		AAMPLOG_ERR("%s:%d Invalid Argument of PSSH data ", __FUNCTION__, __LINE__);
 	}
 	return NULL;
+}
+
+/**
+ * @brief Check if segment starts with an ID3 section
+ *
+ * @param[in] data pointer to segment buffer
+ * @param[in] length length of segment buffer
+ * @retval true if segment has an ID3 section
+ */
+bool PrivateInstanceAAMP::hasId3Header(const uint8_t* data, uint32_t length)
+{
+	if (length >= 3)
+	{
+		/* Check file identifier ("ID3" = ID3v2) and major revision matches (>= ID3v2.2.x). */
+		if (*data++ == 'I' && *data++ == 'D' && *data++ == '3' && *data++ >= 2)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * @brief Process the ID3 metadata from segment
+ *
+ * @param[in] segment - fragment
+ * @param[in] size - fragment size
+ * @param[in] type - MediaType
+ */
+void PrivateInstanceAAMP::ProcessID3Metadata(char *segment, size_t size, MediaType type, uint64_t timeStampOffset)
+{
+	// Logic for ID3 metadata
+	if(segment)
+	{
+		IsoBmffBuffer buffer;
+		buffer.setBuffer((uint8_t *)segment, size);
+		buffer.parseBuffer();
+		if(!buffer.isInitSegment())
+		{
+			uint8_t* message = nullptr;
+			uint32_t messageLen = 0;
+			uint8_t* schemeIDUri = nullptr;
+			uint8_t* value = nullptr;
+			uint64_t presTime = 0;
+			uint32_t timeScale = 0;
+			uint32_t eventDuration = 0;
+			uint32_t id = 0;
+			if(buffer.getEMSGData(message, messageLen, schemeIDUri, value, presTime, timeScale, eventDuration, id))
+			{
+				if(message && messageLen > 0 && hasId3Header(message, messageLen))
+				{
+					AAMPLOG_TRACE("PrivateInstanceAAMP::%s()::%d Found ID3 metadata[%d]", __FUNCTION__, __LINE__, type);
+					if(mMediaFormat == eMEDIAFORMAT_DASH)
+					{
+						ReportID3Metadata(message, messageLen, (char*)(schemeIDUri), (char*)(value), presTime, id, eventDuration, timeScale, timeStampOffset);
+					}else
+					{
+						ReportID3Metadata(message, messageLen, (char*)(schemeIDUri), (char*)(value), presTime, id, eventDuration, timeScale);
+					}
+				}
+			}
+		}
+	}
+}
+
+
+/**
+ * @brief Report ID3 metadata events
+ *
+ * @param[in] ptr - ID3 metadata pointer
+ * @param[in] len - Metadata length
+ * @param[in] schemeIdURI - schemeID URI
+ * @param[in] value - value from id3 metadata
+ * @param[in] presTime - presentationTime
+ * @param[in] id3ID - id from id3 metadata
+ * @param[in] eventDur - event duration
+ * @param[in] tScale - timeScale
+ * @param[in] tStampOffset - timeStampOffset
+ * @return void
+ */
+void PrivateInstanceAAMP::ReportID3Metadata(const uint8_t* ptr, uint32_t len, const char* schemeIdURI, const char* id3Value, uint64_t presTime, uint32_t id3ID, uint32_t eventDur, uint32_t tScale, uint64_t tStampOffset)
+{
+	FlushLastId3Data();
+	Id3CallbackData* id3Metadata = new Id3CallbackData(this, static_cast<const uint8_t*>(ptr), len, static_cast<const char*>(schemeIdURI), static_cast<const char*>(id3Value), presTime, id3ID, eventDur, tScale, tStampOffset);
+	lastId3Data = (uint8_t*)g_malloc(len);
+	if (lastId3Data)
+	{
+		lastId3DataLen = len;
+		memcpy(lastId3Data, ptr, len);
+	}
+
+	this->id3MetadataCallbackTaskPending = true;
+	this->id3MetadataCallbackIdleTaskId = ScheduleAsyncTask(IdleCallbackOnId3Metadata, (void *)id3Metadata);
+	if (!this->id3MetadataCallbackTaskPending)
+	{
+		AAMPLOG_WARN("%s:%d id3MetadataCallbackTask already finished, reset id", __FUNCTION__, __LINE__);
+		this->id3MetadataCallbackIdleTaskId = 0;
+	}
+}
+
+/**
+ * @brief Flush last saved ID3 metadata
+ * @return void
+ */
+void PrivateInstanceAAMP::FlushLastId3Data()
+{
+	if(lastId3Data)
+	{
+		lastId3DataLen = 0;
+		g_free(lastId3Data);
+		lastId3Data = NULL;
+	}
 }
