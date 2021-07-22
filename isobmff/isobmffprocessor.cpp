@@ -81,6 +81,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 	bool ret = true;
 
 	AAMPLOG_TRACE("IsoBmffProcessor::%s() %d [%s] sending segment at pos:%f dur:%f", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], position, duration);
+
 	// Logic for Audio Track
 	if (type == eBMFFPROCESSOR_TYPE_AUDIO)
 	{
@@ -237,6 +238,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 
 	if (ret)
 	{
+		p_aamp->ProcessID3Metadata(segment, size, (MediaType)type);
 		p_aamp->SendStream((MediaType)type, segment, size, position, position, duration);
 	}
 	return true;
@@ -361,3 +363,4 @@ void IsoBmffProcessor::clearInitSegment()
 		}
 	}
 }
+

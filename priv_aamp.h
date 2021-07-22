@@ -52,6 +52,9 @@
 #include <glib.h>
 #include <cjson/cJSON.h>
 #include "AampConfig.h"
+#include <atomic>
+#include <memory>
+#include <inttypes.h>
 
 static const char *mMediaFormatName[] =
 {
@@ -737,6 +740,50 @@ public:
 	AampConfig *mConfig;
 
 	bool mbUsingExternalPlayer; /**<Playback using external players eg:OTA, HDMIIN,Composite*/
+	guint id3MetadataCallbackIdleTaskId; //ID of handler created to send ID3 metadata events
+	std::atomic<bool> id3MetadataCallbackTaskPending; //Set if an id3 metadata callback is pending
+	int32_t lastId3DataLen; // last sent ID3 data length
+	uint8_t *lastId3Data; // ptr with last sent ID3 data
+
+	/**
+	 * @brief Check if segment starts with an ID3 section
+	 *
+	 * @param[in] data pointer to segment buffer
+	 * @param[in] length length of segment buffer
+	 * @retval true if segment has an ID3 section
+	 */
+	bool hasId3Header(const uint8_t* data, uint32_t length);
+
+	/**
+	 * @brief Process the ID3 metadata from segment
+	 *
+	 * @param[in] segment - fragment
+	 * @param[in] size - fragment size
+	 * @param[in] type - MediaType
+	 */
+	void ProcessID3Metadata(char *segment, size_t size, MediaType type, uint64_t timestampOffset = 0);
+
+	/**
+	 * @brief Report ID3 metadata events
+	 *
+	 * @param[in] ptr - ID3 metadata pointer
+	 * @param[in] len - Metadata length
+	 * @param[in] schemeIdURI - schemeID URI
+	 * @param[in] value - value from id3 metadata
+	 * @param[in] presTime - presentationTime
+	 * @param[in] id3ID - id from id3 metadata
+	 * @param[in] eventDur - event duration
+	 * @param[in] tScale - timeScale
+	 * @param[in] tStampOffset - timestampOffset 
+	 * @return void
+	 */
+	void ReportID3Metadata(const uint8_t* ptr, uint32_t len, const char* schemeIdURI = NULL, const char* id3Value = NULL, uint64_t presTime = 0, uint32_t id3ID = 0, uint32_t eventDur = 0, uint32_t tScale = 0, uint64_t tStampOffset=0);
+
+	/**
+	 * @brief Flush last saved ID3 metadata
+	 * @return void
+	 */
+	void FlushLastId3Data();
 
 	/**
 	 * @brief Curl initialization function
@@ -2523,8 +2570,13 @@ public:
 	 *   @brief Sends an ID3 metadata event.
 	 *
 	 *   @param[in] data ID3 metadata
+	 *   @param[in] timeScale - timeScale of ID3 data
+	 *   @param[in] presentationTime - PTS value
+	 *   @param[in] eventDuration - eventDuration
+	 *   @param[in] id - id of ID3 data
+	 *   @param[in] timestampOffset 
 	 */
-	void SendId3MetadataEvent(std::vector<uint8_t> &data);
+	void SendId3MetadataEvent(std::vector<uint8_t> &data, std::string &schIDUri, std::string &id3Value, uint32_t timeScale, uint64_t presentationTime, uint32_t eventDuration, uint32_t id, uint64_t timestampOffset);
 
 	/**
 	 * @brief Gets the registration status of a given event
@@ -3138,4 +3190,43 @@ private:
 	int mHarvestConfig;		// Harvest config
 	std::string mAuxAudioLanguage; /**< auxiliary audio language */
 };
+
+/**
+ * @class Id3CallbackData
+ * @brief Holds id3 metadata callback specific variables.
+ */
+class Id3CallbackData
+{
+public:
+	Id3CallbackData(PrivateInstanceAAMP *instance, const uint8_t* ptr, uint32_t len,
+		const char* schemeIdURI, const char* id3Value, uint64_t presTime, uint32_t id3ID, uint32_t eventDur, uint32_t tScale, uint64_t tStampOffset)
+		: aamp(instance), data(), schemeIdUri(), value(), presentationTime(presTime), id(id3ID), eventDuration(eventDur), timeScale(tScale), timestampOffset(tStampOffset)
+	{
+		data = std::vector<uint8_t>(ptr, ptr + len);
+
+		if (schemeIdURI)
+		{
+			schemeIdUri = std::string(schemeIdURI);
+		}
+
+		if (id3Value)
+		{
+			value = std::string(id3Value);
+		}
+	}
+	Id3CallbackData() = delete;
+	Id3CallbackData(const Id3CallbackData&) = delete;
+	Id3CallbackData& operator=(const Id3CallbackData&) = delete;
+
+	PrivateInstanceAAMP* aamp; // PrivateInstanceAAMP instance
+	std::vector<uint8_t> data; //id3 metadata
+	uint32_t timeScale;
+	std::string schemeIdUri; // schemeIduri
+	std::string value;
+	uint64_t presentationTime;
+	uint32_t eventDuration;
+	uint32_t id;
+	uint64_t timestampOffset;
+};
+
 #endif // PRIVAAMP_H
