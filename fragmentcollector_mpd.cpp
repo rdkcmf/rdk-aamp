@@ -3286,7 +3286,7 @@ double StreamAbstractionAAMP_MPD::GetPeriodStartTime(IMPD *mpd, int periodIndex)
 			string startTimeStr = mpd->GetPeriods().at(periodIndex)->GetStart();
 			if(!startTimeStr.empty())
 			{
-				periodStartMs = ParseISO8601Duration(startTimeStr.c_str()) + aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(mpd->GetPeriods().at(periodIndex));
+				periodStartMs = ParseISO8601Duration(startTimeStr.c_str()) + (aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(mpd->GetPeriods().at(periodIndex)) * 1000);
 				periodStart =  mAvailabilityStartTime + (periodStartMs / 1000);
 				AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d - MPD periodIndex %d AvailStartTime %f periodStart %f %s", __FUNCTION__, __LINE__, periodIndex, mAvailabilityStartTime, periodStart,startTimeStr.c_str());
 			}
@@ -3366,8 +3366,8 @@ double StreamAbstractionAAMP_MPD::GetPeriodDuration(IMPD *mpd, int periodIndex)
 					{
 						double  curPeriodStartMs = 0;
 						double  nextPeriodStartMs = 0;
-						curPeriodStartMs = ParseISO8601Duration(curStartStr.c_str()) + aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(mpd->GetPeriods().at(periodIndex));
-						nextPeriodStartMs = ParseISO8601Duration(nextStartStr.c_str()) + aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(mpd->GetPeriods().at(periodIndex+1));
+						curPeriodStartMs = ParseISO8601Duration(curStartStr.c_str()) + (aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(mpd->GetPeriods().at(periodIndex)) * 1000);
+						nextPeriodStartMs = ParseISO8601Duration(nextStartStr.c_str()) + (aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(mpd->GetPeriods().at(periodIndex+1)) * 1000);
 						periodDurationMs = nextPeriodStartMs - curPeriodStartMs;
 						periodDuration = ((double)periodDurationMs / (double)1000);
 						AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d [StartTime based] - MPD periodIndex:%d periodDuration %f", __FUNCTION__, __LINE__, periodIndex, periodDuration);
@@ -3433,7 +3433,7 @@ double StreamAbstractionAAMP_MPD::GetPeriodEndTime(IMPD *mpd, int periodIndex, u
 			}
 			else
 			{
-				periodStartMs = ParseISO8601Duration(startTimeStr.c_str()) + aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(period);
+				periodStartMs = ParseISO8601Duration(startTimeStr.c_str()) + (aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(period)* 1000);
 			}
 			periodEndTime = mAvailabilityStartTime + ((double)(periodStartMs + periodDurationMs) /1000);
 		}
@@ -6661,6 +6661,10 @@ void StreamAbstractionAAMP_MPD::UpdateCulledAndDurationFromPeriodInfo()
 		if (firstPeriodIdx == lastPeriodIdx)
 		{
 			lastPeriodStart = firstPeriodStart;
+			if(!mIsLiveManifest && mIsLiveStream)
+			{
+				lastPeriodStart = aamp->culledSeconds;
+			}
 		}
 		else
 		{
@@ -6669,7 +6673,7 @@ void StreamAbstractionAAMP_MPD::UpdateCulledAndDurationFromPeriodInfo()
 			lastPeriodStart = GetPeriodStartTime(mpd, lastPeriodIdx) - mAvailabilityStartTime;
 		}
 		double culled = firstPeriodStart - aamp->culledSeconds;
-		if (culled > 0)
+		if (culled != 0 && mIsLiveManifest)
 		{
 			aamp->culledSeconds = firstPeriodStart;
 			mCulledSeconds = aamp->culledSeconds;
