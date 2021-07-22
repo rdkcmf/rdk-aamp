@@ -52,6 +52,8 @@
 #include <glib.h>
 #include <cjson/cJSON.h>
 #include "AampConfig.h"
+#include <atomic>
+#include <memory>
 
 static const char *mMediaFormatName[] =
 {
@@ -734,6 +736,27 @@ public:
 	bool mProfileCappedStatus; /**< Profile capped status by resolution or bitrate */
 	double mProgressReportOffset; /**< Offset time for progress reporting */
 	AampConfig *mConfig;
+
+	guint id3MetadataCallbackIdleTaskId; //ID of handler created to send ID3 metadata events
+	std::atomic<bool> id3MetadataCallbackTaskPending; //Set if an id3 metadata callback is pending
+	int32_t lastId3DataLen; // last sent ID3 data length
+	uint8_t *lastId3Data; // ptr with last sent ID3 data
+
+	/**
+	 * @brief Report ID3 metadata events
+	 *
+	 * @param[in] ptr - ID3 metadata pointer
+	 * @param[in] len - Metadata length
+	 * @return void
+	 */
+	void ReportID3Metadata(const uint8_t* ptr, uint32_t len);
+
+	/**
+	 * @brief Flush last saved ID3 metadata
+	 * @return void
+	 */
+	void FlushLastId3Data();
+
 	/**
 	 * @brief Curl initialization function
 	 *
@@ -3124,4 +3147,24 @@ private:
 	int mHarvestConfig;		// Harvest config
 	std::string mAuxAudioLanguage; /**< auxiliary audio language */
 };
+
+/**
+ * @class Id3CallbackData
+ * @brief Holds id3 metadata callback specific variables.
+ */
+class Id3CallbackData
+{
+public:
+	Id3CallbackData(PrivateInstanceAAMP *instance, const uint8_t* ptr, uint32_t len) : aamp(instance), data()
+	{
+		data = std::vector<uint8_t>(ptr, ptr + len);
+	}
+	Id3CallbackData() = delete;
+	Id3CallbackData(const Id3CallbackData&) = delete;
+	Id3CallbackData& operator=(const Id3CallbackData&) = delete;
+
+	PrivateInstanceAAMP* aamp; // PrivateInstanceAAMP instance
+	std::vector<uint8_t> data; //id3 metadata
+};
+
 #endif // PRIVAAMP_H

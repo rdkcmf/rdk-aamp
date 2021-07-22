@@ -152,6 +152,26 @@ public:
 	
 	bool parseMdatBox(uint8_t *buf, size_t &size);
 	bool getMdatBoxSize(size_t &size);
+
+	/**
+	 * @brief Get message from EMSG box
+	 *
+	 * @param[out] message - messageData from EMSG
+	 * @param[out] messageLen - messageLen
+	 * @return true if parse was successful. false otherwise
+	 */
+	bool getMessageData(uint8_t* &message, uint32_t &messageLen);
+
+	/**
+	 * @brief Get message from emsg
+	 *
+	 * @param[in] boxes - ISOBMFF boxes
+	 * @param[out] message - messageData pointer
+	 * @param[out] messageLen - messageLen value
+	 * @param[out] foundEmsg - flag indicates if EMSG box was seen
+	 * @return true if parse was successful. false otherwise
+	 */
+	bool getMessageInternal(const std::vector<Box*> *boxes, uint8_t* &message, uint32_t &messageLen, bool &foundEmsg);
 };
 
 

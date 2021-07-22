@@ -321,3 +321,42 @@ bool IsoBmffBuffer::isInitSegment()
 	return foundFtypBox;
 }
 
+/**
+ * @brief Get message from emsg
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @param[out] message - messageData pointer
+ * @param[out] messageLen - messageLen value
+ * @param[out] foundEmsg - flag indicates if EMSG box was seen
+ * @return true if parse was successful. false otherwise
+ */
+bool IsoBmffBuffer::getMessageInternal(const std::vector<Box*> *boxes, uint8_t* &message, uint32_t &messageLen, bool &foundEmsg)
+{
+	bool ret = false;
+	for (size_t i = 0; (false == foundEmsg) && i < boxes->size(); i++)
+	{
+		Box *box = boxes->at(i);
+		if (IS_TYPE(box->getType(), Box::EMSG))
+		{
+			message = dynamic_cast<EmsgBox *>(box)->getMessage();
+			messageLen = dynamic_cast<EmsgBox *>(box)->getMessageLen();
+			ret = true;
+			foundEmsg = true;
+		}
+	}
+	return ret;
+}
+
+
+/**
+ * @brief Get message from EMSG box
+ *
+ * @param[out] message - messageData from EMSG
+ * @param[out] messageLen - messageLen
+ * @return true if parse was successful. false otherwise
+ */
+bool IsoBmffBuffer::getMessageData(uint8_t* &message, uint32_t &messageLen)
+{
+	bool foundEmsg = false;
+	return getMessageInternal(&boxes, message, messageLen, foundEmsg);
+}

@@ -1122,6 +1122,24 @@ static void curl_unlock_callback(CURL *curl, curl_lock_data data, curl_lock_acce
 	pthread_mutex_unlock(&gCurlInitMutex);
 }
 
+/**
+ * @brief Idle callback to notify ID3 metadata event
+ * @param[in] user_data pointer to Id3CallbackData object containing AAMPGstPlayer instance
+ * @retval G_SOURCE_REMOVE, if the source should be removed
+ */
+static gboolean IdleCallbackOnId3Metadata(gpointer user_data)
+{
+        Id3CallbackData *id3 = (Id3CallbackData*)user_data;
+
+        id3->aamp->SendId3MetadataEvent(id3->data);
+        id3->aamp->id3MetadataCallbackTaskPending = false;
+        id3->aamp->id3MetadataCallbackIdleTaskId = 0;
+
+        delete id3;
+
+        return G_SOURCE_REMOVE;
+}
+
 // End of curl callback functions
 
 /**
@@ -1193,6 +1211,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mConfig (config),mSubLanguage(), mHarvestCountLimit(0), mHarvestConfig(0)
 	, mIsWVKIDWorkaround(false)
 	, mAuxFormat(FORMAT_INVALID), mAuxAudioLanguage()
+	, id3MetadataCallbackIdleTaskId(0),	id3MetadataCallbackTaskPending(false), lastId3DataLen(0), lastId3Data(NULL)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -5836,6 +5855,16 @@ void PrivateInstanceAAMP::Stop()
 	}
 
 	TeardownStream(true);
+
+	if (id3MetadataCallbackTaskPending)
+	{
+		logprintf("%s %d > Remove id3MetadataCallbackIdleTaskId %d", __FUNCTION__, __LINE__, id3MetadataCallbackIdleTaskId);
+		RemoveAsyncTask(id3MetadataCallbackIdleTaskId);
+		id3MetadataCallbackTaskPending = false;
+		id3MetadataCallbackIdleTaskId = 0;
+	}
+	FlushLastId3Data();
+
 	pthread_mutex_lock(&mEventLock);
 	if (mPendingAsyncEvents.size() > 0)
 	{
@@ -8980,4 +9009,46 @@ unsigned char* PrivateInstanceAAMP::ReplaceKeyIDPsshData(const unsigned char *In
 		AAMPLOG_ERR("%s:%d Invalid Argument of PSSH data ", __FUNCTION__, __LINE__);
 	}
 	return NULL;
+}
+
+
+/**
+ * @brief Report ID3 metadata events
+ *
+ * @param[in] ptr - ID3 metadata pointer
+ * @param[in] len - Metadata length
+ * @return void
+ */
+void PrivateInstanceAAMP::ReportID3Metadata(const uint8_t* ptr, uint32_t len)
+{
+	FlushLastId3Data();
+	Id3CallbackData* id3Metadata = new Id3CallbackData(this, static_cast<const uint8_t*>(ptr), len);
+	lastId3Data = (uint8_t*)g_malloc(len);
+	if (lastId3Data)
+	{
+		lastId3DataLen = len;
+		memcpy(lastId3Data, ptr, len);
+	}
+
+	this->id3MetadataCallbackTaskPending = true;
+	this->id3MetadataCallbackIdleTaskId = ScheduleAsyncTask(IdleCallbackOnId3Metadata, (void *)id3Metadata);
+	if (!this->id3MetadataCallbackTaskPending)
+	{
+		AAMPLOG_WARN("%s:%d id3MetadataCallbackTask already finished, reset id", __FUNCTION__, __LINE__);
+		this->id3MetadataCallbackIdleTaskId = 0;
+	}
+}
+
+/**
+ * @brief Flush last saved ID3 metadata
+ * @return void
+ */
+void PrivateInstanceAAMP::FlushLastId3Data()
+{
+	if(lastId3Data)
+	{
+		lastId3DataLen = 0;
+		g_free(lastId3Data);
+		lastId3Data = NULL;
+	}
 }
