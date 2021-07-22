@@ -55,12 +55,12 @@ void IsoBmffBuffer::setBuffer(uint8_t *buf, size_t sz)
  *
  * @return true if parse was successful. false otherwise
  */
-bool IsoBmffBuffer::parseBuffer()
+bool IsoBmffBuffer::parseBuffer(bool correctBoxSize)
 {
 	size_t curOffset = 0;
 	while (curOffset < bufSize)
 	{
-		Box *box = Box::constructBox(buffer+curOffset, bufSize - curOffset);
+		Box *box = Box::constructBox(buffer+curOffset, bufSize - curOffset, correctBoxSize);
 		box->setOffset(curOffset);
 		boxes.push_back(box);
 		curOffset += box->getSize();
@@ -80,7 +80,7 @@ bool IsoBmffBuffer::parseBoxInternal(const std::vector<Box*> *boxes, const char 
 	for (size_t i = 0; i < boxes->size(); i++)
 	{
 		Box *box = boxes->at(i);
-		AAMPLOG_TRACE("%s: Offset[%u] Type[%s] Size[%u]\n", __FUNCTION__, box->getOffset(), box->getType(), box->getSize());
+		AAMPLOG_TRACE("%s: Offset[%u] Type[%s] Size[%u]", __FUNCTION__, box->getOffset(), box->getType(), box->getSize());
 		if (IS_TYPE(box->getType(), name))
 		{
 			size_t offset = box->getOffset() + BOX_HEADER_SIZE;

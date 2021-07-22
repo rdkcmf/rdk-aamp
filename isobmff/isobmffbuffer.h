@@ -100,7 +100,7 @@ public:
 	 *
 	 * @return true if parse was successful. false otherwise
 	 */
-	bool parseBuffer();
+	bool parseBuffer(bool correctBoxSize = false);
 
 	/**
 	 * @brief Restamp PTS in a buffer

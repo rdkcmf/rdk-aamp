@@ -42,8 +42,11 @@
 
 #include "SubtecPacket.hpp"
 
-
+#ifdef AAMP_SIMULATOR_BUILD
+const constexpr char *SOCKET_PATH = "subtecsim";
+#else
 const constexpr char *SOCKET_PATH = "/run/subttx/pes_data_main";
+#endif
 
 void runWorkerTask(void *ctx);
 
@@ -74,7 +77,6 @@ private:
     std::mutex mPktMutex;
     std::condition_variable mCv;
     std::mutex mStartMutex;
-    std::condition_variable mStartCv;
 protected:
     PacketSender() : 
         mSendThread(), 
@@ -83,7 +85,6 @@ protected:
         mPacketQueue(), 
         mPktMutex(), 
         mCv(),
-        mStartMutex(),
-        mStartCv() 
+        mStartMutex()
         {}
 };

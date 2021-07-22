@@ -44,19 +44,19 @@ void WebVTTSubtecParser::updateTimestamp(unsigned long long positionMs)
 }
 
 void WebVTTSubtecParser::reset()
-{	
+{
 	m_channel->SendMutePacket();
 	m_channel->SendResetChannelPacket();
 }
-	
-bool WebVTTSubtecParser::init(double startPos, unsigned long long basePTS)
+
+bool WebVTTSubtecParser::init(double startPosSeconds, unsigned long long basePTS)
 {
-	AAMPLOG_INFO("%s: startPos %f start_ms %lld", __FUNCTION__, startPos, start_ms_);
+	AAMPLOG_INFO("%s: startPos %f basePTS %lld", __FUNCTION__, startPosSeconds, basePTS);
 
 	m_channel->SendTimestampPacket(static_cast<uint64_t>(basePTS));
 
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
-	
+
 	return true;
 }
 
@@ -64,7 +64,7 @@ bool WebVTTSubtecParser::processData(char* buffer, size_t bufferLen, double posi
 {
 	std::string str(const_cast<const char*>(buffer), bufferLen);
 	std::vector<uint8_t> data(str.begin(), str.end());
-		
+
 	m_channel->SendDataPacket(std::move(data), 0);
 
 	return true;

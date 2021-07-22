@@ -21,6 +21,7 @@
  * @file ThunderAccess.cpp
  * @brief wrapper class for accessing thunder plugins
  */
+#include "Module.h"
 #include "priv_aamp.h"
 #include <core/core.h>
 #include <websocket/websocket.h>
@@ -35,6 +36,17 @@ using namespace WPEFramework;
 #define THUNDER_RPC_TIMEOUT 5000 
 
 /**
+ *  * @brief Structure to save the Thunder security token details
+ **/
+typedef struct ThunderSecurity
+{
+    std::string securityToken;
+    int tokenStatus;
+    bool tokenQueried;
+}ThunderSecurityData;
+
+ThunderSecurityData gSecurityData;
+/**
  *   @brief  ThunderAccessAAMP constructor
  *   @note   Security tocken accusition, controller object creation
  *   @param  NA
@@ -44,28 +56,32 @@ using namespace WPEFramework;
 ThunderAccessAAMP::ThunderAccessAAMP(std::string callsign)
                  : remoteObject(NULL),
                    controllerObject(NULL),
-                   query(""),
                    pluginCallsign(callsign)
 {
     AAMPLOG_INFO( "[ThunderAccessAAMP]Inside %s ", __FUNCTION__ );
 
-    int tokenStatus = 0;
     uint32_t status = Core::ERROR_NONE;
-    unsigned char buffer[MAX_LENGTH] = {0};
 
     Core::SystemInfo::SetEnvironment(_T("THUNDER_ACCESS"), (_T(SERVER_DETAILS)));
 
-    tokenStatus = GetSecurityToken(MAX_LENGTH,buffer);
-    if(tokenStatus > 0){
-        AAMPLOG_INFO( "[ThunderAccessAAMP] %s : GetSecurityToken success", __FUNCTION__ );
-        string sToken = (char*)buffer;
-        query = "token=" + sToken;
+    if(!gSecurityData.tokenQueried)
+    {
+        unsigned char buffer[MAX_LENGTH] = {0};
+        gSecurityData.tokenStatus = GetSecurityToken(MAX_LENGTH,buffer);
+        if(gSecurityData.tokenStatus > 0){
+            AAMPLOG_INFO( "[ThunderAccessAAMP] %s : GetSecurityToken success", __FUNCTION__ );
+            string sToken = (char*)buffer;
+            gSecurityData.securityToken = "token=" + sToken;
+        }
+        gSecurityData.tokenQueried = true;
+
+        //AAMPLOG_WARN( "[ThunderAccessAAMP] %s : securityToken : %s tokenStatus : %d tokenQueried : %s", __FUNCTION__, gSecurityData.securityToken.c_str(), gSecurityData.tokenStatus, ((gSecurityData.tokenQueried)?"true":"false"));
     }
 
     if (NULL == controllerObject) {
         /*Passing empty string instead of Controller callsign.This is assumed as controller plugin.*/
-        if(tokenStatus > 0){
-            controllerObject = new JSONRPC::LinkType<Core::JSON::IElement>(_T(""), _T(""), false, query);
+        if(gSecurityData.tokenStatus > 0){
+            controllerObject = new JSONRPC::LinkType<Core::JSON::IElement>(_T(""), _T(""), false, gSecurityData.securityToken);
         }
         else{
             controllerObject = new JSONRPC::LinkType<Core::JSON::IElement>(_T(""));
@@ -78,8 +94,8 @@ ThunderAccessAAMP::ThunderAccessAAMP(std::string callsign)
         }
     }
 
-    if(tokenStatus > 0){
-        remoteObject = new JSONRPC::LinkType<Core::JSON::IElement>(_T(pluginCallsign), _T(""), false, query);
+    if(gSecurityData.tokenStatus > 0){
+        remoteObject = new JSONRPC::LinkType<Core::JSON::IElement>(_T(pluginCallsign), _T(""), false, gSecurityData.securityToken);
     }
     else{
         remoteObject = new JSONRPC::LinkType<Core::JSON::IElement>(_T(pluginCallsign), _T(""));

@@ -555,7 +555,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	requestMetadata[0][1] = moneytracestr.c_str();
 
 	logprintf("[HHH] Before calling SecClient_AcquireLicense-----------");
-	logprintf("destinationURL is %s", licenseRequest.url.c_str());
+	logprintf("destinationURL is %s (drm server now used)", licenseRequest.url.c_str());
 	logprintf("MoneyTrace[%s]", requestMetadata[0][1]);
 	//logprintf("encodedData is %s, length=%d", encodedData, strlen(encodedData));
 	//logprintf("licenseRequest is %s", licenseRequest);

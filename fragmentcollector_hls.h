@@ -309,8 +309,8 @@ public:
 
 	char *fragmentURI; /**< pointer (into playlist) to URI of current fragment-of-interest */
 	long long lastPlaylistDownloadTimeMS; /**< UTC time at which playlist was downloaded */
-	int byteRangeLength; /**< state for \#EXT-X-BYTERANGE fragments */
-	int byteRangeOffset; /**< state for \#EXT-X-BYTERANGE fragments */
+	size_t byteRangeLength; /**< state for \#EXT-X-BYTERANGE fragments */
+	size_t byteRangeOffset; /**< state for \#EXT-X-BYTERANGE fragments */
 
 	long long nextMediaSequenceNumber; /**< media sequence number following current fragment-of-interest */
 	double playlistPosition; /**< playlist-relative time of most recent fragment-of-interest; -1 if undefined */
@@ -411,6 +411,8 @@ public:
 	double GetStreamPosition() { return seekPosition; }
 	/// Function to return first PTS 
 	double GetFirstPTS();
+	/// Function to return start time of first PTS
+	double GetStartTimeOfFirstPTS() { return 0.0; }
 	/// Function to return the MediaTrack instance for the media type input 
 	MediaTrack* GetMediaTrack(TrackType type);
 	/// Function to return Bandwidth index for the bitrate value 
@@ -481,8 +483,8 @@ public:
 	void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale);
 
 	// Signals subtitle renderer to begin presentation
-	void StartSubtitleParser(unsigned long long firstPts);
-
+	void StartSubtitleParser() override;
+	
 	/// Function to get matching mediaInfo index for a language and track type
 	int GetMediaIndexForLanguage(std::string lang, TrackType type);
 

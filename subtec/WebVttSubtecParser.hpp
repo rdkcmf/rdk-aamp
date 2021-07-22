@@ -31,7 +31,7 @@ public:
 	WebVTTSubtecParser& operator=(const WebVTTSubtecParser&) = delete;
 
 	
-	bool init(double startPos, unsigned long long basePTS);
+	bool init(double startPosSeconds, unsigned long long basePTS);
 	bool processData(char* buffer, size_t bufferLen, double position, double duration);
 	bool close() { return true; }
 	void reset();

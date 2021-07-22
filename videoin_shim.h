@@ -29,6 +29,7 @@
 #include <string>
 #include <stdint.h>
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+#include "Module.h"
 #include <core/core.h>
 #include "ThunderAccess.h"
 #endif
@@ -54,6 +55,7 @@ public:
     double GetStreamPosition() override;
     MediaTrack* GetMediaTrack(TrackType type) override;
     double GetFirstPTS() override;
+    double GetStartTimeOfFirstPTS() override;
     double GetBufferedDuration() override;
     bool IsInitialCachingSupported() override;
     int GetBWIndex(long bitrate) override;

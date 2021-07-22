@@ -37,7 +37,7 @@ function playPause() {
         document.getElementById("contentURL").innerHTML = "URL: " + urls[0].url;
         resetPlayer();
         resetUIOnNewAsset();
-        loadUrl(urls[0]);
+        loadUrl(urls[0], true);
     } else {
         // If it was a trick play operation
         if ( playbackSpeeds[playbackRateIndex] != 1 ) {
@@ -190,6 +190,13 @@ function getVideo(cache_only) {
     }
 }
 
+//function to Change the Audio Track
+function changeAudioTrack() {
+    var audioTrackID =  document.getElementById("audioTracks").value; // get selected Audio track
+    console.log("Setting Audio track: " + audioTrackID);
+    playerObj.setAudioTrack(Number(audioTrackID));
+}
+
 //function to Change the Closed Captioning Track
 function changeCCTrack() {
     if (ccStatus === true) {
@@ -238,6 +245,7 @@ function changeCCStyle() {
         }
     }
 }
+
 //function to jump to user entered position
 function jumpToPPosition() {
     if(document.getElementById("jumpPosition").value) {
@@ -337,17 +345,20 @@ var HTML5PlayerControls = function() {
         this.seekBar = document.getElementById("seekBar");
         this.cacheOnlyButton = document.getElementById("cacheOnlyButton");
         this.videoFileList = document.getElementById("videoURLs");
+        this.audioTracksList = document.getElementById("audioTracks");
         this.ccTracksList = document.getElementById("ccTracks");
         this.ccStylesList = document.getElementById("ccStyles");
         this.jumpPositionInput = document.getElementById("jumpPosition");
 
         this.currentObj = this.playButton;
-        this.components = [this.playButton, this.videoToggleButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.ccTracksList, this.ccStylesList, this.cacheOnlyButton, this.videoFileList, this.autoSeekButton, this.jumpPositionInput, this.jumpButton, this.autoVideoLogButton, this.metadataLogButton, this.homeContentButton];
+        this.components = [this.playButton, this.videoToggleButton, this.rwdButton, this.skipBwdButton, this.skipFwdButton, this.fwdButton, this.muteButton, this.ccButton, this.audioTracksList, this.ccTracksList, this.ccStylesList, this.cacheOnlyButton, this.videoFileList, this.autoSeekButton, this.jumpPositionInput, this.jumpButton, this.autoVideoLogButton, this.metadataLogButton, this.homeContentButton];
         this.currentPos = 0;
         this.dropDownListVisible = false;
+        this.audioListVisible = false;
         this.ccListVisible = false;
         this.ccStyleListVisible = false;
         this.selectListIndex = 0;
+        this.selectAudioListIndex = 0;
         this.selectCCListIndex = 0;
         this.selectCCStyleListIndex = 0;
         this.prevObj = null;
@@ -433,7 +444,9 @@ var HTML5PlayerControls = function() {
     };
 
     this.keyUp = function() {
-        if ((this.components[this.currentPos] == this.videoFileList) && (this.dropDownListVisible)) {
+        if ((this.components[this.currentPos] == this.audioTracksList) && (this.audioListVisible)) {
+            this.prevAudioSelect();
+        } else if ((this.components[this.currentPos] == this.videoFileList) && (this.dropDownListVisible)) {
             this.prevVideoSelect();
         } else if ((this.components[this.currentPos] == this.ccTracksList) && (this.ccListVisible)) {
             this.prevCCSelect();
@@ -442,21 +455,23 @@ var HTML5PlayerControls = function() {
         } else if ((this.components[this.currentPos] == this.playButton) || (this.components[this.currentPos] == this.videoToggleButton) || (this.components[this.currentPos] == this.rwdButton) || (this.components[this.currentPos] == this.skipBwdButton) || (this.components[this.currentPos] == this.skipFwdButton) || (this.components[this.currentPos] == this.fwdButton) || (this.components[this.currentPos] == this.muteButton) || (this.components[this.currentPos] == this.ccButton)) {
             //when a keyUp is received from the buttons in the bottom navigation bar
             this.removeFocus();
-            this.currentObj = this.ccTracksList;
+            this.currentObj = this.audioTracksList;
             //move focus to the first element in the top navigation bar
-            this.currentPos = this.components.indexOf(this.ccTracksList);
+            this.currentPos = this.components.indexOf(this.audioTracksList);
             this.addFocus();
         }
     };
 
     this.keyDown = function() {
-        if ((this.components[this.currentPos] == this.videoFileList) && (this.dropDownListVisible)) {
+        if ((this.components[this.currentPos] == this.audioTracksList) && (this.audioListVisible)) {
+            this.nextAudioSelect();
+        } else if ((this.components[this.currentPos] == this.videoFileList) && (this.dropDownListVisible)) {
             this.nextVideoSelect();
         } else if ((this.components[this.currentPos] == this.ccTracksList) && (this.ccListVisible)) {
             this.nextCCSelect();
         } else if ((this.components[this.currentPos] == this.ccStylesList) && (this.ccStyleListVisible)) {
             this.nextCCStyleSelect();
-        } else if ((this.components[this.currentPos] == this.ccTracksList) || (this.components[this.currentPos] == this.ccStylesList) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.cacheOnlyButton) || (this.components[this.currentPos] == this.autoSeekButton) || (this.components[this.currentPos] == this.jumpPositionInput) || (this.components[this.currentPos] == this.jumpButton) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.metadataLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
+        } else if ((this.components[this.currentPos] == this.audioTracksList) || (this.components[this.currentPos] == this.ccTracksList) || (this.components[this.currentPos] == this.ccStylesList) || (this.components[this.currentPos] == this.videoFileList) || (this.components[this.currentPos] == this.cacheOnlyButton) || (this.components[this.currentPos] == this.autoSeekButton) || (this.components[this.currentPos] == this.jumpPositionInput) || (this.components[this.currentPos] == this.jumpButton) || (this.components[this.currentPos] == this.autoVideoLogButton) || (this.components[this.currentPos] == this.metadataLogButton) || (this.components[this.currentPos] == this.homeContentButton)) {
             //when a keyDown is received from the buttons in the top navigation bar
             this.removeFocus();
             this.currentObj = this.playButton;
@@ -482,6 +497,24 @@ var HTML5PlayerControls = function() {
             this.selectListIndex = 0;
         }
         this.videoFileList.options[this.selectListIndex].selected = true;
+    };
+
+    this.prevAudioSelect = function() {
+        if (this.selectAudioListIndex > 0) {
+            this.selectAudioListIndex--;
+        } else {
+            this.selectAudioListIndex = this.audioTracksList.options.length - 1;
+        }
+        this.audioTracksList.options[this.selectAudioListIndex].selected = true;
+    };
+
+    this.nextAudioSelect = function() {
+        if (this.selectAudioListIndex < this.audioTracksList.options.length - 1) {
+            this.selectAudioListIndex++;
+        } else {
+            this.selectAudioListIndex = 0;
+        }
+        this.audioTracksList.options[this.selectAudioListIndex].selected = true;
     };
 
     this.prevCCSelect = function() {
@@ -530,6 +563,18 @@ var HTML5PlayerControls = function() {
         this.dropDownListVisible = false;
         this.videoFileList.size = 1;
     };
+
+    this.showAudioDropDown = function() {
+        this.audioListVisible = true;
+        var n = this.audioTracksList.options.length;
+        this.audioTracksList.size = n;
+    };
+
+    this.hideAudioDropDown = function() {
+        this.audioListVisible = false;
+        this.audioTracksList.size = 1;
+    };
+
     
     this.showCCDropDown = function() {
         this.ccListVisible = true;
@@ -558,9 +603,9 @@ var HTML5PlayerControls = function() {
             case 0:
                     playPause();
                     break;
-	    case 1:
-		    toggleVideo();
-		    break;
+            case 1:
+                    toggleVideo();
+                    break;
             case 2:
                     fastrwd();
                     break;
@@ -580,6 +625,14 @@ var HTML5PlayerControls = function() {
                     toggleCC();
                     break;
             case 8:
+                    if (this.audioListVisible == false) {
+                        this.showAudioDropDown();
+                    } else {
+                        this.hideAudioDropDown();
+                        changeAudioTrack();
+                    }
+                    break;
+            case 9:
                     if (this.ccListVisible == false) {
                         this.showCCDropDown();
                     } else {
@@ -587,7 +640,7 @@ var HTML5PlayerControls = function() {
                         changeCCTrack();
                     }
                     break;
-            case 9:
+            case 10:
                     if (this.ccStyleListVisible == false) {
                         this.showCCStyleDropDown();
                     } else {
@@ -595,11 +648,11 @@ var HTML5PlayerControls = function() {
                         changeCCStyle();
                     }
                     break;
-            case 10:
+            case 11:
                     //Cache Only check box
                     document.getElementById("cacheOnlyCheck").checked = !document.getElementById("cacheOnlyCheck").checked;
                     break;
-            case 11:
+            case 12:
                     if (this.dropDownListVisible == false) {
                         this.showDropDown();
                     } else {
@@ -607,19 +660,19 @@ var HTML5PlayerControls = function() {
                         getVideo(document.getElementById("cacheOnlyCheck").checked);
                     }
                     break;
-            case 12:
+            case 13:
                     document.getElementById("seekCheck").checked = !document.getElementById("seekCheck").checked;
                     break;
-            case 14:
+            case 15:
                     jumpToPPosition();
                     break;
-            case 15:
+            case 16:
                     toggleOverlay();
                     break;
-            case 16:
+            case 17:
                     toggleTimedMetadata();
                     break;
-            case 17:
+            case 18:
                     goToHome();
                     break;
             };

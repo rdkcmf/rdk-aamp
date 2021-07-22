@@ -41,14 +41,9 @@
 #include "aampgstplayer.h"
 
 #include <dlfcn.h>
-
-#ifdef WIN32
-#include "conio.h"
-#else
 #include <termios.h>
 #include <errno.h>
 #include <regex>
-#endif //WIN32
 
 AampConfig *gpGlobalConfig=NULL;
 
@@ -103,7 +98,7 @@ std::mutex PlayerInstanceAAMP::mPrvAampMtx;
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
-	) : aamp(NULL), mInternalStreamSink(NULL), mJSBinding_DL(),mAsyncRunning(false),mConfig()
+	) : aamp(NULL), sp_aamp(nullptr), mInternalStreamSink(NULL), mJSBinding_DL(),mAsyncRunning(false),mConfig()
 {
 
 #ifdef IARM_MGR
@@ -165,7 +160,8 @@ if(!iarmInitialized)
 	// App can modify the configuration set
 	mConfig = *gpGlobalConfig;
 
-	aamp = new PrivateInstanceAAMP(&mConfig);
+	sp_aamp = std::make_shared<PrivateInstanceAAMP>(&mConfig);
+	aamp = sp_aamp.get();
 	if (NULL == streamSink)
 	{
 		mInternalStreamSink = new AAMPGstPlayer(aamp
@@ -210,7 +206,6 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 			}
 		}
 		std::lock_guard<std::mutex> lock (mPrvAampMtx);
-		delete aamp;
 		aamp = NULL;
 	}
 	if (mInternalStreamSink)
@@ -326,8 +321,19 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
 {
 	PrivAAMPState state;
 	aamp->GetState(state);
+        bool IsOTAtoOTA =  false;
 
-	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED))
+	if((aamp->IsOTAContent()) && (NULL != mainManifestUrl))
+	{
+		/* OTA to OTA tune does not need to call stop. */
+		std::string urlStr(mainManifestUrl); // for convenience, convert to std::string
+		if((urlStr.rfind("live:",0)==0) || (urlStr.rfind("tune:",0)==0))
+		{
+			IsOTAtoOTA = true;
+		}
+	}
+
+	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED) && (!IsOTAtoOTA))
 	{
 		//Calling tune without closing previous tune
 		StopInternal(false);
@@ -502,10 +508,16 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		AAMPLOG_WARN("%s:%d SetRate ignored!! Invalid rate (%d)", __FUNCTION__, __LINE__, rate);
 		return;
 	}
+	//Hack For DELIA-51318 convert the incoming rates into acceptable rates
+	if(ISCONFIGSET(eAAMPConfig_RepairIframes))
+	{
+		AAMPLOG_WARN("%s:%d mRepairIframes is true, setting actual rate %d for the recieved rate %d", __FUNCTION__, __LINE__, getWorkingTrickplayRate(rate), rate);
+		rate = getWorkingTrickplayRate(rate);
+	}
 
 	if (aamp->mpStreamAbstractionAAMP)
 	{
-		if (!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0)
+		if (!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0 && aamp->mMediaFormat != eMEDIAFORMAT_PROGRESSIVE)
 		{
 			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
 			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
@@ -565,20 +577,28 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			// when switching from trick to play mode only
 			if(aamp->rate && rate == AAMP_NORMAL_PLAY_RATE && !aamp->pipeline_paused)
 			{
-				if(timeDeltaFromProgReport > 950) // diff > 950 mSec
+				if (ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery))
 				{
-					// increment by 1x trickplay frame , next possible displayed frame
-					newSeekPosInSec = (aamp->mReportProgressPosn+(aamp->rate*1000))/1000;
-				}
-				else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
-				{
-					// Get the last shown frame itself
-					newSeekPosInSec = aamp->mReportProgressPosn/1000;
+					// Get the last frame position when resume from the trick play.
+					newSeekPosInSec = (aamp->mReportProgressPosn/1000);
 				}
 				else
 				{
-					// Go little back to last shown frame
-					newSeekPosInSec = (aamp->mReportProgressPosn-(aamp->rate*1000))/1000;
+					if(timeDeltaFromProgReport > 950) // diff > 950 mSec
+					{
+						// increment by 1x trickplay frame , next possible displayed frame
+						newSeekPosInSec = (aamp->mReportProgressPosn+(aamp->rate*1000))/1000;
+					}
+					else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
+					{
+						// Get the last shown frame itself
+						newSeekPosInSec = aamp->mReportProgressPosn/1000;
+					}
+					else
+					{
+						// Go little back to last shown frame
+						newSeekPosInSec = (aamp->mReportProgressPosn-(aamp->rate*1000))/1000;
+					}
 				}
 
 				if (newSeekPosInSec >= 0)
@@ -626,6 +646,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 					aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(false);
 					retValue = aamp->mStreamSink->Pause(false, false);
 					aamp->NotifyFirstBufferProcessed(); //required since buffers are already cached in paused state
+					aamp->ResetTrickStartUTCTime();
 				}
 				aamp->pipeline_paused = false;
 				aamp->ResumeDownloads();
@@ -790,15 +811,15 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 			logprintf("%s:%d - Not live, skipping seekToLive",__FUNCTION__,__LINE__);
 			return;
 		}
+		if (aamp->IsLive() && ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline))
+		{
+			secondsRelativeToTuneTime -= aamp->mProgressReportOffset;
+			logprintf("%s(): Seek position adjusted to :%f", __FUNCTION__, secondsRelativeToTuneTime);
+		}
 
 		if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
 		{
 			double currPositionSecs = aamp->GetPositionMilliseconds() / 1000.00;
-			if (ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline))
-			{
-				secondsRelativeToTuneTime -= aamp->mProgressReportOffset;
-				logprintf("%s(): Seek position adjusted to :%f", __FUNCTION__, secondsRelativeToTuneTime);
-			}
 			if (isSeekToLive || secondsRelativeToTuneTime >= currPositionSecs)
 			{
 				logprintf("%s():Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", __FUNCTION__, secondsRelativeToTuneTime, currPositionSecs, isSeekToLive);
@@ -871,12 +892,49 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 {
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	logprintf("aamp_SetRateAndSeek(%d)(%f)", rate, secondsRelativeToTuneTime);
-	aamp->AcquireStreamLock();
-	aamp->TeardownStream(false);
-	aamp->seek_pos_seconds = secondsRelativeToTuneTime;
-	aamp->rate = rate;
-	aamp->TuneHelper(eTUNETYPE_SEEK);
-	aamp->ReleaseStreamLock();
+	if (!IsValidRate(rate))
+	{
+		AAMPLOG_WARN("%s:%d SetRate ignored!! Invalid rate (%d)", __FUNCTION__, __LINE__, rate);
+		return;
+	}
+
+	//Hack For DELIA-51318 convert the incoming rates into acceptable rates
+	if(ISCONFIGSET(eAAMPConfig_RepairIframes))
+	{
+		AAMPLOG_WARN("%s:%d mRepairIframes is true, setting actual rate %d for the recieved rate %d", __FUNCTION__, __LINE__, getWorkingTrickplayRate(rate), rate);
+		rate = getWorkingTrickplayRate(rate);
+	}
+
+	if (aamp->mpStreamAbstractionAAMP)
+	{
+		if ((!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0))
+		{
+			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
+			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
+			return;
+		}
+		aamp->AcquireStreamLock();
+		aamp->TeardownStream(false);
+		aamp->seek_pos_seconds = secondsRelativeToTuneTime;
+		aamp->rate = rate;
+		aamp->TuneHelper(eTUNETYPE_SEEK);
+		aamp->ReleaseStreamLock();
+		if(rate == 0)
+		{
+			if (!aamp->pipeline_paused)
+			{
+				logprintf("Pausing Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
+				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
+				aamp->StopDownloads();
+				bool retValue = aamp->mStreamSink->Pause(true, false);
+				aamp->pipeline_paused = true;
+			}
+		}
+	}
+	else
+	{
+		AAMPLOG_WARN("%s:%d aamp_SetRateAndSeek rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", __FUNCTION__, __LINE__, aamp->rate, aamp->mpStreamAbstractionAAMP, state);
+	}
 }
 
 /**
@@ -2328,6 +2386,19 @@ void PlayerInstanceAAMP::SetUseAbsoluteTimeline(bool configState)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_UseAbsoluteTimeline,configState);
+
+}
+
+
+/**
+		 *   @brief To set the repairIframes flag
+		 *
+		 *   @param[in] bool enable/disable configuration
+		 */
+void PlayerInstanceAAMP::SetRepairIframes(bool configState)
+{
+	ERROR_STATE_CHECK_VOID();
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RepairIframes,configState);
 
 }
 

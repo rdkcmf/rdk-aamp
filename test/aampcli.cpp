@@ -88,9 +88,11 @@ typedef enum {
 	eAAMP_GET_AvailableAudioTracks,
 	eAAMP_GET_AvailableTextTracks,
 	eAAMP_GET_AudioTrack,
-	eAAMP_GET_TextTrack,
+
+  eAAMP_GET_TextTrack,
 	eAAMP_GET_ThumbnailConfig,
-	eAAMP_GET_ThumbnailData
+	eAAMP_GET_ThumbnailData,
+	eAAMP_GET_TYPE_COUNT
 }AAMPGetTypes;
 
 /**
@@ -145,8 +147,9 @@ typedef enum{
 	eAAMP_SET_PropagateUriParam,
 	eAAMP_SET_ThumbnailTrack,
 	eAAMP_SET_SslVerifyPeer,
+	eAAMP_SET_DownloadDelayOnFetch,
 	eAAMP_SET_PausedBehavior,
-	eAAMP_SET_DownloadDelayOnFetch = 49
+	eAAMP_SET_TYPE_COUNT
 }AAMPSetTypes;
 
 /**
@@ -477,6 +480,91 @@ static void showList(void)
 	mVirtualChannelMap.Print();
 }
 
+const char *mGetHelpText[eAAMP_GET_TYPE_COUNT];
+const char *mSetHelpText[eAAMP_SET_TYPE_COUNT];
+
+/**
+ * @brief Show help menu with aamp command line interface
+ */
+static void InitGetHelpText()
+{
+	mGetHelpText[eAAMP_GET_CurrentAudioLan] = "Get Current audio language";
+	mGetHelpText[eAAMP_GET_CurrentDrm] = "Get Current DRM";
+	mGetHelpText[eAAMP_GET_PlaybackPosition] = "Get Current Playback position";
+	mGetHelpText[eAAMP_GET_PlaybackDuration] = "Get Playback Duration";
+	mGetHelpText[eAAMP_GET_VideoBitrate] = "Get current video bitrate";
+	mGetHelpText[eAAMP_GET_AudioBitrate] = "Get current Audio bitrate";
+	mGetHelpText[eAAMP_GET_AudioVolume] = "Get current Audio volume";
+	mGetHelpText[eAAMP_GET_PlaybackRate] = "Get Current Playback rate";
+	mGetHelpText[eAAMP_GET_VideoBitrates] = "Get Video bitrates supported";
+	mGetHelpText[eAAMP_GET_AudioBitrates] = "Get Audio bitrates supported";
+	mGetHelpText[eAAMP_GET_CurrentPreferredLanguages] = "Get Current preferred languages";
+	mGetHelpText[eAAMP_GET_AvailableAudioTracks] = "Get Available Audio Tracks";
+	mGetHelpText[eAAMP_GET_AvailableTextTracks] = "Get Available Text Tracks";
+	mGetHelpText[eAAMP_GET_AudioTrack] = "Get Audio Track";
+	mGetHelpText[eAAMP_GET_TextTrack] = "Get Text Track";
+	mGetHelpText[eAAMP_GET_ThumbnailConfig] = "Get Available ThumbnailTracks";
+	mGetHelpText[eAAMP_GET_ThumbnailData] = "Get Thumbnail timerange data(int startpos, int endpos)";
+
+}
+
+/**
+ * @brief Show help menu with aamp command line interface
+ */
+static void InitSetHelpText()
+{
+	mSetHelpText[eAAMP_SET_RateAndSeek] =                        "<x> <y>         // Set Rate and Seek (int x=rate, double y=seconds)";
+	mSetHelpText[eAAMP_SET_VideoRectangle] =                     "<x> <y> <w> <h> // Set Video Rectangle (int x,y,w,h)";
+	mSetHelpText[eAAMP_SET_VideoZoom] =                          "<x>             // Set Video zoom  ( x = 1 fo full, x = 0 for normal)";
+	mSetHelpText[eAAMP_SET_VideoMute] =                          "<x>             // Set Video Mute ( x = 1  - Mute , x = 0 - Unmute)";
+	mSetHelpText[eAAMP_SET_AudioVolume] =                        "<x>             // Set Audio Volume (int x=volume)";
+	mSetHelpText[eAAMP_SET_Language] =                           "<x>             // Set Language (string x=lang)";
+	mSetHelpText[eAAMP_SET_SubscribedTags] =                     "                // Set Subscribed Tag - dummy";
+	mSetHelpText[eAAMP_SET_LicenseServerUrl] =                   "<x>             // Set License Server URL (String x=url)";
+	mSetHelpText[eAAMP_SET_AnonymousRequest] =                   "<x>             // Set Anonymous Request  (int x=0/1)";
+	mSetHelpText[eAAMP_SET_VodTrickplayFps] =                    "<x>             // Set VOD Trickplay FPS (int x=trickPlayFPS)";
+	mSetHelpText[eAAMP_SET_LinearTrickplayFps] =                 "<x>             // Set Linear Trickplay FPS (int x=trickPlayFPS)";
+	mSetHelpText[eAAMP_SET_LiveOffset] =                         "<x>             // Set Live offset (int x=offset)";
+	mSetHelpText[eAAMP_SET_StallErrorCode] =                     "<x>             // Set Stall error code (int x=errorCode)";
+	mSetHelpText[eAAMP_SET_StallTimeout] =                       "<x>             // Set Stall timeout (int x=timeout)";
+	mSetHelpText[eAAMP_SET_ReportInterval] =                     "<x>             // Set Report Interval (int x=interval)";
+	mSetHelpText[eAAMP_SET_VideoBitarate] =                      "<x>             // Set Video Bitrate (long x=bitrate)";
+	mSetHelpText[eAAMP_SET_InitialBitrate] =                     "<x>             // Set Initial Bitrate (long x = bitrate)";
+	mSetHelpText[eAAMP_SET_InitialBitrate4k] =                   "<x>             // Set Initial Bitrate 4K (long x = bitrate4k)";
+	mSetHelpText[eAAMP_SET_NetworkTimeout] =                     "<x>             // Set Network Timeout (long x = timeout in ms)";
+	mSetHelpText[eAAMP_SET_ManifestTimeout] =                    "<x>             // Set Manifest Timeout (long x = timeout in ms)";
+	mSetHelpText[eAAMP_SET_DownloadBufferSize] =                 "<x>             // Set Download Buffer Size (int x = bufferSize)";
+	mSetHelpText[eAAMP_SET_PreferredDrm] =                       "<x>             // Set Preferred DRM (int x=1-WV, 2-PR, 4-Access, 5-AES 6-ClearKey)";
+	mSetHelpText[eAAMP_SET_StereoOnlyPlayback] =                 "<x>             // Set Stereo only playback (x=1/0)";
+	mSetHelpText[eAAMP_SET_AlternateContent] =                   "                // Set Alternate Contents - dummy ()";
+	mSetHelpText[eAAMP_SET_NetworkProxy] =                       "<x>             // Set Set Network Proxy (string x = url)";
+	mSetHelpText[eAAMP_SET_LicenseReqProxy] =                    "<x>             // Set License Request Proxy (string x=url)";
+	mSetHelpText[eAAMP_SET_DownloadStallTimeout] =               "<x>             // Set Download Stall timeout (long x=timeout)";
+	mSetHelpText[eAAMP_SET_DownloadStartTimeout] =               "<x>             // Set Download Start timeout (long x=timeout)";
+	mSetHelpText[eAAMP_SET_PreferredSubtitleLang] =              "<x>             // Set Preferred Subtitle language (string x = lang)";
+	mSetHelpText[eAAMP_SET_ParallelPlaylistDL] =                 "<x>             // Set Parallel Playlist download (x=0/1)";
+	mSetHelpText[eAAMP_SET_PreferredLanguages] =                 "<x>             // Set Preferred languages (string lang1,lang2,... )";
+	mSetHelpText[eAAMP_SET_RampDownLimit] =                      "<x>             // Set number of Ramp Down limit during the playback (x = number)";
+	mSetHelpText[eAAMP_SET_InitRampdownLimit] =                  "<x>             // Set number of Initial Ramp Down limit prior to the playback (x = number)";
+	mSetHelpText[eAAMP_SET_MinimumBitrate] =                     "<x>             // Set Minimum bitrate (x = bitrate)";
+	mSetHelpText[eAAMP_SET_MaximumBitrate] =                     "<x>             // Set Maximum bitrate (x = bitrate)";
+	mSetHelpText[eAAMP_SET_MaximumSegmentInjFailCount] =         "<x>             // Set Maximum segment injection fail count (int x = count)";
+	mSetHelpText[eAAMP_SET_MaximumDrmDecryptFailCount] =         "<x>             // Set Maximum DRM Decryption fail count(int x = count)";
+	mSetHelpText[eAAMP_SET_RegisterForID3MetadataEvents] =       "<x>             // Set Listen for ID3_METADATA events (x = 1 - add listener, x = 0 - remove)";
+	mSetHelpText[eAAMP_SET_LanguageFormat] =                     "<y> <y>         // Set Language Format (x = preferredFormat(0-3), y = useRole(0/1))";
+	mSetHelpText[eAAMP_SET_InitialBufferDuration] =              "<x>             // Set Initial Buffer Duration (int x = Duration in sec)";
+	mSetHelpText[eAAMP_SET_AudioTrack] =                         "<x>             // Set Audio track ( x = track index , track language)";
+	mSetHelpText[eAAMP_SET_TextTrack] =                          "<x>             // Set Text track (int x = track index)";
+	mSetHelpText[eAAMP_SET_CCStatus] =                           "<x>             // Set CC status (x = 0/1)";
+	mSetHelpText[eAAMP_SET_CCStyle] =                            "<x>             // Set a predefined CC style option (x = 1/2/3)";
+	//mSetHelpText[eAAMP_SET_AuxiliaryAudio] =                     "<x>             // Set auxiliary audio language (x = string lang)";
+	mSetHelpText[eAAMP_SET_PropagateUriParam] =                  "<x>             // Set propagate uri parameters: (int x = 0 to disable)";
+	//mSetHelpText[eAAMP_SET_RateOnTune] =                         "<x>             // Set Pre-tune rate (x= PreTuneRate)";
+	mSetHelpText[eAAMP_SET_ThumbnailTrack] =                     "<x>             // Set Thumbnail Track (int x = Thumbnail Index)";
+	mSetHelpText[eAAMP_SET_SslVerifyPeer] =                      "<x>             // Set Ssl Verify Peer flag (x = 1 for enabling)";
+	mSetHelpText[eAAMP_SET_DownloadDelayOnFetch] =               "<x>             // Set delay while downloading fragments (unsigned int x = download delay in ms)";
+	mSetHelpText[eAAMP_SET_PausedBehavior] =                     "<x>             // Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"";
+}
 /**
  * @brief Show help menu with aamp command line interface
  */
@@ -527,23 +615,9 @@ void ShowHelpGet(){
 	printf("*   get <command> [<arguments>]\n");
 	printf("*   Usage of Commands, and arguments expected\n");
 	printf("******************************************************************************************\n");
-	printf("get 1                 // Get Current audio language\n");
-	printf("get 2                 // Get Current DRM\n");
-	printf("get 3                 // Get Current Playback position\n");
-	printf("get 4                 // Get Playback Duration\n");
-	printf("get 5                 // Get current video bitrate\n");
-	printf("get 6                 // Get current Audio bitrate\n");
-	printf("get 7                 // Get current Audio volume\n");
-	printf("get 8                 // Get Current Playback rate\n");
-	printf("get 9                 // Get Video bitrates supported\n");
-	printf("get 10                // Get Audio bitrates supported\n");
-	printf("get 11                // Get Current preferred languages\n");
-	printf("get 12                // Get Available Audio Tracks\n");
-	printf("get 13                // Get Available Text Tracks\n");
-	printf("get 14                // Get Audio Track\n");
-	printf("get 15                // Get Text Track\n");
-	printf("get 16                // Get Available ThumbnailTracks\n");
-	printf("get 17                // Get Thumbnail timerange data(int startpos, int endpos)\n");
+	for (int iLoop = 0; iLoop < eAAMP_GET_TYPE_COUNT; iLoop++){
+		printf("* get %2d // %s \n", iLoop+1, mGetHelpText[iLoop]);
+	}
 	printf("****************************************************************************\n");
 }
 
@@ -556,55 +630,9 @@ void ShowHelpSet(){
 	printf("*   set <command> [<arguments>] \n");
 	printf("*   Usage of Commands with arguemnts expected in ()\n");
 	printf("******************************************************************************************\n");
-	printf("set 1 <x> <y>         // Set Rate and Seek (int x=rate, double y=seconds)\n");
-	printf("set 2 <x> <y> <w> <h> // Set Video Rectangle (int x,y,w,h)\n");
-	printf("set 3 <x>             // Set Video zoom  ( x = 1 fo full, x = 0 for normal)\n");
-	printf("set 4 <x>             // Set Video Mute ( x = 1  - Mute , x = 0 - Unmute)\n");
-	printf("set 5 <x>             // Set Audio Volume (int x=volume)\n");
-	printf("set 6 <x>             // Set Language (string x=lang)\n");
-	printf("set 7                 // Set Subscribed Tag - dummy\n");
-	printf("set 8 <x>             // Set License Server URL (String x=url)\n");
-	printf("set 9 <x>             // Set Anonymous Request  (int x=0/1)\n");
-	printf("set 10 <x>            // Set VOD Trickplay FPS (int x=trickPlayFPS)\n");
-	printf("set 11 <x>            // Set Linear Trickplay FPS (int x=trickPlayFPS)\n");
-	printf("set 12 <x>            // Set Live offset (int x=offset)\n");
-	printf("set 13 <x>            // Set Stall error code (int x=errorCode)\n");
-	printf("set 14 <x>            // Set Stall timeout (int x=timeout)\n");
-	printf("set 15 <x>            // Set Report Interval (int x=interval)\n");
-	printf("set 16 <x>            // Set Video Bitrate (long x=bitrate)\n");
-	printf("set 17 <x>            // Set Initial Bitrate (long x = bitrate)\n");
-	printf("set 18 <x>            // Set Initial Bitrate 4K (long x = bitrate4k)\n");
-	printf("set 19 <x>            // Set Network Timeout (long x = timeout in ms)\n");
-	printf("set 20 <x>            // Set Manifest Timeout (long x = timeout in ms)\n");
-	printf("set 21 <x>            // Set Download Buffer Size (int x = bufferSize)\n");
-	printf("set 22 <x>            // Set Preferred DRM (int x=1-WV, 2-PR, 4-Access, 5-AES 6-ClearKey)\n");
-	printf("set 23 <x>            // Set Stereo only playback (x=1/0)\n");
-	printf("set 24                // Set Alternate Contents - dummy ()\n");
-	printf("set 25 <x>            // Set Set Network Proxy (string x = url)\n");
-	printf("set 26 <x>            // Set License Request Proxy (string x=url)\n");
-	printf("set 27 <x>            // Set Download Stall timeout (long x=timeout)\n");
-	printf("set 28 <x>            // Set Download Start timeout (long x=timeout)\n");
-	printf("set 29 <x>            // Set Preferred Subtitle language (string x = lang)\n");
-	printf("set 30 <x>            // Set Parallel Playlist download (x=0/1)\n");
-	printf("set 31 <x>            // Set Preferred languages (string \"lang1, lang2, ...\")\n");
-	printf("set 32 <x>            // Set number of Ramp Down limit during the playback (x = number)\n");
-	printf("set 33 <x>            // Set number of Initial Ramp Down limit prior to the playback (x = number)\n");
-	printf("set 34 <x>            // Set Minimum bitrate (x = bitrate)\n");
-	printf("set 35 <x>            // Set Maximum bitrate (x = bitrate)\n");
-	printf("set 36 <x>            // Set Maximum segment injection fail count (int x = count)\n");
-	printf("set 37 <x>            // Set Maximum DRM Decryption fail count(int x = count)\n");
-	printf("set 38 <x>            // Set Listen for ID3_METADATA events (x = 1 - add listener, x = 0 - remove)\n");
-	printf("set 39 <y> <y>        // Set Language Format (x = preferredFormat(0-3), y = useRole(0/1))\n");
-	printf("set 40 <x>            // Set Initial Buffer Duration (int x = Duration in sec)\n");
-	printf("set 41 <x>            // Set Audio track (int x = track index)\n");
-	printf("set 42 <x>            // Set Text track (int x = track index)\n");
-	printf("set 43 <x>            // Set CC status (x = 0/1)\n");
-	printf("set 44 <x>            // Set a predefined CC style option (x = 1/2/3)\n");
-	printf("set 45 <x>            // Set propagate uri parameters: (int x = 0 to disable)\n");
-	printf("set 46 <x>            // Set Thumbnail Track (int x = Thumbnail Index)\n");
-	printf("set 47 <x>            // Set Ssl Verify Peer flag (x = 1 for enabling)\n");
-	printf("set 48 <x>            // Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"\n");
-	printf("set 49 <x>            // Set delay while downloading fragments (unsigned int x = download delay in ms)\n");
+	for (int iLoop = 0; iLoop < eAAMP_SET_TYPE_COUNT; iLoop++){
+		printf("* set %2d %s \n", iLoop+1, mSetHelpText[iLoop]);
+	}
 	printf("******************************************************************************************\n");
 }
 
@@ -762,26 +790,18 @@ static class myAAMPEventListener *myEventListener;
 static bool IsTuneScheme(const char *cmd)
 {
 	bool isTuneScheme = false;
-	
-	if (memcmp(cmd, "http", 4) == 0)
+	const char *protocol[5] = { "http:","https:","live:","hdmiin:","file:" };
+	for( int i=0; i<5; i++ )
 	{
-		isTuneScheme = true;
-	}
-	else if (memcmp(cmd, "live", 4) == 0)
-	{
-		isTuneScheme = true;
-	}
-	else if (memcmp(cmd, "hdmiin", 6) == 0)
-	{
-		isTuneScheme = true;
-	}
-	else if (memcmp(cmd, "file", 4) == 0)
-	{
-		isTuneScheme = true;
+		size_t len = strlen(protocol[i]);
+		if( memcmp( cmd, protocol[i],len )==0 )
+		{
+			isTuneScheme=true;
+			break;
+		}
 	}
 	return isTuneScheme;
 }
-
 
 inline void StopCachedChannel()
 {
@@ -1973,6 +1993,9 @@ static void * run_command( void* startUrl )
 		ProcessCliCommand( cmd );
 	}
 	
+	InitGetHelpText();
+	InitSetHelpText();
+	
 	for(;;)
 	{
 		printf("[AAMPCLI] type 'help' for list of available commands\n");
@@ -2435,7 +2458,6 @@ int main(int argc, char **argv)
 	ABRManager mAbrManager;
 
 	/* Set log directory path for AAMP and ABR Manager */
-	AampConfig::SetCfgDrive(driveName);
 	mLogManager.setLogAndCfgDirectory(driveName);
 	mAbrManager.setLogDirectory(driveName);
 

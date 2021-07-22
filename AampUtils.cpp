@@ -72,11 +72,11 @@ long long aamp_GetCurrentTimeMS(void)
  * @param void
  * @return character pointer indicating default dump path
  */
-std::string getDefaultHarvestPath()
+void getDefaultHarvestPath(std::string &value)
 {
-        std::string value = "/aamp/";
+        value = "/aamp/";
 /* In case of linux and mac simulator use home directory to dump the data as default */
-#if defined( __APPLE__ ) || defined ( __linux__ )
+#ifdef AAMP_SIMULATOR_BUILD
         char *ptr = getenv("HOME");
         if(ptr)
         {
@@ -89,7 +89,7 @@ std::string getDefaultHarvestPath()
 #else
         value.insert(0,"/opt");
 #endif
-        return value;
+        return ;
 }
 
 /**
@@ -875,6 +875,70 @@ bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaTyp
 		retVal = true;
 	}
 	return retVal;
+}
+
+/**
+ * @brief Get compatible trickplay for 6s cadense of iframe track from the given rates
+ * @param rate input rate
+ */
+int getWorkingTrickplayRate(int rate)
+{
+	int workingRate;
+	switch (rate){
+		case 4:
+			workingRate = 25;
+			break;
+		case 16:
+			workingRate = 32;
+			break;
+		case 32:
+			workingRate = 48;
+			break;
+		case -4:
+			workingRate = -25;
+			break;
+		case -16:
+			workingRate = -32;
+			break;
+		case -32:
+			workingRate = -48;
+			break;
+		default:
+			workingRate = rate;
+	}
+	return workingRate;
+}
+
+/**
+ * @brief Get reverse map the working rates to the rates given by platform player
+ * @param rate working rate
+ */
+int getPseudoTrickplayRate(int rate)
+{
+	int psudoRate;
+	switch (rate){
+		case 25:
+			psudoRate = 4;
+			break;
+		case 32:
+			psudoRate = 16;
+			break;
+		case 48:
+			psudoRate = 32;
+			break;
+		case -25:
+			psudoRate = -4;
+			break;
+		case -32:
+			psudoRate = -16;
+			break;
+		case -48:
+			psudoRate = -32;
+			break;
+		default:
+			psudoRate = rate;
+	}
+	return psudoRate;
 }
 
 /**

@@ -62,21 +62,147 @@ bool PacketSender::Init()
     return Init(SOCKET_PATH);
 }
 
+#ifdef AAMP_SIMULATOR_BUILD
+// in simulator build, create a socket to receive and dump messages that would
+// otherwise go to subtec
+#include <pthread.h>
+static struct SubtecSimulatorState
+{
+	bool started;
+	pthread_t threadId;
+	int sockfd;
+} mSubtecSimulatorState;
+
+static bool read32(const unsigned char *ptr, size_t len, std::uint32_t &ret32)
+{
+    bool ret = false;
+    //Load packet header
+    if (len >= sizeof(std::uint32_t))
+    {
+        const std::uint32_t byte0 = static_cast<const uint32_t>(ptr[0]) & 0xFF;
+        const std::uint32_t byte1 = static_cast<const uint32_t>(ptr[1]) & 0xFF;
+        const std::uint32_t byte2 = static_cast<const uint32_t>(ptr[2]) & 0xFF;
+        const std::uint32_t byte3 = static_cast<const uint32_t>(ptr[3]) & 0xFF;
+        ret32 =  byte0 | (byte1 << 8) | (byte2 << 16) | (byte3 << 24);
+        ret = true;
+    }
+    
+    return ret;
+}
+
+static void DumpPacket(const unsigned char *ptr, size_t len)
+{
+    //Get type
+    std::uint32_t type;
+    if (read32(ptr, len, type))
+    {
+        logprintf("Type:%s:%d", Packet::getTypeString(type).c_str(), type);
+        ptr += 4;
+        len -= 4;
+    }
+    else
+    {
+        logprintf("Packet read failed on type - returning");
+        return;
+    }
+    //Get Packet counter
+    std::uint32_t counter;
+    if (read32(ptr, len, counter))
+    {
+        logprintf("Counter:%d", counter);
+        ptr += 4;
+        len -= 4;
+    }
+    else
+    {
+        logprintf("Packet read failed on type - returning");
+        return;
+    }
+    //Get size
+    std::uint32_t size;
+    if (read32(ptr, len, size))
+    {
+        logprintf("Packet size:%d", size);
+        ptr += 4;
+        len -= 4;
+    }
+    else
+    {
+        logprintf("Packet read failed on type - returning");
+        return;
+    }
+    if (len > 0)
+    {
+        logprintf("Packet data:");
+        DumpBlob(ptr, len);
+    }
+}
+
+static void *SubtecSimulatorThread( void *param )
+{
+	struct SubtecSimulatorState *state = (SubtecSimulatorState *)param;
+	struct sockaddr cliaddr;
+	socklen_t sockLen = sizeof(cliaddr);
+	size_t maxBuf = 8*1024; // big enough?
+	unsigned char *buffer = (unsigned char *)malloc(maxBuf);
+	if( buffer )
+	{
+		logprintf( "SubtecSimulatorThread - listening for packets" );
+		for(;;)
+		{
+			int numBytes = recvfrom( state->sockfd, (void *)buffer, maxBuf, MSG_WAITALL, (struct sockaddr *) &cliaddr, &sockLen);
+			logprintf( "***SubtecSimulatorThread:\n" );
+            DumpPacket( buffer, numBytes );
+		}
+		free( buffer );
+	}
+	close( state->sockfd );
+	return 0;
+}
+
+static bool PrepareSubtecSimulator( const char *name )
+{
+	struct SubtecSimulatorState *state = &mSubtecSimulatorState;
+	if( !state->started )
+	{ // already started - ok
+		unlink( name ); // close if left over from previous session to avoid bind failure
+		state->sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
+		if( state->sockfd>=0 )
+		{
+			struct sockaddr_un serverAddr;
+			memset(&serverAddr, 0, sizeof(serverAddr));
+			serverAddr.sun_family = AF_UNIX;
+			strcpy(serverAddr.sun_path, name );
+			socklen_t len = sizeof(serverAddr);
+			if( bind( state->sockfd, (struct sockaddr*)&serverAddr, len ) == 0 )
+			{
+				state->started = true;
+				pthread_create(&state->threadId, NULL, &SubtecSimulatorThread, (void *)state);
+			}
+			else
+			{
+				logprintf( "SubtecSimulatorThread bind() error: %d\n", errno );
+			}
+		}
+	}
+	return state->started;
+}
+#endif // AAMP_SIMULATOR_BUILD
+
 bool PacketSender::Init(const char *socket_path)
 {
     bool ret = true;
     std::unique_lock<std::mutex> lock(mStartMutex);
-    
+
+#ifdef AAMP_SIMULATOR_BUILD
+	ret = PrepareSubtecSimulator(socket_path);
+#endif
+
     if (!running)
     {
         ret = initSocket(socket_path) && initSenderTask();
         if (!ret) {
             AAMPLOG_WARN("SenderTask failed to init");
-        }
-        else if (mStartCv.wait_for(lock, std::chrono::milliseconds(100)) == std::cv_status::timeout)
-        {
-            logprintf("SenderTask timed out waiting to start");
-            ret = false;
         }
         else
             AAMPLOG_WARN("senderTask started");
@@ -92,7 +218,7 @@ void PacketSender::SendPacket(PacketPtr && packet)
     std::unique_lock<std::mutex> lock(mPktMutex);
     uint32_t type = packet->getType();
     std::string typeString = Packet::getTypeString(type);
-    AAMPLOG_TRACE("PacketSender: %s - queue size %lu type %s:%d counter:%d\n", __FUNCTION__, 
+    AAMPLOG_INFO("PacketSender: %s - queue size %lu type %s:%d counter:%d", __FUNCTION__, 
         mPacketQueue.size(), typeString.c_str(), type, packet->getCounter());
 
     mPacketQueue.push(std::move(packet));
@@ -103,7 +229,6 @@ void PacketSender::senderTask()
 {
     std::unique_lock<std::mutex> lock(mPktMutex);
     do {
-        mStartCv.notify_all();
         running = true;
         mCv.wait(lock);
         while (!mPacketQueue.empty())

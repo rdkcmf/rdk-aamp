@@ -48,6 +48,8 @@ using namespace WPEFramework;
 
 #define RDKSHELL_CALLSIGN "org.rdk.RDKShell.1"
 
+ATSCGlobalSettings gATSCSettings;
+
 void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& parameters) {
 	std::string message;
 	parameters.ToString(message);
@@ -58,25 +60,37 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 	   playerData["locator"].String(), playerData["length"].String(), playerData["position"].String() */
 
 	std::string currState = playerData["playerStatus"].String();
-	if(0 != prevState.compare(currState))
+	bool blockedReasonChanged = false;
+	std::string reason("");
+	if(0 == currState.compare("BLOCKED"))
+	{
+		reason = playerData["blockedReason"].String();
+		if(0 != reason.compare(prevBlockedReason))
+		{
+			blockedReasonChanged = true;
+		}
+	}
+
+	if(0 != prevState.compare(currState) || blockedReasonChanged)
 	{
 		PrivAAMPState state = eSTATE_IDLE;
+		prevBlockedReason.clear();
 		AAMPLOG_WARN( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevState.c_str(), currState.c_str());
 		prevState = currState;
 		if(0 == currState.compare("PENDING"))
 		{
 			state = eSTATE_PREPARING;
-		}else if(0 == currState.compare("BLOCKED"))
+		}else if((0 == currState.compare("BLOCKED")) && (0 != reason.compare("NOT_BLOCKED")))
 		{
 			std::string ratingString;
 			JsonObject ratingObj = playerData["rating"].Object();
 			ratingObj.ToString(ratingString);
-			std::string reason = playerData["blockedReason"].String();
 			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s Current Ratings: %s", __FUNCTION__, reason.c_str(), ratingString.c_str());
 
 			aamp->SendAnomalyEvent(ANOMALY_WARNING,"BLOCKED REASON:%s", reason.c_str());
 			aamp->SendBlockedEvent(reason);
 			state = eSTATE_BLOCKED;
+			prevBlockedReason = reason;
 		}else if(0 == currState.compare("PLAYING"))
 		{
 			if(!tuned){
@@ -84,7 +98,6 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 				/* For consistency, during first tune, first move to
 				 PREPARED state to match normal IPTV flow sequence */
 				aamp->SetState(eSTATE_PREPARED);
-                                aamp->SetContentType("OTA");
 				tuned = true;
 				aamp->LogFirstFrame();
 				aamp->LogTuneComplete();
@@ -150,7 +163,10 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
     AAMPLOG_INFO( "[OTA_SHIM]Inside %s ", __FUNCTION__ );
     prevState = "IDLE";
     prevDisplyInfo = "";
+    prevBlockedReason = "";
     tuned = false;
+
+    aamp->SetContentType("OTA");
 
     thunderAccessObj.ActivatePlugin();
     mediaSettingsObj.ActivatePlugin();
@@ -283,7 +299,7 @@ void StreamAbstractionAAMP_OTA::Start(void)
 	AAMPLOG_INFO( "[OTA_SHIM]Inside %s : url : %s ", __FUNCTION__ , url.c_str());
 	JsonObject result;
 
-	SetPreferredAudioLanguage();
+	SetPreferredAudioLanguages();
 
 	JsonObject createParam;
 	createParam["id"] = APP_ID;
@@ -313,6 +329,13 @@ void StreamAbstractionAAMP_OTA::Start(void)
 */
 void StreamAbstractionAAMP_OTA::Stop(bool clearChannelData)
 {
+	/*StreamAbstractionAAMP::Stop is being called twice
+	  PrivateInstanceAAMP::Stop calls Stop with clearChannelData set to true
+	  PrivateInstanceAAMP::TeardownStream calls Stop with clearChannelData set to false
+	  Hence avoiding the Stop with clearChannelData set to false*/
+	if(!clearChannelData)
+		return;
+
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
         /*
         Request : {"jsonrpc":"2.0", "id":3, "method": "org.rdk.MediaPlayer.1.stop", "params":{ "id":"MainPlayer"} }
@@ -439,24 +462,63 @@ int StreamAbstractionAAMP_OTA::GetAudioTrack()
 }
 
 /**
- * @brief SetPreferredAudioLanguage set the preferred audio language list
+ * @brief SetPreferredAudioLanguages set the preferred audio language list
  *
  * @param[in]
  * @param[in]
  */
-void StreamAbstractionAAMP_OTA::SetPreferredAudioLanguage()
+void StreamAbstractionAAMP_OTA::SetPreferredAudioLanguages()
 {
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 #else
-    JsonObject result;
-    JsonObject param;
-    JsonObject properties;
+	JsonObject properties;
+	bool modifiedLang = false;
+	bool modifiedRend = false;
+	//AAMPLOG_WARN( "[OTA_SHIM]Inside %s %d aamp->preferredLanguagesString : %s, gATSCSettings.preferredLanguages : %s aamp->preferredRenditionString : %s gATSCSettings.preferredRendition : %s", __FUNCTION__ , __LINE__, aamp->preferredLanguagesString.c_str(),gATSCSettings.preferredLanguages.c_str(), aamp->preferredRenditionString.c_str(), gATSCSettings.preferredRendition.c_str());fflush(stdout);
 
-    if(0 != aamp->preferredLanguagesString.length()) {
-        properties["preferredAudioLanguage"] = aamp->preferredLanguagesString.c_str();
-        param["properties"] = properties;
-        mediaSettingsObj.InvokeJSONRPC("setProperties", param, result);
-    }
+	if((0 != aamp->preferredLanguagesString.length()) && (aamp->preferredLanguagesString != gATSCSettings.preferredLanguages)){
+		properties["preferredAudioLanguage"] = aamp->preferredLanguagesString.c_str();
+		modifiedLang = true;
+	}
+	if((0 != aamp->preferredRenditionString.length()) && (aamp->preferredRenditionString != gATSCSettings.preferredRendition)){
+
+		if(0 == aamp->preferredRenditionString.compare("VISUALLY_IMPAIRED")){
+			properties["visuallyImpaired"] = true;
+			modifiedRend = true;
+		}else if(0 == aamp->preferredRenditionString.compare("NORMAL")){
+			properties["visuallyImpaired"] = false;
+			modifiedRend = true;
+		}else{
+			/*No rendition settings to MediaSettings*/
+		}
+	}
+	if(modifiedLang || modifiedRend)
+	{
+		bool rpcResult = false;
+		JsonObject result;
+		JsonObject param;
+
+		param["properties"] = properties;
+		rpcResult = mediaSettingsObj.InvokeJSONRPC("setProperties", param, result);
+		if (rpcResult){
+			if (!result["success"].Boolean()){
+				std::string responseStr;
+				result.ToString(responseStr);
+				AAMPLOG_WARN( "[OTA_SHIM] %s:%d setProperties API failed result:%s",__FUNCTION__, __LINE__, responseStr.c_str());
+			}else{
+				std::string paramStr;
+				param.ToString(paramStr);
+				AAMPLOG_WARN( "[OTA_SHIM] %s:%d setProperties success with param:%s",__FUNCTION__, __LINE__, paramStr.c_str());
+				/*Thunder call success save global settings*/
+				if(modifiedLang){
+					gATSCSettings.preferredLanguages = aamp->preferredLanguagesString;
+				}
+				if(modifiedRend){
+					gATSCSettings.preferredRendition = aamp->preferredRenditionString;
+				}
+			}
+		}
+	}
 #endif
 }
 
@@ -552,7 +614,7 @@ void StreamAbstractionAAMP_OTA::GetAudioTracks()
 
         std::string languageCode;
         languageCode = Getiso639map_NormalizeLanguageCode(audioData["language"].String(),aamp->GetLangCodePreference());
-        aTracks.push_back(AudioTrackInfo(index, /*idx*/ languageCode, /*lang*/ audioData["name"].String(), /*name*/ audioData["type"].String(), /*codecStr*/ (int)audioData["pk"].Number(), /*primaryKey*/ audioData["contentType"].String(), /*contentType*/ audioData["mixType"].String() /*mixType*/));
+        aTracks.push_back(AudioTrackInfo(index, /*idx*/ languageCode, /*lang*/ audioData["contentType"].String(), /*rend*/ audioData["name"].String(), /*name*/ audioData["type"].String(), /*codecStr*/ (int)audioData["pk"].Number(), /*primaryKey*/ audioData["contentType"].String(), /*contentType*/ audioData["mixType"].String() /*mixType*/));
     }
 
     mAudioTracks = aTracks;
@@ -841,6 +903,16 @@ StreamInfo* StreamAbstractionAAMP_OTA::GetStreamInfo(int idx)
  *   @retval PTS of first sample
  */
 double StreamAbstractionAAMP_OTA::GetFirstPTS()
+{ // STUB
+    return 0.0;
+}
+
+/**
+ *   @brief  Get Start time PTS of first sample.
+ *
+ *   @retval start time of first sample
+ */
+double StreamAbstractionAAMP_OTA::GetStartTimeOfFirstPTS()
 { // STUB
     return 0.0;
 }

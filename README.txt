@@ -133,6 +133,7 @@ limitResolution			Check if display resolution based profile selection to be done
 disableUnderflow		Enable/Disable Underflow processing.Default is false
 useAbsoluteTimeline		Enable Report Progress report position based on Availability Start Time.Default is false
 id3				Enable/Disable ID3 tag.Default is false
+repairIframes		Enable/Disable iframe fragment repair (stripping and box adjustment) for HLS mp4 when whole file is received for ranged request. Default is false
 
 // Integer inputs
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune
@@ -212,6 +213,7 @@ preferredSubtitleLanguage	User preferred subtitle language.Default is None
 ckLicenseServerUrl		ClearKey License server URL.Default is None
 prLicenseServerUrl		PlayReady License server URL.Default is None
 wvLicenseServerUrl		Widevine License server URL.Default is None
+customHeaderLicense             custom header data to be appended to curl License request. Default None
 
 // Long inputs
 minBitrate			Set minimum bitrate filter for playback profiles, default is 0.

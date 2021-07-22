@@ -121,6 +121,13 @@ public:
 	 */
 	void SetParentalControlStatus(bool locked);
 
+	/**
+	 * @brief To restore cc state after new tune
+	 *
+	 * @return void
+	 */
+	void RestoreCC();
+
 	virtual ~AampCCManagerBase(){ };
 
 	/**

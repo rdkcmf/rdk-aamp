@@ -21,8 +21,8 @@
  * @file jsmediaplayer.cpp
  * @brief JavaScript bindings for AAMPMediaPlayer
  */
-
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+        #include "Module.h"
 	#include <core/core.h>
 	#include "ThunderAccess.h"
 	#include "AampUtils.h"
@@ -207,6 +207,7 @@ enum ConfigParamType
 	ePARAM_PAUSED_BEHAVIOR,
 	ePARAM_LIMIT_RESOLUTION,
 	ePARAM_USE_ABSOLUTE_TIMELINE,
+	ePARAM_REPAIR_IFRAMES,
 	ePARAM_MAX_COUNT
 };
 
@@ -283,6 +284,7 @@ static ConfigParamMap initialConfigParamNames[] =
 	{ ePARAM_PAUSED_BEHAVIOR, "livePauseBehavior"},
 	{ ePARAM_LIMIT_RESOLUTION, "limitResolution"},
 	{ ePARAM_USE_ABSOLUTE_TIMELINE, "useAbsoluteTimeline"},
+	{ ePARAM_REPAIR_IFRAMES, "repairIframes" },
 	{ ePARAM_MAX_COUNT, "" }
 };
 
@@ -793,6 +795,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			case ePARAM_LICENSE_CACHING:
 			case ePARAM_LIMIT_RESOLUTION:
 			case ePARAM_USE_ABSOLUTE_TIMELINE:
+			case ePARAM_REPAIR_IFRAMES:
 				ret = ParseJSPropAsBoolean(ctx, initConfigObj, initialConfigParamNames[iter].paramName, valueAsBoolean);
 				break;
 			default: //ePARAM_MAX_COUNT
@@ -984,6 +987,9 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
                                         break;
 				case ePARAM_USE_ABSOLUTE_TIMELINE:
 					privObj->_aamp->SetUseAbsoluteTimeline(valueAsBoolean);
+					break;
+				case ePARAM_REPAIR_IFRAMES:
+					privObj->_aamp->SetRepairIframes(valueAsBoolean);
 					break;
 				default: //ePARAM_MAX_COUNT
 					break;

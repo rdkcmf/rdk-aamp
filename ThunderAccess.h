@@ -25,6 +25,7 @@
 #ifndef THUNDERACCESS_H_
 #define THUNDERACCESS_H_
 
+#include <Module.h>
 #include <core/core.h>
 #include <websocket/websocket.h>
 
@@ -54,8 +55,6 @@ private:
     JSONRPC::LinkType<Core::JSON::IElement> *remoteObject;
     /*The Remote object connected to controller Plugin*/
     JSONRPC::LinkType<Core::JSON::IElement> *controllerObject;
-    /*For Authentication token*/
-    string query;
     std::string pluginCallsign;
 };
 #endif // THUNDERACCESS_H_

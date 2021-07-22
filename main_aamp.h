@@ -185,8 +185,8 @@ struct AudioTrackInfo
 	{
 	}
 
-	AudioTrackInfo(std::string idx, std::string lang,std::string trackName, std::string codecStr, int pk, std::string conType, std::string mixType):
-			index(idx), language(lang), rendition(), name(trackName),
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, int pk, std::string conType, std::string mixType):
+			index(idx), language(lang), rendition(rend), name(trackName),
 			codec(codecStr), characteristics(), channels(0), bandwidth(-1), primaryKey(pk),
                         contentType(conType), mixType(mixType)
 	{
@@ -425,6 +425,11 @@ public:
 	 *   @return true: empty, false: not empty
 	 */
 	virtual bool IsCacheEmpty(MediaType mediaType){ return true; };
+
+	/**
+	 * @brief Reset EOS SignalledFlag
+	 */
+	virtual void ResetEOSSignalledFlag(){};
 
 	/**
 	 *   @brief API to notify that fragment caching done
@@ -1457,8 +1462,15 @@ public:
 	 *   @return void
 	 */
 	void EnableAsyncOperation();
+	/**
+	 *   @brief To set the repairIframes flag
+	 *
+	 *   @param[in] bool enable/disable configuration
+	 */
+	void SetRepairIframes(bool configState);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
+	std::shared_ptr<PrivateInstanceAAMP> sp_aamp; /* shared pointer for aamp resource */
 
 	AampConfig mConfig;
 private:

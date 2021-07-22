@@ -88,6 +88,8 @@ void print_nop(const char *format, ...){}
 #define WAIT_FOR_DATA_MAX_RETRIES 1
 #define MAX_PMT_SECTION_SIZE (1021)
 #define PATPMT_MAX_SIZE (2*1024)
+#define PAT_SPTS_SIZE (13)
+#define PAT_TABLE_ENTRY_SIZE (4)
 
 /** Maximum PTS value */
 #define MAX_PTS (0x1FFFFFFFF)
@@ -1644,15 +1646,31 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 						if (!m_havePAT || (current && (version != m_versionPAT)))
 						{
 							dumpPacket(packet, m_packetSize);
+
 							int length = ((packet[payloadOffset + 2] & 0x0F) << 8) + (packet[payloadOffset + 3]);
-							if (length == 13)
+							
+							if (length >= PAT_SPTS_SIZE)
 							{
+								int patTableIndex = payloadOffset + 9; 				// PAT table start
+								int patTableEndIndex = payloadOffset + length -1; 	// end of PAT table
+								
 								m_havePAT = true;
 								m_versionPAT = version;
-								m_program = ((packet[payloadOffset + 9] << 8) + packet[payloadOffset + 10]);
-								m_pmtPid = (((packet[payloadOffset + 11] & 0x1F) << 8) + packet[payloadOffset + 12]);
+								
+								do {
+									m_program = ((packet[patTableIndex + 0] << 8) + packet[patTableIndex + 1]);
+									m_pmtPid = (((packet[patTableIndex + 2] & 0x1F) << 8) + packet[patTableIndex + 3]);
+									
+									patTableIndex += PAT_TABLE_ENTRY_SIZE;
+									// Find first program number not 0 or until end of PAT
+								} while (m_program == 0 && patTableIndex < patTableEndIndex);
+									
 								if ((m_program != 0) && (m_pmtPid != 0))
 								{
+									if (length > PAT_SPTS_SIZE)
+									{
+										WARNING("RecordContext: PAT is MPTS, using program %d.", m_program);
+									}
 									if (m_havePMT)
 									{
 										INFO("RecordContext: pmt change detected in pat");

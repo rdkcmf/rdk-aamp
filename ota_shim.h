@@ -29,10 +29,20 @@
 #include <string>
 #include <stdint.h>
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+#include "Module.h"
 #include <core/core.h>
 #include "ThunderAccess.h"
 #endif
 using namespace std;
+
+/**
+ * @brief Structure to save the ATSC settings
+ */
+typedef struct ATSCSettings
+{
+	std::string preferredLanguages;
+	std::string preferredRendition;
+}ATSCGlobalSettings;
 
 /**
  * @class StreamAbstractionAAMP_OTA
@@ -58,6 +68,7 @@ public:
     double GetStreamPosition() override;
     MediaTrack* GetMediaTrack(TrackType type) override;
     double GetFirstPTS() override;
+    double GetStartTimeOfFirstPTS() override;
     double GetBufferedDuration() override;
     bool IsInitialCachingSupported() override;
     int GetBWIndex(long bitrate) override;
@@ -73,6 +84,7 @@ public:
     std::vector<AudioTrackInfo> &GetAvailableAudioTracks() override;
     int GetAudioTrack() override;
     std::vector<TextTrackInfo> &GetAvailableTextTracks() override;
+    void SetPreferredAudioLanguages() override;
     void DisableContentRestrictions(long grace, long time, bool eventChange) override;
     void EnableContentRestrictions() override;
     std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
@@ -84,6 +96,7 @@ private:
     ThunderAccessAAMP thunderAccessObj;
     ThunderAccessAAMP mediaSettingsObj;
     std::string prevState;
+    std::string prevBlockedReason;
     std::string prevDisplyInfo;
     bool tuned;
     bool mEventSubscribed;
@@ -92,7 +105,6 @@ private:
     bool GetScreenResolution(int & screenWidth, int & screenHeight);
 #endif
     void GetAudioTracks();
-    void SetPreferredAudioLanguage();
     int GetAudioTrackInternal();
     void NotifyAudioTrackChange(const std::vector<AudioTrackInfo> &tracks);
     void GetTextTracks();

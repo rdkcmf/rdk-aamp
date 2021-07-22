@@ -505,6 +505,13 @@ public:
 	virtual double GetFirstPTS() = 0;
 
 	/**
+	 *   @brief  Get Start time PTS of first sample.
+	 *
+	 *   @retval start time of first sample
+	 */
+	virtual double GetStartTimeOfFirstPTS() = 0;
+
+	/**
 	 *   @brief Return MediaTrack of requested type
 	 *
 	 *   @param[in]  type - track type
@@ -875,8 +882,8 @@ public:
 	 * @brief Kicks off subtitle display - sent at start of video presentation
 	 * 
 	 */
-	virtual void StartSubtitleParser(unsigned long long firstPts) { };
-
+	virtual void StartSubtitleParser() { };
+	
 	/**
 	 *   @brief Waits subtitle track injection until caught up with audio track.
 	 *          Used internally by injection logic
@@ -1034,6 +1041,14 @@ public:
           * @param[in]
           */
         virtual void SetAudioTrackByLanguage(const char* lang) {}
+
+        /**
+          * @brief SetPreferredAudioLanguages set the preferred audio languages and rendition. [currently for OTA]
+          *
+          * @param[in]
+          * @param[in]
+          */
+        virtual void SetPreferredAudioLanguages() {}
 
 	/**
           * @brief Send a MUTE/UNMUTE packet to the subtitle renderer

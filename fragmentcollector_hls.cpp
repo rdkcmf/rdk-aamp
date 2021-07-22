@@ -86,7 +86,6 @@ static const double DEFAULT_STREAM_FRAMERATE = 25.0;
 #ifdef AAMP_HLS_DRM
 extern DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName);
 extern int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData);
-extern void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp);
 #endif 
 
 #define UseProgramDateTimeIfAvailable() (ISCONFIGSET(eAAMPConfig_HLSAVTrackSyncUsingStartTime) || aamp->mIsVSS)
@@ -784,11 +783,11 @@ static void * TrackPLDownloader(void *arg)
 * @fn InitiateDrmProcess
 * @brief Function to initiate drm process
 *
-* @param ptr[in] Trackstate pointer
+* @param aamp[in] PrivateInstanceAAMP pointer
 *
 * @return None
 ***************************************************************************/
-static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
+static void InitiateDrmProcess(PrivateInstanceAAMP* aamp){
 #ifdef AAMP_HLS_DRM
 		/** If fragments are CDM encrypted KC **/
 		if (aamp->fragmentCdmEncrypted && ISCONFIGSET(eAAMPConfig_Fragmp4PrefetchLicense)){
@@ -797,7 +796,7 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp ){
 			for (int i=0; i < aamp->aesCtrAttrDataList.size(); i++ ){
 				if (!aamp->aesCtrAttrDataList.at(i).isProcessed){
 					aamp->aesCtrAttrDataList.at(i).isProcessed = true;
-					DrmSessionDataInfo* drmData = ProcessContentProtection(aamp, aamp->aesCtrAttrDataList.at(i).attrName);	
+					DrmSessionDataInfo* drmData = ProcessContentProtection(aamp, aamp->aesCtrAttrDataList.at(i).attrName);
 					if (NULL != drmData){
 /* This needs effort from MSO as to what they want to do viz-a-viz preferred DRM, */						
 							drmDataToUse = drmData;
@@ -1253,9 +1252,9 @@ char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 				if (offsetDelim)
 				{
 					*offsetDelim++ = 0x00;
-					byteRangeOffset = atoi(offsetDelim);
+					sscanf(offsetDelim, "%zu", &byteRangeOffset);
 				}
-				byteRangeLength = atoi(temp);
+				sscanf(temp, "%zu", &byteRangeLength);
 			}
 			/*Skip to next line*/
 			while (fragmentInfo[0] != CHAR_LF)
@@ -1337,8 +1336,8 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 {
 	char *ptr = fragmentURI;
 	char *rc = NULL;
-	int byteRangeLength = 0; // default, when optional byterange offset is left unspecified
-	int byteRangeOffset = 0;
+	size_t byteRangeLength = 0; // default, when optional byterange offset is left unspecified
+	size_t byteRangeOffset = 0;
 	bool discontinuity = false;
 	const char* programDateTime = NULL;
 
@@ -1408,15 +1407,16 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 					if (offsetDelim)
 					{
 						*offsetDelim++ = 0x00;
-						byteRangeOffset = atoi(offsetDelim);
+						sscanf(offsetDelim, "%zu", &byteRangeOffset);
 					}
-					byteRangeLength = atoi(temp);
+					sscanf(temp, "%zu", &byteRangeLength);
+
 					mByteOffsetCalculation = true;
 					if (0 != byteRangeLength && 0 == byteRangeOffset)
 					{
 						byteRangeOffset = this->byteRangeOffset + this->byteRangeLength;
 					}
-					AAMPLOG_TRACE("%s:%d byteRangeOffset:%d Last played fragment Offset:%d byteRangeLength:%d Last fragment Length:%d", __FUNCTION__,__LINE__, byteRangeOffset, this->byteRangeOffset, byteRangeLength, this->byteRangeLength);
+					AAMPLOG_TRACE("%s:%d byteRangeOffset:%zu Last played fragment Offset:%zu byteRangeLength:%zu Last fragment Length:%zu", __FUNCTION__,__LINE__, byteRangeOffset, this->byteRangeOffset, byteRangeLength, this->byteRangeLength);
 				}
 				else if (startswith(&ptr, "-X-TARGETDURATION:"))
 				{ // max media segment duration; required; appears once
@@ -1846,8 +1846,8 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			char rangeStr[128];
 			if (byteRangeLength)
 			{
-				int next = byteRangeOffset + byteRangeLength;
-				sprintf(rangeStr, "%d-%d", byteRangeOffset, next - 1);
+				size_t next = byteRangeOffset + byteRangeLength;
+				sprintf(rangeStr, "%zu-%zu", byteRangeOffset, next - 1);
 				logprintf("FetchFragmentHelper rangeStr %s ", rangeStr);
 
 				range = rangeStr;
@@ -2802,6 +2802,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 							pthread_mutex_unlock(&aamp->drmParserMutex);
 							/** Mark as CDM encryption is found in HLS **/
 							aamp->fragmentCdmEncrypted = true;
+							InitiateDrmProcess(this->aamp);
 						}
 #endif
 					}
@@ -3406,6 +3407,14 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 				else if ( extension == ".aac" )
 				{
 					format = FORMAT_AUDIO_ES_AAC;
+				}
+				else if ( extension == ".ac3" )
+				{
+					format = FORMAT_AUDIO_ES_AC3;
+				}
+				else if ( extension == ".ec3" )
+				{
+					format = FORMAT_AUDIO_ES_EC3;
 				}
 				else if ( extension == ".vtt" || extension == ".webvtt" )
 				{
@@ -4444,6 +4453,22 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					continue;
 				}
 
+				// Elementary stream, we can skip playContext creation
+				if (FORMAT_AUDIO_ES_AC3 == format)
+				{
+					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_AC3", ts->name);
+					ts->streamOutputFormat = FORMAT_AUDIO_ES_AC3;
+					continue;
+				}
+
+				// Elementary stream, we can skip playContext creation
+				if (FORMAT_AUDIO_ES_EC3 == format)
+				{
+					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_EC3", ts->name);
+					ts->streamOutputFormat = FORMAT_AUDIO_ES_EC3;
+					continue;
+				}
+
 				if (eMEDIATYPE_SUBTITLE == iTrack)
 				{
 					bool subtitleDisabled = false;
@@ -4914,11 +4939,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				logprintf("StreamAbstractionAAMP_HLS::%s:%d : videoPeriodPositionIndex.size 0", __FUNCTION__, __LINE__);
 			}
 		}
-		
-#ifdef AAMP_HLS_DRM 
-		/** Initiate DRM Process from init to get early DRM license acquicition**/
-		InitiateDrmProcess(this->aamp);
-#endif
+
 		audio->lastPlaylistDownloadTimeMS = aamp_GetCurrentTimeMS();
 		video->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
 		subtitle->lastPlaylistDownloadTimeMS = audio->lastPlaylistDownloadTimeMS;
@@ -5718,7 +5739,6 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 		if(aamp->fragmentCdmEncrypted)
 	        {
 			// check for WV and PR , if anything to be flushed
-			ReleaseContentProtectionCache(aamp);
 			aamp->mStreamSink->ClearProtectionEvent();
 		}
 		aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
@@ -6066,13 +6086,13 @@ void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsi
  * @brief Signal start of subtitle renderering - should be sent at start of video presentation
  * 
  */
-void StreamAbstractionAAMP_HLS::StartSubtitleParser(unsigned long long firstPts)
+void StreamAbstractionAAMP_HLS::StartSubtitleParser()
 {
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
 	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
 	{
-		logprintf("%s: sending timestamp %0.2f / %lld", __FUNCTION__, firstPts);
-		subtitle->mSubtitleParser->init(seekPosition, firstPts);
+		AAMPLOG_INFO("%s: sending init %.3f", __FUNCTION__, mFirstPTS * 1000.0);
+		subtitle->mSubtitleParser->init(seekPosition, static_cast<unsigned long long>(mFirstPTS * 1000.0));
 		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
 	}
 }
@@ -7267,7 +7287,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 			mAbrManager.updateProfile();
 		}
 	}
-	else if(rate == AAMP_NORMAL_PLAY_RATE)
+	else if(rate == AAMP_NORMAL_PLAY_RATE || rate == AAMP_RATE_PAUSE)
 	{
 		// Filters to add a video track
 		// 1. It should match the audio groupId selected

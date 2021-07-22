@@ -277,7 +277,7 @@ struct AsyncEventDescriptor
 	/**
 	 * @brief AsyncEventDescriptor constructor
 	 */
-	AsyncEventDescriptor() : event(nullptr), aamp(NULL)
+	AsyncEventDescriptor() : event(nullptr), aamp(nullptr)
 	{
 	}
 
@@ -292,7 +292,23 @@ struct AsyncEventDescriptor
 	AsyncEventDescriptor& operator=(const AsyncEventDescriptor& other) = delete;
 
 	AAMPEventPtr event;
-	PrivateInstanceAAMP* aamp;
+	std::shared_ptr<PrivateInstanceAAMP> aamp;
+};
+
+/**
+ * @struct PeriodInfo
+ * @brief Stores details about available periods in mpd
+ */
+
+struct PeriodInfo {
+	std::string periodId;
+	uint64_t startTime;
+	uint32_t timeScale;
+	double duration;
+
+	PeriodInfo() : periodId(""), startTime(0), duration(0.0), timeScale(0)
+	{
+	}
 };
 
 /**
@@ -435,7 +451,7 @@ class AampDRMSessionManager;
 /**
  * @brief Class representing the AAMP player's private instance, which is not exposed to outside world.
  */
-class PrivateInstanceAAMP : public AampDrmCallbacks
+class PrivateInstanceAAMP : public AampDrmCallbacks, public std::enable_shared_from_this<PrivateInstanceAAMP>
 {
 
 	enum AAMP2ReceiverMsgType
@@ -444,13 +460,8 @@ class PrivateInstanceAAMP : public AampDrmCallbacks
 	    E_AAMP2Receiver_EVENTS,
 	    E_AAMP2Receiver_MsgMAX
 	};
-#ifdef WIN32
-	// 'packed' directive unavailable in win32 build;
-	typedef struct _AAMP2ReceiverMsg
-#else
 	// needed to ensure matching structure alignment in receiver
 	typedef struct __attribute__((__packed__)) _AAMP2ReceiverMsg
-#endif
 	{
 	    unsigned int type;
 	    unsigned int length;
@@ -670,6 +681,7 @@ public:
 	double culledSeconds;
 	double culledOffset;
         double mProgramDateTime;
+	std::vector<struct PeriodInfo> mMPDPeriodsInfo;
 	float maxRefreshPlaylistIntervalSecs;
 	EventListener* mEventListener;
 	double mReportProgressPosn;
@@ -1185,6 +1197,12 @@ public:
 	*/
 	bool IsCDVRContent() { return (mContentType==ContentType_CDVR || mIscDVR);}
 	/**
+	* @brief Checking whether OTA content or not
+	*
+	* @return True or False
+	*/
+	bool IsOTAContent() { return (mContentType==ContentType_OTA);}
+	/**
 	 * @brief Report timed metadata
 	 *
 	 * @param[in] timeMS - Time in milliseconds
@@ -1550,6 +1568,11 @@ public:
 	bool IsSinkCacheEmpty(MediaType mediaType);
 
 	/**
+	 * @brief Reset EOS SignalledFlag
+	 */
+	void ResetEOSSignalledFlag();
+
+	/**
 	 *   @brief Notify fragment caching complete
 	 *
 	 *   @return void
@@ -1823,13 +1846,17 @@ public:
 	void NotifyFirstBufferProcessed();
 
 	/**
-	 *   @brief Update audio language selection
-	 *
-	 *   @param[in] lang - Language
-	 *   @param[in] checkBeforeOverwrite - flag to enable additional check before overwriting language
-	 *   @return void
+	 * @brief Sets up the timestamp sync for subtitle renderer
+	 * 
 	 */
-	void UpdateAudioLanguageSelection(const char *lang, bool checkBeforeOverwrite = false);
+	void UpdateSubtitleTimestamp();
+
+	/**
+         *  @brief Reset trick start position
+         *
+         *  @return void
+         */
+        void ResetTrickStartUTCTime();
 
 	/**
 	 *   @brief Get stream type
@@ -2967,6 +2994,7 @@ private:
 	TuneType mTuneType;
 	int m_fd;
 	bool mIsLive;
+	bool mLogTune;				//Guard to ensure sending tune  time info only once.
 	bool mTuneCompleted;
 	bool mFirstTune;			//To identify the first tune after load.
 	int mfirstTuneFmt;			//First Tune Format HLS(0) or DASH(1)

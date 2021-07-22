@@ -41,11 +41,6 @@ extern void *CreateDRMSession(void *arg);
 extern void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
 
 /**
- * @brief vector pool of DrmSessionDataInfo
- */
-vector <DrmSessionDataInfo *> drmSessionDataPool_g; 
-static pthread_mutex_t drmProcessingMutex = PTHREAD_MUTEX_INITIALIZER;
-/**
  * Global aamp config data 
  */
 extern AampConfig *gpGlobalConfig;
@@ -322,16 +317,7 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 
 		MediaType mediaType  = eMEDIATYPE_VIDEO;
 
-		bool alreadyPushed = false;
-		pthread_mutex_lock(&drmProcessingMutex);
-		for (auto iterator = drmSessionDataPool_g.begin();  iterator != drmSessionDataPool_g.end(); iterator++){
-			if ((*iterator)->sessionData->drmHelper->compare(drmHelper)) {
-				alreadyPushed = true;
-				AAMPLOG_WARN("%s:%d DRM Infor already available , not sending request again",__FUNCTION__, __LINE__);
-				break;
-			}
-		}
-		if (!alreadyPushed){
+		if (drmHelper){
 			/** Push Drm Information for later use do not free the memory here*/
 			//AAMPLOG_INFO("%s:%d - Storing DRM Info at keyId %s",
 			//__FUNCTION__, __LINE__, keyId);
@@ -351,9 +337,7 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 			drmSessioData->processedKeyIdLen = keyIdLen;
 			drmSessioData->processedKeyId = (unsigned char *) malloc(keyIdLen + 1);
 			memcpy(drmSessioData->processedKeyId, keyId, keyIdLen);
-			drmSessionDataPool_g.push_back(drmSessioData);
 		}
-		pthread_mutex_unlock(&drmProcessingMutex);
 
 		if (keyId) {
 			free(keyId);
@@ -363,45 +347,6 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 	}while(0);
 	return drmSessioData;
 }
-
-/**
- * @brief Process content protection of track
- * @param TrackState object 
- * @param attribute list from manifest
- * @return none
- */
-void ReleaseContentProtectionCache(PrivateInstanceAAMP *aamp)
-{	
-	aamp->mDRMSessionManager->setLicenseRequestAbort(true);
-	ReleaseDRMLicenseAcquireThread(aamp);
-	DrmSessionDataInfo *drmSessioData = NULL;
-	pthread_mutex_lock(&drmProcessingMutex);
-	while (!drmSessionDataPool_g.empty())
-	{
-		drmSessioData = drmSessionDataPool_g.back();
-		drmSessionDataPool_g.pop_back();
-		// check if session Data is not NULL . This is not freed any other place
-		if( drmSessioData )
-		{
-			if( drmSessioData->sessionData )
-			{
-				if( drmSessioData->sessionData->initData)
-				{
-					free(drmSessioData->sessionData->initData);
-					drmSessioData->sessionData->initData = NULL;
-				}
-			}
-			if(drmSessioData->processedKeyId)
-			{
-				free(drmSessioData->processedKeyId);
-				drmSessioData->processedKeyId = NULL;
-			}
-			delete drmSessioData;
-		}
-	}
-	pthread_mutex_unlock(&drmProcessingMutex);
-}
-
 
 #else
 

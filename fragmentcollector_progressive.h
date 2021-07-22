@@ -41,6 +41,7 @@ public:
     ~StreamAbstractionAAMP_PROGRESSIVE();
     StreamAbstractionAAMP_PROGRESSIVE(const StreamAbstractionAAMP_PROGRESSIVE&) = delete;
     StreamAbstractionAAMP_PROGRESSIVE& operator=(const StreamAbstractionAAMP_PROGRESSIVE&) = delete;
+    double seekPosition;
     void DumpProfiles(void) override;
     void Start() override;
     void Stop(bool clearChannelData) override;
@@ -49,6 +50,7 @@ public:
     double GetStreamPosition() override;
     MediaTrack* GetMediaTrack(TrackType type) override;
     double GetFirstPTS() override;
+    double GetStartTimeOfFirstPTS() override;
     double GetBufferedDuration() override;
     bool IsInitialCachingSupported() override;
     int GetBWIndex(long bitrate) override;

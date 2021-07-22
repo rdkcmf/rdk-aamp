@@ -145,7 +145,7 @@ public:
 	 * @param[in] maxSz - box size
 	 * @return newly constructed Box object
 	 */
-	static Box* constructBox(uint8_t *hdr, uint32_t maxSz);
+	static Box* constructBox(uint8_t *hdr, uint32_t maxSz, bool correctBoxSize = false); 
 };
 
 

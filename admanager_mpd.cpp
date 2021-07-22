@@ -637,10 +637,10 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 	uint64_t startMS = 0;
 	uint32_t durationMs = 0;
 	bool finalManifest = false;
+	std::lock_guard<std::mutex> lock( mDaiMtx );
 	MPD *ad = GetAdMPD(mAdFulfillObj.url, finalManifest, true);
 	if(ad)
 	{
-		std::lock_guard<std::mutex> lock(mDaiMtx);
 		auto periodId = mAdFulfillObj.periodId;
 		if(ad->GetPeriods().size() && isAdBreakObjectExist(periodId))	// Ad has periods && ensuring that the adbreak still exists
 		{

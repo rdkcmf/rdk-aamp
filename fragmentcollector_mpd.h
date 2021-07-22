@@ -138,22 +138,6 @@ public :
 
 };
 
-/**
- * @struct PeriodInfo
- * @brief Stores details about available periods in mpd
- */
-
-struct PeriodInfo {
-	std::string periodId;
-	uint64_t startTime;
-	uint32_t timeScale;
-	double duration;
-
-	PeriodInfo() : periodId(""), startTime(0), duration(0.0), timeScale(0)
-	{
-	}
-};
-
 
 /**
  * @class StreamAbstractionAAMP_MPD
@@ -174,6 +158,7 @@ public:
 	double GetStreamPosition() override;
 	MediaTrack* GetMediaTrack(TrackType type) override;
 	double GetFirstPTS() override;
+	double GetStartTimeOfFirstPTS() override;
 	int GetBWIndex(long bitrate) override;
 	std::vector<long> GetVideoBitrates(void) override;
 	std::vector<long> GetAudioBitrates(void) override;
@@ -197,6 +182,7 @@ public:
 	bool FetchFragment( class MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance, bool discontinuity = false );
 	bool PushNextFragment( class MediaStreamContext *pMediaStreamContext, unsigned int curlInstance);
 	double GetFirstPeriodStartTime(void);
+	void StartSubtitleParser() override;
 
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
@@ -206,7 +192,7 @@ private:
 	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false, bool reportBulkMet = false);
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit, bool reportBulkMeta=false);
 	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID,bool isInit, bool reportBulkMeta=false);
-	bool ProcessEventStream(uint64_t startMS, IPeriod * period);
+	bool ProcessEventStream(uint64_t startMS, IPeriod * period, bool reportBulkMeta);
 	void ProcessStreamRestrictionList(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void ProcessStreamRestriction(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
@@ -260,11 +246,12 @@ private:
 	double mPeriodEndTime;
 	double mPeriodStartTime;
 	double mPeriodDuration;
-	int64_t mMinUpdateDurationMs;
+	uint64_t mMinUpdateDurationMs;
 	double mTSBDepth;
 	double mPresentationOffsetDelay;
 	uint64_t mLastPlaylistDownloadTimeMs;
 	double mFirstPTS;
+	double mStartTimeOfFirstPTS;
 	double mVideoPosRemainder;
 	double mFirstFragPTS[AAMP_TRACK_COUNT];
 	AudioType mAudioType;
@@ -278,7 +265,6 @@ private:
 	std::map<int, struct ProfileInfo> mProfileMaps;
 	
 	bool mIsFogTSB;
-	vector<struct PeriodInfo> mMPDPeriodsInfo;
 	IPeriod *mCurrentPeriod;
 	std::string mBasePeriodId;
 	double mBasePeriodOffset;
@@ -305,7 +291,7 @@ private:
 	double GetPeriodDuration(IMPD *mpd, int periodIndex);
 	double GetPeriodEndTime(IMPD *mpd, int periodIndex, uint64_t mpdRefreshTime);
 
-	bool isAdbreakStart(IPeriod *period, uint32_t &duration, uint64_t &startMS, std::string &scte35);
+	bool isAdbreakStart(IPeriod *period, uint64_t &startMS, std::vector<std::pair<std::string, uint32_t>> &scte35Vec);
 	bool onAdEvent(AdEvent evt);
 	bool onAdEvent(AdEvent evt, double &adOffset);
 	

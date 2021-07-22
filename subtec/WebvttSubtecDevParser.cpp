@@ -148,12 +148,12 @@ void WebVTTSubtecDevParser::updateTimestamp(unsigned long long positionMs)
 	m_channel->SendTimestampPacket(positionMs);
 }
 
-bool WebVTTSubtecDevParser::init(double startPos, unsigned long long basePTS)
+bool WebVTTSubtecDevParser::init(double startPosSeconds, unsigned long long basePTS)
 {
 	bool ret = true;
 	mVttQueueIdleTaskId = -1;
 
-	ret = WebVTTParser::init(startPos, 0);
+	ret = WebVTTParser::init(startPosSeconds, 0);
 	mVttQueueIdleTaskId = 0;
 
 	m_channel->SendTimestampPacket(static_cast<uint64_t>(basePTS));
