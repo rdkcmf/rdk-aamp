@@ -138,8 +138,6 @@ struct AAMPGstPlayerPriv
 	std::atomic<bool> firstProgressCallbackIdleTaskPending; //Set if any first progress callback is pending.
 	guint periodicProgressCallbackIdleTaskId; //ID of timed handler created for notifying progress events.
 	guint bufferingTimeoutTimerId; //ID of timer handler created for buffering timeout.
-	guint id3MetadataCallbackIdleTaskId; //ID of handler created to send ID3 metadata events
-	std::atomic<bool> id3MetadataCallbackTaskPending; //Set if an id3 metadata callback is pending
 	GstElement *video_dec; //Video decoder used by pipeline.
 	GstElement *audio_dec; //Audio decoder used by pipeline.
 	GstElement *video_sink; //Video sink used by pipeline.
@@ -186,8 +184,6 @@ struct AAMPGstPlayerPriv
 #if defined(REALTEKCE)
 	bool firstTuneWithWesterosSinkOff; 	// DELIA-33640: track if first tune was done for Realtekce build
 #endif
-	int32_t lastId3DataLen; // last sent ID3 data length
-	uint8_t *lastId3Data; // ptr with last sent ID3 data
 	long long decodeErrorMsgTimeMS; //Timestamp when decode error message last posted
 	int decodeErrorCBCount; //Total decode error cb received within thresold time
 	bool progressiveBufferingEnabled;
@@ -196,8 +192,7 @@ struct AAMPGstPlayerPriv
 	AAMPGstPlayerPriv() : pipeline(NULL), bus(NULL), current_rate(0),
 			total_bytes(0), n_audio(0), current_audio(0), firstProgressCallbackIdleTaskId(0),
 			firstProgressCallbackIdleTaskPending(false), periodicProgressCallbackIdleTaskId(0),
-			bufferingTimeoutTimerId(0), id3MetadataCallbackIdleTaskId(0),
-			id3MetadataCallbackTaskPending(false), video_dec(NULL), audio_dec(NULL),
+			bufferingTimeoutTimerId(0), video_dec(NULL), audio_dec(NULL),
 			video_sink(NULL), audio_sink(NULL),
 #ifdef INTELCE_USE_VIDRENDSINK
 			video_pproc(NULL),
@@ -215,7 +210,7 @@ struct AAMPGstPlayerPriv
 			lastKnownPTS(0), ptsUpdatedTimeMS(0), ptsCheckForEosOnUnderflowIdleTaskId(0),
 			numberOfVideoBuffersSent(0), segmentStart(0), positionQuery(NULL), durationQuery(NULL),
 			paused(false), pipelineState(GST_STATE_NULL), firstVideoFrameDisplayedCallbackIdleTaskId(0),
-			firstVideoFrameDisplayedCallbackIdleTaskPending(false), lastId3DataLen(0), lastId3Data(NULL),
+			firstVideoFrameDisplayedCallbackIdleTaskPending(false),
 #if defined(REALTEKCE)
 			firstTuneWithWesterosSinkOff(false),
 #endif
@@ -242,27 +237,6 @@ struct AAMPGstPlayerPriv
 		}
 	}
 };
-
-/**
- * @class Id3CallbackData
- * @brief Holds id3 metadata callback specific variables.
- */
-class Id3CallbackData
-{
-public:
-	Id3CallbackData(class AAMPGstPlayer *instance, const uint8_t* ptr, uint32_t len) : _this(instance), data()
-	{
-		data = std::vector<uint8_t>(ptr, ptr + len);
-	}
-	Id3CallbackData() = delete;
-	Id3CallbackData(const Id3CallbackData&) = delete;
-	Id3CallbackData& operator=(const Id3CallbackData&) = delete;
-
-	class AAMPGstPlayer* _this; // AAMPGstPlayer instance
-	std::vector<uint8_t> data; //id3 metadata
-};
-
-
 
 static const char* GstPluginNamePR = "aampplayreadydecryptor";
 static const char* GstPluginNameWV = "aampwidevinedecryptor";
@@ -579,23 +553,6 @@ static gboolean IdleCallbackOnEOS(gpointer user_data)
 	return G_SOURCE_REMOVE;
 }
 
-/**
- * @brief Idle callback to notify ID3 metadata event
- * @param[in] user_data pointer to Id3CallbackData object containing AAMPGstPlayer instance
- * @retval G_SOURCE_REMOVE, if the source should be removed
- */
-static gboolean IdleCallbackOnId3Metadata(gpointer user_data)
-{
-	Id3CallbackData *id3 = (Id3CallbackData*)user_data;
-
-	id3->_this->aamp->SendId3MetadataEvent(id3->data);
-	id3->_this->privateContext->id3MetadataCallbackTaskPending = false;
-	id3->_this->privateContext->id3MetadataCallbackIdleTaskId = 0;
-
-	delete id3;
-
-	return G_SOURCE_REMOVE;
-}
 
 
 /**
@@ -2207,27 +2164,12 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len0))
 	{
 		uint32_t len = getId3TagSize(static_cast<const uint8_t*>(ptr), len0);
-		if (len && (len != privateContext->lastId3DataLen ||
-					!privateContext->lastId3Data ||
-					(memcmp(ptr, privateContext->lastId3Data, privateContext->lastId3DataLen) != 0)))
+		if (len && (len != aamp->lastId3DataLen ||
+					!aamp->lastId3Data ||
+					(memcmp(ptr, aamp->lastId3Data, aamp->lastId3DataLen) != 0)))
 		{
 			AAMPLOG_INFO("AAMPGstPlayer %s: Found new ID3 frame",__FUNCTION__);
-			FlushLastId3Data();
-			Id3CallbackData* id3Metadata = new Id3CallbackData(this, static_cast<const uint8_t*>(ptr), len);
-			privateContext->lastId3Data = (uint8_t*)g_malloc(len);
-			if (privateContext->lastId3Data)
-			{
-				privateContext->lastId3DataLen = len;
-				memcpy(privateContext->lastId3Data, ptr, len);
-			}
-
-			privateContext->id3MetadataCallbackTaskPending = true;
-			privateContext->id3MetadataCallbackIdleTaskId = aamp->ScheduleAsyncTask(IdleCallbackOnId3Metadata, (void *)id3Metadata);
-			if (!privateContext->id3MetadataCallbackTaskPending)
-			{
-				logprintf("%s:%d id3MetadataCallbackTask already finished, reset id", __FUNCTION__, __LINE__);
-				privateContext->id3MetadataCallbackIdleTaskId = 0;
-			}
+			aamp->ReportID3Metadata(static_cast<const uint8_t*>(ptr), len0);
 		}
 	}
 
@@ -2704,15 +2646,6 @@ void AAMPGstPlayer::DisconnectCallbacks()
 	}
 }
 
-void AAMPGstPlayer::FlushLastId3Data()
-{
-	if(privateContext->lastId3Data)
-	{
-		privateContext->lastId3DataLen = 0;
-		g_free(privateContext->lastId3Data);
-		privateContext->lastId3Data = NULL;
-	}
-}
 
 /**
  * @brief Stop playback and any idle handlers active at the time
@@ -2782,13 +2715,6 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 		privateContext->firstFrameCallbackIdleTaskPending = false;
 		privateContext->firstFrameCallbackIdleTaskId = 0;
 	}
-	if (this->privateContext->id3MetadataCallbackTaskPending)
-	{
-		logprintf("AAMPGstPlayer::%s %d > Remove id3MetadataCallbackIdleTaskId %d", __FUNCTION__, __LINE__, privateContext->id3MetadataCallbackIdleTaskId);
-		aamp->RemoveAsyncTask(privateContext->id3MetadataCallbackIdleTaskId);
-		privateContext->id3MetadataCallbackTaskPending = false;
-		privateContext->id3MetadataCallbackIdleTaskId = 0;
-	}
 	if (this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending)
 	{
 		logprintf("AAMPGstPlayer::%s %d > Remove firstVideoFrameDisplayedCallbackIdleTaskId %d", __FUNCTION__, __LINE__, privateContext->firstVideoFrameDisplayedCallbackIdleTaskId);
@@ -2828,7 +2754,6 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	privateContext->segmentStart = 0;
 	privateContext->paused = false;
 	privateContext->pipelineState = GST_STATE_NULL;
-	FlushLastId3Data();
 	logprintf("exiting AAMPGstPlayer_Stop");
 }
 

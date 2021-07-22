@@ -201,7 +201,7 @@ public:
 			MediaTrack(type, aamp, name),
 			mediaType((MediaType)type), adaptationSet(NULL), representation(NULL),
 			fragmentIndex(0), timeLineIndex(0), fragmentRepeatCount(0), fragmentOffset(0),
-			eos(false), fragmentTime(0), periodStartOffset(0), index_ptr(NULL), index_len(0),
+			eos(false), fragmentTime(0), periodStartOffset(0), timeStampOffset(0), index_ptr(NULL), index_len(0),
 			lastSegmentTime(0), lastSegmentNumber(0), lastSegmentDuration(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
 			adaptationSetId(0), fragmentDescriptor(), context(ctx), initialization(""),
 			mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true),
@@ -251,6 +251,7 @@ public:
 	 */
 	void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded)
 	{
+		aamp->ProcessID3Metadata(cachedFragment->fragment.ptr, cachedFragment->fragment.len, (MediaType) type, timeStampOffset);
 		aamp->SendStream((MediaType)type, &cachedFragment->fragment,
 					cachedFragment->position, cachedFragment->position, cachedFragment->duration);
 		fragmentDiscarded = false;
@@ -535,6 +536,7 @@ public:
 	double fragmentTime;
 	double downloadedDuration;
 	double periodStartOffset;
+	uint64_t timeStampOffset;
 	char *index_ptr;
 	size_t index_len;
 	uint64_t lastSegmentTime;
@@ -1356,6 +1358,14 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					// ->During period change or start of playback , fragmentDescriptor.Time=0. Need to
 					//      update with PTSOffset
 					uint64_t presentationTimeOffset = segmentTemplates.GetPresentationTimeOffset();
+					uint32_t tScale = segmentTemplates.GetTimescale();
+					uint64_t periodStart = 0;
+					string startTimeStr = mpd->GetPeriods().at(mCurrentPeriodIdx)->GetStart();
+					if(!startTimeStr.empty())
+					{
+						periodStart = (ParseISO8601Duration(startTimeStr.c_str()) / 10000);
+					}
+					pMediaStreamContext->timeStampOffset = (periodStart - (presentationTimeOffset/tScale));
 					if (presentationTimeOffset > 0 && pMediaStreamContext->lastSegmentDuration ==  0
 						&& pMediaStreamContext->fragmentDescriptor.Time == 0)
 					{

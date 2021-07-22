@@ -25,6 +25,31 @@
 #include "isobmffbox.h"
 #include "AampConfig.h"
 #include <stddef.h>
+#include <inttypes.h>
+
+/**
+ * @brief Read a string from buffer and return it
+ *
+ * @param[in] buffer Buffer to read
+ * @param[in] lenth String length
+ * @param[in] Length of string
+ */
+uint32_t ReadCStringLen(const uint8_t* buffer, uint32_t bufferLen)
+{
+	int retLen = -1;
+	if(buffer && bufferLen > 0)
+	{
+		for(int i=0; i < bufferLen; i++)
+		{
+			if(buffer[i] == '\0')
+			{
+				retLen = i+1;
+				break;
+			}
+		}
+	}
+	return retLen;
+}
 
 /**
  * @brief Utility function to read 8 bytes from a buffer
@@ -187,6 +212,10 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, bool correctBoxSize)
 	else if (IS_TYPE(type, MDHD))
 	{
 		return MdhdBox::constructMdhdBox(size,  hdr);
+	}
+	else if (IS_TYPE(type, EMSG))
+	{
+		return EmsgBox::constructEmsgBox(size, hdr);
 	}
 
 	return new Box(size, (const char *)type);
@@ -488,4 +517,338 @@ TfdtBox* TfdtBox::constructTfdtBox(uint32_t sz, uint8_t *ptr)
 	}
 	FullBox fbox(sz, Box::TFDT, version, flags);
 	return new TfdtBox(fbox, mdt);
+}
+
+
+/**
+ * @brief EmsgBox constructor
+ *
+ * @param[in] sz - box size
+ * @param[in] tScale - TimeScale value
+ */
+EmsgBox::EmsgBox(uint32_t sz, uint32_t tScale, uint32_t evtDur, uint32_t _id) : FullBox(sz, Box::EMSG, 0, 0)
+	, timeScale(tScale), eventDuration(evtDur), id(_id)
+	, presetationTimeDelta(0), presentationTime(0)
+	, schemeIdUri(nullptr), value(nullptr), messageData(nullptr), messageLen(0)
+{
+
+}
+
+/**
+ * @brief EmsgBox constructor
+ *
+ * @param[in] fbox - box object
+ * @param[in] tScale - TimeScale value
+ * @param[in] evtDur - eventDuration value
+ * @param[in] _id - id value
+ */
+EmsgBox::EmsgBox(FullBox &fbox, uint32_t tScale, uint32_t evtDur, uint32_t _id, uint64_t presTime, uint32_t presTimeDelta) : FullBox(fbox)
+	, timeScale(tScale), eventDuration(evtDur), id(_id)
+	, presetationTimeDelta(presTimeDelta), presentationTime(presTime)
+	, schemeIdUri(nullptr), value(nullptr), messageData(nullptr), messageLen(0)
+{
+
+}
+
+/**
+ * @brief EmsgBox dtor
+ */
+EmsgBox::~EmsgBox()
+{
+	if (messageData)
+	{
+		free(messageData);
+	}
+
+	if (schemeIdUri)
+	{
+		free(schemeIdUri);
+	}
+
+	if (value)
+	{
+		free(value);
+	}
+}
+
+/**
+ * @brief Set TimeScale value
+ *
+ * @param[in] tScale - TimeScale value
+ * @return void
+ */
+void EmsgBox::setTimeScale(uint32_t tScale)
+{
+	timeScale = tScale;
+}
+
+/**
+ * @brief Get TimeScale value
+ *
+ * @return TimeScale value
+ */
+uint32_t EmsgBox::getTimeScale()
+{
+	return timeScale;
+}
+
+/**
+ * @brief Set eventDuration value
+ *
+ * @param[in] evtDur - eventDuration value
+ * @return void
+ */
+void EmsgBox::setEventDuration(uint32_t evtDur)
+{
+	eventDuration = evtDur;
+}
+
+/**
+ * @brief Get eventDuration
+ *
+ * @return eventDuration value
+ */
+uint32_t EmsgBox::getEventDuration()
+{
+	return eventDuration;
+}
+
+/**
+ * @brief Set id
+ *
+ * @param[in] _id - id
+ * @return void
+ */
+void EmsgBox::setId(uint32_t _id)
+{
+	id = _id;
+}
+
+/**
+ * @brief Get id
+ *
+ * @return id value
+ */
+uint32_t EmsgBox::getId()
+{
+	return id;
+}
+
+/**
+ * @brief Set presentationTimeDelta
+ *
+ * @param[in] presTimeDelta - presTimeDelta
+ * @return void
+ */
+void EmsgBox::setPresentationTimeDelta(uint32_t presTimeDelta)
+{
+	presetationTimeDelta = presTimeDelta;
+}
+
+/**
+ * @brief Get presentationTimeDelta
+ *
+ * @return presentationTimeDelta value
+ */
+uint32_t EmsgBox::getPresentationTimeDelta()
+{
+	return presetationTimeDelta;
+}
+
+/**
+ * @brief Set presentationTimeD
+ *
+ * @param[in] presTime - presTime
+ * @return void
+ */
+void EmsgBox::setPresentationTime(uint64_t presTime)
+{
+	presentationTime = presTime;
+}
+
+/**
+ * @brief Get presentationTime
+ *
+ * @return presetationTime value
+ */
+uint64_t EmsgBox::getPresentationTime()
+{
+	return presentationTime;
+}
+
+/**
+ * @brief Set schemeIdUri
+ *
+ * @param[in] schemeIdUri - schemeIdUri pointer
+ * @return void
+ */
+void EmsgBox::setSchemeIdUri(uint8_t* schemeIdURI)
+{
+	schemeIdUri = schemeIdURI;
+}
+
+/**
+ * @brief Get schemeIdUri
+ *
+ * @return schemeIdUri value
+ */
+uint8_t* EmsgBox::getSchemeIdUri()
+{
+	return schemeIdUri;
+}
+
+/**
+ * @brief Set value
+ *
+ * @param[in] value - value pointer
+ * @return void
+ */
+void EmsgBox::setValue(uint8_t* schemeIdValue)
+{
+	value = schemeIdValue;
+}
+
+/**
+ * @brief Get value
+ *
+ * @return schemeIdUri value
+ */
+uint8_t* EmsgBox::getValue()
+{
+	return value;
+}
+
+/**
+ * @brief Set Message
+ *
+ * @param[in] value - Message pointer
+ * @return void
+ */
+void EmsgBox::setMessage(uint8_t* message, uint32_t len)
+{
+	messageData = message;
+	messageLen = len;
+}
+
+/**
+ * @brief Get Message
+ *
+ * @return messageData
+ */
+uint8_t* EmsgBox::getMessage()
+{
+	return messageData;
+}
+
+/**
+ * @brief Get Message length
+ *
+ * @return messageLen
+ */
+uint32_t EmsgBox::getMessageLen()
+{
+	return messageLen;
+}
+
+/**
+ * @brief Static function to construct a EmsgBox object
+ *
+ * @param[in] sz - box size
+ * @param[in] ptr - pointer to box
+ * @return newly constructed EmsgBox object
+ */
+EmsgBox* EmsgBox::constructEmsgBox(uint32_t sz, uint8_t *ptr)
+{
+	uint8_t version = READ_VERSION(ptr);
+	uint32_t flags  = READ_FLAGS(ptr);
+	// Calculationg remaining size,
+	// flags(3bytes)+ version(1byte)+ box_header(type and size)(8bytes)
+	uint32_t remainingSize = sz - ((sizeof(uint32_t))+(sizeof(uint64_t)));
+
+	uint64_t presTime = 0;
+	uint32_t presTimeDelta = 0;
+	uint32_t tScale;
+	uint32_t evtDur;
+	uint32_t boxId;
+
+	uint8_t* schemeId = nullptr;
+	uint8_t* schemeIdValue = nullptr;
+
+	uint8_t* message = nullptr;
+
+	/*
+	 * Extraction is done as per https://aomediacodec.github.io/id3-emsg/
+	 */
+	if (1 == version)
+	{
+		tScale = READ_U32(ptr);
+		// Read 64 bit value
+		presTime = READ_64(ptr);
+		evtDur = READ_U32(ptr);
+		boxId = READ_U32(ptr);
+		remainingSize -=  ((sizeof(uint32_t)*3) + sizeof(uint64_t));
+		uint32_t schemeIdLen = ReadCStringLen(ptr, remainingSize);
+		if(schemeIdLen > 0)
+		{
+			schemeId = (uint8_t*) malloc(sizeof(uint8_t)*schemeIdLen);
+			READ_U8(schemeId, ptr, schemeIdLen);
+			remainingSize -= (sizeof(uint8_t) * schemeIdLen);
+			uint32_t schemeIdValueLen = ReadCStringLen(ptr, remainingSize);
+			if (schemeIdValueLen > 0)
+			{
+				schemeIdValue = (uint8_t*) malloc(sizeof(uint8_t)*schemeIdValueLen);
+				READ_U8(schemeIdValue, ptr, schemeIdValueLen);
+				remainingSize -= (sizeof(uint8_t) * schemeIdValueLen);
+			}
+		}
+	}
+	else // version 0
+	{
+		uint32_t schemeIdLen = ReadCStringLen(ptr, remainingSize);
+		if(schemeIdLen)
+		{
+			schemeId = (uint8_t*) malloc(sizeof(uint8_t)*schemeIdLen);
+			READ_U8(schemeId, ptr, schemeIdLen);
+			remainingSize -= (sizeof(uint8_t) * schemeIdLen);
+			uint32_t schemeIdValueLen = ReadCStringLen(ptr, remainingSize);
+			if (schemeIdValueLen)
+			{
+				schemeIdValue = (uint8_t*) malloc(sizeof(uint8_t)*schemeIdValueLen);
+				READ_U8(schemeIdValue, ptr, schemeIdValueLen);
+				remainingSize -= (sizeof(uint8_t) * schemeIdValueLen);
+			}
+		}
+		tScale = READ_U32(ptr);
+		presTimeDelta = READ_U32(ptr);
+		evtDur = READ_U32(ptr);
+		boxId = READ_U32(ptr);
+		remainingSize -= (sizeof(uint32_t)*4);
+	}
+
+	FullBox fbox(sz, Box::EMSG, version, flags);
+	EmsgBox* retBox = new EmsgBox(fbox, tScale, evtDur, boxId, presTime, presTimeDelta);
+	if(retBox)
+	{
+		// Extract remaining message
+		if(remainingSize > 0)
+		{
+			message = (uint8_t*) malloc(sizeof(uint8_t)*remainingSize);
+			READ_U8(message, ptr, remainingSize);
+			if(message)
+			{
+				retBox->setMessage(message, remainingSize);
+			}
+		}
+
+		// Save schemeIdUri and value if present
+		if (schemeId)
+		{
+			retBox->setSchemeIdUri(schemeId);
+			if(schemeIdValue)
+			{
+				retBox->setValue(schemeIdValue);
+			}
+		}
+	}
+	return retBox;
 }

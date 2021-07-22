@@ -32,6 +32,9 @@
 #define READ_U32(buf) \
 	(buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3]; buf+=4;
 
+#define WRITE_U64(buf, val) \
+	buf[0]= val>>56; buf[1]= val>>48; buf[2]= val>>40; buf[3]= val>>32; buf[4]= val>>24; buf[5]= val>>16; buf[6]= val>>8; buf[7]= val;
+
 #define WRITE_U32(buf, val) \
 	buf[0]= val>>24; buf[1]= val>>16; buf[2]= val>>8; buf[3]= val;
 
@@ -48,8 +51,13 @@ uint64_t ReadUint64(uint8_t *buf);
 
 void WriteUint64(uint8_t *dst, uint64_t val);
 
+uint32_t ReadCStringLen(const uint8_t* buffer, uint32_t bufferLen);
+
 #define READ_BMDT64(buf) \
 		ReadUint64(buf); buf+=8;
+
+#define READ_64(buf) \
+                ReadUint64(buf); buf+=8;
 
 #define IS_TYPE(value, type) \
 		(value[0]==type[0] && value[1]==type[1] && value[2]==type[2] && value[3]==type[3])
@@ -72,6 +80,7 @@ public:
 	static constexpr const char *TRAK = "trak";
 	static constexpr const char *MDIA = "mdia";
 	static constexpr const char *MDHD = "mdhd";
+	static constexpr const char *EMSG = "emsg";
 
 	static constexpr const char *MOOF = "moof";
 	static constexpr const char *TRAF = "traf";
@@ -379,6 +388,199 @@ public:
 	 * @return newly constructed TfdtBox object
 	 */
 	static TfdtBox* constructTfdtBox(uint32_t sz, uint8_t *ptr);
+};
+
+/**
+ * @brief Class for ISO BMFF EMSG Box
+ */
+class EmsgBox : public FullBox
+{
+private:
+	uint32_t timeScale;
+	uint32_t eventDuration;
+	uint32_t id;
+	uint32_t presetationTimeDelta; // This is added in emsg box v1
+	uint64_t presentationTime;	// This is included in emsg box v0
+	uint8_t* schemeIdUri;
+	uint8_t* value;
+	// Message data
+	uint8_t* messageData;
+	uint32_t messageLen;
+
+public:
+	/**
+	 * @brief EmsgBox constructor
+	 *
+	 * @param[in] sz - box size
+	 * @param[in] tScale - TimeScale value
+	 * @param[in] evtDur - eventDuration value
+	 * @param[in] _id - id value
+	 */
+	EmsgBox(uint32_t sz, uint32_t tScale, uint32_t evtDur, uint32_t _id);
+
+	/**
+	 * @brief EmsgBox constructor
+	 *
+	 * @param[in] fbox - box object
+	 * @param[in] tScale - TimeScale value
+	 * @param[in] evtDur - eventDuration value
+	 * @param[in] _id - id value
+	 * @param[in] presTime - presentationTime value
+	 * @param[in] presTimeDelta - presentationTimeDelta value
+	 */
+	EmsgBox(FullBox &fbox, uint32_t tScale, uint32_t evtDur, uint32_t _id, uint64_t presTime, uint32_t presTimeDelta);
+
+	/**
+	 * @brief EmsgBox dtor
+	 */
+	~EmsgBox();
+
+	/**
+	 * @brief EmsgBox copy constructor
+	 */
+	EmsgBox(const EmsgBox&) = delete;
+
+	/**
+	 * @brief EmsgBox =operator overloading
+	 */
+	EmsgBox& operator=(const EmsgBox&) = delete;
+
+	/**
+	 * @brief Set TimeScale value
+	 *
+	 * @param[in] tScale - TimeScale value
+	 * @return void
+	 */
+	void setTimeScale(uint32_t tScale);
+
+	/**
+	 * @brief Get schemeIdUri
+	 *
+	 * @return TimeScale value
+	 */
+	uint32_t getTimeScale();
+
+	/**
+	 * @brief Set eventDuration value
+	 *
+	 * @param[in] evtDur - eventDuration value
+	 * @return void
+	 */
+	void setEventDuration(uint32_t evtDur);
+
+	/**
+	 * @brief Get eventDuration
+	 *
+	 * @return eventDuration value
+	 */
+	uint32_t getEventDuration();
+
+	/**
+	 * @brief Set id
+	 *
+	 * @param[in] _id - id
+	 * @return void
+	 */
+	void setId(uint32_t _id);
+
+	/**
+	 * @brief Get id
+	 *
+	 * @return id value
+	 */
+	uint32_t getId();
+
+	/**
+	 * @brief Set presentationTimeDelta
+	 *
+	 * @param[in] presTimeDelta - presTimeDelta
+	 * @return void
+	 */
+	void setPresentationTimeDelta(uint32_t presTimeDelta);
+
+	/**
+	 * @brief Get presentationTimeDelta
+	 *
+	 * @return presetationTimeDelta value
+	 */
+	uint32_t getPresentationTimeDelta();
+
+	/**
+	 * @brief Set presentationTimeD
+	 *
+	 * @param[in] presTime - presTime
+	 * @return void
+	 */
+	void setPresentationTime(uint64_t presTime);
+
+	/**
+	 * @brief Get presentationTime
+	 *
+	 * @return presetationTime value
+	 */
+	uint64_t getPresentationTime();
+
+	/**
+	 * @brief Set schemeIdUri
+	 *
+	 * @param[in] schemeIdUri - schemeIdUri pointer
+	 * @return void
+	 */
+	void setSchemeIdUri(uint8_t* schemeIdURI);
+
+	/**
+	 * @brief Get schemeIdUri
+	 *
+	 * @return schemeIdUri value
+	 */
+	uint8_t* getSchemeIdUri();
+
+	/**
+	 * @brief Set value
+	 *
+	 * @param[in] value - value pointer
+	 * @return void
+	 */
+	void setValue(uint8_t* schemeIdValue);
+
+	/**
+	 * @brief Get value
+	 *
+	 * @return schemeIdUri value
+	 */
+	uint8_t* getValue();
+
+	/**
+	 * @brief Set Message
+	 *
+	 * @param[in] message - Message pointer
+	 * @param[in] len - Message length
+	 * @return void
+	 */
+	void setMessage(uint8_t* message, uint32_t len);
+
+	/**
+	 * @brief Get Message
+	 *
+	 * @return messageData
+	 */
+	uint8_t* getMessage();
+
+	/**
+	 * @brief Get Message length
+	 *
+	 * @return messageLen
+	 */
+	uint32_t getMessageLen();
+
+	/**
+	 * @brief Static function to construct a EmsgBox object
+	 *
+	 * @param[in] sz - box size
+	 * @param[in] ptr - pointer to box
+	 * @return newly constructed EmsgBox object
+	 */
+	static EmsgBox* constructEmsgBox(uint32_t sz, uint8_t *ptr);
 };
 
 #endif /* __ISOBMFFBOX_H__ */
