@@ -7571,7 +7571,11 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							if( segmentTemplates.HasSegmentTemplate() )
 							{
 								uint64_t segmentStartTime = GetFirstSegmentStartTime(mCurrentPeriod);
-								if( segmentTemplates.GetSegmentTimeline() != NULL && nextSegmentTime != segmentStartTime )
+								/* Process the discontinuity,
+								 * 1. If the next segment time is not matching with the next period segment start time.
+								 * 2. To reconfigure the pipeline, if there is a change in the Audio Codec even if there is no change in segment start time in multi period content.
+								 */
+								if((segmentTemplates.GetSegmentTimeline() != NULL && nextSegmentTime != segmentStartTime) || GetESChangeStatus())
 								{
 									logprintf("StreamAbstractionAAMP_MPD::%s:%d discontinuity detected nextSegmentTime %" PRIu64 " FirstSegmentStartTime %" PRIu64 " ", __FUNCTION__, __LINE__, nextSegmentTime, segmentStartTime);
 									discontinuity = true;
