@@ -5051,24 +5051,6 @@ void PrivateInstanceAAMP::NotifySinkBufferFull(MediaType type)
 	pthread_mutex_unlock(&mStreamLock);
 }
 
-bool PrivateInstanceAAMP::CheckIfMediaTrackBufferLow(MediaType type)
-{
-    if(type != eMEDIATYPE_VIDEO)
-        return false;
-
-    if(mpStreamAbstractionAAMP)
-    {
-        MediaTrack* video = mpStreamAbstractionAAMP->GetMediaTrack(eTRACK_VIDEO);
-        if(video && video->enabled)
-        {
-           //check if video buffer in red state for true underflow check
-           // if yes then return true;
-           if(BUFFER_STATUS_RED == video->GetBufferHealthStatus()) return true;
-        }
-    }
-    return false;
-}
-
 /**
  * @brief set a content type
  * @param[in] cType - content type 
