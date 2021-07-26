@@ -547,6 +547,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			aamp->mbPlayEnabled = true;
 			aamp->LogPlayerPreBuffered();
 			aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mAuxFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus(), aamp->mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
+			aamp->ResumeDownloads(); //To make sure that the playback resumes after a player switch if player was in paused state before being at background
 			aamp->mpStreamAbstractionAAMP->StartInjection();
 			aamp->mStreamSink->Stream();
 			aamp->pipeline_paused = false;
