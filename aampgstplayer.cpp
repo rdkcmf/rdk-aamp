@@ -2060,6 +2060,13 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 	segment.position = 0;
 	segment.rate = AAMP_NORMAL_PLAY_RATE;
 	segment.applied_rate = AAMP_NORMAL_PLAY_RATE;
+
+#if defined(AMLOGIC)
+	//AMLOGIC-2143 notify westerossink of rate to run in Vmaster mode
+	if (mediaType == eMEDIATYPE_VIDEO)
+		segment.applied_rate = privateContext->rate;
+#endif
+
 	logprintf("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
 	GstEvent* event = gst_event_new_segment (&segment);
 #else
