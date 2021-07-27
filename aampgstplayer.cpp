@@ -112,10 +112,11 @@ struct media_stream
 	bool bufferUnderrun;
 	bool eosReached;
 	bool sourceConfigured;
+	pthread_mutex_t sourceLock;
 
 	media_stream() : sinkbin(NULL), source(NULL), format(FORMAT_INVALID),
 			 using_playersinkbin(FALSE), flush(false), resetPosition(false),
-			 bufferUnderrun(false), eosReached(false), sourceConfigured(false)
+			 bufferUnderrun(false), eosReached(false), sourceConfigured(false), sourceLock(PTHREAD_MUTEX_INITIALIZER)
 	{
 
 	}
@@ -322,6 +323,8 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 
 		pthread_mutex_init(&mBufferingLock, NULL);
 		pthread_mutex_init(&mProtectionLock, NULL);
+		for (int i = 0; i < AAMP_TRACK_COUNT; i++)
+			pthread_mutex_init(&privateContext->stream[i].sourceLock, NULL);
 
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 		this->cbExportYUVFrame = exportFrames;
@@ -341,6 +344,8 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 AAMPGstPlayer::~AAMPGstPlayer()
 {
 	DestroyPipeline();
+	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
+		pthread_mutex_destroy(&privateContext->stream[i].sourceLock);
 	delete privateContext;
 	pthread_mutex_destroy(&mBufferingLock);
 	pthread_mutex_destroy(&mProtectionLock);
@@ -1804,6 +1809,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 	stream->flush = false;
 	if (stream->format != FORMAT_INVALID)
 	{
+		pthread_mutex_lock(&stream->sourceLock);
 		if (privateContext->pipeline)
 		{
 			privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
@@ -1845,6 +1851,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 		stream->sinkbin = NULL;
 		stream->source = NULL;
 		stream->sourceConfigured = false;
+		pthread_mutex_unlock(&stream->sourceLock);
 	}
 	if (mediaType == eMEDIATYPE_VIDEO)
 	{
@@ -2231,6 +2238,8 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 	// Make sure source element is present before data is injected
 	media_stream *stream = &privateContext->stream[mediaType];
 	//If format is FORMAT_INVALID, we don't know what we are doing here
+	pthread_mutex_lock(&stream->sourceLock);
+
 	if (!stream->sourceConfigured && stream->format != FORMAT_INVALID)
 	{
 		AAMPLOG_WARN("%s:%d Source element[%p] not configured, wait for setup to complete!", __FUNCTION__, __LINE__, stream->source);
@@ -2260,6 +2269,7 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			AAMPLOG_WARN("%s:%d Wait for source element setup %s!", __FUNCTION__, __LINE__, (timeRemaining < 0) ? "timedout" : "exited");
 			// What do we with the data buffer
 			// This flavour of Send() copies from data buffer so no need to free buffer
+			pthread_mutex_unlock(&stream->sourceLock);
 			return;
 		}
 	}
@@ -2366,6 +2376,9 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			AAMPLOG_WARN("%s:%d :  buffer is null", __FUNCTION__, __LINE__);  //CID:86190 - Null Returns
 		}
 	}
+
+	pthread_mutex_unlock(&stream->sourceLock);
+
 	if (eMEDIATYPE_VIDEO == mediaType)
 	{
 		// DELIA-42262: For westerossink, it will send first-video-frame-callback signal after each flush
