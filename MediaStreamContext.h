@@ -3,7 +3,7 @@
 
 #include "StreamAbstractionAAMP.h"
 #include "fragmentcollector_mpd.h"
-
+#include "isobmff/isobmffbuffer.h"
 /**
  * @class MediaStreamContext
  * @brief MPD media track
@@ -22,7 +22,7 @@ public:
             MediaTrack(type, aamp, name),
             mediaType((MediaType)type), adaptationSet(NULL), representation(NULL),
             fragmentIndex(0), timeLineIndex(0), fragmentRepeatCount(0), fragmentOffset(0),
-            eos(false), fragmentTime(0), periodStartOffset(0), index_ptr(NULL), index_len(0),
+            eos(false), fragmentTime(0), periodStartOffset(0), timeStampOffset(0), index_ptr(NULL), index_len(0),
             lastSegmentTime(0), lastSegmentNumber(0), lastSegmentDuration(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
             adaptationSetId(0), fragmentDescriptor(), context(ctx), initialization(""),
             mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true),
@@ -124,6 +124,7 @@ public:
     double fragmentTime;
     double downloadedDuration;
     double periodStartOffset;
+    uint64_t timeStampOffset;
     char *index_ptr;
     size_t index_len;
     uint64_t lastSegmentTime;

@@ -1154,9 +1154,13 @@ const std::string &MetricsDataEvent::getMetricsData() const
  * @brief ID3MetadataEvent Constructor
  *
  * @param[in] metadata - ID3 metadata
+ * @param[in] timeScale - timeScale od ID3 data
+ * @param[in] presentationTime - PTS value
+ * @param[in] eventDuration - eventDuration
+ * @param[in] id - id of ID3 data
  */
-ID3MetadataEvent::ID3MetadataEvent(const std::vector<uint8_t> &metadata):
-		AAMPEventObject(AAMP_EVENT_ID3_METADATA), mMetadata(metadata)
+ID3MetadataEvent::ID3MetadataEvent(const std::vector<uint8_t> &metadata, const std::string &schIDUri, std::string &id3Value, uint32_t timeScale, uint64_t presentationTime, uint32_t eventDuration, uint32_t id, uint64_t timestampOffset):
+		AAMPEventObject(AAMP_EVENT_ID3_METADATA), mMetadata(metadata), mId(id), mTimeScale(timeScale), mSchemeIdUri(schIDUri), mValue(id3Value), mEventDuration(eventDuration), mPresentationTime(presentationTime), mTimestampOffset(timestampOffset)
 {
 
 }
@@ -1179,6 +1183,76 @@ const std::vector<uint8_t> &ID3MetadataEvent::getMetadata() const
 int ID3MetadataEvent::getMetadataSize() const
 {
 	return mMetadata.size();
+}
+
+/**
+ * @brief Get TimeScale value
+ *
+ * @return TimeScale value
+ */
+uint32_t ID3MetadataEvent::getTimeScale() const
+{
+	return mTimeScale;
+}
+
+/**
+ * @brief Get eventDuration
+ *
+ * @return eventDuration value
+ */
+uint32_t ID3MetadataEvent::getEventDuration() const
+{
+	return mEventDuration;
+}
+
+/**
+ * @brief Get id
+ *
+ * @return id value
+ */
+uint32_t ID3MetadataEvent::getId() const
+{
+	return mId;
+}
+
+/**
+ * @brief Get presentationTime
+ *
+ * @return presentationTime value
+ */
+uint64_t ID3MetadataEvent::getPresentationTime() const
+{
+	return mPresentationTime;
+}
+
+/**
+ * @brief Get timestampOffset
+ *
+ * @return timestampOffset value
+ */
+uint64_t ID3MetadataEvent::getTimestampOffset() const
+{
+        return mTimestampOffset;
+}
+
+/**
+ * @brief Get schemeIdUri
+ *
+ * @return schemeIdUri value
+ */
+const std::string& ID3MetadataEvent::getSchemeIdUri() const
+{
+	return mSchemeIdUri;
+}
+
+/**
+ * @brief Get value
+ *
+ * @return schemeIdUri value
+ */
+const std::string& ID3MetadataEvent::getValue() const
+{
+	return mValue;
 }
 
 /*

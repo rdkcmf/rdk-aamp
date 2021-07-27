@@ -82,27 +82,6 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 
 	AAMPLOG_TRACE("IsoBmffProcessor::%s() %d [%s] sending segment at pos:%f dur:%f", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], position, duration);
 
-	// Logic for ID3 metadata
-	if(segment)
-	{
-		IsoBmffBuffer buffer;
-		buffer.setBuffer((uint8_t *)segment, size);
-		buffer.parseBuffer();
-		if(!buffer.isInitSegment())
-		{
-			uint8_t* message = nullptr;
-			uint32_t messageLen = 0;
-			if(buffer.getMessageData(message, messageLen))
-			{
-				if(message && messageLen > 0 && hasId3Header(message, messageLen))
-				{
-					AAMPLOG_TRACE("IsoBmffProcessor::%s()::%d Found ID3 metadata[%s]", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type]);
-					p_aamp->ReportID3Metadata(message, messageLen);
-				}
-			}
-		}
-	}
-
 	// Logic for Audio Track
 	if (type == eBMFFPROCESSOR_TYPE_AUDIO)
 	{
@@ -259,6 +238,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 
 	if (ret)
 	{
+		p_aamp->ProcessID3Metadata(segment, size, (MediaType)type);
 		p_aamp->SendStreamCopy((MediaType)type, segment, size, position, position, duration);
 	}
 	return true;
@@ -384,23 +364,3 @@ void IsoBmffProcessor::clearInitSegment()
 	}
 }
 
-
-/**
- * @brief Check if segment starts with an ID3 section
- *
- * @param[in] data pointer to segment buffer
- * @param[in] length length of segment buffer
- * @retval true if segment has an ID3 section
- */
-bool IsoBmffProcessor::hasId3Header(const uint8_t* data, uint32_t length)
-{
-		if (length >= 3)
-		{
-			/* Check file identifier ("ID3" = ID3v2) and major revision matches (>= ID3v2.2.x). */
-			if (*data++ == 'I' && *data++ == 'D' && *data++ == '3' && *data++ >= 2)
-			{
-				return true;
-			}
-		}
-		return false;
-}

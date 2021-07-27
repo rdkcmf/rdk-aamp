@@ -1645,6 +1645,13 @@ public:
 class ID3MetadataEvent: public AAMPEventObject
 {
 	std::vector<uint8_t> mMetadata;		/**< ID3 Metadata content */
+	std::string mSchemeIdUri; // schemeIduri
+	std::string mValue;
+	uint32_t mTimeScale;
+	uint64_t mPresentationTime;
+	uint32_t mEventDuration;
+	uint32_t mId;
+	uint64_t mTimestampOffset;
 
 public:
 	ID3MetadataEvent() = delete;
@@ -1655,8 +1662,13 @@ public:
 	 * @brief ID3MetadataEvent Constructor
 	 *
 	 * @param[in] metadata - ID3 metadata
+	 * @param[in] timeScale - timeScale od ID3 data
+	 * @param[in] presentationTime - PTS value
+	 * @param[in] eventDuration - eventDuration
+	 * @param[in] id - id of ID3 data
+	 * @param[in] timestampOffset
 	 */
-	ID3MetadataEvent(const std::vector<uint8_t> &metadata);
+	ID3MetadataEvent(const std::vector<uint8_t> &metadata, const std::string &schIDUri, std::string &id3Value, uint32_t timeScale, uint64_t presentationTime, uint32_t eventDuration, uint32_t id, uint64_t timestampOffset);
 
 	/**
 	 * @brief ID3MetadataEvent Destructor
@@ -1676,6 +1688,55 @@ public:
 	 * @return ID3 metadata size
 	 */
 	int getMetadataSize() const;
+
+	/**
+	 * @brief Get schemeIdUri
+	 *
+	 * @return TimeScale value
+	 */
+	uint32_t getTimeScale() const;
+
+	/**
+	 * @brief Get eventDuration
+	 *
+	 * @return eventDuration value
+	 */
+	uint32_t getEventDuration() const;
+
+	/**
+	 * @brief Get id
+	 *
+	 * @return id value
+	 */
+	uint32_t getId() const;
+
+	/**
+         * @brief Get timestampOffset
+         *
+         * @return timestampOffset value
+         */
+        uint64_t getTimestampOffset() const;
+
+	/**
+	 * @brief Get presentationTime
+	 *
+	 * @return presentationTime value
+	 */
+	uint64_t getPresentationTime() const;
+
+	/**
+	 * @brief Get schemeIdUri
+	 *
+	 * @return schemeIdUri value
+	 */
+	const std::string& getSchemeIdUri() const;
+
+	/**
+	 * @brief Get value
+	 *
+	 * @return schemeIdUri value
+	 */
+	const std::string& getValue() const;
 };
 
 /**

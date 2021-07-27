@@ -839,9 +839,7 @@ EmsgBox* EmsgBox::constructEmsgBox(uint32_t sz, uint8_t *ptr)
 	{
 		tScale = READ_U32(ptr);
 		// Read 64 bit value
-		presTime = READ_U32(ptr);
-		presTime <<= 32;
-		presTime |= READ_U32(ptr);
+		presTime = READ_64(ptr);
 		evtDur = READ_U32(ptr);
 		boxId = READ_U32(ptr);
 		remainingSize -=  ((sizeof(uint32_t)*3) + sizeof(uint64_t));

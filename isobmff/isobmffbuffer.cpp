@@ -364,15 +364,21 @@ bool IsoBmffBuffer::isInitSegment()
 }
 
 /**
- * @brief Get message from emsg
+ * @brief Get emsg informations
  *
  * @param[in] boxes - ISOBMFF boxes
  * @param[out] message - messageData pointer
  * @param[out] messageLen - messageLen value
+ * @param[out] schemeIdUri - schemeIdUri
+ * @param[out] value - value of Id3
+ * @param[out] presTime - Presentation time
+ * @param[out] timeScale - timeScale of ID3 metadata
+ * @param[out] eventDuration - eventDuration value
+ * @param[out] id - ID of metadata
  * @param[out] foundEmsg - flag indicates if EMSG box was seen
  * @return true if parse was successful. false otherwise
  */
-bool IsoBmffBuffer::getMessageInternal(const std::vector<Box*> *boxes, uint8_t* &message, uint32_t &messageLen, bool &foundEmsg)
+bool IsoBmffBuffer::getEMSGInfoInternal(const std::vector<Box*> *boxes, uint8_t* &message, uint32_t &messageLen, uint8_t* &schemeIdUri, uint8_t* &value, uint64_t &presTime, uint32_t &timeScale, uint32_t &eventDuration, uint32_t &id, bool &foundEmsg)
 {
 	bool ret = false;
 	for (size_t i = 0; (false == foundEmsg) && i < boxes->size(); i++)
@@ -382,6 +388,12 @@ bool IsoBmffBuffer::getMessageInternal(const std::vector<Box*> *boxes, uint8_t* 
 		{
 			message = dynamic_cast<EmsgBox *>(box)->getMessage();
 			messageLen = dynamic_cast<EmsgBox *>(box)->getMessageLen();
+			presTime = dynamic_cast<EmsgBox *>(box)->getPresentationTime();
+			timeScale = dynamic_cast<EmsgBox *>(box)->getTimeScale();
+			eventDuration = dynamic_cast<EmsgBox *>(box)->getEventDuration();
+			id = dynamic_cast<EmsgBox *>(box)->getId();
+			schemeIdUri = dynamic_cast<EmsgBox *>(box)->getSchemeIdUri();
+			value = dynamic_cast<EmsgBox *>(box)->getValue();
 			ret = true;
 			foundEmsg = true;
 		}
@@ -391,16 +403,22 @@ bool IsoBmffBuffer::getMessageInternal(const std::vector<Box*> *boxes, uint8_t* 
 
 
 /**
- * @brief Get message from EMSG box
+ * @brief Get information from EMSG box
  *
  * @param[out] message - messageData from EMSG
  * @param[out] messageLen - messageLen
+ * @param[out] schemeIdUri - schemeIdUri
+ * @param[out] value - value of Id3
+ * @param[out] presTime - Presentation time
+ * @param[out] timeScale - timeScale of ID3 metadata
+ * @param[out] eventDuration - eventDuration value
+ * @param[out] id - ID of metadata
  * @return true if parse was successful. false otherwise
  */
-bool IsoBmffBuffer::getMessageData(uint8_t* &message, uint32_t &messageLen)
+bool IsoBmffBuffer::getEMSGData(uint8_t* &message, uint32_t &messageLen, uint8_t* &schemeIdUri, uint8_t* &value, uint64_t &presTime, uint32_t &timeScale, uint32_t &eventDuration, uint32_t &id)
 {
 	bool foundEmsg = false;
-	return getMessageInternal(&boxes, message, messageLen, foundEmsg);
+	return getEMSGInfoInternal(&boxes, message, messageLen, schemeIdUri, value, presTime, timeScale, eventDuration, id, foundEmsg);
 }
 
 /**

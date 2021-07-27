@@ -203,24 +203,36 @@ public:
 	bool getMdatBoxSize(size_t &size);
 
 	/**
-	 * @brief Get message from EMSG box
+	 * @brief Get information from EMSG box
 	 *
 	 * @param[out] message - messageData from EMSG
 	 * @param[out] messageLen - messageLen
+	 * @param[out] schemeIdUri - schemeIdUri
+	 * @param[out] value - value of Id3
+	 * @param[out] presTime - Presentation time
+	 * @param[out] timeScale - timeScale of ID3 metadata
+	 * @param[out] eventDuration - eventDuration value
+	 * @param[out] id - ID of metadata
 	 * @return true if parse was successful. false otherwise
 	 */
-	bool getMessageData(uint8_t* &message, uint32_t &messageLen);
+	bool getEMSGData(uint8_t* &message, uint32_t &messageLen, uint8_t* &schemeIdUri, uint8_t* &value, uint64_t &presTime, uint32_t &timeScale, uint32_t &eventDuration, uint32_t &id);
 
 	/**
-	 * @brief Get message from emsg
+	 * @brief Get emsg informations
 	 *
 	 * @param[in] boxes - ISOBMFF boxes
 	 * @param[out] message - messageData pointer
 	 * @param[out] messageLen - messageLen value
+	 * @param[out] schemeIdUri - schemeIdUri
+	 * @param[out] value - value of Id3
+	 * @param[out] presTime - Presentation time
+	 * @param[out] timeScale - timeScale of ID3 metadata
+	 * @param[out] eventDuration - eventDuration value
+	 * @param[out] id - ID of metadata
 	 * @param[out] foundEmsg - flag indicates if EMSG box was seen
 	 * @return true if parse was successful. false otherwise
 	 */
-	bool getMessageInternal(const std::vector<Box*> *boxes, uint8_t* &message, uint32_t &messageLen, bool &foundEmsg);
+	bool getEMSGInfoInternal(const std::vector<Box*> *boxes, uint8_t* &message, uint32_t &messageLen, uint8_t* &schemeIdUri, uint8_t* &value, uint64_t &presTime, uint32_t &timeScale, uint32_t &eventDuration, uint32_t &id, bool &foundEmsg);
 
         /**
 	* @brief Check mdat buffer count in parsed buffer

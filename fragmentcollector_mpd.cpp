@@ -1025,6 +1025,18 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					// ->During period change or start of playback , fragmentDescriptor.Time=0. Need to
 					//      update with PTSOffset
 					uint64_t presentationTimeOffset = segmentTemplates.GetPresentationTimeOffset();
+					uint32_t tScale = segmentTemplates.GetTimescale();
+					uint64_t periodStart = 0;
+					string startTimeStr = mpd->GetPeriods().at(mCurrentPeriodIdx)->GetStart();
+					if(!startTimeStr.empty())
+					{
+						periodStart = (ParseISO8601Duration(startTimeStr.c_str()) / 10000);
+						pMediaStreamContext->timeStampOffset = (periodStart - (presentationTimeOffset/tScale));
+					}else
+					{
+						pMediaStreamContext->timeStampOffset = 0;
+					}
+
 					if (presentationTimeOffset > 0 && pMediaStreamContext->lastSegmentDuration ==  0
 						&& pMediaStreamContext->fragmentDescriptor.Time == 0)
 					{

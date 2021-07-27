@@ -158,15 +158,6 @@ private:
 	 */
 	void clearInitSegment();
 
-	/**
-	 * @brief Check if segment starts with an ID3 section
-	 *
-	 * @param[in] data pointer to segment buffer
-	 * @param[in] length length of segment buffer
-	 * @retval true if segment has an ID3 section
-	 */
-	bool hasId3Header(const uint8_t* data, uint32_t length);
-
 	PrivateInstanceAAMP *p_aamp;
 	uint32_t timeScale;
 	uint64_t basePTS;
