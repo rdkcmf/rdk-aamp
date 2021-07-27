@@ -5466,7 +5466,7 @@ void StreamAbstractionAAMP_MPD::StartDeferredDRMRequestThread(MediaType mediaTyp
 
 int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, AudioType &CodecType)
 {
-	int bestTrack = 0;
+	int bestTrack = -1;
 	int bestScore = -1;
 	class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_AUDIO];
 	IPeriod *period = mCurrentPeriod;
