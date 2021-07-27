@@ -208,6 +208,7 @@ private:
 	void ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType, std::shared_ptr<AampDrmHelper> drmHelper = nullptr);
 	void SeekInPeriod( double seekPositionSeconds);
 	double GetCulledSeconds();
+	void UpdateCulledAndDurationFromPeriodInfo();
 	void UpdateLanguageList();
 	int GetBestAudioTrackByLanguage(int &desiredRepIdx,AudioType &selectedCodecType);
 	int GetPreferredAudioTrackByLanguage();

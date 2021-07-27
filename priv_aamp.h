@@ -735,6 +735,7 @@ public:
 	int mDisplayHeight; /**< Display resolution height */
 	bool mProfileCappedStatus; /**< Profile capped status by resolution or bitrate */
 	double mProgressReportOffset; /**< Offset time for progress reporting */
+	double mAbsoluteEndPosition; /**< Live Edge position for absolute reporting */
 	AampConfig *mConfig;
 
 	guint id3MetadataCallbackIdleTaskId; //ID of handler created to send ID3 metadata events
@@ -1195,6 +1196,13 @@ public:
 	 * @return True or False
 	 */
 	bool IsLive(void);
+
+        /**
+         * @brief Checking if the stream is changed from dynamic to static or not
+         *
+         * @return True or False
+         */
+        bool IsLiveStream(void);
 
 	/**
 	 * @brief Stop playback
@@ -2177,6 +2185,14 @@ public:
 	 */
 	void SetIsLive(bool isLive)  {mIsLive = isLive; }
 
+        /**
+         *   @brief Set isLiveStream flag
+         *
+         *   @param[in] isLiveStream - is Live stream flag
+         *   @return void
+         */
+	void SetIsLiveStream(bool isLiveStream)  {mIsLiveStream = isLiveStream; }
+	
 	/**
 	 *   @brief Signal trick mode discontinuity to stream sink
 	 *
@@ -3087,7 +3103,8 @@ private:
 	ListenerData* mEventListeners[AAMP_MAX_NUM_EVENTS];
 	TuneType mTuneType;
 	int m_fd;
-	bool mIsLive;
+	bool mIsLive;				// Flag to indicate manifest type.
+	bool mIsLiveStream;			// Flag to indicate stream type, keeps history if stream was live earlier.
 	bool mLogTune;				//Guard to ensure sending tune  time info only once.
 	bool mTuneCompleted;
 	bool mFirstTune;			//To identify the first tune after load.
