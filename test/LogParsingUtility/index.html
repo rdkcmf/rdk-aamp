@@ -11,11 +11,12 @@
 		case 11: return "HLS/Consec";
 		case 12: return "HLS/Access";
 		case 13: return "HLS/VanillaAES";
-        case 20: return "DASH/Clear";
-        case 21: return "DASH/Widevine";
+        	case 20: return "DASH/Clear";
+        	case 21: return "DASH/Widevine";
 		case 22: return "DASH/Playready";
 		case 30: return "Progressive";
-		default: return "?";
+		case 40: return "HLS_FRAGMENTED_MP4";
+		default: return "UNKNOWN";
 		}
 	}
 
@@ -34,6 +35,10 @@
 		case 8: return "MDVR";
 		case 9: return "IPDVR";
 		case 10: return "PPV";
+		case 11: return "OTT";
+		case 12: return "OTA";
+		case 13: return "HDMI Input";
+		case 14: return "COMPOSITE Input";
 		default: return "?";
 		}
     }
@@ -80,7 +85,9 @@ function strip(firstValue)
 		else if( value[0].indexOf("IP_AAMP_TUNETIME")>=0 )
 		{
 			value[0] = strip(value[0]);
-			fields = "version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune";
+			fields = "version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune,playerPreBuffered,playerPreBufferedTime";
+			value[36] = "("+value[36]+")"+ MapContentType(value[36]);
+			value[37] = "("+value[37]+")"+ MapStreamType(value[37]);
 		}
 		else if( value[0].indexOf("HttpRequestEnd")>=0 )
 		{
