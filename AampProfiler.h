@@ -103,7 +103,7 @@ enum ContentType
 	ContentType_CAMERA,         /**< 6 - Camera */
 	ContentType_DVR,            /**< 7 - DVR */
 	ContentType_MDVR,           /**< 8 - MDVR */
-	ContentType_IPDVR,          /**< 8 - IPDVR */
+	ContentType_IPDVR,          /**< 9 - IPDVR */
 	ContentType_PPV,            /**< 10 - PPV */
 	ContentType_OTT,            /**< 11 - OTT */
 	ContentType_OTA,            /**< 12 - OTA*/
