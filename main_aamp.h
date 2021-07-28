@@ -271,7 +271,7 @@ public:
 	 *   @param[in]  duration - Buffer duration.
 	 *   @return void
 	 */
-	virtual void Send( MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration)= 0;
+	virtual void SendCopy( MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration)= 0;
 
 	/**
 	 *   @brief  API to send audio/video buffer into the sink.
@@ -283,7 +283,7 @@ public:
 	 *   @param[in]  duration - Buffer duration.
 	 *   @return void
 	 */
-	virtual void Send( MediaType mediaType, struct GrowableBuffer* buffer, double fpts, double fdts, double duration)= 0;
+	virtual void SendTransfer( MediaType mediaType, struct GrowableBuffer* buffer, double fpts, double fdts, double duration)= 0;
 
 	/**
 	 *   @brief  Notifies EOS to sink

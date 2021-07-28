@@ -2186,7 +2186,7 @@ void TrackState::InjectFragmentInternal(CachedFragment* cachedFragment, bool &fr
 	else
 	{
 		fragmentDiscarded = false;
-		aamp->SendStream((MediaType)type, cachedFragment->fragment.ptr, cachedFragment->fragment.len,
+		aamp->SendStreamCopy((MediaType)type, cachedFragment->fragment.ptr, cachedFragment->fragment.len,
 		        cachedFragment->position, cachedFragment->position, cachedFragment->duration);
 	}
 #endif

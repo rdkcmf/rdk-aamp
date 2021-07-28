@@ -125,7 +125,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 				{
 					// We have no cached init fragment, maybe audio download was delayed very much
 					// Push this fragment with calculated PTS
-					p_aamp->SendStream((MediaType)type, segment, size, pos, pos, duration);
+					p_aamp->SendStreamCopy((MediaType)type, segment, size, pos, pos, duration);
 					ret = false;
 				}
 				initSegmentProcessComplete = true;
@@ -239,7 +239,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 	if (ret)
 	{
 		p_aamp->ProcessID3Metadata(segment, size, (MediaType)type);
-		p_aamp->SendStream((MediaType)type, segment, size, position, position, duration);
+		p_aamp->SendStreamCopy((MediaType)type, segment, size, position, position, duration);
 	}
 	return true;
 }
@@ -337,7 +337,7 @@ void IsoBmffProcessor::pushInitSegment(double position)
 		for (auto it = initSegment.begin(); it != initSegment.end();)
 		{
 			GrowableBuffer *buf = *it;
-			p_aamp->SendStream((MediaType)type, buf, position, position, 0);
+			p_aamp->SendStreamTransfer((MediaType)type, buf, position, position, 0);
 			aamp_Free(buf);
 			delete buf;
 			it = initSegment.erase(it);

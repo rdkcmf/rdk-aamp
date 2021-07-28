@@ -2173,26 +2173,27 @@ uint32_t getId3TagSize(const uint8_t *data)
 	return bufferSize;
 }
 
-
-
 /**
- * @brief Inject buffer of a stream type to its pipeline
+ * @brief Inject stream buffer to gstreamer pipeline
  * @param[in] mediaType stream type
  * @param[in] ptr buffer pointer
  * @param[in] len0 length of buffer
  * @param[in] fpts PTS of buffer (in sec)
  * @param[in] fdts DTS of buffer (in sec)
  * @param[in] fDuration duration of buffer (in sec)
+ * @param[in] copy to map or transfer the buffer
  */
-void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, double fpts, double fdts, double fDuration)
+bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration, bool copy)
 {
-#define MAX_BYTES_TO_SEND (128*1024)
 	GstClockTime pts = (GstClockTime)(fpts * GST_SECOND);
 	GstClockTime dts = (GstClockTime)(fdts * GST_SECOND);
 	GstClockTime duration = (GstClockTime)(fDuration * 1000000000LL);
+	gboolean discontinuity = FALSE;
+	media_stream *stream = &privateContext->stream[mediaType];
+	bool isFirstBuffer = stream->resetPosition;
 
 	if (aamp->GetEventListenerStatus(AAMP_EVENT_ID3_METADATA) &&
-		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len0))
+		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
 	{
 		uint32_t len = getId3TagSize(static_cast<const uint8_t*>(ptr));
 		if (len && (len != aamp->lastId3DataLen ||
@@ -2200,120 +2201,88 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 					(memcmp(ptr, aamp->lastId3Data, aamp->lastId3DataLen) != 0)))
 		{
 			AAMPLOG_INFO("AAMPGstPlayer %s: Found new ID3 frame",__FUNCTION__);
-			aamp->ReportID3Metadata(static_cast<const uint8_t*>(ptr), len0);
+			aamp->ReportID3Metadata(static_cast<const uint8_t*>(ptr), len);
 		}
 	}
 
-	//Drop eMEDIATYPE_DSM_CC packages, since no stream to handle it
+	// Ignore eMEDIATYPE_DSM_CC packets
 	if(mediaType == eMEDIATYPE_DSM_CC)
 	{
-		return;
+		return false;
 	}
 
 	// Make sure source element is present before data is injected
-	media_stream *stream = &privateContext->stream[mediaType];
-	//If format is FORMAT_INVALID, we don't know what we are doing here
+	// If format is FORMAT_INVALID, we don't know what we are doing here
 	if (!stream->sourceConfigured && stream->format != FORMAT_INVALID)
 	{
 		bool status = WaitForSourceSetup(mediaType);
+
 		if (!aamp->DownloadsAreEnabled() || !status)
 		{
-			// What do we with the data buffer
-			// This flavour of Send() copies from data buffer so no need to free buffer
-			return;
+			return false;
 		}
 	}
 
-	gboolean discontinuity = FALSE;
-	size_t maxBytes;
-	GstFlowReturn ret;
-	bool isFirstBuffer = stream->resetPosition;
-
-	if (privateContext->stream[eMEDIATYPE_VIDEO].format == FORMAT_ISO_BMFF)
-	{
-		//For mpeg-dash, sent the entire fragment.
-		maxBytes = len0;
-	}
-	else
-	{
-#if !defined(BRCM)
-		maxBytes = len0;
-#else
-		//For TS, if using playersinkbin, broadcom plugins has buffer size limitation.
-		maxBytes = MAX_BYTES_TO_SEND;
-		if (maxBytes < len0)
-		{
-			AAMPLOG_WARN("%s:%d Truncated mediatype %d buffer to %d bytes from %d bytes",
-					  __FUNCTION__, __LINE__, mediaType, maxBytes, len0);
-		}
-#endif
-	}
-#ifdef TRACE_VID_PTS
-	if (mediaType == eMEDIATYPE_VIDEO && privateContext->rate != AAMP_NORMAL_PLAY_RATE)
-	{
-		logprintf("AAMPGstPlayer %s : rate %d fpts %f pts %llu pipeline->stream_time %lu ", (mediaType == eMEDIATYPE_VIDEO)?"vid":"aud", privateContext->rate, fpts, (unsigned long long)pts, GST_PIPELINE(this->privateContext->pipeline)->stream_time);
-		GstClock* clock = gst_pipeline_get_clock(GST_PIPELINE(this->privateContext->pipeline));
-		if (clock)
-		{
-			GstClockTime curr = gst_clock_get_time(clock);
-			logprintf("  clock time %lu diff %lu (%f sec)", curr, pts-curr, (float)(pts-curr)/GST_SECOND);
-			gst_object_unref(clock);
-		}
-	}
-#endif
-
-#ifdef DUMP_STREAM
-	static FILE* fp = NULL;
-	if (!fp)
-	{
-		fp = fopen("AAMPGstPlayerdump.ts", "w");
-	}
-	fwrite(ptr, 1, len0, fp );
-#endif
 	if (isFirstBuffer)
 	{
 		AAMPGstPlayer_SendPendingEvents(aamp, privateContext, mediaType, pts);
+
 		if (mediaType == eMEDIATYPE_AUDIO && ForwardAudioBuffersToAux())
 		{
 			AAMPGstPlayer_SendPendingEvents(aamp, privateContext, eMEDIATYPE_AUX_AUDIO, pts);
 		}
+
 		discontinuity = TRUE;
 	}
-
-	while (aamp->DownloadsAreEnabled())
+	if( aamp->DownloadsAreEnabled())
 	{
-		size_t len = len0;
-		if (len > maxBytes)
+		GstBuffer *buffer;
+		bool bPushBuffer = true;
+
+		if(copy)
 		{
-			len = maxBytes;
-		}
-		GstBuffer *buffer = gst_buffer_new_and_alloc((guint)len);
-		if(buffer != NULL)
-		{
-			if (discontinuity )
+			buffer = gst_buffer_new_and_alloc((guint)len);
+
+			if (buffer)
 			{
-				GST_BUFFER_FLAG_SET(buffer, GST_BUFFER_FLAG_DISCONT);
-				discontinuity = FALSE;
+				GstMapInfo map;
+				gst_buffer_map(buffer, &map, GST_MAP_WRITE);
+				memcpy(map.data, ptr, len);
+				gst_buffer_unmap(buffer, &map);
+				GST_BUFFER_PTS(buffer) = pts;
+				GST_BUFFER_DTS(buffer) = dts;
+				GST_BUFFER_DURATION(buffer) = duration;
 			}
-	#ifdef USE_GST1
-			GstMapInfo map;
-			gst_buffer_map(buffer, &map, GST_MAP_WRITE);
-			memcpy(map.data, ptr, len);
-			gst_buffer_unmap(buffer, &map);
-			GST_BUFFER_PTS(buffer) = pts;
-			GST_BUFFER_DTS(buffer) = dts;
-		//GST_BUFFER_DURATION(buffer) = duration;
-	#else
-			memcpy(GST_BUFFER_DATA(buffer), ptr, len);
-			GST_BUFFER_TIMESTAMP(buffer) = pts;
-			GST_BUFFER_DURATION(buffer) = duration;
-	#endif
+			else
+			{
+				bPushBuffer = false;
+			}
+		}
+		else
+		{ // transfer
+			buffer = gst_buffer_new_wrapped((gpointer)ptr,(gsize)len);
+
+			if (buffer)
+			{
+				GST_BUFFER_PTS(buffer) = pts;
+				GST_BUFFER_DTS(buffer) = dts;
+				GST_BUFFER_DURATION(buffer) = duration;
+			}
+			else
+			{
+				bPushBuffer = false;
+			}
+		}
+
+		if (bPushBuffer)
+		{
 			if (mediaType == eMEDIATYPE_AUDIO && ForwardAudioBuffersToAux())
 			{
 				ForwardBuffersToAuxPipeline(buffer);
 			}
-		
-			ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), buffer);
+
+			GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), buffer);
+
 			if (ret != GST_FLOW_OK)
 			{
 				logprintf("gst_app_src_push_buffer error: %d[%s] mediaType %d", ret, gst_flow_get_name (ret), (int)mediaType);
@@ -2323,20 +2292,12 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 			{
 				stream->bufferUnderrun = false;
 			}
-			ptr = len + (unsigned char *)ptr;
-			len0 -= len;
-			if (len0 == 0)
-			{
-				break;
-			}
-		}
-		else
-		{
-			AAMPLOG_WARN("%s:%d :  buffer is null", __FUNCTION__, __LINE__);  //CID:86190 - Null Returns
 		}
 	}
+
 	if (eMEDIATYPE_VIDEO == mediaType)
-	{
+	{	
+		// HACK!
 		// DELIA-42262: For westerossink, it will send first-video-frame-callback signal after each flush
 		// So we can move NotifyFirstBufferProcessed to the more accurate signal callback
 		if (isFirstBuffer)
@@ -2348,126 +2309,45 @@ void AAMPGstPlayer::Send(MediaType mediaType, const void *ptr, size_t len0, doub
 
 			aamp->ResetTrickStartUTCTime();
 		}
+
 		privateContext->numberOfVideoBuffersSent++;
+
 		StopBuffering(false);
 	}
+
+	return true;
 }
 
+/**
+ * @brief inject HLS/ts elementary stream buffer to gstreamer pipeline
+ * @param[in] mediaType stream type
+ * @param[in] ptr buffer pointer
+ * @param[in] len0 length of buffer
+ * @param[in] fpts PTS of buffer (in sec)
+ * @param[in] fdts DTS of buffer (in sec)
+ * @param[in] fDuration duration of buffer (in sec)
+ */
+void AAMPGstPlayer::SendCopy(MediaType mediaType, const void *ptr, size_t len0, double fpts, double fdts, double fDuration)
+{
+	SendHelper( mediaType, ptr, len0, fpts, fdts, fDuration, true /*copy*/ );
+}
 
 /**
- * @brief Inject buffer of a stream type to its pipeline
+ * @brief inject mp4 segment to gstreamer pipeline
  * @param[in] mediaType stream type
  * @param[in] pBuffer buffer as GrowableBuffer pointer
  * @param[in] fpts PTS of buffer (in sec)
  * @param[in] fdts DTS of buffer (in sec)
  * @param[in] fDuration duration of buffer (in sec)
  */
-void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration)
+void AAMPGstPlayer::SendTransfer(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration)
 {
-	GstClockTime pts = (GstClockTime)(fpts * GST_SECOND);
-	GstClockTime dts = (GstClockTime)(fdts * GST_SECOND);
-	GstClockTime duration = (GstClockTime)(fDuration * 1000000000LL);
-	gboolean discontinuity = FALSE;
-	media_stream *stream = &privateContext->stream[mediaType];
-	bool isFirstBuffer = stream->resetPosition;
-
-#ifdef TRACE_VID_PTS
-	if (mediaType == eMEDIATYPE_VIDEO && privateContext->rate != AAMP_NORMAL_PLAY_RATE)
-	{
-		logprintf("AAMPGstPlayer %s : rate %d fpts %f pts %llu pipeline->stream_time %lu ", (mediaType == eMEDIATYPE_VIDEO)?"vid":"aud", privateContext->rate, fpts, (unsigned long long)pts, GST_PIPELINE(this->privateContext->pipeline)->stream_time);
-		GstClock* clock = gst_pipeline_get_clock(GST_PIPELINE(this->privateContext->pipeline));
-		if (clock)
-		{
-			GstClockTime curr = gst_clock_get_time(clock);
-			logprintf("  clock time %lu diff %lu (%f sec)", curr, pts-curr, (float)(pts-curr)/GST_SECOND);
-			gst_object_unref(clock);
-		}
-		logprintf("");
+	if( !SendHelper( mediaType, pBuffer->ptr, pBuffer->len, fpts, fdts, fDuration, false /*transfer*/ ) )
+	{ // unable to transfer - free up the buffer we were passed.
+		aamp_Free(pBuffer);
 	}
-#endif
-	// Make sure source element is present before data is injected
-	//If format is FORMAT_INVALID, we don't know what we are doing here
-	if (!stream->sourceConfigured && stream->format != FORMAT_INVALID)
-	{
-		bool status = WaitForSourceSetup(mediaType);
-		if (!aamp->DownloadsAreEnabled() || !status)
-		{
-			// What do we with the data buffer
-			// This flavour of Send() sends the data buffer as such so free data buffer to avoid memory leak and reset pBuffer
-			aamp_Free(pBuffer);
-			memset(pBuffer, 0x00, sizeof(GrowableBuffer));
-			return;
-		}
-	}
-
-#ifdef DUMP_STREAM
-	static FILE* fp = NULL;
-	if (!fp)
-	{
-		fp = fopen("AAMPGstPlayerdump.ts", "w");
-	}
-	fwrite(pBuffer->ptr , 1, pBuffer->len, fp );
-#endif
-	if (isFirstBuffer)
-	{
-		AAMPGstPlayer_SendPendingEvents(aamp, privateContext, mediaType, pts);
-		if (mediaType == eMEDIATYPE_AUDIO && ForwardAudioBuffersToAux())
-		{
-			AAMPGstPlayer_SendPendingEvents(aamp, privateContext, eMEDIATYPE_AUX_AUDIO, pts);
-		}
-		discontinuity = TRUE;
-	}
-
-#ifdef USE_GST1
-	GstBuffer* buffer = gst_buffer_new_wrapped (pBuffer->ptr ,pBuffer->len);
-	GST_BUFFER_PTS(buffer) = pts;
-	GST_BUFFER_DTS(buffer) = dts;
-#else
-	GstBuffer* buffer = gst_buffer_new();
-	GST_BUFFER_SIZE (buffer) = pBuffer->len;
-	GST_BUFFER_MALLOCDATA (buffer) = (guint8*)pBuffer->ptr;
-	GST_BUFFER_DATA (buffer) = GST_BUFFER_MALLOCDATA (buffer);
-	GST_BUFFER_TIMESTAMP(buffer) = pts;
-	GST_BUFFER_DURATION(buffer) = duration;
-#endif
-	if (mediaType == eMEDIATYPE_AUDIO && ForwardAudioBuffersToAux())
-	{
-		ForwardBuffersToAuxPipeline(buffer);
-	}
-
-	GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), buffer);
-	if (ret != GST_FLOW_OK)
-	{
-		logprintf("gst_app_src_push_buffer error: %d[%s] mediaType %d", ret, gst_flow_get_name (ret), (int)mediaType);
-		assert(false);
-	}
-	else if (stream->bufferUnderrun)
-	{
-		stream->bufferUnderrun = false;
-	}
-
-	/*Since ownership of buffer is given to gstreamer, reset pBuffer */
 	memset(pBuffer, 0x00, sizeof(GrowableBuffer));
-	if (eMEDIATYPE_VIDEO == mediaType)
-	{
-		// DELIA-42262: For westerossink, it will send first-video-frame-callback signal after each flush
-		// So we can move NotifyFirstBufferProcessed to the more accurate signal callback
-		if (isFirstBuffer)
-		{
-			if (!privateContext->using_westerossink)
-			{
-				aamp->NotifyFirstBufferProcessed();
-			}
-
-			aamp->ResetTrickStartUTCTime();
-		}
-		privateContext->numberOfVideoBuffersSent++;
-		StopBuffering(false);
-	}
-
 }
-
-
 
 /**
  * @brief To start playback

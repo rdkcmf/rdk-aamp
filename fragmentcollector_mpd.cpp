@@ -248,7 +248,7 @@ public:
 	void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded)
 	{
 		aamp->ProcessID3Metadata(cachedFragment->fragment.ptr, cachedFragment->fragment.len, (MediaType) type, timeStampOffset);
-		aamp->SendStream((MediaType)type, &cachedFragment->fragment,
+		aamp->SendStreamTransfer((MediaType)type, &cachedFragment->fragment,
 					cachedFragment->position, cachedFragment->position, cachedFragment->duration);
 		fragmentDiscarded = false;
 	} // InjectFragmentInternal

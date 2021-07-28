@@ -197,7 +197,6 @@ void MediaTrack::UpdateTSAfterInject()
 	pthread_mutex_unlock(&mutex);
 }
 
-
 /**
  * @brief Updates internal state after a fragment fetch
  */
