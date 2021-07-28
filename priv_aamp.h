@@ -1254,7 +1254,7 @@ public:
 	 *   @param[in]  duration - Buffer duration.
 	 *   @return void
 	 */
-	void SendStream(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration);
+	void SendStreamCopy(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration);
 
 	/**
 	 *   @brief  API to send audio/video stream into the sink.
@@ -1266,7 +1266,7 @@ public:
 	 *   @param[in]  fDuration - Buffer duration.
 	 *   @return void
 	 */
-	void SendStream(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration);
+	void SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration);
 
 	/**
 	 * @brief Setting the stream sink

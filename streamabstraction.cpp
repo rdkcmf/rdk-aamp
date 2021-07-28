@@ -230,7 +230,7 @@ void MediaTrack::UpdateTSAfterChunkInject()
  */
 void MediaTrack::InjectFragmentChunkInternal(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration)
 {
-	aamp->SendStream(mediaType, buffer,
+	aamp->SendStreamTransfer(mediaType, buffer,
                      fpts, fdts, fDuration);
 
 } // InjectFragmentChunkInternal

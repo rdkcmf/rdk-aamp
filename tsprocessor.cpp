@@ -285,7 +285,7 @@ private:
 		}
 		DEBUG_DEMUX("Send : pts %f dts %f", pts, dts);
 		DEBUG_DEMUX("position %f base_pts %llu current_pts %llu diff %f seconds length %d", position, base_pts, current_pts, (double)(current_pts - base_pts) / 90000, (int)es.len );
-		aamp->SendStream(type, es.ptr, es.len, pts, dts, duration);
+		aamp->SendStreamCopy(type, es.ptr, es.len, pts, dts, duration);
 		if (gpGlobalConfig->logging.info)
 		{
 			sentESCount++;
@@ -1406,7 +1406,7 @@ void TSProcessor::sendDiscontinuity(double position)
 		TRACE1("emit pcr discontinuity");
 		if (!m_demux)
 		{
-			aamp->SendStream((MediaType)m_track, discontinuityPacket, m_packetSize, position, position, 0);
+			aamp->SendStreamCopy((MediaType)m_track, discontinuityPacket, m_packetSize, position, position, 0);
 		}
 		if (haveInsertPCR)
 		{
@@ -1434,7 +1434,7 @@ void TSProcessor::sendDiscontinuity(double position)
 
 			if (!m_demux)
 			{
-				aamp->SendStream((MediaType)m_track, discontinuityPacket, m_packetSize, position, position, 0);
+				aamp->SendStreamCopy((MediaType)m_track, discontinuityPacket, m_packetSize, position, position, 0);
 			}
 		}
 	}
@@ -2344,7 +2344,7 @@ void TSProcessor::sendQueuedSegment(long long basepts, double updatedStartPosito
 		}
 		if (eStreamOp_QUEUE_AUDIO == m_streamOperation)
 		{
-			aamp->SendStream((MediaType) m_track, m_queuedSegment, m_queuedSegmentLen, m_queuedSegmentPos,
+			aamp->SendStreamCopy((MediaType) m_track, m_queuedSegment, m_queuedSegmentLen, m_queuedSegmentPos,
 			        m_queuedSegmentPos, m_queuedSegmentDuration);
 		}
 		else if (eStreamOp_DEMUX_AUDIO == m_streamOperation)
@@ -2480,7 +2480,7 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 			{
 				updatePATPMT();
 				int secSize = insertPatPmt(sec, (m_playMode != PlayMode_normal), PATPMT_MAX_SIZE);
-				aamp->SendStream((MediaType)m_track, sec, secSize, position, position, 0);
+				aamp->SendStreamCopy((MediaType)m_track, sec, secSize, position, position, 0);
 				free(sec);
 				TRACE1("Send PAT/PMT");
 			}
@@ -2531,15 +2531,15 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 			if (m_packetStartAfterFirstPTS != -1)
 			{
 
-				aamp->SendStream((MediaType)m_track, packetStart, m_packetStartAfterFirstPTS, position, position, duration);
+				aamp->SendStreamCopy((MediaType)m_track, packetStart, m_packetStartAfterFirstPTS, position, position, duration);
 				m_peerTSProcessor->sendQueuedSegment();
-				aamp->SendStream((MediaType)m_track, packetStart + m_packetStartAfterFirstPTS,
+				aamp->SendStreamCopy((MediaType)m_track, packetStart + m_packetStartAfterFirstPTS,
 				len - m_packetStartAfterFirstPTS, position, position, duration);
 			}
 			else
 			{
 				ERROR("m_packetStartAfterFirstPTS Not updated");
-				aamp->SendStream((MediaType)m_track, packetStart + m_packetStartAfterFirstPTS,
+				aamp->SendStreamCopy((MediaType)m_track, packetStart + m_packetStartAfterFirstPTS,
 				len - m_packetStartAfterFirstPTS, position, position, duration);
 			}
 		}
@@ -2568,7 +2568,7 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 		}
 		else
 		{
-			aamp->SendStream((MediaType)m_track, packetStart, len, position, position, duration);
+			aamp->SendStreamCopy((MediaType)m_track, packetStart, len, position, position, duration);
 		}
 	}
 	if (-1 != duration)

@@ -96,7 +96,7 @@ static size_t StreamWriteCallback( void *ptr, size_t size, size_t nmemb, void *u
         double fDuration = 2.0; // HACK!  //CID:113073 - Position variable initialized but not used
         if( nmemb>0 )
         {
-           aamp->SendStream( eMEDIATYPE_VIDEO, ptr, nmemb, fpts, fdts, fDuration);
+           aamp->SendStreamCopy( eMEDIATYPE_VIDEO, ptr, nmemb, fpts, fdts, fDuration);
            if( !context->sentTunedEvent )
            { // send TunedEvent after first chunk injected - this is hint for XRE to hide the "tuning overcard"
                aamp->SendTunedEvent(false);

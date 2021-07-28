@@ -13,7 +13,7 @@ void MediaStreamContext::InjectFragmentInternal(CachedFragment* cachedFragment, 
     if(!(aamp->GetLLDashServiceData()->lowLatencyMode  && (cachedFragment->type == eMEDIATYPE_AUDIO ||
                                                            cachedFragment->type == eMEDIATYPE_VIDEO)))
     {
-        aamp->SendStream((MediaType)type, &cachedFragment->fragment,
+        aamp->SendStreamTransfer((MediaType)type, &cachedFragment->fragment,
         cachedFragment->position, cachedFragment->position, cachedFragment->duration);
     }
     else

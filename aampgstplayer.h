@@ -43,11 +43,14 @@ struct AAMPGstPlayerPriv;
  */
 class AAMPGstPlayer : public StreamSink
 {
+private:
+	bool SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration, bool copy);
+
 public:
 	class PrivateInstanceAAMP *aamp;
 	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation);
-	void Send(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration);
-	void Send(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double duration);
+	void SendCopy(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration);
+	void SendTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double duration);
 	void EndOfStreamReached(MediaType type);
 	void Stream(void);
 	void Stop(bool keepLastFrame);

@@ -108,8 +108,6 @@
 #define CAPPED_PROFILE_STRING 		"Profile-Capped:"
 #define TRANSFER_ENCODING_STRING		"Transfer-Encoding:"
 
-#define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
-#define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
 #define MAX_DOWNLOAD_DELAY_LIMIT_MS 30000
 
 /**
@@ -4937,6 +4935,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		getAampCacheHandler()->SetMaxPlaylistCacheSize(PLAYLIST_CACHE_SIZE_UNLIMITED);
 	}
 	mAudioDecoderStreamSync = audioDecoderStreamSync;
+
 	if (NULL == mStreamSink)
 	{
 		mStreamSink = new AAMPGstPlayer(this);
@@ -5046,6 +5045,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 
 	std::tie(mManifestUrl, mDrmInitData) = ExtractDrmInitData(mainManifestUrl);
 	mMediaFormat = GetMediaFormatType(mainManifestUrl);
+	logprintf("contentType = %s mMediaFormat = %d", contentType, mMediaFormat);
 	
 	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
@@ -5798,7 +5798,7 @@ void PrivateInstanceAAMP::PushFragment(MediaType mediaType, char *ptr, size_t le
 {
 	BlockUntilGstreamerWantsData(NULL, 0, 0);
 	SyncBegin();
-	mStreamSink->Send(mediaType, ptr, len, fragmentTime, fragmentTime, fragmentDuration);
+	mStreamSink->SendCopy(mediaType, ptr, len, fragmentTime, fragmentTime, fragmentDuration);
 	SyncEnd();
 }
 
@@ -5814,7 +5814,7 @@ void PrivateInstanceAAMP::PushFragment(MediaType mediaType, GrowableBuffer* buff
 {
 	BlockUntilGstreamerWantsData(NULL, 0, 0);
 	SyncBegin();
-	mStreamSink->Send(mediaType, buffer, fragmentTime, fragmentTime, fragmentDuration);
+	mStreamSink->SendTransfer(mediaType, buffer, fragmentTime, fragmentTime, fragmentDuration);
 	SyncEnd();
 }
 
@@ -6227,10 +6227,10 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
  * @param fdts dts in seconds
  * @param fDuration duration of buffer
  */
-void PrivateInstanceAAMP::SendStream(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration)
+void PrivateInstanceAAMP::SendStreamCopy(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration)
 {
 	profiler.ProfilePerformed(PROFILE_BUCKET_FIRST_BUFFER);
-	mStreamSink->Send(mediaType, ptr, len, fpts, fdts, fDuration);
+	mStreamSink->SendCopy(mediaType, ptr, len, fpts, fdts, fDuration);
 }
 
 /**
@@ -6242,10 +6242,10 @@ void PrivateInstanceAAMP::SendStream(MediaType mediaType, const void *ptr, size_
  * @param fdts dts in seconds
  * @param fDuration duration of buffer
  */
-void PrivateInstanceAAMP::SendStream(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration)
+void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration)
 {
 	profiler.ProfilePerformed(PROFILE_BUCKET_FIRST_BUFFER);
-	mStreamSink->Send(mediaType, buffer, fpts, fdts, fDuration);
+	mStreamSink->SendTransfer(mediaType, buffer, fpts, fdts, fDuration);
 }
 
 /**
