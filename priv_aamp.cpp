@@ -9338,8 +9338,7 @@ void PrivateInstanceAAMP::ResetDiscontinuityInTracks()
 
 void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition )
 {
-	if((languageList && preferredLanguagesString != languageList) ||
-	(preferredRendition && preferredRenditionString != preferredRendition))
+	if((languageList && preferredLanguagesString != languageList) || (preferredRendition && preferredRenditionString != preferredRendition))
 	{
 		preferredLanguagesString.clear();
 		preferredLanguagesList.clear();
@@ -9360,8 +9359,6 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 
 		AAMPLOG_INFO("%s:%d: Number of preferred languages: %d", __FUNCTION__, __LINE__,
 			preferredLanguagesList.size());
-		
-
 		if( preferredRendition )
 		{
 			AAMPLOG_INFO("%s:%d: Setting rendition %s", __FUNCTION__, __LINE__, preferredRendition);
@@ -9378,6 +9375,40 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 		{ // active playback session; apply immediately
 			if (mpStreamAbstractionAAMP)
 			{
+				bool languagePresent = false;
+				bool renditionPresent = false;
+
+				int trackIndex = GetAudioTrack();
+
+				if (trackIndex >= 0)
+                                {
+					std::vector<AudioTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableAudioTracks();
+					char *currentPrefLanguage = const_cast<char*>(trackInfo[trackIndex].language.c_str());
+					char *currentPrefRendition = const_cast<char*>(trackInfo[trackIndex].rendition.c_str());
+
+					// Logic to check whether the given language is present in the available tracks,
+					// if available, it should not match with current preferredLanguagesString, then call tune to reflect the language change.
+					// if not available, then avoid calling tune.
+					if(languageList)
+					{
+						auto language = std::find_if(trackInfo.begin(), trackInfo.end(),
+									[languageList, currentPrefLanguage](AudioTrackInfo& temp)
+									{ return ((temp.language == languageList) && (temp.language != currentPrefLanguage)); });
+						languagePresent = (language != end(trackInfo));
+					}
+
+					// Logic to check whether the given rendition is present in the available tracks,
+					// if available, it should not match with current preferredRenditionString, then call tune to reflect the rendition change.
+					// if not available, then avoid calling tune.
+					if(preferredRendition)
+					{
+						auto rendition = std::find_if(trackInfo.begin(), trackInfo.end(),
+									[preferredRendition, currentPrefRendition](AudioTrackInfo& temp)
+									{ return ((temp.rendition == preferredRendition) && (temp.rendition != currentPrefRendition)); });
+						renditionPresent = (rendition != end(trackInfo));
+					}
+                                }
+
 				if(mMediaFormat == eMEDIAFORMAT_OTA)
 				{
 					mpStreamAbstractionAAMP->SetPreferredAudioLanguages();
@@ -9386,7 +9417,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				{
 					/*Avoid retuning in case of HEMIIN and COMPOSITE IN*/
 				}
-				else
+				else if (languagePresent || renditionPresent) // call the tune only if there is a change in the language or rendition.
 				{
 					discardEnteringLiveEvt = true;
 
