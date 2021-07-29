@@ -74,7 +74,7 @@ std::mutex appsinkData_mutex;
  * @brief Define the enum values of get types
  */
 typedef enum {
-	eAAMP_GET_CurrentAudioLan = 1,
+	eAAMP_GET_CurrentAudioLan,
 	eAAMP_GET_CurrentDrm,
 	eAAMP_GET_PlaybackPosition,
 	eAAMP_GET_PlaybackDuration,
@@ -88,8 +88,7 @@ typedef enum {
 	eAAMP_GET_AvailableAudioTracks,
 	eAAMP_GET_AvailableTextTracks,
 	eAAMP_GET_AudioTrack,
-
-  eAAMP_GET_TextTrack,
+	eAAMP_GET_TextTrack,
 	eAAMP_GET_ThumbnailConfig,
 	eAAMP_GET_ThumbnailData,
 	eAAMP_GET_TYPE_COUNT
@@ -100,7 +99,7 @@ typedef enum {
  * @brief Define the enum values of set types
  */
 typedef enum{
-	eAAMP_SET_RateAndSeek = 1,
+	eAAMP_SET_RateAndSeek,
 	eAAMP_SET_VideoRectangle,
 	eAAMP_SET_VideoZoom,
 	eAAMP_SET_VideoMute,
@@ -1186,6 +1185,7 @@ static void ProcessCliCommand( char *cmd )
 		char help[8];
 		int opt;
 		if (sscanf(cmd, "set %d", &opt) == 1){
+			opt--; // 1 based to zero based
 			switch(opt){
 				case eAAMP_SET_RateAndSeek:
 				{
@@ -1806,6 +1806,7 @@ static void ProcessCliCommand( char *cmd )
 		char help[8];
 		int opt, value1, value2;
 		if (sscanf(cmd, "get %d", &opt) == 1){
+			opt--; // 1 based to zero based
 			switch(opt){
 				case eAAMP_GET_ThumbnailConfig:
 					printf("[AAMPCLI] GETTING AVAILABLE THUMBNAIL TRACKS: %s\n", mSingleton->GetAvailableThumbnailTracks().c_str() );
