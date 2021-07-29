@@ -74,7 +74,7 @@ std::mutex appsinkData_mutex;
  * @brief Define the enum values of get types
  */
 typedef enum {
-	eAAMP_GET_CurrentAudioLan = 1,
+	eAAMP_GET_CurrentAudioLan,
 	eAAMP_GET_CurrentDrm,
 	eAAMP_GET_PlaybackPosition,
 	eAAMP_GET_PlaybackDuration,
@@ -88,8 +88,7 @@ typedef enum {
 	eAAMP_GET_AvailableAudioTracks,
 	eAAMP_GET_AvailableTextTracks,
 	eAAMP_GET_AudioTrack,
-
-  eAAMP_GET_TextTrack,
+	eAAMP_GET_TextTrack,
 	eAAMP_GET_ThumbnailConfig,
 	eAAMP_GET_ThumbnailData,
 	eAAMP_GET_TYPE_COUNT
@@ -100,7 +99,7 @@ typedef enum {
  * @brief Define the enum values of set types
  */
 typedef enum{
-	eAAMP_SET_RateAndSeek = 1,
+	eAAMP_SET_RateAndSeek,
 	eAAMP_SET_VideoRectangle,
 	eAAMP_SET_VideoZoom,
 	eAAMP_SET_VideoMute,
@@ -109,7 +108,7 @@ typedef enum{
 	eAAMP_SET_SubscribedTags,
 	eAAMP_SET_LicenseServerUrl,
 	eAAMP_SET_AnonymousRequest,
-	eAAMP_SET_VodTrickplayFps = 10,
+	eAAMP_SET_VodTrickplayFps,
 	eAAMP_SET_LinearTrickplayFps,
 	eAAMP_SET_LiveOffset,
 	eAAMP_SET_StallErrorCode,
@@ -119,7 +118,7 @@ typedef enum{
 	eAAMP_SET_InitialBitrate,
 	eAAMP_SET_InitialBitrate4k,
 	eAAMP_SET_NetworkTimeout,
-	eAAMP_SET_ManifestTimeout = 20,
+	eAAMP_SET_ManifestTimeout,
 	eAAMP_SET_DownloadBufferSize,
 	eAAMP_SET_PreferredDrm,
 	eAAMP_SET_StereoOnlyPlayback,
@@ -129,7 +128,7 @@ typedef enum{
 	eAAMP_SET_DownloadStallTimeout,
 	eAAMP_SET_DownloadStartTimeout,
 	eAAMP_SET_PreferredSubtitleLang,
-	eAAMP_SET_ParallelPlaylistDL = 30,
+	eAAMP_SET_ParallelPlaylistDL,
 	eAAMP_SET_PreferredLanguages,
 	eAAMP_SET_RampDownLimit,
 	eAAMP_SET_InitRampdownLimit,
@@ -139,7 +138,7 @@ typedef enum{
 	eAAMP_SET_MaximumDrmDecryptFailCount,
 	eAAMP_SET_RegisterForID3MetadataEvents,
 	eAAMP_SET_InitialBufferDuration,
-	eAAMP_SET_AudioTrack = 40,
+	eAAMP_SET_AudioTrack,
 	eAAMP_SET_TextTrack,
 	eAAMP_SET_CCStatus,
 	eAAMP_SET_CCStyle,
@@ -1186,7 +1185,7 @@ static void ProcessCliCommand( char *cmd )
 		char help[8];
 		int opt;
 		if (sscanf(cmd, "set %d", &opt) == 1){
-			switch(opt){
+			switch(opt-1){ // 1 based to zero based
 				case eAAMP_SET_RateAndSeek:
 				{
 					int rate;
@@ -1781,7 +1780,7 @@ static void ProcessCliCommand( char *cmd )
 					break;
                                 }
 				default:
-					printf("[AAMPCLI] Invalid set command %d\n", opt);
+					printf("[AAMPCLI] Invalid set command %d\n", opt );
 					break;
 			}
 
@@ -1806,7 +1805,7 @@ static void ProcessCliCommand( char *cmd )
 		char help[8];
 		int opt, value1, value2;
 		if (sscanf(cmd, "get %d", &opt) == 1){
-			switch(opt){
+			switch(opt-1){ // 1 based to zero based
 				case eAAMP_GET_ThumbnailConfig:
 					printf("[AAMPCLI] GETTING AVAILABLE THUMBNAIL TRACKS: %s\n", mSingleton->GetAvailableThumbnailTracks().c_str() );
 					break;
@@ -1898,7 +1897,8 @@ static void ProcessCliCommand( char *cmd )
 				}
 
 				default:
-					printf("[AAMPCLI] Invalid get command %d\n", opt);
+					printf("[AAMPCLI] Invalid get command %d\n", opt );
+					break;
 			}
 
 		}
