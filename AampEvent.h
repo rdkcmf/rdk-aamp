@@ -80,6 +80,7 @@ typedef enum
 	AAMP_EVENT_ID3_METADATA,		/**< 36, ID3 metadata from audio stream */
 	AAMP_EVENT_DRM_MESSAGE,         	/**< 37, Message from the DRM system */
 	AAMP_EVENT_BLOCKED,         	        /**< 38, ATSC AV BLOCKED Event*/
+	AAMP_EVENT_WATERMARK_SESSION_UPDATE,    /**< 39, Update on Watermark Session*/
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -1732,6 +1733,55 @@ public:
 	const std::string &getReason() const { return mReason; }
 };
 
+/**
+ * @brief Class for the watermarkSession event
+ */
+class WatermarkSessionUpdateEvent: public AAMPEventObject
+{
+	uint32_t mSessionHandle; /**< Playback session handle used to track and manage sessions  */
+	uint32_t mStatus; /**< Provides the status of the watermark session.  */
+        std::string mSystem; /**< Describes content watermarking protection provider  */
+public:
+        WatermarkSessionUpdateEvent() = delete;
+        WatermarkSessionUpdateEvent(const WatermarkSessionUpdateEvent&) = delete;
+        WatermarkSessionUpdateEvent& operator=(const WatermarkSessionUpdateEvent&) = delete;
+
+        /*
+         * @brief WatermarkSessionUpdateEvent Constructor
+         * @param[in]  sessionHandle - Handle used to track and manage session
+         * @param[in]  status - Status of the watermark session
+         * @param[in]  system - Watermarking protection provider
+         */
+        WatermarkSessionUpdateEvent(uint32_t sessionHandle, uint32_t status, const std::string &system) : AAMPEventObject(AAMP_EVENT_WATERMARK_SESSION_UPDATE) , mSessionHandle(sessionHandle), mStatus(status), mSystem(system)
+        {}
+
+        /**
+         * @brief WatermarkSessionUpdateEvent Destructor
+         */
+        virtual ~WatermarkSessionUpdateEvent() { }
+
+        /**
+         * @brief Get session handle
+         *
+         * @return session handle
+         */
+        uint32_t getSessionHandle() const { return mSessionHandle; }
+
+	/**
+         * @brief Get session status 
+         *
+         * @return status
+         */
+        uint32_t getStatus() const { return mStatus; }
+
+	/**
+	 * @brief Get System
+	 *
+	 * @return System
+	 */
+	const std::string &getSystem() const { return mSystem; }
+};
+
 using AAMPEventPtr = std::shared_ptr<AAMPEventObject>;
 using MediaErrorEventPtr = std::shared_ptr<MediaErrorEvent>;
 using SpeedChangedEventPtr = std::shared_ptr<SpeedChangedEvent>;
@@ -1756,6 +1806,7 @@ using MetricsDataEventPtr = std::shared_ptr<MetricsDataEvent>;
 using ID3MetadataEventPtr = std::shared_ptr<ID3MetadataEvent>;
 using DrmMessageEventPtr = std::shared_ptr<DrmMessageEvent>;
 using BlockedEventPtr = std::shared_ptr<BlockedEvent>;
+using WatermarkSessionUpdateEventPtr = std::shared_ptr<WatermarkSessionUpdateEvent>;
 
 #endif /* __AAMP_EVENTS_H__ */
 

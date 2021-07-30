@@ -27,10 +27,13 @@
 
 #include <mutex>
 #include "ThunderAccess.h"
+#include "priv_aamp.h"
 
 #define SECMANAGER_CALL_SIGN "org.rdk.SecManager.1"
+#define WATERMARK_PLUGIN_CALLSIGN "org.rdk.Watermark.1"
+//#define RDKSHELL_CALLSIGN "org.rdk.RDKShell.1"   //need to be used instead of WATERMARK_PLUGIN_CALLSIGN if RDK Shell is used for rendering watermark
 
-class AampSecManager
+class AampSecManager : public AampScheduler
 {
 public:
 
@@ -64,7 +67,7 @@ public:
 	 * @param[out] reasonCode - license fetch reason code
 	 * @return bool - true if license fetch successful, false otherwise
 	 */
-	bool AcquireLicense(const char* licenseUrl, const char* moneyTraceMetdata[][2],
+	bool AcquireLicense(PrivateInstanceAAMP* aamp, const char* licenseUrl, const char* moneyTraceMetdata[][2],
 						const char* accessAttributes[][2], const char* contentMetadata,
 						const char* licenseRequest, const char* keySystemId,
 						const char* mediaUsage, const char* accessToken,
@@ -87,6 +90,15 @@ public:
 	 * @param[in] sessionId - session id
 	 */
 	void ReleaseSession(int64_t sessionId);
+
+	bool setVideoWindowSize(int64_t sessionId, int64_t video_width, int64_t video_height);
+
+	bool setPlaybackSpeedState(int64_t sessionId, int64_t playback_speed, int64_t playback_position);
+
+	bool setContentAspectRatio(int64_t sessionId, float aspect_ratio);
+
+	bool loadClutWatermark(int64_t sessionId, int64_t graphicId, int64_t watermarkClutBufferKey, int64_t watermarkImageBufferKey, int64_t clutPaletteSize, const char* clutPaletteFormat, int64_t watermarkWidth, int64_t watermarkHeight, float aspectRatio);
+
 private:
 
 	/**
@@ -97,16 +109,34 @@ private:
 	/**
 	 * @brief AampScheduler Destructor
 	 */
-	~AampSecManager()
-	{
-	}
+	~AampSecManager();
 
 	AampSecManager(const AampSecManager&) = delete;
 	AampSecManager* operator=(const AampSecManager&) = delete;
 
-	static AampSecManager *mInstance; // singleton instance
-	ThunderAccessAAMP mSecManagerObj; // ThunderAccessAAMP object for communicating with SecManager
-	std::mutex mMutex;		  // Lock for accessing mSecManagerObj
+	void RegisterEvent (string eventName, std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> functionHandler);
+	void RegisterAllEvents ();
+	void UnRegisterAllEvents ();
+
+	/*Event Handlers*/
+	void watermarkSessionHandler(const JsonObject& parameters);
+	void addWatermarkHandler(const JsonObject& parameters);
+	void updateWatermarkHandler(const JsonObject& parameters);
+	void removeWatermarkHandler(const JsonObject& parameters);
+
+	void ShowWatermark(bool show);
+	void CreateWatermark(int graphicId, int zIndex);
+	void DeleteWatermark(int graphicId);
+	void UpdateWatermark(int graphicId, int smKey, int smSize);
+	void AlwaysShowWatermarkOnTop(bool show);
+
+	static AampSecManager *mInstance;  /**< singleton instance*/
+	PrivateInstanceAAMP* mAamp;        /**< Pointer to the PrivateInstanceAAMP*/
+	ThunderAccessAAMP mSecManagerObj;  /**< ThunderAccessAAMP object for communicating with SecManager*/
+	ThunderAccessAAMP mWatermarkPluginObj;    /**< ThunderAccessAAMP object for communicating with Watermark Plugin Obj*/
+	std::mutex mMutex;		   /**<  Lock for accessing mSecManagerObj*/
+	std::list<std::string> mRegisteredEvents;
+	bool mSchedulerStarted;
 };
 
 #endif /* __AAMP_SECMANAGER_H__ */
