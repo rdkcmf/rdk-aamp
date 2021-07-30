@@ -5407,6 +5407,21 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 					}
 				}
 			}
+
+			if( !aamp->preferredTypeString.empty() )
+			{
+				for( auto iter : adaptationSet->GetAccessibility() )
+				{
+					if (iter->GetSchemeIdUri().find("urn:mpeg:dash:role:2011") != string::npos)
+					{
+						std::string trackType = iter->GetValue();
+						if (aamp->preferredTypeString.compare(trackType)==0 )
+						{
+							score += 10;
+						}
+					}
+				}
+			}
 			
 			AudioType selectedCodecType = eAUDIO_UNKNOWN;
 			uint32_t selRepBandwidth = 0;
@@ -5664,16 +5679,35 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 					const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
 					std::string codec;
 					std::string group; // value of <Role>, empty if <Role> not present
+					std::string type; // value of <Accessibility>
+					std::string empty;
 					{
 						std::vector<IDescriptor *> role = adaptationSet->GetRole();
 						for (unsigned iRole = 0; iRole < role.size(); iRole++)
 						{
 							if (role.at(iRole)->GetSchemeIdUri().find("urn:mpeg:dash:role:2011") != string::npos)
 							{
-								group = role.at(iRole)->GetValue();
+								if (!group.empty())
+								{
+									group += ",";
+								}
+								group += role.at(iRole)->GetValue();
 							}
 						}
 					}
+
+					for( auto iter : adaptationSet->GetAccessibility() )
+					{
+						if (iter->GetSchemeIdUri().find("urn:mpeg:dash:role:2011") != string::npos)
+						{	
+							if (!type.empty())
+							{
+								type += ",";
+							}
+							type += iter->GetValue();
+						}
+					}
+
 					// check for codec defined in Adaptation Set
 					const std::vector<string> adapCodecs = adaptationSet->GetCodecs();
 					const std::string adapMimeType = adaptationSet->GetMimeType();
@@ -5701,15 +5735,15 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 
 						if (eMEDIATYPE_AUDIO == i)
 						{
-							AAMPLOG_WARN("StreamAbstractionAAMP_MPD::%s() %d Audio Track - lang:%s, group:%s, name:%s, codec:%s, bandwidth:%d",
-								__FUNCTION__, __LINE__, lang.c_str(), group.c_str(), name.c_str(), codec.c_str(), bandwidth);
-							aTracks.push_back(AudioTrackInfo(index, lang, group, name, codec, bandwidth));
+							AAMPLOG_WARN("StreamAbstractionAAMP_MPD::%s() %d Audio Track - lang:%s, group:%s, name:%s, codec:%s, bandwidth:%d, type:%s",
+								__FUNCTION__, __LINE__, lang.c_str(), group.c_str(), name.c_str(), codec.c_str(), bandwidth, type.c_str());
+							aTracks.push_back(AudioTrackInfo(index, lang, group, name, codec, bandwidth, type));
 						}
 						else
 						{
-							AAMPLOG_WARN("StreamAbstractionAAMP_MPD::%s() %d Text Track - lang:%s, isCC:0, group:%s, name:%s, codec:%s",
-								__FUNCTION__, __LINE__, lang.c_str(), group.c_str(), name.c_str(), codec.c_str());
-							tTracks.push_back(TextTrackInfo(index, lang, false, group, name, codec));
+							AAMPLOG_WARN("StreamAbstractionAAMP_MPD::%s() %d Text Track - lang:%s, isCC:0, group:%s, name:%s, codec:%s, type:%s",
+								__FUNCTION__, __LINE__, lang.c_str(), group.c_str(), name.c_str(), codec.c_str(), type.c_str());
+							tTracks.push_back(TextTrackInfo(index, lang, false, group, name, codec, empty, type));
 						}
 					}
 				}

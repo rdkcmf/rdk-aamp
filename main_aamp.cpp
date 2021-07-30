@@ -1935,12 +1935,14 @@ void PlayerInstanceAAMP::SetPreferredRenditions(const char *renditionList)
  *   @brief Set optional preferred language list
  *   @param[in] languageList - string with comma-delimited language list in ISO-639
  *             from most to least preferred. Set NULL to clear current list.
+ *   @param[in] preferredRendition  - preferred rendition from role
+ *   @param[in] preferredType -  preferred accessibility type
  *
  *   @return void
  */
-void PlayerInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition )
+void PlayerInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition, const char *preferredType )
 {
-	aamp->SetPreferredLanguages(languageList, preferredRendition);
+	aamp->SetPreferredLanguages(languageList, preferredRendition, preferredType);
 }
 
 /**
