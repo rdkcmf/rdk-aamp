@@ -174,27 +174,28 @@ struct AudioTrackInfo
 	int primaryKey; // used for ATSC to store key , this should not be exposed to app.
 	std::string contentType; // used for ATSC to propogate content type
 	std::string mixType; // used for ATSC to propogate mix type
+	std::string accessibilityType; //value of Accessibility
 
-	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), bandwidth(0),primaryKey(0), contentType(), mixType()
+	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), bandwidth(0),primaryKey(0), contentType(), mixType(), accessibilityType()
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, std::string cha, int ch):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1), primaryKey(0) , contentType(), mixType()
+		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1), primaryKey(0) , contentType(), mixType(), accessibilityType()
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, int pk, std::string conType, std::string mixType):
 			index(idx), language(lang), rendition(rend), name(trackName),
 			codec(codecStr), characteristics(), channels(0), bandwidth(-1), primaryKey(pk),
-                        contentType(conType), mixType(mixType)
+                        contentType(conType), mixType(mixType), accessibilityType()
 	{
 	}
 
-	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw):
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, std::string typ):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType()
+		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ)
 	{
 	}
 };
@@ -214,29 +215,30 @@ struct TextTrackInfo
 	std::string characteristics;
 	std::string codec;
 	int primaryKey; // used for ATSC to store key , this should not be exposed to app.
+	std::string accessibilityType; //value of Accessibility
 
-	TextTrackInfo() : index(), language(), isCC(false), rendition(), name(), instreamId(), characteristics(), codec(), primaryKey(0)
+	TextTrackInfo() : index(), language(), isCC(false), rendition(), name(), instreamId(), characteristics(), codec(), primaryKey(0), accessibilityType()
 	{
 	}
 
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(id), characteristics(cha),
-		codec(), primaryKey(0)
+		codec(), primaryKey(0), accessibilityType()
 	{
 	}
 
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha, int pk):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(id), characteristics(cha),
-		codec(), primaryKey(pk)
+		codec(), primaryKey(pk), accessibilityType()
 	{
 	}
 
-	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr):
+	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr, std::string cha, std::string typ):
 		index(idx), language(lang), isCC(cc), rendition(rend),
-		name(trackName), instreamId(), characteristics(),
-		codec(codecStr), primaryKey(0)
+		name(trackName), instreamId(), characteristics(cha),
+		codec(codecStr), primaryKey(0), accessibilityType(typ)
 	{
 	}
 };
@@ -1184,10 +1186,11 @@ public:
 	 *   @brief Set optional preferred language list
 	 *   @param[in] languageList - string with comma-delimited language list in ISO-639
 	 *             from most to least preferred: "lang1,lang2". Set NULL to clear current list.
-	 *
+         *   @param[in] preferredRendition  - preferred rendition from role
+         *   @param[in] preferredType -  preferred accessibility type
 	 *   @return void
 	 */
-	 void SetPreferredLanguages(const char* languageList, const char *preferredRendition = NULL );
+	 void SetPreferredLanguages(const char* languageList, const char *preferredRendition = NULL, const char *preferredType = NULL ); 
 
 	/**
 	 *   @brief Set audio track by audio parameters like language , rendition, codec etc..

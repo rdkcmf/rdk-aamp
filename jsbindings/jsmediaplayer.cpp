@@ -2791,31 +2791,29 @@ JSValueRef AAMPMediaPlayerJS_setPreferredAudioLanguage(JSContextRef ctx, JSObjec
 		return JSValueMakeUndefined(ctx);
 	}
 
-	if( argumentCount==1 || argumentCount==2 )
+	if( argumentCount>=1 && argumentCount<=3)
 	{
 		char* lanList = aamp_JSValueToCString(ctx,arguments[0], NULL);
 		if( lanList )
 		{
-			if( argumentCount==2 )
-			{  
-				char* rendition = aamp_JSValueToCString(ctx,arguments[1], NULL);
-				if( rendition )
-				{    
-					privObj->_aamp->SetPreferredLanguages(lanList,rendition);
-					delete[] rendition;
-				}
+			char *rendition = NULL;
+			char *type = NULL;
+			if(argumentCount >= 2) {
+				rendition = aamp_JSValueToCString(ctx,arguments[1], NULL);
 			}
-			else
-			{
-				privObj->_aamp->SetPreferredLanguages(lanList);
+			if(argumentCount == 3) {
+				type = aamp_JSValueToCString(ctx,arguments[2], NULL);
 			}
+			privObj->_aamp->SetPreferredLanguages(lanList, rendition, type);
+			delete[] type;
+			delete[] rendition;
 			delete[] lanList;
 		}
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
-		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setPreferredAudioLanguage() - 1 argument required");
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1, 2 or 3", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setPreferredAudioLanguage() - 1, 2 or 3 arguments required");
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);

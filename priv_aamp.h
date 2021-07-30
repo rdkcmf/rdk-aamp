@@ -664,6 +664,7 @@ public:
 	std::vector<std::string> preferredLanguagesList; // list of preferred languages from most-preferred to the least
 	std::string preferredRenditionString; // unparsed string with preferred renditions in format "rendition1,rendition2,.."
 	std::vector<std::string> preferredRenditionList; // list of preferred rendition from most-preferred to the least
+	std::string preferredTypeString; // unparsed string with preferred accessibility type
 	std::string preferredCodecString; // unparsed string with preferred codecs in format "codec1,codec2,.."
 	std::vector<std::string> preferredCodecList; //String array to store codec preference
 	AudioTrackTuple mAudioTuple;
@@ -2966,10 +2967,11 @@ public:
 	 *   @brief Set optional preferred language list
 	 *   @param[in] languageList - string with comma-delimited language list in ISO-639
 	 *             from most to least preferred. Set NULL to clear current list.
-	 *
+	 *   @param[in] preferredRendition  - preferred rendition from role
+         *   @param[in] preferredType -  preferred accessibility type
 	 *   @return void
 	 */
-	void SetPreferredLanguages(const char *languageList, const char *preferredRenditio = NULL );
+	void SetPreferredLanguages(const char *languageList, const char *preferredRendition = NULL, const char *preferredType = NULL );
 
 	/**
 	 *   @brief Set the scheduler instance to schedule tasks
