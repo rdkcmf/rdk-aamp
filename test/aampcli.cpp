@@ -108,7 +108,7 @@ typedef enum{
 	eAAMP_SET_SubscribedTags,
 	eAAMP_SET_LicenseServerUrl,
 	eAAMP_SET_AnonymousRequest,
-	eAAMP_SET_VodTrickplayFps = 10,
+	eAAMP_SET_VodTrickplayFps,
 	eAAMP_SET_LinearTrickplayFps,
 	eAAMP_SET_LiveOffset,
 	eAAMP_SET_StallErrorCode,
@@ -118,7 +118,7 @@ typedef enum{
 	eAAMP_SET_InitialBitrate,
 	eAAMP_SET_InitialBitrate4k,
 	eAAMP_SET_NetworkTimeout,
-	eAAMP_SET_ManifestTimeout = 20,
+	eAAMP_SET_ManifestTimeout,
 	eAAMP_SET_DownloadBufferSize,
 	eAAMP_SET_PreferredDrm,
 	eAAMP_SET_StereoOnlyPlayback,
@@ -128,7 +128,7 @@ typedef enum{
 	eAAMP_SET_DownloadStallTimeout,
 	eAAMP_SET_DownloadStartTimeout,
 	eAAMP_SET_PreferredSubtitleLang,
-	eAAMP_SET_ParallelPlaylistDL = 30,
+	eAAMP_SET_ParallelPlaylistDL,
 	eAAMP_SET_PreferredLanguages,
 	eAAMP_SET_RampDownLimit,
 	eAAMP_SET_InitRampdownLimit,
@@ -138,7 +138,7 @@ typedef enum{
 	eAAMP_SET_MaximumDrmDecryptFailCount,
 	eAAMP_SET_RegisterForID3MetadataEvents,
 	eAAMP_SET_InitialBufferDuration,
-	eAAMP_SET_AudioTrack = 40,
+	eAAMP_SET_AudioTrack,
 	eAAMP_SET_TextTrack,
 	eAAMP_SET_CCStatus,
 	eAAMP_SET_CCStyle,
@@ -1191,8 +1191,7 @@ static void ProcessCliCommand( char *cmd )
 		char help[8];
 		int opt;
 		if (sscanf(cmd, "set %d", &opt) == 1){
-			opt--; // 1 based to zero based
-			switch(opt){
+			switch(opt-1){ // 1 based to zero based
 				case eAAMP_SET_RateAndSeek:
 				{
 					int rate;
@@ -1787,7 +1786,7 @@ static void ProcessCliCommand( char *cmd )
 					break;
                                 }
 				default:
-					printf("[AAMPCLI] Invalid set command %d\n", opt);
+					printf("[AAMPCLI] Invalid set command %d\n", opt );
 					break;
 			}
 
@@ -1812,8 +1811,7 @@ static void ProcessCliCommand( char *cmd )
 		char help[8];
 		int opt, value1, value2;
 		if (sscanf(cmd, "get %d", &opt) == 1){
-			opt--; // 1 based to zero based
-			switch(opt){
+			switch(opt-1){ // 1 based to zero based
 				case eAAMP_GET_ThumbnailConfig:
 					printf("[AAMPCLI] GETTING AVAILABLE THUMBNAIL TRACKS: %s\n", mSingleton->GetAvailableThumbnailTracks().c_str() );
 					break;
@@ -1905,7 +1903,8 @@ static void ProcessCliCommand( char *cmd )
 				}
 
 				default:
-					printf("[AAMPCLI] Invalid get command %d\n", opt);
+					printf("[AAMPCLI] Invalid get command %d\n", opt );
+					break;
 			}
 
 		}
