@@ -29,30 +29,17 @@
 
 /**
  * @brief Free memory allocated by aamp_Malloc
- * @param[in][out] pptr Pointer to allocated memory
+ * @param[in][out] struct GrowableBuffer, this structure has ptr variable allocated by aamp.
  */
-void aamp_Free(char **pptr)
+void aamp_Free(struct GrowableBuffer *buffer)
 {
-	void *ptr = *pptr;
-	if (ptr)
+	if (buffer && buffer->ptr)
 	{
-		g_free(ptr);
-		*pptr = NULL;
+		g_free(buffer->ptr);
+		buffer->ptr = NULL;
 	}
 }
 
-
-/**
- * @brief Allocate memory to growable buffer
- * @param buffer growable buffer
- * @param len size of memory to be allocated
- */
-void aamp_Malloc(struct GrowableBuffer *buffer, size_t len)
-{
-	assert(!buffer->ptr && !buffer->avail );
-	buffer->ptr = (char *)g_malloc(len);
-	buffer->avail = len;
-}
 
 
 /**

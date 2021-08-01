@@ -529,7 +529,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 					//FOG already has the manifest. Releasing the one from CDN and using FOG's
 					xmlFreeTextReader(reader);
 					reader = xmlReaderForMemory(fogManifest.ptr, (int) fogManifest.len, NULL, NULL, 0);
-					aamp_Free(&manifest.ptr);
+					aamp_Free(&manifest);
 					manifest = fogManifest;
 					fogManifest.ptr = NULL;
 				}
@@ -541,7 +541,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 
 			if(fogManifest.ptr)
 			{
-				aamp_Free(&fogManifest.ptr);
+				aamp_Free(&fogManifest);
 			}
 		}
 		if (reader != NULL)
@@ -622,7 +622,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 			aamp_AppendNulTerminator(&manifest); // make safe for cstring operations
 			logprintf("%s:%d - Ad manifest: %s", __FUNCTION__, __LINE__, manifest.ptr);
 		}
-		aamp_Free(&manifest.ptr);
+		aamp_Free(&manifest);
 	}
 	else
 	{

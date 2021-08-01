@@ -156,7 +156,7 @@ void AesDec::AcquireKey()
 	}
 	else
 	{
-		aamp_Free(&mAesKeyBuf.ptr); //To cleanup previous successful key if any
+		aamp_Free(&mAesKeyBuf); //To cleanup previous successful key if any
 		NotifyDRMError(failureReason);
 	}
 }

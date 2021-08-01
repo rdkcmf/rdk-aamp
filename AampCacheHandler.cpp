@@ -149,7 +149,7 @@ void AampCacheHandler::ClearPlaylistCache()
 		PlayListCachedData *tmpData = it->second;
 		if(!tmpData->mDuplicateEntry)
 		{
-			aamp_Free(&tmpData->mCachedBuffer->ptr);
+			aamp_Free(tmpData->mCachedBuffer);
 			delete tmpData->mCachedBuffer;
 			tmpData->mCachedBuffer = NULL;
 		}
@@ -193,7 +193,7 @@ bool AampCacheHandler::AllocatePlaylistCacheSlot(MediaType fileType,size_t newLe
 			if(!tmpData->mDuplicateEntry)
 			{
 				freedSize += tmpData->mCachedBuffer->len;
-				aamp_Free(&tmpData->mCachedBuffer->ptr);
+				aamp_Free(tmpData->mCachedBuffer);
 				delete tmpData->mCachedBuffer;
 				tmpData->mCachedBuffer = NULL;
 			}
@@ -215,7 +215,7 @@ bool AampCacheHandler::AllocatePlaylistCacheSlot(MediaType fileType,size_t newLe
 				if(!tmpData->mDuplicateEntry)
 				{
 					freedSize += tmpData->mCachedBuffer->len;
-					aamp_Free(&tmpData->mCachedBuffer->ptr);
+					aamp_Free(tmpData->mCachedBuffer);
 					delete tmpData->mCachedBuffer;
 					tmpData->mCachedBuffer = NULL;                                
 				}

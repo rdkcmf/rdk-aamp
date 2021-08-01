@@ -178,7 +178,7 @@ void MediaTrack::MonitorBufferHealth()
 void MediaTrack::UpdateTSAfterInject()
 {
 	pthread_mutex_lock(&mutex);
-	aamp_Free(&cachedFragment[fragmentIdxToInject].fragment.ptr);
+	aamp_Free(&cachedFragment[fragmentIdxToInject].fragment);
 	memset(&cachedFragment[fragmentIdxToInject], 0, sizeof(CachedFragment));
 	fragmentIdxToInject++;
 	if (fragmentIdxToInject == maxCachedFragmentsPerTrack)
@@ -859,7 +859,7 @@ void MediaTrack::FlushFragments()
 {
 	for (int i = 0; i < maxCachedFragmentsPerTrack; i++)
 	{
-		aamp_Free(&cachedFragment[i].fragment.ptr);
+		aamp_Free(&cachedFragment[i].fragment);
 		memset(&cachedFragment[i], 0, sizeof(CachedFragment));
 	}
 	fragmentIdxToInject = 0;
@@ -926,7 +926,7 @@ MediaTrack::~MediaTrack()
 
 	for (int j=0; j< maxCachedFragmentsPerTrack; j++)
 	{
-		aamp_Free(&cachedFragment[j].fragment.ptr);
+		aamp_Free(&cachedFragment[j].fragment);
 	}
 	if(cachedFragment)
 	{

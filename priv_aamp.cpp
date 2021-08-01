@@ -925,8 +925,11 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 			/*contentLength can be zero for redirects*/
 			if (contentLength > 0)
 			{
+				size_t len = contentLength + 2;
 				/*Add 2 additional characters to take care of extra characters inserted by aamp_AppendNulTerminator*/
-				aamp_Malloc(context->buffer, contentLength + 2);
+				assert(!context->buffer->ptr);
+				context->buffer->ptr = (char *)g_malloc( len );
+				context->buffer->avail = len;
 			}
 		}
 	}
@@ -3453,10 +3456,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				AAMPLOG_WARN("AAMP Content-Length=%d actual=%d", (int)expectedContentLength, (int)buffer->len);
 				http_code       =       416; // Range Not Satisfiable
 				ret             =       false; // redundant, but harmless
-				if (buffer->ptr)
-				{
-					aamp_Free(&buffer->ptr);
-				}
+				aamp_Free(buffer);
 				memset(buffer, 0x00, sizeof(*buffer));
 			}
 			else
@@ -3478,10 +3478,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			{
 				logprintf("BAD URL:%s", remoteUrl.c_str());
 			}
-			if (buffer->ptr)
-			{
-				aamp_Free(&buffer->ptr);
-			}
+			aamp_Free(buffer);
 			memset(buffer, 0x00, sizeof(*buffer));
 
 			if (rate != 1.0)
@@ -3746,10 +3743,7 @@ char * PrivateInstanceAAMP::GetOnVideoEndSessionStatData()
 			AAMPLOG_ERR("%s:%d curl request %s failed[%d]", __FUNCTION__, __LINE__, remoteUrl.c_str(), http_error);
 		}
 
-		if(data.ptr)
-		{
-			aamp_Free(&data.ptr);
-		}
+		aamp_Free(&data);
 	}
 
 	return ret;
@@ -4875,7 +4869,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 				rc = eMEDIAFORMAT_PROGRESSIVE;
 			}
 		}
-		aamp_Free(&sniffedBytes.ptr);
+		aamp_Free(&sniffedBytes);
 	}
 	return rc;
 }
@@ -6545,7 +6539,8 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 			{
 				AAMPLOG_INFO("TsbSessionEnd:%s", data);
 				strVideoEndJson = mVideoEnd->ToJsonString(data);
-				aamp_Free(&data);
+				cJSON_free( data );
+				data = NULL;
 			}
 		}
 		else
@@ -7940,7 +7935,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 						{
 							// If successful download , then insert into Cache 
 							getAampCacheHandler()->InsertToPlaylistCache(newelem.url, &playlistStore, playlistEffectiveUrl, false, newelem.type);
-							aamp_Free(&playlistStore.ptr);
+							aamp_Free(&playlistStore);
 						}	
 					}
 					idx++;

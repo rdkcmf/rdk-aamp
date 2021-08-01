@@ -61,13 +61,12 @@ void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader) const
 }
 #endif
 
-void aamp_Free(char **pptr)
+void aamp_Free(struct GrowableBuffer *buffer)
 {
-	void *ptr = *pptr;
-	if (ptr)
+	if (buffer && buffer->ptr)
 	{
-		free(ptr);
-		*pptr = NULL;
+		g_free(buffer->ptr);
+		buffer->ptr  = NULL;
 	}
 }
 
