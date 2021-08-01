@@ -216,11 +216,7 @@ public:
 	 */
 	~MediaStreamContext()
 	{
-		if(mDownloadedFragment.ptr)
-		{
-			aamp_Free(&mDownloadedFragment.ptr);
-			mDownloadedFragment.ptr = NULL;
-		}
+		aamp_Free(&mDownloadedFragment);
 	}
 
 	/**
@@ -330,7 +326,7 @@ public:
 		}
 		else if (!ret)
 		{
-			aamp_Free(&cachedFragment->fragment.ptr);
+			aamp_Free(&cachedFragment->fragment);
 			if( aamp->DownloadsAreEnabled())
 			{
 			
@@ -1206,7 +1202,11 @@ static void deIndexTileInfo(std::vector<TileInfo> &indexedTileInfo)
 	logprintf("In %s indexedTileInfo size=%d",__FUNCTION__,indexedTileInfo.size());
 	for(int i=0;i<indexedTileInfo.size();i++)
 	{
-		aamp_Free((char**)&indexedTileInfo[i].url);
+		if( indexedTileInfo[i].url )
+		{
+			free( (char *)indexedTileInfo[i].url );
+			indexedTileInfo[i].url = NULL;
+		}
 	}
 	indexedTileInfo.clear();
 	traceprintf("%s exiting",__FUNCTION__);
@@ -1903,7 +1903,11 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				}
 				else
 				{ // done with index
-					aamp_Free(&pMediaStreamContext->index_ptr);
+					if( pMediaStreamContext->index_ptr )
+					{
+						g_free(pMediaStreamContext->index_ptr);
+						pMediaStreamContext->index_ptr = NULL;
+					}
 					pMediaStreamContext->eos = true;
 				}
 			}
@@ -2385,7 +2389,11 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					else
 					{
 						// done with index
-						aamp_Free(&pMediaStreamContext->index_ptr);
+						if( pMediaStreamContext->index_ptr )
+						{
+							g_free(pMediaStreamContext->index_ptr);
+							pMediaStreamContext->index_ptr = NULL;
+						}
 						pMediaStreamContext->eos = true;
 						break;
 					}
@@ -4562,7 +4570,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 			logprintf("%s:%d Error while processing MPD, GetMpdFromManfiest returned %d", __FUNCTION__, __LINE__, ret);
 			retrievedPlaylistFromCache = false;
 		}
-		aamp_Free(&manifest.ptr);
+		aamp_Free(&manifest);
 		mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
 		if(mIsLiveStream && ISCONFIGSET(eAAMPConfig_EnableClientDai))
 		{
@@ -6924,7 +6932,8 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 						pMediaStreamContext->fragmentOffset = 0;
 						if (pMediaStreamContext->index_ptr)
 						{
-							aamp_Free(&pMediaStreamContext->index_ptr);
+							g_free( pMediaStreamContext->index_ptr );
+							pMediaStreamContext->index_ptr = NULL;
 						}
 						const IURLType *urlType = segmentBase->GetInitialization();
 						if (urlType)

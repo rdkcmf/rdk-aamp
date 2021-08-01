@@ -40,9 +40,9 @@ struct GrowableBuffer
 
 /**
  * @brief Free memory allocated by aamp_Malloc
- * @param[in][out] pptr Pointer to allocated memory
+ * @param[in][out] struct GrowableBuffer
  */
-void aamp_Free(char **pptr);
+void aamp_Free(struct GrowableBuffer *buffer);
 
 /**
  * @brief Allocate memory to growable buffer

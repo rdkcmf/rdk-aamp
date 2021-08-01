@@ -327,8 +327,8 @@ public:
 	 */
 	~Demuxer()
 	{
-		aamp_Free(&es.ptr);
-		aamp_Free(&pes_header.ptr);
+		aamp_Free(&es);
+		aamp_Free(&pes_header);
 	}
 
 
@@ -380,8 +380,8 @@ public:
 	 */
 	void reset()
 	{
-		aamp_Free(&es.ptr);
-		aamp_Free(&pes_header.ptr);
+		aamp_Free(&es);
+		aamp_Free(&pes_header);
 		memset(&pes_header, 0x00, sizeof(GrowableBuffer));
 		memset(&es, 0x00, sizeof(GrowableBuffer));
 		sentESCount = 0;

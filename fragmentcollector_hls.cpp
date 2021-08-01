@@ -1899,7 +1899,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 					AAMPLOG_ERR("Not able to download fragments; reached failure threshold sending tune failed event");
 					aamp->SendDownloadErrorEvent(AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, http_error);
 				}
-				aamp_Free(&cachedFragment->fragment.ptr);
+				aamp_Free(&cachedFragment->fragment);
 				lastDownloadedIFrameTarget = -1;
 				return false;
 			}
@@ -1962,7 +1962,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 								}
 							}
 						}
-						aamp_Free(&cachedFragment->fragment.ptr);
+						aamp_Free(&cachedFragment->fragment);
 						lastDownloadedIFrameTarget = -1;
 						return false;
 					}
@@ -2252,7 +2252,7 @@ static void DumpIndex(TrackState *trackState)
 ***************************************************************************/
 void TrackState::FlushIndex()
 {
-	aamp_Free(&index.ptr);
+	aamp_Free(&index);
 	indexFirstMediaSequenceNumber = 0;
 	mProgramDateTime = 0.0; // new member - stored first program date time (if any) from playlist
 	indexCount = 0;
@@ -2264,7 +2264,7 @@ void TrackState::FlushIndex()
 	mDeferredDrmKeyMaxTime = 0;
 	mKeyHashTable.clear();
 	mDiscontinuityIndexCount = 0;
-	aamp_Free(&mDiscontinuityIndex.ptr);
+	aamp_Free(&mDiscontinuityIndex);
 	memset(&mDiscontinuityIndex, 0, sizeof(mDiscontinuityIndex));
 	if (mDrmMetaDataIndexCount)
 	{
@@ -2294,7 +2294,7 @@ void TrackState::FlushIndex()
 				drmMetadataNode[i].sha1Hash = NULL;
 			}
 		}
-		aamp_Free(&mDrmMetaDataIndex.ptr);
+		aamp_Free(&mDrmMetaDataIndex);
 		memset(&mDrmMetaDataIndex, 0, sizeof(mDrmMetaDataIndex));
 		mDrmMetaDataIndexCount = 0;
 		mDrmMetaDataIndexPosition = 0;
@@ -3118,7 +3118,7 @@ void TrackState::RefreshPlaylist(void)
 		{
 			context->mNetworkDownDetected = false;
 		}
-		aamp_Free(&tempBuff.ptr);
+		aamp_Free(&tempBuff);
 		aamp_AppendNulTerminator(&playlist); // hack: make safe for cstring operations
 #ifdef TRACE
 		if (gpGlobalConfig->logging.trace)
@@ -5731,12 +5731,12 @@ TrackState::TrackState(TrackType type, StreamAbstractionAAMP_HLS* parent, Privat
 ***************************************************************************/
 TrackState::~TrackState()
 {
-	aamp_Free(&playlist.ptr);
+	aamp_Free(&playlist);
 	int  maxCachedFragmentsPerTrack;
 	GETCONFIGVALUE(eAAMPConfig_MaxFragmentCached,maxCachedFragmentsPerTrack); 
 	for (int j=0; j< maxCachedFragmentsPerTrack; j++)
 	{
-		aamp_Free(&cachedFragment[j].fragment.ptr);
+		aamp_Free(&cachedFragment[j].fragment);
 	}
 	FlushIndex();
 	if (playContext)
@@ -5825,8 +5825,8 @@ StreamAbstractionAAMP_HLS::~StreamAbstractionAAMP_HLS()
 	}
 
 	aamp->SyncBegin();
-	aamp_Free(&this->thumbnailManifest.ptr);
-	aamp_Free(&this->mainManifest.ptr);
+	aamp_Free(&this->thumbnailManifest);
+	aamp_Free(&this->mainManifest);
 	aamp->CurlTerm(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT);
 	aamp->SyncEnd();
 }
@@ -6146,7 +6146,7 @@ bool StreamAbstractionAAMP_HLS::SetThumbnailTrack( int thumbIndex )
 {
 	bool rc = false;
 	indexedTileInfo.clear();
-	aamp_Free( &thumbnailManifest.ptr );
+	aamp_Free( &thumbnailManifest );
 	thumbnailManifest.len = 0;
 
 	for( int iProfile=0; iProfile<mProfileCount; iProfile++ )
@@ -7201,7 +7201,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 			if (!fetched)
 			{
 				AAMPLOG_ERR("TrackState::%s:%d aamp_GetFile failed", __FUNCTION__, __LINE__);
-				aamp_Free(&cachedFragment->fragment.ptr);
+				aamp_Free(&cachedFragment->fragment);
 			}
 			else
 			{

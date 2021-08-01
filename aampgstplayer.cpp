@@ -2390,7 +2390,7 @@ void AAMPGstPlayer::Send(MediaType mediaType, GrowableBuffer* pBuffer, double fp
 		{
 			// What do we with the data buffer
 			// This flavour of Send() sends the data buffer as such so free data buffer to avoid memory leak and reset pBuffer
-			aamp_Free(&pBuffer->ptr);
+			aamp_Free(pBuffer);
 			memset(pBuffer, 0x00, sizeof(GrowableBuffer));
 			return;
 		}
