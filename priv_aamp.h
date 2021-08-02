@@ -55,6 +55,7 @@
 #include <atomic>
 #include <memory>
 #include <inttypes.h>
+#include "AampRfc.h"
 
 static const char *mMediaFormatName[] =
 {
@@ -650,6 +651,7 @@ public:
 	//std::string cookieHeaders[MAX_CURL_INSTANCE_COUNT]; //To store Set-Cookie: headers in HTTP response
 	std::string  mManifestUrl;
 	std::string mTunedManifestUrl;
+	std::string schemeIdUriDai;
 
 	bool isPreferredDRMConfigured;
 	bool mIsWVKIDWorkaround;            /*Widevine KID workaround flag*/

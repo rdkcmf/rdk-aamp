@@ -4942,9 +4942,7 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 			}
 			if (name == "SupplementalProperty" && node->HasAttribute("schemeIdUri")) {
 				const std::string& schemeIdUri = node->GetAttributeValue("schemeIdUri");
-#ifdef AAMP_RFC_ENABLED
-				const std::string& schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
-				if (schemeIdUri == schemeIdUriDai && node->HasAttribute("id")) {
+				if (schemeIdUri == aamp->schemeIdUriDai && node->HasAttribute("id")) {
 					const std::string& ID = node->GetAttributeValue("id");
 					if (ID == "identityADS" && node->HasAttribute("value")) {
 						const std::string& content = node->GetAttributeValue("value");
@@ -4992,7 +4990,6 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 						continue;
 					}
 				}
-#endif
 				continue;
 			}
 		}
@@ -5021,9 +5018,7 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodSupplementalProperty(Node* node, st
 		
 		if(!schemeIdUri.empty())
 		{
-#ifdef AAMP_RFC_ENABLED
-			const std::string& schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
-			if ((schemeIdUri == schemeIdUriDai) && node->HasAttribute("id")) {
+			if ((schemeIdUri == aamp->schemeIdUriDai) && node->HasAttribute("id")) {
 				const std::string& ID = node->GetAttributeValue("id");
 				if ((ID == "Tracking") && node->HasAttribute("value")) {
 					const std::string& value = node->GetAttributeValue("value");
@@ -5064,7 +5059,6 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodSupplementalProperty(Node* node, st
 					}
 				}
 			}
-#endif
 			if (!AdID.empty() && (schemeIdUri == "urn:scte:scte130-10:2014")) {
 				std::vector<Node*> children = node->GetSubNodes();
 				for (size_t i=0; i < children.size(); i++) {

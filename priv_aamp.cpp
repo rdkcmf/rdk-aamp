@@ -1200,7 +1200,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mManifestRefreshCount (0)
 	, mJumpToLiveFromPause(false), mPausedBehavior(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE), mSeekFromPausedState(false)
 	, mProgramDateTime (0), mMPDPeriodsInfo()
-	, mProfileCappedStatus(false)
+	, mProfileCappedStatus(false),schemeIdUriDai("")
 	, mDisplayWidth(0)
 	, mDisplayHeight(0)
 	, preferredRenditionString(""), preferredRenditionList(), preferredTypeString(""), preferredCodecString(""), preferredCodecList(), mAudioTuple()
@@ -4495,6 +4495,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	// reused 
 	mProgramDateTime = 0;
 	mMPDPeriodsInfo.clear();
+
+#ifdef AAMP_RFC_ENABLED
+	schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
+#endif
 
 	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
