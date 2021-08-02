@@ -6149,7 +6149,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 		}
 
 
-		if ((eventData->getName() == "SCTE35") || !bSyncCall || GetAsyncTuneConfig())
+		if (!bSyncCall || GetAsyncTuneConfig() || 0 == aamp_GetSourceID())
 		{
 			SendEventAsync(eventData);
 		}
@@ -7360,18 +7360,17 @@ DRMSystems PrivateInstanceAAMP::GetPreferredDRM()
  *
  *   @param[in] Adbreak's unique identifier.
  *   @param[in] Break start time in milli seconds.
- *   @param[in] Break duration in milli seconds
- *   @param[in] SCTE35 binary object.
+ *   @param[in] EventBreakInfo object.
  */
-void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t startMS, uint32_t breakdur, std::string &scte35)
+void PrivateInstanceAAMP::FoundEventBreak(const std::string &adBreakId, uint64_t startMS, EventBreakInfo brInfo)
 {
 	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableClientDai) && !adBreakId.empty())
 	{
-		AAMPLOG_WARN("%s:%d [CDAI] Found Adbreak on period[%s] Duration[%d]", __FUNCTION__, __LINE__, adBreakId.c_str(), breakdur);
+		AAMPLOG_WARN("%s:%d [CDAI] Found Adbreak on period[%s] Duration[%d]", __FUNCTION__, __LINE__, adBreakId.c_str(), brInfo.duration);
 		std::string adId("");
 		std::string url("");
-		mCdaiObject->SetAlternateContents(adBreakId, adId, url, startMS, breakdur);	//A placeholder to avoid multiple scte35 event firing for the same adbreak
-		SaveNewTimedMetadata(aamp_GetCurrentTimeMS(), "SCTE35", scte35.c_str(), scte35.size(), adBreakId.c_str(), breakdur);
+		mCdaiObject->SetAlternateContents(adBreakId, adId, url, startMS, brInfo.duration);	//A placeholder to avoid multiple scte35 event firing for the same adbreak
+		SaveNewTimedMetadata(aamp_GetCurrentTimeMS(), brInfo.name.c_str(), brInfo.payload.c_str(), brInfo.payload.size(), adBreakId.c_str(), brInfo.duration);
 	}
 }
 

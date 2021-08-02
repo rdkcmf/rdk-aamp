@@ -292,7 +292,7 @@ private:
 	double GetPeriodDuration(IMPD *mpd, int periodIndex);
 	double GetPeriodEndTime(IMPD *mpd, int periodIndex, uint64_t mpdRefreshTime);
 
-	bool isAdbreakStart(IPeriod *period, uint64_t &startMS, std::vector<std::pair<std::string, uint32_t>> &scte35Vec);
+	bool isAdbreakStart(IPeriod *period, uint64_t &startMS, std::vector<EventBreakInfo> &eventBreakVec);
 	bool onAdEvent(AdEvent evt);
 	bool onAdEvent(AdEvent evt, double &adOffset);
 	
