@@ -4868,16 +4868,16 @@ bool StreamAbstractionAAMP_MPD::ProcessEventStream(uint64_t startMS, IPeriod * p
 	{
 		uint64_t startMS1 = 0;
 		//Vector of pair of scte35 binary data and correspoding duration
-		std::vector<std::pair<std::string, uint32_t>> scte35Vec;
-		if(isAdbreakStart(period, startMS1, scte35Vec))
+		std::vector<EventBreakInfo> eventBreakVec;
+		if(isAdbreakStart(period, startMS1, eventBreakVec))
 		{
-			AAMPLOG_WARN("%s:%d Found SCTE35 event for period %s ", __FUNCTION__, __LINE__, prdId.c_str()); 
-			for(std::pair<std::string, uint32_t> scte35 : scte35Vec)
+			AAMPLOG_WARN("%s:%d Found CDAI events for period %s ", __FUNCTION__, __LINE__, prdId.c_str());
+			for(EventBreakInfo &eventInfo : eventBreakVec)
 			{
 				//for livestream send the timedMetadata only., because at init, control does not come here
 				if(mIsLiveManifest)
 				{
-					aamp->FoundSCTE35(prdId, startMS, scte35.second, scte35.first);
+					aamp->FoundEventBreak(prdId, startMS, eventInfo);
 				}
 				else
 				{
@@ -4885,12 +4885,12 @@ bool StreamAbstractionAAMP_MPD::ProcessEventStream(uint64_t startMS, IPeriod * p
 					//Control comes here only at init, so no need for an init check for bulkmetadata send
 					if(reportBulkMeta)
 					{
-						AAMPLOG_INFO("%s:%d :  Saving timedMetadata for VOD SCTE35 event for the period, %s", __FUNCTION__, __LINE__, prdId.c_str()); 
-						aamp->SaveTimedMetadata(startMS, "SCTE35", scte35.first.c_str(), scte35.first.size(), prdId.c_str(), scte35.second);
+						AAMPLOG_INFO("%s:%d :  Saving timedMetadata for VOD %s event for the period, %s", __FUNCTION__, __LINE__, eventInfo.name.c_str(), prdId.c_str());
+						aamp->SaveTimedMetadata(startMS, eventInfo.name.c_str() , eventInfo.payload.c_str(), eventInfo.payload.size(), prdId.c_str(), eventInfo.duration);
 					}
 					else
 					{
-						aamp->SaveNewTimedMetadata(startMS, "SCTE35", scte35.first.c_str(), scte35.first.size(), prdId.c_str(), scte35.second);
+						aamp->SaveNewTimedMetadata(startMS, eventInfo.name.c_str(), eventInfo.payload.c_str(), eventInfo.payload.size(), prdId.c_str(), eventInfo.duration);
 					}
 				}
 			}
@@ -8867,9 +8867,9 @@ void StreamAbstractionAAMP_MPD::SetCDAIObject(CDAIObject *cdaiObj)
  *
  *   @param[in] Period instance.
  *   @param[in] Break start time in milli seconds.
- *   @param[in] vector of pairs of SCTE35 binary object and corresponding duration.
+ *   @param[in] vector of EventBreakInfo structure.
  */
-bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startMS, std::vector<std::pair<std::string, uint32_t>> &scte35Vec)
+bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startMS, std::vector<EventBreakInfo> &eventBreakVec)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	const std::vector<IEventStream *> &eventStreams = period->GetEventStreams();
@@ -8920,7 +8920,8 @@ bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startM
 									std::string scte35 = signalChild->GetText();
 									if(0 != scte35.length())
 									{
-										scte35Vec.push_back({scte35, duration});
+										EventBreakInfo scte35Event(scte35, "SCTE35", duration);
+										eventBreakVec.push_back(scte35Event);
 										if(mIsLiveManifest)
 										{
 											return true;
@@ -8940,6 +8941,68 @@ bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startM
 								{
 									AAMPLOG_WARN("%s:%d [CDAI]: Found a scte35:Signal in manifest without scte35:Binary!!",__FUNCTION__,__LINE__);
 								}
+							}
+						}
+						else
+						{
+							if(!evtChild->GetName().empty())
+							{
+								for (auto &signalChild: evtChild->GetNodes())
+								{
+									cJSON *root;
+									root = cJSON_CreateObject();
+									if(root)
+									{
+										if(signalChild && !signalChild->GetName().empty())
+										{
+											cJSON *item;
+											cJSON_AddItemToObject(root, signalChild->GetName().c_str(), item = cJSON_CreateObject());
+											if(!signalChild->GetText().empty())
+											{
+												cJSON_AddStringToObject(item, signalChild->GetName().c_str(), signalChild->GetText().c_str());
+											}
+											for(auto &attributes : signalChild->GetAttributes())
+											{
+												cJSON_AddStringToObject(item, attributes.first.c_str(), attributes.second.c_str());
+											}
+										}
+										char* eventChildDataJson = cJSON_PrintUnformatted(root);
+										uint32_t timeScale = 1;
+										if(eventStream->GetTimescale() > 1)
+										{
+											timeScale = eventStream->GetTimescale();
+										}
+										if(0 != event->GetDuration())
+										{
+											duration = ComputeFragmentDuration(event->GetDuration(), timeScale) * 1000; //milliseconds
+										}
+										else
+										{
+											//Control gets here only for VOD with no duration data for the event, here set 0 as duration intead of the default 2000
+											duration = 0;
+										}
+										if(eventChildDataJson)
+										{
+											std::string eventPayload(eventChildDataJson);
+											free(eventChildDataJson);
+											if(0 != eventPayload.length())
+											{
+												EventBreakInfo adEvent(eventPayload, evtChild->GetName(), duration);
+												eventBreakVec.push_back(adEvent);
+												ret = true;
+											}
+											else
+											{
+												AAMPLOG_WARN("%s:%d [CDAI]: Found a %s in manifest with empty data!!",__FUNCTION__,__LINE__, evtChild->GetName().c_str());
+											}
+										}
+										cJSON_Delete(root);
+									}
+								}
+							}
+							else
+							{
+								AAMPLOG_WARN("%s:%d [CDAI]: Found an invalid event child manifest without :Payload!!",__FUNCTION__,__LINE__);
 							}
 						}
 					}

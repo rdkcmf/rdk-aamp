@@ -336,6 +336,18 @@ struct PeriodInfo {
 	}
 };
 
+struct EventBreakInfo
+{
+	std::string payload;
+	std::string name;
+	uint32_t duration;
+	EventBreakInfo() : payload(), name(), duration(0)
+	{}
+	EventBreakInfo(std::string _data, std::string _name, uint32_t _dur) : payload(_data), name(_name), duration(_dur)
+	{}
+};
+
+
 /**
  * @brief Class for Timed Metadata
  */
@@ -1822,10 +1834,9 @@ public:
 	 *
 	 *   @param[in] Adbreak's unique identifier.
 	 *   @param[in] Break start time in milli seconds.
-	 *   @param[in] Break duration in milli seconds
-	 *   @param[in] SCTE35 binary object.
+	 *   @param[in] EventBreakInfo object.
 	 */
-	void FoundSCTE35(const std::string &adBreakId, uint64_t startMS, uint32_t breakdur, std::string &scte35);
+	void FoundEventBreak(const std::string &adBreakId, uint64_t startMS, EventBreakInfo brInfo);
 
 	/**
 	 *   @brief Setting the alternate contents' (Ads/blackouts) URL
