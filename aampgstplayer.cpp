@@ -1337,6 +1337,9 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "amlhalasink") == true)
 				{
 					_this->privateContext->audio_sink = (GstElement *) msg->src;
+					
+					// Apply audio settings that may have been set before pipeline was ready
+					_this->setVolumeOrMuteUnMute();
 				}
 				else if (strstr(GST_OBJECT_NAME(msg->src), "brcmaudiodecoder"))
 				{
