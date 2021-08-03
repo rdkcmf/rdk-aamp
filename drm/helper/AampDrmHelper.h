@@ -111,6 +111,12 @@ public:
 	virtual void setDrmMetaData(const std::string& metaData) { }
 
 	/**
+	 * Sets the defualt keyID
+	 * @param the DRM cencData data
+	 */
+	virtual void setDefaultKeyID(const std::string& cencData) { }
+
+	/**
 	 * Returns the DRM codec type for the helper, used in trace
 	 * @return the DRM codec type
 	 */
@@ -137,6 +143,12 @@ public:
 	 * @param keyID The key ID as a vector of binary data
 	 */
 	virtual void getKey(std::vector<uint8_t>& keyID) const = 0;
+
+	 /**
+         * Get the key IDs
+         * @param keyIDs The map containing Key ID vector of binary data
+         */
+	virtual void getKeys(std::map<int, std::vector<uint8_t>>& keyIDs) const {};
 
 	/**
 	 * Get the UUID

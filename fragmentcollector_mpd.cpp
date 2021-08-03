@@ -2886,13 +2886,27 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 	std::shared_ptr<AampDrmHelper> drmHelper = nullptr;
 	DrmInfo drmInfo;
 	std::string contentMetadata;
+	std::string cencDefaultData;
 	bool forceSelectDRM = false; 
+	const char *pMp4Protection = "mpeg:dash:mp4protection";
 
 	AAMPLOG_TRACE("%s:%d [HHH] contentProt.size= %d", __FUNCTION__, __LINE__, contentProt.size());
 	for (unsigned iContentProt = 0; iContentProt < contentProt.size(); iContentProt++)
 	{
 		// extract the UUID
 		std::string schemeIdUri = contentProt.at(iContentProt)->GetSchemeIdUri();
+		if(schemeIdUri.find(pMp4Protection) != std::string::npos )
+		{
+			std::string Value = contentProt.at(iContentProt)->GetValue();
+			//ToDo check the value key and use the same along with custom attribute such as default_KID
+			auto attributesMap = contentProt.at(iContentProt)->GetRawAttributes();
+			if(attributesMap.find("cenc:default_KID") != attributesMap.end())
+			{
+				cencDefaultData=attributesMap["cenc:default_KID"];
+				AAMPLOG_INFO("%s:%d cencDefaultData= %s", __FUNCTION__, __LINE__, cencDefaultData.c_str());
+			}
+		}
+	
 		// Look for UUID in schemeIdUri by matching any UUID to maintian backwards compatibility
 		std::regex rgx(".*([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}).*");
 		std::smatch uuid;
@@ -2905,7 +2919,7 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 		drmInfo.method = eMETHOD_AES_128;
 		drmInfo.mediaFormat = eMEDIAFORMAT_DASH;
 		drmInfo.systemUUID = uuid[1];
-		drmInfo.bPropagateUriParams = ISCONFIGSET(eAAMPConfig_PropogateURIParam); 
+		drmInfo.bPropagateUriParams = ISCONFIGSET(eAAMPConfig_PropogateURIParam);
 		//Convert UUID to all lowercase
 		std::transform(drmInfo.systemUUID.begin(), drmInfo.systemUUID.end(), drmInfo.systemUUID.begin(), [](unsigned char ch){ return std::tolower(ch); });
 
@@ -2913,7 +2927,8 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 		const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
 		if (!node.empty())
 		{
-			for(int i=0; i < node.size(); i++){
+			for(int i=0; i < node.size(); i++)
+			{
 				std::string tagName = node.at(i)->GetName();
 				if (tagName.find("pssh") != std::string::npos)
 				{
@@ -2943,7 +2958,7 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 			}
 			continue;
 		}
-		
+
 		if (aamp->mIsWVKIDWorkaround && drmInfo.systemUUID == CLEARKEY_UUID ){
 			/* WideVine KeyID workaround present , UUID change from clear key to widevine **/
 			AAMPLOG_INFO("%s:%d WideVine KeyID workaround present, processing KeyID from clear key to WV Data", __FUNCTION__, __LINE__);
@@ -2956,7 +2971,7 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 				dataLength = outDataLen;
 			}
 		}
-		
+	
 		// Try and create a DRM helper
 		if (!AampDrmHelperEngine::getInstance().hasDRM(drmInfo))
 		{
@@ -2978,8 +2993,8 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 			else
 			{
 				if (forceSelectDRM){
-					AAMPLOG_INFO("%s:%d (%s) If Widevine DRM Selected due to Widevine KeyID workaround", 
-					__FUNCTION__, __LINE__, getMediaTypeName(mediaType));
+					AAMPLOG_INFO("%s:%d (%s) If Widevine DRM Selected due to Widevine KeyID workaround",
+						__FUNCTION__, __LINE__, getMediaTypeName(mediaType));
 					drmHelper = tmpDrmHelper;
 					forceSelectDRM = false; /* reset flag */
 					/** No need to progress further**/
@@ -3012,9 +3027,11 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 			data = NULL;
 		}
 	}
+
 	if(drmHelper)
 	{
 		drmHelper->setDrmMetaData(contentMetadata);
+		drmHelper->setDefaultKeyID(cencDefaultData);
 	}
 
 	return drmHelper;
