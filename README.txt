@@ -377,7 +377,7 @@ o = Output of Event (200:Success, Non 200:Error Code)
 =================================================================================================================
 7. VideoEnd (Session Statistics) Event 
 ==========================
-vr = version of video end event (currently "1.0")
+vr = version of video end event (currently "2.0")
 tt = time to reach top profile first time after tune. Provided initial tune bandwidth is not a top bandwidth
 ta = time at top profile. This includes all the fragments which are downloaded/injected at top profile for total duration of playback. 
 d = duration - estimate of total playback duration.  Note that this is based on fragments downloaded/injected - user may interrupt buffered playback with seek/stop, causing estimates to skew higher in edge cases.
@@ -395,7 +395,8 @@ a3 = audio track 3
 ...
 u = Unknown Profile or track type
 
-l = supported languages
+l = supported languages,
+	In version 2.0, same tag is reused to represent download latency report if it appears under 'n' or 'i' or 'ms'(See their representations below).
 p = profile-specific metrics encapsulation
 w = profile frame width
 h = profile frame height
@@ -408,16 +409,34 @@ r = total license rotations / stream switches
 e = encrypted to clear switches
 c = clear to encrypted switches
 
-4 = HTTP-4XX error count
-5 = HTTP-5XX error count
-t = CURL timeout error count
-c = CURL error count (other)
-s = successful download count
+in version 1.0,
+	4 = HTTP-4XX error count
+	5 = HTTP-5XX error count
+	t = CURL timeout error count
+	c = CURL error count (other)
+	s = successful download count
+in version 2.0
+	S = Session summary
+	200 = http success
+	18(0) - Curl 18 occured, network connectivity is down
+	18(1) = Curl 18 occured, network connectivity is up
+	28(0) - Curl 28 occured, network connectivity is down
+	28(1) = Curl 28 occured, network connectivity is up
+	404, 42, 7, etc.. = http/curl error code occured during download.
+		Example : "S":{"200":341,"404":6} - 341 success attemps and 4 attempts with 404
+			  "S":{"200":116,"28(1)":1,"404":114} - 115 success attempts, 114 attempts with 404 and 1 attempt with curl-28
+								where network connection is up.
+	T0
+	T1
+	T2
+	...
+	Ty = Latency report in a specific time window, where y represents window number (comes under 'l').
+		T0 - is 0ms - 250ms window (Window calculations: start = (250ms x y), end = (start + 250ms))
+		For example : T13 represents window 3250ms - 3500ms (13x250ms = 3250ms).
 
 u = URL of most recent (last) failed download
 n = normal fragment statistics
 i = "init" fragment statistics (used in case of DASH and fragmented mp4)
-
 
 =================================================================================================================
 
