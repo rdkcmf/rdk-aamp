@@ -187,4 +187,12 @@ int getWorkingTrickplayRate(int rate);
  */
 int getPseudoTrickplayRate(int rate);
 
+/**
+ * @brief Convert string of chars to its representative string of hex numbers
+ * @param[in] str input string
+ * @param[out] hexstr output hex string
+ * @param[in] bool - to enable capital letter conversion flag
+ */
+void stream2hex(const std::string str, std::string& hexstr, bool capital = false);
+
 #endif  /* __AAMP_UTILS_H__ */

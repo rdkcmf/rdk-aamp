@@ -40,9 +40,13 @@ public:
 
 	void getKey(std::vector<uint8_t>& keyID) const;
 
+	void getKeys(std::map<int, std::vector<uint8_t>>& keyIDs) const;
+
 	const std::string& getDrmMetaData() const {return mContentMetadata;}
 
 	void setDrmMetaData(const std::string& metaData);
+
+	void setDefaultKeyID(const std::string& cencData);
 
 	virtual int getDrmCodecType() const { return CODEC_TYPE; }
 
@@ -52,9 +56,10 @@ public:
 
 	AampWidevineDrmHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo), FRIENDLY_NAME("Widevine"),
 		CODEC_TYPE(1), WIDEVINE_KEY_ID_SIZE_INDICATOR(0x12), WIDEVINE_DASH_KEY_ID_OFFSET(32u),
-		WIDEVINE_CONTENT_METADATA_OFFSET(28u), mInitData(), mKeyID(), mContentMetadata()
+		WIDEVINE_CONTENT_METADATA_OFFSET(28u), mInitData(), mKeyID(), mKeyIDs(), mContentMetadata()
 		,WIDEVINE_PSSH_DATA_VERSION_POSITION(8u), WIDEVINE_PSSH_KEYID_SIZE_OFFSET(32u), 
 		WIDEVINE_PSSH_KEYID_SIZE_OFFSET_WITH_AUTHOR(34u), WIDEVINE_PSSH_VER1_KEY_ID_SIZE(16u)
+		,mDefaultKeySlot(-1)
 	{}
 
 	~AampWidevineDrmHelper() { }
@@ -73,7 +78,9 @@ private:
 	
 	std::vector<uint8_t> mInitData;
 	std::vector<uint8_t> mKeyID;
+	std::map<int,std::vector<uint8_t>> mKeyIDs;
 	std::string mContentMetadata;
+	int mDefaultKeySlot;
 };
 
 class AampWidevineDrmHelperFactory : public AampDrmHelperFactory

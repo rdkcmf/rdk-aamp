@@ -547,10 +547,11 @@ bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
 	pthread_mutex_lock(&cachedKeyMutex);
 	for (int sessionSlot = 0; sessionSlot < mMaxDRMSessions; sessionSlot++)
 	{
-		if (keyIdArray == cachedKeyIDs[sessionSlot].data)
+		auto keyIDSlot = cachedKeyIDs[sessionSlot].data;
+		if (!keyIDSlot.empty() && keyIDSlot.end() != std::find(keyIDSlot.begin(), keyIDSlot.end(), keyIdArray))
 		{
-			AAMPLOG_INFO("%s:%d Session created/inprogress at slot %d",__FUNCTION__, __LINE__, sessionSlot);
-			ret = cachedKeyIDs[sessionSlot].isFailedKeyId;
+			std::string debugStr = AampLogManager::getHexDebugStr(keyIdArray);
+			AAMPLOG_INFO("%s:%d Session created/inprogress with same keyID %s at slot %d",__FUNCTION__, __LINE__, debugStr.c_str(), sessionSlot);
 			break;
 		}
 	}
@@ -1070,6 +1071,9 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 	unsigned char *keyId = NULL;
 
 	std::vector<uint8_t> keyIdArray;
+	std::map<int, std::vector<uint8_t>> keyIdArrays;
+	drmHelper->getKeys(keyIdArrays);
+
 	drmHelper->getKey(keyIdArray);
 
 	//Need to Check , Are all Drm Schemes/Helpers capable of providing a non zero keyId?
@@ -1077,6 +1081,12 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 	{
 		eventHandle->setFailure(AAMP_TUNE_FAILED_TO_GET_KEYID);
 		return code;
+	}
+
+	if (keyIdArrays.empty())
+	{
+		// Insert keyId into map
+		keyIdArrays[0] = keyIdArray;
 	}
 
 	std::string keyIdDebugStr = AampLogManager::getHexDebugStr(keyIdArray);
@@ -1092,7 +1102,8 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 
 		for (; sessionSlot < mMaxDRMSessions; sessionSlot++)
 		{
-			if (keyIdArray == cachedKeyIDs[sessionSlot].data)
+			auto keyIDSlot = cachedKeyIDs[sessionSlot].data;
+			if (!keyIDSlot.empty() && keyIDSlot.end() != std::find(keyIDSlot.begin(), keyIDSlot.end(), keyIdArray))
 			{
 				AAMPLOG_INFO("%s:%d Session created/inprogress with same keyID %s at slot %d",__FUNCTION__, __LINE__, keyIdDebugStr.c_str(), sessionSlot);
 				keySlotFound = true;
@@ -1152,7 +1163,16 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 				cachedKeyIDs[sessionSlot].data.clear();
 			}
 			cachedKeyIDs[sessionSlot].isFailedKeyId = false;
-			cachedKeyIDs[sessionSlot].data = keyIdArray;
+
+			std::vector<std::vector<uint8_t>> data;
+			for(auto& keyId : keyIdArrays)
+			{
+				std::string debugStr = AampLogManager::getHexDebugStr(keyId.second);
+				AAMPLOG_INFO("%s:%d Insert[%d] - slot:%d keyID %s", __FUNCTION__, __LINE__, keyId.first, sessionSlot, debugStr.c_str());
+				data.push_back(keyId.second);
+			}
+
+			cachedKeyIDs[sessionSlot].data = data;
 		}
 		cachedKeyIDs[sessionSlot].creationTime = aamp_GetCurrentTimeMS();
 		cachedKeyIDs[sessionSlot].isPrimaryKeyId = isPrimarySession;
@@ -1167,7 +1187,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 		{
 			AAMPLOG_WARN("%s:%d changing DRM session for %s to %s", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), drmHelper->ocdmSystemId().c_str());
 		}
-		else if (keyIdArray == drmSessionContexts[sessionSlot].data)
+		else if (cachedKeyIDs[sessionSlot].data.end() != std::find(cachedKeyIDs[sessionSlot].data.begin(), cachedKeyIDs[sessionSlot].data.end() ,drmSessionContexts[sessionSlot].data))
 		{
 			KeyState existingState = drmSessionContexts[sessionSlot].drmSession->getState();
 			if (existingState == KEY_READY)
@@ -1295,7 +1315,6 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 	int32_t httpResponseCode = -1;
 	int32_t httpExtendedStatusCode = -1;
 	KeyState code = KEY_ERROR;
-
 	if (drmHelper->isExternalLicense())
 	{
 		// External license, assuming the DRM system is ready to proceed

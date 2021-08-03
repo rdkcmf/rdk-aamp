@@ -116,7 +116,7 @@ struct DrmSessionParams
  */
 struct KeyID
 {
-	std::vector<uint8_t> data;
+	std::vector<std::vector<uint8_t>> data;
 	long long creationTime;
 	bool isFailedKeyId;
 	bool isPrimaryKeyId;

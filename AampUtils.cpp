@@ -942,5 +942,23 @@ int getPseudoTrickplayRate(int rate)
 }
 
 /**
+ * @brief Convert string of chars to its representative string of hex numbers
+ * @param[in] str input string
+ * @param[out] hexstr output hex string
+ * @param[in] bool - to enable capital letter conversion flag
+ */
+void stream2hex(const std::string str, std::string& hexstr, bool capital)
+{
+	hexstr.resize(str.size() * 2);
+	const size_t a = capital ? 'A' - 1 : 'a' - 1;
+
+	for (size_t i = 0, c = str[0] & 0xFF; i < hexstr.size(); c = str[i / 2] & 0xFF)
+	{
+		hexstr[i++] = c > 0x9F ? (c / 16 - 9) | a : c / 16 | '0';
+		hexstr[i++] = (c & 0xF) > 9 ? (c % 16 - 9) | a : c % 16 | '0';
+	}
+}
+
+/**
  * EOF
  */
