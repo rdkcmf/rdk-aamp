@@ -63,22 +63,65 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 	if (psshDataVer == 0)
 	{
 		uint32_t header = 0;
+		int i = 0;
+		uint8_t contentIdSize = 0u;
+		uint8_t keyIdCount = 0;
+		const uint8_t* psshData;
+
 		if (initData[WIDEVINE_PSSH_KEYID_SIZE_OFFSET] == WIDEVINE_KEY_ID_SIZE_INDICATOR)
 		{
-			header = WIDEVINE_PSSH_KEYID_SIZE_OFFSET + 1; //Skip key Id size indicator
+			header = WIDEVINE_PSSH_KEYID_SIZE_OFFSET;
 		}
 		else if(initData[WIDEVINE_PSSH_KEYID_SIZE_OFFSET_WITH_AUTHOR] == WIDEVINE_KEY_ID_SIZE_INDICATOR)
 		{
-			header = WIDEVINE_PSSH_KEYID_SIZE_OFFSET_WITH_AUTHOR + 1; //Skip key Id size indicator
+			header = WIDEVINE_PSSH_KEYID_SIZE_OFFSET_WITH_AUTHOR;
 		}
 		else
 		{
 			AAMPLOG_WARN("%s:%d WV Version: %u, Keyid indicator byte not found using default logic", __FUNCTION__, __LINE__, psshDataVer);
-			header = WIDEVINE_PSSH_KEYID_SIZE_OFFSET + 1;  //pssh data in default format
+			header = WIDEVINE_PSSH_KEYID_SIZE_OFFSET;  //pssh data in default format
 		}
+		psshData = initData;
+		i = header;
+		while (i < initDataLen)
+		{
+			if (0x12 == psshData[i])
+			{
+				keyIdSize = psshData[i +1];
+				i +=2; // Skip key Id size indicator (1byte) + key Id size (1byte)
 
-		keyIdSize = initData[header];
-		keyIdBegin = reinterpret_cast<const char*>(initData + header + 1);
+				keyIdBegin = reinterpret_cast<const char*>(psshData + i);
+				if (keyIdSize != 0u)
+				{
+					std::vector<uint8_t> keyId;
+					keyId.assign(keyIdBegin, keyIdBegin + keyIdSize);
+					mKeyIDs[keyIdCount]=keyId;
+					keyIdCount += 1;
+					ret = true;
+				}
+				else
+				{
+					AAMPLOG_INFO("%s:%d WV version: %u, KeyIdlen: %u", __FUNCTION__, __LINE__, psshDataVer, keyIdSize);
+				}
+
+				i += keyIdSize;
+			}
+			else if (0x22 == psshData[i])
+			{
+				contentIdSize = psshData[i +1];
+				i += 2; //Content key Id size indicator (1byte) + Content Id size (1byte)
+				i += contentIdSize; // move forward to next id tag
+				AAMPLOG_INFO("%s:%d WV Skipping content-id size : %d", __FUNCTION__, __LINE__, contentIdSize);
+
+			}
+			else
+			{
+				keyIdSize = psshData[i +1];
+				AAMPLOG_INFO("%s:%d WV Invalid type : %d size:%d", __FUNCTION__, __LINE__, psshData[i], keyIdSize);
+                                i +=2; // Skip key Id size indicator (1byte) + key Id size (1byte)
+                                i += keyIdSize;
+			}
+		}
 	}
 	else if (psshDataVer == 1)
 	{
@@ -89,22 +132,23 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 		uint32_t header = WIDEVINE_DASH_KEY_ID_OFFSET;
 		keyIdSize = WIDEVINE_PSSH_VER1_KEY_ID_SIZE;
 		keyIdBegin = reinterpret_cast<const char*>(initData + header);
+
+		if (keyIdSize != 0u) 
+		{
+			std::vector<uint8_t> keyId;
+			keyId.assign(keyIdBegin, keyIdBegin + keyIdSize);
+			mKeyIDs[0]=keyId;
+			ret = true;
+		}
+		else
+		{
+			AAMPLOG_INFO("%s:%d WV version: %u, KeyIdlen: %u", __FUNCTION__, __LINE__, psshDataVer, keyIdSize);
+		}
 	}
 	else
 	{
 		AAMPLOG_ERR("%s:%d Unsupported PSSH version: %u", __FUNCTION__, __LINE__, psshDataVer);
 	}
-
-	if (keyIdSize != 0u)
-	{
-		mKeyID.assign(keyIdBegin, keyIdBegin + keyIdSize);
-		ret = true;
-	}
-	else
-	{
-		AAMPLOG_INFO("%s:%d WV version: %u, KeyIdlen: %u", __FUNCTION__, __LINE__, psshDataVer, keyIdSize);
-	}
-
 	return ret;
 }
 
@@ -112,6 +156,22 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 void AampWidevineDrmHelper::setDrmMetaData(const std::string& metaData)
 {
 	mContentMetadata = metaData;
+}
+
+void AampWidevineDrmHelper::setDefaultKeyID(const std::string& cencData)
+{
+	std::vector<uint8_t> defaultKeyID(cencData.begin(), cencData.end());
+	if(!mKeyIDs.empty())
+	{
+		for(auto& it : mKeyIDs)
+		{
+			if(defaultKeyID == it.second)
+			{
+				mDefaultKeySlot = it.first;
+				logprintf ("setDefaultKeyID : %s slot : %d", cencData.c_str(), mDefaultKeySlot);
+			}
+		}
+	}
 }
 
 
@@ -127,7 +187,20 @@ void AampWidevineDrmHelper::createInitData(std::vector<uint8_t>& initData) const
 
 void AampWidevineDrmHelper::getKey(std::vector<uint8_t>& keyID) const
 {
-	keyID = this->mKeyID;
+	logprintf ("AampWidevineDrmHelper::getKey defaultkey: %d mKeyIDs.size:%d", mDefaultKeySlot, mKeyIDs.size());
+	if(mDefaultKeySlot >= 0)
+	{
+		keyID = this->mKeyIDs.at(mDefaultKeySlot);
+	}
+	else
+	{
+		keyID = this->mKeyIDs.at(0);
+	}
+}
+
+void AampWidevineDrmHelper::getKeys(std::map<int, std::vector<uint8_t>>& keyIDs) const
+{
+	keyIDs = this->mKeyIDs;
 }
 
 void AampWidevineDrmHelper::generateLicenseRequest(const AampChallengeInfo& challengeInfo, AampLicenseRequest& licenseRequest) const
