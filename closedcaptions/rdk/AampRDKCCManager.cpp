@@ -37,7 +37,7 @@
  /**
   * @brief Release CC resources
   */
-void AampRDKCCManager::ReleaseResources(void)
+void AampRDKCCManager::Release(void)
  {
 	Stop();
 	if (mCCHandle != NULL)

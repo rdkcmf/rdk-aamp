@@ -38,6 +38,11 @@ class AampSubtecCCManager : public AampCCManagerBase
 public:
 
 	/**
+	 * @brief Release CC resources
+	 */
+	void Release(void) override;
+
+	/**
 	 * @brief Constructor
 	 */
 	AampSubtecCCManager() = default;
@@ -51,12 +56,6 @@ public:
 	AampSubtecCCManager& operator=(const AampSubtecCCManager&) = delete;
 
 private:
-
-	/**
-	 * @brief Release CC resources
-	 */
-	void ReleaseResources(void) override;
-
 	/**
 	 * @brief To start CC rendering
 	 *

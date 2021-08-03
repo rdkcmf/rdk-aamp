@@ -348,14 +348,6 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
 		//Calling tune without closing previous tune
 		StopInternal(false);
 	}
-#ifdef AAMP_CC_ENABLED
-	else
-	{
-		// normally it is done in stop internal
-		// we want to clean-up the CC internals to avoid garbled text after OTA->OTA channel change
-		AampCCManager::GetInstance()->Release();
-	}
-#endif
 
 	aamp->getAampCacheHandler()->StartPlaylistCache();
 	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID,audioDecoderStreamSync);
