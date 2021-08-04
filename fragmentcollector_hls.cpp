@@ -1346,7 +1346,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 
 	if (playTarget < 0)
 	{
-		logprintf("%s - invalid playTarget %f ", __FUNCTION__, playTarget);
+		logprintf("%s:%d [!!!!! WARNING !!!!] Invalid playTarget %f, so set playTarget to 0", __FUNCTION__, __LINE__, playTarget);
 		playTarget = 0;
 		//return fragmentURI; // leads to buffer overrun/crash
 	}
@@ -2966,7 +2966,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 			AAMPLOG_INFO("%s:%d (%s) Prev:%f Now:%f culled with sequence:(%f -> %f) TrackCulled:%f",
 				__FUNCTION__, __LINE__, name, prevSecondsBeforePlayPoint, newSecondsBeforePlayPoint, aamp->culledSeconds,(aamp->culledSeconds+culledSec), mCulledSeconds);
 		}
-		else
+		else if (prevProgramDateTime > 0)
 		{
 			if(mProgramDateTime > 0)
 			{
