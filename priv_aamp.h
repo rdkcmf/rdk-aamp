@@ -654,7 +654,6 @@ public:
 	int audio_volume;
 	std::vector<std::string> subscribedTags;
 	std::vector<TimedMetadata> timedMetadata;
-	std::vector<TimedMetadata> timedMetadataNew;
 	bool mIsIframeTrackPresent;				/**< flag to check iframe track availability*/
 
 	/* START: Added As Part of DELIA-28363 and DELIA-28247 */
@@ -1189,10 +1188,6 @@ public:
 	*/
 	bool IsCDVRContent() { return (mContentType==ContentType_CDVR || mIscDVR);}
 	/**
-	* @brief Report timed metadata
-	*/
-	void ReportTimedMetadata(bool init=false);
-	/**
 	 * @brief Report timed metadata
 	 *
 	 * @param[in] timeMS - Time in milliseconds
@@ -1205,18 +1200,6 @@ public:
 	 * @return void
 	 */
 	void ReportTimedMetadata(long long timeMS, const char* szName, const char* szContent, int nb, bool bSyncCall=false,const char* id = "", double durationMS = -1);
-	/**
-	* @brief Save timed metadata for later reporting
-	*
-	* @param[in] timeMS - Time in milliseconds
-	* @param[in] szName - Metadata name
-	* @param[in] szContent - Metadata content
-	* @param[in] nb - ContentSize
-	* @param[in] id - Identifier of the TimedMetadata
-	* @param[in] durationMS - Duration in milliseconds
-	* @return void
-	*/
-	void SaveNewTimedMetadata(long long timeMS, const char* szName, const char* szContent, int nb, const char* id = "", double durationMS = -1);	
 
 	/**
 	 * @brief Save timed metadata for later bulk reporting
