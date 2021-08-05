@@ -2800,6 +2800,19 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 			}
 		}
 
+#if defined(__APPLE__) || defined(UBUNTU)
+        if (this->privateContext->rate > 1 || this->privateContext->rate < 0)
+        {
+            if (eMEDIATYPE_VIDEO == i)
+                configureStream[i] = true;
+            else
+            {
+                TearDownStream((MediaType) i);
+                configureStream[i] = false;
+            }
+        }
+#endif
+
 		/* Force configure the bin for mid stream audio type change */
 		if (!configureStream[i] && bESChangeStatus && (eMEDIATYPE_AUDIO == i))
 		{
