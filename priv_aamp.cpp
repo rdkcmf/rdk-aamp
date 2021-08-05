@@ -7424,7 +7424,7 @@ void PrivateInstanceAAMP::FoundSCTE35(const std::string &adBreakId, uint64_t sta
 		std::string adId("");
 		std::string url("");
 		mCdaiObject->SetAlternateContents(adBreakId, adId, url, startMS, breakdur);	//A placeholder to avoid multiple scte35 event firing for the same adbreak
-		ReportTimedMetadata(aamp_GetCurrentTimeMS(), "SCTE35", scte35.c_str(), scte35.size(), false, adBreakId.c_str(), breakdur);
+		SaveNewTimedMetadata(aamp_GetCurrentTimeMS(), "SCTE35", scte35.c_str(), scte35.size(), adBreakId.c_str(), breakdur);
 	}
 }
 

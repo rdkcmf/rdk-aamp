@@ -2572,6 +2572,10 @@ AAMPStatusType StreamAbstractionAAMP_MPD::GetMpdFromManfiest(const GrowableBuffe
 					mIsLiveManifest = !(mpd->GetType() == "static");
 					aamp->SetIsLive(mIsLiveManifest);
 					FindTimedMetadata(mpd, root, init, bMetadata);
+					if(!init)
+					{
+						aamp->ReportTimedMetadata(false);
+					}
 					ret = AAMPStatusType::eAAMPSTATUS_OK;
 #else
 					size_t prevPrdCnt = mCdaiObject->mAdBreaks.size();
