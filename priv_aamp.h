@@ -813,6 +813,8 @@ public:
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
 	bool mbUsingExternalPlayer; /**<Playback using external players eg:OTA, HDMIIN,Composite*/
 
+	std::string seiTimecode; /**< SEI Timestamp information from Westeros */
+
 	/**
 	 * @brief Report ID3 metadata events
 	 *

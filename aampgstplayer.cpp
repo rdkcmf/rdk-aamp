@@ -710,6 +710,25 @@ static void AAMPGstPlayer_OnFirstVideoFrameCallback(GstElement* object, guint ar
 }
 
 /**
+ * @brief Callback invoked after receiving the SEI Time Code information
+ * @param[in] object pointer to element raising the callback
+ * @param[in] hours Hour value of the SEI Timecode
+ * @param[in] minutes Minute value of the SEI Timecode
+ * @param[in] seconds Second value of the SEI Timecode
+ * @param[in] user_data pointer to AAMPGstPlayer instance
+ */
+static void AAMPGstPlayer_redButtonCallback(GstElement* object, guint hours, guint minutes, guint seconds, gpointer user_data)
+{
+       AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
+       if (_this)
+       {
+               char buffer[16];
+               snprintf(buffer,16,"%d:%d:%d",hours,minutes,seconds);
+               _this->aamp->seiTimecode.assign(buffer);
+       }
+}
+
+/**
  * @brief Callback invoked after first audio buffer decoded
  * @param[in] object pointer to element raising the callback
  * @param[in] arg0 number of arguments
@@ -1382,6 +1401,10 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					g_signal_connect(_this->privateContext->video_dec, "first-video-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
                                         g_object_set(msg->src, "report_decode_errors", TRUE, NULL);
+
+					g_object_set(msg->src, "enable-timecode", 1, NULL);
+					g_signal_connect(_this->privateContext->video_dec, "timecode-callback",
+								G_CALLBACK(AAMPGstPlayer_redButtonCallback), _this);
 #endif
 
 				}

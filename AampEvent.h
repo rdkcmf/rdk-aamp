@@ -216,6 +216,7 @@ struct AAMPEvent
 			double endMiliseconds;      /**< time shift buffer end position (relative to tune time - starts at zero) */
 			long long videoPTS; 		/**< Video Presentation 90 Khz time-stamp  */
 			double videoBufferedMiliseconds;	/**< current duration of buffered video ready to playback */
+			const char* timecode;		/**< SEI Timecode information */
 		} progress;
 
 		/**
@@ -565,6 +566,7 @@ class ProgressEvent: public AAMPEventObject
 	float mSpeed;			/**< current trick speed (1.0 for normal play rate) */
 	long long mPTS;			/**< Video Presentation 90 Khz time-stamp  */
 	double mBufferedDuration;	/**< current duration of buffered video ready to playback */
+	std::string mSEITimecode;       /**< SEI Timecode information */
 
 public:
 	ProgressEvent() = delete;
@@ -582,7 +584,7 @@ public:
 	 * @param[in]  pts      - Video PTS
 	 * @param[in]  bufferedDuration - buffered duration
 	 */
-	ProgressEvent(double duration, double position, double start, double end, float speed, long long pts, double bufferedDuration);
+	ProgressEvent(double duration, double position, double start, double end, float speed, long long pts, double bufferedDuration, std::string seiTimecode);
 
 	/**
 	 * @brief ProgressEvent Destructor
@@ -637,6 +639,13 @@ public:
 	 * @return Buffered duration
 	 */
 	double getBufferedDuration() const;
+
+	/**
+	* @brief Get SEI Time Code
+	*
+	* @return SEI Time Code
+	*/
+	const char* getSEITimeCode() const;
 };
 
 /**
