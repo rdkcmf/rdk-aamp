@@ -1870,7 +1870,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		{
 			logprintf("AAMPGstPlayer_SetupStream - using westerossink");
 			GstElement* vidsink = gst_element_factory_make("westerossink", NULL);
-#ifdef CONTENT_4K_SUPPORTED
+#if defined(BRCM) && defined(CONTENT_4K_SUPPORTED)
 			g_object_set(vidsink, "secure-video", TRUE, NULL);
 #endif
 			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
@@ -1878,7 +1878,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		else if (!_this->privateContext->using_westerossink && eMEDIATYPE_VIDEO == streamId)
 		{
 			GstElement* vidsink = gst_element_factory_make("brcmvideosink", NULL);
-#ifdef CONTENT_4K_SUPPORTED
+#if defined(BRCM) && defined(CONTENT_4K_SUPPORTED)
 			g_object_set(vidsink, "secure-video", TRUE, NULL);
 #endif
 			g_object_set(stream->sinkbin, "video-sink", vidsink, NULL);
