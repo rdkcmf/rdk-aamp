@@ -106,7 +106,17 @@ git checkout stable_3_0
 ```
 
 Apply patches downloaded from (**patch -p1 < file.patch**):
-```https://code.rdkcentral.com/r/plugins/gitiles/components/generic/rdk-oe/meta-rdk-ext/+/rdk-next/recipes-multimedia/libdash/libdash/```
+```https://code.rdkcentral.com/r/plugins/gitiles/rdk/components/generic/rdk-oe/meta-rdk-ext/+/rdk-next/recipes-multimedia/libdash/libdash/```
+
+Clone the patch repo
+git clone -b rdk-next "https://code.rdkcentral.com/r/rdk/components/generic/rdk-oe/meta-rdk-ext"
+
+Apply patches in below order
+patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0001-libdash-build.patch
+patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0002-libdash-starttime-uint64.patch
+patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0003-libdash-presentationTimeOffset-uint64.patch
+patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0004-Support-of-EventStream.patch
+patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0005-DELIA-39460-libdash-memleak.patch
 
 ```
 mkdir build
