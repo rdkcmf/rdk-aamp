@@ -763,6 +763,8 @@ public:
 	 */
 	void ProcessID3Metadata(char *segment, size_t size, MediaType type, uint64_t timestampOffset = 0);
 
+	std::string seiTimecode; /**< SEI Timestamp information from Westeros */
+
 	/**
 	 * @brief Report ID3 metadata events
 	 *

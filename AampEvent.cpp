@@ -130,11 +130,12 @@ int SpeedChangedEvent::getRate() const
  * @param[in]  pts      - Video PTS
  * @param[in]  bufferedDuration - buffered duration
  */
-ProgressEvent::ProgressEvent(double duration, double position, double start, double end, float speed, long long pts, double bufferedDuration):
+ProgressEvent::ProgressEvent(double duration, double position, double start, double end, float speed, long long pts, double bufferedDuration, std::string seiTimecode):
 		AAMPEventObject(AAMP_EVENT_PROGRESS), mDuration(duration),
 		mPosition(position), mStart(start),
 		mEnd(end), mSpeed(speed), mPTS(pts),
-		mBufferedDuration(bufferedDuration)
+		mBufferedDuration(bufferedDuration),
+		mSEITimecode(seiTimecode)
 {
 
 }
@@ -207,6 +208,16 @@ long long ProgressEvent::getPTS() const
 double ProgressEvent::getBufferedDuration() const
 {
 	return mBufferedDuration;
+}
+
+/**
+* @brief Get SEI Timecode Information
+*
+* @return SEI Timecode
+*/
+const char* ProgressEvent::getSEITimeCode() const
+{
+	return mSEITimecode.c_str();
 }
 
 /*

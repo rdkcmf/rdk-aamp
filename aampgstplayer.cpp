@@ -189,6 +189,7 @@ struct AAMPGstPlayerPriv
 	bool progressiveBufferingEnabled;
 	bool progressiveBufferingStatus;
 	bool forwardAudioBuffers; // flag denotes if audio buffers to be forwarded to aux pipeline
+	bool enableSEITimeCode;
 
 	AAMPGstPlayerPriv() : pipeline(NULL), bus(NULL), current_rate(0),
 			total_bytes(0), n_audio(0), current_audio(0), firstProgressCallbackIdleTaskId(0),
@@ -217,7 +218,7 @@ struct AAMPGstPlayerPriv
 #endif
 			decodeErrorMsgTimeMS(0), decodeErrorCBCount(0),
 			progressiveBufferingEnabled(false), progressiveBufferingStatus(false)
-			, forwardAudioBuffers (false)
+			, forwardAudioBuffers (false), enableSEITimeCode(true)
 	{
 		memset(videoRectangle, '\0', VIDEO_COORDINATES_SIZE);
 #ifdef INTELCE
@@ -705,6 +706,25 @@ static void AAMPGstPlayer_OnFirstVideoFrameCallback(GstElement* object, guint ar
 	logprintf("AAMPGstPlayer_OnFirstVideoFrameCallback. got First Video Frame");
 	_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
 
+}
+
+/**
+ * @brief Callback invoked after receiving the SEI Time Code information
+ * @param[in] object pointer to element raising the callback
+ * @param[in] hours Hour value of the SEI Timecode
+ * @param[in] minutes Minute value of the SEI Timecode
+ * @param[in] seconds Second value of the SEI Timecode
+ * @param[in] user_data pointer to AAMPGstPlayer instance
+ */
+static void AAMPGstPlayer_redButtonCallback(GstElement* object, guint hours, guint minutes, guint seconds, gpointer user_data)
+{
+       AAMPGstPlayer *_this = (AAMPGstPlayer *)user_data;
+       if (_this)
+       {
+               char buffer[16];
+               snprintf(buffer,16,"%d:%d:%d",hours,minutes,seconds);
+               _this->aamp->seiTimecode.assign(buffer);
+       }
 }
 
 /**
@@ -1396,17 +1416,26 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #endif
 				}
 			}
-#if defined(REALTEKCE)
-            if ((NULL != msg->src) && AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
-            {
-                type_check_instance("bus_sync_handle: connecting first-video-frame-callback", (GstElement *) msg->src);
-                g_signal_connect(msg->src, "first-video-frame-callback",
-                                                                        G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
-            }
 
-            if ((NULL != msg->src) && aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink"))
-                g_signal_connect(msg->src, "first-audio-frame",
-                                    G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
+			if ((NULL != msg->src) && AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
+			{
+				if(_this->privateContext->enableSEITimeCode)
+				{
+					g_object_set(msg->src, "enable-timecode", 1, NULL);
+					g_signal_connect(msg->src, "timecode-callback",
+									G_CALLBACK(AAMPGstPlayer_redButtonCallback), _this);
+				}
+#if !defined(REALTEKCE)
+			}
+#else
+				type_check_instance("bus_sync_handle: connecting first-video-frame-callback", (GstElement *) msg->src);
+				g_signal_connect(msg->src, "first-video-frame-callback",
+                                                                        G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
+			}
+
+			if ((NULL != msg->src) && aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink"))
+				g_signal_connect(msg->src, "first-audio-frame",
+					G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
 #endif
 #else
 			if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink") == true)
@@ -1566,6 +1595,7 @@ bool AAMPGstPlayer::CreatePipeline()
 			{
 				privateContext->positionQuery = gst_query_new_position(GST_FORMAT_TIME);
 			}
+			privateContext->enableSEITimeCode = ISCONFIGSET(eAAMPConfig_SEITimeCode);
 			ret = true;
 		}
 		else

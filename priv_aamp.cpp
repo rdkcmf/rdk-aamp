@@ -1214,6 +1214,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mbUsingExternalPlayer (false)
 	, id3MetadataCallbackIdleTaskId(0),	id3MetadataCallbackTaskPending(false), lastId3DataLen(0), lastId3Data(NULL)
 	, mCCId(0)
+	, seiTimecode()
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -1450,7 +1451,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		}
 		pthread_mutex_unlock(&mStreamLock);
 
-		ProgressEventPtr evt = std::make_shared<ProgressEvent>(duration, position, start, end, speed, videoPTS, bufferedDuration);
+		ProgressEventPtr evt = std::make_shared<ProgressEvent>(duration, position, start, end, speed, videoPTS, bufferedDuration, seiTimecode.c_str());
         
 		if ((mReportProgressPosn == position) && !pipeline_paused)
 		{
@@ -1467,12 +1468,13 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 				static int tick;
 				if ((tick++ % 4) == 0)
 				{
-					logprintf("aamp pos: [%ld..%ld..%ld..%lld..%ld]",
+					logprintf("aamp pos: [%ld..%ld..%ld..%lld..%ld..%s]",
 						(long)(start / 1000),
 						(long)(position / 1000),
 						(long)(end / 1000),
 						(long long) videoPTS,
-						(long)(bufferedDuration / 1000) );
+						(long)(bufferedDuration / 1000),
+						seiTimecode.c_str() );
 				}
 			}
 

@@ -218,7 +218,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"SkyStoreDE",eAAMPConfig_WideVineKIDWorkaround,-1,-1},
 	{"repairIframes",eAAMPConfig_RepairIframes,-1,-1},
 	{"customHeaderLicense",eAAMPConfig_CustomHeaderLicense,-1,-1},
-	{"preferredAudioLanguage",eAAMPConfig_PreferredAudioLanguage,-1,-1}
+	{"preferredAudioLanguage",eAAMPConfig_PreferredAudioLanguage,-1,-1},
+	{"seiTimeCode",eAAMPConfig_SEITimeCode,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -339,6 +340,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_UseAbsoluteTimeline].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_WideVineKIDWorkaround].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_RepairIframes].value                  	=       false;
+	bAampCfgValue[eAAMPConfig_SEITimeCode].value              		=       true;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
