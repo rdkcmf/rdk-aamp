@@ -700,9 +700,11 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
  */
 static void AAMPGstPlayer_OnFirstVideoFrameCallback(GstElement* object, guint arg0, gpointer arg1,
 	AAMPGstPlayer * _this)
+
 {
 	logprintf("AAMPGstPlayer_OnFirstVideoFrameCallback. got First Video Frame");
 	_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
+
 }
 
 /**
@@ -1141,7 +1143,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				{
 					_this->privateContext->firstTuneWithWesterosSinkOff = false;
 					_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
-					_this->aamp->ResetTrickStartUTCTime();
 				}
 #endif
 #if (defined(INTELCE) || defined(RPI) || defined(__APPLE__) || defined(UBUNTU))
@@ -2310,14 +2311,9 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 		// HACK!
 		// DELIA-42262: For westerossink, it will send first-video-frame-callback signal after each flush
 		// So we can move NotifyFirstBufferProcessed to the more accurate signal callback
-		if (isFirstBuffer)
+		if (isFirstBuffer && !privateContext->using_westerossink)
 		{
-			if (!privateContext->using_westerossink)
-			{
-				aamp->NotifyFirstBufferProcessed();
-			}
-
-			aamp->ResetTrickStartUTCTime();
+			aamp->NotifyFirstBufferProcessed();
 		}
 
 		privateContext->numberOfVideoBuffersSent++;
