@@ -340,7 +340,6 @@ static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 	bool retValue = true;
 	PrivateInstanceAAMP* aamp = (PrivateInstanceAAMP* )ptr;
 	aamp->NotifyFirstBufferProcessed();
-	aamp->ResetTrickStartUTCTime();
 	TuneType tuneType = eTUNETYPE_SEEK;
 
 	if (!aamp->mSeekFromPausedState && (aamp->rate == AAMP_NORMAL_PLAY_RATE))
@@ -1732,6 +1731,8 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		double end = -1;
 		long long videoPTS = -1;
 		double bufferedDuration = 0.0;
+		bool bProcessEvent = true;
+
 		// If tsb is not available for linear send -1  for start and end
 		// so that xre detect this as tsbless playabck
 		// Override above logic if mEnableSeekableRange is set, used by third-party apps
@@ -1783,9 +1784,15 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 
 		ProgressEventPtr evt = std::make_shared<ProgressEvent>(duration, position, start, end, speed, videoPTS, bufferedDuration, seiTimecode.c_str());
         
+		if ((mReportProgressPosn == position) && !pipeline_paused)
+		{
+			// Avoid sending the progress event, if the previous position and the current position is same when pipeline is in playing state.
+			bProcessEvent = false;
+		}
+
 		mReportProgressPosn = position;
 
-		if (trickStartUTCMS >= 0)
+		if (trickStartUTCMS >= 0 && bProcessEvent)
 		{
 			if (gpGlobalConfig->logging.progress)
 			{
@@ -7658,7 +7665,7 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	{
 		SetState(eSTATE_PLAYING);
 	}
-	//trickStartUTCMS = aamp_GetCurrentTimeMS(); // moved to ResetTrickStartUTCTime()
+	trickStartUTCMS = aamp_GetCurrentTimeMS();
 	logprintf("%s:%d : seek pos %.3f", __FUNCTION__, __LINE__, seek_pos_seconds);
 
 #ifdef USE_SECMANAGER
@@ -7670,14 +7677,6 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
         mDRMSessionManager->setContentAspectRatio((float)w/(float)h);
 #endif
 	
-}
-
-/**
- * @brief Reset trick start position
- */
-void PrivateInstanceAAMP::ResetTrickStartUTCTime()
-{
-	trickStartUTCMS = aamp_GetCurrentTimeMS();
 }
 
 /**
