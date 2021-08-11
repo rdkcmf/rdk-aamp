@@ -7786,8 +7786,8 @@ void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data, std::
 		// Logger has a maximum message size limit, warn if too big
 		// Current large ID3 tag size is 1055, but printable < MAX_DEBUG_LOG_BUFF_SIZE.
 		std::string tagLog(tag.str());
-		logprintf("%s", tag.str().c_str());
-		logprintf("{schemeIdUri:\"%s\",value:\"%s\",presentationTime:%" PRIu64 ",timeScale:%" PRIu32 ",eventDuration:%" PRIu32 ",id:%" PRIu32 ",timestampOffset:%" PRIu64 "}",e->getSchemeIdUri().c_str(), e->getValue().c_str(), e->getPresentationTime(), e->getTimeScale(), e->getEventDuration(), e->getId(), e->getTimestampOffset());
+		AAMPLOG_INFO("%s", tag.str().c_str());
+		AAMPLOG_INFO("{schemeIdUri:\"%s\",value:\"%s\",presentationTime:%" PRIu64 ",timeScale:%" PRIu32 ",eventDuration:%" PRIu32 ",id:%" PRIu32 ",timestampOffset:%" PRIu64 "}",e->getSchemeIdUri().c_str(), e->getValue().c_str(), e->getPresentationTime(), e->getTimeScale(), e->getEventDuration(), e->getId(), e->getTimestampOffset());
 
 		if (printableLen > MAX_DEBUG_LOG_BUFF_SIZE)
 		{

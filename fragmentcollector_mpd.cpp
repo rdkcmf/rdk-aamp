@@ -1364,8 +1364,11 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					if(!startTimeStr.empty())
 					{
 						periodStart = (ParseISO8601Duration(startTimeStr.c_str()) / 10000);
+						pMediaStreamContext->timeStampOffset = (periodStart - (presentationTimeOffset/tScale));
+					}else
+					{
+						pMediaStreamContext->timeStampOffset = 0;
 					}
-					pMediaStreamContext->timeStampOffset = (periodStart - (presentationTimeOffset/tScale));
 					if (presentationTimeOffset > 0 && pMediaStreamContext->lastSegmentDuration ==  0
 						&& pMediaStreamContext->fragmentDescriptor.Time == 0)
 					{
