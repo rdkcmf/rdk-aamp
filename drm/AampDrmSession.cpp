@@ -48,7 +48,7 @@ string AampDrmSession::getKeySystem()
 	return m_keySystem;
 }
 
-int AampDrmSession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer)
+int AampDrmSession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer, GstCaps* caps)
 {
 	AAMPLOG_ERR("GST decrypt method not implemented");
 	return -1;

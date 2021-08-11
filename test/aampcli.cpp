@@ -600,6 +600,7 @@ static void ShowHelp(void)
 	printf("unlock <cond>         // unlock a channel <long int - time in seconds>\n");
 	printf("lock                  // lock the current channel\n");
 	printf("next                  // Play next virtual channel\n");
+	printf("rollover              // Schedule artificial pts rollover 10s after next tune\n" );
 	printf("prev                  // Play previous virtual channel\n");
 	printf("exit                  // Exit from application\n");
 	printf("help                  // Show this list again\n");
@@ -867,6 +868,8 @@ static void trim(char **cmd)
 	}
 }
 
+extern void tsdemuxer_InduceRollover( bool enable );
+
 /**
  * @brief Process command
  * @param cmd command
@@ -896,6 +899,11 @@ static void ProcessCliCommand( char *cmd )
 	else if (strcmp(cmd, "help") == 0)
 	{
 		ShowHelp();
+	}
+	else if( strcmp(cmd,"rollover")==0 )
+	{
+		printf( "enabling artificial pts rollover (10s after next tune)\n" );
+		tsdemuxer_InduceRollover( true );
 	}
 	else if (strcmp(cmd, "list") == 0)
 	{
@@ -1062,6 +1070,7 @@ static void ProcessCliCommand( char *cmd )
 	else if (strcmp(cmd, "stop") == 0)
 	{
 		mSingleton->Stop();
+		tsdemuxer_InduceRollover(false);
 	}
 	else if (strcmp(cmd, "underflow") == 0)
 	{
