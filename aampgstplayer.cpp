@@ -2176,9 +2176,8 @@ bool hasId3Header(MediaType mediaType, const uint8_t* data, int32_t length)
 /**
  * @brief Get the size of the ID3v2 tag.
  * @param[in] ptr buffer pointer
- * @param[in] len0 length of buffer
  */
-uint32_t getId3TagSize(const uint8_t *data, size_t &len0)
+uint32_t getId3TagSize(const uint8_t *data)
 {
 	uint32_t bufferSize = 0;
 	uint8_t tagSize[4];
@@ -2225,7 +2224,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 	if (aamp->GetEventListenerStatus(AAMP_EVENT_ID3_METADATA) &&
 		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
 	{
-		uint32_t len = getId3TagSize(static_cast<const uint8_t*>(ptr), len);
+		uint32_t len = getId3TagSize(static_cast<const uint8_t*>(ptr));
 		if (len && (len != aamp->lastId3DataLen ||
 					!aamp->lastId3Data ||
 					(memcmp(ptr, aamp->lastId3Data, aamp->lastId3DataLen) != 0)))
