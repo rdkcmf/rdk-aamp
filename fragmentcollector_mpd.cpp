@@ -1838,12 +1838,12 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						 *  mPeriodStartTime and currentTime
 			 */
 			double fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration;
-			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time > mPeriodEndTime))
+			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time > (mPeriodStartTime + mPeriodDuration/1000)))
 							|| (rate < 0 )))
 					|| (mIsLiveStream && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
 							|| (pMediaStreamContext->fragmentDescriptor.Time < mPeriodStartTime))))  //CID:93022 - No effect
 			{
-				AAMPLOG_INFO("%s:%d EOS. fragmentDescriptor.Time=%f mPeriodEndTime=%lu mPeriodStartTime %lu  currentTimeSeconds %f FTime=%f",__FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
+				AAMPLOG_INFO("%s:%d EOS. fragmentDescriptor.Time=%f mPeriodEndTime=%f mPeriodStartTime %f  currentTimeSeconds %f FTime=%f",__FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
 				pMediaStreamContext->lastSegmentNumber =0; // looks like change in period may happen now. hence reset lastSegmentNumber
 				pMediaStreamContext->eos = true;
 			}
@@ -2780,9 +2780,9 @@ Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd)
 }
 
 //Multiply two ints without overflow
-inline std::uint64_t safeMultiply(const int first, const int second)
+inline double safeMultiply(const int first, const int second)
 {
-    return static_cast<std::uint64_t>(first) * second;
+    return static_cast<double>(first * second);
 }
 /**
  * @brief Parse duration from ISO8601 string
@@ -2797,7 +2797,7 @@ static double ParseISO8601Duration(const char *ptr)
 	int hour = 0;
 	int minute = 0;
 	double seconds = 0.0;
-	uint64_t returnValue = 0;
+	double returnValue = 0.0;
 	int indexforM = 0,indexforT=0;
 
 	//ISO 8601 does not specify specific values for months in a day
@@ -7718,7 +7718,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 
 			while(iPeriod < numPeriods && !exitFetchLoop)  //CID:95090 - No effect
 			{
-				bool periodChanged = (iPeriod != mCurrentPeriodIdx) | (mBasePeriodId != mpd->GetPeriods().at(mCurrentPeriodIdx)->GetId());
+				bool periodChanged = (iPeriod != mCurrentPeriodIdx) || (mBasePeriodId != mpd->GetPeriods().at(mCurrentPeriodIdx)->GetId());
 				if (periodChanged || mpdChanged || adStateChanged)
 				{
 					bool discontinuity = false;
@@ -8023,6 +8023,11 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 											mStartTimeOfFirstPTS = ((aamp->culledSeconds + startTime - (GetPeriodStartTime(mpd, 0) - mAvailabilityStartTime)) * 1000);
 										}
 									}
+								}
+								else if(nextSegmentTime != segmentStartTime)
+								{
+									discontinuity = true;
+									logprintf("StreamAbstractionAAMP_MPD::%s:%d discontinuity detected", __FUNCTION__, __LINE__);
 								}
 								else
 								{
