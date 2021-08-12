@@ -2407,7 +2407,7 @@ void AAMPGstPlayer::Stream()
  * @param[in] bESChangeStatus
  * @param[in] forwardAudioToAux if audio buffers to be forwarded to aux pipeline
  */
-void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation)
+void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux)
 {
 	FN_TRACE( __FUNCTION__ );
 	logprintf("AAMPGstPlayer::%s %d > videoFormat %d audioFormat %d auxFormat %d", __FUNCTION__, __LINE__, format, audioFormat, auxFormat);
@@ -2446,11 +2446,6 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	if (privateContext->pipeline == NULL || privateContext->bus == NULL)
 	{
 		CreatePipeline();
-	}
-
-	if (setReadyAfterPipelineCreation && gst_element_set_state(this->privateContext->pipeline, GST_STATE_READY) == GST_STATE_CHANGE_FAILURE)
-	{
-		logprintf("AAMPGstPlayer_Configure GST_STATE_READY failed");
 	}
 
 	bool configureStream[AAMP_TRACK_COUNT];
