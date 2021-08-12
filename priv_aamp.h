@@ -3130,8 +3130,16 @@ public:
 		: aamp(instance), data(), schemeIdUri(), value(), presentationTime(presTime), id(id3ID), eventDuration(eventDur), timeScale(tScale), timestampOffset(tStampOffset)
 	{
 		data = std::vector<uint8_t>(ptr, ptr + len);
-		schemeIdUri = std::string(schemeIdURI);
-		value =std::string(id3Value);
+
+		if (schemeIdURI)
+		{
+			schemeIdUri = std::string(schemeIdURI);
+		}
+
+		if (id3Value)
+		{
+			value = std::string(id3Value);
+		}
 	}
 	Id3CallbackData() = delete;
 	Id3CallbackData(const Id3CallbackData&) = delete;
