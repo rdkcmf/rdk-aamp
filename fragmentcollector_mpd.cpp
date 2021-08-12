@@ -7692,11 +7692,12 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							AAMPLOG_INFO("%s:%d Culled seconds = %f", __FUNCTION__, __LINE__, culled);
 							aamp->UpdateCullingState(culled);
 							mCulledSeconds += culled;
-							if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && mIsLiveStream && !mIsFogTSB)
-							{
-								UpdateCulledAndDurationFromPeriodInfo();
-							}
 						}
+						if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && mIsLiveStream && !mIsFogTSB)
+						{
+							UpdateCulledAndDurationFromPeriodInfo();
+						}
+						
 						double durMs = 0;
 						mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
 						mPeriodStartTime = GetPeriodStartTime(mpd, mCurrentPeriodIdx);
