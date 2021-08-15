@@ -2410,7 +2410,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 {
 	bool success = true; // TODO
 	int streamType = getStreamType();
-	profiler.TuneEnd(success, mContentType, streamType, mFirstTune, mAppName,(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mPlayerPreBuffered);
+	profiler.TuneEnd(success, mContentType, streamType, mFirstTune, mAppName,(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mPlayerPreBuffered, durationSeconds, activeInterfaceWifi);
 
 	//update tunedManifestUrl if FOG was NOT used as manifestUrl might be updated with redirected url.
 	if(!IsTSBSupported())
@@ -5019,6 +5019,11 @@ std::string PrivateInstanceAAMP::GetContentTypString()
             strRet =  "OTA"; //ota
             break;
         }
+        case ContentType_SLE :
+        {
+            strRet = "SLE"; // single live event
+            break;
+        }
         default:
         {
             strRet =  "Unknown";
@@ -5129,6 +5134,10 @@ void PrivateInstanceAAMP::SetContentType(const char *cType)
 		else if(playbackMode == "COMPOSITE_IN")
 		{
 			mContentType = ContentType_COMPOSITEIN; //ota
+		}
+		else if(playbackMode == "SLE")
+		{
+			mContentType = ContentType_SLE; //single live event
 		}
 	}
 }
@@ -7212,6 +7221,10 @@ bool PrivateInstanceAAMP::IsLiveAdjustRequired()
 		case ContentType_IPDVR:
 		case ContentType_EAS:
 			retValue = false;
+			break;
+
+		case ContentType_SLE:
+			retValue = true;
 			break;
 
 		default:

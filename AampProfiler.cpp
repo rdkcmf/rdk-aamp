@@ -186,9 +186,11 @@ void ProfileEventAAMP::TuneBegin(void)
  * @param[in] contentType - Content Type. Eg: LINEAR, VOD, etc
  * @param[in] streamType - Stream Type. Eg: HLS, DASH, etc
  * @param[in] firstTune - Is it a first tune after reboot/crash.
+ * @param[in] durationSeconds - Asset duration in seconds
+ * @param[in] interfaceWifi - Active connection is Wifi or Ethernet.
  * @return void
  */
-void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId, bool playerPreBuffered)
+void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId, bool playerPreBuffered, unsigned int durationSeconds, bool interfaceWifi)
 {
 	if(!enabled )
 	{
@@ -210,23 +212,24 @@ void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int stream
 	}
 
 	AAMPLOG_WARN("%s:%d,%s,%lld," // prefix, version, build, tuneStartBaseUTCMS
-		"%d,%d,%d," 	// main manifest (start,total,err)
-		"%d,%d,%d," 	// video playlist (start,total,err)
-		"%d,%d,%d," 	// audio playlist (start,total,err)
+		"%d,%d,%d,"		// main manifest (start,total,err)
+		"%d,%d,%d,"		// video playlist (start,total,err)
+		"%d,%d,%d,"		// audio playlist (start,total,err)
 
-		"%d,%d,%d," 	// video init-segment (start,total,err)
-		"%d,%d,%d," 	// audio init-segment (start,total,err)
+		"%d,%d,%d,"		// video init-segment (start,total,err)
+		"%d,%d,%d,"		// audio init-segment (start,total,err)
 
-		"%d,%d,%d,%ld," 	// video fragment (start,total,err, bitrate)
-		"%d,%d,%d,%ld," 	// audio fragment (start,total,err, bitrate)
+		"%d,%d,%d,%ld,"	// video fragment (start,total,err, bitrate)
+		"%d,%d,%d,%ld,"	// audio fragment (start,total,err, bitrate)
 
-		"%d,%d,%d," 	// licenseAcqStart, licenseAcqTotal, drmFailErrorCode
-		"%d,%d,%d," 	// LAPreProcDuration, LANetworkDuration, LAPostProcDuration
+		"%d,%d,%d,"		// licenseAcqStart, licenseAcqTotal, drmFailErrorCode
+		"%d,%d,%d,"		// LAPreProcDuration, LANetworkDuration, LAPostProcDuration
 
-		"%d,%d," 		// VideoDecryptDuration, AudioDecryptDuration
-		"%d,%d," 		// gstPlayStartTime, gstFirstFrameTime
-		"%d,%d,%d," 		// contentType, streamType, firstTune
-                "%d,%d",                // If Player was in prebufferd mode, time spent in prebufferd(BG) mode
+		"%d,%d,"		// VideoDecryptDuration, AudioDecryptDuration
+		"%d,%d,"		// gstPlayStartTime, gstFirstFrameTime
+		"%d,%d,%d,"		// contentType, streamType, firstTune
+		"%d,%d,"		// If Player was in prebufferd mode, time spent in prebufferd(BG) mode
+		"%d,%d",		// Asset duration in seconds, Connection is wifi or not - wifi(1) ethernet(0)
 		// TODO: settop type, flags, isFOGEnabled, isDDPlus, isDemuxed, assetDurationMs
 
 		tuneTimeStrPrefix,
@@ -251,7 +254,8 @@ void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int stream
 		buckets[PROFILE_BUCKET_FIRST_BUFFER].tStart, // gstPlaying: offset in ms from tunestart when pipeline first fed data
 		playerPreBuffered ? buckets[PROFILE_BUCKET_FIRST_FRAME].tStart - buckets[PROFILE_BUCKET_PLAYER_PRE_BUFFERED].tStart : buckets[PROFILE_BUCKET_FIRST_FRAME].tStart,  // gstFirstFrame: offset in ms from tunestart when first frame of video is decoded/presented
 		contentType, streamType, firstTune,
-		playerPreBuffered,playerPreBuffered ? buckets[PROFILE_BUCKET_PLAYER_PRE_BUFFERED].tStart : 0
+		playerPreBuffered,playerPreBuffered ? buckets[PROFILE_BUCKET_PLAYER_PRE_BUFFERED].tStart : 0,
+		durationSeconds,interfaceWifi
 		);
 }
 

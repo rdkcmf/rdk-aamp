@@ -105,7 +105,8 @@ enum ContentType
 	ContentType_OTA,            /**< 12 - OTA*/
 	ContentType_HDMIIN,         /**< 13 - HDMI Input */
 	ContentType_COMPOSITEIN,    /**< 14 - COMPOSITE Input*/
-	ContentType_MAX             /**< 15 - Type Count*/
+	ContentType_SLE,            /**< 15 - SLE - Single Live Event (kind of iVOD)*/
+	ContentType_MAX             /**< 16 - Type Count*/
 };
 
 /**
@@ -321,9 +322,11 @@ public:
 	 * @param[in] contentType - Content Type. Eg: LINEAR, VOD, etc
 	 * @param[in] streamType - Stream Type. Eg: HLS, DASH, etc
 	 * @param[in] firstTune - Is it a first tune after reboot/crash.
+	 * @param[in] durationSeconds - Asset duration in seconds
+	 * @param[in] interfaceWifi - Active connection is Wifi or Ethernet.
 	 * @return void
 	 */
-	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId, bool playerPreBuffered);
+	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId, bool playerPreBuffered, unsigned int durationSeconds, bool interfaceWifi);
 
 	/**
 	 * @brief Method converting the AAMP style tune performance data to IP_EX_TUNETIME style data
