@@ -263,6 +263,9 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *
 	,mEarlyAvailableKeyIDMap(), mPendingKeyIDs(), mAbortDeferredLicenseLoop(false), mEarlyAvailablePeriodIds(), thumbnailtrack(), indexedTileInfo()
 	,mMaxTracks(0)
 	,latencyMonitorThreadStarted(false),prevLatencyStatus(LATENCY_STATUS_UNKNOWN),latencyStatus(LATENCY_STATUS_UNKNOWN),latencyMonitorThreadID(0)
+	,mServerUtcTime(0)
+	,mDeltaTime(0)
+	,mHasServerUtcTime(0)
 {
         FN_TRACE_F_MPD( __FUNCTION__ );
 	this->aamp = aamp;
@@ -1439,7 +1442,6 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 
 			double currentTimeSeconds = (double)aamp_GetCurrentTimeMS() / 1000;
 			
-			
 			uint32_t duration = segmentTemplates.GetDuration();
 			double fragmentDuration =  ComputeFragmentDuration(duration,timeScale);
 			long startNumber = segmentTemplates.GetStartNumber();
@@ -1448,6 +1450,10 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			{
 				if (mIsLiveStream)
 				{
+					if(mHasServerUtcTime)
+					{
+						currentTimeSeconds+=mDeltaTime;
+					}
 					double liveTime = currentTimeSeconds - aamp->mLiveOffset;
 					if(liveTime < mPeriodStartTime)
 					{
@@ -1488,6 +1494,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			 *Second block is for LIVE, where boundaries are
 						 *  mPeriodStartTime and currentTime
 			 */
+			double fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration;
 			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time > (mPeriodStartTime + mPeriodDuration/1000)))
 							|| (rate < 0 )))
 					|| (mIsLiveStream && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
@@ -1497,12 +1504,21 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				pMediaStreamContext->lastSegmentNumber =0; // looks like change in period may happen now. hence reset lastSegmentNumber
 				pMediaStreamContext->eos = true;
 			}
-			else if(mIsLiveStream && (pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration) >= (currentTimeSeconds-mPresentationOffsetDelay))
+			else if(mIsLiveStream &&  mHasServerUtcTime &&  fragmentRequestTime >= mServerUtcTime) 
 			{
 				int sleepTime = mMinUpdateDurationMs;
 				sleepTime = (sleepTime > MAX_DELAY_BETWEEN_MPD_UPDATE_MS) ? MAX_DELAY_BETWEEN_MPD_UPDATE_MS : sleepTime;
 				sleepTime = (sleepTime < 200) ? 200 : sleepTime;
-				AAMPLOG_INFO("%s:%d Next fragment Not Available yet: fragmentDescriptor.Time %f currentTimeSeconds %f sleepTime %d ", __FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, currentTimeSeconds, sleepTime);
+				AAMPLOG_INFO("%s:%d Next fragment Not Available yet: fragmentDescriptor.Time %f fragmentDuration:%f currentTimeSeconds %f Server  UTCTime %f sleepTime %d ", __FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, fragmentDuration, currentTimeSeconds, mServerUtcTime, sleepTime);
+				aamp->InterruptableMsSleep(sleepTime);
+				retval = false;
+                        }
+			else if(mIsLiveStream && !mHasServerUtcTime && (fragmentRequestTime >= (currentTimeSeconds-mPresentationOffsetDelay)))
+			{
+				int sleepTime = mMinUpdateDurationMs;
+				sleepTime = (sleepTime > MAX_DELAY_BETWEEN_MPD_UPDATE_MS) ? MAX_DELAY_BETWEEN_MPD_UPDATE_MS : sleepTime;
+				sleepTime = (sleepTime < 200) ? 200 : sleepTime;
+				AAMPLOG_INFO("%s:%d Next fragment Not Available yet: fragmentDescriptor.Time %f fragmentDuration:%f currentTimeSeconds %f Server  UTCTime %f sleepTime %d ", __FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, fragmentDuration, currentTimeSeconds, mServerUtcTime, sleepTime);
 				aamp->InterruptableMsSleep(sleepTime);
 				retval = false;
 			}
@@ -4417,10 +4433,13 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 				delete this->mpd;
 			}
 			this->mpd = mpd;
-
 			if(aamp->mIsVSS)
 			{
 				CheckForVssTags();
+			}
+			if(mIsLiveManifest)
+			{
+				mHasServerUtcTime = FindServerUTCTime(mpd);
 			}
 			if (!retrievedPlaylistFromCache && !mIsLiveManifest)
 			{
@@ -4589,6 +4608,42 @@ void StreamAbstractionAAMP_MPD::FindPeriodGapsAndReport()
 		double periodDuration = aamp_GetPeriodDuration(mpd, i, mLastPlaylistDownloadTimeMs);
 		prevPeriodEndMs = curPeriodStartMs + periodDuration;
 	}
+}
+
+/**
+ * @brief Read UTCTiming element
+ * @param mpd:  MPD top level element
+ * @param root: XML root node
+ * @retval Return true if UTCTiming element is available in the manifest
+ */
+
+bool  StreamAbstractionAAMP_MPD::FindServerUTCTime(MPD* mpd)
+{
+	FN_TRACE_F_MPD( __FUNCTION__ );
+	bool hasServerUtcTime = false;
+	if( mpd )
+	{
+		mServerUtcTime = 0;
+		for ( auto node :  mpd->GetAdditionalSubNodes() )
+		{
+			if(node)
+			{
+				if( "UTCTiming" == node->GetName() && node->HasAttribute("schemeIdUri"))
+				{
+					if ( SERVER_UTCTIME_DIRECT == node->GetAttributeValue("schemeIdUri") && node->HasAttribute("value"))
+					{
+						double currentTime = (double)aamp_GetCurrentTimeMS() / 1000;
+						const std::string &value = node->GetAttributeValue("value");
+						mServerUtcTime = ISO8601DateTimeToUTCSeconds(value.c_str() );
+						mDeltaTime =  mServerUtcTime - currentTime;
+						hasServerUtcTime = true;
+						break;
+					}
+				}
+			}
+		}
+	}
+	return hasServerUtcTime;
 }
 
 /**
