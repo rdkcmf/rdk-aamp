@@ -1731,13 +1731,8 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 						{
 							dumpPacket(packet, m_packetSize);
 							int length = ((packet[payloadOffset + 2] & 0x0F) << 8) + (packet[payloadOffset + 3]);
-							if (length >= 13)
-							{  // SPTS would be 13, greater means MPTS
-								if (length > 13)
-								{ // xione-4514 Some rare assets are MPTS with program !=0 (PMT) in last program slot
-									WARNING("RecordContext: PAT is not SPTS (size %d), using last program table entry.", length);
-									payloadOffset += (length-13); // If MPTS assume last program slot has program 0/PMT
-								}
+							if (length == 13)
+							{
 								m_havePAT = true;
 								m_versionPAT = version;
 								m_program = ((packet[payloadOffset + 9] << 8) + packet[payloadOffset + 10]);
