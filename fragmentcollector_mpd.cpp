@@ -80,6 +80,8 @@
 #define MEDIATYPE_AUX_AUDIO "aux-audio"
 #define MEDIATYPE_IMAGE "image"
 
+#define SERVER_UTCTIME_DIRECT "urn:mpeg:dash:utc:direct:2014"
+
 static double ParseISO8601Duration(const char *ptr);
 
 static double ComputeFragmentDuration( uint32_t duration, uint32_t timeScale )
@@ -621,7 +623,8 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *
 	,mLastDrmHelper()
 	,deferredDRMRequestThread(NULL), deferredDRMRequestThreadStarted(false), mCommonKeyDuration(0)
 	,mEarlyAvailableKeyIDMap(), mPendingKeyIDs(), mAbortDeferredLicenseLoop(false), mEarlyAvailablePeriodIds(), thumbnailtrack(), indexedTileInfo()
-	, mMaxTracks(0)
+	,mMaxTracks(0)
+	,mServerUtcTime(0)
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
@@ -1794,6 +1797,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			 *Second block is for LIVE, where boundaries are
 						 *  mPeriodStartTime and currentTime
 			 */
+			double fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration;
 			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentTime > (mPeriodStartTime + mPeriodDuration/1000)))
 							|| (rate < 0 )))
 					|| (mIsLiveStream && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
@@ -1803,12 +1807,12 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				pMediaStreamContext->lastSegmentNumber =0; // looks like change in period may happen now. hence reset lastSegmentNumber
 				pMediaStreamContext->eos = true;
 			}
-			else if(mIsLiveStream && (pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration) >= (currentTimeSeconds-mPresentationOffsetDelay))
+			else if(mIsLiveStream && ( (fragmentRequestTime >= (currentTimeSeconds-mPresentationOffsetDelay)) || ( mServerUtcTime > 0 &&  fragmentRequestTime >= mServerUtcTime) ) )
 			{
 				int sleepTime = mMinUpdateDurationMs;
 				sleepTime = (sleepTime > MAX_DELAY_BETWEEN_MPD_UPDATE_MS) ? MAX_DELAY_BETWEEN_MPD_UPDATE_MS : sleepTime;
 				sleepTime = (sleepTime < 200) ? 200 : sleepTime;
-				AAMPLOG_INFO("%s:%d Next fragment Not Available yet: fragmentDescriptor.Time %f currentTimeSeconds %f sleepTime %d ", __FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, currentTimeSeconds, sleepTime);
+				AAMPLOG_INFO("%s:%d Next fragment Not Available yet: fragmentDescriptor.Time %f fragmentDuration:%f currentTimeSeconds %f Server  UTCTime %f sleepTime %d ", __FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, fragmentDuration, currentTimeSeconds, mServerUtcTime, sleepTime);
 				aamp->InterruptableMsSleep(sleepTime);
 				retval = false;
 			}
@@ -2577,6 +2581,13 @@ AAMPStatusType StreamAbstractionAAMP_MPD::GetMpdFromManfiest(const GrowableBuffe
 					bool bMetadata = ISCONFIGSET(eAAMPConfig_BulkTimedMetaReport);
 					mIsLiveManifest = !(mpd->GetType() == "static");
 					aamp->SetIsLive(mIsLiveManifest);
+					if( mIsLiveManifest)
+					{
+						if( !FindServerUTCTime(root))
+						{
+							AAMPLOG_TRACE("%s %d Server UTC time is not available",__FUNCTION__,__LINE__);
+						}
+					}
 					FindTimedMetadata(mpd, root, init, bMetadata);
 					if(!init)
 					{
@@ -4689,6 +4700,39 @@ bool StreamAbstractionAAMP_MPD::IsEmptyPeriod(IPeriod *period)
 
 
 
+
+/**
+ * @brief Read UTCTiming element
+ * @param mpd:  MPD top level element
+ * @param root: XML root node
+ * @retval Return true if UTCTiming element is available in the manifest
+ */
+
+bool  StreamAbstractionAAMP_MPD::FindServerUTCTime(Node* root)
+{
+	bool hasServerUtcTime = false;
+	if( root )
+	{
+		mServerUtcTime = 0;
+		for ( auto node : root->GetSubNodes() )
+		{
+			if(node)
+			{
+				if( "UTCTiming" == node->GetName() && node->HasAttribute("schemeIdUri"))
+				{
+					if ( SERVER_UTCTIME_DIRECT == node->GetAttributeValue("schemeIdUri") && node->HasAttribute("value"))
+					{
+						const std::string &value = node->GetAttributeValue("value");
+						mServerUtcTime = ISO8601DateTimeToUTCSeconds(value.c_str() );
+						hasServerUtcTime = true;
+						break;
+					}
+				}
+			}
+		}
+	}
+	return hasServerUtcTime;
+}
 
 /**
  * @brief Find timed metadata from mainifest
