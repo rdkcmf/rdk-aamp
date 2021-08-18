@@ -228,7 +228,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"latencyMonitorInterval",eAAMPConfig_LatencyMonitorInterval,-1,-1},
 	{"downloadBufferChunks",eAAMPConfig_MaxFragmentChunkCached,-1,-1},
 	{"abrChunkThresholdSize",eAAMPConfig_ABRChunkThresholdSize,-1,-1},
-	{"enableLowLatencyOffsetMin",eAAMPConfig_EnableLowLatencyOffsetMin,-1,-1}
+	{"enableLowLatencyOffsetMin",eAAMPConfig_EnableLowLatencyOffsetMin,-1,-1},
+	{"seiTimeCode",eAAMPConfig_SEITimeCode,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -355,6 +356,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyMonitor].value		=	false;
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyCorrection].value		=	true;
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyOffsetMin].value      	=	true;
+	bAampCfgValue[eAAMPConfig_SEITimeCode].value              		=       true;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
