@@ -9005,143 +9005,142 @@ bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startM
 	const std::vector<IEventStream *> &eventStreams = period->GetEventStreams();
 	bool ret = false;
 	uint32_t duration = 0;
+	bool isScteEvent = false;
 	for(auto &eventStream: eventStreams)
 	{
-		for(auto &event: eventStream->GetEvents())
+		cJSON* root = cJSON_CreateObject();
+		if(root)
 		{
-			//Currently for linear assets only the SCTE35 events having 'duration' tag present are considered for generating timedMetadat Events.
-			//For VOD assets the events are generated irrespective of the 'duration' tag present or not
-			if(event && (!mIsLiveManifest || 0 != event->GetDuration()))
+			for(auto &attribute : eventStream->GetRawAttributes())
 			{
-				for(auto &evtChild: event->GetAdditionalSubNodes())
+				cJSON_AddStringToObject(root, attribute.first.c_str(), attribute.second.c_str());
+			}
+			cJSON *eventsRoot = cJSON_AddArrayToObject(root,"Event");
+			for(auto &event: eventStream->GetEvents())
+			{
+				cJSON *item;
+				cJSON_AddItemToArray(eventsRoot, item = cJSON_CreateObject() );
+				//Currently for linear assets only the SCTE35 events having 'duration' tag present are considered for generating timedMetadat Events.
+				//For VOD assets the events are generated irrespective of the 'duration' tag present or not
+				if(event)
 				{
-					std::string prefix = "scte35:";
-					if(evtChild != NULL)
+					for(auto &attribute : event->GetRawAttributes())
 					{
+						cJSON_AddStringToObject(item, attribute.first.c_str(), attribute.second.c_str());
+					}
 
-						if(evtChild->HasAttribute("xmlns") && "http://www.scte.org/schemas/35/2016" == evtChild->GetAttributeValue("xmlns"))
+					for(auto &evtChild: event->GetAdditionalSubNodes())
+					{
+						std::string prefix = "scte35:";
+						if(evtChild != NULL)
 						{
-							//scte35 namespace defined here. Hence, this & children don't need the prefix 'scte35'
-							prefix = "";
-						}
 
-						if(prefix+"Signal" == evtChild->GetName())
-						{
-							for(auto &signalChild: evtChild->GetNodes())
+							if(evtChild->HasAttribute("xmlns") && "http://www.scte.org/schemas/35/2016" == evtChild->GetAttributeValue("xmlns"))
 							{
-								if(signalChild && prefix+"Binary" == signalChild->GetName())
-								{
-									uint32_t timeScale = 1;
-									if(eventStream->GetTimescale() > 1)
-									{
-										timeScale = eventStream->GetTimescale();
-									}
-									//With the current implementation, ComputeFragmentDuration returns 2000 when the event->GetDuration() returns '0'
-									//This is not desirable for VOD assets (for linear event->GetDuration() with 0 value will not bring the control to this point)
-									if(0 != event->GetDuration())
-									{
-										duration = ComputeFragmentDuration(event->GetDuration(), timeScale) * 1000; //milliseconds
-									}
-									else
-									{
-										//Control gets here only for VOD with no duration data for the event, here set 0 as duration intead of the default 2000
-										duration = 0;
-									}
-									std::string scte35 = signalChild->GetText();
-									if(0 != scte35.length())
-									{
-										EventBreakInfo scte35Event(scte35, "SCTE35", duration);
-										eventBreakVec.push_back(scte35Event);
-										if(mIsLiveManifest)
-										{
-											return true;
-										}
-										else
-										{
-											ret = true;
-											continue;
-										}
-									}
-									else
-									{
-										AAMPLOG_WARN("%s:%d [CDAI]: Found a scte35:Binary in manifest with empty binary data!!",__FUNCTION__,__LINE__);
-									}
-								}
-								else
-								{
-									AAMPLOG_WARN("%s:%d [CDAI]: Found a scte35:Signal in manifest without scte35:Binary!!",__FUNCTION__,__LINE__);
-								}
+								//scte35 namespace defined here. Hence, this & children don't need the prefix 'scte35'
+								prefix = "";
 							}
-						}
-						else
-						{
-							if(!evtChild->GetName().empty())
+
+							if(prefix+"Signal" == evtChild->GetName())
 							{
-								for (auto &signalChild: evtChild->GetNodes())
+								isScteEvent = true;
+								if(!mIsLiveManifest || ( mIsLiveManifest && 0 != event->GetDuration()))
 								{
-									cJSON *root;
-									root = cJSON_CreateObject();
-									if(root)
+									for(auto &signalChild: evtChild->GetNodes())
 									{
-										if(signalChild && !signalChild->GetName().empty())
+										if(signalChild && prefix+"Binary" == signalChild->GetName())
 										{
-											cJSON *item;
-											cJSON_AddItemToObject(root, signalChild->GetName().c_str(), item = cJSON_CreateObject());
-											if(!signalChild->GetText().empty())
+											uint32_t timeScale = 1;
+											if(eventStream->GetTimescale() > 1)
 											{
-												cJSON_AddStringToObject(item, signalChild->GetName().c_str(), signalChild->GetText().c_str());
+												timeScale = eventStream->GetTimescale();
 											}
-											for(auto &attributes : signalChild->GetAttributes())
+											//With the current implementation, ComputeFragmentDuration returns 2000 when the event->GetDuration() returns '0'
+											//This is not desirable for VOD assets (for linear event->GetDuration() with 0 value will not bring the control to this point)
+											if(0 != event->GetDuration())
 											{
-												cJSON_AddStringToObject(item, attributes.first.c_str(), attributes.second.c_str());
-											}
-										}
-										char* eventChildDataJson = cJSON_PrintUnformatted(root);
-										uint32_t timeScale = 1;
-										if(eventStream->GetTimescale() > 1)
-										{
-											timeScale = eventStream->GetTimescale();
-										}
-										if(0 != event->GetDuration())
-										{
-											duration = ComputeFragmentDuration(event->GetDuration(), timeScale) * 1000; //milliseconds
-										}
-										else
-										{
-											//Control gets here only for VOD with no duration data for the event, here set 0 as duration intead of the default 2000
-											duration = 0;
-										}
-										if(eventChildDataJson)
-										{
-											std::string eventPayload(eventChildDataJson);
-											free(eventChildDataJson);
-											if(0 != eventPayload.length())
-											{
-												EventBreakInfo adEvent(eventPayload, evtChild->GetName(), duration);
-												eventBreakVec.push_back(adEvent);
-												ret = true;
+												duration = ComputeFragmentDuration(event->GetDuration(), timeScale) * 1000; //milliseconds
 											}
 											else
 											{
-												AAMPLOG_WARN("%s:%d [CDAI]: Found a %s in manifest with empty data!!",__FUNCTION__,__LINE__, evtChild->GetName().c_str());
+												//Control gets here only for VOD with no duration data for the event, here set 0 as duration intead of the default 2000
+												duration = 0;
+											}
+											std::string scte35 = signalChild->GetText();
+											if(0 != scte35.length())
+											{
+												EventBreakInfo scte35Event(scte35, "SCTE35", duration);
+												eventBreakVec.push_back(scte35Event);
+												if(mIsLiveManifest)
+												{
+													return true;
+												}
+												else
+												{
+													ret = true;
+													continue;
+												}
+											}
+											else
+											{
+												AAMPLOG_WARN("%s:%d [CDAI]: Found a scte35:Binary in manifest with empty binary data!!",__FUNCTION__,__LINE__);
 											}
 										}
-										cJSON_Delete(root);
+										else
+										{
+											AAMPLOG_WARN("%s:%d [CDAI]: Found a scte35:Signal in manifest without scte35:Binary!!",__FUNCTION__,__LINE__);
+										}
 									}
 								}
 							}
 							else
 							{
-								AAMPLOG_WARN("%s:%d [CDAI]: Found an invalid event child manifest without :Payload!!",__FUNCTION__,__LINE__);
+								if(!evtChild->GetName().empty())
+								{
+									cJSON* childItem;
+									cJSON_AddItemToObject(item, evtChild->GetName().c_str(), childItem = cJSON_CreateObject());
+									for (auto &signalChild: evtChild->GetNodes())
+									{
+										if(signalChild && !signalChild->GetName().empty())
+										{
+											std::string text = signalChild->GetText();
+											if(!text.empty())
+											{
+												cJSON_AddStringToObject(childItem, signalChild->GetName().c_str(), text.c_str());
+											}
+											for(auto &attributes : signalChild->GetAttributes())
+											{
+												cJSON_AddStringToObject(childItem, attributes.first.c_str(), attributes.second.c_str());
+											}
+										}
+									}
+								}
+								else
+								{
+									AAMPLOG_WARN("%s:%d [CDAI]: Found an invalid event child manifest without :Payload!!",__FUNCTION__,__LINE__);
+								}
 							}
 						}
-					}
-					else
-					{
-						AAMPLOG_WARN("%s:%d :  evtChild is null", __FUNCTION__, __LINE__);  //CID:85816 - Null Return
+						else
+						{
+							AAMPLOG_WARN("%s:%d : evtChild is null", __FUNCTION__, __LINE__);  //CID:85816 - Null Return
+						}
 					}
 				}
 			}
+			if(!isScteEvent)
+			{
+				char* finalData = cJSON_PrintUnformatted(root);
+				if(finalData)
+				{
+					std::string eventStreamStr(finalData);
+					cJSON_free(finalData);
+					EventBreakInfo eventBreak(eventStreamStr, "EventStream", duration);
+					eventBreakVec.push_back(eventBreak);
+					ret = true;
+				}
+			}
+			cJSON_Delete(root);
 		}
 	}
 	return ret;
