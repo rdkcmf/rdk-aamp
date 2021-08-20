@@ -86,6 +86,7 @@ typedef enum {
 #define DEFAULT_BUFFERING_TO_MS 10                       // TimeOut interval to check buffer fullness
 #if defined(REALTEKCE)
 #define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (3)          // if the video decoder has this many queued frames start..
+#define DEFAULT_AVSYNC_FREERUN_THRESHOLD_SECS 12         // Currently MAX FRAG DURATION + 2 per Realtek
 #else
 #define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (5)          // if the video decoder has this many queued frames start.. even at 60fps, close to 100ms...
 #endif
@@ -1416,7 +1417,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #endif
 				}
 			}
-
 			if ((NULL != msg->src) && AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
 			{
 				if(_this->privateContext->enableSEITimeCode)
@@ -1431,6 +1431,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				type_check_instance("bus_sync_handle: connecting first-video-frame-callback", (GstElement *) msg->src);
 				g_signal_connect(msg->src, "first-video-frame-callback",
                                                                         G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
+				g_object_set(msg->src, "freerun-threshold", DEFAULT_AVSYNC_FREERUN_THRESHOLD_SECS, NULL);
 			}
 
 			if ((NULL != msg->src) && aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink"))
