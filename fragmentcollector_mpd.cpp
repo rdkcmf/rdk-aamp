@@ -9771,38 +9771,22 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 	int monitorInterval = latencyMonitorInterval  * 1000;
 	while(keepRunning)
 	{
-        aamp->InterruptableMsSleep(monitorInterval);
-        if (aamp->DownloadsAreEnabled() && aamp->mLLDashRetuneCount <= MAX_LOW_LATENCY_DASH_RETUNE_ALLOWED )
-        {
-            double currentPositionInMs = aamp->GetPositionMs();
+		aamp->InterruptableMsSleep(monitorInterval);
+		if (aamp->DownloadsAreEnabled() && aamp->mLLDashRetuneCount <= MAX_LOW_LATENCY_DASH_RETUNE_ALLOWED )
+		{
+			double currentPositionInMs = aamp->GetPositionMs();
 			double playRate = aamp->GetLLDashCurrentPlayBackRate();
 			if(mLiveEndPosition < currentPositionInMs && mLiveEndPosition == 0)
 			{
 				AAMPLOG_WARN("%s:%d mLiveEndPosition should not be less than current position!!!! close the thread??? position : %d", __FUNCTION__, __LINE__, mLiveEndPosition);
 			}
-			else if (false == aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())  // stream is not at livepoint
-			{
-				aamp->mLLDashRateCorrectionCount = 0;
-
-				if(playRate != AAMP_NORMAL_PLAY_RATE )
-				{
-					if(false == aamp->mStreamSink->AdjustPlayBackRate((double)aamp->GetPositionMs(),AAMP_NORMAL_PLAY_RATE))
-					{
-						AAMPLOG_WARN("%s:%d Livepoint AdjustPlayBackRate: failed", __FUNCTION__, __LINE__);
-					}
-					else
-					{
-						AAMPLOG_TRACE("%s:%d Livepoint AdjustPlayBackRate: success", __FUNCTION__, __LINE__);
-						aamp->SetLLDashCurrentPlayBackRate(AAMP_NORMAL_PLAY_RATE);
-					}
-				}
-				else
-				{
-					AAMPLOG_TRACE("%s:%d Playrate is already  AAMP_NORMAL_PLAY_RATE", __FUNCTION__, __LINE__);
-				}
-			}
 			else
 			{
+				if (false == aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())  // stream is not at livepoint
+				{
+					aamp->mLLDashRateCorrectionCount = 0;
+				}
+
 				monitorInterval = latencyMonitorInterval  * 1000;
 				AampLLDashServiceData *pAampLLDashServiceData = NULL;
 				pAampLLDashServiceData = aamp->GetLLDashServiceData();

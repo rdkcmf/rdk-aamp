@@ -545,6 +545,27 @@ bool MediaTrack::WaitForCachedFragmentChunkAvailable()
 
 	AAMPLOG_TRACE("%s:%d [%s] Acquired MUTEX ==> fragmentChunkIdxToInject = %d numberOfFragmentChunksCached %d ret = %d abort = %d abortInjectChunk = %d cleanChunkCache = %d", __FUNCTION__, __LINE__, name, fragmentChunkIdxToInject, numberOfFragmentChunksCached, ret, abort, abortInjectChunk, cleanChunkCache);
 
+	if(cleanChunkCache )
+	{
+		AAMPLOG_TRACE("%s:%d [%s]numberOfFragmentChunksCached %d ", __FUNCTION__, __LINE__, name, numberOfFragmentChunksCached);
+
+		if((!cleanChunkCacheInitiated) && numberOfFragmentChunksCached == 0 )
+		{
+			logprintf("%s:%d [%s] Ignore Chunk Inject(After) - Cleanup In-progress!!!", __FUNCTION__, __LINE__, name);
+			cleanChunkCacheInitiated = true;
+
+			aamp_Free(&unparsedBufferChunk);
+			memset(&unparsedBufferChunk, 0x00, sizeof(GrowableBuffer));
+		}
+
+		if( numberOfFragmentChunksCached == 0)
+		{
+			pthread_cond_signal(&fragmentChunkClean);
+			pthread_mutex_unlock(&mutex);
+		}
+		return ret;
+	}
+
 	if ((numberOfFragmentChunksCached == 0) && !(abort || abortInjectChunk || cleanChunkCache))
 	{
 		AAMPLOG_TRACE("## %s:%d [%s] Waiting for CachedFragment to be available, eosReached=%d ##", __FUNCTION__, __LINE__, name, eosReached);
@@ -561,25 +582,6 @@ bool MediaTrack::WaitForCachedFragmentChunkAvailable()
 		}
 	}
 
-	if(cleanChunkCache)
-	{
-		logprintf("%s:%d [%s] Ignore Chunk Inject(After) - Cleanup In-progress!!!", __FUNCTION__, __LINE__, name);
-
-		for (int i = 0; i < maxCachedFragmentChunksPerTrack; i++)
-		{
-			aamp_Free(&cachedFragmentChunks[i].fragmentChunk);
-			memset(&cachedFragmentChunks[i], 0x00, sizeof(CachedFragmentChunk));
-		}
-		fragmentChunkIdxToInject = 0;
-		fragmentChunkIdxToFetch = 0;
-		numberOfFragmentChunksCached = 0;
-
-		aamp_Free(&unparsedBufferChunk);
-
-		pthread_cond_signal(&fragmentChunkClean);
-		pthread_mutex_unlock(&mutex);
-		return ret;
-	}
 
 	ret = !(abort || abortInjectChunk);
 
@@ -660,7 +662,7 @@ bool MediaTrack::ProcessFragmentChunk()
 {
         //Get Cache buffer
         CachedFragmentChunk* cachedFragmentChunk = &this->cachedFragmentChunks[fragmentChunkIdxToInject];
-        if(NULL == cachedFragmentChunk->fragmentChunk.ptr)
+        if(cachedFragmentChunk != NULL && NULL == cachedFragmentChunk->fragmentChunk.ptr)
         {
             AAMPLOG_TRACE("%s:%d [%s] Ignore NULL Chunk - cachedFragmentChunk->fragmentChunk.len %d", __FUNCTION__, __LINE__, name, cachedFragmentChunk->fragmentChunk.len);
             return false;
@@ -1424,6 +1426,7 @@ void MediaTrack::CleanChunkCache()
 	logprintf("%s:%d [%s] wait complete for fragmentChunkClean", __FUNCTION__, __LINE__, name);
 
 	cleanChunkCache = false;
+	cleanChunkCacheInitiated = false;
 	pthread_mutex_unlock(&mutex);
 }
 
@@ -1462,7 +1465,8 @@ fragmentIdxToFetch(0), fragmentChunkIdxToFetch(0), abort(false), fragmentInjecto
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
 		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false),
 		mSubtitleParser(), refreshSubtitles(false), maxCachedFragmentsPerTrack(0),
-		totalMdatCount(0), cachedFragmentChunks(NULL), unparsedBufferChunk{}, parsedBufferChunk{}, fragmentChunkFetched(), fragmentChunkInjected(), abortInjectChunk(false), maxCachedFragmentChunksPerTrack(0), fragmentChunkClean(), cleanChunkCache(false)
+		totalMdatCount(0), cachedFragmentChunks(NULL), unparsedBufferChunk{}, parsedBufferChunk{}, fragmentChunkFetched(), fragmentChunkInjected(), abortInjectChunk(false), maxCachedFragmentChunksPerTrack(0),
+		fragmentChunkClean(), cleanChunkCache(false),cleanChunkCacheInitiated(false)
 {
 	GETCONFIGVALUE(eAAMPConfig_MaxFragmentCached,maxCachedFragmentsPerTrack);
 	cachedFragment = new CachedFragment[maxCachedFragmentsPerTrack];

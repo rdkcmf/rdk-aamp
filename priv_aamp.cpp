@@ -3457,9 +3457,17 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 	else
 	{
 		maxDownloadAttempt += DEFAULT_DOWNLOAD_RETRY_COUNT;
+
+		//Override Download attmpt in LL mode
+		if(this->mAampLLDashServiceData.lowLatencyMode &&
+			(simType == eMEDIATYPE_VIDEO ||
+			simType == eMEDIATYPE_AUDIO ||
+			simType == eMEDIATYPE_AUX_AUDIO))
+		{
+			maxDownloadAttempt = 1;
+		}
 	}
 
-	pthread_mutex_lock(&mLock);
 	if (resetBuffer)
 	{
 		if(buffer->avail)
@@ -3758,21 +3766,25 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
 					}
 
+					if(this->mAampLLDashServiceData.lowLatencyMode &&
+					(res == CURLE_COULDNT_CONNECT || res == CURLE_OPERATION_TIMEDOUT || isDownloadStalled))
+					{
+						 if( simType == eMEDIATYPE_AUDIO || simType == eMEDIATYPE_VIDEO )
+						 {
+							MediaStreamContext *mCtx = GetMediaStreamContext(simType);
+							if(mCtx)
+							{
+								mCtx->CleanChunkCache();
+							}
+						}
+						logprintf("Download failed due to curl timeout or isDownloadStalled:%d Attempt:%d", isDownloadStalled, downloadAttempt);
+					}
+
 					//Attempt retry for partial downloads, which have a higher chance to succeed
 					if((res == CURLE_COULDNT_CONNECT || res == CURLE_OPERATION_TIMEDOUT || isDownloadStalled) && downloadAttempt < maxDownloadAttempt)
 					{
 						if(mpStreamAbstractionAAMP)
 						{
-							if(this->mAampLLDashServiceData.lowLatencyMode && (simType == eMEDIATYPE_AUDIO ||
-                                                                               simType == eMEDIATYPE_VIDEO ))
-							{
-								MediaStreamContext *mCtx = GetMediaStreamContext(simType);
-								if(mCtx)
-								{
-									mCtx->CleanChunkCache();
-								}
-							}
-
 							if( simType == eMEDIATYPE_MANIFEST ||
 								simType == eMEDIATYPE_AUDIO ||
 								simType == eMEDIATYPE_VIDEO ||

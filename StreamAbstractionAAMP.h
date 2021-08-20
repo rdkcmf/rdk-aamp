@@ -534,6 +534,7 @@ protected:
 	bool abortInject;                   /**< Abort inject operations if flag is set*/
 	bool abortInjectChunk;                   /**< Abort inject operations if flag is set*/
 	bool cleanChunkCache;
+	bool cleanChunkCacheInitiated;
 private:
 	pthread_cond_t fragmentFetched;     /**< Signaled after a fragment is fetched*/
 	pthread_cond_t fragmentInjected;    /**< Signaled after a fragment is injected*/
