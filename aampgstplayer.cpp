@@ -89,6 +89,7 @@ typedef enum {
 #define DEFAULT_BUFFERING_QUEUED_BYTES_MIN  (128 * 1024) // prebuffer in bytes
 #if defined (REALTEKCE)
 #define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (3)          // if the video decoder has this many queued frames start..
+#define DEFAULT_AVSYNC_FREERUN_THRESHOLD_SECS 12         // Currently MAX FRAG DURATION + 2 per Realtek
 #else
 #define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (5)          // if the video decoder has this many queued frames start.. even at 60fps, close to 100ms...
 #endif
@@ -1421,6 +1422,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					g_signal_connect(msg->src, "first-video-frame-callback",
                                                                         G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
 					g_object_set(msg->src, "report_decode_errors", TRUE, NULL);
+					g_object_set(msg->src, "freerun-threshold", DEFAULT_AVSYNC_FREERUN_THRESHOLD_SECS, NULL);
 				}
 #endif
 				else
@@ -1431,7 +1433,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
 				}
 			}
-
 #else
 			if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink") == true)
 			{
