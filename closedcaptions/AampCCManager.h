@@ -54,9 +54,16 @@ public:
 	int Init(void *handle);
 
 	/**
+	* @brief Gets Handle or ID, Every client using subtec must call GetId  in the begining , save id, which is required for Release funciton.
+	* @return int -  unique ID
+	*/
+	virtual int GetId() { return 0; };
+
+	/**
 	 * @brief Release CC resources
+	 * @param[in] id -  returned from GetId function
 	 */
-	virtual void Release(void) = 0;
+	virtual void Release(int iID) = 0;
 
 	/**
 	 * @brief Enable/disable CC rendering

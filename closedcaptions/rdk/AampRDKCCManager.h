@@ -40,7 +40,7 @@ public:
 	/**
 	 * @brief Release CC resources
 	 */
-	void Release(void) override;
+	void Release(int iID) override;
 
 	/**
 	 * @brief Constructor

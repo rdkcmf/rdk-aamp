@@ -82,19 +82,45 @@ void AampSubtecCCManager::EnsureRendererCommsInitialized()
 };
 
 /**
+ * @brief Gets Handle or ID
+ *
+ * @return int -  unique ID
+ */
+int AampSubtecCCManager::GetId()
+{
+    std::lock_guard<std::mutex> lock(mIdLock);
+    mId++;
+    mIdSet.insert(mId);
+    return mId;
+}
+
+/**
  * @brief Release CC resources
  */
-void AampSubtecCCManager::Release(void)
+void AampSubtecCCManager::Release(int id)
 {
-	AAMPLOG_WARN("AampSubtecCCManager::%s %d", __FUNCTION__, __LINE__);
-	subtecConnector::resetChannel();
-	if(mHALInitialized)
-	{
-		subtecConnector::close();
-		mHALInitialized = false;
+    std::lock_guard<std::mutex> lock(mIdLock);
+    if( mIdSet.erase(id) > 0 )
+    {
+		int iSize = mIdSet.size();
+		AAMPLOG_WARN("AampSubtecCCManager::%s %d users:%d", __FUNCTION__, __LINE__,iSize);
+		//No one using subtec, stop/close it.
+		if(0 == iSize)
+		{
+			subtecConnector::resetChannel();
+			if(mHALInitialized)
+			{
+				subtecConnector::close();
+				mHALInitialized = false;
+			}
+			mTrickplayStarted = false;
+			mParentalCtrlLocked = false;
+		}
 	}
-	mTrickplayStarted = false;
-	mParentalCtrlLocked = false;
+	else
+	{
+		AAMPLOG_TRACE("AampSubtecCCManager::%s %d ID:%d not found returning", __FUNCTION__, __LINE__,id);
+	}
 }
 
 /**

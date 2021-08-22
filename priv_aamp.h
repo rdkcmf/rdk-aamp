@@ -3051,5 +3051,6 @@ private:
 	pthread_mutex_t mStreamLock; /**< Mutex for accessing mpStreamAbstractionAAMP */
 	int mHarvestCountLimit;	// Harvest count 
 	int mHarvestConfig;		// Harvest config
+	int mCCId;
 };
 #endif // PRIVAAMP_H
