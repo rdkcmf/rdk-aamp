@@ -3189,6 +3189,7 @@ private:
 	int mHarvestCountLimit;	// Harvest count 
 	int mHarvestConfig;		// Harvest config
 	std::string mAuxAudioLanguage; /**< auxiliary audio language */
+	int mCCId;
 };
 
 /**

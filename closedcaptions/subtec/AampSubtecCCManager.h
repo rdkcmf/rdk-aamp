@@ -30,6 +30,8 @@
 #include <closedcaptions/AampCCManager.h>
 
 #include <string>
+#include <set>
+#include <mutex>
 #include <closedcaptions/subtec/SubtecConnector.h>
 
 
@@ -39,8 +41,15 @@ public:
 
 	/**
 	 * @brief Release CC resources
+	 * @param[in] id -  returned from GetId function
 	 */
-	void Release(void) override;
+	void Release(int iID) override;
+
+	/**
+	* @brief Gets Handle or ID, Every client using subtec must call GetId  in the begining , save id, which is required for Release funciton.
+	* @return int -  unique ID
+	*/
+	virtual int GetId();
 
 	/**
 	 * @brief Constructor
@@ -112,6 +121,9 @@ private:
 private:
 	bool mRendererInitialized{false};
 	bool mHALInitialized{false};
+    std::mutex mIdLock;
+    int mId{0};
+    std::set<int> mIdSet;
 };
 
 #endif /* __AAMP_SUBTEC_CC_MANAGER_H__ */
