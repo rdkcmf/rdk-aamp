@@ -1530,6 +1530,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mbUsingExternalPlayer (false)
 	, seiTimecode()
 	, mIsInterruptHandlingEnabled(false), contentGaps()
+	, mCCId(0)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -1614,7 +1615,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
  */
 PrivateInstanceAAMP::~PrivateInstanceAAMP()
 {
-	pthread_mutex_lock(&gMutex);
+#ifdef AAMP_CC_ENABLED
+    AampCCManager::GetInstance()->Release(mCCId);
+#endif
+    pthread_mutex_lock(&gMutex);
 	for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
 	{
 		if (this == iter->pAAMP)
@@ -4422,7 +4426,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 			AAMPLOG_INFO("%s:%d before CC Release - mTuneType:%d mbPlayEnabled:%d ", __FUNCTION__, __LINE__, mTuneType, mbPlayEnabled);
 			if (mbPlayEnabled && mTuneType != eTUNETYPE_RETUNE)
 			{
-				AampCCManager::GetInstance()->Release();
+				AampCCManager::GetInstance()->Release(mCCId);
 			}
 			else
 			{
@@ -4893,6 +4897,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	}
 
 #ifdef AAMP_CC_ENABLED
+	mCCId = AampCCManager::GetInstance()->GetId();
 	//restore CC if it was enabled for previous content.
 	AampCCManager::GetInstance()->RestoreCC();
 #endif
@@ -5707,7 +5712,7 @@ void PrivateInstanceAAMP::detach()
 		// Stop CC when pipeline is stopped
 		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
-			AampCCManager::GetInstance()->Release();
+			AampCCManager::GetInstance()->Release(mCCId);
 		}
 #endif
 		mStreamSink->Stop(true);
