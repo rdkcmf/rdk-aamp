@@ -192,6 +192,7 @@ struct AAMPGstPlayerPriv
 	bool progressiveBufferingEnabled;
 	bool progressiveBufferingStatus;
 	bool forwardAudioBuffers; // flag denotes if audio buffers to be forwarded to aux pipeline
+	bool enableSEITimeCode;
 
 	AAMPGstPlayerPriv() : pipeline(NULL), bus(NULL), current_rate(0),
 			total_bytes(0), n_audio(0), current_audio(0), firstProgressCallbackIdleTaskId(0),
@@ -221,7 +222,7 @@ struct AAMPGstPlayerPriv
 #endif
 			decodeErrorMsgTimeMS(0), decodeErrorCBCount(0),
 			progressiveBufferingEnabled(false), progressiveBufferingStatus(false)
-			, forwardAudioBuffers (false)
+			, forwardAudioBuffers (false), enableSEITimeCode(true)
 	{
 		memset(videoRectangle, '\0', VIDEO_COORDINATES_SIZE);
 #ifdef INTELCE
@@ -1408,11 +1409,13 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					g_signal_connect(_this->privateContext->video_dec, "first-video-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
                                         g_object_set(msg->src, "report_decode_errors", TRUE, NULL);
-
-					g_object_set(msg->src, "enable-timecode", 1, NULL);
-					g_signal_connect(_this->privateContext->video_dec, "timecode-callback",
-								G_CALLBACK(AAMPGstPlayer_redButtonCallback), _this);
 #endif
+					if(_this->privateContext->enableSEITimeCode)
+					{
+						g_object_set(msg->src, "enable-timecode", 1, NULL);
+						g_signal_connect(_this->privateContext->video_dec, "timecode-callback",
+									G_CALLBACK(AAMPGstPlayer_redButtonCallback), _this);
+					}
 
 				}
 				else
@@ -1596,6 +1599,7 @@ bool AAMPGstPlayer::CreatePipeline()
 			{
 				privateContext->positionQuery = gst_query_new_position(GST_FORMAT_TIME);
 			}
+			privateContext->enableSEITimeCode = ISCONFIGSET(eAAMPConfig_SEITimeCode);
 			ret = true;
 		}
 		else
