@@ -2311,9 +2311,16 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 		// HACK!
 		// DELIA-42262: For westerossink, it will send first-video-frame-callback signal after each flush
 		// So we can move NotifyFirstBufferProcessed to the more accurate signal callback
-		if (isFirstBuffer && !privateContext->using_westerossink)
+		if (isFirstBuffer)
 		{
-			aamp->NotifyFirstBufferProcessed();
+			if (!privateContext->using_westerossink)
+			{
+				aamp->NotifyFirstBufferProcessed();
+			}
+
+#ifdef REALTEKCE // HACK: Have this hack until reakteck Westeros fixes missing first frame call back missing during trick play.
+			aamp->ResetTrickStartUTCTime();
+#endif
 		}
 
 		privateContext->numberOfVideoBuffersSent++;

@@ -7113,6 +7113,14 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 }
 
 /**
+ * @brief Reset trick start position
+ */
+void PrivateInstanceAAMP::ResetTrickStartUTCTime()
+{
+	trickStartUTCMS = aamp_GetCurrentTimeMS();
+}
+
+/**
  * @brief Get current stream type
  * @retval 10 - HLS/Clear
  * @retval 11 - HLS/Consec
