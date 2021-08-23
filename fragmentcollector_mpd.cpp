@@ -9542,10 +9542,6 @@ double StreamAbstractionAAMP_MPD::GetEncoderDisplayLatency()
     IProducerReferenceTime *producerReferenceTime = NULL;
     double presentationOffset = 0;
 
-    double periodStartTime = 0;
-    periodStartTime =  GetPeriodStartTime(mpd, mCurrentPeriodIdx);
-    //AAMPLOG_TRACE("periodStartTime=%lf",periodStartTime);
-
     IPeriod* tempPeriod = NULL;
 
     if( mpd->GetPeriods().size() && mCurrentPeriodIdx < mpd->GetPeriods().size())
@@ -9568,6 +9564,8 @@ double StreamAbstractionAAMP_MPD::GetEncoderDisplayLatency()
 
     const ISegmentTemplate *representation = NULL;
     const ISegmentTemplate *adaptationSet = NULL;
+    uint32_t timeScale = 0;
+
     if( adaptationSets.size() > 0 )
     {
         IAdaptationSet * firstAdaptation = adaptationSets.at(0);
@@ -9580,38 +9578,37 @@ double StreamAbstractionAAMP_MPD::GetEncoderDisplayLatency()
                 representation = representations.at(0)->GetSegmentTemplate();
             }
         }
-    }
-    SegmentTemplates segmentTemplates(representation,adaptationSet);
 
-    uint32_t timeScale = 0;
+        SegmentTemplates segmentTemplates(representation,adaptationSet);
 
-    if( segmentTemplates.HasSegmentTemplate() )
-    {
-        std::string media = segmentTemplates.Getmedia();
-        timeScale = segmentTemplates.GetTimescale();
-        if(!timeScale)
+        if( segmentTemplates.HasSegmentTemplate() )
         {
-            timeScale = aamp->GetLLDashVidTimeScale();
-        }
-
-        presentationOffset = (double) segmentTemplates.GetPresentationTimeOffset();
-        const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
-        if (segmentTimeline)
-        {
-            std::vector<ITimeline*> vec  = segmentTimeline->GetTimelines();
-            if (!vec.empty())
+            std::string media = segmentTemplates.Getmedia();
+            timeScale = segmentTemplates.GetTimescale();
+            if(!timeScale)
             {
-                ITimeline* timeline = vec.back();
-                uint64_t startTime = 0;
-                uint32_t duration = 0;
-                uint32_t repeatCount = 0;
+                timeScale = aamp->GetLLDashVidTimeScale();
+            }
 
-                startTime = timeline->GetStartTime();
-                duration = timeline->GetDuration();
-                repeatCount = timeline->GetRepeatCount();
+            presentationOffset = (double) segmentTemplates.GetPresentationTimeOffset();
+            const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
+            if (segmentTimeline)
+            {
+                std::vector<ITimeline*> vec  = segmentTimeline->GetTimelines();
+                if (!vec.empty())
+                {
+                    ITimeline* timeline = vec.back();
+                    uint64_t startTime = 0;
+                    uint32_t duration = 0;
+                    uint32_t repeatCount = 0;
 
-                PT = (double)(startTime+((uint64_t)repeatCount*duration))/timeScale ;
-//		        PT = (double)(aamp->GetVideoPTS(false)-aamp->GetFirstPTS()+presentationOffset) /timeScale ;
+                    startTime = timeline->GetStartTime();
+                    duration = timeline->GetDuration();
+                    repeatCount = timeline->GetRepeatCount();
+
+                    PT = (double)(startTime+((uint64_t)repeatCount*duration))/timeScale ;
+    //		        PT = (double)(aamp->GetVideoPTS(false)-aamp->GetFirstPTS()+presentationOffset) /timeScale ;
+                }
             }
         }
     }
@@ -9694,6 +9691,9 @@ double StreamAbstractionAAMP_MPD::GetEncoderDisplayLatency()
     else
     {
         //Check more for behavior here
+	double periodStartTime = 0;
+	periodStartTime =  GetPeriodStartTime(mpd, mCurrentPeriodIdx);
+	AAMPLOG_TRACE("mCurrentPeriodIdx=%d periodStartTime=%lf",mCurrentPeriodIdx,periodStartTime);
         WCA =  periodStartTime;
         PTA = presentationOffset;
     }
