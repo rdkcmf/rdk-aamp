@@ -1027,11 +1027,13 @@ static gboolean buffering_timeout (gpointer data)
 				g_object_get(_this->privateContext->video_dec,"buffered_bytes",&bytes,NULL);
 				g_object_get(_this->privateContext->video_dec,"queued_frames",&frames,NULL);
 			}
+			MediaFormat mediaFormatRet;
+			mediaFormatRet = _this->aamp->GetMediaFormatTypeEnum();
 			/* DELIA-34654: Disable re-tune on buffering timeout for DASH as unlike HLS,
 			DRM key acquisition can end after injection, and buffering is not expected
 			to be completed by the 1 second timeout
 			*/
-			if (G_UNLIKELY(( _this->aamp->getStreamType() < 20) && (privateContext->buffering_timeout_cnt == 0 ) && _this->aamp->mConfig->IsConfigSet(eAAMPConfig_ReTuneOnBufferingTimeout) && (privateContext->numberOfVideoBuffersSent > 0)))
+			if (G_UNLIKELY(((mediaFormatRet != eMEDIAFORMAT_DASH) && (mediaFormatRet != eMEDIAFORMAT_PROGRESSIVE) && (mediaFormatRet != eMEDIAFORMAT_HLS_MP4)) && (privateContext->buffering_timeout_cnt == 0) && _this->aamp->mConfig->IsConfigSet(eAAMPConfig_ReTuneOnBufferingTimeout) && (privateContext->numberOfVideoBuffersSent > 0)))
 			{
 				logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d  bytes %u  frames %u", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent, bytes, frames);
 				privateContext->buffering_in_progress = false;
@@ -1948,7 +1950,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_NATIVE_AUDIO | GST_PLAY_FLAG_NATIVE_VIDEO;
 #endif
 		g_object_set(stream->sinkbin, "flags", flags, NULL); // needed?
-		if((_this->aamp->getStreamType() != 30) ||  _this->aamp->mConfig->IsConfigSet(eAAMPConfig_UseAppSrcForProgressivePlayback))
+		if((_this->aamp->GetMediaFormatTypeEnum() != eMEDIAFORMAT_PROGRESSIVE) ||  _this->aamp->mConfig->IsConfigSet(eAAMPConfig_UseAppSrcForProgressivePlayback))
 		{
 			g_object_set(stream->sinkbin, "uri", "appsrc://", NULL);
 			g_signal_connect(stream->sinkbin, "deep-notify::source", G_CALLBACK(found_source), _this);
@@ -3498,8 +3500,9 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 				}
 			}
 			logprintf("AAMPGstPlayer::%s:%d Pipeline is in %s state position %f ret %d\n", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position, ret);
-
-			if ((aamp->getStreamType() < 20) && (current == GST_STATE_PAUSED))
+			MediaFormat mediaFormatRet;
+			mediaFormatRet = aamp->GetMediaFormatTypeEnum();
+			if (((mediaFormatRet != eMEDIAFORMAT_DASH) && (mediaFormatRet != eMEDIAFORMAT_PROGRESSIVE) && (mediaFormatRet != eMEDIAFORMAT_HLS_MP4)) && (current == GST_STATE_PAUSED))
 			{
 				/*
 				 * Changing the Pipeline state to GST_STATE_PLAYING temporarily to keep Gstreamer continue sending data to Decoder during gst_element_seek().

@@ -1883,6 +1883,13 @@ public:
 	int getStreamType();
 
 	/**
+         *   @brief Get Mediaformat types
+         *
+         *   @return eMEDIAFORMAT
+         */
+        MediaFormat GetMediaFormatTypeEnum() const;
+
+	/**
 	 *   @brief Get stream type as printable format
 	 *
 	 *   @return Stream type as string
