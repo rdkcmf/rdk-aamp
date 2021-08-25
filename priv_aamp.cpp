@@ -1725,7 +1725,10 @@ long long PrivateInstanceAAMP::GetVideoPTS(bool bAddVideoBasePTS)
  */
 void PrivateInstanceAAMP::ReportProgress(bool sync)
 {
-	if (mDownloadsEnabled)
+	PrivAAMPState state;
+	GetState(state);
+
+	if (mDownloadsEnabled && (state != eSTATE_IDLE) && (state != eSTATE_RELEASED))
 	{
 		ReportAdProgress(sync);
 
