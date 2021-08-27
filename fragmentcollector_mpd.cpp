@@ -638,36 +638,51 @@ static unsigned int Read32( const char **pptr)
  * @param[out] referenced_duration referenced duration
  * @retval true on success
  */
-static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentIndex, unsigned int *referenced_size, float *referenced_duration )
+static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentIndex, unsigned int *referenced_size, float *referenced_duration, unsigned int *firstOffset)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	const char **f = &start;
+
 	unsigned int len = Read32(f);
 	if (len != size) {
 		AAMPLOG_WARN("Wrong size in ParseSegmentIndexBox %d found, %zu expected", len, size);
+		if (firstOffset) *firstOffset = 0;
 		return false;
 	}
+
 	unsigned int type = Read32(f);
 	if (type != 'sidx') {
 		AAMPLOG_WARN("Wrong type in ParseSegmentIndexBox %c%c%c%c found, %zu expected",
 					 (type >> 24) % 0xff, (type >> 16) & 0xff, (type >> 8) & 0xff, type & 0xff, size);
+		if (firstOffset) *firstOffset = 0;
 		return false;
 
 	}
+
 	unsigned int version = Read32(f);
 	unsigned int reference_ID = Read32(f);
 	unsigned int timescale = Read32(f);
 	unsigned int earliest_presentation_time = Read32(f);
 	unsigned int first_offset = Read32(f);
 	unsigned int count = Read32(f);
+
+	if (firstOffset)
+	{
+		*firstOffset = first_offset;
+
+		return true;
+	}
+
 	if( segmentIndex<count )
 	{
 		start += 12*segmentIndex;
 		*referenced_size = Read32(f);
 		*referenced_duration = Read32(f)/(float)timescale;
 		unsigned int flags = Read32(f);
+
 		return true;
 	}
+
 	return false;
 }
 
@@ -1546,6 +1561,10 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 
 				pMediaStreamContext->fragmentOffset++; // first byte following packed index
 
+				unsigned int firstOffset;
+				ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, 0, NULL, NULL, &firstOffset);
+				pMediaStreamContext->fragmentOffset += firstOffset;
+
 				if (pMediaStreamContext->fragmentIndex != 0)
 				{
 					unsigned int referenced_size;
@@ -1554,8 +1573,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					//Find the offset of previous fragment in new representation
 					for (int i = 0; i < pMediaStreamContext->fragmentIndex; i++)
 					{
-						if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, i,
-							&referenced_size, &fragmentDuration))
+						if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, i, &referenced_size, &fragmentDuration, NULL))
 						{
 							pMediaStreamContext->fragmentOffset += referenced_size;
 						}
@@ -1566,7 +1584,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			{
 				unsigned int referenced_size;
 				float fragmentDuration;
-				if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, pMediaStreamContext->fragmentIndex++, &referenced_size, &fragmentDuration))
+				if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, pMediaStreamContext->fragmentIndex++, &referenced_size, &fragmentDuration, NULL))
 				{
 					char range[128];
 					sprintf(range, "%" PRIu64 "-%" PRIu64 "", pMediaStreamContext->fragmentOffset, pMediaStreamContext->fragmentOffset + referenced_size - 1);
@@ -2060,7 +2078,7 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 				int fragmentIndex =0;
 				while (fragmentTime < skipTime)
 				{
-					if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, fragmentIndex++, &referenced_size, &fragmentDuration))
+					if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, fragmentIndex++, &referenced_size, &fragmentDuration, NULL))
 					{
 						fragmentTime += fragmentDuration;
 						//fragmentTime = ceil(fragmentTime * 1000.0) / 1000.0;
