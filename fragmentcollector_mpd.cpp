@@ -1488,12 +1488,12 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			 *Second block is for LIVE, where boundaries are
 						 *  mPeriodStartTime and currentTime
 			 */
-			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentTime > (mPeriodStartTime + mPeriodDuration/1000)))
+			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time > (mPeriodStartTime + mPeriodDuration/1000)))
 							|| (rate < 0 )))
 					|| (mIsLiveStream && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
 							|| (pMediaStreamContext->fragmentDescriptor.Time < mPeriodStartTime))))  //CID:93022 - No effect
 			{
-				AAMPLOG_INFO("%s:%d EOS. fragmentDescriptor.Time=%f mPeriodEndTime=%lu mPeriodStartTime %lu  currentTimeSeconds %f FTime=%f",__FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
+				AAMPLOG_INFO("%s:%d EOS. fragmentDescriptor.Time=%f mPeriodEndTime=%f mPeriodStartTime %f  currentTimeSeconds %f FTime=%f",__FUNCTION__, __LINE__, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
 				pMediaStreamContext->lastSegmentNumber =0; // looks like change in period may happen now. hence reset lastSegmentNumber
 				pMediaStreamContext->eos = true;
 			}
