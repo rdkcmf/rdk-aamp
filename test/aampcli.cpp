@@ -785,7 +785,7 @@ public:
 		case AAMP_EVENT_CONTENT_GAP :
 			{
 				ContentGapEventPtr ev = std::dynamic_pointer_cast<ContentGapEvent>(e);
-				printf("[AAMPCLI] AAMP_EVENT_CONTENT_GAP\n\tStart:%lf\n\tDuration:%lf", ev->getTime(), ev->getDuration());
+				printf("[AAMPCLI] AAMP_EVENT_CONTENT_GAP\n\tStart:%llf\n\tDuration:%lf\n", ev->getTime(), ev->getDuration());
 				break;
 			}
 		default:

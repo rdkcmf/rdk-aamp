@@ -893,7 +893,6 @@ public:
 	 */
 	void FlushLastId3Data();
 
-	bool mIsInterruptHandlingEnabled;	/**< Flag used to enable position jump events for interrupt handling */
 	/**
 	 * @brief Curl initialization function
 	 *
@@ -1377,6 +1376,14 @@ public:
 	 * @return True or False
 	 */
 	bool IsInProgressCDVR() {return (IsLive() && IsCDVRContent());}
+
+	/**
+	 * @brief Checking whether fog is giving uninterrupted TSB
+	 *
+	 * @return True or False
+	 */
+	bool IsUninterruptedTSB() {return (IsTSBSupported() && !ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling));}
+
 	/**
 	* @brief Checking whether CDVR Stream or not
 	*

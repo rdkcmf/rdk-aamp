@@ -1529,7 +1529,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, bLowLatencyStartABR(false)
 	, mbUsingExternalPlayer (false)
 	, seiTimecode()
-	, mIsInterruptHandlingEnabled(false), contentGaps()
+	, contentGaps()
 	, mCCId(0)
 {
 	//LazilyLoadConfigIfNeeded();
@@ -1748,7 +1748,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		else
 		{	//DELIA-49735 - Report Progress report position based on Availability Start Time
 			start = (culledSeconds*1000.0);
-			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && (mProgressReportOffset > 0) && IsLiveStream() && !mTSBEnabled)
+			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && (mProgressReportOffset >= 0) && IsLiveStream() && !IsUninterruptedTSB())
 			{
 				end = (mAbsoluteEndPosition * 1000);
 			}
@@ -1795,6 +1795,14 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		}
 
 		mReportProgressPosn = position;
+
+		if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling) && mTSBEnabled)
+		{
+			// Reporting relative positions for Fog TSB with interrupt handling
+			start -= (mProgressReportOffset * 1000);
+			position -= (mProgressReportOffset * 1000);
+			end -= (mProgressReportOffset * 1000);
+		}
 
 		if (trickStartUTCMS >= 0 && bProcessEvent)
 		{
@@ -1907,7 +1915,7 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 	}
 
 	// Remove contentGaps vector based on culling.
-	if(mIsInterruptHandlingEnabled)
+	if(ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling))
 	{
 		for (auto iter = contentGaps.begin(); iter != contentGaps.end();)
 		{
@@ -2610,7 +2618,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 				seek_pos_seconds = newPosition;
 			}
 
-			if(!mTSBEnabled && (mMediaFormat == eMEDIAFORMAT_DASH))
+			if(!IsUninterruptedTSB() && (mMediaFormat == eMEDIAFORMAT_DASH))
 			{
 				startTimeofFirstSample = mpStreamAbstractionAAMP->GetStartTimeOfFirstPTS() / 1000;
 				if(startTimeofFirstSample > 0)
@@ -4782,7 +4790,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		double updatedSeekPosition = mpStreamAbstractionAAMP->GetStreamPosition();
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
 		// Adjust seek_pos_second based on adjusted stream position and discontinuity start time for absolute progress reports
-		if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && !ISCONFIGSET_PRIV(eAAMPConfig_MidFragmentSeek) && !mTSBEnabled)
+		if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && !ISCONFIGSET_PRIV(eAAMPConfig_MidFragmentSeek) && !IsUninterruptedTSB())
 		{
 			double startTimeOfDiscontinuity = mpStreamAbstractionAAMP->GetStartTimeOfFirstPTS() / 1000;
 			if(startTimeOfDiscontinuity > 0)
@@ -5110,7 +5118,12 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mServiceZone.clear(); //clear the value if present
 	mIsIframeTrackPresent = false;
 	mCurrentDrm = nullptr;
-	mIsInterruptHandlingEnabled = strcasestr(mainManifestUrl, "networkInterruption=true");
+	SETCONFIGVALUE_PRIV(AAMP_STREAM_SETTING, eAAMPConfig_InterruptHandling, (mTSBEnabled && strcasestr(mainManifestUrl, "networkInterruption=true")));
+	if(!ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling))
+	{
+		AAMPLOG_INFO("%s:%d Absolute timeline reporting enabled for interrupt enabled TSB stream", __FUNCTION__, __LINE__);
+		SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING, eAAMPConfig_UseAbsoluteTimeline, true);
+	}
 
 	// DELIA-47965: Calling SetContentType without checking contentType != NULL, so that
 	// mContentType will be reset to ContentType_UNKNOWN at the start of tune by default
@@ -6742,7 +6755,7 @@ void PrivateInstanceAAMP::ReportContentGap(long long timeMilliseconds, std::stri
 	if (bFireEvent)
 	{
 		ContentGapEventPtr eventData = std::make_shared<ContentGapEvent>(timeMilliseconds, durationMS);
-		AAMPLOG_INFO("aamp contentGap: start: %ld duration: %ld", (long)(timeMilliseconds), (long) durationMS);
+		AAMPLOG_INFO("aamp contentGap: start: %lld duration: %ld", timeMilliseconds, (long) durationMS);
 		if (GetAsyncTuneConfig() || aamp_GetSourceID() == 0)
 		{
 			SendEventAsync(eventData);

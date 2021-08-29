@@ -174,6 +174,7 @@ typedef enum
 	eAAMPConfig_DisableLowLatencyCorrection,                    			/** Enables Low Latency Correction handling */
 	eAAMPConfig_EnableLowLatencyOffsetMin,                                /** Enables Low Latency Offset Min handling */
 	eAAMPConfig_SEITimeCode,							/** Enables SEI Time Code handling */
+	eAAMPConfig_InterruptHandling,							/**<Enables Config for network interrupt handling*/
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,

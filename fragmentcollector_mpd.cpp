@@ -1290,7 +1290,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 							// pMediaStreamContext->downloadedDuration is introduced to calculate the bufferedduration value.
 							// Update position in period after fragment download
 							positionInPeriod += fragmentDuration;
-							if(mIsFogTSB || (mIsLiveStream && !mIsLiveManifest && !ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline)))
+							if(aamp->IsUninterruptedTSB() || (mIsLiveStream && !mIsLiveManifest && !ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline)))
 							{
 								// Fog linear, or cDVR changed from static => dynamic without abstimeline reporting.
 								pMediaStreamContext->downloadedDuration = pMediaStreamContext->fragmentTime + aamp->culledOffset;
@@ -1326,6 +1326,12 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 							//	 lastSegmentTime to be corrected with duration of last segment attempted .
 							return retval; /* Incase of fragment download fail, no need to increase the fragment number to download next fragment,
 									 * instead check the same fragment in lower profile. */
+						}
+						else if(mIsFogTSB && ISCONFIGSET(eAAMPConfig_InterruptHandling))
+						{
+							// Mark fragment fetched and save lasr segment time to avoid reattempt.
+							pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
+							pMediaStreamContext->lastSegmentDuration = pMediaStreamContext->fragmentDescriptor.Time + duration;
 						}
 					}
 					else if (rate < 0)
@@ -2276,7 +2282,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::GetMpdFromManfiest(const GrowableBuffe
 					{
 						aamp->ReportTimedMetadata(false);
 					}
-					if(mIsFogTSB && aamp->mIsInterruptHandlingEnabled)
+					if(mIsFogTSB && ISCONFIGSET(eAAMPConfig_InterruptHandling))
 					{
 						FindPeriodGapsAndReport();
 					}
@@ -3196,7 +3202,7 @@ double StreamAbstractionAAMP_MPD::GetPeriodDuration(IMPD *mpd, int periodIndex)
 					{
 						nextStartStr = mpd->GetPeriods().at(periodIndex+1)->GetStart();
 					}
-					if(!curStartStr.empty() && (!nextStartStr.empty()) && !mIsFogTSB)
+					if(!curStartStr.empty() && (!nextStartStr.empty()) && !aamp->IsUninterruptedTSB())
 					{
 						double  curPeriodStartMs = 0;
 						double  nextPeriodStartMs = 0;
@@ -3208,8 +3214,17 @@ double StreamAbstractionAAMP_MPD::GetPeriodDuration(IMPD *mpd, int periodIndex)
 					}
 					else
 					{
-						periodDurationMs = aamp_GetPeriodDuration(mpd, periodIndex, mLastPlaylistDownloadTimeMs);
-						periodDuration = ((double)periodDurationMs / (double)1000);
+						if(IsEmptyPeriod(mpd->GetPeriods().at(periodIndex), mIsFogTSB))
+						{
+							// Final empty period, return duration as 0 incase if GetPeriodDuration is called for this.
+							periodDurationMs = 0;
+							periodDuration = 0;
+						}
+						else
+						{
+							periodDurationMs = aamp_GetPeriodDuration(mpd, periodIndex, mLastPlaylistDownloadTimeMs);
+							periodDuration = ((double)periodDurationMs / (double)1000);
+						}
 						AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d [Segments based] - MPD periodIndex:%d periodDuration %f", __FUNCTION__, __LINE__, periodIndex, periodDuration);
 					}
 				}
@@ -3740,7 +3755,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		size_t numPeriods = mpd->GetPeriods().size();
 		bool seekPeriods = true;
 
-		if (ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && mIsLiveStream && !mIsFogTSB)
+		if (ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && mIsLiveStream && !aamp->IsUninterruptedTSB())
 		{
 			double culled = aamp->culledSeconds;
 			UpdateCulledAndDurationFromPeriodInfo();
@@ -3777,7 +3792,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			if(offsetFromStart >= 0 && seekPeriods)
 			{
 				tempString = period->GetStart();
-				if(!tempString.empty() && !mIsFogTSB)
+				if(!tempString.empty() && !aamp->IsUninterruptedTSB())
 				{
 					periodStartMs = ParseISO8601Duration( tempString.c_str() );
 				}
@@ -3786,7 +3801,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 					periodStartMs = nextPeriodStart;
 				}
 
-				if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && aamp->IsLiveStream() && !mIsFogTSB && iPeriod == 0)
+				if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && aamp->IsLiveStream() && !aamp->IsUninterruptedTSB() && iPeriod == 0)
 				{
 					// Adjust start time wrt presentation time offset.
 					if(!mIsLiveStream)
@@ -3877,6 +3892,10 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			segmentTagsPresent = false;
 			for(int iPeriod = 0; iPeriod < mpd->GetPeriods().size(); iPeriod++)
 			{
+				if(IsEmptyPeriod(mpd->GetPeriods().at(iPeriod), mIsFogTSB))
+				{
+					continue;
+				}
 				durationMs += GetPeriodDuration(mpd, iPeriod);
 			}
 			logprintf("%s:%d - Duration after adding up Period Duration %" PRIu64 " seconds", __FUNCTION__, __LINE__, durationMs/1000);
@@ -3939,6 +3958,10 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 						{
 							AAMPLOG_INFO("%s:%d Adjusting to live offset offsetFromStart %f, mCurrentPeriodIdx %d", __FUNCTION__, __LINE__, offsetFromStart, mCurrentPeriodIdx);
 							mCurrentPeriodIdx--;
+							while((IsEmptyPeriod(mpd->GetPeriods().at(mCurrentPeriodIdx), mIsFogTSB) && mCurrentPeriodIdx > 0))
+							{
+								mCurrentPeriodIdx--;
+							}
 							duration = (GetPeriodDuration(mpd, mCurrentPeriodIdx)) / 1000;
 							currentPeriodStart = currentPeriodStart - duration;
 							offsetFromStart = offsetFromStart + duration;
@@ -3960,8 +3983,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 						currentPeriodStart = ((double)durationMs / 1000);
 						while(mCurrentPeriodIdx >= 0)
 						{
+							while((IsEmptyPeriod(mpd->GetPeriods().at(mCurrentPeriodIdx), mIsFogTSB) && mCurrentPeriodIdx > 0))
+							{
+								mCurrentPeriodIdx--;
+							}
 							mPeriodStartTime =  GetPeriodStartTime(mpd, mCurrentPeriodIdx);
-
 							duration = (GetPeriodDuration(mpd, mCurrentPeriodIdx)) / 1000;
 							currentPeriodStart -= duration;
 							if(mPeriodStartTime < startTime)
@@ -4020,7 +4046,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		mPeriodDuration =  GetPeriodDuration(mpd, mCurrentPeriodIdx);
 		mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
 		mCurrentPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
-		if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && !mIsFogTSB)
+		if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && !aamp->IsUninterruptedTSB())
 		{
 			// For live stream, take period start time
 			mStartTimeOfFirstPTS = (mPeriodStartTime - mAvailabilityStartTime) * 1000;
@@ -4109,7 +4135,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			if(!ISCONFIGSET(eAAMPConfig_MidFragmentSeek))
 			{
 				seekPosition = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime;
-				if((0 != mCurrentPeriodIdx && !ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline)) || mIsFogTSB)
+				if((0 != mCurrentPeriodIdx && !ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline)) || aamp->IsUninterruptedTSB())
 				{
 					// Avoid adding period start time for Absolute progress reporting,
 					// position is adjusted in TuneHelper based on current period start,
@@ -4501,8 +4527,8 @@ bool StreamAbstractionAAMP_MPD::IsEmptyPeriod(IPeriod *period, bool isFogPeriod)
  */
 void StreamAbstractionAAMP_MPD::FindPeriodGapsAndReport()
 {
-	double positionMs = aamp->culledSeconds * 1000;
-	double prevPeriodEndMs = 0 , curPeriodStartMs = 0;
+	double prevPeriodEndMs = aamp->culledSeconds * 1000;
+	double curPeriodStartMs = 0;
 	for(int i = 0; i< mpd->GetPeriods().size(); i++)
 	{
 		auto tempPeriod = mpd->GetPeriods().at(i);
@@ -4513,10 +4539,10 @@ void StreamAbstractionAAMP_MPD::FindPeriodGapsAndReport()
 		}
 		if (STARTS_WITH_IGNORE_CASE(tempPeriod->GetId().c_str(), FOG_INSERTED_PERIOD_ID_PREFIX))
 		{
-			if(IsEmptyPeriod(tempPeriod, mIsFogTSB) && (tempPeriod->GetAdaptationSets().size() > 0))
+			if(IsEmptyPeriod(tempPeriod, mIsFogTSB))
 			{
 				// Empty period indicates that the gap is growing, report event without duration
-				aamp->ReportContentGap(positionMs, tempPeriod->GetId());
+				aamp->ReportContentGap((long long)(prevPeriodEndMs - (aamp->mProgressReportOffset*1000)), tempPeriod->GetId());
 			}
 			else
 			{
@@ -4524,7 +4550,7 @@ void StreamAbstractionAAMP_MPD::FindPeriodGapsAndReport()
 				if(curPeriodStartMs > 0 && prevPeriodEndMs > 0)
 				{
 					double periodGapMS = (curPeriodStartMs - prevPeriodEndMs);
-					aamp->ReportContentGap(positionMs, tempPeriod->GetId(), periodGapMS);
+					aamp->ReportContentGap((long long)(prevPeriodEndMs - (aamp->mProgressReportOffset*1000)), tempPeriod->GetId(), periodGapMS);
 				}
 			}
 		}
@@ -4533,11 +4559,10 @@ void StreamAbstractionAAMP_MPD::FindPeriodGapsAndReport()
 			// Gap in between periods, but period ID changed after interrupt
 			// Fog skips duplicate period and inserts fragments in new period.
 			double periodGapMS = (curPeriodStartMs - prevPeriodEndMs);
-			aamp->ReportContentGap(positionMs, tempPeriod->GetId(), periodGapMS);
+			aamp->ReportContentGap((long long)(prevPeriodEndMs - (aamp->mProgressReportOffset*1000)), tempPeriod->GetId(), periodGapMS);
 		}
 		if(IsEmptyPeriod(tempPeriod, mIsFogTSB)) continue;
 		double periodDuration = aamp_GetPeriodDuration(mpd, i, mLastPlaylistDownloadTimeMs);
-		positionMs += periodDuration;
 		prevPeriodEndMs = curPeriodStartMs + periodDuration;
 	}
 }
@@ -7264,7 +7289,7 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 							}
 						}
 					}
-					else if (pMediaStreamContext->eos == true && mIsLiveManifest && trackIdx == eMEDIATYPE_VIDEO)
+					else if (pMediaStreamContext->eos == true && mIsLiveManifest && trackIdx == eMEDIATYPE_VIDEO && !(ISCONFIGSET(eAAMPConfig_InterruptHandling) && mIsFogTSB))
 					{
 						pMediaStreamContext->GetContext()->CheckForPlaybackStall(false);
 					}
@@ -7584,7 +7609,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							aamp->UpdateCullingState(culled);
 							mCulledSeconds += culled;
 						}
-						if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && mIsLiveStream && !mIsFogTSB)
+						if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && mIsLiveStream && !aamp->IsUninterruptedTSB())
 						{
 							UpdateCulledAndDurationFromPeriodInfo();
 						}
@@ -7659,7 +7684,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 									discontinuity = true;
 									mFirstPTS = (double)segmentStartTime/(double)segmentTemplates.GetTimescale();
 									double startTime = (GetPeriodStartTime(mpd, mCurrentPeriodIdx) - mAvailabilityStartTime);
-									if((startTime != 0) && !mIsFogTSB)
+									if((startTime != 0) && !aamp->IsUninterruptedTSB())
 									{
 										if (ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && aamp->IsLiveStream())
 										{
