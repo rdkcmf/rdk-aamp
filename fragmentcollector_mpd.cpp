@@ -9508,7 +9508,9 @@ void StreamAbstractionAAMP_MPD::SetTextTrackInfo(const std::vector<TextTrackInfo
 	mTextTrackIndex = trackIndex;
 
 #ifdef AAMP_CC_ENABLED
-	AampCCManager::GetInstance()->updateLastTextTracks(mTextTracks);
+		std::vector<TextTrackInfo> textTracksCopy;
+		std::copy_if(begin(mTextTracks), end(mTextTracks), back_inserter(textTracksCopy), [](const TextTrackInfo& e){return e.isCC;});
+		AampCCManager::GetInstance()->updateLastTextTracks(textTracksCopy);
 #endif
 
 	if (tracksChanged)

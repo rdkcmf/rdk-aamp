@@ -7872,12 +7872,17 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 			}
 		}
 #ifdef AAMP_CC_ENABLED
-		AampCCManager::GetInstance()->updateLastTextTracks(mTextTracks);
+		std::vector<TextTrackInfo> textTracksCopy;
+		std::copy_if(begin(mTextTracks), end(mTextTracks), back_inserter(textTracksCopy), [](const TextTrackInfo& e){return e.isCC;});
+		AampCCManager::GetInstance()->updateLastTextTracks(textTracksCopy);
 #endif
 
 	}
 	else
 	{
+#ifdef AAMP_CC_ENABLED
+		AampCCManager::GetInstance()->updateLastTextTracks({});
+#endif
 		AAMPLOG_ERR("StreamAbstractionAAMP_HLS::%s() %d Fail to get available audio/text tracks, mMediaCount=%d and profileCount=%d!", __FUNCTION__, __LINE__, mMediaCount, mProfileCount);
 	}
 
