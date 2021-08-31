@@ -3523,11 +3523,11 @@ private:
 				{
 					defaultTrack = textTracks.front().instreamId;
 				}
-				else
-				{
+
+				if(defaultTrack.empty())
 					defaultTrack = "CC1";
-				}
-				ERROR("[XREReceiver]:%s:%d found %d tracks, selected default textTrack = %s", __FUNCTION__, __LINE__, (int)textTracks.size(), defaultTrack.c_str());
+
+				ERROR("[XREReceiver]:%s:%d found %d tracks, selected default textTrack = '%s'", __FUNCTION__, __LINE__, (int)textTracks.size(), defaultTrack.c_str());
 
 #ifdef AAMP_CC_ENABLED
 				AampCCManager::GetInstance()->SetTrack(defaultTrack);

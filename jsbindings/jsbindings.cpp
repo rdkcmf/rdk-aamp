@@ -34,6 +34,10 @@
 #include "main_aamp.h"
 #include "priv_aamp.h"
 
+#ifdef AAMP_CC_ENABLED
+#include "AampCCManager.h"
+#endif
+
 static class PlayerInstanceAAMP* _allocated_aamp = NULL;
 static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -3800,6 +3804,12 @@ static void AAMP_finalize(JSObjectRef thisObject)
 	}
 	pthread_mutex_unlock(&mutex);
 	delete pAAMP;
+
+#ifdef AAMP_CC_ENABLED
+	//disable CC rendering so that state will not be persisted between two different sessions.
+	logprintf("[%s] Disabling CC", __FUNCTION__);
+	AampCCManager::GetInstance()->SetStatus(false);
+#endif
 }
 
 

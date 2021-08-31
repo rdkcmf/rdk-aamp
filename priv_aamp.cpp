@@ -7972,7 +7972,9 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks()
 		std::vector<TextTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableTextTracks();
 
 #ifdef AAMP_CC_ENABLED
-		AampCCManager::GetInstance()->updateLastTextTracks(trackInfo);
+		std::vector<TextTrackInfo> textTracksCopy;
+		std::copy_if(begin(trackInfo), end(trackInfo), back_inserter(textTracksCopy), [](const TextTrackInfo& e){return e.isCC;});
+		AampCCManager::GetInstance()->updateLastTextTracks(textTracksCopy);
 #endif
 		if (!trackInfo.empty())
 		{
