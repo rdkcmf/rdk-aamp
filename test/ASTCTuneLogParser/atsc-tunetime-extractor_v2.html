@@ -1,0 +1,572 @@
+<html>
+<head>
+<script>
+
+var debug = false;
+var lastMajorChannel;
+var tuneSamples = [];
+var map;
+
+/*
+average pretune (PLUI/UVE) overhead is ~152ms
+average delay after first frame signaled by gstreamer to MR reporting "tune complete" is ~51ms
+average delay for PLUI measured tune-completion vs. MR reported (due to reliance on 'status') is 145ms; this makes PLUI-only telemetry based tune time measurement slightly slower than real eyes-on-glass (with MR logs taken into account, we can avoid this problem)
+unexpected: we have many more WPE logs for tunes than MR logs, which makes analysis less reliable
+*/
+var mr_tags = [
+	"MRT_INFO_SETMEDIA", // playerId=MainPlayer, uictx=, url=live:///9, mediaMeta=[RETUNE 0 USER.PLAYERSTATE 1 USER.SERVICEPK 9] [USER.CCID "ccid:?spk=9"] [], speed=100, seek={mUnit=ePsuBytes, mOffset=0, mOffsetIsRelative=true, }
+			   // MediaRite comes to know tune request
+	"MRT_INFO_PLAYER_PLAYSPEED", // playerId=MainPlayer, speed=100
+			   // setting state - should happen immediately
+//	"MRT_INFO_SERVICE_INFO", // playerId=MainPlayer, pk=9, name=WUVP-DT, serviceId=7
+			   // setting state - should happen immediately
+	"MRT_INFO_AV_INFO_VIDEO", // width=# height=#
+			   // this will come after some delay - tuner lock and incoming ts data
+	"MRT_INFO_UPDATE_VIDEO_VIEW", // id=MainPlayer, viewPort=[CHANGE_POS 1 NOTIFY_RES 1 NOTIFY_VLAYER 1 POS.HEIGHT 1080 POS.RES_HEIGHT 1080 POS.RES_WIDTH 1920 POS.WIDTH 1920 POS.X 0 POS.Y 0 RES.HEIGHT 1080 RES.WIDTH 1920 VL.OVERSCAN_MODE 2 VL.RES.HEIGHT 1080 VL.RES.WIDTH 1920] [] []
+			   // ready to inform westeros sink how to scale video
+	"MRT_INFO_AV_CLOCK", // pcrClockSink=0xafd11510(ref:2)"sink", envUsePcr=true, envClockName=
+			   // after setting up pipeline, configuring use of pcr master (clock)
+	"MRT_INFO_CR_MEDIA", // playerId=MainPlayer, from=Eit, cr={US_TV:TV-14/L/S/V"TV-14;L;S;V"}, old={FORCED:LOCKED}, epgEventId=5055
+//	"MRT_INFO_AV_MUTE_VIDEO", // element=westerossink4, property=show-video-window, mute=true
+	"MRT_INFO_AV_MUTE_AUDIO", // element=amlhalasink5, property=stream-volume, mute=false
+			   // sent multiple times as AmLogic workaround
+	"MRT_INFO_AV_BUFFER_LEVEL", // pipeline=0, type=AUDIO, bufferLevel=1075
+			   // periodic informational logging
+	"MRT_INFO_AV_FIRST_FRAME", // type=VIDEO
+			   // first frame visible! Tune logically complete (gst callback); might be able to reduce internal gstreamer buffering to improve
+	"MRT_INFO_AV_IN_SYNC", // outOfSyncIn=0
+			   // periodic informational logging
+	"MRT_INFO_CHANNEL_CHANGE_SUCCESS" // time=4433
+];
+	//MRT_WARN_AV_OUT_OF_SYNC
+	//MRT_WARN_AV_TS_ERRORS
+	//MRT_WARN_DECODER_MISSING_FRAMES
+	//MRT_WARN_AV_AC3_FRAME_DROPPED
+	//MRT_ERR_DMX_NO_DATA_GAP
+
+function GetTimeStamp( line )
+{
+	var timestring;
+	var fin;
+	
+	fin = line.indexOf( " hisense-a6gp" );
+	if( fin>=0 )
+	{
+		timestring = line.substr(0,fin);
+	}
+	else
+	{
+		fin = line.indexOf( " WPEFramework" );
+		if( fin>=0 )
+		{
+			timestring = line.substr(0,fin);
+		}
+		else
+		{
+			fin = line.indexOf( " WPEWebProcess" );
+			if( fin>=0 )
+			{
+				timestring = line.substr(0,fin);
+			}
+			else
+			{
+				fin = line.indexOf( " MediaRite" );
+				if( fin>=0 )
+				{
+					timestring = line.substr(0,fin);
+				}
+				else
+				{
+					console.log( "ERROR: unable to parse timestamp!" );
+				}
+			}
+		}
+	}
+//	return Date.parse(timestring); // only working on Chrome with timestring like "2021 Jul 22 15:28:17.297265"
+
+	timestring = timestring.split(" ");
+	var t;
+	if( timestring.length==3 )
+	{
+		t = timestring[2].split(":");
+	}
+	else
+	{
+		t = timestring[3].split(":"); // HH:MM:SS
+	}
+	var hour = parseInt(t[0]);
+	var minute = parseInt(t[1]);
+	var second = parseFloat(t[2]);
+	t = Math.floor(((hour*60+minute)*60+second)*1000);
+	return t;
+}
+
+function getTuneSampleRecord( t )
+{
+	for( var i=0; i<tuneSamples.length; i++ )
+	{
+		if( t>= tuneSamples[i].time_keypress && t < tuneSamples[i].time_playing_status )
+		{
+			return tuneSamples[i];
+		}
+	}
+	return null;
+}
+
+function getUniqueMajorChannelNumbers()
+{
+	var rc = [];
+	var found = [];
+	for( var i=0; i<tuneSamples.length; i++ )
+	{
+		var val = tuneSamples[i].majorChannelNumber;
+		if( !found[val] )
+		{
+			found[val] = true;
+			rc.push( val );
+		}
+	}
+	return rc;
+}
+
+function getUniqueChannels()
+{
+	var rc = [];
+	var found = [];
+	for( var i=0; i<tuneSamples.length; i++ )
+	{
+		var val = tuneSamples[i].channel;
+		if( !found[val] )
+		{
+			found[val] = true;
+			rc.push( val );
+		}
+	}
+	return rc;
+}
+
+function filter( majorChannelNumber, channel, sameFreq )
+{
+	var rc = [];
+	for( var i=0; i<tuneSamples.length; i++ )
+	{
+		var sample = tuneSamples[i];
+		if( majorChannelNumber!=null && sample.majorChannelNumber!=majorChannelNumber ) continue;
+		if( channel!=null && sample.channel!=channel ) continue;
+		if( sameFreq!=null && sample.sameFreq!=sameFreq ) continue;
+		var tuneTime = sample.time_playing_status - sample.time_keypress - 125; // compensation for delayed status
+		if( tuneTime>0 )
+		{
+			rc.push( tuneTime );
+		}
+		else
+		{
+			console.log( "invalid sample:" );
+			console.log( sample );
+		}
+	}
+	rc.sort(function(a,b){return a-b;});
+	return rc;
+}
+
+function median(values){
+  if(values.length ===0) return 0;
+  var half = Math.floor(values.length / 2);
+  if (values.length % 2)
+	return values[half];
+  return (values[half - 1] + values[half]) / 2.0;
+}
+
+function DrawHistogram( values, canvas )
+{
+	var label = ["<1.5s","<2.0s","<2.5s","<3.0s","<3.5ms","<4.0s","<4.5s","<5.0s","<5.5s","<6.0s",">=6.0s"];
+	var i;
+	bucket = [];
+	for( i=0; i<label.length; i++ )
+	{
+		bucket[i] = 0;
+	}
+	for( i=0; i<values.length; i++ )
+	{
+		var value = values[i];
+		if( value<1500 ) bucket[0]++;
+		else if( value<2000 ) bucket[1]++;
+		else if( value<2500 ) bucket[2]++;
+		else if( value<3000 ) bucket[3]++;
+		else if( value<3500 ) bucket[4]++;
+		else if( value<4000 ) bucket[5]++;
+		else if( value<4500 ) bucket[6]++;
+		else if( value<5000 ) bucket[7]++;
+		else if( value<5500 ) bucket[8]++;
+		else if( value<6000 ) bucket[9]++;
+		else bucket[10]++;
+	}
+	var maxSample = 0;
+	for( i=0; i<bucket.length; i++ )
+	{
+		if( bucket[i]>maxSample ) maxSample = bucket[i];
+	}
+	var ctx = canvas.getContext("2d");
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	ctx.beginPath();
+	ctx.rect(0,0,canvas.width, canvas.height);
+	ctx.stroke();
+	for( i=0; i<bucket.length; i++ )
+	{
+		var xmargin = 70;
+		var x = i*(1000-xmargin*2)/(bucket.length-1)+xmargin;
+		var h = bucket[i]*(600-60)/maxSample;
+		ctx.beginPath();
+		ctx.rect(x-10, 600-h-25, 20, h );
+		ctx.stroke();
+		ctx.font = "16px Arial";
+		var name = "<"+(i*500)+"ms";
+		ctx.textAlign = "center";
+		ctx.fillText(label[i], x, 600-7 );
+		ctx.fillText(bucket[i], x, 600-h-29 );
+	}
+}
+
+function LogStats( elem, values, title )
+{
+	var len = values.length;
+	if( len>0 )
+	{
+		elem.value += title+" ("+len+" samples)\n";
+		//elem.value += values + "\n";
+		elem.value += "min: " + values[0] + "\n";
+		elem.value += "10%: " + values[Math.floor(len*0.10)] + "\n";
+		elem.value += "median: " + median(values) + "\n";
+		elem.value += "90%: " + values[Math.floor(len*0.90)] + "\n";
+		elem.value += "max: " + values[len-1] + "\n";
+		elem.value += "\n\n";
+	}
+}
+						
+function DumpCSV()
+{
+	var csv = document.getElementById("csv");
+	csv.value = "channel,same-freq,keypress,uve,playing,mr_latency";
+	for( var i=0; i<mr_tags.length; i++ )
+	{
+		csv.value += "," + mr_tags[i];
+	}
+	csv.value += ",tuner_delay,gstream_delay";
+	csv.value += "\n";
+	for( var i=0; i<tuneSamples.length; i++ )
+	{
+		var sample = tuneSamples[i];
+		csv.value += sample.channel;
+		csv.value += "," + sample.sameFreq;
+		csv.value += "," + sample.time_keypress;
+		csv.value += "," + sample.time_uve_tune;
+		csv.value += "," + sample.time_playing_status;
+		csv.value += "," + sample.mr_latency;
+		for( var iTag=0; iTag<mr_tags.length; iTag++ )
+		{
+			csv.value += "," + sample[mr_tags[iTag]];
+		}
+		
+		csv.value += "," + (sample["MRT_INFO_AV_INFO_VIDEO"]-sample["MRT_INFO_SETMEDIA"]); // "tuner delay" (lock and first data)
+		csv.value += "," + (sample["MRT_INFO_AV_FIRST_FRAME"]-sample["MRT_INFO_AV_INFO_VIDEO"]); // "gstreamer delay" - from injection to first frame)
+
+		csv.value += "\n";
+	}
+}
+						
+function OutputStatistics()
+{
+	DumpCSV();
+
+	var majorChannelNumbers = getUniqueMajorChannelNumbers();
+	var channels = getUniqueChannels();
+	for( pass=0; pass<2; pass++ )
+	{
+		var sameFreq = (pass==0);
+		var suffix = sameFreq?"same-freq":"new-freq";
+		var elem = document.getElementById("stats-"+suffix);
+		for( var i=0; i<channels.length; i++ )
+		{
+			var data = filter( null, channels[i], sameFreq );
+			LogStats( elem, data, channels[i] );
+		}
+		for( var i=0; i<majorChannelNumbers.length; i++ )
+		{
+			var data = filter( majorChannelNumbers[i], null, sameFreq );
+			LogStats( elem, data, "Frequency: " + majorChannelNumbers[i] + ".x"  );
+		}
+		
+		var all = filter(null,null,sameFreq);
+		LogStats( elem, all, "All Tunes" );
+		DrawHistogram( all, document.getElementById("plot-"+suffix) );
+	}
+}
+
+function ProcessWPELog( lines )
+{
+	var keypress_prefix = "KeyManager_KeyManager: captureKey:";
+	var tune_prefix = "OTA URL: live:///";
+	var tune_complete = "onPlayerStatusHandler State changed from PENDING to PLAYING";
+	
+	var tkey = null;
+	var ttune = null;
+	var locator = null;
+	
+	for( var i=0; i<lines.length; i++ )
+	{
+		var line = lines[i];
+		var idx = line.indexOf( keypress_prefix );
+		if( idx>=0 )
+		{
+			tkey = GetTimeStamp(line);
+		}
+		else
+		{
+			idx = line.indexOf( tune_prefix );
+			if( idx>=0 )
+			{
+				ttune = GetTimeStamp(line);
+				locator = "live:///" + parseInt(line.substr(idx+tune_prefix.length));
+				if( !tkey )
+				{
+					console.log( "missing keypress log" );
+					ttune = tkey;
+				}
+			}
+			else
+			{
+				idx = line.indexOf( tune_complete );
+				if( idx>=0 )
+				{
+					var tdone = GetTimeStamp(line);
+					if( !ttune )
+					{
+						console.log( "missing uve tune log" );
+						tkey = tdone;
+						ttune = tdone;
+					}
+					var pluiTime = (ttune - tkey);
+					var t = (tdone - tkey);
+					if( locator )
+					{
+						var sample = new Object();
+						var chanInfo = getChanInfo( locator );
+						sample.channel = chanInfo.displayChannel + " " + chanInfo.name;
+						sample.majorChannelNumber = chanInfo.majorChannelNumber;
+						sample.sameFreq = (lastMajorChannel == null || chanInfo.majorChannelNumber == lastMajorChannel);
+						lastMajorChannel = chanInfo.majorChannelNumber;
+						sample.time_keypress = tkey;
+						sample.time_uve_tune = ttune;
+						sample.time_playing_status = tdone;
+						tuneSamples.push(sample);
+						locator = null;
+					}
+					locator = null;
+					tkey = null;
+					ttune = null;
+				}
+			}
+		}
+	}
+}
+	
+function ProcessMediaRiteLog( lines )
+{
+	var count = 0;
+	var locator_prefix = "url=live:///";
+	var prefix = "MRT_INFO_CHANNEL_CHANGE_SUCCESS: time=";
+
+	var chanInfo = null;
+	var sample = null;
+	
+	for( var i=0; i<lines.length; i++ )
+	{
+		var line = lines[i];
+		for( var iTag=0; iTag<mr_tags.length; iTag++ )
+		{
+			var tag = mr_tags[iTag];
+			var idx = line.indexOf(tag);
+			if( idx>=0 )
+			{
+				var t = GetTimeStamp(line);
+				if( tag=="MRT_INFO_SETMEDIA" )
+				{ // MRT_INFO_SETMEDIA
+					if( debug ) console.log( ">>>>>>>" );
+					sample = getTuneSampleRecord(t);
+					var start = line.indexOf("url=");
+					var locator = line.substr(start+4);
+					var fin = locator.indexOf(", mediaMeta" );
+					locator  = locator.substr(0,fin);
+					chanInfo = getChanInfo(locator);
+					if( !chanInfo )
+					{
+						console.log( "ERROR: bad locator from: " + line );
+					}
+				}
+				if( sample )
+				{
+					sample[tag] = t;
+				}
+				if( debug ) console.log( tag );
+				if( tag=="MRT_INFO_CHANNEL_CHANGE_SUCCESS" )
+				{
+					if( debug ) console.log( "<<<<<<<" );
+					var  start = line.indexOf("time=");
+					var latency = parseInt(line.substr(start+5));
+					if( sample )
+					{
+						sample.mr_latency = latency;
+						sample = null;
+					}
+				}
+			}
+		}
+	}
+}
+	
+function getChanInfo( locator )
+{
+	for( var i=0; i<map.table.length; i++ )
+	{
+		var chanInfo = map.table[i];
+		if( chanInfo.locator == locator )
+		{
+			return chanInfo;
+		}
+	}
+	console.log( "getChanInfo: unmapped locator: " + locator );
+	return null;
+}
+					
+function myLogLoadHandler(e) {
+	ProcessWPELog(e.target.result.split("\n"));
+}
+function handleLogSelect(evt) {
+	var files = evt.target.files;
+	for (var fileIndex = 0; fileIndex < files.length; fileIndex++) {
+		var f = files[fileIndex];
+		if (f.type = "text/plain")
+		{
+			var filename = f.name;
+			var reader = new FileReader();
+			reader.onload = myLogLoadHandler;
+			reader.readAsText(f);
+		}
+	}
+}
+										
+function myMRLoadHandler(e) {
+	ProcessMediaRiteLog(e.target.result.split("\n"));
+}
+function handleMRSelect(evt) {
+	var files = evt.target.files;
+	for (var fileIndex = 0; fileIndex < files.length; fileIndex++) {
+		var f = files[fileIndex];
+		if (f.type = "text/plain")
+		{
+			var filename = f.name;
+			var reader = new FileReader();
+			reader.onload = myMRLoadHandler;
+			reader.readAsText(f);
+		}
+	}
+}
+
+function myChmapLoadHandler(e) {
+	map = JSON.parse(e.target.result);
+}
+function handleChmapSelect(evt) {
+	console.log( "entering handleFileSelect\n" );
+	var files = evt.target.files;
+	for (var fileIndex = 0; fileIndex < files.length; fileIndex++) {
+		var f = files[fileIndex];
+		if (f.type = "text/plain")
+		{
+			var filename = f.name;
+			var reader = new FileReader();
+			reader.onload = myChmapLoadHandler;
+			reader.readAsText(f);
+		}
+	}
+}
+						
+function handleFolderSelect(evt)
+{
+	tuneSamples = [];
+	console.log( "entering handleFolderSelect\n" );
+	var dir =
+	[
+			   { "name":"channelmap.json", "handler":myChmapLoadHandler },
+			   { "name":"wpeframework.log", "handler":myLogLoadHandler },
+			   { "name":"mediarite.log", "handler":myMRLoadHandler }
+	];
+	for( var i=0; i<dir.length; i++ )
+	{
+		var files = evt.target.files;
+		for (var fileIndex = 0; fileIndex < files.length; fileIndex++) {
+			var f = files[fileIndex];
+			if (f.type = "text/plain")
+			{
+				var filename = f.name;
+				if( filename == dir[i].name )
+				{
+					console.log( "handleFolderSelect processing " + filename );
+					var reader = new FileReader();
+					reader.onload = dir[i].handler;
+					reader.readAsText(f);
+				}
+			}
+		}
+	}
+}
+
+window.onload = function() {
+//document.getElementById('chmap').addEventListener('change', handleChmapSelect, false);
+//document.getElementById('log').addEventListener('change', handleLogSelect, false);
+//document.getElementById('mr').addEventListener('change', handleMRSelect, false);
+document.getElementById('folder').addEventListener('change', handleFolderSelect, false);
+}
+</script>
+</head>
+<body>
+	1. Select directory with channelmap.json, wpeframework.log, mediarite.log:
+	<br/>
+	<input type="file" webkitdirectory directory multiple id="folder" />
+	<hr/>
+	<!--
+	OR
+	<br/>
+	1. Select channel_map.json:
+	<br/><input type="file" name="chmap" multiple id="chmap" />
+	<br/><br/>
+	
+	<br/>2. Select wpeframework.log
+	<br/><input type="file" name="log" multiple id="log" />
+	<br/><br/>
+	
+	<br/>3. Select mediarite.log
+	<br/><input type="file" name="mr" multiple id="mr" />
+	<br/><br/>
+	<hr/>
+	THEN
+	<br/>
+	-->
+	<br/>2. Click
+	<button onclick="OutputStatistics()">Output Statistics</button>
+	<hr/>
+	
+	<br/>CSV
+	<br/><textarea id="csv" rows="16" cols="80"></textarea>
+	<hr/>
+	<h1>Same Frequency</h1>
+	<br/>
+	<canvas id="plot-same-freq" width="1000" height="600"></canvas>
+	<br/><textarea id="stats-same-freq" rows="16" cols="80"></textarea>
+
+	<hr/>
+	<h1>Changing Frequency</h1>
+	<br/>
+	<canvas id="plot-new-freq" width="1000" height="600"></canvas>
+	<br/><textarea id="stats-new-freq" rows="16" cols="80"></textarea>
+</body>
+</html>
