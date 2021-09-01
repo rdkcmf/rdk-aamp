@@ -3767,7 +3767,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			std::string tempString = period->GetDuration();
 			double  periodStartMs = 0;
 			double periodDurationMs = 0;
-			periodDurationMs = GetPeriodDuration(mpd, iPeriod);
+			periodDurationMs = aamp_GetPeriodDuration(mpd, iPeriod, mLastPlaylistDownloadTimeMs);
 			if (!mpdDurationAvailable)
 			{
 				durationMs += periodDurationMs;
