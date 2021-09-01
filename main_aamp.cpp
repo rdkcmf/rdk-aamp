@@ -673,6 +673,11 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 				tuneTypePlay = eTUNETYPE_SEEKTOLIVE;
 				aamp->mJumpToLiveFromPause = false;
 			}
+			/* if Gstreamer pipeline set to paused state by user, change it to playing state */
+			if( aamp->pipeline_paused == true )
+			{
+				aamp->mStreamSink->Pause(false, false);
+			}
 			aamp->rate = rate;
 			aamp->pipeline_paused = false;
 			aamp->mSeekFromPausedState = false;
