@@ -189,7 +189,7 @@ private:
 	void FetcherLoop();
 	StreamInfo* GetStreamInfo(int idx) override;
 	AAMPStatusType UpdateMPD(bool init = false);
-	bool FindServerUTCTime(Node* root);
+	bool FindServerUTCTime(Node* root, double fetchtime);
 	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false, bool reportBulkMet = false);
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit, bool reportBulkMeta=false);
 	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID,bool isInit, bool reportBulkMeta=false);
@@ -289,6 +289,8 @@ private:
 	std::map<std::string, int> mDrmPrefs;
 	int mMaxTracks; /* Max number of tracks for this session */
 	double mServerUtcTime;
+	double mDeltaTime;
+	double mHasServerUtcTime;
 	
 	double GetPeriodStartTime(IMPD *mpd, int periodIndex);
 	double GetPeriodDuration(IMPD *mpd, int periodIndex);
