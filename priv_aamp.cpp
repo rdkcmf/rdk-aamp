@@ -1300,6 +1300,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 {
 #ifdef AAMP_CC_ENABLED
     AampCCManager::GetInstance()->Release(mCCId);
+    mCCId = 0;
 #endif
     pthread_mutex_lock(&gMutex);
 	for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
@@ -3944,6 +3945,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 			if (mbPlayEnabled && mTuneType != eTUNETYPE_RETUNE)
 			{
 				AampCCManager::GetInstance()->Release(mCCId);
+				mCCId = 0;
 			}
 			else
 			{
@@ -4414,7 +4416,12 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	}
 
 #ifdef AAMP_CC_ENABLED
-	mCCId = AampCCManager::GetInstance()->GetId();
+	AAMPLOG_INFO("%s:%d - mCCId: %d\n",__FUNCTION__,__LINE__,mCCId);
+	// if mCCId has non zero value means it is same instance and cc release was not calle then dont get id. if zero then call getid.
+	if(mCCId == 0 )
+	{
+		mCCId = AampCCManager::GetInstance()->GetId();
+	}
 	//restore CC if it was enabled for previous content.
 	AampCCManager::GetInstance()->RestoreCC();
 #endif
@@ -5226,6 +5233,7 @@ void PrivateInstanceAAMP::detach()
 		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			AampCCManager::GetInstance()->Release(mCCId);
+			mCCId = 0;
 		}
 #endif
 		mStreamSink->Stop(true);
