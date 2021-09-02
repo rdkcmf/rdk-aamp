@@ -84,6 +84,7 @@ typedef enum {
 #define INPUT_GAIN_DB_UNMUTE  (gdouble)0
 #endif
 #define DEFAULT_BUFFERING_TO_MS 10                       // TimeOut interval to check buffer fullness
+#define DEFAULT_BUFFERING_QUEUED_BYTES_MIN  (128 * 1024) // prebuffer in bytes
 #if defined(REALTEKCE)
 #define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (3)          // if the video decoder has this many queued frames start..
 #else
@@ -1018,9 +1019,10 @@ static gboolean buffering_timeout (gpointer data)
 		AAMPGstPlayerPriv * privateContext = _this->privateContext;
 		if (_this->privateContext->buffering_in_progress)
 		{
-			guint frames = 0;
+			guint bytes = 0, frames = DEFAULT_BUFFERING_QUEUED_FRAMES_MIN+1; // if queue_depth property, or video_dec, doesn't exist move to next state.
 			if (_this->privateContext->video_dec)
 			{
+				g_object_get(_this->privateContext->video_dec,"buffered_bytes",&bytes,NULL);
 				g_object_get(_this->privateContext->video_dec,"queued_frames",&frames,NULL);
 			}
 			MediaFormat mediaFormatRet;
@@ -1031,14 +1033,14 @@ static gboolean buffering_timeout (gpointer data)
 			*/
 			if (G_UNLIKELY(((mediaFormatRet != eMEDIAFORMAT_DASH) && (mediaFormatRet != eMEDIAFORMAT_PROGRESSIVE) && (mediaFormatRet != eMEDIAFORMAT_HLS_MP4)) && (privateContext->buffering_timeout_cnt == 0) && _this->aamp->mConfig->IsConfigSet(eAAMPConfig_ReTuneOnBufferingTimeout) && (privateContext->numberOfVideoBuffersSent > 0)))
 			{
-				logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d frames %u", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent, frames);
+				logprintf("%s:%d Schedule retune. numberOfVideoBuffersSent %d  bytes %u  frames %u", __FUNCTION__, __LINE__, privateContext->numberOfVideoBuffersSent, bytes, frames);
 				privateContext->buffering_in_progress = false;
 				_this->DumpDiagnostics();
 				_this->aamp->ScheduleRetune(eGST_ERROR_VIDEO_BUFFERING, eMEDIATYPE_VIDEO);
 			}
-			else if (frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN || privateContext->buffering_timeout_cnt-- == 0)
+			else if (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN || frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN || privateContext->buffering_timeout_cnt-- == 0)
 			{
-				logprintf("%s: Set pipeline state to %s - buffering_timeout_cnt %u  frames %u", __FUNCTION__, gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1), frames);
+				logprintf("%s: Set pipeline state to %s - buffering_timeout_cnt %u  bytes %u  frames %u", __FUNCTION__, gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1), bytes, frames);
 				gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
 				_this->privateContext->buffering_in_progress = false;
 			}
@@ -3378,7 +3380,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 				/*
 				 * Changing the Pipeline state to GST_STATE_PLAYING temporarily to keep Gstreamer continue sending data to Decoder during gst_element_seek().
 				 * Reason : Because if Pipeline is in GST_STATE_PAUSED state then the Gstreamer will stop sending data to the decoder during gst_element_seek() call.
-				 * In that case while doing PageUp/Down after Pause enter into video buffering logic; and querying video decoder status for queued 
+				 * In that case while doing PageUp/Down after Pause enter into video buffering logic; and querying video decoder status for buffered bytes (or)
 				 * frames result in 0 count; that results internal retune during Video Buffering.
 				 */
 				logprintf("AAMPGstPlayer::%s:%d Pipeline state change ( PAUSED -> PLAYING )", __FUNCTION__, __LINE__);
@@ -3848,17 +3850,18 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 	{
 		bool stopBuffering = forceStop;
 #if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
-		uint frames = 0;
+		uint bytes = 0, frames = DEFAULT_BUFFERING_QUEUED_FRAMES_MIN+1;
+	        g_object_get(privateContext->video_dec,"buffered_bytes",&bytes,NULL);
 	        g_object_get(privateContext->video_dec,"queued_frames",&frames,NULL);
 
-		stopBuffering = stopBuffering || (frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN); //TODO: the minimum frame values should be configurable from aamp.cfg
+		stopBuffering = stopBuffering || (bytes > DEFAULT_BUFFERING_QUEUED_BYTES_MIN) || (frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN); //TODO: the minimum byte and frame values should be configurable from aamp.cfg
 #else
 		stopBuffering = true;
 #endif
 		if (stopBuffering)
 		{
 #if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
-			AAMPLOG_WARN("%s:%d Enough data available to stop buffering, frames %u !", __FUNCTION__, __LINE__, frames);
+			AAMPLOG_WARN("%s:%d Enough data available to stop buffering, bytes %u, frames %u !", __FUNCTION__, __LINE__, bytes, frames);
 #endif
 			GstState current, pending;
 			bool sendEndEvent = false;
@@ -3894,7 +3897,7 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 			if (0 == (bufferLogCount++ % 10) )
 			{
 #if ( !defined(INTELCE) && !defined(RPI) && !defined(__APPLE__) )
-				AAMPLOG_WARN("%s:%d Not enough data available to stop buffering, frames %u !", __FUNCTION__, __LINE__, frames);
+				AAMPLOG_WARN("%s:%d Not enough data available to stop buffering, bytes %u, frames %u !", __FUNCTION__, __LINE__, bytes, frames);
 #endif
 			}
 		}
