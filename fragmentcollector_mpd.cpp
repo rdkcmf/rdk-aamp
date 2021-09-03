@@ -2741,6 +2741,7 @@ Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd)
 
 		Node    *subnode = NULL;
 		int     ret = xmlTextReaderRead(*reader);
+		int subnodeType = xmlTextReaderNodeType(*reader);
 
 		while (ret == 1)
 		{
@@ -2749,12 +2750,15 @@ Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd)
 				return node;
 			}
 
-			subnode = aamp_ProcessNode(reader, url, isAd);
-
-			if (subnode != NULL)
-				node->AddSubNode(subnode);
+			if(subnodeType != Comment && subnodeType != WhiteSpace)
+			{
+				subnode = aamp_ProcessNode(reader, url, isAd);
+				if (subnode != NULL)
+					node->AddSubNode(subnode);
+			}
 
 			ret = xmlTextReaderRead(*reader);
+			subnodeType = xmlTextReaderNodeType(*reader);
 		}
 
 		return node;
