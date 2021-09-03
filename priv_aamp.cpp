@@ -5576,14 +5576,12 @@ void PrivateInstanceAAMP::NotifySinkBufferFull(MediaType type)
 	if(type != eMEDIATYPE_VIDEO)
 		return;
 
-	pthread_mutex_lock(&mStreamLock);
 	if(mpStreamAbstractionAAMP)
 	{
 		MediaTrack* video = mpStreamAbstractionAAMP->GetMediaTrack(eTRACK_VIDEO);
 		if(video && video->enabled)
 			video->OnSinkBufferFull();
 	}
-	pthread_mutex_unlock(&mStreamLock);
 }
 
 /**
@@ -6899,20 +6897,16 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 
 		pthread_mutex_unlock(&mLock);
 
-		pthread_mutex_lock(&mStreamLock);
 		if (mpStreamAbstractionAAMP && mpStreamAbstractionAAMP->IsStreamerStalled())
 		{
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune due to playback stall", __FUNCTION__, __LINE__);
-			pthread_mutex_unlock(&mStreamLock);
 			return;
 		}
 		else if (!ISCONFIGSET_PRIV(eAAMPConfig_InternalReTune))
 		{
 			logprintf("PrivateInstanceAAMP::%s:%d: Ignore reTune as disabled in configuration", __FUNCTION__, __LINE__);
-			pthread_mutex_unlock(&mStreamLock);
 			return;
 		}
-		pthread_mutex_unlock(&mStreamLock);
 
 		if((ISCONFIGSET_PRIV(eAAMPConfig_ReportBufferEvent)) &&
 		(errorType == eGST_ERROR_UNDERFLOW) &&
