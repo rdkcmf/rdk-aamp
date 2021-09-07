@@ -48,7 +48,7 @@ private:
 
 public:
 	class PrivateInstanceAAMP *aamp;
-	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux);
+	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation);
 	void SendCopy(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration);
 	void SendTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double duration);
 	void EndOfStreamReached(MediaType type);
