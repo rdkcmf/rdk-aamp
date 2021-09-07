@@ -1,6 +1,10 @@
-
 #include <sys/time.h>
 #include "AampOcdmGstSessionAdapter.h"
+
+#ifdef AMLOGIC
+#include "gst/video/gstvideotimecode.h"
+#include "gst/video/gstvideometa.h"
+#endif
 
 #define USEC_PER_SEC   1000000
 static inline uint64_t GetCurrentTimeStampInUSec()
@@ -107,6 +111,159 @@ void LogPerformanceExt(const char *strFunc, uint64_t msStart, uint64_t msEnd, SE
 #endif //LOG_DECRYPT_STATS
 }
 
+#ifdef AMLOGIC
+class BitStreamState
+{
+	private:
+		const guint8 *ptr;
+		gsize bit_offset;
+	public:
+		BitStreamState(const BitStreamState &L):
+		ptr(L.ptr),
+		bit_offset(L.bit_offset) {}             // copy constructor
+		BitStreamState & operator=(const BitStreamState &L)
+		{
+			ptr = L.ptr;
+			bit_offset = L.bit_offset;
+		} // assignment
+		BitStreamState(const guint8 *ptr ):
+		ptr(ptr),
+		bit_offset(0)
+		{
+		}
+		~BitStreamState()
+		{
+			this->ptr = NULL;
+			this->bit_offset = 0;
+		}
+
+		int Read( int bit_count = 1 )
+		{
+			int rc = 0;
+			while( bit_count-- && ptr)
+			{
+				rc <<= 1;
+				int mask = 0x80>>(bit_offset&0x7);
+				if( ptr[bit_offset/8] & mask )
+				{
+					rc |= 1;
+				}
+				bit_offset++;
+			}
+			return rc;
+		}
+};
+
+/**
+ * 
+ */
+void AAMPOCDMGSTSessionAdapter::ExtractSEI( GstBuffer *buffer)
+{
+	GstMapInfo info;
+	const guint8 *ptr;
+	gsize len;
+	if (buffer)
+	{
+		gst_buffer_map( buffer, &info, (GstMapFlags)(GST_MAP_READ) );
+		ptr = info.data;
+		len = info.size;
+	}
+	else
+	{
+		logprintf("Invalid Buffer Input - NULL");
+		gst_buffer_unmap(buffer, &info);
+		return;
+	}
+
+	if (len > 2048)
+		len = 2048;
+
+	for( int i=0; i<len-4; i++ )
+	{
+		if( ptr[i+0] == 0x00 &&
+			ptr[i+1] == 0x00 &&
+			ptr[i+2] == 0x00 &&
+			ptr[i+3] == 0x0b )
+		{ // brute force for now
+			BitStreamState bitstream(&ptr[i+4]);
+			int forbidden_zero_bit = bitstream.Read();
+			int NALUnitTpe = bitstream.Read(6);
+			if( NALUnitTpe == 39 ) // NAL_SEI_PREFIX
+			{
+				int nuh_layer_id = bitstream.Read(6);
+				int nuh_temporal_id_plus1 = bitstream.Read(3);
+				int payload_type = bitstream.Read(8); // 0x88 (136)
+				if( payload_type == 136 ) // SeiMessage::TIME_CODE
+				{
+					int payload_size = bitstream.Read(8);
+					int num_clock_ts = bitstream.Read(2 );
+					for( int j=0; j<num_clock_ts; j++ )
+					{
+						int clock_time_stamp_flag = bitstream.Read(1 );
+						if( clock_time_stamp_flag )
+						{
+							int nuit_field_based_flag = bitstream.Read();
+							int counting_type = bitstream.Read(5);
+							int full_timestamp_flag = bitstream.Read();
+							int discontinuity_flag = bitstream.Read();
+							int cnt_dropped_flag = bitstream.Read();
+							int n_frames = bitstream.Read(9);
+							int seconds_value = 0;
+							int minutes_value = 0;
+							int hours_value = 0;
+							if(full_timestamp_flag )
+							{
+								seconds_value = bitstream.Read(6);
+								minutes_value = bitstream.Read(6);
+								hours_value = bitstream.Read(5);
+							}
+							else
+							{
+								int seconds_flag = bitstream.Read();
+								if( seconds_flag )
+								{
+									seconds_value = bitstream.Read(6);
+									int minutes_flag = bitstream.Read();
+									if( minutes_flag)
+									{
+										minutes_value = bitstream.Read(6);
+										int hours_flag = bitstream.Read();
+										if( hours_flag )
+										{
+											hours_value = bitstream.Read(5);
+										}
+									}
+								}
+							}
+							AAMPLOG_INFO( "SEI (HH:MM:SS)  %02d:%02d:%02d number of frames (%d)", hours_value, minutes_value, seconds_value, n_frames );
+							gst_buffer_add_video_time_code_meta_full(
+																	 buffer,
+																	 0, // fps_n
+																	 1, // fps_d
+																	 NULL, // latest_daily_jam
+																	 GST_VIDEO_TIME_CODE_FLAGS_NONE,
+																	 hours_value,
+																	 minutes_value,
+																	 seconds_value,
+																	 n_frames,
+																	 0 // field_count
+							);
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/** Unmap buffer after use **/
+	gst_buffer_unmap(buffer, &info);
+}
+#endif
+
+/**
+ * 
+ */
 int AAMPOCDMGSTSessionAdapter::decrypt(GstBuffer *keyIDBuffer, GstBuffer *ivBuffer, GstBuffer *buffer, unsigned subSampleCount, GstBuffer *subSamplesBuffer, GstCaps* caps)
 {
 	int retValue = -1;
@@ -121,6 +278,13 @@ int AAMPOCDMGSTSessionAdapter::decrypt(GstBuffer *keyIDBuffer, GstBuffer *ivBuff
 			return HDCP_COMPLIANCE_CHECK_FAILURE;
 		}
 
+#ifdef AMLOGIC
+		/**
+		 * Extract the SEI timestamps from both clear and encrypted content. 
+		 */
+		AAMPLOG_INFO("DEBUG: Extract the SEI timestamps from encrypted content.");
+		ExtractSEI(buffer);
+#endif
 		pthread_mutex_lock(&decryptMutex);
 		start_decrypt_time = GetCurrentTimeStampInMSec();
 
