@@ -1875,12 +1875,16 @@ void PrivateInstanceAAMP::UpdateRefreshPlaylistInterval(float maxIntervalSecs)
 /**
  * @brief Sends UnderFlow Event messages
  *
- * @param[in] bufferingStopped- Flag to indicate buffering stopped (Underflow started true else false)
+ * @param[in] bufferingStopped- Flag to indicate buffering stopped.Underflow = True
  * @return void
  */
 void PrivateInstanceAAMP::SendBufferChangeEvent(bool bufferingStopped)
 {
-	BufferingChangedEventPtr e = std::make_shared<BufferingChangedEvent>(!bufferingStopped); /* False if Buffering End, True if Buffering Start*/
+	// Buffer Change event indicate buffer availability 
+	// Buffering stop notification need to be inverted to indicate if buffer available or not 
+	// BufferChangeEvent with False = Underflow / non-availability of buffer to play 
+	// BufferChangeEvent with True  = Availability of buffer to play 
+	BufferingChangedEventPtr e = std::make_shared<BufferingChangedEvent>(!bufferingStopped); 
 
 	SetBufUnderFlowStatus(bufferingStopped);
 	AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Sending Buffer Change event status (Buffering): %s", __FUNCTION__, __LINE__, (e->buffering() ? "Start": "End"));
