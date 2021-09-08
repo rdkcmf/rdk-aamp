@@ -1428,12 +1428,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 									G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
                                         g_object_set(msg->src, "report_decode_errors", TRUE, NULL);
 #endif
-					if(_this->privateContext->enableSEITimeCode)
-					{
-						g_object_set(msg->src, "enable-timecode", 1, NULL);
-						g_signal_connect(_this->privateContext->video_dec, "timecode-callback",
-									G_CALLBACK(AAMPGstPlayer_redButtonCallback), _this);
-					}
 
 				}
 				else
@@ -1446,18 +1440,27 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #endif
 				}
 			}
-#if defined(REALTEKCE)
-            if ((NULL != msg->src) && AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
-            {
-                type_check_instance("bus_sync_handle: connecting first-video-frame-callback", (GstElement *) msg->src);
-                g_signal_connect(msg->src, "first-video-frame-callback",
-                                                                        G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
-                g_object_set(msg->src, "freerun-threshold", DEFAULT_AVSYNC_FREERUN_THRESHOLD_SECS, NULL);
-            }
 
-            if ((NULL != msg->src) && aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink"))
-                g_signal_connect(msg->src, "first-audio-frame",
-                                    G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
+			if ((NULL != msg->src) && AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
+			{
+				if(_this->privateContext->enableSEITimeCode)
+				{
+					g_object_set(msg->src, "enable-timecode", 1, NULL);
+					g_signal_connect(msg->src, "timecode-callback",
+									G_CALLBACK(AAMPGstPlayer_redButtonCallback), _this);
+				}
+#if !defined(REALTEKCE)
+			}
+#else
+				type_check_instance("bus_sync_handle: connecting first-video-frame-callback", (GstElement *) msg->src);
+				g_signal_connect(msg->src, "first-video-frame-callback",
+                                                                        G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
+				g_object_set(msg->src, "freerun-threshold", DEFAULT_AVSYNC_FREERUN_THRESHOLD_SECS, NULL);
+			}
+
+			if ((NULL != msg->src) && aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink"))
+				g_signal_connect(msg->src, "first-audio-frame",
+					G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
 #endif
 #else
 			if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink") == true)
