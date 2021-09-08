@@ -218,7 +218,7 @@ void PacketSender::SendPacket(PacketPtr && packet)
     std::unique_lock<std::mutex> lock(mPktMutex);
     uint32_t type = packet->getType();
     std::string typeString = Packet::getTypeString(type);
-    AAMPLOG_INFO("PacketSender: %s - queue size %lu type %s:%d counter:%d", __FUNCTION__, 
+    AAMPLOG_TRACE("PacketSender: %s - queue size %lu type %s:%d counter:%d", __FUNCTION__,
         mPacketQueue.size(), typeString.c_str(), type, packet->getCounter());
 
     mPacketQueue.push(std::move(packet));
