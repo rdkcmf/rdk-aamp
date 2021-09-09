@@ -432,6 +432,13 @@ public:
 	virtual bool CheckForPTSChangeWithTimeout(long timeout) { return true; }
 
 	/**
+	 * @brief Check if first frame received or not
+	 *
+	 * @retval true if the first frame received
+	 */
+	virtual bool IsFirstFrameReceived() {return true;};
+
+	/**
 	 *   @brief Check whether cach is empty
 	 *
 	 *   @param[in]  mediaType - Media Type

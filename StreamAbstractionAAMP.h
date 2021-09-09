@@ -864,8 +864,9 @@ public:
 	 *   @brief Check if playback has stalled and update related flags.
 	 *
 	 *   @param[in] fragmentParsed - true if next fragment was parsed, otherwise false
+	 *   @param[in] isStalledBeforePlay - true if the playback stalled due to lack of new fragment before the pipeline changed to playing state.
 	 */
-	void CheckForPlaybackStall(bool fragmentParsed);
+	void CheckForPlaybackStall(bool fragmentParsed, bool isStalledBeforePlay = false);
 
 	void NotifyFirstFragmentInjected(void);
 
