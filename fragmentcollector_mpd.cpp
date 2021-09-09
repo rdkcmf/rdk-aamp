@@ -989,14 +989,22 @@ static unsigned int Read32( const char **pptr)
  */
 static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentIndex, unsigned int *referenced_size, float *referenced_duration )
 {
+	if (!start)
+	{
+		// If the fragment pointer is NULL then return from here, no need to process it further.
+		return false;
+	}
+
 	const char **f = &start;
 	unsigned int len = Read32(f);
-	if (len != size) {
+	if (len != size)
+	{
 		AAMPLOG_WARN("Wrong size in ParseSegmentIndexBox %d found, %zu expected", len, size);
 		return false;
 	}
 	unsigned int type = Read32(f);
-	if (type != 'sidx') {
+	if (type != 'sidx')
+	{
 		AAMPLOG_WARN("Wrong type in ParseSegmentIndexBox %c%c%c%c found, %zu expected",
 					 (type >> 24) % 0xff, (type >> 16) & 0xff, (type >> 8) & 0xff, type & 0xff, size);
 		return false;
@@ -1881,8 +1889,8 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 										(iFogError > 0 ? iFogError : http_code),effectiveUrl,pMediaStreamContext->fragmentDescriptor.Time, downloadTime);
 
 				pMediaStreamContext->fragmentOffset++; // first byte following packed index
-
-				if (pMediaStreamContext->fragmentIndex != 0)
+				
+				if (pMediaStreamContext->fragmentIndex != 0 && pMediaStreamContext->index_ptr)
 				{
 					unsigned int referenced_size;
 					float fragmentDuration;
