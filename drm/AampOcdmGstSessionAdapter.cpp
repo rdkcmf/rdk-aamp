@@ -22,7 +22,7 @@ static inline uint64_t GetCurrentTimeStampInMSec()
 }
 
 #define LOG_DECRYPT_STATS 1
-#define DECRYPT_AVG_TIME_THRESHOLD 5.0 //5 milliseconds
+#define DECRYPT_AVG_TIME_THRESHOLD 10.0 //10 milliseconds
 #ifdef LOG_DECRYPT_STATS
 #define MAX_THREADS 10
 #define INTERVAL 120
