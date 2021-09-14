@@ -27,6 +27,7 @@
 
 #define KEYID_TAG_START "<KID>"
 #define KEYID_TAG_END "</KID>"
+#define PLAYREADY_VERSION "4.0.0.0"
 
 static AampPlayReadyHelperFactory playready_helper_factory;
 
@@ -47,12 +48,10 @@ bool AampPlayReadyHelper::parsePssh(const uint8_t* initData, uint32_t initDataLe
 	this->mInitData.assign(initData, initData + initDataLen);
 	int keyIdLen = 0;
 	bool res = false;
-
 	// Extract key
 	unsigned char *keydata = aamp_ExtractDataFromPssh(reinterpret_cast<const char*>(initData),
-			initDataLen, KEYID_TAG_START, KEYID_TAG_END, &keyIdLen);
+			initDataLen, KEYID_TAG_START, KEYID_TAG_END, &keyIdLen, PLAYREADY_VERSION);
 	//AAMPLOG_INFO("%s:%d pr keyid: %s keyIdlen: %d", __FUNCTION__, __LINE__, keydata, keyIdLen);
-
 	if (keydata)
 	{
 		size_t decodedDataLen = 0;
@@ -80,7 +79,7 @@ bool AampPlayReadyHelper::parsePssh(const uint8_t* initData, uint32_t initDataLe
 	// Extract content metadata. May not be present
 	int drmMetaDataLen = 0;
 	unsigned char *drmMetaData = aamp_ExtractDataFromPssh(reinterpret_cast<const char*>(initData), initDataLen,
-			DRM_METADATA_TAG_START, DRM_METADATA_TAG_END, &drmMetaDataLen);
+			DRM_METADATA_TAG_START, DRM_METADATA_TAG_END, &drmMetaDataLen, PLAYREADY_VERSION);
 	if (drmMetaData)
 	{
 		mContentMetaData.assign(reinterpret_cast<char *>(drmMetaData), drmMetaDataLen);
