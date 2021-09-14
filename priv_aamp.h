@@ -1279,14 +1279,15 @@ public:
 	long long GetVideoPTS(bool bAddVideoBasePTS);
 	/**
 	 *   @brief Report progress event
-	 *
+ 	 *   @param[in]  sync - Flag to indicate that event should be synchronous
+	 *   @param[in]  beginningOfStream - Flag to indicate if the progress reporting is for the Beginning Of Stream
 	 *   @return void
 	 */
-	void ReportProgress(bool sync = true);
+	void ReportProgress(bool sync = true, bool beginningOfStream = false);
 
 	/**
 	 *   @brief Report Ad progress event
-	 *
+	 *   @param[in]  sync - Flag to indicate that event should be synchronous
 	 *   @return void
 	 */
 	void ReportAdProgress(bool sync = true);

@@ -1729,7 +1729,7 @@ long long PrivateInstanceAAMP::GetVideoPTS(bool bAddVideoBasePTS)
 /**
  * @brief Report progress event to listeners
  */
-void PrivateInstanceAAMP::ReportProgress(bool sync)
+void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 {
 	PrivAAMPState state;
 	GetState(state);
@@ -1738,7 +1738,9 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 	{
 		ReportAdProgress(sync);
 
-		double position = GetPositionMilliseconds();
+
+		// set position to 0 if the rewind operation has reached Beginning Of Stream
+		double position = beginningOfStream? 0: GetPositionMilliseconds();
 		double duration = durationSeconds * 1000.0;
 		float speed = pipeline_paused ? 0 : rate;
 		double start = -1;
@@ -1758,6 +1760,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync)
 		else
 		{	//DELIA-49735 - Report Progress report position based on Availability Start Time
 			start = (culledSeconds*1000.0);
+
 			if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && (mProgressReportOffset >= 0) && IsLiveStream() && !IsUninterruptedTSB())
 			{
 				end = (mAbsoluteEndPosition * 1000);
@@ -2731,6 +2734,8 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 		{
 			seek_pos_seconds = culledSeconds;
 			logprintf("%s:%d Updated seek_pos_seconds %f ", __FUNCTION__,__LINE__, seek_pos_seconds);
+			// A new report progress event to be emitted with position 0 when rewind reaches BOS
+			ReportProgress(true, true);
 			rate = AAMP_NORMAL_PLAY_RATE;
 			AcquireStreamLock();
 			TuneHelper(eTUNETYPE_SEEK);
