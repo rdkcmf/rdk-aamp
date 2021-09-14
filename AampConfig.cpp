@@ -264,12 +264,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_ForceHttp].value				=	false;
 	bAampCfgValue[eAAMPConfig_InternalReTune].value				=	true;
 	bAampCfgValue[eAAMPConfig_AudioOnlyPlayback].value			=	false;
-#ifdef REALTEKCE
-	// XIONE-3397 temporary workaround for SkyDE - use of queued_frames for default 'prebuffering' is not working (this can be removed once REALTEK-286 addressed)
-	bAampCfgValue[eAAMPConfig_GStreamerBufferingBeforePlay].value		=	false;
-#else	
 	bAampCfgValue[eAAMPConfig_GStreamerBufferingBeforePlay].value		=	true;
-#endif
 	bAampCfgValue[eAAMPConfig_EnableMicroEvents].value			=	false;
 	bAampCfgValue[eAAMPConfig_EnablePROutputProtection].value		=	false;
 	bAampCfgValue[eAAMPConfig_ReTuneOnBufferingTimeout].value		=	true;
