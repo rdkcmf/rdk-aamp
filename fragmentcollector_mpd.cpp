@@ -3360,18 +3360,21 @@ double aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(IPeriod * period)
 				uint64_t presentationTimeOffset = segmentTemplates.GetPresentationTimeOffset();
 				AAMPLOG_TRACE("%s tscale: %" PRIu32 " offset : %" PRIu64 "", __FUNCTION__, timeScale, presentationTimeOffset);
 				std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
-				ITimeline *timeline = timelines.at(0);
-				if(timeline != NULL)
+				if(timelines.size() > 0)
 				{
-					uint64_t timelineStart = timeline->GetStartTime();
-					AAMPLOG_TRACE("%s timeline start : %" PRIu64 "", __FUNCTION__, timelineStart);
+					ITimeline *timeline = timelines.at(0);
 					uint64_t deltaBwFirstSegmentAndOffset = 0;
-					if(timelineStart > presentationTimeOffset)
+					if(timeline != NULL)
 					{
-						deltaBwFirstSegmentAndOffset = timelineStart - presentationTimeOffset;
+						uint64_t timelineStart = timeline->GetStartTime();
+						AAMPLOG_TRACE("%s timeline start : %" PRIu64 "", __FUNCTION__, timelineStart);
+						if(timelineStart > presentationTimeOffset)
+						{
+							deltaBwFirstSegmentAndOffset = timelineStart - presentationTimeOffset;
+						}
+						duration = (double) deltaBwFirstSegmentAndOffset / timeScale;
+						AAMPLOG_INFO("%s() offset delta : %lf", __FUNCTION__, duration);
 					}
-					duration = (double) deltaBwFirstSegmentAndOffset / timeScale;
-					AAMPLOG_INFO("%s() offset delta : %lf", __FUNCTION__, duration);
 				}
 			}
 		}
