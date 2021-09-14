@@ -4906,10 +4906,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			mStreamSink->SetAudioVolume(volume);
 			if (mbPlayEnabled)
 			{
-				// get the updated stream format before calling Configure.
-				mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat, mAuxFormat);
-				AAMPLOG_INFO("TuneHelper: Updated Stream Format : mVideoFormat %d, mAudioFormat %d mAuxFormat %d", mVideoFormat, mAudioFormat, mAuxFormat);
-
 				mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mpStreamAbstractionAAMP->GetESChangeStatus(), mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
 			}
 		}
