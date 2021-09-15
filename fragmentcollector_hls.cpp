@@ -4459,6 +4459,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			trickplayMode = false;
 		}
 
+		double programStartTime = -1;
+
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
 		{
 			TrackState *ts = trackState[iTrack];
@@ -4475,9 +4477,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				// Flag also denotes if first encrypted init fragment was pushed or not
 				ts->mCheckForInitialFragEnc = true; //force encrypted header at the start
 				ts->IndexPlaylist(!newTune,culled);
-				if (IsLive())
+				if (IsLive() && eTRACK_VIDEO == ts->type)
 				{
-					if(eTRACK_VIDEO == ts->type && culled > 0)
+					programStartTime = ts->mProgramDateTime;
+
+					if( culled > 0)
 					{
 						AAMPLOG_INFO("%s Updating PDT (%f) and culled (%f) Updated seek_pos_seconds:%f ",__FUNCTION__,ts->mProgramDateTime,culled,(seekPosition - culled));
 						aamp->mProgramDateTime = ts->mProgramDateTime;
@@ -4859,7 +4863,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s:%d No valid duration found in audio and video, sending duration as 0", __FUNCTION__, __LINE__);
 			}
-			aamp->SendMediaMetadataEvent((duration * 1000.0), mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
+			aamp->SendMediaMetadataEvent((duration * 1000.0), mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent, programStartTime);
 			// Delay "preparing" state until all tracks have been processed.
 			// JS Player assumes all onTimedMetadata event fire before "preparing" state.
 			aamp->SetState(eSTATE_PREPARING);

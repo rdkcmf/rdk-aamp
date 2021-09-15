@@ -2163,8 +2163,9 @@ public:
 	 *   @param[in] bitrateList - list of video bitrates available in asset
 	 *   @param[in] hasDrm - indicates if asset is encrypted/clear
 	 *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
+	 *   @param[in] programStartTime - indicates the program or availability start time.
 	 */
-	void SendMediaMetadataEvent(double durationMs, std::set<std::string>langList, std::vector<long> bitrateList, bool hasDrm, bool isIframePresent);
+	void SendMediaMetadataEvent(double durationMs, std::set<std::string>langList, std::vector<long> bitrateList, bool hasDrm, bool isIframePresent, double programStartTime = -1);
 
 	/**
 	 *   @brief  Generate supported speeds changed event based on arg passed.
