@@ -1983,7 +1983,8 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_NATIVE_AUDIO | GST_PLAY_FLAG_NATIVE_VIDEO;
 #endif
 		g_object_set(stream->sinkbin, "flags", flags, NULL); // needed?
-		if((_this->aamp->GetMediaFormatTypeEnum() != eMEDIAFORMAT_PROGRESSIVE) ||  _this->aamp->mConfig->IsConfigSet(eAAMPConfig_UseAppSrcForProgressivePlayback))
+		MediaFormat mediaFormat = _this->aamp->GetMediaFormatTypeEnum();
+		if((mediaFormat != eMEDIAFORMAT_PROGRESSIVE) ||  _this->aamp->mConfig->IsConfigSet(eAAMPConfig_UseAppSrcForProgressivePlayback))
 		{
 			g_object_set(stream->sinkbin, "uri", "appsrc://", NULL);
 			g_signal_connect(stream->sinkbin, "deep-notify::source", G_CALLBACK(found_source), _this);
@@ -1993,6 +1994,18 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 			g_object_set(stream->sinkbin, "uri", _this->aamp->GetManifestUrl().c_str(), NULL);
 			g_signal_connect (stream->sinkbin, "source-setup", G_CALLBACK (httpsoup_source_setup), _this);
 		}
+
+#if defined(REALTEKCE)
+		if (eMEDIATYPE_VIDEO == streamId && (mediaFormat==eMEDIAFORMAT_DASH || mediaFormat==eMEDIAFORMAT_HLS_MP4) )
+		{ // enable multiqueue (Refer : XIONE-6138)
+			#ifdef CONTENT_4K_SUPPORTED 
+			g_object_set(stream->sinkbin, "buffer-size", 4194304 * 3, NULL);// 4096k * 3
+			#else 
+			g_object_set(stream->sinkbin, "buffer-size", (guint64)4194304, NULL); // 4096k
+			#endif
+			g_object_set(stream->sinkbin, "buffer-duration", 3000000000, NULL); //3000000000(ns), 3s
+		}
+#endif
 		gst_element_sync_state_with_parent(stream->sinkbin);
 	}
 	else
