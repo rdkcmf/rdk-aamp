@@ -251,10 +251,10 @@ unsigned long CCHandleEvent::getCCHandle() const
  * @param[in] isLive     - Is Live
  * @param[in] DrmType    - Current DRM Type
  */
-MediaMetadataEvent::MediaMetadataEvent(long duration, int width, int height, bool hasDrm, bool isLive, const std::string &DrmType):
+MediaMetadataEvent::MediaMetadataEvent(long duration, int width, int height, bool hasDrm, bool isLive, const std::string &DrmType, double programStartTime):
 		AAMPEventObject(AAMP_EVENT_MEDIA_METADATA), mDuration(duration),
 		mLanguages(), mBitrates(), mWidth(width), mHeight(height),
-		mHasDrm(hasDrm), mSupportedSpeeds(), mIsLive(isLive), mDrmType(DrmType)
+		mHasDrm(hasDrm), mSupportedSpeeds(), mIsLive(isLive), mDrmType(DrmType), mProgramStartTime(programStartTime)
 {
 
 }
@@ -267,6 +267,16 @@ MediaMetadataEvent::MediaMetadataEvent(long duration, int width, int height, boo
 long MediaMetadataEvent::getDuration() const
 {
 	return mDuration;
+}
+
+/**
+ * @brief Get Program/Availability Start Time.
+ *
+ * @return Program/Availability Start Time.
+ */
+double MediaMetadataEvent::getProgramStartTime() const
+{
+	return mProgramStartTime;
 }
 
 /**
