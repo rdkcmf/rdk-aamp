@@ -80,6 +80,8 @@ static void GenerateLegacyAAMPEvent(const AAMPEventPtr &e, AAMPEvent &event)
 			event.data.metadata.width = ev->getWidth();
 			event.data.metadata.height = ev->getHeight();
 			event.data.metadata.hasDrm = ev->hasDrm();
+			event.data.metadata.programStartTime = ev->getProgramStartTime();
+
 			std::vector<std::string> languages = ev->getLanguages();
 			for (int i = 0; i < event.data.metadata.languageCount && i < MAX_LANGUAGE_COUNT; i++)
 			{
