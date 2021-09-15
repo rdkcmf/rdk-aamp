@@ -269,6 +269,7 @@ struct AAMPEvent
 			bool hasDrm;                                                    /**< Drm enabled */
 			int supportedSpeedCount;                                        /**< Supported playback speed count */
 			int supportedSpeeds[MAX_SUPPORTED_SPEED_COUNT];                 /**< Supported playback speeds */
+			double programStartTime;                                        /**< Program/Availability start time */
 		} metadata;
 
 		/**
@@ -693,6 +694,7 @@ class MediaMetadataEvent: public AAMPEventObject
 	std::vector<int> mSupportedSpeeds;	/**< Supported playback speeds */
 	bool mIsLive;				/**< Is Live */
 	std::string mDrmType;			/**< DRM type */
+	double mProgramStartTime;		/**< Program/Availability start time */
 
 public:
 	MediaMetadataEvent() = delete;
@@ -708,8 +710,9 @@ public:
 	 * @param[in] hasDrm   - Drm enablement status
 	 * @param[in] isLive   - Is Live
 	 * @param[in] DrmType  - DRM Type
+	 * @param[in] programStartTime  - Program/Availability start time
 	 */
-	MediaMetadataEvent(long duration, int width, int height, bool hasDrm, bool isLive, const std::string &DrmType);
+	MediaMetadataEvent(long duration, int width, int height, bool hasDrm, bool isLive, const std::string &DrmType, double programStartTime);
 
 	/**
 	 * @brief MediaMetadataEvent Destructor
@@ -722,6 +725,13 @@ public:
 	 * @return Asset duration
 	 */
 	long getDuration() const;
+
+	/**
+	 * @brief Get Program/Availability Start Time.
+	 *
+	 * @return Program/Availability Start Time.
+	 */
+	double getProgramStartTime() const;
 
 	/**
 	 * @brief Add a supported language

@@ -325,6 +325,10 @@ public:
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, propValue, kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
 
+		prop = JSStringCreateWithUTF8CString("programStartTime");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getProgramStartTime()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
 		prop = JSStringCreateWithUTF8CString("width");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getWidth()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
