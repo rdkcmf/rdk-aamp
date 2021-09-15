@@ -4346,7 +4346,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 
 				aamp->SetState(eSTATE_PREPARING);
 				//For DASH, presence of iframe track depends on current period.
-				aamp->SendMediaMetadataEvent(durationMs, mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent);
+				aamp->SendMediaMetadataEvent(durationMs, mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent, mAvailabilityStartTime);
 
 				aamp->UpdateDuration(((double)durationMs)/1000);
 				GetCulledSeconds();
