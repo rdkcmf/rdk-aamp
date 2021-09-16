@@ -41,6 +41,11 @@ public:
 	void updateTimestamp(unsigned long long positionMs);
 	void pause(bool pause) override;
 	void mute(bool mute) override;
+
+	void isLinear(bool isLinear) override { m_isLinear = isLinear; }
+
 protected:
 	std::unique_ptr<TtmlChannel> m_channel;
+	bool m_isLinear = false;
+	bool m_parsedFirstPacket = false;
 };

@@ -121,7 +121,7 @@ public:
     void SendSelectionPacket(uint32_t width, uint32_t height) {
         sendPacket<TtmlSelectionPacket>(width, height);
     }
-    void SendDataPacket(std::vector<uint8_t> &&data, std::uint64_t time_offset_ms = 0) {
+    void SendDataPacket(std::vector<uint8_t> &&data, std::int64_t time_offset_ms = 0) {
         sendPacket<TtmlDataPacket>(time_offset_ms, std::move(data));
     }
     void SendTimestampPacket(uint64_t timestampMs) {

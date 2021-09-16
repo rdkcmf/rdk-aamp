@@ -76,6 +76,7 @@ public:
 	virtual void updateTimestamp(unsigned long long positionMs) = 0;
 	virtual void pause(bool pause) {}
 	virtual void mute(bool mute) {}
+	virtual void isLinear(bool isLinear) {}
 
 protected:
 
