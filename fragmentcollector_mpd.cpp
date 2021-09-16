@@ -2709,7 +2709,6 @@ inline std::uint64_t safeMultiply(const int first, const int second)
 {
     return static_cast<std::uint64_t>(first) * second;
 }
-
 /**
  * @brief Parse duration from ISO8601 string
  * @param ptr ISO8601 string
@@ -2723,23 +2722,30 @@ static double ParseISO8601Duration(const char *ptr)
 	int hour = 0;
 	int minute = 0;
 	double seconds = 0.0;
-    
 	uint64_t returnValue = 0;
-	
-    //ISO 8601 does not specify specific values for months in a day
-    //or days in a year, so use 30 days/month and 365 days/year
+	int indexforM = 0,indexforT=0;
+
+	//ISO 8601 does not specify specific values for months in a day
+	//or days in a year, so use 30 days/month and 365 days/year
 	static constexpr auto kMonthDays = 30;
 	static constexpr auto kYearDays = 365;
-	
 	static constexpr auto kMinuteSecs = 60;
 	static constexpr auto kHourSecs = kMinuteSecs * 60;
 	static constexpr auto kDaySecs = kHourSecs * 24;
 	static constexpr auto kMonthSecs = kMonthDays * kDaySecs;
 	static constexpr auto kYearSecs = kDaySecs * kYearDays;
 	
-	// ISO 8601 allow for number of years, months, days before the "T"
+	// ISO 8601 allow for number of years(Y), months(M), days(D) before the "T" 
+	// and hours(H), minutes(M), and seconds after the "T"
+	
 	const char* durationPtr = strchr(ptr, 'T');
-
+	indexforT = (int)(durationPtr - ptr);
+	const char* pMptr = strchr(ptr, 'M');
+	if(NULL != pMptr)
+	{
+		indexforM = (int)(pMptr - ptr);
+	}
+	
 	if (ptr[0] == 'P')
 	{
 		ptr++;
@@ -2747,13 +2753,12 @@ static double ParseISO8601Duration(const char *ptr)
 		{
 			const char *temp = strchr(ptr, 'Y');
 			if (temp)
-			{
-				sscanf(ptr, "%dY", &years);
+			{	sscanf(ptr, "%dY", &years);
 				logprintf("%s:%d : years %d", __FUNCTION__, __LINE__, years);
 				ptr = temp + 1;
 			}
 			temp = strchr(ptr, 'M');
-			if (temp)
+			if (temp && ( NULL != pMptr && indexforM < indexforT ) )
 			{
 				sscanf(ptr, "%dM", &months);
 				ptr = temp + 1;
@@ -2775,7 +2780,7 @@ static double ParseISO8601Duration(const char *ptr)
 				ptr = temp + 1;
 			}
 			temp = strchr(ptr, 'M');
-			if (temp)
+			if (temp && ( NULL != pMptr && indexforM > indexforT ) )
 			{
 				sscanf(ptr, "%dM", &minute);
 				ptr = temp + 1;
@@ -2801,7 +2806,7 @@ static double ParseISO8601Duration(const char *ptr)
 	returnValue += safeMultiply(kDaySecs, days);
 	returnValue += safeMultiply(kMonthSecs, months);
 	returnValue += safeMultiply(kYearSecs, years);
-
+	
 	return returnValue * 1000;
 }
 
