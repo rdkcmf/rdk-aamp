@@ -235,7 +235,7 @@ void AAMPOCDMGSTSessionAdapter::ExtractSEI( GstBuffer *buffer)
 									}
 								}
 							}
-							AAMPLOG_INFO( "SEI (HH:MM:SS)  %02d:%02d:%02d number of frames (%d)", hours_value, minutes_value, seconds_value, n_frames );
+							AAMPLOG_TRACE( "SEI (HH:MM:SS)  %02d:%02d:%02d number of frames (%d)", hours_value, minutes_value, seconds_value, n_frames );
 							gst_buffer_add_video_time_code_meta_full(
 																	 buffer,
 																	 0, // fps_n
@@ -282,7 +282,7 @@ int AAMPOCDMGSTSessionAdapter::decrypt(GstBuffer *keyIDBuffer, GstBuffer *ivBuff
 		/**
 		 * Extract the SEI timestamps from both clear and encrypted content. 
 		 */
-		AAMPLOG_INFO("DEBUG: Extract the SEI timestamps from encrypted content.");
+		AAMPLOG_TRACE("DEBUG: Extract the SEI timestamps from encrypted content.");
 		ExtractSEI(buffer);
 #endif
 		pthread_mutex_lock(&decryptMutex);
