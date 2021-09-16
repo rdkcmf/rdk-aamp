@@ -618,8 +618,8 @@ void ShowHelpGet(){
 	printf("*   get <command> [<arguments>]\n");
 	printf("*   Usage of Commands, and arguments expected\n");
 	printf("******************************************************************************************\n");
-	for (int iLoop = 0; iLoop < eAAMP_GET_TYPE_COUNT; iLoop++){
-		printf("* get %2d // %s \n", iLoop+1, mGetHelpText[iLoop]);
+	for (int iLoop = 1; iLoop < eAAMP_GET_TYPE_COUNT; iLoop++){
+		printf("* get %2d // %s \n", iLoop, mGetHelpText[iLoop]);
 	}
 	printf("****************************************************************************\n");
 }
@@ -633,8 +633,8 @@ void ShowHelpSet(){
 	printf("*   set <command> [<arguments>] \n");
 	printf("*   Usage of Commands with arguemnts expected in ()\n");
 	printf("******************************************************************************************\n");
-	for (int iLoop = 0; iLoop < eAAMP_SET_TYPE_COUNT; iLoop++){
-		printf("* set %2d %s \n", iLoop+1, mSetHelpText[iLoop]);
+	for (int iLoop = 1; iLoop < eAAMP_SET_TYPE_COUNT; iLoop++){
+		printf("* set %2d %s \n", iLoop, mSetHelpText[iLoop]);
 	}
 	printf("******************************************************************************************\n");
 }
