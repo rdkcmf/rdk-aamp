@@ -20,6 +20,8 @@
 #include "TtmlSubtecParser.hpp"
 #include "PacketSender.hpp"
 
+#include <regex>
+
 
 TtmlSubtecParser::TtmlSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(aamp, type), m_channel(nullptr)
 {
@@ -43,6 +45,8 @@ bool TtmlSubtecParser::init(double startPosSeconds, unsigned long long basePTS)
 	AAMPLOG_INFO("%s:%d startPos %.3fs", __FUNCTION__, __LINE__, startPosSeconds);
 	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPosSeconds * 1000.0));
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
+	mTimeOffset = 0;
+	mParsedFirstPacket = false;
 	return true;
 }
 
@@ -54,6 +58,59 @@ void TtmlSubtecParser::updateTimestamp(unsigned long long positionMs)
 void TtmlSubtecParser::reset()
 {
 	m_channel->SendResetChannelPacket();
+}
+
+static std::int64_t parseFirstBegin(std::stringstream &ss)
+{
+	std::int64_t firstBegin = std::numeric_limits<std::int64_t>::max();
+	std::string line;
+	static const std::regex beginRegex(R"(begin="([0-9]+):([0-9][0-9]?):([0-9][0-9]?)\.?([0-9]+)?")");
+	
+	while(std::getline(ss, line))
+	{
+		try {
+			bool matched = false;
+			//Regex still works with no hours and/or no ms. Mins and secs are required
+			std::smatch match;
+			matched = std::regex_search(line, match, beginRegex);
+
+			if (matched) {
+				std::int64_t hours = 0, minutes = 0, seconds = 0, milliseconds = 0;
+
+				if (!match.str(1).empty()) AAMPLOG_WARN("h:%s", match.str(1).c_str()); hours = std::stol(match.str(1));
+				if (!match.str(2).empty()) AAMPLOG_WARN("m:%s", match.str(2).c_str()); minutes = std::stol(match.str(2));
+				if (!match.str(3).empty()) AAMPLOG_WARN("s:%s", match.str(3).c_str()); seconds = std::stol(match.str(3));
+				if (!match.str(4).empty()) AAMPLOG_WARN("ms:%s", match.str(4).c_str()); milliseconds = std::stol(match.str(4));
+
+				firstBegin = milliseconds + (1000 * (seconds + (60 * (minutes + (60 * hours)))));
+				std::cout << "parseFirstBegin: firstBegin " << firstBegin << " " << hours << ":" << minutes << ":" << seconds << "." << milliseconds << std::endl;
+				break;
+			}
+		}
+		catch (std::regex_error& e) {
+			AAMPLOG_WARN("Regex error %s from line %s", std::to_string(e.code()).c_str(), line.c_str());
+		}
+	}
+	
+	return firstBegin;
+}
+
+bool isLiveManifest(std::stringstream &ss)
+{
+	std::string line;
+	std::regex contentProfiles("contentProfiles=\".*?imsc1.*?\"");
+	
+	while (std::getline(ss, line))
+	{
+		if (!line.find("<tt"))
+		{
+			std::smatch match;
+			if (std::regex_search(line, match, contentProfiles))
+				return false;
+			else
+				return true;
+		}
+	}
 }
 
 bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double position, double duration)
@@ -76,8 +133,30 @@ bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double positi
 
 		std::vector<uint8_t> data(mdatLen);
 		data.assign(mdat, mdat+mdatLen);
+		
+		if (!mParsedFirstPacket)
+		{
+			std::stringstream ss(std::string(data.begin(), data.end()));
+			if (isLiveManifest(ss))
+			{
+				AAMPLOG_WARN("%s:%d IS LIVE", __FUNCTION__, __LINE__);
+				std::int64_t offset = parseFirstBegin(ss);
+				if (offset != std::numeric_limits<std::int64_t>::max())
+				{
+					AAMPLOG_WARN("%s:%d setting offset %ld", __FUNCTION__, __LINE__, offset);
+					mTimeOffset = offset;
+					mParsedFirstPacket = true;
+					m_channel->SendTimestampPacket(offset);
+				}
+			}
+			else
+			{ // VOD
+				mTimeOffset = 0;
+				mParsedFirstPacket = true;
+			}
+		}
 
-		m_channel->SendDataPacket(std::move(data));
+		m_channel->SendDataPacket(std::move(data), 0);
 
 		free(mdat);
 		AAMPLOG_TRACE("Sent buffer with size %zu position %.3f", bufferLen, position);

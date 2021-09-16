@@ -41,6 +41,9 @@ public:
 	void updateTimestamp(unsigned long long positionMs);
 	void pause(bool pause) override;
 	void mute(bool mute) override;
+
 protected:
 	std::unique_ptr<TtmlChannel> m_channel;
+	std::int64_t mTimeOffset = 0;
+	bool mParsedFirstPacket = false;
 };
