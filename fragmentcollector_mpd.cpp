@@ -2352,7 +2352,7 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					{
 						uint64_t number = (skipTime / segmentDuration) + 1; // Number is 1-based index
 						double fragmentTimeFromNumber = ceil((segmentDuration * (number - 1)) * 1000.0) / 1000.0;
-						pMediaStreamContext->fragmentDescriptor.Number = number;
+						pMediaStreamContext->fragmentDescriptor.Number += number;
 						pMediaStreamContext->fragmentTime = fragmentTimeFromNumber;
 						pMediaStreamContext->fragmentDescriptor.Time = fragmentTimeFromNumber;
 						pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
