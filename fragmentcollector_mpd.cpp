@@ -3353,6 +3353,7 @@ double StreamAbstractionAAMP_MPD::GetPeriodEndTime(IMPD *mpd, int periodIndex, u
 			if(startTimeStr.empty())
 			{
 				AAMPLOG_WARN("Period startTime is not present in MPD, so calculating start time with previous period durations");
+				periodStartMs = GetPeriodStartTime(mpd, periodIndex) * 1000;
 			}
 			else
 			{
