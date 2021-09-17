@@ -3685,6 +3685,7 @@ void AAMPGstPlayer::GetVideoSize(int &width, int &height)
 {
 	int x, y, w, h;
 	sscanf(privateContext->videoRectangle, "%d,%d,%d,%d", &x, &y, &w, &h);
+	AAMPLOG_INFO("%s:%d privateContext->videoRectangle : %s", __FUNCTION__, __LINE__, privateContext->videoRectangle);
 	if (w > 0 && h > 0)
 	{
 		width = w;
