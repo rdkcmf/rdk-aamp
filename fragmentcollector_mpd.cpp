@@ -3562,7 +3562,8 @@ double StreamAbstractionAAMP_MPD::GetPeriodEndTime(IMPD *mpd, int periodIndex, u
 		{
 			if(startTimeStr.empty())
 			{
-				AAMPLOG_WARN("%s:%d :  Period startTime required to calculate period duration not present in MPD", __FUNCTION__, __LINE__);
+				AAMPLOG_WARN("%s:%d :  Period startTime is not present in MPD, so calculating start time with previous period durations", __FUNCTION__, __LINE__);
+				periodStartMs = GetPeriodStartTime(mpd, periodIndex) * 1000;
 			}
 			else
 			{
