@@ -68,6 +68,7 @@
 
 #define LOCAL_HOST_IP       "127.0.0.1"
 #define AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS (20*1000LL)
+#define AAMP_MAX_TIME_LL_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS (AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS/10)
 
 //Description size
 #define MAX_DESCRIPTION_SIZE 128
@@ -884,39 +885,6 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
         ret = numBytesForBlock;
 
         if(context->aamp->GetLLDashServiceData()->lowLatencyMode &&
-        (context->fileType == eMEDIATYPE_INIT_VIDEO ||
-         context->fileType ==  eMEDIATYPE_INIT_AUDIO))
-        {
-            IsoBmffBuffer isobuf;
-            isobuf.setBuffer(reinterpret_cast<uint8_t *>(ptr), numBytesForBlock);
-            isobuf.parseBuffer();
-#ifdef AAMP_DEBUG_LL_CURL_WRITE
-            logprintf("%s:%d [%d] Buffer Length: %d", __FUNCTION__, __LINE__, context->fileType, context->buffer->len);
-#endif
-            //Print box details
-            //isobuf.printBoxes();
-            if(isobuf.isInitSegment())
-            {
-                uint32_t timeScale = 0;
-                isobuf.getTimeScale(timeScale);
-                if(context->fileType == eMEDIATYPE_INIT_VIDEO)
-                {
-#ifdef AAMP_DEBUG_LL_CURL_WRITE
-                    logprintf("%s:%d Video TimeScale  [%d]", __FUNCTION__, __LINE__, timeScale);
-#endif
-                    context->aamp->SetLLDashVidTimeScale(timeScale);
-                }
-                else
-                {
-#ifdef AAMP_DEBUG_LL_CURL_WRITE
-                    logprintf("%s:%d Audio TimeScale  [%d]", __FUNCTION__, __LINE__, timeScale);
-#endif
-                    context->aamp->SetLLDashAudTimeScale(timeScale);
-                }
-            }
-            isobuf.destroyBoxes();
-        }
-        else  if(context->aamp->GetLLDashServiceData()->lowLatencyMode &&
                  (context->fileType == eMEDIATYPE_VIDEO ||
                   context->fileType ==  eMEDIATYPE_AUDIO ||
                   context->fileType ==  eMEDIATYPE_SUBTITLE))
@@ -1737,7 +1705,6 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 	if (mDownloadsEnabled && (state != eSTATE_IDLE) && (state != eSTATE_RELEASED))
 	{
 		ReportAdProgress(sync);
-
 
 		// set position to 0 if the rewind operation has reached Beginning Of Stream
 		double position = beginningOfStream? 0: GetPositionMilliseconds();
@@ -3745,6 +3712,59 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					else
 					{
 						res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
+
+						if(GetLLDashServiceData()->lowLatencyMode &&
+						(simType == eMEDIATYPE_INIT_VIDEO || simType ==  eMEDIATYPE_INIT_AUDIO))
+						{
+							IsoBmffBuffer isobuf;
+							isobuf.setBuffer(reinterpret_cast<uint8_t *>(context.buffer->ptr), context.buffer->len);
+
+							bool bParse = false;
+							try
+							{
+								bParse = isobuf.parseBuffer();
+							}
+							catch( std::bad_alloc& ba)
+							{
+								AAMPLOG_ERR("%s %d: Bad allocation: %s", __FUNCTION__, __LINE__, ba.what() );
+							}
+							catch( std::exception &e)
+							{
+								AAMPLOG_ERR("%s %d: Unhandled exception: %s", __FUNCTION__, __LINE__, e.what() );
+							}
+							catch( ... )
+							{
+								AAMPLOG_ERR("%s %d:  Unknown exception", __FUNCTION__, __LINE__ );
+							}
+
+							if(!bParse)
+							{
+								AAMPLOG_ERR("%s:%d [%d] Cant Find TimeScale. No Box available in Init File !!!", __FUNCTION__, __LINE__, simType);
+							}
+							else
+							{
+								AAMPLOG_INFO("%s:%d [%d] Buffer Length: %d", __FUNCTION__, __LINE__, simType, context.buffer->len);
+
+								//Print box details
+								//isobuf.printBoxes();
+								if(isobuf.isInitSegment())
+								{
+									uint32_t timeScale = 0;
+									isobuf.getTimeScale(timeScale);
+									if(simType == eMEDIATYPE_INIT_VIDEO)
+									{
+										AAMPLOG_INFO("%s:%d Video TimeScale  [%d]", __FUNCTION__, __LINE__, timeScale);
+										SetLLDashVidTimeScale(timeScale);
+									}
+									else
+									{
+										AAMPLOG_INFO("%s:%d Audio TimeScale  [%d]", __FUNCTION__, __LINE__, timeScale);
+										SetLLDashAudTimeScale(timeScale);
+									}
+								}
+								isobuf.destroyBoxes();
+							}
+						}
 					}
 
 					if ((http_code == 200) && (httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_FOG_ERROR) && (httpRespHeaders[curlInstance].data.length() > 0))
@@ -6951,6 +6971,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 									(errorType == eGST_ERROR_UNDERFLOW) ? "Underflow" :
 									(errorType == eSTALL_AFTER_DISCONTINUITY) ? "Stall After Discontinuity" :
 									(errorType == eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED)?"LL DASH Max Correction Reached":
+									(errorType == eDASH_LOW_LATENCY_INPUT_PROTECTION_ERROR)?"LL DASH Input Protection Error":
 									(errorType == eGST_ERROR_GST_PIPELINE_INTERNAL) ? "GstPipeline Internal Error" : "STARTTIME RESET";
 
 		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"), errorString);
@@ -6975,8 +6996,24 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 						GETCONFIGVALUE_PRIV(eAAMPConfig_PTSErrorThreshold,ptsErrorThresholdValue);
 						if (lastErrorReportedTimeMs)
 						{
+							bool isRetuneRequried = false;
 							long long diffMs = (now - lastErrorReportedTimeMs);
-							if (diffMs < AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS)
+							if(GetLLDashServiceData()->lowLatencyMode )
+							{
+								if (diffMs < AAMP_MAX_TIME_LL_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS)
+								{
+									isRetuneRequried = true;
+									logprintf("PrivateInstanceAAMP::%s:%d: Schedule Retune.for low latency mode", __FUNCTION__, __LINE__);
+								}
+							}
+							else
+							{
+								if (diffMs < AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS)
+								{
+									isRetuneRequried = true;
+								}
+							}
+							if(isRetuneRequried)
 							{
 								gAAMPInstance->numPtsErrors++;
 								logprintf("PrivateInstanceAAMP::%s:%d: numPtsErrors %d, ptsErrorThreshold %d",
@@ -6986,7 +7023,8 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 									gAAMPInstance->numPtsErrors = 0;
 									gAAMPInstance->reTune = true;
 									logprintf("PrivateInstanceAAMP::%s:%d: Schedule Retune. diffMs %lld < threshold %lld",
-										__FUNCTION__, __LINE__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS);
+										__FUNCTION__, __LINE__, diffMs, GetLLDashServiceData()->lowLatencyMode?
+										AAMP_MAX_TIME_LL_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS:AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS);
 									ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this);
 								}
 							}
@@ -6994,7 +7032,8 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 							{
 								gAAMPInstance->numPtsErrors = 0;
 								logprintf("PrivateInstanceAAMP::%s:%d: Not scheduling reTune since (diff %lld > threshold %lld) numPtsErrors %d, ptsErrorThreshold %d.",
-									__FUNCTION__, __LINE__, diffMs, AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS,
+									__FUNCTION__, __LINE__, diffMs, GetLLDashServiceData()->lowLatencyMode?
+									AAMP_MAX_TIME_LL_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS:AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS,
 									gAAMPInstance->numPtsErrors, ptsErrorThresholdValue);
 							}
 						}

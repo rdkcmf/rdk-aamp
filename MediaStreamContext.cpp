@@ -102,6 +102,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
     }
     else if (!ret)
     {
+	AAMPLOG_INFO("%s:%d fragment fetch failed - Free cachedFragment",__FUNCTION__, __LINE__);
         aamp_Free(&cachedFragment->fragment);
         if( aamp->DownloadsAreEnabled())
         {

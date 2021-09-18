@@ -521,11 +521,12 @@ public:
 	pthread_cond_t fragmentChunkFetched;/**< Signaled after a fragment Chunk is fetched*/
 	pthread_cond_t fragmentChunkClean;  /**< Signaled after a fragment Chunks are cleaned*/
 	uint32_t totalMdatCount;            /**< Total MDAT Chunk Found*/
+	int noMDATCount;                    /**< MDAT Chunk Not Found count continuously while chunk buffer processoing*/
 
 protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */
-	CachedFragmentChunk *cachedFragmentChunks;/**< storage for currently-downloaded fragment */
+	CachedFragmentChunk cachedFragmentChunks[DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK];
 	GrowableBuffer unparsedBufferChunk;    /**< Buffer to keep fragment content */
 	GrowableBuffer parsedBufferChunk;    /**< Buffer to keep fragment content */
 	bool abort;                         /**< Abort all operations if flag is set*/

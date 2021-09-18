@@ -187,6 +187,8 @@ void MediaTrack::MonitorBufferHealth()
 void MediaTrack::UpdateTSAfterInject()
 {
 	pthread_mutex_lock(&mutex);
+	AAMPLOG_TRACE("%s:%d [%s] Free cachedFragment[%d] numberOfFragmentsCached %d", __FUNCTION__, __LINE__,
+			name, fragmentIdxToInject, numberOfFragmentsCached);
 	aamp_Free(&cachedFragment[fragmentIdxToInject].fragment);
 	memset(&cachedFragment[fragmentIdxToInject], 0, sizeof(CachedFragment));
 	fragmentIdxToInject++;
@@ -216,12 +218,15 @@ void MediaTrack::UpdateTSAfterChunkInject()
         aamp_Free(&cachedFragmentChunks[fragmentChunkIdxToInject].fragmentChunk);
         memset(&cachedFragmentChunks[fragmentChunkIdxToInject], 0, sizeof(CachedFragmentChunk));
 
+	aamp_Free(&parsedBufferChunk);
+	memset(&parsedBufferChunk, 0x00, sizeof(GrowableBuffer));
+
 	//increment Inject Index
-        fragmentChunkIdxToInject = (++fragmentChunkIdxToInject) % maxCachedFragmentChunksPerTrack;
-	numberOfFragmentChunksCached--;
+	fragmentChunkIdxToInject = (++fragmentChunkIdxToInject) % maxCachedFragmentChunksPerTrack;
+	if(numberOfFragmentChunksCached > 0) numberOfFragmentChunksCached--;
 
 	AAMPLOG_TRACE("%s:%d [%s] updated fragmentChunkIdxToInject = %d numberOfFragmentChunksCached %d", __FUNCTION__, __LINE__,
-                        name, fragmentChunkIdxToInject, numberOfFragmentChunksCached);
+			name, fragmentChunkIdxToInject, numberOfFragmentChunksCached);
 
 	pthread_cond_signal(&fragmentChunkInjected);
 	pthread_mutex_unlock(&mutex);
@@ -560,8 +565,15 @@ bool MediaTrack::WaitForCachedFragmentChunkAvailable()
 			logprintf("%s:%d [%s] Ignore Chunk Inject(After) - Cleanup In-progress!!!", __FUNCTION__, __LINE__, name);
 			cleanChunkCacheInitiated = true;
 
+			for (int i = 0; i < DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK; i++)
+			{
+				aamp_Free(&cachedFragmentChunks[i].fragmentChunk);
+				memset(&cachedFragmentChunks[i], 0, sizeof(CachedFragmentChunk));
+			}
 			aamp_Free(&unparsedBufferChunk);
 			memset(&unparsedBufferChunk, 0x00, sizeof(GrowableBuffer));
+			aamp_Free(&parsedBufferChunk);
+			memset(&parsedBufferChunk, 0x00, sizeof(GrowableBuffer));
 		}
 
 		if( numberOfFragmentChunksCached == 0)
@@ -666,210 +678,235 @@ void MediaTrack::AbortWaitForCachedFragment()
  */
 bool MediaTrack::ProcessFragmentChunk()
 {
-        //Get Cache buffer
-        CachedFragmentChunk* cachedFragmentChunk = &this->cachedFragmentChunks[fragmentChunkIdxToInject];
-        if(cachedFragmentChunk != NULL && NULL == cachedFragmentChunk->fragmentChunk.ptr)
-        {
-            AAMPLOG_TRACE("%s:%d [%s] Ignore NULL Chunk - cachedFragmentChunk->fragmentChunk.len %d", __FUNCTION__, __LINE__, name, cachedFragmentChunk->fragmentChunk.len);
-            return false;
-        }
+	//Get Cache buffer
+	CachedFragmentChunk* cachedFragmentChunk = &this->cachedFragmentChunks[fragmentChunkIdxToInject];
+	if(cachedFragmentChunk != NULL && NULL == cachedFragmentChunk->fragmentChunk.ptr)
+	{
+		AAMPLOG_TRACE("%s:%d [%s] Ignore NULL Chunk - cachedFragmentChunk->fragmentChunk.len %d", __FUNCTION__, __LINE__, name, cachedFragmentChunk->fragmentChunk.len);
+		return false;
+	}
 
-        size_t requiredLength = cachedFragmentChunk->fragmentChunk.len + unparsedBufferChunk.len;
-        AAMPLOG_TRACE("%s:%d [%s] cachedFragmentChunk->fragmentChunk.len [%d] to unparsedBufferChunk.len [%d] Required Len [%d]", __FUNCTION__, __LINE__, name, cachedFragmentChunk->fragmentChunk.len, unparsedBufferChunk.len, requiredLength);
+	size_t requiredLength = cachedFragmentChunk->fragmentChunk.len + unparsedBufferChunk.len;
+	AAMPLOG_TRACE("%s:%d [%s] cachedFragmentChunk->fragmentChunk.len [%d] to unparsedBufferChunk.len [%d] Required Len [%d]", __FUNCTION__, __LINE__, name, cachedFragmentChunk->fragmentChunk.len, unparsedBufferChunk.len, requiredLength);
 
-        //Append Cache buffer to unparsed buffer for processing
-        aamp_AppendBytes(&unparsedBufferChunk, cachedFragmentChunk->fragmentChunk.ptr, cachedFragmentChunk->fragmentChunk.len);
+	//Append Cache buffer to unparsed buffer for processing
+	aamp_AppendBytes(&unparsedBufferChunk, cachedFragmentChunk->fragmentChunk.ptr, cachedFragmentChunk->fragmentChunk.len);
 
 #if 0  //enable to avoid small buffer processing
-        if(cachedFragmentChunk->fragmentChunk.len < 500)
-        {
-            AAMPLOG_TRACE("%s:%d [%s] cachedFragmentChunk->fragmentChunk.len [%d] Ignoring", __FUNCTION__, __LINE__, name, cachedFragmentChunk->fragmentChunk.len);
-             return true;
-        }
+	if(cachedFragmentChunk->fragmentChunk.len < 500)
+	{
+		AAMPLOG_TRACE("%s:%d [%s] cachedFragmentChunk->fragmentChunk.len [%d] Ignoring", __FUNCTION__, __LINE__, name, cachedFragmentChunk->fragmentChunk.len);
+		return true;
+	}
 #endif
-        //Parse Chunk Data
-        IsoBmffBuffer isobuf;
-        IsoBmffBuffer isobufTest;
-        const Box *pBox = NULL;
-        std::vector<Box*> *pBoxes;
-        std::vector<Box*> boxes;
-        size_t mdatCount = 0;
-        size_t parsedBoxCount = 0;
-        char *unParsedBuffer = NULL;
-        size_t parsedBufferSize, unParsedBufferSize = 0;
+	//Parse Chunk Data
+	IsoBmffBuffer isobuf;                   /**< Fragment Chunk buffer box parser*/
+	const Box *pBox = NULL;
+	std::vector<Box*> *pBoxes;
+	std::vector<Box*> boxes;
+	size_t mdatCount = 0;
+	size_t parsedBoxCount = 0;
+	char *unParsedBuffer = NULL;
+	size_t parsedBufferSize = 0, unParsedBufferSize = 0;
+	
+	unParsedBuffer = unparsedBufferChunk.ptr;
+	unParsedBufferSize = parsedBufferSize = unparsedBufferChunk.len;
 
-        unParsedBuffer = unparsedBufferChunk.ptr;
-        unParsedBufferSize = parsedBufferSize = unparsedBufferChunk.len;
+	isobuf.setBuffer(reinterpret_cast<uint8_t *>(unparsedBufferChunk.ptr), unparsedBufferChunk.len);
 
-        isobuf.setBuffer(reinterpret_cast<uint8_t *>(unparsedBufferChunk.ptr), unparsedBufferChunk.len);
+	AAMPLOG_TRACE("%s:%d [%s] Unparsed Buffer Size: %d", __FUNCTION__, __LINE__, name,unparsedBufferChunk.len);
 
-        AAMPLOG_TRACE("%s:%d [%s] Unparsed Buffer Size: %d", __FUNCTION__, __LINE__, name,unparsedBufferChunk.len);
+	bool bParse = false;
+	try
+	{
+		bParse = isobuf.parseBuffer();
+	}
+	catch( std::bad_alloc& ba)
+	{
+		AAMPLOG_ERR("%s %d: Bad allocation: %s", __FUNCTION__, __LINE__, ba.what() );
+	}
+	catch( std::exception &e)
+	{
+		AAMPLOG_ERR("%s %d: Unhandled exception: %s", __FUNCTION__, __LINE__, e.what() );
+	}
+	catch( ... )
+	{
+		AAMPLOG_ERR("%s %d:  Unknown exception", __FUNCTION__, __LINE__ );
+	}
+	if(!bParse)
+	{
+		AAMPLOG_INFO("%s:%d [%s] No Box available in cache chunk: fragmentChunkIdxToInject %d", __FUNCTION__, __LINE__, name, fragmentChunkIdxToInject);
+		return true;
+	}
+	//Print box details
+	//isobuf.printBoxes();
 
-        bool bParse = isobuf.parseBuffer();
-        if(!bParse)
-        {
-            AAMPLOG_TRACE("%s:%d [%s] No Box available in cache chunk: fragmentChunkIdxToInject %d", __FUNCTION__, __LINE__, name, fragmentChunkIdxToInject);
-        }
-        //Print box details
-        //isobuf.printBoxes();
+	isobuf.getMdatBoxCount(mdatCount);
+	if(!mdatCount)
+	{
+		noMDATCount++;
+		AAMPLOG_TRACE("%s:%d [%s] No MDAT Found. Exit noMDATCount=%d fragmentChunkIdxToInject=%d", __FUNCTION__, __LINE__, name,noMDATCount, fragmentChunkIdxToInject);
+		isobuf.destroyBoxes();
+		if(noMDATCount > MAX_MDAT_NOT_FOUND_COUNT)
+		{
+			//AAMPLOG_WARN("%s:%d [%s] scheduling retune since noMDATCount is [%d]", __FUNCTION__, __LINE__, name,noMDATCount);
+			AAMPLOG_WARN("%s:%d [%s] scheduling retune REQUIRED since noMDATCount is [%d]", __FUNCTION__, __LINE__, name,noMDATCount);
+			aamp->ScheduleRetune(eDASH_LOW_LATENCY_INPUT_PROTECTION_ERROR,eMEDIATYPE_VIDEO);
+		}
+		return true;
+	}
+	noMDATCount = 0;
+	totalMdatCount += mdatCount;
+	AAMPLOG_TRACE("%s:%d [%s] MDAT count found: %d, Total Found: %d", __FUNCTION__, __LINE__, name,  mdatCount, totalMdatCount );
 
-        isobuf.getMdatBoxCount(mdatCount);
-        if(!mdatCount)
-        {
-            AAMPLOG_TRACE("%s:%d [%s] No MDAT Found. Exit", __FUNCTION__, __LINE__, name);
-            isobuf.destroyBoxes();
+	pBoxes = isobuf.getParsedBoxes();
+	parsedBoxCount = pBoxes->size();
 
-            return true;
-        }
-        totalMdatCount += mdatCount;
-        AAMPLOG_TRACE("%s:%d [%s] MDAT count found: %d, Total Found: %d", __FUNCTION__, __LINE__, name,  mdatCount, totalMdatCount );
+	pBox = isobuf.getChunkedfBox();
+	if(pBox)
+	{
+		parsedBoxCount--;
 
-        pBoxes = isobuf.getParsedBoxes();
-        parsedBoxCount = pBoxes->size();
+		AAMPLOG_TRACE("%s:%d [%s] MDAT Chunk Found - Actual Parsed Box Count: %d", __FUNCTION__, __LINE__, name,parsedBoxCount);
+		AAMPLOG_TRACE("%s:%d [%s] Chunk Offset[%u] Chunk Type[%s] Chunk Size[%u]\n", __FUNCTION__, __LINE__, name, pBox->getOffset(), pBox->getBoxType(), pBox->getSize());
+	}
+	if(mdatCount)
+	{
+		int lastMDatIndex = -1;
+		//Get Last MDAT box
+		for(int i=parsedBoxCount-1;i>=0;i--)
+		{
+			Box *box = pBoxes->at(i);
+			if (IS_TYPE(box->getType(), Box::MDAT))
+			{
+				lastMDatIndex = i;
 
-        pBox = isobuf.getChunkedfBox();
-        if(pBox)
-        {
-            parsedBoxCount--;
+				AAMPLOG_TRACE("%s:%d [%s] Last MDAT Index : %d", __FUNCTION__, __LINE__, name,lastMDatIndex);
 
-            AAMPLOG_TRACE("%s:%d [%s] MDAT Chunk Found - Actual Parsed Box Count: %d", __FUNCTION__, __LINE__, name,parsedBoxCount);
-            AAMPLOG_TRACE("%s:%d [%s] Chunk Offset[%u] Chunk Type[%s] Chunk Size[%u]\n", __FUNCTION__, __LINE__, name, pBox->getOffset(), pBox->getBoxType(), pBox->getSize());
-        }
-        if(mdatCount)
-        {
-            int lastMDatIndex = -1;
-            //Get Last MDAT box
-            for(int i=parsedBoxCount-1;i>=0;i--)
-            {
-                Box *box = pBoxes->at(i);
-                if (IS_TYPE(box->getType(), Box::MDAT))
-                {
-                    lastMDatIndex = i;
+				//Calculate unparsed buffer based on last MDAT
+				unParsedBuffer += (box->getOffset()+box->getSize()); //increment buffer pointer to chunk offset
+				unParsedBufferSize -= (box->getOffset()+box->getSize()); //decerese by parsed buffer size
 
-                    AAMPLOG_TRACE("%s:%d [%s] Last MDAT Index : %d", __FUNCTION__, __LINE__, name,lastMDatIndex);
+				parsedBufferSize -= unParsedBufferSize; //get parsed buf size
 
-                    //Calculate unparsed buffer based on last MDAT
-                    unParsedBuffer += (box->getOffset()+box->getSize()); //increment buffer pointer to chunk offset
-                    unParsedBufferSize -= (box->getOffset()+box->getSize()); //decerese by parsed buffer size
+				AAMPLOG_TRACE("%s:%d [%s] parsedBufferSize : %d updated unParsedBufferSize: %d Total Buf Size processed: %d", __FUNCTION__, __LINE__, name,parsedBufferSize,unParsedBufferSize,parsedBufferSize+unParsedBufferSize);
 
-                    parsedBufferSize -= unParsedBufferSize; //get parsed buf size
+				break;
+			}
+		}
 
-                    AAMPLOG_TRACE("%s:%d [%s] parsedBufferSize : %d updated unParsedBufferSize: %d Total Buf Size processed: %d", __FUNCTION__, __LINE__, name,parsedBufferSize,unParsedBufferSize,parsedBufferSize+unParsedBufferSize);
+		uint64_t fPts = 0;
+		double fpts = 0.0;
+		uint64_t fDuration = 0;
+		double fduration = 0.0;
+		uint64_t totalChunkDuration = 0.0;
 
-                    break;
-                }
-            }
+		//logprintf("===========Base Media Decode Time Start================");
+		//isobuf.PrintPTS();
+		//logprintf("============Base Media Decode Time End===============");
 
-            uint64_t fPts = 0;
-            double fpts = 0.0;
-            uint64_t fDuration = 0;
-            double fduration = 0.0;
-            uint64_t totalChunkDuration = 0.0;
-
-            //logprintf("===========Base Media Decode Time Start================");
-            //isobuf.PrintPTS();
-            //logprintf("============Base Media Decode Time End===============");
-
-            for(int i=0;i<lastMDatIndex;i++)
-            {
-                Box *box = pBoxes->at(i);
+		for(int i=0;i<lastMDatIndex;i++)
+		{
+			Box *box = pBoxes->at(i);
 #ifdef AAMP_DEBUG_INJECT_CHUNK
-                logprintf("%s:%d [%s] Type: %s", __FUNCTION__, __LINE__, name,box->getType());
+			logprintf("%s:%d [%s] Type: %s", __FUNCTION__, __LINE__, name,box->getType());
 #endif
-                if (IS_TYPE(box->getType(), Box::MOOF))
-                {
-                    isobuf.getSampleDuration(box, fDuration);
-                    totalChunkDuration += fDuration;
+			if (IS_TYPE(box->getType(), Box::MOOF))
+			{
+				isobuf.getSampleDuration(box, fDuration);
+				totalChunkDuration += fDuration;
 #ifdef AAMP_DEBUG_INJECT_CHUNK
-                    logprintf("%s:%d [%s] fDuration = %lld, totalChunkDuration = %lld", __FUNCTION__, __LINE__, name,fDuration, totalChunkDuration);
+				logprintf("%s:%d [%s] fDuration = %lld, totalChunkDuration = %lld", __FUNCTION__, __LINE__, name,fDuration, totalChunkDuration);
 #endif
-                }
-            }
-            //get PTS of buffer
-            bool bParse = isobuf.getFirstPTS(fPts);
-            if (bParse)
-            {
-                AAMPLOG_TRACE("%s:%d [%s] fPts %lld", __FUNCTION__, __LINE__,name, fPts);
-            }
+			}
+		}
+		//get PTS of buffer
+		bool bParse = isobuf.getFirstPTS(fPts);
+		if (bParse)
+		{
+			AAMPLOG_TRACE("%s:%d [%s] fPts %lld", __FUNCTION__, __LINE__,name, fPts);
+		}
 
-            if(type == eTRACK_VIDEO)
-            {
-                AAMPLOG_TRACE("%s:%d [%s] Video Scale: %d", __FUNCTION__, __LINE__, name,aamp->GetLLDashVidTimeScale());
+		if(type == eTRACK_VIDEO)
+		{
+			AAMPLOG_TRACE("%s:%d [%s] Video Scale: %d", __FUNCTION__, __LINE__, name,aamp->GetLLDashVidTimeScale());
 
-                if(aamp->GetLLDashVidTimeScale())
-                {
-                    fpts = fPts/(aamp->GetLLDashVidTimeScale()*1.0);
-                    fduration = totalChunkDuration/(aamp->GetLLDashVidTimeScale()*1.0);
-                }
-                else
-                {
-                    //FIX-ME-Read from MPD INSTEAD
-                    fpts = fPts/10000000.0;
-                    fduration = totalChunkDuration/10000000.0;
-                }
-            }
-            else if(type == eTRACK_AUDIO)
-            {
-                AAMPLOG_TRACE("%s:%d [%s] Audio Scale: %d", __FUNCTION__, __LINE__, name,aamp->GetLLDashAudTimeScale());
+			if(aamp->GetLLDashVidTimeScale())
+			{
+				fpts = fPts/(aamp->GetLLDashVidTimeScale()*1.0);
+				fduration = totalChunkDuration/(aamp->GetLLDashVidTimeScale()*1.0);
+			}
+			else
+			{
+				//FIX-ME-Read from MPD INSTEAD
+				fpts = fPts/10000000.0;
+				fduration = totalChunkDuration/10000000.0;
+			}
+		}
+		else if(type == eTRACK_AUDIO)
+		{
+			AAMPLOG_TRACE("%s:%d [%s] Audio Scale: %d", __FUNCTION__, __LINE__, name,aamp->GetLLDashAudTimeScale());
 
-                if(aamp->GetLLDashAudTimeScale())
-                {
-                    fpts = fPts/(aamp->GetLLDashAudTimeScale()*1.0);
-                    fduration = totalChunkDuration/(aamp->GetLLDashAudTimeScale()*1.0);
-                }
-                else
-                {
-                    //FIX-ME-Read from MPD INSTEAD
-                    fpts = fPts/10000000.0;
-                    fduration = totalChunkDuration/10000000.0;
-                }
-            }
+			if(aamp->GetLLDashAudTimeScale())
+			{
+				fpts = fPts/(aamp->GetLLDashAudTimeScale()*1.0);
+				fduration = totalChunkDuration/(aamp->GetLLDashAudTimeScale()*1.0);
+			}
+			else
+			{
+				//FIX-ME-Read from MPD INSTEAD
+				fpts = fPts/10000000.0;
+				fduration = totalChunkDuration/10000000.0;
+			}
+		}
 
-            //Prepeare parsed buffer
-            aamp_AppendBytes(&parsedBufferChunk, unparsedBufferChunk.ptr, parsedBufferSize);
+		//Prepeare parsed buffer
+		aamp_AppendBytes(&parsedBufferChunk, unparsedBufferChunk.ptr, parsedBufferSize);
 #ifdef AAMP_DEBUG_INJECT_CHUNK
-            //TEST CODE for PARSED DATA COMPELTENESS
-            isobufTest.setBuffer(reinterpret_cast<uint8_t *>(parsedBufferChunk.ptr), parsedBufferChunk.len);
-            isobufTest.parseBuffer();
-            if(isobufTest.getChunkedfBox())
-            {
-                logprintf("%s:%d [%s] CHUNK Found in parsed buffer. Something is wrong", __FUNCTION__, __LINE__, name);
-            }
-            else
-            {
-                logprintf("%s:%d [%s] No CHUNK Found in parsed buffer. All Good to Send", __FUNCTION__, __LINE__, name);
-            }
-            //isobufTest.printBoxes();
-            isobufTest.destroyBoxes();
+		IsoBmffBuffer isobufTest;
+		//TEST CODE for PARSED DATA COMPELTENESS
+		isobufTest.setBuffer(reinterpret_cast<uint8_t *>(parsedBufferChunk.ptr), parsedBufferChunk.len);
+		isobufTest.parseBuffer();
+		if(isobufTest.getChunkedfBox())
+		{
+			logprintf("%s:%d [%s] CHUNK Found in parsed buffer. Something is wrong", __FUNCTION__, __LINE__, name);
+		}
+		else
+		{
+			logprintf("%s:%d [%s] No CHUNK Found in parsed buffer. All Good to Send", __FUNCTION__, __LINE__, name);
+		}
+		//isobufTest.printBoxes();
+		isobufTest.destroyBoxes();
 #endif
 
-            //InjectFragmentChunkInternal(cachedFragmentChunk->type,&parsedBufferChunk , fpts, fpts, fduration);
-            InjectFragmentChunkInternal((MediaType)type,&parsedBufferChunk , fpts, fpts, fduration);
+		InjectFragmentChunkInternal((MediaType)type,&parsedBufferChunk , fpts, fpts, fduration);
+		totalInjectedChunksDuration += fduration;
+	}
 
-            totalInjectedChunksDuration += fduration;
-        }
+	// Move unparsed data sections to beginning
+	//Available size remains same
+	//This buffer should be released on Track cleanup
+	if(unParsedBufferSize)
+	{
+		AAMPLOG_TRACE("%s:%d [%s] unparsed[%p] unparsed_size[%u]", __FUNCTION__, __LINE__, name,unParsedBuffer,unParsedBufferSize);
 
-        // Move unparsed data sections to beginning
-        //Available size remains same
-        //This buffer should be released on Track cleanup
-        if(unParsedBufferSize)
-        {
-            AAMPLOG_TRACE("%s:%d [%s] unparsed[%p] unparsed_size[%u]", __FUNCTION__, __LINE__, name,unParsedBuffer,unParsedBufferSize);
-
-            /* remove parsed data from memory */
-            aamp_MoveBytes(&unparsedBufferChunk, unParsedBuffer, unParsedBufferSize);
-        }
-        else
-        {
-            AAMPLOG_TRACE("%s:%d [%s] Set Unparsed Buffer chunk Empty...", __FUNCTION__, __LINE__, name);
-
-            //Set length to 0 for empty unparsed buffer
-            unparsedBufferChunk.len = 0;
-        }
-
-        isobuf.destroyBoxes();
-
-        return true;
+		GrowableBuffer tempBuffer;
+		memset(&tempBuffer,0x00,sizeof(GrowableBuffer));
+		aamp_AppendBytes(&tempBuffer,unParsedBuffer,unParsedBufferSize);
+		aamp_Free(&unparsedBufferChunk);
+		memset(&unparsedBufferChunk,0x00,sizeof(GrowableBuffer));
+		aamp_AppendBytes(&unparsedBufferChunk,tempBuffer.ptr,tempBuffer.len);
+		aamp_Free(&tempBuffer);
+		memset(&tempBuffer,0x00,sizeof(GrowableBuffer));
+	}
+	else
+	{
+		AAMPLOG_TRACE("%s:%d [%s] Set Unparsed Buffer chunk Empty...", __FUNCTION__, __LINE__, name);
+		aamp_Free(&unparsedBufferChunk);
+		memset(&unparsedBufferChunk, 0x00, sizeof(GrowableBuffer));
+	}
+	isobuf.destroyBoxes();
+	return true;
 }
 
 /**
@@ -1354,7 +1391,7 @@ CachedFragmentChunk* MediaTrack::GetFetchChunkBuffer(bool initialize)
 	{
 		if (cachedFragmentChunk->fragmentChunk.ptr)
 		{
-			AAMPLOG_WARN("%s:%d [%s] fragmentChunk.ptr already set - possible memory leak", __FUNCTION__, __LINE__,name);
+			AAMPLOG_WARN("%s:%d [%s] fragmentChunk.ptr[%p] already set - possible memory leak (len=[%d],avail=[%d])", __FUNCTION__, __LINE__,name, cachedFragmentChunk->fragmentChunk.ptr, cachedFragmentChunk->fragmentChunk.len,cachedFragmentChunk->fragmentChunk.avail);
 		}
 		memset(&cachedFragmentChunk->fragmentChunk, 0x00, sizeof(GrowableBuffer));
 	}
@@ -1443,16 +1480,23 @@ void MediaTrack::CleanChunkCache()
  */
 void MediaTrack::FlushFragmentChunks()
 {
-    for (int i = 0; i < maxCachedFragmentChunksPerTrack; i++)
-    {
-        aamp_Free(&cachedFragmentChunks[i].fragmentChunk);
-        memset(&cachedFragmentChunks[i], 0, sizeof(CachedFragmentChunk));
-    }
-    fragmentChunkIdxToInject = 0;
-    fragmentChunkIdxToFetch = 0;
-    numberOfFragmentChunksCached = 0;
-    totalFragmentChunksDownloaded = 0;
-    totalInjectedChunksDuration = 0;
+	logprintf("%s:%d [%s]",__FUNCTION__, __LINE__, name);
+
+	for (int i = 0; i < maxCachedFragmentChunksPerTrack; i++)
+	{
+		aamp_Free(&cachedFragmentChunks[i].fragmentChunk);
+		memset(&cachedFragmentChunks[i], 0, sizeof(CachedFragmentChunk));
+	}
+	aamp_Free(&unparsedBufferChunk);
+	memset(&unparsedBufferChunk, 0x00, sizeof(GrowableBuffer));
+	aamp_Free(&parsedBufferChunk);
+	memset(&parsedBufferChunk, 0x00, sizeof(GrowableBuffer));
+
+	fragmentChunkIdxToInject = 0;
+	fragmentChunkIdxToFetch = 0;
+	numberOfFragmentChunksCached = 0;
+	totalFragmentChunksDownloaded = 0;
+	totalInjectedChunksDuration = 0;
 }
 
 /**
@@ -1471,19 +1515,19 @@ fragmentIdxToFetch(0), fragmentChunkIdxToFetch(0), abort(false), fragmentInjecto
 		discontinuityProcessed(false), ptsError(false), cachedFragment(NULL), name(name), type(type), aamp(aamp),
 		mutex(), fragmentFetched(), fragmentInjected(), abortInject(false),
 		mSubtitleParser(), refreshSubtitles(false), maxCachedFragmentsPerTrack(0),
-		totalMdatCount(0), cachedFragmentChunks(NULL), unparsedBufferChunk{}, parsedBufferChunk{}, fragmentChunkFetched(), fragmentChunkInjected(), abortInjectChunk(false), maxCachedFragmentChunksPerTrack(0),
-		fragmentChunkClean(), cleanChunkCache(false),cleanChunkCacheInitiated(false)
+		totalMdatCount(0), cachedFragmentChunks{}, unparsedBufferChunk{}, parsedBufferChunk{}, fragmentChunkFetched(), fragmentChunkInjected(), abortInjectChunk(false), maxCachedFragmentChunksPerTrack(0),
+		fragmentChunkClean(), cleanChunkCache(false),cleanChunkCacheInitiated(false), noMDATCount(0)
 {
 	GETCONFIGVALUE(eAAMPConfig_MaxFragmentCached,maxCachedFragmentsPerTrack);
 	cachedFragment = new CachedFragment[maxCachedFragmentsPerTrack];
 	for(int X =0; X< maxCachedFragmentsPerTrack; ++X){
 		memset(&cachedFragment[X], 0, sizeof(CachedFragment));
 	}
+
 	GETCONFIGVALUE(eAAMPConfig_MaxFragmentChunkCached,maxCachedFragmentChunksPerTrack);
-	cachedFragmentChunks = new CachedFragmentChunk[maxCachedFragmentChunksPerTrack];
-	for(int X =0; X< maxCachedFragmentChunksPerTrack; ++X){
-		memset(&cachedFragmentChunks[X], 0, sizeof(CachedFragmentChunk));
-	}
+	for(int X =0; X< DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK; ++X)
+		memset(&cachedFragmentChunks[X], 0x00, sizeof(CachedFragmentChunk));
+
 	pthread_cond_init(&fragmentFetched, NULL);
 	pthread_cond_init(&fragmentChunkFetched, NULL);
 	pthread_cond_init(&fragmentInjected, NULL);
@@ -1525,10 +1569,11 @@ MediaTrack::~MediaTrack()
 
 	FlushFragmentChunks();
     
-    for (int j = 0; j < maxCachedFragmentsPerTrack; j++)
-    {
-        aamp_Free(&cachedFragment[j].fragment);
-    }
+	for (int j = 0; j < maxCachedFragmentsPerTrack; j++)
+	{
+		aamp_Free(&cachedFragment[j].fragment);
+		memset(&cachedFragment[j], 0x00, sizeof(CachedFragment));
+	}
 
 	if(cachedFragment)
 	{
@@ -1536,14 +1581,6 @@ MediaTrack::~MediaTrack()
 		cachedFragment = NULL;
 	}
 	
-    aamp_Free(&unparsedBufferChunk);
-
-	if(cachedFragmentChunks)
-	{
-		delete [] cachedFragmentChunks;
-		cachedFragmentChunks = NULL;
-	}
-
 	pthread_cond_destroy(&fragmentFetched);
 	pthread_cond_destroy(&fragmentChunkFetched);
 	pthread_cond_destroy(&fragmentInjected);

@@ -177,7 +177,8 @@ enum PlaybackErrorType
 	eDASH_ERROR_STARTTIME_RESET,    /**< Start time reset of DASH */
 	eSTALL_AFTER_DISCONTINUITY,		/** Playback stall after notifying discontinuity */
 	eGST_ERROR_GST_PIPELINE_INTERNAL,	/** GstPipeline Internal Error */
-	eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED /**Low Latency Dash Max Correction Reached**/
+	eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED, /**Low Latency Dash Max Correction Reached**/
+	eDASH_LOW_LATENCY_INPUT_PROTECTION_ERROR /**Low Latency Dash Input Protection error **/
 };
 
 

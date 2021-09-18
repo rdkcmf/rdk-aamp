@@ -3076,7 +3076,8 @@ double aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(IPeriod * period)
 						deltaBwFirstSegmentAndOffset = timelineStart - presentationTimeOffset;
 					}
 					duration = (double) deltaBwFirstSegmentAndOffset / timeScale;
-					AAMPLOG_INFO("%s() offset delta : %lf", __FUNCTION__, duration);
+					if(duration != 0.0f)
+						AAMPLOG_INFO("%s() offset delta : %lf", __FUNCTION__, duration);
 				}
 			}
 		}
@@ -3231,7 +3232,8 @@ double StreamAbstractionAAMP_MPD::GetPeriodDuration(IMPD *mpd, int periodIndex)
 						nextPeriodStartMs = ParseISO8601Duration(nextStartStr.c_str()) + (aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(mpd->GetPeriods().at(periodIndex+1)) * 1000);
 						periodDurationMs = nextPeriodStartMs - curPeriodStartMs;
 						periodDuration = ((double)periodDurationMs / (double)1000);
-						AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d [StartTime based] - MPD periodIndex:%d periodDuration %f", __FUNCTION__, __LINE__, periodIndex, periodDuration);
+						if(periodDuration != 0.0f)
+							AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d [StartTime based] - MPD periodIndex:%d periodDuration %f", __FUNCTION__, __LINE__, periodIndex, periodDuration);
 					}
 					else
 					{
@@ -9600,207 +9602,215 @@ bool StreamAbstractionAAMP_MPD::IsMatchingLanguageAndMimeType(MediaType type, st
 
 double StreamAbstractionAAMP_MPD::GetEncoderDisplayLatency()
 {
-    /*
-     a. If the ProducerReferenceTime element is present as defined in clause 4.X.3.2, then the
-     i. WCA is the value of the @wallClockTime
-     ii. PTA is the value of the @presentationTime
-     iii. If the @inband attribute is set to TRUE, then it should parse the segments to continuously
-     update PTA and WCA accordingly
-     b. Else
-     i. WCA is the value of the PeriodStart
-     ii. PTA is the value of the @presentationTimeOffset
-     c. Then the presentation latency PL of a presentation time PT presented at wall clock time WC is
-     determinedas PL => (WC – WCA) - (PT – PTA)
+	/*
+	a. If the ProducerReferenceTime element is present as defined in clause 4.X.3.2, then the
+	i. WCA is the value of the @wallClockTime
+	ii. PTA is the value of the @presentationTime
+	iii. If the @inband attribute is set to TRUE, then it should parse the segments to continuously
+	update PTA and WCA accordingly
+	b. Else
+	i. WCA is the value of the PeriodStart
+	ii. PTA is the value of the @presentationTimeOffset
+	c. Then the presentation latency PL of a presentation time PT presented at wall clock time WC is
+	determinedas PL => (WC – WCA) - (PT – PTA)
 
-     A segment has a presentation time PT => @t / @timescale (BEST: @PTS/@timescale)
-     */
+	A segment has a presentation time PT => @t / @timescale (BEST: @PTS/@timescale)
+	*/
 
-    double encoderDisplayLatency  = 0;
-    double WCA = 0;
-    double PTA = 0;
-    double WC = 0;
-    double PT = 0;
+	double encoderDisplayLatency  = 0;
+	double WCA = 0;
+	double PTA = 0;
+	double WC = 0;
+	double PT = 0;
 
-    struct tm *lt = NULL;
-    struct tm *gmt = NULL;
-    time_t tt = 0;
-    time_t tt_local = 0;
-    time_t tt_utc = 0;
+	struct tm *lt = NULL;
+	struct tm *gmt = NULL;
+	time_t tt = 0;
+	time_t tt_local = 0;
+	time_t tt_utc = 0;
 
-    tt       = NOW_SYSTEM_TS_MS/1000;//WC - Need display clock position
-    lt       = localtime(&tt);
-    tt_local = mktime(lt);
-    gmt      = gmtime(&tt);
-    gmt->tm_isdst = 0;
-    tt_utc   = mktime(gmt);
+	tt       = NOW_SYSTEM_TS_MS/1000;//WC - Need display clock position
+	lt       = localtime(&tt);
+	tt_local = mktime(lt);
+	gmt      = gmtime(&tt);
+	gmt->tm_isdst = 0;
+	tt_utc   = mktime(gmt);
 
-    IProducerReferenceTime *producerReferenceTime = NULL;
-    double presentationOffset = 0;
+	IProducerReferenceTime *producerReferenceTime = NULL;
+	double presentationOffset = 0;
+	uint32_t timeScale = 0;
 
-    IPeriod* tempPeriod = NULL;
+	AAMPLOG_INFO("%s:%d Current Index: %d Total Period: %d", __FUNCTION__, __LINE__,mCurrentPeriodIdx, mpd->GetPeriods().size());
 
-    if( mpd->GetPeriods().size() && mCurrentPeriodIdx < mpd->GetPeriods().size())
-        tempPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
-    else{
-        AAMPLOG_WARN("%s:%d Invalid Current Index: %d Total Period: %d", __FUNCTION__, __LINE__,mCurrentPeriodIdx, mpd->GetPeriods().size());
-        return encoderDisplayLatency;
-    }
+	if( mpd->GetPeriods().size())
+	{
+		IPeriod* tempPeriod = NULL;
+		try {
+			tempPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
 
-    const std::vector<IAdaptationSet *> adaptationSets = tempPeriod->GetAdaptationSets();
-    int adSize = adaptationSets.size();
-    for(int j =0; j < adSize; j++)
-    {
-        if( IsContentType(adaptationSets.at(j), eMEDIATYPE_VIDEO) )
-        {
-            producerReferenceTime = GetProducerReferenceTimeForAdaptationSet(adaptationSets.at(j));
-            break;
-        }
-    }
+			if(tempPeriod && tempPeriod->GetAdaptationSets().size())
+			{
+				const std::vector<IAdaptationSet *> adaptationSets = tempPeriod->GetAdaptationSets();
 
-    const ISegmentTemplate *representation = NULL;
-    const ISegmentTemplate *adaptationSet = NULL;
-    uint32_t timeScale = 0;
+				for(int j = 0; j < adaptationSets.size(); j++)
+				{
+					if( IsContentType(adaptationSets.at(j), eMEDIATYPE_VIDEO) )
+					{
+						producerReferenceTime = GetProducerReferenceTimeForAdaptationSet(adaptationSets.at(j));
+						break;
+					}
+				}
 
-    if( adaptationSets.size() > 0 )
-    {
-        IAdaptationSet * firstAdaptation = adaptationSets.at(0);
-        if(firstAdaptation != NULL)
-        {
-            adaptationSet = firstAdaptation->GetSegmentTemplate();
-            const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
-            if (representations.size() > 0)
-            {
-                representation = representations.at(0)->GetSegmentTemplate();
-            }
-        }
+				const ISegmentTemplate *representation = NULL;
+				const ISegmentTemplate *adaptationSet = NULL;
 
-        SegmentTemplates segmentTemplates(representation,adaptationSet);
+				IAdaptationSet * firstAdaptation = adaptationSets.at(0);
+				if(firstAdaptation != NULL)
+				{
+					adaptationSet = firstAdaptation->GetSegmentTemplate();
+					const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
+					if (representations.size() > 0)
+					{
+						representation = representations.at(0)->GetSegmentTemplate();
+					}
+				}
 
-        if( segmentTemplates.HasSegmentTemplate() )
-        {
-            std::string media = segmentTemplates.Getmedia();
-            timeScale = segmentTemplates.GetTimescale();
-            if(!timeScale)
-            {
-                timeScale = aamp->GetLLDashVidTimeScale();
-            }
+				SegmentTemplates segmentTemplates(representation,adaptationSet);
 
-            presentationOffset = (double) segmentTemplates.GetPresentationTimeOffset();
-            const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
-            if (segmentTimeline)
-            {
-                std::vector<ITimeline*> vec  = segmentTimeline->GetTimelines();
-                if (!vec.empty())
-                {
-                    ITimeline* timeline = vec.back();
-                    uint64_t startTime = 0;
-                    uint32_t duration = 0;
-                    uint32_t repeatCount = 0;
+				if( segmentTemplates.HasSegmentTemplate() )
+				{
+					std::string media = segmentTemplates.Getmedia();
+					timeScale = segmentTemplates.GetTimescale();
+					if(!timeScale)
+					{
+						timeScale = aamp->GetLLDashVidTimeScale();
+					}
+					AAMPLOG_TRACE("%s:%d timeScale: %" PRIu32 "", __FUNCTION__, __LINE__, timeScale);
 
-                    startTime = timeline->GetStartTime();
-                    duration = timeline->GetDuration();
-                    repeatCount = timeline->GetRepeatCount();
+					presentationOffset = (double) segmentTemplates.GetPresentationTimeOffset();
+					const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
+					if (segmentTimeline)
+					{
+						std::vector<ITimeline*> vec  = segmentTimeline->GetTimelines();
+						if (!vec.empty())
+						{
+							ITimeline* timeline = vec.back();
+							uint64_t startTime = 0;
+							uint32_t duration = 0;
+							uint32_t repeatCount = 0;
 
-                    PT = (double)(startTime+((uint64_t)repeatCount*duration))/timeScale ;
-    //		        PT = (double)(aamp->GetVideoPTS(false)-aamp->GetFirstPTS()+presentationOffset) /timeScale ;
-                }
-            }
-        }
-    }
+							startTime = timeline->GetStartTime();
+							duration = timeline->GetDuration();
+							repeatCount = timeline->GetRepeatCount();
 
-    if(producerReferenceTime)
-    {
-        std::string id = "";
-        std::string type = "";
-        std::string wallClockTime = "";
-        std::string presentationTimeOffset = "";
-        std::string inband = "";
-        long wTime = 0;
+							AAMPLOG_TRACE("%s:%d startTime: %" PRIu64 " duration: %" PRIu32 " repeatCount: %" PRIu32 "", __FUNCTION__, __LINE__, timeScale,duration,repeatCount);
 
-        map<string, string> attributeMap = producerReferenceTime->GetRawAttributes();
-        map<string, string>::iterator pos = attributeMap.begin();
-        pos = attributeMap.find("id");
-        if(pos != attributeMap.end())
-        {
-            id = pos->second;
-            if(!id.empty())
-            {
-                AAMPLOG_TRACE("%s:%d ProducerReferenceTime@id [%s]", __FUNCTION__, __LINE__, id.c_str());
-            }
-        }
-        pos = attributeMap.find("type");
-        if(pos != attributeMap.end())
-        {
-            type = pos->second;
-            if(!type.empty())
-            {
-                AAMPLOG_TRACE("%s:%d ProducerReferenceTime@type [%s]", __FUNCTION__, __LINE__, type.c_str());
-            }
-        }
-        pos = attributeMap.find("wallClockTime");
-        if(pos != attributeMap.end())
-        {
-            wallClockTime = pos->second;
-            if(!wallClockTime.empty())
-            {
-                AAMPLOG_TRACE("%s:%d ProducerReferenceTime@wallClockTime [%s]", __FUNCTION__, __LINE__, wallClockTime.c_str());
+							if(timeScale)
+								PT = (double)(startTime+((uint64_t)repeatCount*duration))/timeScale ;
+							else
+								AAMPLOG_WARN("%s:%d Empty timeScale !!!", __FUNCTION__, __LINE__);
+						}
+					}
+				}
 
-                std::tm tmTime;
-                const char* format = "%Y-%m-%dT%H:%M:%S.%f%Z";
-                char out_buffer[ 80 ];
-                memset(&tmTime, 0, sizeof(tmTime));
-                strptime(wallClockTime.c_str(), format, &tmTime);
-                wTime = mktime(&tmTime);
+				if(producerReferenceTime)
+				{
+					std::string id = "";
+					std::string type = "";
+					std::string wallClockTime = "";
+					std::string presentationTimeOffset = "";
+					std::string inband = "";
+					long wTime = 0;
 
-                AAMPLOG_TRACE("%s:%d ProducerReferenceTime@wallClockTime [%ld] UTCTime [%ld]", __FUNCTION__, __LINE__,wTime, aamp->GetUtcTime());
+					map<string, string> attributeMap = producerReferenceTime->GetRawAttributes();
+					map<string, string>::iterator pos = attributeMap.begin();
+					pos = attributeMap.find("id");
+					if(pos != attributeMap.end())
+					{
+						id = pos->second;
+						if(!id.empty())
+						{
+							AAMPLOG_TRACE("%s:%d ProducerReferenceTime@id [%s]", __FUNCTION__, __LINE__, id.c_str());
+						}
+					}
+					pos = attributeMap.find("type");
+					if(pos != attributeMap.end())
+					{
+						type = pos->second;
+						if(!type.empty())
+						{
+							AAMPLOG_TRACE("%s:%d ProducerReferenceTime@type [%s]", __FUNCTION__, __LINE__, type.c_str());
+						}
+					}
+					pos = attributeMap.find("wallClockTime");
+					if(pos != attributeMap.end())
+					{
+						wallClockTime = pos->second;
+						if(!wallClockTime.empty())
+						{
+							AAMPLOG_TRACE("%s:%d ProducerReferenceTime@wallClockTime [%s]", __FUNCTION__, __LINE__, wallClockTime.c_str());
 
-                /* Convert the time back to a string. */
-                strftime( out_buffer, 80, "That's %D (a %A), at %T",
-                             localtime (&wTime) );
-                AAMPLOG_TRACE( "%s\n", out_buffer );
+							std::tm tmTime;
+							const char* format = "%Y-%m-%dT%H:%M:%S.%f%Z";
+							char out_buffer[ 80 ];
+							memset(&tmTime, 0, sizeof(tmTime));
+							strptime(wallClockTime.c_str(), format, &tmTime);
+							wTime = mktime(&tmTime);
 
-                WCA = (double)wTime ;
-            }
-        }
-        pos = attributeMap.find("presentationTime");
-        if(pos != attributeMap.end())
-        {
-            presentationTimeOffset = pos->second;
-            if(!presentationTimeOffset.empty())
-            {
-                PTA = ((double) std::stoll(presentationTimeOffset))/timeScale;
-                AAMPLOG_TRACE("%s:%d ProducerReferenceTime@presentationTime [%s] PTA [%lf]", __FUNCTION__, __LINE__, presentationTimeOffset.c_str(), PTA);
-            }
-        }
-        pos = attributeMap.find("inband");
-        if(pos != attributeMap.end())
-        {
-            inband = pos->second;
-            if(!inband.empty())
-            {
-                AAMPLOG_TRACE("%s:%d ProducerReferenceTime@inband [%d]", __FUNCTION__, __LINE__, atoi(inband.c_str()));
-            }
-        }
-    }
+							AAMPLOG_TRACE("%s:%d ProducerReferenceTime@wallClockTime [%ld] UTCTime [%ld]", __FUNCTION__, __LINE__,wTime, aamp->GetUtcTime());
+
+							/* Convert the time back to a string. */
+							strftime( out_buffer, 80, "That's %D (a %A), at %T",localtime (&wTime) );
+							AAMPLOG_TRACE( "%s\n", out_buffer );
+							WCA = (double)wTime ;
+						}
+					}
+					pos = attributeMap.find("presentationTime");
+					if(pos != attributeMap.end())
+					{
+						presentationTimeOffset = pos->second;
+						if(!presentationTimeOffset.empty())
+						{
+							PTA = ((double) std::stoll(presentationTimeOffset))/timeScale;
+							AAMPLOG_TRACE("%s:%d ProducerReferenceTime@presentationTime [%s] PTA [%lf]", __FUNCTION__, __LINE__, presentationTimeOffset.c_str(), PTA);
+						}
+					}
+					pos = attributeMap.find("inband");
+					if(pos != attributeMap.end())
+					{
+						inband = pos->second;
+						if(!inband.empty())
+						{
+							AAMPLOG_TRACE("%s:%d ProducerReferenceTime@inband [%d]", __FUNCTION__, __LINE__, atoi(inband.c_str()));
+						}
+					}
+				}
+				else
+				{
+					AAMPLOG_WARN("%s:%d ProducerReferenceTime Not Found for mCurrentPeriodIdx = [%d]", __FUNCTION__, __LINE__, mCurrentPeriodIdx);
+
 #if 0 //FIX-ME - Handle when ProducerReferenceTime element is not available
-    else
-    {
-        //Check more for behavior here
-	double periodStartTime = 0;
-	periodStartTime =  GetPeriodStartTime(mpd, mCurrentPeriodIdx);
-	AAMPLOG_TRACE("mCurrentPeriodIdx=%d periodStartTime=%lf",mCurrentPeriodIdx,periodStartTime);
-        WCA =  periodStartTime;
-        PTA = presentationOffset;
-    }
+					//Check more for behavior here
+					double periodStartTime = 0;
+					periodStartTime =  GetPeriodStartTime(mpd, mCurrentPeriodIdx);
+					AAMPLOG_TRACE("mCurrentPeriodIdx=%d periodStartTime=%lf",mCurrentPeriodIdx,periodStartTime);
+					WCA =  periodStartTime;
+					PTA = presentationOffset;
 #endif
+				}
 
-    double wc_diff = tt_utc-WCA;
-    double pt_diff  = PT-PTA;
-    encoderDisplayLatency = (wc_diff - pt_diff);
+				double wc_diff = tt_utc-WCA;
+				double pt_diff  = PT-PTA;
+				encoderDisplayLatency = (wc_diff - pt_diff);
 
-    AAMPLOG_TRACE("%s:%d tt_utc [%lf] WCA [%lf] PT [%lf] PTA [%lf] tt_utc-WCA [%ld] PT-PTA [%ld] encoderDisplayLatency [%lf]", __FUNCTION__, __LINE__, (double)tt_utc, WCA, PT, PTA, wc_diff, pt_diff, encoderDisplayLatency);
+				AAMPLOG_INFO("%s:%d tt_utc [%lf] WCA [%lf] PT [%lf] PTA [%lf] tt_utc-WCA [%lf] PT-PTA [%lf] encoderDisplayLatency [%lf]", __FUNCTION__, __LINE__, (double)tt_utc, WCA, PT, PTA, wc_diff, pt_diff, encoderDisplayLatency);
+			}
+		} catch (const std::out_of_range& oor) {
+			AAMPLOG_WARN("%s:%d mCurrentPeriodIdx: %d mpd->GetPeriods().size(): %d Out of Range error: %s", __FUNCTION__, __LINE__, mCurrentPeriodIdx, mpd->GetPeriods().size(), oor.what() );
+		}
+	}
 
-    return encoderDisplayLatency;
+	return encoderDisplayLatency;
 }
 
 /**
@@ -9871,9 +9881,9 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 		{
 			double currentPositionInMs = aamp->GetPositionMs();
 			double playRate = aamp->GetLLDashCurrentPlayBackRate();
-			if(mLiveEndPosition < currentPositionInMs && mLiveEndPosition == 0)
+			if((mLiveEndPosition * 1000) < currentPositionInMs || mLiveEndPosition == 0.0f )
 			{
-				AAMPLOG_WARN("%s:%d mLiveEndPosition should not be less than current position!!!! close the thread??? position : %d", __FUNCTION__, __LINE__, mLiveEndPosition);
+				AAMPLOG_WARN("%s:%d mLiveEndPosition should not be less than current position!!!!: livepos=%lf currentpos=%lf", __FUNCTION__, __LINE__, mLiveEndPosition * 1000,currentPositionInMs);
 			}
 			else
 			{
@@ -9893,13 +9903,16 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 					assert(pAampLLDashServiceData->maxLatency !=0 );
 					assert(pAampLLDashServiceData->maxLatency >= pAampLLDashServiceData->targetLatency);
 
-					AAMPLOG_TRACE("%s:%d islivepoint=%d mLiveEndPosition=%lf currentPos=%lf", __FUNCTION__, __LINE__,aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint(),mLiveEndPosition * 1000,(double)aamp->GetPositionMs());
+					AAMPLOG_INFO("%s:%d islivepoint=%d mLiveEndPosition=%lf currentPos=%lf mCurrentPeriodIdx=%d", __FUNCTION__, __LINE__,aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint(),mLiveEndPosition * 1000,(double)aamp->GetPositionMs(), mCurrentPeriodIdx);
 
 					long currentLatency = 0;
-					long encoderDisplayLatency = 0;
 					currentLatency = (mLiveEndPosition * 1000 - (double)aamp->GetPositionMs());
+					AAMPLOG_INFO("%s:%d Live End Latency=%ld currentPlayRate=%lf", __FUNCTION__, __LINE__, currentLatency, playRate);
+#if 0
+					long encoderDisplayLatency = 0;
 					encoderDisplayLatency = (long)( GetEncoderDisplayLatency() * 1000)+currentLatency;
-					AAMPLOG_INFO("%s:%d Live End Latency=%ld Encoder Display Latency=%ld currentPlayRate=%lf", __FUNCTION__, __LINE__, currentLatency, encoderDisplayLatency, playRate);
+					AAMPLOG_INFO("%s:%d Encoder Display Latency=%ld", __FUNCTION__, __LINE__, encoderDisplayLatency);
+#endif
 
 					if(!ISCONFIGSET(eAAMPConfig_DisableLowLatencyCorrection))
 					{

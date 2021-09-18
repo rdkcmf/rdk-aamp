@@ -31,9 +31,11 @@
  */
 IsoBmffBuffer::~IsoBmffBuffer()
 {
-	for (size_t i = 0; i < boxes.size(); i++)
+	for (unsigned int i=boxes.size(); i>0;)
 	{
+		--i;
 		delete boxes[i];
+		boxes.pop_back();
 	}
 	boxes.clear();
 }
@@ -200,9 +202,11 @@ void IsoBmffBuffer::restampPTS(uint64_t offset, uint64_t basePts, uint8_t *segme
  */
 void IsoBmffBuffer::destroyBoxes()
 {
-	for (size_t i = 0; i < boxes.size(); i++)
+	for (unsigned int i=boxes.size(); i>0;)
 	{
+		--i;
 		delete boxes[i];
+		boxes.pop_back();
 	}
 	boxes.clear();
 }

@@ -198,8 +198,8 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, bool correctBoxSize)
     	else if(maxSz >= 4 && maxSz < 8)
     	{
 		AAMPLOG_WARN("Box Size between >4 but <8 bytes. Can't determine Type");
-        	size = READ_U32(hdr);
-        	return new Box(size, (const char *)"UKWN");
+		//size = READ_U32(hdr);
+		return new Box(maxSz, (const char *)"UKWN");
     	}
     	else
     	{
@@ -293,9 +293,11 @@ GenericContainerBox::GenericContainerBox(uint32_t sz, const char btype[4]) : Box
  */
 GenericContainerBox::~GenericContainerBox()
 {
-	for (size_t i = 0; i < children.size(); i++)
+	for (unsigned int i = children.size(); i>0;)
 	{
+		--i;
 		delete children.at(i);
+		children.pop_back();
 	}
 	children.clear();
 }
