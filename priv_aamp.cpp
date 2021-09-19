@@ -2714,7 +2714,7 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 			curl_easy_setopt(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
 			curl_easy_setopt(curl[i], CURLOPT_SSL_CTX_DATA, this);
-			long dns_cache_timeout = 5*60;
+			long dns_cache_timeout = 3*60;
 			curl_easy_setopt(curl[i], CURLOPT_DNS_CACHE_TIMEOUT, dns_cache_timeout);
 			curl_easy_setopt(curl[i], CURLOPT_SHARE, mCurlShared);
 
