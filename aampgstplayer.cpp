@@ -1973,18 +1973,6 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 			g_object_set(stream->sinkbin, "uri", _this->aamp->GetManifestUrl().c_str(), NULL);
 			g_signal_connect (stream->sinkbin, "source-setup", G_CALLBACK (httpsoup_source_setup), _this);
 		}
-
-#if defined(REALTEKCE)
-		if (eMEDIATYPE_VIDEO == streamId && (mediaFormat==eMEDIAFORMAT_DASH || mediaFormat==eMEDIAFORMAT_HLS_MP4) )
-		{ // enable multiqueue (Refer : XIONE-6138)
-			#ifdef CONTENT_4K_SUPPORTED 
-			g_object_set(stream->sinkbin, "buffer-size", 4194304 * 3, NULL);// 4096k * 3
-			#else 
-			g_object_set(stream->sinkbin, "buffer-size", (guint64)4194304, NULL); // 4096k
-			#endif
-			g_object_set(stream->sinkbin, "buffer-duration", 3000000000, NULL); //3000000000(ns), 3s
-		}
-#endif
 		gst_element_sync_state_with_parent(stream->sinkbin);
 	}
 	else
