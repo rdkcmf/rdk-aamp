@@ -222,7 +222,7 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 	{
 		if ((eDRM_KEY_ACQUIRED == mDrmState) && (drmInfo->keyURI == mDrmUrl))
 		{
-			logprintf("AesDec::%s:%d same url:%s - not acquiring key",__FUNCTION__, __LINE__, mDrmUrl.c_str());
+			AAMPLOG_TRACE("AesDec::%s:%d same url:%s - not acquiring key",__FUNCTION__, __LINE__, mDrmUrl.c_str());
 			pthread_mutex_unlock(&mMutex);
 			return eDRM_SUCCESS;
 		}
