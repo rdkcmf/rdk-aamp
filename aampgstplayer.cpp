@@ -1315,6 +1315,25 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 			_this->aamp->ScheduleRetune(eGST_ERROR_OUTPUT_PROTECTION_ERROR,eMEDIATYPE_VIDEO);
 		}
 		break;
+	case GST_MESSAGE_NEED_CONTEXT:
+		logprintf("received need-context ");
+
+		const gchar* contextType;
+		gst_message_parse_context_type(msg, &contextType);
+		if (!g_strcmp0(contextType, "drm-preferred-decryption-system-id"))
+		{
+			logprintf("Setting %s as preferred drm",GetDrmSystemName(_this->aamp->GetPreferredDRM()));
+			GstContext* context = gst_context_new("drm-preferred-decryption-system-id", FALSE);
+			GstStructure* contextStructure = gst_context_writable_structure(context);
+			gst_structure_set(contextStructure, "decryption-system-id", G_TYPE_STRING, GetDrmSystemID(_this->aamp->GetPreferredDRM()),  NULL);
+			gst_element_set_context(GST_ELEMENT(GST_MESSAGE_SRC(msg)), context);
+		}
+		else
+		{
+			logprintf("unknown context type - %s ", contextType);
+		}
+		break;
+
 	default:
 		logprintf("msg type: %s", gst_message_type_get_name(msg->type));
 		break;
@@ -2456,7 +2475,7 @@ void AAMPGstPlayer::Stream()
  * @param[in] bESChangeStatus
  * @param[in] forwardAudioToAux if audio buffers to be forwarded to aux pipeline
  */
-void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux)
+void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation)
 {
 	FN_TRACE( __FUNCTION__ );
 	logprintf("AAMPGstPlayer::%s %d > videoFormat %d audioFormat %d auxFormat %d", __FUNCTION__, __LINE__, format, audioFormat, auxFormat);
@@ -2495,6 +2514,11 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	if (privateContext->pipeline == NULL || privateContext->bus == NULL)
 	{
 		CreatePipeline();
+	}
+
+	if (setReadyAfterPipelineCreation && gst_element_set_state(this->privateContext->pipeline, GST_STATE_READY) == GST_STATE_CHANGE_FAILURE)
+	{
+		logprintf("AAMPGstPlayer_Configure GST_STATE_READY failed");
 	}
 
 	bool configureStream[AAMP_TRACK_COUNT];

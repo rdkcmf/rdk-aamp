@@ -2646,7 +2646,13 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 			mStreamSink->Stop(true);
 #endif
 			mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat, mAuxFormat);
-			mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mpStreamAbstractionAAMP->GetESChangeStatus(), mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
+			mStreamSink->Configure(
+				mVideoFormat,
+				mAudioFormat,
+				mAuxFormat,
+				mpStreamAbstractionAAMP->GetESChangeStatus(),
+				mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus(),
+				true /*setReadyAfterPipelineCreation*/);
 			mpStreamAbstractionAAMP->ResetESChangeStatus();
 			mpStreamAbstractionAAMP->StartInjection();
 			mStreamSink->Stream();
@@ -6914,7 +6920,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 	{
 		PrivAAMPState state;
 		GetState(state);
-		if (((state != eSTATE_PLAYING) && (eGST_ERROR_VIDEO_BUFFERING != errorType)) || mSeekOperationInProgress)
+		if (((state != eSTATE_PLAYING) && (state != eSTATE_SEEKING) && (eGST_ERROR_VIDEO_BUFFERING != errorType)) || mSeekOperationInProgress)
 		{
 			logprintf("PrivateInstanceAAMP::%s:%d: Not processing reTune since state = %d, mSeekOperationInProgress = %d",
 						__FUNCTION__, __LINE__, state, mSeekOperationInProgress);
