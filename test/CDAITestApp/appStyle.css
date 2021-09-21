@@ -1,0 +1,237 @@
+/*
+* If not stated otherwise in this file or this component's license file the
+* following copyright and licenses apply:
+*
+* Copyright 2018 RDK Management
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+/*
+* If not stated otherwise in this file or this component's license file the
+* following copyright and licenses apply:
+*
+* Copyright 2018 RDK Management
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
+
+.header {
+  margin:0;
+  padding: 1px;
+  height: 3%;
+  background: #031F2B;
+  color: white;
+  font-family: Verdana, Geneva, sans-serif;
+  text-align: center;
+}
+
+.icon-logo {
+    height: 100px;
+    width: 100px;
+    padding-left: 28%;
+    margin-bottom: -12%;
+}
+
+.icon-text {
+    color: darkred;
+    text-align: center;
+    font: 14px  Arial, Helvetica, sans-serif;
+}
+
+.container {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    padding: 0;
+    margin: 0;
+    left: 0px;
+    top: 0px;
+    z-index: -1000;
+    overflow: hidden;
+}
+
+.videoPlayer {
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+}
+
+/* Style the buttons */
+.button {
+    background-color:  rgba(255,255,255,0.8); 
+    text-align: center;
+    display: inline-block;
+    cursor: pointer;
+    border-radius: 2px;
+    border: 2px solid #00448A;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+    transition: background-color 0s;
+}
+
+#controlDiv {
+    transition: all 0s linear;
+}
+
+#controlDivNext {
+    transition: all 0s linear;
+}
+
+#videoControlsDiv {
+    height:85px;
+    opacity: 1;
+    position: fixed;
+    bottom: 0;
+    width:100%;
+    -webkit-transition: opacity 0s;
+    transition: opacity 0s;
+    background-image: linear-gradient(140deg, #667EEB 0%, #764BA7 100%);
+    background-image: -webkit-linear-gradient(140deg, #667EEB 0%, #764BA7 100%);
+    border-top: 1px solid #00253D;
+    border-right: 1px solid #00253D;
+    border-left: 1px solid #00253D;
+    box-shadow: 0 -3px 3px -3px #002C4A, 3px 0px 3px -3px #002C4A, -3px 0px 3px -3px #002C4A;
+    border-radius: 3px 3px 0px 0px / 6px 6px 0px 0px;
+}
+
+#videoControlsDivNext {
+    padding-top: 10px;
+    height:30px;
+    opacity: 1;
+    position: fixed;
+    top: 0;
+    width:100%;
+    -webkit-transition: opacity 0s;
+    transition: opacity 0s;
+    background-image: linear-gradient(140deg, #667EEB 0%, #764BA7 100%);
+    background-image: -webkit-linear-gradient(140deg, #667EEB 0%, #764BA7 100%);
+    border-top: 1px solid #00253D;
+    border-right: 1px solid #00253D;
+    border-left: 1px solid #00253D;
+    box-shadow: 0 -3px 3px -3px #002C4A, 3px 0px 3px -3px #002C4A, -3px 0px 3px -3px #002C4A;
+    border-radius: 3px 3px 0px 0px / 6px 6px 0px 0px;
+}
+
+img {
+    display: block;
+    height: 21px;  
+    width: 31px;
+}
+
+.flipImg {
+    -webkit-transform: scaleX(-1);
+    transform: scaleX(-1);
+}
+
+#rewindButton {
+    height: 30px;
+}
+
+#skipBackwardButton {
+    height: 30px;
+}
+
+#skipForwardButton {
+    height: 30px;
+}
+
+#fastForwardButton {
+    height: 30px;
+}
+
+#playOrPauseButton {
+    background-color:#ccc;
+    margin-top: 10px;
+    height: 30px;
+    width: 50px;
+}
+
+#playOrPauseButton.focus {
+    background-color: orange;
+}
+
+#seekBar {
+    width: 397px;
+    text-align:center;
+    height: 25px;
+    margin-top: -25px;
+}
+
+#seekBarOuter {
+    display: inline-block;
+    width: 398px;
+    height: 25px;
+    background-color: rgba(0,0,0,0.4);
+    outline: thin solid #00448A;
+}
+
+#contentBoundaries {
+    width: 397px;
+    height: 25px;
+    display: none;
+}
+
+#contentBoundaries div {
+    display: inline-block;
+}
+
+.focus {
+    background:orange;
+}
+
+#playerType {
+    margin: 3px;
+    text-align: center;
+    font-family: Verdana, Geneva, sans-serif;
+    letter-spacing: 3px;
+    font-size: 15px;
+}
+
+body {
+    font: 15px Tahoma;
+    color: white;
+}
+
+#playOrPauseButton {
+    margin-left: 22%;
+}
+
+#ffIMG {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    height: 90px;
+    width: 90px;
+    padding-top: 18%;
+}
+
+#ffSpeed {
+    position: absolute;
+    left: 50%;
+    top: 58%;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 24px;
+    font-weight: bold;
+    color: #000;
+}
