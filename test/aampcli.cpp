@@ -515,12 +515,12 @@ static void InitSetHelpText()
 {
 	mSetHelpText[eAAMP_SET_RateAndSeek] =                        "<x> <y>         // Set Rate and Seek (int x=rate, double y=seconds)";
 	mSetHelpText[eAAMP_SET_VideoRectangle] =                     "<x> <y> <w> <h> // Set Video Rectangle (int x,y,w,h)";
-	mSetHelpText[eAAMP_SET_VideoZoom] =                          "<x>             // Set Video zoom  ( x = 1 fo full, x = 0 for normal)";
+	mSetHelpText[eAAMP_SET_VideoZoom] =                          "<x>             // Set Video zoom  ( x = 1 for full, x = 0 for normal)";
 	mSetHelpText[eAAMP_SET_VideoMute] =                          "<x>             // Set Video Mute ( x = 1  - Mute , x = 0 - Unmute)";
 	mSetHelpText[eAAMP_SET_AudioVolume] =                        "<x>             // Set Audio Volume (int x=volume)";
 	mSetHelpText[eAAMP_SET_Language] =                           "<x>             // Set Language (string x=lang)";
 	mSetHelpText[eAAMP_SET_SubscribedTags] =                     "                // Set Subscribed Tag - dummy";
-	mSetHelpText[eAAMP_SET_LicenseServerUrl] =                   "<x>             // Set License Server URL (String x=url)";
+	mSetHelpText[eAAMP_SET_LicenseServerUrl] =                   "<x> <y>         // Set License Server URL (String x=url) (int y=drmType)";
 	mSetHelpText[eAAMP_SET_AnonymousRequest] =                   "<x>             // Set Anonymous Request  (int x=0/1)";
 	mSetHelpText[eAAMP_SET_VodTrickplayFps] =                    "<x>             // Set VOD Trickplay FPS (int x=trickPlayFPS)";
 	mSetHelpText[eAAMP_SET_LinearTrickplayFps] =                 "<x>             // Set Linear Trickplay FPS (int x=trickPlayFPS)";
@@ -1196,6 +1196,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d %lf", &opt, &rate, &ralatineTuneTime ) == 3){
 						mSingleton->SetRateAndSeek(rate, ralatineTuneTime);
 					}
+					else
+					{
+						printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+						printf("[AAMPCLI] Expected: set %d <rate=0,1 etc> <seek time in sec>\n", opt);
+					}
 					break;
 				}
 					
@@ -1206,6 +1211,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d %d %d %d", &opt, &x, &y, &w, &h) == 5){
 						mSingleton->SetVideoRectangle(x,y,w,h);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <x> <y> <w> <h>\n", opt);
+                                        }
 					break;
 				}
 					
@@ -1216,6 +1226,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &videoZoom) == 2){
 						mSingleton->SetVideoZoom((videoZoom > 0 )? VIDEO_ZOOM_FULL : VIDEO_ZOOM_NONE );
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value value>0? ZOOM_FULL : ZOOM_NONE>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1226,6 +1241,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &videoMute) == 2){
 						mSingleton->SetVideoMute((videoMute == 1 )? true : false );
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value 0 or 1>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1236,6 +1256,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &vol) == 2){
 						mSingleton->SetAudioVolume(vol);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value to set audio volume>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1246,6 +1271,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %s", &opt, lang) == 2){
 						mSingleton->SetLanguage(lang);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <lang in string>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1267,6 +1297,11 @@ static void ProcessCliCommand( char *cmd )
 						mSingleton->SetLicenseServerURL(lisenceUrl,
 						(drmType == eDRM_PlayReady)?eDRM_PlayReady:eDRM_WideVine);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <license url in string> <value value==2? ?eDRM_PlayReady : eDRM_WideVine>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1277,6 +1312,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &isAnonym) == 2){
 						mSingleton->SetAnonymousRequest((isAnonym == 1)?true:false);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value 0 or 1>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1287,6 +1327,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &vodTFps) == 2){
 						mSingleton->SetVODTrickplayFPS(vodTFps);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 					
@@ -1297,6 +1342,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &linearTFps) == 2){
 						mSingleton->SetLinearTrickplayFPS(linearTFps);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1307,6 +1357,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &liveOffset) == 2){
 						mSingleton->SetLiveOffset(liveOffset);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1317,6 +1372,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &stallErrorCode) == 2){
 						mSingleton->SetStallErrorCode(stallErrorCode);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1337,6 +1397,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &reportInterval) == 2){
 						mSingleton->SetReportInterval(reportInterval);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1347,6 +1412,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %ld", &opt, &videoBitarate) == 2){
 						mSingleton->SetVideoBitrate(videoBitarate);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1357,6 +1427,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %ld", &opt, &initialBitrate) == 2){
 						mSingleton->SetInitialBitrate(initialBitrate);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1367,6 +1442,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %ld", &opt, &initialBitrate4k) == 2){
 						mSingleton->SetInitialBitrate4K(initialBitrate4k);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1377,6 +1457,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %lf", &opt, &networkTimeout) == 2){
 						mSingleton->SetNetworkTimeout(networkTimeout);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1387,6 +1472,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %lf", &opt, &manifestTimeout) == 2){
 						mSingleton->SetManifestTimeout(manifestTimeout);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1397,6 +1487,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &downloadBufferSize) == 2){
 						mSingleton->SetDownloadBufferSize(downloadBufferSize);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1407,6 +1502,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &preferredDrm) == 2){
 						mSingleton->SetPreferredDRM((DRMSystems)preferredDrm);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1418,6 +1518,11 @@ static void ProcessCliCommand( char *cmd )
 						mSingleton->SetStereoOnlyPlayback(
 							(stereoOnlyPlayback == 1 )? true:false);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value 0 or 1>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1439,6 +1544,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %s", &opt, networkProxy) == 2){
 						mSingleton->SetNetworkProxy(networkProxy);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value in string>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1449,6 +1559,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %s", &opt, licenseReqProxy) == 2){
 						mSingleton->SetLicenseReqProxy(licenseReqProxy);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value in string>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1459,6 +1574,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %ld", &opt, &downloadStallTimeout) == 2){
 						mSingleton->SetDownloadStallTimeout(downloadStallTimeout);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1469,6 +1589,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %ld", &opt, &downloadStartTimeout) == 2){
 						mSingleton->SetDownloadStartTimeout(downloadStartTimeout);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1479,6 +1604,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %s", &opt, preferredSubtitleLang) == 2){
 						mSingleton->SetPreferredSubtitleLanguage(preferredSubtitleLang);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value in string>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1489,6 +1619,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &parallelPlaylistDL) == 2){
 						mSingleton->SetParallelPlaylistDL( (parallelPlaylistDL == 1)? true:false );
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value 0 or 1>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1512,6 +1647,7 @@ static void ProcessCliCommand( char *cmd )
                                         }
                                         else
                                         {
+						printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
                                                 printf("[AAMPCLI] set preferred languages must be run with atleast 1 argument\n");
                                         }
                                         break;
@@ -1524,6 +1660,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &rampDownLimit) == 2){
 						mSingleton->SetInitRampdownLimit(rampDownLimit);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1534,6 +1675,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &rampDownLimit) == 2){
 						mSingleton->SetRampDownLimit(rampDownLimit);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1544,6 +1690,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %ld", &opt, &minBitrate) == 2){
 						mSingleton->SetMinimumBitrate(minBitrate);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1554,6 +1705,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %ld", &opt, &maxBitrate) == 2){
 						mSingleton->SetMaximumBitrate(maxBitrate);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1564,6 +1720,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &failCount) == 2){
 						mSingleton->SetSegmentInjectFailCount(failCount);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1574,6 +1735,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &value) == 2){
 						mSingleton->SetSslVerifyPeerConfig(value == 1);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value 0 or 1>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1584,6 +1750,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &failCount) == 2){
 						mSingleton->SetSegmentDecryptFailCount(failCount);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1602,6 +1773,11 @@ static void ProcessCliCommand( char *cmd )
 						}
 
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value 0 or 1>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1619,6 +1795,11 @@ static void ProcessCliCommand( char *cmd )
 							mSingleton->RemoveEventListener(AAMP_EVENT_MEDIA_METADATA, myEventListener);
 						}
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value 0 or 1>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1632,6 +1813,11 @@ static void ProcessCliCommand( char *cmd )
 						preference = (LangCodePreference) preferenceInt;
 						mSingleton->SetLanguageFormat(preference, bDescriptiveAudioTrack!=0 );
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value for preference> <value for track number>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1643,6 +1829,11 @@ static void ProcessCliCommand( char *cmd )
 					{
 						mSingleton->SetInitialBufferDuration(duration);
 					}
+					else
+					{
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1708,6 +1899,11 @@ static void ProcessCliCommand( char *cmd )
 					{
 						mSingleton->SetTextTrack(track);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1719,6 +1915,11 @@ static void ProcessCliCommand( char *cmd )
 					{
 						mSingleton->SetCCStatus(status == 1);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1749,6 +1950,11 @@ static void ProcessCliCommand( char *cmd )
 							mSingleton->SetTextStyle(options);
 						}
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value 1,2 or 3>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1759,6 +1965,11 @@ static void ProcessCliCommand( char *cmd )
 					if (sscanf(cmd, "set %d %d", &opt, &propagateUriParam) == 2){
 						mSingleton->SetPropagateUriParameters((bool) propagateUriParam);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+                                        }
 					break;
 				}
 				
@@ -1786,6 +1997,11 @@ static void ProcessCliCommand( char *cmd )
 					{
 						mSingleton->SetPausedBehavior(rate);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value 0,1,2 or 3>\n", opt);
+                                        }
 					break;
 				}
 
@@ -1797,6 +2013,11 @@ static void ProcessCliCommand( char *cmd )
 					{
 						mSingleton->SetAuxiliaryLanguage(lang);
 					}
+					else
+                                        {
+                                                printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+                                                printf("[AAMPCLI] Expected: set %d <value in string>\n", opt);
+                                        }
 					break;
                                 }
 				default:
