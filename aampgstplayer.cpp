@@ -1037,7 +1037,10 @@ static gboolean buffering_timeout (gpointer data)
 				_this->DumpDiagnostics();
 				_this->aamp->ScheduleRetune(eGST_ERROR_VIDEO_BUFFERING, eMEDIATYPE_VIDEO);
 			}
+
+#if !defined(__APPLE__)
 			else if (frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN || privateContext->buffering_timeout_cnt-- == 0)
+#endif
 			{
 				logprintf("%s: Set pipeline state to %s - buffering_timeout_cnt %u  frames %u", __FUNCTION__, gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1), frames);
 				gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
