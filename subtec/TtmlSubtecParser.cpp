@@ -45,8 +45,9 @@ bool TtmlSubtecParser::init(double startPosSeconds, unsigned long long basePTS)
 	AAMPLOG_INFO("%s:%d startPos %.3fs", __FUNCTION__, __LINE__, startPosSeconds);
 	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPosSeconds * 1000.0));
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
-	mTimeOffset = 0;
-	mParsedFirstPacket = false;
+
+	m_parsedFirstPacket = false;
+
 	return true;
 }
 
@@ -83,34 +84,15 @@ static std::int64_t parseFirstBegin(std::stringstream &ss)
 				if (!match.str(4).empty()) AAMPLOG_WARN("ms:%s", match.str(4).c_str()); milliseconds = std::stol(match.str(4));
 
 				firstBegin = milliseconds + (1000 * (seconds + (60 * (minutes + (60 * hours)))));
-				std::cout << "parseFirstBegin: firstBegin " << firstBegin << " " << hours << ":" << minutes << ":" << seconds << "." << milliseconds << std::endl;
 				break;
 			}
 		}
-		catch (std::regex_error& e) {
+		catch (const std::regex_error& e) {
 			AAMPLOG_WARN("Regex error %s from line %s", std::to_string(e.code()).c_str(), line.c_str());
 		}
 	}
 	
 	return firstBegin;
-}
-
-bool isLiveManifest(std::stringstream &ss)
-{
-	std::string line;
-	std::regex contentProfiles("contentProfiles=\".*?imsc1.*?\"");
-	
-	while (std::getline(ss, line))
-	{
-		if (!line.find("<tt"))
-		{
-			std::smatch match;
-			if (std::regex_search(line, match, contentProfiles))
-				return false;
-			else
-				return true;
-		}
-	}
 }
 
 bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double position, double duration)
@@ -134,25 +116,22 @@ bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double positi
 		std::vector<uint8_t> data(mdatLen);
 		data.assign(mdat, mdat+mdatLen);
 		
-		if (!mParsedFirstPacket)
+		//LLAMA-3328 - this hack is necessary because the offset into the TTML
+		//is not available in the linear manifest
+		//Take the first instance of the "begin" tag as the time offset for subtec
+		if (!m_parsedFirstPacket)
 		{
 			std::stringstream ss(std::string(data.begin(), data.end()));
-			if (isLiveManifest(ss))
+			if (m_isLinear)
 			{
-				AAMPLOG_WARN("%s:%d IS LIVE", __FUNCTION__, __LINE__);
+				AAMPLOG_WARN("%s:%d Linear content - parsing first begin as offset", __FUNCTION__, __LINE__);
 				std::int64_t offset = parseFirstBegin(ss);
 				if (offset != std::numeric_limits<std::int64_t>::max())
 				{
 					AAMPLOG_WARN("%s:%d setting offset %ld", __FUNCTION__, __LINE__, offset);
-					mTimeOffset = offset;
-					mParsedFirstPacket = true;
+					m_parsedFirstPacket = true;
 					m_channel->SendTimestampPacket(offset);
 				}
-			}
-			else
-			{ // VOD
-				mTimeOffset = 0;
-				mParsedFirstPacket = true;
 			}
 		}
 
