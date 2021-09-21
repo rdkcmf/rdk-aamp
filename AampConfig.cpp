@@ -230,7 +230,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"abrChunkThresholdSize",eAAMPConfig_ABRChunkThresholdSize,-1,-1},
 	{"enableLowLatencyOffsetMin",eAAMPConfig_EnableLowLatencyOffsetMin,-1,-1},
 	{"seiTimeCode",eAAMPConfig_SEITimeCode,-1,-1},
-	{"tsbInterruptHandling", eAAMPConfig_InterruptHandling, -1, -1}
+	{"tsbInterruptHandling", eAAMPConfig_InterruptHandling, -1, -1},
+	{"disable4K" , eAAMPConfig_Disable4K, -1, -1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -354,6 +355,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyOffsetMin].value      	=	true;
 	bAampCfgValue[eAAMPConfig_SEITimeCode].value              		=       true;
 	bAampCfgValue[eAAMPConfig_InterruptHandling].value			=	false;
+	bAampCfgValue[eAAMPConfig_Disable4K].value				=	false;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;

@@ -68,6 +68,7 @@ stereoOnly			Enable selection of stereo only audio.It Overrides forceEC3/disable
 forceEC3			Forcefully enable DDPlus.Default false
 disableEC3			Disable DDPlus.Default false
 disableATMOS			Disable Dolby ATMOS.Default false
+disable4K			Disable 4K Profile playback in 4K Supported device (default false)
 disablePlaylistIndexEvent	Disables generation of playlist indexed event by AAMP on tune/trickplay/seek.Default true
 enableSubscribedTags		Enable subscribed tags.Default true
 dashIgnoreBaseUrlIfSlash	Ignore the constructed URI of DASH.Default false

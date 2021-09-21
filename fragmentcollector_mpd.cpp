@@ -6319,6 +6319,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 						{
 							if ((mStreamInfo[pidx].bandwidthBitsPerSecond > minBitrate) && (mStreamInfo[pidx].bandwidthBitsPerSecond < maxBitrate))
 							{
+								if (ISCONFIGSET(eAAMPConfig_Disable4K) &&
+									(mStreamInfo[pidx].resolution.height > 1080 || mStreamInfo[pidx].resolution.width > 1920))
+								{
+									continue;
+								}
 								GetABRManager().addProfile({
 									mStreamInfo[pidx].isIframeTrack,
 									mStreamInfo[pidx].bandwidthBitsPerSecond,
