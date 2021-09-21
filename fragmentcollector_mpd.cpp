@@ -1821,7 +1821,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				aamp->InterruptableMsSleep(sleepTime);
 				retval = false;
                         }
-			else if(mIsLiveStream && (fragmentRequestTime >= (currentTimeSeconds-mPresentationOffsetDelay)))
+			else if(mIsLiveStream && !mHasServerUtcTime && (fragmentRequestTime >= (currentTimeSeconds-mPresentationOffsetDelay)))
 			{
 				int sleepTime = mMinUpdateDurationMs;
 				sleepTime = (sleepTime > MAX_DELAY_BETWEEN_MPD_UPDATE_MS) ? MAX_DELAY_BETWEEN_MPD_UPDATE_MS : sleepTime;
