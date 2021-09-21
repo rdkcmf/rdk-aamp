@@ -1600,6 +1600,16 @@ void PlayerInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 }
 
 /**
+ *   @brief Set Disable4K configuration flag
+ */
+void PlayerInstanceAAMP::SetDisable4K(bool bValue)
+{
+        ERROR_STATE_CHECK_VOID();
+        SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_Disable4K,bValue);
+}
+
+
+/**
  *   @brief Set BulkTimedMetadata Reporting flag
  */
 void PlayerInstanceAAMP::SetBulkTimedMetaReport(bool bValue)

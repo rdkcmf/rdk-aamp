@@ -218,7 +218,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"SkyStoreDE",eAAMPConfig_WideVineKIDWorkaround,-1,-1},
 	{"repairIframes",eAAMPConfig_RepairIframes,-1,-1},
 	{"customHeaderLicense",eAAMPConfig_CustomHeaderLicense,-1,-1},
-	{"preferredAudioLanguage",eAAMPConfig_PreferredAudioLanguage,-1,-1}
+	{"preferredAudioLanguage",eAAMPConfig_PreferredAudioLanguage,-1,-1},
+	{"disable4K" , eAAMPConfig_Disable4K, -1, -1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -339,6 +340,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_UseAbsoluteTimeline].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_WideVineKIDWorkaround].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_RepairIframes].value                  	=       false;
+	bAampCfgValue[eAAMPConfig_Disable4K].value				=	false;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;

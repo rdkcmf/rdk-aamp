@@ -7457,6 +7457,11 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 					}
 					else if ((streamInfo->bandwidthBitsPerSecond >= minBitrate) && (streamInfo->bandwidthBitsPerSecond <= maxBitrate))
 					{
+						if (ISCONFIGSET(eAAMPConfig_Disable4K) &&
+							(streamInfo->resolution.height > 1080 || streamInfo->resolution.width > 1920))
+						{
+							continue;
+						}
 						//Update profile resolution with VideoEnd Metrics object.
 						aamp->UpdateVideoEndProfileResolution( eMEDIATYPE_IFRAME,
 								streamInfo->bandwidthBitsPerSecond,
