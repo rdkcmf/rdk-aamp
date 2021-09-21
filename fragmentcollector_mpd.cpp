@@ -5595,6 +5595,7 @@ void StreamAbstractionAAMP_MPD::StartSubtitleParser()
 		AAMPLOG_INFO("%s: sending init %.3f", __FUNCTION__, seekPosition);
 		subtitle->mSubtitleParser->init(seekPosition, 0);
 		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
+		subtitle->mSubtitleParser->isLinear(mIsLiveStream);
 	}
 }
 

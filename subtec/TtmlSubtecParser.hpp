@@ -42,8 +42,10 @@ public:
 	void pause(bool pause) override;
 	void mute(bool mute) override;
 
+	void isLinear(bool isLinear) override { m_isLinear = isLinear; }
+
 protected:
 	std::unique_ptr<TtmlChannel> m_channel;
-	std::int64_t mTimeOffset = 0;
-	bool mParsedFirstPacket = false;
+	bool m_isLinear = false;
+	bool m_parsedFirstPacket = false;
 };
