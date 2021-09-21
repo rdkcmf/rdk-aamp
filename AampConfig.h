@@ -168,6 +168,7 @@ typedef enum
 	eAAMPConfig_WideVineKIDWorkaround,                          /**< SkyDE Store workaround to pick WV DRM Key Id from different location */
 	eAAMPConfig_RepairIframes,								/*** Enable fragment repair (Stripping and box size correction) for iframe tracks */
 	eAAMPConfig_SEITimeCode,							/** Enables SEI Time Code handling */
+	eAAMPConfig_Disable4K,							/** Enalbe/Disable 4K stream support*/
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
