@@ -1837,6 +1837,22 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					pMediaStreamContext->fragmentDescriptor.Number = pMediaStreamContext->lastSegmentNumber;
 				}
 				retval = FetchFragment(pMediaStreamContext, media, fragmentDuration, false, curlInstance);
+				double positionInPeriod = 0;
+				positionInPeriod = (pMediaStreamContext->lastSegmentNumber - startNumber) * fragmentDuration;
+				string startTimeStringValue = mpd->GetPeriods().at(mCurrentPeriodIdx)->GetStart();
+				double periodstartValue = (ParseISO8601Duration(startTimeStringValue.c_str()))/1000;
+				if(mIsLiveStream && ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline))
+				{
+					// Non-fog Linear with absolute position reporting
+					pMediaStreamContext->downloadedDuration = periodstartValue + positionInPeriod;
+				}
+				else
+				{
+					// For VOD and non-fog linear without Absolute timeline
+					// calculate relative position in manifest
+					// For VOD, culledSeconds will be 0, and for linear it is added to first period start
+					pMediaStreamContext->downloadedDuration = aamp->culledSeconds + GetPeriodStartTime(mpd, mCurrentPeriodIdx) - GetPeriodStartTime(mpd, 0) + positionInPeriod;
+				}
 				if( mCheckForRampdown )
 				{
 					/* NOTE : This case needs to be validated with the segmentTimeline not available stream */
@@ -7852,6 +7868,19 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 								else if(nextSegmentTime != segmentStartTime)
 								{
 									discontinuity = true;
+									double startTime = (GetPeriodStartTime(mpd, mCurrentPeriodIdx) - mAvailabilityStartTime);
+									if((startTime != 0) && !mIsFogTSB)
+									{
+										if (ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && aamp->IsLiveStream())
+										{
+											// Save period start time as first PTS for live stream for absolute progress reporting.
+											mStartTimeOfFirstPTS = startTime * 1000;
+										}
+										else
+										{
+											mStartTimeOfFirstPTS = ((aamp->culledSeconds + startTime - (GetPeriodStartTime(mpd, 0) - mAvailabilityStartTime)) * 1000);
+										}
+									}
 									logprintf("StreamAbstractionAAMP_MPD::%s:%d discontinuity detected", __FUNCTION__, __LINE__);
 								}
 								else
