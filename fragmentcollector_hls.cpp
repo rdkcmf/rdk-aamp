@@ -4980,14 +4980,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 							syncDone = true;
 						}
 					}
-					if (!syncDone)
-					{
-						AAMPStatusType retValue = SyncTracks();
-						if (eAAMPSTATUS_OK != retValue)
-						{
-							return retValue;
-						}
-					}
 				}
 			}
 		}
@@ -5177,6 +5169,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					ts->playTargetBufferCalc = ts->playTarget;
 				}
 			}
+
+			if (IsLive() && audio->enabled && !ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
+			{
+				AAMPStatusType retValue = SyncTracks();
+				if (eAAMPSTATUS_OK != retValue)
+					return retValue;
+			}
+
 			//Set live adusted position to seekPosition
 			if(ISCONFIGSET(eAAMPConfig_MidFragmentSeek))
 			{
