@@ -860,7 +860,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		return len;
 	}
 
-	if (gpGlobalConfig->logging.curlHeader && ptr[0] &&
+	if (context->aamp->mConfig->IsConfigSet(eAAMPConfig_CurlHeader) && ptr[0] &&
 			(eMEDIATYPE_VIDEO == context->fileType || eMEDIATYPE_PLAYLIST_VIDEO == context->fileType))
 	{
 		std::string temp = std::string(ptr,endPos);
@@ -1482,7 +1482,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 
 		if (trickStartUTCMS >= 0 && bProcessEvent)
 		{
-			if (gpGlobalConfig->logging.progress)
+			if (ISCONFIGSET_PRIV(eAAMPConfig_ProgressLogging))
 			{
 				static int tick;
 				if ((tick++ % 4) == 0)
@@ -2689,7 +2689,7 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 		if (!curl[i])
 		{
 			curl[i] = curl_easy_init();
-			if (gpGlobalConfig->logging.curl)
+			if (ISCONFIGSET_PRIV(eAAMPConfig_CurlLogging))
 			{
 				curl_easy_setopt(curl[i], CURLOPT_VERBOSE, 1L);
 			}
@@ -3095,7 +3095,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		std::string uriParameter;
 		GETCONFIGVALUE_PRIV(eAAMPConfig_URIParameter,uriParameter);
 		// append custom uri parameter with remoteUrl at the end before curl request if curlHeader logging enabled.
-		if (gpGlobalConfig->logging.curlHeader && (!uriParameter.empty()) && simType == eMEDIATYPE_MANIFEST)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_CurlHeader) && (!uriParameter.empty()) && simType == eMEDIATYPE_MANIFEST)
 		{
 			if (remoteUrl.find("?") == std::string::npos)
 			{
@@ -4508,13 +4508,33 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	int intTmpVar=0;
 	
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
+	const char *remapUrl = mConfig->GetChannelOverride(mainManifestUrl);
+	if (remapUrl )
+	{
+		const char *remapLicenseUrl = NULL;
+		mainManifestUrl = remapUrl;
+		remapLicenseUrl = mConfig->GetChannelLicenseOverride(mainManifestUrl);
+		if (remapLicenseUrl )
+		{
+			AAMPLOG_INFO("%s %d Channel License Url Override: [%s]", __FUNCTION__,__LINE__, remapLicenseUrl);
+			SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_LicenseServerUrl,std::string(remapLicenseUrl));
+		}
+	}
+	
+	mConfig->CustomSearch(mainManifestUrl,mPlayerId,mAppName);
+
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PlaybackOffset,seek_pos_seconds);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioRendition,preferredRenditionString);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioCodec,preferredCodecString);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioLanguage,preferredLanguagesString);
+	UpdatePreferredAudioList();
 	GETCONFIGVALUE_PRIV(eAAMPConfig_DRMDecryptThreshold,mDrmDecryptFailCount);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreCachePlaylistTime,mPreCacheDnldTimeWindow);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
-	GETCONFIGVALUE_PRIV(eAAMPConfig_SessionToken,mSessionToken);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_AuthToken,mSessionToken);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_SubTitleLanguage,mSubLanguage);
 	mAsyncTuneEnabled = ISCONFIGSET_PRIV(eAAMPConfig_AsyncTune);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_LivePauseBehavior,intTmpVar);
@@ -4573,18 +4593,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 	mAudioDecoderStreamSync = audioDecoderStreamSync;
  
-	const char *remapUrl = mConfig->GetChannelOverride(mainManifestUrl);
-	if (remapUrl )
-	{
-		const char *remapLicenseUrl = NULL;
-		mainManifestUrl = remapUrl;
-		remapLicenseUrl = mConfig->GetChannelLicenseOverride(mainManifestUrl);
-		if (remapLicenseUrl )
-		{
-			AAMPLOG_INFO("%s %d Channel License Url Override: [%s]", __FUNCTION__,__LINE__, remapLicenseUrl);
-			SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_LicenseServerUrl,std::string(remapLicenseUrl));
-		}
-	}
 
 	mMediaFormat = GetMediaFormatType(mainManifestUrl);
 
@@ -4642,7 +4650,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
                 GETCONFIGVALUE_PRIV(eAAMPConfig_CustomHeaderLicense,customLicenseHeaderStr);
                 if(!customLicenseHeaderStr.empty())
                 {
-                        if (gpGlobalConfig->logging.curlLicense)
+			if (ISCONFIGSET_PRIV(eAAMPConfig_CurlLicenseLogging))
                         {
                                 logprintf("%s:%d CustomHeader :%s",__FUNCTION__,__LINE__,customLicenseHeaderStr.c_str());
                         }
@@ -5625,16 +5633,60 @@ std::string PrivateInstanceAAMP::GetThumbnails(double tStart, double tEnd)
 
 TunedEventConfig PrivateInstanceAAMP::GetTuneEventConfig(bool isLive)
 {
-	int tunedEventConfig;			
-	if(isLive)
-	{
-		GETCONFIGVALUE_PRIV(eAAMPConfig_LiveTuneEvent,tunedEventConfig);
-	}
-	else
-	{
-		GETCONFIGVALUE_PRIV(eAAMPConfig_VODTuneEvent,tunedEventConfig);
-	}
+	int tunedEventConfig;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_TuneEventConfig,tunedEventConfig);
 	return (TunedEventConfig)tunedEventConfig;
+}
+
+/**
+ *   @brief to Update the preferred audio codec, rendition and languages list
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::UpdatePreferredAudioList()
+{
+	if(!preferredRenditionString.empty())
+	{
+		preferredRenditionList.clear();
+		std::istringstream ss(preferredRenditionString);
+		std::string rendition;
+		while(std::getline(ss, rendition, ','))
+		{
+			preferredRenditionList.push_back(rendition);
+			AAMPLOG_INFO("%s:%d: Parsed preferred rendition: %s", __FUNCTION__, __LINE__,rendition.c_str());
+		}
+		AAMPLOG_INFO("%s:%d: Number of preferred Renditions: %d", __FUNCTION__, __LINE__,
+                        preferredRenditionList.size());
+	}
+
+	if(!preferredCodecString.empty())
+	{
+		preferredCodecList.clear();
+        	std::istringstream ss(preferredCodecString);
+        	std::string codec;
+        	while(std::getline(ss, codec, ','))
+        	{
+                	preferredLanguagesList.push_back(codec);
+                	AAMPLOG_INFO("%s:%d: Parsed preferred codec: %s", __FUNCTION__, __LINE__,codec.c_str());
+        	}
+		AAMPLOG_INFO("%s:%d: Number of preferred codec: %d", __FUNCTION__, __LINE__,
+                        preferredCodecList.size());
+	}
+
+	if(!preferredLanguagesString.empty())
+	{
+		preferredLanguagesList.clear();
+        	std::istringstream ss(preferredLanguagesString);
+        	std::string lng;
+        	while(std::getline(ss, lng, ','))
+        	{
+        	        preferredLanguagesList.push_back(lng);
+        	        AAMPLOG_INFO("%s:%d: Parsed preferred lang: %s", __FUNCTION__, __LINE__,lng.c_str());
+        	}
+		AAMPLOG_INFO("%s:%d: Number of preferred languages: %d", __FUNCTION__, __LINE__,
+                        preferredLanguagesList.size());
+	}
+
 }
 
 /**
@@ -6181,7 +6233,7 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 			{
 				BulkTimedMetadataEventPtr eventData = std::make_shared<BulkTimedMetadataEvent>(std::string(bulkData));
 				AAMPLOG_INFO("%s:%d:: Sending bulkTimedData", __FUNCTION__, __LINE__);
-				if (gpGlobalConfig->logging.logMetadata)
+				if (ISCONFIGSET_PRIV(eAAMPConfig_MetadataLogging))
 				{
 					printf("%s:%d:: bulkTimedData : %s\n", __FUNCTION__, __LINE__, bulkData);
 				}
@@ -6272,7 +6324,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 		//DELIA-40019: szContent should not contain any tag name and ":" delimiter. This is not checked in JS event listeners
 		TimedMetadataEventPtr eventData = std::make_shared<TimedMetadataEvent>(((szName == NULL) ? "" : szName), ((id == NULL) ? "" : id), timeMilliseconds, durationMS, content);
 
-		if (gpGlobalConfig->logging.logMetadata)
+		if (ISCONFIGSET_PRIV(eAAMPConfig_MetadataLogging))
 		{
 			logprintf("aamp timedMetadata: [%ld] '%s'", (long)(timeMilliseconds), content.c_str());
 		}
@@ -8071,7 +8123,7 @@ void PrivateInstanceAAMP::GetCustomLicenseHeaders(std::unordered_map<std::string
 void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data, std::string &schIDUri, std::string &id3Value, uint32_t timeScale, uint64_t presentationTime, uint32_t eventDuration, uint32_t id, uint64_t timestampOffset)
 {
 	ID3MetadataEventPtr e = std::make_shared<ID3MetadataEvent>(data, schIDUri, id3Value, timeScale, presentationTime, eventDuration, id, timestampOffset);
-	if (gpGlobalConfig->logging.id3)
+	if (ISCONFIGSET_PRIV(eAAMPConfig_ID3Logging))
 	{
 		std::vector<uint8_t> metadata = e->getMetadata();
 		int metadataLen = e->getMetadataSize();
@@ -9135,6 +9187,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			}
 
 			preferredLanguagesString = std::string(languageList);
+			SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioLanguage,preferredLanguagesString);
 		}
 
 		AAMPLOG_INFO("%s:%d: Number of preferred languages: %d", __FUNCTION__, __LINE__,

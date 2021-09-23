@@ -647,6 +647,14 @@ public:
          */
 	void SetTuneEventConfig( TunedEventConfig tuneEventType);
 	TunedEventConfig GetTuneEventConfig(bool isLive);
+
+       /**
+         * @brief to update the preferredaudio codec, rendition and languages  list
+         *
+         * @return void
+         */
+	void UpdatePreferredAudioList();
+
 	/**
 	 * @brief Replace KeyID from PsshData
 	 * @param initialization data input 
@@ -1968,14 +1976,7 @@ public:
 	 *   @param[in] timeoutMS - Timeout in milliseconds
 	 *   @return void
 	 */
-	void SetStallTimeout(int timeoutMS);
-
-	/**
-	 *   @brief To set the Playback Position reporting interval.
-	 *
-	 *   @param  reportIntervalMS - playback reporting interval in milliseconds.
-	 */
-	void SetReportInterval(int reportIntervalMS);
+	void SetStallTimeout(int timeoutMS);	
 
 	/**
 	 *	 @brief To set the max retry attempts for init frag curl timeout failures

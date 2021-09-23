@@ -660,14 +660,14 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		// Below code will have to extended to support the same (eg: money trace headers)
 		customHeaderStr.append(header.second.at(0));
 		headers = curl_slist_append(headers, customHeaderStr.c_str());
-		if (gpGlobalConfig->logging.curlLicense)
+		if (aamp->mConfig->IsConfigSet(eAAMPConfig_CurlLicenseLogging))
 		{
 			logprintf("%s:%d CustomHeader :%s",__FUNCTION__,__LINE__,customHeaderStr.c_str());
 		}
 	}
 
 	logprintf("%s:%d Sending license request to server : %s ", __FUNCTION__, __LINE__, licenseRequest.url.c_str());
-	if (gpGlobalConfig->logging.curlLicense)
+	if (aamp->mConfig->IsConfigSet(eAAMPConfig_CurlLicenseLogging))
 	{
 		curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 	}

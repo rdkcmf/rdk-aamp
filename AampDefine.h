@@ -62,7 +62,7 @@
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
 #define DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL 5
 #define DEFAULT_ABR_CACHE_LENGTH 3                  /**< Default ABR cache length */
-#define DEFAULT_REPORT_PROGRESS_INTERVAL 1000     /**< Progress event reporting interval: 1msec */
+#define DEFAULT_REPORT_PROGRESS_INTERVAL 1     /**< Progress event reporting interval: 1sec */
 #define DEFAULT_LICENSE_REQ_RETRY_WAIT_TIME 500			/**< Wait time in milliseconds before retrying for DRM license */
 #define DEFAULT_INIT_BITRATE     2500000            /**< Initial bitrate: 2.5 mb - for non-4k playback */
 #define DEFAULT_INIT_BITRATE_4K 13000000            /**< Initial bitrate for 4K playback: 13mb ie, 3/4 profile */
@@ -78,6 +78,7 @@
 #define DEFAULT_STALL_ERROR_CODE (7600)             /**< Default stall error code: 7600 */
 #define DEFAULT_STALL_DETECTION_TIMEOUT (10000)     /**< Stall detection timeout: 10000 millisec */
 #define DEFAULT_MINIMUM_INIT_CACHE_SECONDS  0        /**< Default initial cache size of playback */
+#define DEFAULT_MAXIMUM_PLAYBACK_BUFFER_SECONDS 30   /**< Default maximum playback buffer size */
 #define DEFAULT_TIMEOUT_FOR_SOURCE_SETUP (1000) /**< Default timeout value in milliseconds */
 #define MAX_SEG_DRM_DECRYPT_FAIL_COUNT 10           /**< Max segment decryption failures to identify a playback failure. */
 #define MAX_SEG_INJECT_FAIL_COUNT 10                /**< Max segment injection failure to identify a playback failure. */
@@ -143,7 +144,8 @@ typedef enum
 	AAMP_STREAM_SETTING             = 2,
 	AAMP_APPLICATION_SETTING        = 3,
 	AAMP_TUNE_SETTING        		= 4,
-	AAMP_DEV_CFG_SETTING            = 5,            // Highest priority
+	AAMP_DEV_CFG_SETTING            = 5,
+	AAMP_CUSTOM_DEV_CFG_SETTING     = 6,		// Highest priority
 	AAMP_MAX_SETTING
 }ConfigPriority;
 

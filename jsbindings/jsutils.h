@@ -66,6 +66,8 @@ enum ErrorCode
 JSValueRef aamp_CStringToJSValue(JSContextRef context, const char* sz);
 char* aamp_JSValueToCString(JSContextRef context, JSValueRef value, JSValueRef* exception);
 
+char* aamp_JSValueToJSONCString(JSContextRef context, JSValueRef value, JSValueRef* exception);
+
 bool aamp_JSValueIsArray(JSContextRef context, JSValueRef value);
 
 std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JSValueRef arrayRef);

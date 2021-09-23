@@ -726,7 +726,7 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 		tuneType = eTUNETYPE_SEEKTOLIVE;
 	}
 
-	logprintf("aamp_Seek(%f) and seekToLive(%d)", aamp->seek_pos_seconds, isSeekToLive);
+	logprintf("%s:%d aamp_Seek(%f) and seekToLive(%d)",__FUNCTION__,__LINE__, aamp->seek_pos_seconds, isSeekToLive);
 
 	if (isSeekToLive && !aamp->IsLive())
 	{
@@ -795,13 +795,15 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 
 	if ((aamp->mMediaFormat == eMEDIAFORMAT_HLS || aamp->mMediaFormat == eMEDIAFORMAT_HLS_MP4) && (eSTATE_INITIALIZING == state)  && aamp->mpStreamAbstractionAAMP)
 	{
-		logprintf("Seeking to %lf at the middle of tune, no fragments downloaded yet.", secondsRelativeToTuneTime);
+		logprintf("%s:%d aamp_Seek(%f) at the middle of tune, no fragments downloaded yet.state(%d)",__FUNCTION__,__LINE__, secondsRelativeToTuneTime,state);
 		aamp->mpStreamAbstractionAAMP->SeekPosUpdate(secondsRelativeToTuneTime);
+		SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_PlaybackOffset,secondsRelativeToTuneTime);
 	}
 	else if (eSTATE_INITIALIZED == state || eSTATE_PREPARING == state)
 	{
-		logprintf("Seek will be called after preparing the content.");
+		logprintf("%s:%d aamp_Seek(%f) will be called after preparing the content.state(%d)",__FUNCTION__,__LINE__, secondsRelativeToTuneTime,state);
 		aamp->seek_pos_seconds = secondsRelativeToTuneTime ;
+		SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_PlaybackOffset,secondsRelativeToTuneTime);
 		g_idle_add(SeekAfterPrepared, (gpointer)aamp);
 	}
 	else
@@ -812,7 +814,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 			tuneType = eTUNETYPE_SEEKTOLIVE;
 		}
 
-		logprintf("aamp_Seek(%f) and seekToLive(%d)", secondsRelativeToTuneTime, isSeekToLive);
+		logprintf("%s:%d aamp_Seek(%f) and seekToLive(%d) state(%d)",__FUNCTION__,__LINE__, secondsRelativeToTuneTime, isSeekToLive,state);
 
 		if (isSeekToLive && !aamp->IsLive())
 		{
@@ -860,6 +862,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 
 		if (tuneType == eTUNETYPE_SEEK)
 		{
+			SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_PlaybackOffset,secondsRelativeToTuneTime);
 			aamp->seek_pos_seconds = secondsRelativeToTuneTime;
 		}
 		if (aamp->rate != AAMP_NORMAL_PLAY_RATE)
@@ -1303,14 +1306,18 @@ void PlayerInstanceAAMP::SetStallTimeout(int timeoutMS)
 /**
  *   @brief Set report interval duration
  *
- *   @param  reportIntervalMS - report interval duration in MS
+ *   @param  reportInterval - report interval duration in milliSeconds
  */
-void PlayerInstanceAAMP::SetReportInterval(int reportIntervalMS)
+void PlayerInstanceAAMP::SetReportInterval(int reportInterval)
 {
 	ERROR_STATE_CHECK_VOID();
-	if(reportIntervalMS > 0)
+	if(reportInterval > 0)
 	{
-		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ReportProgressInterval,reportIntervalMS);
+	    // We now want the value in seconds but it is given in milliseconds so convert it here
+	    double dReportInterval = reportInterval;
+	    dReportInterval /= 1000;
+
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ReportProgressInterval,dReportInterval);
 	}
 }
 
@@ -1906,6 +1913,7 @@ void PlayerInstanceAAMP::SetPreferredCodec(const char *codecList)
 		}
 
 		aamp->preferredCodecString = std::string(codecList);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioCodec,aamp->preferredCodecString);
 	}
 
 	AAMPLOG_INFO("%s:%d: Number of preferred codecs: %d", __FUNCTION__, __LINE__,
@@ -1939,6 +1947,7 @@ void PlayerInstanceAAMP::SetPreferredRenditions(const char *renditionList)
 		}
 
 		aamp->preferredRenditionString = std::string(renditionList);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioRendition,aamp->preferredRenditionString);
 	}
 
 	AAMPLOG_INFO("%s:%d: Number of preferred renditions: %d", __FUNCTION__, __LINE__,
@@ -2057,14 +2066,13 @@ void PlayerInstanceAAMP::SetNativeCCRendering(bool enable)
 }
 
 /**
- *   @brief To set the vod-tune-event according to the player.
+ *   @brief To set the tune-event according to the player.
  *
  *   @param[in] preferred tune event type
  */
 void PlayerInstanceAAMP::SetTuneEventConfig(int tuneEventType)
 {
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LiveTuneEvent,tuneEventType);
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_VODTuneEvent,tuneEventType);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_TuneEventConfig,tuneEventType);
 }
 
 /**
@@ -2255,7 +2263,7 @@ void PlayerInstanceAAMP::SetSessionToken(std::string sessionToken)
 {
 	ERROR_STATE_CHECK_VOID();	
 	// Stored as tune setting , this will get cleared after one tune session
-	SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_SessionToken,sessionToken);
+	SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_AuthToken,sessionToken);
 	return;
 }
 
@@ -2377,7 +2385,8 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 
 	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
 	aamp->Stop();
-	// Revert all tune specific setting and stream specific setting , back to App/default setting
+	// Revert all custom specific setting, tune specific setting and stream specific setting , back to App/default setting
+	mConfig.RestoreConfiguration(AAMP_CUSTOM_DEV_CFG_SETTING);
 	mConfig.RestoreConfiguration(AAMP_TUNE_SETTING);
 	mConfig.RestoreConfiguration(AAMP_STREAM_SETTING);
 }
@@ -2429,7 +2438,15 @@ void PlayerInstanceAAMP::SetRepairIframes(bool configState)
 */
 bool PlayerInstanceAAMP::InitAAMPConfig(char *jsonStr)
 {
-	return mConfig.ProcessConfigJson(jsonStr,AAMP_APPLICATION_SETTING);
+	bool retVal = false;
+	retVal = mConfig.ProcessConfigJson(jsonStr,AAMP_APPLICATION_SETTING);
+	mConfig.DoCustomSetting(AAMP_APPLICATION_SETTING);
+	if(GETCONFIGOWNER(eAAMPConfig_AsyncTune) == AAMP_APPLICATION_SETTING)
+	{
+		AsyncStartStop();
+	}
+
+	return retVal;
 }
 
 /**

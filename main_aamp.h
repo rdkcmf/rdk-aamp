@@ -877,9 +877,9 @@ public:
 	/**
 	 *   @brief To set the Playback Position reporting interval.
 	 *
-	 *   @param  reportIntervalMS - playback reporting interval in milliseconds.
+	 *   @param  reportInterval - playback reporting interval in milliSeconds.
 	 */
-	void SetReportInterval(int reportIntervalMS);
+	void SetReportInterval(int reportInterval);
 
 	/**
 	 *   @brief To set the max retry attempts for init frag curl timeout failures
