@@ -1524,15 +1524,19 @@ fragmentIdxToFetch(0), fragmentChunkIdxToFetch(0), abort(false), fragmentInjecto
 		memset(&cachedFragment[X], 0, sizeof(CachedFragment));
 	}
 
-	GETCONFIGVALUE(eAAMPConfig_MaxFragmentChunkCached,maxCachedFragmentChunksPerTrack);
-	for(int X =0; X< DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK; ++X)
-		memset(&cachedFragmentChunks[X], 0x00, sizeof(CachedFragmentChunk));
+	if(aamp->GetLLDashServiceData()->lowLatencyMode)
+	{
+		GETCONFIGVALUE(eAAMPConfig_MaxFragmentChunkCached,maxCachedFragmentChunksPerTrack);
+		for(int X =0; X< DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK; ++X)
+			memset(&cachedFragmentChunks[X], 0x00, sizeof(CachedFragmentChunk));
+
+		pthread_cond_init(&fragmentChunkFetched, NULL);
+		pthread_cond_init(&fragmentChunkInjected, NULL);
+		pthread_cond_init(&fragmentChunkClean, NULL);
+	}
 
 	pthread_cond_init(&fragmentFetched, NULL);
-	pthread_cond_init(&fragmentChunkFetched, NULL);
 	pthread_cond_init(&fragmentInjected, NULL);
-	pthread_cond_init(&fragmentChunkInjected, NULL);
-	pthread_cond_init(&fragmentChunkClean, NULL);
 	pthread_mutex_init(&mutex, NULL);
 }
 
@@ -1567,7 +1571,13 @@ MediaTrack::~MediaTrack()
 		logprintf("In MediaTrack destructor - fragmentChunkInjectorThreads are still running, signalling cond variable");
 	}
 
-	FlushFragmentChunks();
+	if(aamp->GetLLDashServiceData()->lowLatencyMode)
+	{
+		FlushFragmentChunks();
+		pthread_cond_destroy(&fragmentChunkFetched);
+		pthread_cond_destroy(&fragmentChunkInjected);
+		pthread_cond_destroy(&fragmentChunkClean);
+	}
     
 	for (int j = 0; j < maxCachedFragmentsPerTrack; j++)
 	{
@@ -1582,10 +1592,7 @@ MediaTrack::~MediaTrack()
 	}
 	
 	pthread_cond_destroy(&fragmentFetched);
-	pthread_cond_destroy(&fragmentChunkFetched);
 	pthread_cond_destroy(&fragmentInjected);
-	pthread_cond_destroy(&fragmentChunkInjected);
-	pthread_cond_destroy(&fragmentChunkClean);
 	pthread_mutex_destroy(&mutex);
 }
 
