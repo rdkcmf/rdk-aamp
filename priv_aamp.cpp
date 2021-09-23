@@ -1544,7 +1544,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, speedCache {}
 	, mTime (0)
 	, mCurrentLatency(0)
-	, mLiveOffsetAppRequest(false)
 	, bLowLatencyStartABR(false)
 	, mbUsingExternalPlayer (false)
 	, seiTimecode()
@@ -5051,11 +5050,16 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	TuneType tuneType =  eTUNETYPE_NEW_NORMAL;
 	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_INFO);
 
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PlaybackOffset,seek_pos_seconds);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioRendition,preferredRenditionString);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioCodec,preferredCodecString);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioLanguage,preferredLanguagesString);
+	UpdatePreferredAudioList();
 	GETCONFIGVALUE_PRIV(eAAMPConfig_DRMDecryptThreshold,mDrmDecryptFailCount);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreCachePlaylistTime,mPreCacheDnldTimeWindow);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
-	GETCONFIGVALUE_PRIV(eAAMPConfig_SessionToken,mSessionToken);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_AuthToken,mSessionToken);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_SubTitleLanguage,mSubLanguage);
 	mAsyncTuneEnabled = ISCONFIGSET_PRIV(eAAMPConfig_AsyncTune);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_LivePauseBehavior,intTmpVar);
@@ -6163,16 +6167,60 @@ std::string PrivateInstanceAAMP::GetThumbnails(double tStart, double tEnd)
 
 TunedEventConfig PrivateInstanceAAMP::GetTuneEventConfig(bool isLive)
 {
-	int tunedEventConfig;			
-	if(isLive)
-	{
-		GETCONFIGVALUE_PRIV(eAAMPConfig_LiveTuneEvent,tunedEventConfig);
-	}
-	else
-	{
-		GETCONFIGVALUE_PRIV(eAAMPConfig_VODTuneEvent,tunedEventConfig);
-	}
+	int tunedEventConfig;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_TuneEventConfig,tunedEventConfig);
 	return (TunedEventConfig)tunedEventConfig;
+}
+
+/**
+ *   @brief to Update the preferred audio codec, rendition and languages list
+ *
+ *   @return void
+ */
+void PrivateInstanceAAMP::UpdatePreferredAudioList()
+{
+	if(!preferredRenditionString.empty())
+	{
+		preferredRenditionList.clear();
+		std::istringstream ss(preferredRenditionString);
+		std::string rendition;
+		while(std::getline(ss, rendition, ','))
+		{
+			preferredRenditionList.push_back(rendition);
+			AAMPLOG_INFO("%s:%d: Parsed preferred rendition: %s", __FUNCTION__, __LINE__,rendition.c_str());
+		}
+		AAMPLOG_INFO("%s:%d: Number of preferred Renditions: %d", __FUNCTION__, __LINE__,
+                        preferredRenditionList.size());
+	}
+
+	if(!preferredCodecString.empty())
+	{
+		preferredCodecList.clear();
+        	std::istringstream ss(preferredCodecString);
+        	std::string codec;
+        	while(std::getline(ss, codec, ','))
+        	{
+                	preferredLanguagesList.push_back(codec);
+                	AAMPLOG_INFO("%s:%d: Parsed preferred codec: %s", __FUNCTION__, __LINE__,codec.c_str());
+        	}
+		AAMPLOG_INFO("%s:%d: Number of preferred codec: %d", __FUNCTION__, __LINE__,
+                        preferredCodecList.size());
+	}
+
+	if(!preferredLanguagesString.empty())
+	{
+		preferredLanguagesList.clear();
+        	std::istringstream ss(preferredLanguagesString);
+        	std::string lng;
+        	while(std::getline(ss, lng, ','))
+        	{
+        	        preferredLanguagesList.push_back(lng);
+        	        AAMPLOG_INFO("%s:%d: Parsed preferred lang: %s", __FUNCTION__, __LINE__,lng.c_str());
+        	}
+		AAMPLOG_INFO("%s:%d: Number of preferred languages: %d", __FUNCTION__, __LINE__,
+                        preferredLanguagesList.size());
+	}
+
 }
 
 /**
@@ -9688,6 +9736,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			}
 
 			preferredLanguagesString = std::string(languageList);
+			SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioLanguage,preferredLanguagesString);
 		}
 
 		AAMPLOG_INFO("%s:%d: Number of preferred languages: %d", __FUNCTION__, __LINE__,
@@ -10077,26 +10126,6 @@ void PrivateInstanceAAMP::SetLLDashSpeedCache(struct SpeedCache &speedCache)
 struct SpeedCache* PrivateInstanceAAMP::GetLLDashSpeedCache()
 {
     return &speedCache;
-}
-
-/**
- *     @brief Get LiveOffset Request flag Status
- *
- *     @return bool
- */
-bool PrivateInstanceAAMP::GetLiveOffsetAppRequest()
-{
-    return mLiveOffsetAppRequest;
-}
-
-/**
- *     @brief Set LiveOffset Request Status
- *     @param[in]  bool - flag
- *     @return void
- */
-void PrivateInstanceAAMP::SetLiveOffsetAppRequest(bool LiveOffsetAppRequest)
-{
-    this->mLiveOffsetAppRequest = LiveOffsetAppRequest;
 }
 
 /**

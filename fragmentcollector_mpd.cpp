@@ -3664,7 +3664,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 					AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d [LL-Dash] Min Latency: %ld Max Latency: %ld Target Latency: %ld", __FUNCTION__, __LINE__,(long)latencyOffsetMin,(long)latencyOffsetMax,(long)stAampLLDashServiceData.targetLatency/1000);
 
 					//Ignore Low latency setting
-					if (aamp->GetLiveOffsetAppRequest() &&
+					if ((GETCONFIGOWNER(eAAMPConfig_LiveOffset) == AAMP_APPLICATION_SETTING) &&
 					(currentOffset > latencyOffsetMax))
 					{
 						AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d Switch off LL mode: App requested currentOffset > latencyOffsetMax", __FUNCTION__, __LINE__);

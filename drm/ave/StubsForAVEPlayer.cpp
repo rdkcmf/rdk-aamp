@@ -77,6 +77,7 @@ void JSValueProtect(){ }
 void JSStringCreateWithCharacters(){ }
 void JSObjectMakeDate(){ }
 void JSObjectMakeError(){ }
+void JSValueCreateJSONString(){ }
 }
 #endif
 

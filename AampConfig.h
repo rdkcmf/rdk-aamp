@@ -81,6 +81,8 @@
 #define SETCONFIGVALUE_PRIV(owner,key,value) (mConfig->SetConfigValue(owner, key ,value))
 #define GETCONFIGVALUE(key,value) (aamp->mConfig->GetConfigValue( key ,value))
 #define GETCONFIGVALUE_PRIV(key,value) (mConfig->GetConfigValue( key ,value))
+#define GETCONFIGOWNER(key) (aamp->mConfig->GetConfigOwner(key))
+#define GETCONFIGOWNER_PRIV(key,value) (mConfig->GetConfigOwner(key))
 /**
  * @brief AAMP Config Settings
  */
@@ -99,6 +101,7 @@ typedef enum
 	eAAMPConfig_DisableEC3, 								/**< Disable DDPlus*/
 	eAAMPConfig_DisableATMOS,								/**< Disable Dolby ATMOS*/
 	eAAMPConfig_StereoOnly,									/**< Enable Stereo Only playback, disables EC3/ATMOS. Overrides ForceEC3 */
+	eAAMPConfig_DescriptiveTrackName,							/**< Enable Descriptive track name*/
 	eAAMPConfig_DisablePlaylistIndexEvent,					/**< Disable playlist index event*/
 	eAAMPConfig_EnableSubscribedTags,						/**< Enabled subscribed tags*/
 	eAAMPConfig_DASHIgnoreBaseURLIfSlash,					/**< Ignore the constructed URI of DASH, if it is / */
@@ -183,6 +186,7 @@ typedef enum
 	eAAMPConfig_HarvestConfig,									/**< Indicate type of file to be  harvest */
 	eAAMPConfig_ABRCacheLife,									/**< Adaptive bitrate cache life in seconds*/
 	eAAMPConfig_ABRCacheLength,									/**< Adaptive bitrate cache length*/
+	eAAMPConfig_TimeShiftBufferLength,								/**< TSB length*/
 	eAAMPConfig_ABRCacheOutlier,								/**< Adaptive bitrate outlier, if values goes beyond this*/
 	eAAMPConfig_ABRSkipDuration,								/**< Initial duration for ABR skip*/
 	eAAMPConfig_ABRNWConsistency,								/**< Adaptive bitrate network consistency*/
@@ -191,8 +195,7 @@ typedef enum
 	eAAMPConfig_BufferHealthMonitorDelay,						/**< Buffer health monitor start delay after tune/ seek*/
 	eAAMPConfig_BufferHealthMonitorInterval,					/**< Buffer health monitor interval*/
 	eAAMPConfig_PreferredDRM,									/**< Preferred DRM*/
-	eAAMPConfig_LiveTuneEvent,									/**< When to send TUNED event for LIVE*/
-	eAAMPConfig_VODTuneEvent,									/**< When to send TUNED event for VOD*/
+	eAAMPConfig_TuneEventConfig,									/**< When to send TUNED event*/
 	eAAMPConfig_VODTrickPlayFPS,								/**< Trickplay frames per second for VOD*/
 	eAAMPConfig_LinearTrickPlayFPS,								/**< Trickplay frames per second for Linear*/
 	eAAMPConfig_ReportProgressInterval,							/**< Interval of progress reporting*/
@@ -215,6 +218,7 @@ typedef enum
 	eAAMPConfig_StallErrorCode,
 	eAAMPConfig_StallTimeoutMS,
 	eAAMPConfig_InitialBuffer,
+	eAAMPConfig_PlaybackBuffer,
 	eAAMPConfig_SourceSetupTimeout, 							/**<Timeout value wait for GStreamer appsource setup to complete*/
 	eAAMPConfig_DownloadDelay,
 	eAAMPConfig_LivePauseBehavior,                                                          /**< player paused state behavior */
@@ -241,6 +245,7 @@ typedef enum
 	eAAMPConfig_NetworkTimeout,									/**< Fragment download timeout in sec*/
 	eAAMPConfig_ManifestTimeout,								/**< Manifest download timeout in sec*/
 	eAAMPConfig_PlaylistTimeout,								/**<playlist download time out in sec*/
+	eAAMPConfig_PlaybackOffset,								/**<playback offset value in seconds*/
 	eAAMPConfig_LiveOffset, 									/**< Current LIVE offset*/
 	eAAMPConfig_CDVRLiveOffset, 								/**< CDVR LIVE offset*/
 	eAAMPConfig_DoubleMaxValue,
@@ -260,9 +265,11 @@ typedef enum
 	eAAMPConfig_URIParameter,									/**<uri parameter data to be appended on download-url during curl request*/
 	eAAMPConfig_NetworkProxy,									/**<Network Proxy */
 	eAAMPConfig_LicenseProxy,									/**<License Proxy */
-	eAAMPConfig_SessionToken,									/**<Session Token  */
+	eAAMPConfig_AuthToken,									/**<Session Token  */
 	eAAMPConfig_LogLevel,										/**< New Configuration to overide info/debug/trace */
 	eAAMPConfig_CustomHeaderLicense,                            					/**<custom header string data to be appended to curl License request*/
+	eAAMPConfig_PreferredAudioRendition,								/**< PreferredAudioRendition*/
+	eAAMPConfig_PreferredAudioCodec,								/**< PreferredAudioCodec*/
 	eAAMPConfig_PreferredAudioLanguage,								/**< PreferredAudioLanguage*/
 	eAAMPConfig_StringMaxValue,
 	eAAMPConfig_MaxValue
@@ -408,6 +415,7 @@ public:
 	bool GetConfigValue(AAMPConfigSettings cfg, long &value);
 	bool GetConfigValue(AAMPConfigSettings cfg, double &value);
 	bool GetConfigValue(AAMPConfigSettings cfg , int &value);
+	ConfigPriority GetConfigOwner(AAMPConfigSettings cfg);
 	const char * GetChannelOverride(const std::string chName);
 	const char * GetChannelLicenseOverride(const std::string chName);
 	bool ProcessConfigJson(const char *, ConfigPriority owner );
@@ -416,7 +424,7 @@ public:
 	void ConfigureLogSettings();
 	bool GetAampConfigJSONStr(std::string &str);
 	bool GetDeveloperConfigData(std::string &key,std::string &value);
-
+	void DoCustomSetting(ConfigPriority owner);
 	////////// Special Functions /////////////////////////
 	std::string GetUserAgentString();
 	//long GetManifestTimeoutMs();
@@ -424,7 +432,6 @@ public:
 	//LangCodePreference GetLanguageCodePreference();
 	//DRMSystems GetPreferredDRM();
 private:
-	void DoCustomSetting();
 	template<class J,class K>
 	void SetValue(J &setting, ConfigPriority newowner, const K &value,std::string cfgName);
 	void trim(std::string& src);

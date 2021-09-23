@@ -702,6 +702,14 @@ public:
          */
 	void SetTuneEventConfig( TunedEventConfig tuneEventType);
 	TunedEventConfig GetTuneEventConfig(bool isLive);
+
+       /**
+         * @brief to update the preferredaudio codec, rendition and languages  list
+         *
+         * @return void
+         */
+	void UpdatePreferredAudioList();
+
 	/**
 	 * @brief Replace KeyID from PsshData
 	 * @param initialization data input 
@@ -3289,19 +3297,6 @@ public:
 	}
 
 	/**
-	*     @brief Get LiveOffset Request flag Status
-	*     @return bool
-	*/
-	bool GetLiveOffsetAppRequest();
-
-	/**
-	*     @brief Set LiveOffset Request Status
-	*     @param[in]  bool - flag
-	*     @return void
-	*/
-	void SetLiveOffsetAppRequest(bool LiveOffsetAppRequest);
-
-	/**
 	*     @brief Get Low Latency ABR Start Status
 	*     @return bool
 	*/
@@ -3523,7 +3518,6 @@ private:
 	uint32_t audTimeScale;
 	struct SpeedCache speedCache;
 	bool bLowLatencyStartABR;
-	bool mLiveOffsetAppRequest;
 	time_t mTime;
 	long mCurrentLatency;
 	int mCCId;

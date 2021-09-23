@@ -165,6 +165,23 @@ char* aamp_JSValueToCString(JSContextRef context, JSValueRef value, JSValueRef* 
 	return src;
 }
 
+/*
+ * @brief Convert JSString to JSON C string
+ * @param[in] context JS execution context
+ * @param[in] value JSValue of JSString to be converted
+ * @param[out] exception pointer to a JSValueRef in which to store an exception, if any
+ * @retval converted C string
+ */
+char* aamp_JSValueToJSONCString(JSContextRef context, JSValueRef value, JSValueRef* exception)
+{
+        JSStringRef jsstr = JSValueCreateJSONString(context, value, 0, exception);
+        size_t len = JSStringGetMaximumUTF8CStringSize(jsstr);
+        char* src = new char[len];
+        JSStringGetUTF8CString(jsstr, src, len);
+        JSStringRelease(jsstr);
+        return src;
+}
+
 
 /**
  * @brief Check if a JSValue object is array or not

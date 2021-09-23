@@ -156,15 +156,11 @@ progressReportingInterval	Interval of progress reporting(in msecs.default is 100
 licenseRetryWaitTime		License retry wait interval(in msecs.default is 500msec)
 liveOffset    			live offset time in seconds, aamp starts live playback this much time before the live point.Default 15sec
 cdvrLiveOffset    		live offset time in seconds for cdvr, aamp starts live playback this much time before the live point for inprogress cdvr.Default 30 sec
-liveTuneEvent 			Send streamplaying for live when 
+tuneEventConfig 			Send streamplaying for live/VOD when 
 							0 -	playlist acquired 
 							1 - first fragment decrypted
 							2 - first frame visible (default)
 
-vodTuneEvent 			Send streamplaying for vod when 
-							0 -	playlist acquired 
-							1 - first fragment decrypted
-							2 - first frame visible (default)
 preferredDrm			Preferred DRM for playback  
 							0 - No DRM 
 							1 - Widevine
@@ -213,7 +209,7 @@ mapM3U8				<domain / host to map> Remap DASH MPD playback url to HLS m3u8 url fo
 harvestPath			Specify the path where fragments has to be harvested,check folder permissions specifying the path
 networkProxy			proxy address to set for all file downloads. Default None  
 licenseProxy			proxy address to set for licese fetch . Default None
-sessionToken			SessionToken string to override from Application . Default None
+AuthToken			SessionToken string to override from Application . Default None
 userAgent			Curl user-agent string.Default is {Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE}
 customHeader			custom header data to be appended to curl request. Default None
 uriParameter			uri parameter data to be appended on download-url during curl request. Default None
@@ -229,8 +225,8 @@ maxBitrate			Set maximum bitrate filter for playback profiles, default is LONG_M
 downloadStallTimeout		Timeout value for detection curl download stall in second,default is 0.
 downloadStartTimeout		Timeout value for curl download to start after connect in seconds,default is 0.
 discontinuityTimeout		Value in MS after which AAMP will try recovery for discontinuity stall, after detecting empty buffer, 0 will disable the feature, default 3000.
-defaultBitrate			Default bitrate.Default is 2500000
-defaultBitrate4K		Default 4K bitrateDefault is 13000000
+InitialBitrate			Default bitrate.Default is 2500000
+InitialBitrate4K		Default 4K bitrateDefault is 13000000
 iframeDefaultBitrate		Default bitrate for iframe track selection for non-4K assets.Default is 0
 iframeDefaultBitrate4K		Default bitrate for iframe track selection for 4K assets.Default is 0
 
