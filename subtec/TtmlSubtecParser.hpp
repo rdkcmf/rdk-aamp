@@ -48,4 +48,6 @@ protected:
 	std::unique_ptr<TtmlChannel> m_channel;
 	bool m_isLinear = false;
 	bool m_parsedFirstPacket = false;
+	bool m_sentOffset = false;
+	double m_firstBeginOffset = 0.0;
 };

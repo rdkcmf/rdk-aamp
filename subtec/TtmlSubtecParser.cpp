@@ -47,6 +47,8 @@ bool TtmlSubtecParser::init(double startPosSeconds, unsigned long long basePTS)
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 
 	m_parsedFirstPacket = false;
+	m_sentOffset = false;
+	m_firstBeginOffset = 0.0;
 
 	return true;
 }
@@ -119,19 +121,31 @@ bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double positi
 		//LLAMA-3328 - this hack is necessary because the offset into the TTML
 		//is not available in the linear manifest
 		//Take the first instance of the "begin" tag as the time offset for subtec
-		if (!m_parsedFirstPacket)
+		if (!m_parsedFirstPacket && m_isLinear)
 		{
+			m_firstBeginOffset = position;
+			m_parsedFirstPacket = true;
+		}
+
+		if (!m_sentOffset && m_parsedFirstPacket && m_isLinear)
+		{
+			AAMPLOG_TRACE("%s:%d Linear content - parsing first begin as offset - pos %.3f dur %.3f m_firstBeginOffset %.3f", 
+				__FUNCTION__, __LINE__, position, duration, m_firstBeginOffset);
 			std::stringstream ss(std::string(data.begin(), data.end()));
-			if (m_isLinear)
+			std::int64_t offset = parseFirstBegin(ss);
+			
+			if (offset != std::numeric_limits<std::int64_t>::max())
 			{
-				AAMPLOG_WARN("%s:%d Linear content - parsing first begin as offset", __FUNCTION__, __LINE__);
-				std::int64_t offset = parseFirstBegin(ss);
-				if (offset != std::numeric_limits<std::int64_t>::max())
-				{
-					AAMPLOG_WARN("%s:%d setting offset %ld", __FUNCTION__, __LINE__, offset);
-					m_parsedFirstPacket = true;
-					m_channel->SendTimestampPacket(offset);
-				}
+				auto positionDeltaSecs = (position - m_firstBeginOffset);
+				auto timeFromStartMs = mAamp->GetPositionMs() - (mAamp->seek_pos_seconds * 1000.0);
+				std::int64_t totalOffset = offset - (positionDeltaSecs * 1000.0) + timeFromStartMs;
+
+				std::stringstream output;
+				output << "setting totalOffset " << totalOffset << " positionDeltaSecs " << positionDeltaSecs <<
+					" timeFromStartMs " << timeFromStartMs;
+				AAMPLOG_TRACE("%s:%d %s", __FUNCTION__, __LINE__, output.str().c_str());
+				m_sentOffset = true;
+				m_channel->SendTimestampPacket(totalOffset);
 			}
 		}
 
