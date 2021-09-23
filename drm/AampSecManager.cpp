@@ -56,7 +56,7 @@ void AampSecManager::DestroyInstance()
  * @brief AampScheduler Constructor
  */
 AampSecManager::AampSecManager() : mSecManagerObj(SECMANAGER_CALL_SIGN), mMutex(),mSchedulerStarted(false),
-				   mRegisteredEvents(), mWatermarkPluginObj(WATERMARK_PLUGIN_CALLSIGN)
+				   mRegisteredEvents(), mWatermarkPluginObj(WATERMARK_PLUGIN_CALLSIGN), mCurrentGraphicId(-1)
 {
 	std::lock_guard<std::mutex> lock(mMutex);
 	mSecManagerObj.ActivatePlugin();
@@ -447,7 +447,7 @@ bool AampSecManager::loadClutWatermark(int64_t sessionId, int64_t graphicId, int
        param["clutPaletteFormat"] = clutPaletteFormat;
        param["watermarkWidth"] = watermarkWidth;
        param["watermarkHeight"] = watermarkHeight;
-       param["aspectRatio"] = aspectRatio;
+       param["aspectRatio"] = std::to_string(aspectRatio).c_str();
 
        AAMPLOG_INFO("%s:%d SecManager call loadClutWatermark for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
 
@@ -574,6 +574,33 @@ void AampSecManager::addWatermarkHandler(const JsonObject& parameters)
 						AampSecManager *instance = static_cast<AampSecManager *>(data);
 						instance->UpdateWatermark(graphicId, smKey, smSize);
 					  }, (void *) this));
+		
+		if (parameters["adjustVisibilityRequired"].Boolean())
+		{
+			int sessionId = parameters["sessionId"].Number();
+			//To make sure that clut is initialized only once per session
+			//(assuming for a session if there multiple watermarks,
+			// only one would require perceptibility adjustment )
+			//TODO : Remove this condition once the proposed cb for onDisplayWatermark is
+			//implemented
+			if( mCurrentGraphicId != graphicId)
+			{
+				mCurrentGraphicId = graphicId;
+				AAMPLOG_WARN("AampSecManager::%s:%d adjustVisibilityRequired is true, invoking GetWaterMarkPalette. graphicId : %d", __FUNCTION__, __LINE__, graphicId);
+				ScheduleTask(AsyncTaskObj([sessionId, graphicId](void *data)
+									  {
+					AampSecManager *instance = static_cast<AampSecManager *>(data);
+					instance->GetWaterMarkPalette(sessionId, graphicId);
+				}, (void *) this));
+			}
+			else {
+				AAMPLOG_WARN("AampSecManager::%s:%d adjustVisibilityRequired is true for graphicId : %d, but CLUT is already initialized", __FUNCTION__, __LINE__, graphicId);
+			}
+		}
+		else
+		{
+			AAMPLOG_WARN("AampSecManager::%s:%d adjustVisibilityRequired is false, graphicId : %d", __FUNCTION__, __LINE__, graphicId);
+		}
 
 #if 0
 		/*Method to be called only if RDKShell is used for rendering*/
@@ -595,6 +622,18 @@ void AampSecManager::updateWatermarkHandler(const JsonObject& parameters)
 	parameters.ToString(param);
 	AAMPLOG_WARN("AampSecManager::%s:%d i/p params: %s", __FUNCTION__, __LINE__, param.c_str());
 #endif
+	if(mSchedulerStarted)
+	{
+		int graphicId = parameters["graphicId"].Number();
+		int clutKey = parameters["watermarkClutBufferKey"].Number();
+		int imageKey = parameters["watermarkImageBufferKey"].Number();
+		AAMPLOG_WARN("AampSecManager::%s:%d graphicId : %d ", __FUNCTION__, __LINE__, graphicId);
+		ScheduleTask(AsyncTaskObj([graphicId, clutKey, imageKey](void *data)
+								  {
+			AampSecManager *instance = static_cast<AampSecManager *>(data);
+			instance->ModifyWatermarkPalette(graphicId, clutKey, imageKey);
+		}, (void *) this));
+	}
 }
 /**
  *   @brief Removes watermark image
@@ -781,6 +820,88 @@ void AampSecManager::AlwaysShowWatermarkOnTop(bool show)
 			std::string responseStr;
 			result.ToString(responseStr);
 			AAMPLOG_ERR("AampSecManager::%s failed and result: %s", __FUNCTION__, responseStr.c_str());
+		}
+	}
+	else
+	{
+		AAMPLOG_ERR("AampSecManager::%s thunder invocation failed!", __FUNCTION__);
+	}
+}
+
+/**
+ *   @brief GetWaterMarkPalette
+*/
+void AampSecManager::GetWaterMarkPalette(int sessionId, int graphicId)
+{
+	JsonObject param;
+	JsonObject result;
+	bool rpcResult = false;
+	param["id"] = graphicId;
+	AAMPLOG_WARN("AampSecManager %s:%d Graphic id: %d ", __FUNCTION__, __LINE__, graphicId);
+	{
+		std::lock_guard<std::mutex> lock(mMutex);
+		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("getPalettedWatermark", param, result);
+	}
+
+	if (rpcResult)
+	{
+		if (!result["success"].Boolean())
+		{
+			std::string responseStr;
+			result.ToString(responseStr);
+			AAMPLOG_ERR("AampSecManager::%s failed and result: %s", __FUNCTION__, responseStr.c_str());
+		}
+		else //if success, request sec manager to load the clut into the clut shm
+		{
+
+			AAMPLOG_WARN("AampSecManager::%s getWatermarkPalette invoke success for graphicId %d, calling loadClutWatermark", __FUNCTION__, graphicId);
+			int clutKey = result["clutKey"].Number();
+			int clutSize = result["clutSize"].Number();
+			int imageKey = result["imageKey"].Number();
+			int imageWidth = result["imageWidth"].Number();
+			int imageHeight = result["imageHeight"].Number();
+			float aspectRatio = (imageHeight != 0) ? (float)imageWidth/(float)imageHeight : 0.0;
+			AampSecManager::GetInstance()->loadClutWatermark(sessionId, graphicId, clutKey, imageKey,
+															 clutSize, "RGBA8888", imageWidth, imageHeight,
+															 aspectRatio);
+		}
+
+	}
+	else
+	{
+		AAMPLOG_ERR("AampSecManager::%s thunder invocation failed!", __FUNCTION__);
+	}
+}
+
+/**
+ *   @brief SetWatermarkPalette
+*/
+void AampSecManager::ModifyWatermarkPalette(int graphicId, int clutKey, int imageKey)
+{
+	JsonObject param;
+	JsonObject result;
+
+	bool rpcResult = false;
+
+	AAMPLOG_WARN("AampSecManager %s:%d Graphic id: %d", __FUNCTION__, __LINE__, graphicId);
+
+	std::lock_guard<std::mutex> lock(mMutex);
+
+	param["id"] = graphicId;
+	param["clutKey"] = clutKey;
+	param["imageKey"] = imageKey;
+	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("modifyPalettedWatermark", param, result);
+	if (rpcResult)
+	{
+		if (!result["success"].Boolean())
+		{
+			std::string responseStr;
+			result.ToString(responseStr);
+			AAMPLOG_ERR("AampSecManager::%s failed and result: %s", __FUNCTION__, responseStr.c_str());
+		}
+		else
+		{
+			AAMPLOG_WARN("AampSecManager::%s setWatermarkPalette invoke success ", __FUNCTION__);
 		}
 	}
 	else
