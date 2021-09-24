@@ -9186,7 +9186,7 @@ bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startM
 								}
 								else
 								{
-									AAMPLOG_WARN("%s:%d [CDAI]: Found an invalid event child manifest without :Payload!!",__FUNCTION__,__LINE__);
+									cJSON_AddStringToObject(item, "Event", evtChild->GetText().c_str());
 								}
 							}
 						}
