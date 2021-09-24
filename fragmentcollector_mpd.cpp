@@ -7435,7 +7435,13 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 		}
 		else
 		{
-			isAllowNextFrag = pMediaStreamContext->WaitForFreeFragmentAvailable();
+			int timeoutMs = -1;
+			if(bCacheFullState && *bCacheFullState &&
+				(pMediaStreamContext->numberOfFragmentsCached == maxCachedFragmentsPerTrack))
+			{
+				timeoutMs = MAX_WAIT_TIMEOUT_MS;
+			}
+			isAllowNextFrag = pMediaStreamContext->WaitForFreeFragmentAvailable(timeoutMs);
 		}
 	}
 
@@ -8059,7 +8065,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 					else if(bCacheFullState)
 					{
 						// play cache is full , wait until cache is available to inject next, max wait of 1sec
-						int timeoutMs = 200;
+						int timeoutMs = MAX_WAIT_TIMEOUT_MS;
 						AAMPLOG_TRACE("%s:%d Cache full state,no download until(%d) Time(%lld)",__FUNCTION__, __LINE__,timeoutMs,aamp_GetCurrentTimeMS());
 						bool temp =  mMediaStreamContext[eMEDIATYPE_VIDEO]->WaitForFreeFragmentAvailable(timeoutMs);
 						if(temp == false)
