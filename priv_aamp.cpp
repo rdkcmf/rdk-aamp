@@ -1476,7 +1476,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	durationSeconds(0.0), culledSeconds(0.0), culledOffset(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000),
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
-	m_fd(-1), mIsLive(false), mLogTune(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
+	m_fd(-1), mIsLive(false), mIsAudioContextSkipped(false), mLogTune(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
 	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(ContentType_UNKNOWN), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
@@ -6496,6 +6496,15 @@ void PrivateInstanceAAMP::SetStreamSink(StreamSink* streamSink)
 bool PrivateInstanceAAMP::IsLive()
 {
 	return mIsLive;
+}
+
+/**
+ * @brief Check if audio playcontext creation skipped for Demuxed HLS file.
+ * @retval true if playcontext creation skipped, false if not.
+ */
+bool PrivateInstanceAAMP::IsAudioPlayContextCreationSkipped()
+{
+	return mIsAudioContextSkipped;
 }
 
 /**
