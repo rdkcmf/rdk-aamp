@@ -4586,6 +4586,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_AAC", ts->name);
 					ts->streamOutputFormat = FORMAT_AUDIO_ES_AAC;
+					aamp->SetAudioPlayContextCreationSkipped( true );
 					continue;
 				}
 
@@ -4594,6 +4595,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_AC3", ts->name);
 					ts->streamOutputFormat = FORMAT_AUDIO_ES_AC3;
+					aamp->SetAudioPlayContextCreationSkipped( true );
 					continue;
 				}
 
@@ -4602,6 +4604,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					logprintf("StreamAbstractionAAMP_HLS::Init : Track[%s] - FORMAT_AUDIO_ES_EC3", ts->name);
 					ts->streamOutputFormat = FORMAT_AUDIO_ES_EC3;
+					aamp->SetAudioPlayContextCreationSkipped( true );
 					continue;
 				}
 

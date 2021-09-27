@@ -1227,6 +1227,13 @@ public:
 	 */
 	bool IsLive(void);
 
+	/**
+         * @brief Checking whether audio playcontext creation skipped for demuxed HLS file.
+         *
+         * @return True or False
+         */
+	bool IsAudioPlayContextCreationSkipped(void);
+
         /**
          * @brief Checking if the stream is changed from dynamic to static or not
          *
@@ -2216,6 +2223,14 @@ public:
 	 */
 	void SetIsLive(bool isLive)  {mIsLive = isLive; }
 
+	/**
+         *   @brief Set is Audio play context is skipped, due to Audio HLS file is ES Format type.
+         *
+         *   @param[in] isAudioContextSKipped - is audio context creation skipped.
+         *   @return void
+         */
+	void SetAudioPlayContextCreationSkipped( bool isAudioContextSkipped ) { mIsAudioContextSkipped = isAudioContextSkipped; }
+
         /**
          *   @brief Set isLiveStream flag
          *
@@ -3136,6 +3151,7 @@ private:
 	int m_fd;
 	bool mIsLive;				// Flag to indicate manifest type.
 	bool mIsLiveStream;			// Flag to indicate stream type, keeps history if stream was live earlier.
+	bool mIsAudioContextSkipped;		// Flag to indicate Audio playcontext creation is skipped.
 	bool mLogTune;				//Guard to ensure sending tune  time info only once.
 	bool mTuneCompleted;
 	bool mFirstTune;			//To identify the first tune after load.
