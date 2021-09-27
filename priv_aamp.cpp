@@ -7061,10 +7061,13 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			return;
 		}
 
+		MediaTrack* mediaTrack = (mpStreamAbstractionAAMP->GetMediaTrack((TrackType)trackType));
+		
 		if((ISCONFIGSET_PRIV(eAAMPConfig_ReportBufferEvent)) &&
 		(errorType == eGST_ERROR_UNDERFLOW) &&
 		(trackType == eMEDIATYPE_VIDEO) &&
-		(mpStreamAbstractionAAMP->GetMediaTrack((TrackType)trackType)->GetBufferStatus() == BUFFER_STATUS_RED))
+		(mediaTrack) &&
+		(mediaTrack->GetBufferStatus() == BUFFER_STATUS_RED))
 		{
 			SendBufferChangeEvent(true);  // Buffer state changed, buffer Under flow started
 			if (!pipeline_paused &&  !PausePipeline(true, true))
