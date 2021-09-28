@@ -556,6 +556,11 @@ function id3Metadata(event) {
     console.log("id3Metadata event: " + JSON.stringify(event));
 }
 
+function httpResponseHeaderReceived(event) {
+    // Event when http response is received
+    console.log("httpResponseHeaderReceived event: " + JSON.stringify(event));
+}
+
 function mediaProgressUpdate(event) {
     //console.log("Media progress update event: " + JSON.stringify(event));
     //TSB length for live assets = (event.endMiliseconds - event.startMiliseconds)
@@ -720,6 +725,7 @@ function createAAMPPlayer(){
     newPlayer.addEventListener("tuneProfiling", tuneProfiling);
     //newPlayer.addEventListener("bulkTimedMetadata", bulkMetadataHandler);
     newPlayer.addEventListener("id3Metadata", id3Metadata);
+    //newPlayer.addEventListener("httpResponseHeader", httpResponseHeaderReceived);
     //Can add generic callback for ad resolved event or assign unique through setAlternateContent
     //newPlayer.addEventListener("adResolved", adResolvedCallback);
     return newPlayer;
@@ -744,6 +750,10 @@ function resetPlayer() {
     //Subscribe to interested tags from playlist
     //let tags = ["#EXT-X-SCTE35","#EXT-X-MARKER", "#EXT-X-CUE"];
     //playerObj.setSubscribedTags(tags);
+
+    //Subscribe to required http response headers
+    //let headers = ["X-Powered-By","X-MoneyTrace"];
+    //playerObj.subscribeResponseHeaders(headers);
 
     mutedStatus = false;
 

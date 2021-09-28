@@ -127,6 +127,7 @@ static EventTypeMap aampPlayer_eventTypes[] =
 	{ AAMP_EVENT_DRM_MESSAGE, "drmMessage" },
 	{ AAMP_EVENT_BLOCKED, "blocked" },
 	{ AAMP_EVENT_CONTENT_GAP, "contentGap" },
+	{ AAMP_EVENT_HTTP_RESPONSE_HEADER, "httpResponseHeader"},
 	{ (AAMPEventType)0, "" }
 };
 

@@ -82,6 +82,7 @@ typedef enum
 	AAMP_EVENT_DRM_MESSAGE,         	/**< 37, Message from the DRM system */
 	AAMP_EVENT_BLOCKED,         	        /**< 38, ATSC AV BLOCKED Event*/
 	AAMP_EVENT_CONTENT_GAP,			/**< 39, Content gap event for progress gap reporting*/
+	AAMP_EVENT_HTTP_RESPONSE_HEADER,        /**< 40, Http response header data */
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -425,6 +426,15 @@ struct AAMPEvent
 			long long timeMilliseconds;		/**< Playback position - relative to tune time - starts at zero */
 			double durationMilliSeconds;	/**< Duration of the gap */
 		} contentGap;
+
+		/**
+		 * @brief Structure of the http response header event
+		 */
+		struct
+		{
+			const char* header;         /**< HTTP header name */
+			const char* response;             /**< HTTP response value */
+		} httpResponseHeader;
 
 	} data;
 
@@ -2004,6 +2014,47 @@ public:
 	double getDuration() const;
 };
 
+/**
+ * @brief Class for the HTTP Response Header event 
+ */
+class HTTPResponseHeaderEvent: public AAMPEventObject
+{
+	std::string mHeaderName;		/**< Header name */
+	std::string mHeaderResponse;	/**< Header response */
+
+public:
+	HTTPResponseHeaderEvent() = delete;
+	HTTPResponseHeaderEvent(const HTTPResponseHeaderEvent&) = delete;
+	HTTPResponseHeaderEvent& operator=(const HTTPResponseHeaderEvent&) = delete;
+
+	/*
+	 * @brief HTTPResponseHeaderEvent Constructor
+	 *
+	 * @param[in] name         - HTTPResponseHeader name
+	 * @param[in] response     - HTTPResponseHeader response
+	 */
+	HTTPResponseHeaderEvent(const std::string &name, const std::string &response);
+
+	/**
+	 * @brief HTTPResponseHeaderEvent Destructor
+	 */
+	virtual ~HTTPResponseHeaderEvent() { }
+
+	/**
+	 * @brief Get HTTP Response Header Name
+	 *
+	 * @return HTTP Response Header name string
+	 */
+	const std::string &getHeader() const;
+
+	/**
+	 * @brief Get HTTP Response Header response
+	 *
+	 * @return HTTP Response Header response string
+	 */
+	const std::string &getResponse() const;
+};
+
 using AAMPEventPtr = std::shared_ptr<AAMPEventObject>;
 using MediaErrorEventPtr = std::shared_ptr<MediaErrorEvent>;
 using SpeedChangedEventPtr = std::shared_ptr<SpeedChangedEvent>;
@@ -2029,6 +2080,7 @@ using ID3MetadataEventPtr = std::shared_ptr<ID3MetadataEvent>;
 using DrmMessageEventPtr = std::shared_ptr<DrmMessageEvent>;
 using BlockedEventPtr = std::shared_ptr<BlockedEvent>;
 using ContentGapEventPtr = std::shared_ptr<ContentGapEvent>;
+using HTTPResponseHeaderEventPtr = std::shared_ptr<HTTPResponseHeaderEvent>;
 
 #endif /* __AAMP_EVENTS_H__ */
 

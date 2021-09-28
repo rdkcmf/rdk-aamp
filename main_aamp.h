@@ -696,6 +696,13 @@ public:
 	 */
 	void SetSubscribedTags(std::vector<std::string> subscribedTags);
 
+	/**
+     *   @brief Set array of http response headers.
+     *
+     *   @param  responseHeaders - Array of response headers.
+	 *   @return void
+	 */
+	void SubscribeResponseHeaders(std::vector<std::string> responseHeaders);
 
 	/**
 	 *   @brief Load AAMP JS object in the specified JS context.

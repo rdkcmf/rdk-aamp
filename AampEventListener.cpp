@@ -254,6 +254,13 @@ static void GenerateLegacyAAMPEvent(const AAMPEventPtr &e, AAMPEvent &event)
 			event.data.timedMetadata.durationMilliSeconds = ev->getDuration();
 			break;
 		}
+		case AAMP_EVENT_HTTP_RESPONSE_HEADER:
+		{
+			HTTPResponseHeaderEventPtr ev = std::dynamic_pointer_cast<HTTPResponseHeaderEvent>(e);
+			event.data.httpResponseHeader.header = ev->getHeader().c_str();
+			event.data.httpResponseHeader.response = ev->getResponse().c_str();
+			break;
+		}
 		default:
 			// Some events without payload also falls here, for now
 			// Hence skipping adding an assert to purposefully crash if mapping is not done to Legacy event

@@ -1065,6 +1065,22 @@ void PlayerInstanceAAMP::SetSubscribedTags(std::vector<std::string> subscribedTa
 	}
 }
 
+/**
+ *   @brief Subscribe array of http response headers.
+ *
+ *   @param  responseHeaders - Array of response headers.
+ */
+void PlayerInstanceAAMP::SubscribeResponseHeaders(std::vector<std::string> responseHeaders)
+{
+	ERROR_STATE_CHECK_VOID();
+
+	aamp->responseHeaders = responseHeaders;
+
+	for (int header=0; header < aamp->responseHeaders.size(); header++) {
+	    AAMPLOG_INFO("    responseHeaders[%d] = '%s'", header, responseHeaders.at(header).data());
+	}
+}
+
 #ifdef SUPPORT_JS_EVENTS 
 /**
  *   @brief Load AAMP JS object in the specified JS context.

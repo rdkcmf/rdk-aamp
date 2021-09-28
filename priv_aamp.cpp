@@ -988,6 +988,30 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 			}
 		}
 	}
+
+	// Check for http header tags, only if event listener for HTTPResponseHeaderEvent is available
+	if (eMEDIATYPE_MANIFEST == context->fileType && context->aamp->IsEventListenerAvailable(AAMP_EVENT_HTTP_RESPONSE_HEADER))
+	{
+		std::vector<std::string> responseHeaders = context->aamp->responseHeaders;
+
+		if (responseHeaders.size() > 0)
+		{
+			for (int header=0; header < responseHeaders.size(); header++) {
+				std::string headerType = responseHeaders[header].c_str();
+				// check if subscribed header is available
+				if (0 == strncasecmp(ptr, headerType.c_str() , headerType.length()))
+				{
+					startPos = headerType.length();
+					// strip only the header value from the response
+					context->aamp->httpHeaderResponses[headerType] = std::string( ptr + startPos + 2, endPos - startPos - 2).c_str();
+					AAMPLOG_INFO("httpHeaderResponses");
+					for (auto const& pair: context->aamp->httpHeaderResponses) {
+						AAMPLOG_INFO("{ %s, %s }", pair.first.c_str(), pair.second.c_str());
+					}
+				}
+			}
+		}
+	}
 	
 	if(startPos > 0)
 	{
@@ -1370,7 +1394,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN),isPreferredDRMConfigured(false),
 	mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET), 
 	seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
-	video_muted(false), subtitles_muted(true), audio_volume(100), subscribedTags(), timedMetadata(), timedMetadataNew(), IsTuneTypeNew(false), trickStartUTCMS(-1),mLogTimetoTopProfile(true),
+	video_muted(false), subtitles_muted(true), audio_volume(100), subscribedTags(), responseHeaders(), httpHeaderResponses(), timedMetadata(), timedMetadataNew(), IsTuneTypeNew(false), trickStartUTCMS(-1),mLogTimetoTopProfile(true),
 	durationSeconds(0.0), culledSeconds(0.0), culledOffset(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000),
 	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
@@ -7868,6 +7892,19 @@ bool PrivateInstanceAAMP::IsLiveAdjustRequired()
 			break;
 	}
 	return retValue;
+}
+
+/**
+ *@brief Generate http header response event
+ *
+ */
+void PrivateInstanceAAMP::SendHTTPHeaderResponse()
+{
+	for (auto const& pair: httpHeaderResponses) {
+		HTTPResponseHeaderEventPtr event = std::make_shared<HTTPResponseHeaderEvent>(pair.first.c_str(), pair.second);
+		AAMPLOG_INFO("HTTPResponseHeader evt Header:%s Response:%s", event->getHeader().c_str(), event->getResponse().c_str());
+		SendEvent(event,AAMP_EVENT_ASYNC_MODE);
+	}
 }
 
 /**
