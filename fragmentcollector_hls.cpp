@@ -5174,12 +5174,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					ts->playTarget = ts->playlistPosition;
 					ts->playTargetBufferCalc = ts->playTarget;
 				}
-
-				if(ISCONFIGSET(eAAMPConfig_SyncAudioFragments) && !(ISCONFIGSET(eAAMPConfig_MidFragmentSeek)) && iTrack == 0)
-				{
-					audio->playTarget = ts->playTarget;
-				}
 			}
+
+			if(audio->enabled && ISCONFIGSET(eAAMPConfig_SyncAudioFragments) && !(ISCONFIGSET(eAAMPConfig_MidFragmentSeek)))
+			{
+				audio->playTarget = video->playTarget;
+				audio->playTargetBufferCalc = audio->playTarget;
+			}
+
 			//Set live adusted position to seekPosition
 			if(ISCONFIGSET(eAAMPConfig_MidFragmentSeek))
 			{
