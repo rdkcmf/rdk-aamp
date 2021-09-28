@@ -139,6 +139,7 @@ enableLowLatencyDash		Enable/Disable Low Latency Dash. Default is false
 disableLowLatencyMonitor	Enable/Disable Low Latency Monitor. Default is true
 disableLowLatencyABR		Enable/Disable Low Latency ABR. Default is true
 disableLowLatencyCorrection	Enable/Disable Low Latency Correction. Default is true
+sharedSSL			Enabled/Disable curl shared SSL session. Default is true
 
 // Integer inputs
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune
