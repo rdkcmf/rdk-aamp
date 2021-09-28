@@ -4328,6 +4328,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				}
 
 				aamp->SetState(eSTATE_PREPARING);
+
+				// send the http response header values if available
+				if(!aamp->httpHeaderResponses.empty()) {
+					aamp->SendHTTPHeaderResponse();
+				}
 				//For DASH, presence of iframe track depends on current period.
 				aamp->SendMediaMetadataEvent(durationMs, mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent, mAvailabilityStartTime);
 

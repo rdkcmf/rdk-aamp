@@ -1341,3 +1341,36 @@ double ContentGapEvent::getDuration() const
 {
 	return mDuration;
 }
+
+
+/*
+ * @brief HTTPResponseHeaderEvent Constructor
+ * @param[in] header      - HTTP header name
+ * @param[in] response   - HTTP header response value
+ */
+HTTPResponseHeaderEvent::HTTPResponseHeaderEvent(const std::string &header, const std::string &response):
+		AAMPEventObject(AAMP_EVENT_HTTP_RESPONSE_HEADER)
+		, mHeaderName(header), mHeaderResponse(response)
+{
+
+}
+
+/**
+ * @brief Get HTTP Response Header Name
+ *
+ * @return HTTP response header name
+ */
+const std::string &HTTPResponseHeaderEvent::getHeader() const
+{
+	return mHeaderName;
+}
+
+/**
+ * @brief Get Get HTTP Response Header value
+ *
+ * @return HTTP response header value
+ */
+const std::string &HTTPResponseHeaderEvent::getResponse() const
+{
+	return mHeaderResponse;
+}

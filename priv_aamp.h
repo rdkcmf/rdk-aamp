@@ -787,6 +787,8 @@ public:
 	std::vector<TimedMetadata> timedMetadata;
 	std::vector<TimedMetadata> timedMetadataNew;
 	std::vector<ContentGapInfo> contentGaps;
+	std::vector<std::string> responseHeaders;
+	std::map<std::string, std::string> httpHeaderResponses;
 	bool mIsIframeTrackPresent;				/**< flag to check iframe track availability*/
 
 	/* START: Added As Part of DELIA-28363 and DELIA-28247 */
@@ -2207,6 +2209,12 @@ public:
 	 *   @return False if the content is either vod/ivod/cdvr/ip-dvr/eas
 	 */
 	bool IsLiveAdjustRequired();
+
+	/**
+	 *@brief Generate http header response event
+	*
+	*/
+	void SendHTTPHeaderResponse();
 
 	/**
 	 *   @brief  Generate media metadata event based on args passed.

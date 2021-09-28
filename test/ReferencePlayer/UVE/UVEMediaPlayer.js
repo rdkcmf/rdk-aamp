@@ -409,6 +409,13 @@ class AAMPPlayer {
          this.player.setSubscribedTags(tagNames);
     }
 
+    /**
+     * Subscribe to specific http response headers
+     */
+    subscribeResponseHeaders(headerNames) {
+        this.player.subscribeResponseHeaders(headerNames);
+    }
+
     addEventListener(eventName, eventHandler) {
         return this.player.addEventListener(eventName, eventHandler, null);
     }

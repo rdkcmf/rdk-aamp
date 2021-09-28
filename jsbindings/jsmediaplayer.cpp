@@ -1761,6 +1761,48 @@ JSValueRef AAMPMediaPlayerJS_setSubscribedTags (JSContextRef ctx, JSObjectRef fu
 
 
 /**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.subscribeResponseHeaders()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_subscribeResponseHeaders (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call subscribeResponseHeaders() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute subscribeResponseHeaders() - 1 argument required");
+	}
+	else if (!aamp_JSValueIsArray(ctx, arguments[0]))
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: aamp_JSValueIsArray=%d", __FUNCTION__, aamp_JSValueIsArray(ctx, arguments[0]));
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute subscribeResponseHeaders() - parameter 1 is not an array");
+	}
+	else
+	{
+		std::vector<std::string> responseHeaders = aamp_StringArrayToCStringArray(ctx, arguments[0]);
+		privObj->_aamp->SubscribeResponseHeaders(responseHeaders);
+		ERROR("%s(): Invoked SubscribeResponseHeaders", __FUNCTION__);
+	}
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
+
+
+/**
  * @brief API invoked from JS when executing AAMPMediaPlayer.addEventListener()
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
@@ -2876,6 +2918,7 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "getSupportedKeySystems", AAMPMediaPlayerJS_getSupportedKeySystems, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setVideoMute", AAMPMediaPlayerJS_setVideoMute, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setSubscribedTags", AAMPMediaPlayerJS_setSubscribedTags, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ "subscribeResponseHeaders", AAMPMediaPlayerJS_subscribeResponseHeaders, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "addEventListener", AAMPMediaPlayerJS_addEventListener, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "removeEventListener", AAMPMediaPlayerJS_removeEventListener, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setDRMConfig", AAMPMediaPlayerJS_setDRMConfig, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},

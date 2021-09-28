@@ -1380,6 +1380,46 @@ public:
 	}
 };
 
+
+/**
+ * @class AAMP_Listener_HTTPResponseHeader
+ * @brief Event listener impl for AAMP_EVENT_HTTP_RESPONSE_HEADER event.
+ */
+class AAMP_Listener_HTTPResponseHeader : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_HTTPResponseHeader Constructor
+	 * @param[in] aamp instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_HTTPResponseHeader(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set properties to JS event object
+	 * @param[in] ev AAMP event object
+	 * @param[out] jsEventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
+	{
+		HTTPResponseHeaderEventPtr evt = std::dynamic_pointer_cast<HTTPResponseHeaderEvent>(ev);
+
+		JSStringRef prop;
+
+		prop = JSStringCreateWithUTF8CString("header");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getHeader().c_str()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+		prop = JSStringCreateWithUTF8CString("response");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getResponse().c_str()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+};
+
 /**
  * @brief AAMP_JSEventListener Constructor
  * @param[in] obj instance of PrivAAMPStruct_JS
@@ -1517,6 +1557,9 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 			break;
 		case AAMP_EVENT_TIMED_METADATA:
 			pListener = new AAMP_Listener_TimedMetadata(obj, type, jsCallback);
+			break;
+		case AAMP_EVENT_HTTP_RESPONSE_HEADER:
+			pListener = new AAMP_Listener_HTTPResponseHeader(obj, type, jsCallback);
 			break;
 		case AAMP_EVENT_BITRATE_CHANGED:
 			pListener = new AAMP_Listener_BitrateChanged(obj, type, jsCallback);
