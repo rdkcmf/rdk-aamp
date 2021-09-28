@@ -169,6 +169,7 @@ typedef enum
 	eAAMPConfig_RepairIframes,								/*** Enable fragment repair (Stripping and box size correction) for iframe tracks */
 	eAAMPConfig_SEITimeCode,							/** Enables SEI Time Code handling */
 	eAAMPConfig_Disable4K,							/** Enalbe/Disable 4K stream support*/
+	eAAMPConfig_EnableSharedSSLSession,                                             /** Enable/Disable config for shared ssl session reuse */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,

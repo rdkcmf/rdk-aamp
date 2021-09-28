@@ -220,7 +220,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"customHeaderLicense",eAAMPConfig_CustomHeaderLicense,-1,-1},
 	{"preferredAudioLanguage",eAAMPConfig_PreferredAudioLanguage,-1,-1},
 	{"seiTimeCode",eAAMPConfig_SEITimeCode,-1,-1},
-	{"disable4K" , eAAMPConfig_Disable4K, -1, -1}
+	{"disable4K" , eAAMPConfig_Disable4K, -1, -1},
+	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, -1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -334,7 +335,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_DisableUnderflow].value                       =       false;
 	bAampCfgValue[eAAMPConfig_LimitResolution].value                        =       false;
 	bAampCfgValue[eAAMPConfig_UseAbsoluteTimeline].value                  	=       false;
-	bAampCfgValue[eAAMPConfig_WideVineKIDWorkaround].value                  	=       false;
+	bAampCfgValue[eAAMPConfig_WideVineKIDWorkaround].value                	=       false;
 	bAampCfgValue[eAAMPConfig_RepairIframes].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_SEITimeCode].value              		=       true;
 #ifdef CONTENT_4K_SUPPORTED
@@ -342,6 +343,7 @@ void AampConfig::Initialize()
 #else
 	bAampCfgValue[eAAMPConfig_Disable4K].value                              =       true;
 #endif
+	bAampCfgValue[eAAMPConfig_EnableSharedSSLSession].value			=	true;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;

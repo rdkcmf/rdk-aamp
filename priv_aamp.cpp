@@ -1237,6 +1237,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	curl_share_setopt(mCurlShared, CURLSHOPT_LOCKFUNC, curl_lock_callback);
 	curl_share_setopt(mCurlShared, CURLSHOPT_UNLOCKFUNC, curl_unlock_callback);
 	curl_share_setopt(mCurlShared, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+	if (ISCONFIGSET_PRIV(eAAMPConfig_EnableSharedSSLSession))
+	{
+		curl_share_setopt(mCurlShared, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
+	}
 
 	for (int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
