@@ -1821,8 +1821,6 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 		}
 		pthread_mutex_unlock(&mStreamLock);
 
-		ProgressEventPtr evt = std::make_shared<ProgressEvent>(duration, position, start, end, speed, videoPTS, bufferedDuration, seiTimecode.c_str());
-        
 		if ((mReportProgressPosn == position) && !pipeline_paused)
 		{
 			// Avoid sending the progress event, if the previous position and the current position is same when pipeline is in playing state.
@@ -1838,6 +1836,8 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 			position -= (mProgressReportOffset * 1000);
 			end -= (mProgressReportOffset * 1000);
 		}
+
+		ProgressEventPtr evt = std::make_shared<ProgressEvent>(duration, position, start, end, speed, videoPTS, bufferedDuration, seiTimecode.c_str());
 
 		if (trickStartUTCMS >= 0 && bProcessEvent)
 		{
