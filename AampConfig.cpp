@@ -20,7 +20,7 @@
 #include "_base64.h"
 #include "base16.h"
 #include "AampJsonObject.h" // For JSON parsing
-
+#include "AampUtils.h"
 
 //////////////// CAUTION !!!! STOP !!! Read this before you proceed !!!!!!! /////////////
 /// 1. This Class handles Configuration Parameters of AAMP Player , only Config related functionality to be added
@@ -1408,7 +1408,7 @@ bool AampConfig::ReadAampCfgJsonFile()
 				pbuf->sgetn (jsonbuffer,size);
 				f.close();
 				ProcessConfigJson( jsonbuffer, AAMP_DEV_CFG_SETTING);
-				delete[] jsonbuffer;
+				SAFE_DELETE_ARRAY(jsonbuffer);
 				DoCustomSetting(AAMP_DEV_CFG_SETTING);
 				retVal = true;
 			}

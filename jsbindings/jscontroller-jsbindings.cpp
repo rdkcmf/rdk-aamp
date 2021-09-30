@@ -263,8 +263,7 @@ static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef fun
 			snprintf(errMsg, 511, "Failed to execute addEventListener() for event %s - parameter 2 is not a function", type);
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, (const char*)errMsg);
 		}
-
-		delete[] type;
+		SAFE_DELETE_ARRAY(type);
 	}
 	else
 	{
@@ -320,8 +319,7 @@ static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef 
 			snprintf(errMsg, 511, "Failed to execute removeEventListener() for event %s - parameter 2 is not a function", type);
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, (const char*)errMsg);
 		}
-
-		delete[] type;
+		SAFE_DELETE_ARRAY(type);
 	}
 	else
 	{
@@ -364,7 +362,7 @@ static JSValueRef AAMPJSC_setLicenseServerUrl(JSContextRef context, JSObjectRef 
 				aampObj->_aamp->SetLicenseServerURL(aampObj->_licenseServerUrl.c_str());
 			}
 		}
-		delete[] url;
+		SAFE_DELETE_ARRAY(url);
 	}
 	else
 	{
@@ -409,7 +407,7 @@ void AAMP_JSController_finalize(JSObjectRef thisObj)
 
 	JSObjectSetPrivate(thisObj, NULL);
 
-	delete aampObj;
+	SAFE_DELETE(aampObj);
 }
 
 

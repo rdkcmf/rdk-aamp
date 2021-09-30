@@ -458,7 +458,7 @@ static gboolean PrivateInstanceAAMP_Retune(gpointer ptr)
 static void AsyncEventDestroyNotify(gpointer user_data)
 {
 	AsyncEventDescriptor* e = (AsyncEventDescriptor*)user_data;
-	delete e;
+	SAFE_DELETE(e);
 }
 
 /**
@@ -1457,7 +1457,7 @@ static gboolean IdleCallbackOnId3Metadata(gpointer user_data)
         id3->aamp->id3MetadataCallbackTaskPending = false;
         id3->aamp->id3MetadataCallbackIdleTaskId = 0;
 
-        delete id3;
+        SAFE_DELETE(id3);
 
         return G_SOURCE_REMOVE;
 }
@@ -1666,15 +1666,11 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 		{
 			ListenerData* pListener = mEventListeners[i];
 			mEventListeners[i] = pListener->pNext;
-			delete pListener;
+			SAFE_DELETE(pListener);
 		}
 	}
 #ifdef SESSION_STATS
-	if (mVideoEnd)
-	{
-		delete mVideoEnd;
-          	mVideoEnd = NULL;
-	}
+	SAFE_DELETE(mVideoEnd);
 #endif
 	pthread_mutex_unlock(&mLock);
 
@@ -1691,17 +1687,10 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
 #endif
-	if (mAampCacheHandler)
-	{
-		delete mAampCacheHandler;
-		mAampCacheHandler = NULL;
-	}
+	SAFE_DELETE(mAampCacheHandler);
+
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
-	if (mDRMSessionManager)
-	{
-		delete mDRMSessionManager;
-		mDRMSessionManager = NULL;
-	}
+	SAFE_DELETE(mDRMSessionManager);
 #endif
 	if(mCurlShared)
 	{
@@ -2097,7 +2086,7 @@ void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, EventList
 				*ppLast = pListener->pNext;
 				pthread_mutex_unlock(&mLock);
 				AAMPLOG_INFO("[AAMP_JS] %s(%d, %p) delete %p", __FUNCTION__, eventType, eventListener, pListener);
-				delete pListener;
+				SAFE_DELETE(pListener);
 				return;
 			}
 			ppLast = &(pListener->pNext);
@@ -2478,7 +2467,7 @@ void PrivateInstanceAAMP::SendEventSync(AAMPEventPtr e)
 			pCurrent->eventListener->SendEvent(e);
 		}
 		pList = pCurrent->pNext;
-		delete pCurrent;
+		SAFE_DELETE(pCurrent);
 	}
 }
 
@@ -4499,8 +4488,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->Stop(false);
-		delete mpStreamAbstractionAAMP;
-		mpStreamAbstractionAAMP = NULL;
+		SAFE_DELETE(mpStreamAbstractionAAMP);
 	}
 
 	pthread_mutex_lock(&mLock);
@@ -6639,25 +6627,14 @@ void PrivateInstanceAAMP::Stop()
 	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
 	{
-		if (mAampCacheHandler)
-		{
-			delete mAampCacheHandler;
-			mAampCacheHandler = NULL;
-		}
+		SAFE_DELETE(mAampCacheHandler);
+
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
-		if (mDRMSessionManager)
-		{
-			delete mDRMSessionManager;
-			mDRMSessionManager = NULL;
-		}
+		SAFE_DELETE(mDRMSessionManager);
 #endif
 	}
 
-	if(NULL != mCdaiObject)
-	{
-		delete mCdaiObject;
-		mCdaiObject = NULL;
-	}
+	SAFE_DELETE(mCdaiObject);
 
 #if 0
 	/* Clear the session data*/
@@ -7394,7 +7371,7 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 			strVideoEndJson = mVideoEnd->ToJsonString();
 		}
 
-		delete mVideoEnd;
+		SAFE_DELETE(mVideoEnd);
 	}
 	
 	mVideoEnd = new CVideoStat();

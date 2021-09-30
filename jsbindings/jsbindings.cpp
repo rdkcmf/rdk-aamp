@@ -384,7 +384,7 @@ static JSValueRef AAMP_getProperty_timedMetadata(JSContextRef context, JSObjectR
 	}
 
 	JSValueRef prop = JSObjectMakeArray(context, length, array, NULL);
-	delete [] array;
+	SAFE_DELETE_ARRAY(array);
 
 	return prop;
 }
@@ -1159,8 +1159,7 @@ public:
 			//JSValueRelease(lang);
 		}
 		JSValueRef prop = JSObjectMakeArray(context, count, array, NULL);
-
-		delete [] array;
+		SAFE_DELETE_ARRAY(array);
 
 		name = JSStringCreateWithUTF8CString("languages");
 		JSObjectSetProperty(context, eventObj, name, prop, kJSPropertyAttributeReadOnly, NULL);
@@ -1174,7 +1173,7 @@ public:
 			array[i] = JSValueMakeNumber(context, bitrateVect[i]);
 		}
 		prop = JSObjectMakeArray(context, count, array, NULL);
-		delete [] array;
+		SAFE_DELETE_ARRAY(array);
 
 		name = JSStringCreateWithUTF8CString("bitrates");
 		JSObjectSetProperty(context, eventObj, name, prop, kJSPropertyAttributeReadOnly, NULL);
@@ -1188,7 +1187,7 @@ public:
 			array[i] = JSValueMakeNumber(context, speedVect[i]);
 		}
 		prop = JSObjectMakeArray(context, count, array, NULL);
-		delete [] array;
+		SAFE_DELETE_ARRAY(array);
 
 		name = JSStringCreateWithUTF8CString("playbackSpeeds");
 		JSObjectSetProperty(context, eventObj, name, prop, kJSPropertyAttributeReadOnly, NULL);
@@ -1399,7 +1398,7 @@ public:
 			array[i] = JSValueMakeNumber(context, speedVect[i]);
 		}
 		JSValueRef prop = JSObjectMakeArray(context, count, array, NULL);
-		delete [] array;
+		SAFE_DELETE_ARRAY(array);
 
 		JSStringRef name = JSStringCreateWithUTF8CString("playbackSpeeds");
 		JSObjectSetProperty(context, eventObj, name, prop, kJSPropertyAttributeReadOnly, NULL);
@@ -1778,7 +1777,7 @@ public:
 		prop = JSStringCreateWithUTF8CString("data");
 		JSObjectSetProperty(context, eventObj, prop, JSObjectMakeArray(context, len, array, NULL), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
-		delete [] array;
+		SAFE_DELETE_ARRAY(array);
 
 		prop = JSStringCreateWithUTF8CString("length");
 		JSObjectSetProperty(context, eventObj, prop, JSValueMakeNumber(context, len), kJSPropertyAttributeReadOnly, NULL);
@@ -1857,8 +1856,7 @@ static JSValueRef AAMP_addEventListener(JSContextRef context, JSObjectRef functi
 			{
 				AAMP_JSListener::AddEventListener(pAAMP, eventType, callbackObj);
 			}
-
-			delete[] type;
+			SAFE_DELETE_ARRAY(type);
 		}
 		else
 		{
@@ -2032,8 +2030,7 @@ static JSValueRef AAMP_removeEventListener(JSContextRef context, JSObjectRef fun
 
 				AAMP_JSListener::RemoveEventListener(pAAMP, eventType, callbackObj);
 			}
-
-			delete[] type;
+			SAFE_DELETE_ARRAY(type);
 		}
 		else
 		{
@@ -2069,7 +2066,7 @@ void AAMP_JSListener::RemoveEventListener(AAMP_JS* aamp, AAMPEventType type, JSO
 		{
 			*ppListener = pListener->_pNext;
 			aamp->_aamp->RemoveEventListener(type, pListener);
-			delete pListener;
+			SAFE_DELETE(pListener);
 			return;
 		}
 		ppListener = &pListener->_pNext;
@@ -2170,12 +2167,9 @@ static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObject
 					pAAMP->_aamp->Tune(url, true, contentType, bFirstAttempt, bFinalAttempt);
 
 				}
-				delete [] url;
+				SAFE_DELETE_ARRAY(url);
 			}
-			if(NULL != contentType)
-			{
-				delete [] contentType;
-			}
+			SAFE_DELETE_ARRAY(contentType);
 			break;
 		default:
 			ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1 to 4", __FUNCTION__, argumentCount);
@@ -2282,16 +2276,9 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 			pAAMP->_aamp->Tune(url, true, contentType, bFirstAttempt, bFinalAttempt, strTraceId);
 		}
 
-		delete [] url;
-		if (contentType)
-		{
-			delete[] contentType;
-		}
-
-		if (strTraceId)
-		{
-			delete[] strTraceId;
-		}
+		SAFE_DELETE_ARRAY(url);
+		SAFE_DELETE_ARRAY(contentType);
+		SAFE_DELETE_ARRAY(strTraceId);
 	}
 	else
 	{
@@ -2627,7 +2614,7 @@ static JSValueRef AAMP_setZoom(JSContextRef context, JSObjectRef function, JSObj
 			zoom = VIDEO_ZOOM_FULL;
 		}
 		pAAMP->_aamp->SetVideoZoom(zoom);
-		delete[] zoomStr;
+		SAFE_DELETE_ARRAY(zoomStr);
 	}
 	return JSValueMakeUndefined(context);
 }
@@ -2676,7 +2663,7 @@ static JSValueRef AAMP_setLanguage(JSContextRef context, JSObjectRef function, J
 		{
 			pAAMP->_aamp->SetLanguage(lang);
 		}
-		delete [] lang;
+		SAFE_DELETE_ARRAY(lang);
 	}
 	return JSValueMakeUndefined(context);
 }
@@ -2763,7 +2750,7 @@ static JSValueRef AAMP_addCustomHTTPHeader(JSContextRef context, JSObjectRef fun
 		std::string headerName(name);
 		std::vector<std::string> headerVal;
 
-		delete[] name;
+		SAFE_DELETE_ARRAY(name);
 
 		if (aamp_JSValueIsArray(context, arguments[1]))
 		{
@@ -2774,7 +2761,7 @@ static JSValueRef AAMP_addCustomHTTPHeader(JSContextRef context, JSObjectRef fun
 			headerVal.reserve(1);
 			char *value =  aamp_JSValueToCString(context, arguments[1], exception);
 			headerVal.push_back(value);
-			delete[] value;
+			SAFE_DELETE_ARRAY(value);
 		}
 
 		// Don't support empty values now
@@ -2822,7 +2809,7 @@ static JSValueRef AAMP_removeCustomHTTPHeader(JSContextRef context, JSObjectRef 
 		char *name = aamp_JSValueToCString(context, arguments[0], exception);
 		std::string headerName(name);
 		pAAMP->_aamp->AddCustomHTTPHeader(headerName, std::vector<std::string>());
-		delete[] name;
+		SAFE_DELETE_ARRAY(name);
 
 	}
 	return JSValueMakeUndefined(context);
@@ -3088,7 +3075,7 @@ static JSValueRef AAMP_setLicenseServerURL(JSContextRef context, JSObjectRef fun
 	{
 		const char *url = aamp_JSValueToCString(context, arguments[0], exception);
 		pAAMP->_aamp->SetLicenseServerURL(url);
-		delete [] url;
+		SAFE_DELETE_ARRAY(url);
 	}
 	return JSValueMakeUndefined(context);
 }
@@ -3131,7 +3118,7 @@ static JSValueRef AAMP_setPreferredDRM(JSContextRef context, JSObjectRef functio
 		{
 			pAAMP->_aamp->SetPreferredDRM(eDRM_PlayReady);
 		}
-		delete [] drm;
+		SAFE_DELETE_ARRAY(drm);
 	}
 	return JSValueMakeUndefined(context);
 }
@@ -3331,18 +3318,9 @@ static JSValueRef AAMP_setAlternateContent(JSContextRef context, JSObjectRef fun
 		{
 			ERROR("[AAMP_JS] %s() Unable to parse the promiseCallback argument", __FUNCTION__);
 		}
-		if (reservationId)
-		{
-			delete[] reservationId;
-		}
-		if (adURL)
-		{
-			delete[] adURL;
-		}
-		if (adId)
-		{
-			delete[] adId;
-		}
+		SAFE_DELETE_ARRAY(reservationId);
+		SAFE_DELETE_ARRAY(adURL);
+		SAFE_DELETE_ARRAY(adId);
 	}
 	return JSValueMakeUndefined(context);
 }
@@ -3382,7 +3360,7 @@ static JSValueRef AAMP_notifyReservationCompletion(JSContextRef context, JSObjec
 		//Need an API in AAMP to notify that placements for this reservation are over and AAMP might have to trim
 		//the ads to the period duration or not depending on time param
 		ERROR("[AAMP_JS] %s(): Called reservation close for periodId:%s and time:%ld", __FUNCTION__, reservationId, time);
-		delete[] reservationId;
+		SAFE_DELETE_ARRAY(reservationId);
 	}
 	return JSValueMakeUndefined(context);
 }
@@ -3640,7 +3618,7 @@ static JSValueRef AAMP_setTextStyleOptions(JSContextRef context, JSObjectRef fun
 		{
 			const char *options = aamp_JSValueToCString(context, arguments[0], NULL);
 			pAAMP->_aamp->SetTextStyle(std::string(options));
-			delete[] options;
+			SAFE_DELETE_ARRAY(options);
 
 		}
 		else
@@ -3788,7 +3766,7 @@ static JSValueRef AAMP_setAuxiliaryLanguage(JSContextRef context, JSObjectRef fu
 	{
 		char* lang = aamp_JSValueToCString(context, arguments[0], exception);
 		pAAMP->_aamp->SetAuxiliaryLanguage(lang);
-		delete [] lang;
+		SAFE_DELETE_ARRAY(lang);
 	}
 	return JSValueMakeUndefined(context);
 }
@@ -3888,11 +3866,10 @@ static void AAMP_finalize(JSObjectRef thisObject)
 		//when finalizing JS object, don't generate state change events
 		_allocated_aamp->Stop(false);
 		LOG("[AAMP_JS] %s:%d delete aamp %p", __FUNCTION__, __LINE__, _allocated_aamp);
-		delete _allocated_aamp;
-		_allocated_aamp = NULL;
+		SAFE_DELETE(_allocated_aamp);
 	}
 	pthread_mutex_unlock(&mutex);
-	delete pAAMP;
+	SAFE_DELETE(pAAMP);
 
 #ifdef AAMP_CC_ENABLED
 	//disable CC rendering so that state will not be persisted between two different sessions.

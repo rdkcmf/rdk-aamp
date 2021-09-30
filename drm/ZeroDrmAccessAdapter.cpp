@@ -55,7 +55,7 @@ void ZeroDRMAccessAdapter::deleteInstance()
 {
     if(mInstanceAvailFlag)
 	{
-		delete mInstance ;
+		SAFE_DELETE(mInstance);
 		mInstanceAvailFlag = false;
 	}
 
@@ -132,7 +132,7 @@ ZeroDRMAccessAdapter::~ZeroDRMAccessAdapter ()
 		ZeroDrmWorkerData *qptr = (ZeroDrmWorkerData *)mZWorkerDataQue.front();
 		zeroDrmDeleteKeyTag (&qptr->keyTag);
 		mZWorkerDataQue.pop();
-		delete qptr;
+		SAFE_DELETE(qptr);
 	}
 }
 
@@ -211,7 +211,7 @@ void ZeroDRMAccessAdapter::zeroDrmFinalize(const uint32_t contextId)
 				ctxvar->mCtxHashList.pop_back();
 			}
 			// now that all hash value for this stream freed/reused , now remove the ctxStructure
-			delete ctxvar;
+			SAFE_DELETE(ctxvar);
 			mContextList.erase(iter);
 		}
 		else
@@ -670,8 +670,7 @@ void ZeroDRMAccessAdapter::zeroDRMWorkerThreadTask()
 					logprintf("[%s]->No callback function registered for ZDrm Status[%d] update",__FUNCTION__,getKeyRetVal);
             		}
 			// delete the queue element
-			delete qptr;	
-			qptr = NULL;	
+			SAFE_DELETE(qptr);
 		}// end of if 
 	}while(!mWorkerThreadEndFlag); // check if anyone fired you . 
 	
@@ -742,8 +741,7 @@ ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmGetKey(const uint32_t contextId ,cons
 					metadata->mDrmLastError	=	(int)sec_client_result;
 					metadata->mZeroDrmState	=	eZERO_DRM_STATE_RECEIPT_FAILED;
 					metadata->receiptAvailable	=	false;
-					delete[] moneytracebuf;
-					moneytracebuf = NULL;
+					SAFE_DELETE_ARRAY(moneytracebuf);
 					retVal = eZERO_DRM_STATUS_RECEIPT_FAILED;
 				}else {
 					// Now that receipt is available , get the Key now 
@@ -804,8 +802,7 @@ ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmGetKey(const uint32_t contextId ,cons
 					*/
 					////////////////////////////////////////////////
 				}
-				delete [] moneytracebuf;
-				moneytracebuf = NULL;			
+				SAFE_DELETE_ARRAY(moneytracebuf);
 			}
 			retState = metadata->mZeroDrmState;
 		}
@@ -976,20 +973,11 @@ void ZeroDRMAccessAdapter::zeroDrmDeleteMetadata(ZeroDrmMetadata *metadata)
 			SecKey_Delete(metadata->secureContext.securityProcessorContext, metadata->secureContext.playbackKeyOid);
 		}
 			
-		if(metadata->metadataPtr != NULL)
-		{
-			delete [] metadata->metadataPtr;
-			metadata->metadataPtr	=	NULL;
-		}
-		
-		if(metadata->receiptdataPtr != NULL)
-		{
-			delete [] metadata->receiptdataPtr;
-			metadata->receiptdataPtr = NULL;
-		}
+		SAFE_DELETE_ARRAY(metadata->metadataPtr);
+		SAFE_DELETE_ARRAY(metadata->receiptdataPtr);
 	
 		zeroDrmDeleteKeyTag(&metadata->keyTagInfo);	
-		delete metadata;
+		SAFE_DELETE(metadata);
 	}
 }
 
@@ -1126,7 +1114,7 @@ int main(int argc, char** argv)
 			}
 		}
 		file.close();
-		delete[] memblock;
+		SAFE_DELETE_ARRAY(memblock);
 	}
 #endif
 	inst->zeroDrmFinalize(myCtx);

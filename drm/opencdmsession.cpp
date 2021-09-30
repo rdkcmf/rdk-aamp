@@ -210,8 +210,7 @@ AAMPOCDMSession::~AAMPOCDMSession()
 	if(m_pOpencdmDecrypt)
 	{
 		m_pOpencdmDecrypt->Close();
-		delete m_pOpencdmDecrypt;
-		m_pOpencdmDecrypt = nullptr;
+		SAFE_DELETE(m_pOpencdmDecrypt);
 	}
 #endif
 
@@ -221,8 +220,7 @@ AAMPOCDMSession::~AAMPOCDMSession()
 		m_pOpencdm->ReleaseMem();
 #endif
 		m_pOpencdm->Close();
-		delete m_pOpencdm;
-		m_pOpencdm = nullptr;
+        	SAFE_DELETE(m_pOpencdm);
 	}
 	m_eKeyState = KEY_CLOSED;
 
@@ -469,10 +467,7 @@ void AAMPOCDMSession:: clearDecryptContext()
 #if USE_NEW_OPENCDM < 1
 	if(m_pOpencdm) m_pOpencdm->ReleaseMem();
 #else
-	if(m_pOpencdmDecrypt) {
-		delete m_pOpencdmDecrypt;
-		m_pOpencdmDecrypt = NULL;
-	}
+	SAFE_DELETE(m_pOpencdmDecrypt);
 #endif
 	if(m_pOpencdm) m_pOpencdm->Close();
 	m_eKeyState = KEY_INIT;

@@ -291,7 +291,7 @@ public:
 			array[i] = lang;
 		}
 		JSValueRef propValue = JSObjectMakeArray(p_obj->_ctx, count, array, NULL);
-		delete [] array;
+		SAFE_DELETE_ARRAY(array);
 
 		prop = JSStringCreateWithUTF8CString("languages");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, propValue, kJSPropertyAttributeReadOnly, NULL);
@@ -305,7 +305,7 @@ public:
 			array[i] = JSValueMakeNumber(p_obj->_ctx, bitrateVect[i]);
 		}
 		propValue = JSObjectMakeArray(p_obj->_ctx, count, array, NULL);
-		delete [] array;
+		SAFE_DELETE_ARRAY(array);
 
 		prop = JSStringCreateWithUTF8CString("bitrates");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, propValue, kJSPropertyAttributeReadOnly, NULL);
@@ -319,7 +319,7 @@ public:
 			array[i] = JSValueMakeNumber(p_obj->_ctx, speedVect[i]);
 		}
 		propValue = JSObjectMakeArray(p_obj->_ctx, count, array, NULL);
-		delete [] array;
+		SAFE_DELETE_ARRAY(array);
 
 		prop = JSStringCreateWithUTF8CString("playbackSpeeds");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, propValue, kJSPropertyAttributeReadOnly, NULL);
@@ -485,7 +485,7 @@ public:
 			array[i] = JSValueMakeNumber(p_obj->_ctx, speedVect[i]);
 		}
 		JSValueRef propValue = JSObjectMakeArray(p_obj->_ctx, count, array, NULL);
-		delete [] array;
+		SAFE_DELETE_ARRAY(array);
 
 		JSStringRef prop = JSStringCreateWithUTF8CString("playbackSpeeds");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, propValue, kJSPropertyAttributeReadOnly, NULL);
@@ -1251,7 +1251,7 @@ public:
 		prop = JSStringCreateWithUTF8CString("data");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSObjectMakeArray(p_obj->_ctx, len, array, NULL), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
-		delete [] array;
+		SAFE_DELETE_ARRAY(array);
 
 		prop = JSStringCreateWithUTF8CString("length");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, len), kJSPropertyAttributeReadOnly, NULL);
@@ -1598,7 +1598,7 @@ void AAMP_JSEventListener::RemoveEventListener(PrivAAMPStruct_JS* obj, AAMPEvent
 					obj->_aamp->RemoveEventListener(iter->first, listener);
 				}
 				iter = obj->_listeners.erase(iter);
-				delete listener;
+				SAFE_DELETE(listener);
 			}
 			else
 			{
@@ -1625,7 +1625,7 @@ void AAMP_JSEventListener::RemoveAllEventListener(PrivAAMPStruct_JS * obj)
 			obj->_aamp->RemoveEventListener(listenerIter->first, listener);
 		}
 		listenerIter = obj->_listeners.erase(listenerIter);
-		delete listener;
+		SAFE_DELETE(listener);
 	}
 
 	obj->_listeners.clear();

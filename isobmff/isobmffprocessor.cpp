@@ -339,7 +339,7 @@ void IsoBmffProcessor::pushInitSegment(double position)
 			GrowableBuffer *buf = *it;
 			p_aamp->SendStreamTransfer((MediaType)type, buf, position, position, 0);
 			aamp_Free(buf);
-			delete buf;
+			SAFE_DELETE(buf);
 			it = initSegment.erase(it);
 		}
 	}
@@ -358,7 +358,7 @@ void IsoBmffProcessor::clearInitSegment()
 		{
 			GrowableBuffer *buf = *it;
 			aamp_Free(buf);
-			delete buf;
+			SAFE_DELETE(buf);
 			it = initSegment.erase(it);
 		}
 	}

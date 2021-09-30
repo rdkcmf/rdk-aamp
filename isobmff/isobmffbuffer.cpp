@@ -34,7 +34,7 @@ IsoBmffBuffer::~IsoBmffBuffer()
 	for (unsigned int i=boxes.size(); i>0;)
 	{
 		--i;
-		delete boxes[i];
+		SAFE_DELETE(boxes[i]);
 		boxes.pop_back();
 	}
 	boxes.clear();
@@ -205,7 +205,7 @@ void IsoBmffBuffer::destroyBoxes()
 	for (unsigned int i=boxes.size(); i>0;)
 	{
 		--i;
-		delete boxes[i];
+		SAFE_DELETE(boxes[i]);
 		boxes.pop_back();
 	}
 	boxes.clear();

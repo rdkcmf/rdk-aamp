@@ -102,7 +102,7 @@ public:
         pthread_mutex_unlock(&m_refCountMutex);
 
         if(m_refCount == 0) {
-            delete (ReferenceCount *)this;
+		delete (ReferenceCount *)this;
         }
     }
 

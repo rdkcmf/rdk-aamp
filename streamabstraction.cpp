@@ -1576,11 +1576,7 @@ MediaTrack::~MediaTrack()
 		memset(&cachedFragment[j], 0x00, sizeof(CachedFragment));
 	}
 
-	if(cachedFragment)
-	{
-		delete [] cachedFragment;
-		cachedFragment = NULL;
-	}
+	SAFE_DELETE_ARRAY(cachedFragment);
 	
 	pthread_cond_destroy(&fragmentFetched);
 	pthread_cond_destroy(&fragmentInjected);

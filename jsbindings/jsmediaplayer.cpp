@@ -313,12 +313,9 @@ static void releaseNativeResources(AAMPMediaPlayer_JS *privObj)
 				AAMP_JSEventListener::RemoveAllEventListener(privObj);
 			}
 			ERROR("[%s] Deleting PlayerInstanceAAMP instance:%p", __FUNCTION__, privObj->_aamp);
-			delete privObj->_aamp;
-			privObj->_aamp = NULL;
+			SAFE_DELETE(privObj->_aamp);
 		}
-
-		delete privObj;
-		privObj = NULL;
+		SAFE_DELETE(privObj);
 	}
 }
 
@@ -383,7 +380,7 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 			ERROR("%s(): Playready License Server URL config param received - %s", __FUNCTION__, prLicenseServerURL);
 			privObj->_aamp->SetLicenseServerURL(prLicenseServerURL, eDRM_PlayReady);
 
-			delete[] prLicenseServerURL;
+			SAFE_DELETE_ARRAY(prLicenseServerURL);
 		}
 
 		ret = ParseJSPropAsString(ctx, drmConfigObj, "com.widevine.alpha", wvLicenseServerURL);
@@ -392,7 +389,7 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 			ERROR("%s(): Widevine License Server URL config param received - %s", __FUNCTION__, wvLicenseServerURL);
 			privObj->_aamp->SetLicenseServerURL(wvLicenseServerURL, eDRM_WideVine);
 
-			delete[] wvLicenseServerURL;
+			SAFE_DELETE_ARRAY(wvLicenseServerURL);
 		}
 
 		ret = ParseJSPropAsString(ctx, drmConfigObj, "org.w3.clearkey", ckLicenseServerURL);
@@ -401,7 +398,7 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 			ERROR("%s(): ClearKey License Server URL config param received - %s", __FUNCTION__, ckLicenseServerURL);
 			privObj->_aamp->SetLicenseServerURL(ckLicenseServerURL, eDRM_ClearKey);
 
-			delete[] ckLicenseServerURL;
+			SAFE_DELETE_ARRAY(ckLicenseServerURL);
 		}
 
 		ret = ParseJSPropAsString(ctx, drmConfigObj, "preferredKeysystem", keySystem);
@@ -421,7 +418,7 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 			{
 				LOG("%s(): Value passed preferredKeySystem(%s) not supported", __FUNCTION__, keySystem);
 			}
-			delete[] keySystem;
+			SAFE_DELETE_ARRAY(keySystem);
 		}
 	}
 	else
@@ -522,9 +519,9 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 
 			}
 
-			delete [] url;
-			delete[] contentType;
-			delete[] strTraceId;
+			SAFE_DELETE_ARRAY(url);
+			SAFE_DELETE_ARRAY(contentType);
+			SAFE_DELETE_ARRAY(strTraceId);
 		
 			break;
 		}
@@ -582,7 +579,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 			{
 				jsonparsingdone=true;
 			}
-			delete[] jsonStr;
+			SAFE_DELETE_ARRAY(jsonStr);
 		}
 		else
 		{
@@ -1030,7 +1027,7 @@ JSValueRef AAMPMediaPlayerJS_getVideoBitrates (JSContextRef ctx, JSObjectRef fun
 		}
 
 		JSValueRef retVal = JSObjectMakeArray(ctx, length, array, NULL);
-		delete [] array;
+		SAFE_DELETE_ARRAY(array);
 		TRACELOG("Exit %s()", __FUNCTION__);
 		return retVal;
 	}
@@ -1069,7 +1066,7 @@ JSValueRef AAMPMediaPlayerJS_getAudioBitrates (JSContextRef ctx, JSObjectRef fun
 		}
 
 		JSValueRef retVal = JSObjectMakeArray(ctx, length, array, NULL);
-		delete [] array;
+		SAFE_DELETE_ARRAY(array);
 		TRACELOG("Exit %s()", __FUNCTION__);
 		return retVal;
 	}
@@ -1322,11 +1319,11 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 		JSStringRelease(propName);
 
 		std::string strLanguage =  language?std::string(language):"";
-		if(language)delete[] language;
+		SAFE_DELETE_ARRAY(language);
 		std::string strRendition = rendition?std::string(rendition):"";
-		if(rendition)delete[] rendition;
+		SAFE_DELETE_ARRAY(rendition);
 		std::string strCodec = codec?std::string(codec):"";
-		if(codec)delete[] codec;
+		SAFE_DELETE_ARRAY(codec);
 
 		INFO("%s() Calling SetAudioTrack ", __FUNCTION__);
 		privObj->_aamp->SetAudioTrack(strLanguage, strRendition, strCodec, channel);
@@ -1537,7 +1534,7 @@ JSValueRef AAMPMediaPlayerJS_setAudioLanguage (JSContextRef ctx, JSObjectRef fun
 		{
 			privObj->_aamp->SetLanguage(lang);
 		}
-		delete[] lang;
+		SAFE_DELETE_ARRAY(lang);
 	}
 	else
 	{
@@ -1775,8 +1772,7 @@ JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef fun
 			snprintf(errMsg, 511, "Failed to execute addEventListener() for event %s - parameter 2 is not a function", type);
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, (const char*)errMsg);
 		}
-
-		delete[] type;
+		SAFE_DELETE_ARRAY(type);
 	}
 	else
 	{
@@ -1832,8 +1828,7 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
 			snprintf(errMsg, 511, "Failed to execute removeEventListener() for event %s - parameter 2 is not a function", type);
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, (const char*)errMsg);
 		}
-
-		delete[] type;
+		SAFE_DELETE_ARRAY(type);
 	}
 	else
 	{
@@ -1912,7 +1907,7 @@ JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef 
 		std::vector<std::string> headerVal;
 		bool isLicenseHeader = false;
 
-		delete[] name;
+		SAFE_DELETE_ARRAY(name);
 
 		if (aamp_JSValueIsArray(ctx, arguments[1]))
 		{
@@ -1923,7 +1918,7 @@ JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef 
 			headerVal.reserve(1);
 			char *value =  aamp_JSValueToCString(ctx, arguments[1], exception);
 			headerVal.push_back(value);
-			delete[] value;
+			SAFE_DELETE_ARRAY(value);
 		}
 
 		// Don't support empty values now
@@ -1976,7 +1971,7 @@ JSValueRef AAMPMediaPlayerJS_removeCustomHTTPHeader (JSContextRef ctx, JSObjectR
 		char *name = aamp_JSValueToCString(ctx, arguments[0], exception);
 		std::string headerName(name);
 		privObj->_aamp->AddCustomHTTPHeader(headerName, std::vector<std::string>());
-		delete[] name;
+		SAFE_DELETE_ARRAY(name);
 	}
 	else
 	{
@@ -2073,7 +2068,7 @@ JSValueRef AAMPMediaPlayerJS_setVideoZoom (JSContextRef ctx, JSObjectRef functio
 			zoom = VIDEO_ZOOM_FULL;
 		}
 		privObj->_aamp->SetVideoZoom(zoom);
-		delete[] zoomStr;
+		SAFE_DELETE_ARRAY(zoomStr);
 	}
 	else
 	{
@@ -2330,18 +2325,9 @@ static JSValueRef AAMPMediaPlayerJS_setAlternateContent(JSContextRef ctx, JSObje
 			ERROR("%s() Unable to parse the promiseCallback argument", __FUNCTION__);
 		}
 	
-		if (reservationId)
-		{
-			delete[] reservationId;
-		}
-		if (adURL)
-		{
-			delete[] adURL;
-		}
-		if (adId)
-		{
-			delete[] adId;
-		}
+		SAFE_DELETE_ARRAY(reservationId);
+		SAFE_DELETE_ARRAY(adURL);
+		SAFE_DELETE_ARRAY(adId);
 	}
 	else
 	{
@@ -2387,9 +2373,9 @@ JSValueRef AAMPMediaPlayerJS_setPreferredAudioLanguage(JSContextRef ctx, JSObjec
 				type = aamp_JSValueToCString(ctx,arguments[2], NULL);
 			}
 			privObj->_aamp->SetPreferredLanguages(lanList, rendition, type);
-			delete[] type;
-			delete[] rendition;
-			delete[] lanList;
+			SAFE_DELETE_ARRAY(type);
+			SAFE_DELETE_ARRAY(rendition);
+			SAFE_DELETE_ARRAY(lanList);
 		}
 	}
 	else
@@ -2431,7 +2417,7 @@ JSValueRef AAMPMediaPlayerJS_setPreferredAudioRendition(JSContextRef ctx, JSObje
 	{
 		char* renditionList = aamp_JSValueToCString(ctx,arguments[0], NULL);
 		privObj->_aamp->SetPreferredRenditions(renditionList);
-		if(renditionList)delete[] renditionList;
+		SAFE_DELETE_ARRAY(renditionList);
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
@@ -2467,7 +2453,7 @@ JSValueRef AAMPMediaPlayerJS_setPreferredAudioCodec(JSContextRef ctx, JSObjectRe
 	{
 		char *codecList = aamp_JSValueToCString(ctx,arguments[0], NULL);
 		privObj->_aamp->SetPreferredCodec(codecList);
-		if(codecList)delete[] codecList;
+		SAFE_DELETE_ARRAY(codecList);
 	}
 
 	TRACELOG("Exit %s()", __FUNCTION__);
@@ -2502,7 +2488,7 @@ static JSValueRef AAMPMediaPlayerJS_notifyReservationCompletion(JSContextRef ctx
 		//Need an API in AAMP to notify that placements for this reservation are over and AAMP might have to trim
 		//the ads to the period duration or not depending on time param
 		ERROR("%s(): Called reservation close for periodId:%s and time:%ld", __FUNCTION__, reservationId, time);
-		delete[] reservationId;
+		SAFE_DELETE_ARRAY(reservationId);
 	}
 	else
 	{
@@ -2582,7 +2568,7 @@ JSValueRef AAMPMediaPlayerJS_setTextStyleOptions(JSContextRef ctx, JSObjectRef f
 		{
 			const char *options = aamp_JSValueToCString(ctx, arguments[0], NULL);
 			privObj->_aamp->SetTextStyle(std::string(options));
-			delete[] options;
+			SAFE_DELETE_ARRAY(options);
 		}
 		else
 		{
@@ -2778,7 +2764,7 @@ static JSValueRef AAMPMediaPlayerJS_setAuxiliaryLanguage(JSContextRef ctx, JSObj
 	{
 		const char *lang = aamp_JSValueToCString(ctx, arguments[0], NULL);
 		privObj->_aamp->SetAuxiliaryLanguage(std::string(lang));
-		delete[] lang;
+		SAFE_DELETE_ARRAY(lang);
 	}
 	else
 	{
@@ -2973,7 +2959,7 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 			char *value =  aamp_JSValueToCString(ctx, arguments[0], exception);
 			appName.assign(value);
 			ERROR("%s:%d AAMPMediaPlayer created with app name: %s", __FUNCTION__, __LINE__, appName.c_str());
-			delete[] value;
+			SAFE_DELETE_ARRAY(value);
 		}
 	}
 
@@ -3165,7 +3151,7 @@ private:
 
 			std::string lang_str;
 			lang_str.assign(lang);
-			delete[] lang;
+			SAFE_DELETE_ARRAY(lang);
 
 			std::string textTrack = findTextTrackWithLang(ctx, lang_str);
 
@@ -3214,7 +3200,7 @@ JSValueRef XREReceiverJS_onevent (JSContextRef ctx, JSObjectRef function, JSObje
 			method.assign(value);
 			XREReceiver_onEventHandler::handle(ctx, method, argumentCount, arguments);
 
-			delete[] value;
+			SAFE_DELETE_ARRAY(value);
 		}
 	}
 	return JSValueMakeUndefined(ctx);

@@ -150,10 +150,9 @@ void AampCacheHandler::ClearPlaylistCache()
 		if(!tmpData->mDuplicateEntry)
 		{
 			aamp_Free(tmpData->mCachedBuffer);
-			delete tmpData->mCachedBuffer;
-			tmpData->mCachedBuffer = NULL;
+			SAFE_DELETE(tmpData->mCachedBuffer);
 		}
-		delete tmpData;
+		SAFE_DELETE(tmpData);
 	}
 	mCacheStoredSize = 0;
 	mPlaylistCache.clear();
@@ -194,10 +193,9 @@ bool AampCacheHandler::AllocatePlaylistCacheSlot(MediaType fileType,size_t newLe
 			{
 				freedSize += tmpData->mCachedBuffer->len;
 				aamp_Free(tmpData->mCachedBuffer);
-				delete tmpData->mCachedBuffer;
-				tmpData->mCachedBuffer = NULL;
+				SAFE_DELETE(tmpData->mCachedBuffer);
 			}
-			delete tmpData;
+			SAFE_DELETE(tmpData);
 			Iter = mPlaylistCache.erase(Iter);
 		}
 		//Second Pass - if still more cleanup required for space, remove  from other playlist types
@@ -216,10 +214,9 @@ bool AampCacheHandler::AllocatePlaylistCacheSlot(MediaType fileType,size_t newLe
 				{
 					freedSize += tmpData->mCachedBuffer->len;
 					aamp_Free(tmpData->mCachedBuffer);
-					delete tmpData->mCachedBuffer;
-					tmpData->mCachedBuffer = NULL;                                
+					SAFE_DELETE(tmpData->mCachedBuffer);
 				}
-				delete tmpData;
+				SAFE_DELETE(tmpData);
 				Iter = mPlaylistCache.erase(Iter);
 			}
 		}
