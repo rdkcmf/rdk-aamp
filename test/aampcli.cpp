@@ -212,6 +212,15 @@ public:
 				}
 				mAutoChannelNumber = channelInfo.channelNumber;
 			}
+			else
+			{
+				/* When uri is not mentioned in the csv files, then it is considered
+				 * as Group name for the virtual channels.
+				 * To avoid this group name in tuning, set the chaannel number as Invalid.
+				 * So, it will be skipped while getting ChannelInfo in prev() and next().
+				 */
+				channelInfo.channelNumber = 0;
+			}
 		}
 		mVirtualChannelMap.push_back(channelInfo);
 	}
@@ -2823,13 +2832,9 @@ static void LoadVirtualChannelMapFromCSV( FILE *f )
 		channelInfo.channelNumber = atoi(channelNumber.c_str());
 		channelInfo.name = GetNextFieldFromCSV(&ptr);
 		channelInfo.uri = GetNextFieldFromCSV(&ptr);
-		if (!channelInfo.name.empty() && !channelInfo.uri.empty())
+		if (!channelInfo.name.empty())
 		{
 			mVirtualChannelMap.Add( channelInfo );
-		}
-		else
-		{ // no name, no uri, no service
-			printf("[AAMPCLI] can not parse virtual channel '%s'\n", buf);
 		}
 	}
 }
