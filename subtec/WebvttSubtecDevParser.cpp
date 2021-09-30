@@ -209,7 +209,7 @@ std::string WebVTTSubtecDevParser::getVttAsTtml()
 			{
 				AAMPLOG_TRACE("%s: queue size %zu cue start %.3f", __FUNCTION__, mVttQueue.size(), cue->mStart);
 			}
-			delete cue;
+			SAFE_DELETE(cue);
 		}
 	}
 	else

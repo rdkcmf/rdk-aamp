@@ -2329,7 +2329,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::GetMpdFromManfiest(const GrowableBuffe
 				{
 					ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
 				}
-				delete root;
+				SAFE_DELETE(root);
 			}
 			else if (root == NULL)
 			{
@@ -2374,7 +2374,7 @@ Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd)
 		const char *name = (const char *)xmlTextReaderConstName(*reader);
 		if (name == NULL)
 		{
-			delete node;
+			SAFE_DELETE(node);
 			return NULL;
 		}
 
@@ -4432,7 +4432,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 			}
 			if (this->mpd)
 			{
-				delete this->mpd;
+				SAFE_DELETE(this->mpd);
 			}
 			this->mpd = mpd;
 			if(aamp->mIsVSS)
@@ -5448,8 +5448,7 @@ void StreamAbstractionAAMP_MPD::ProcessEAPLicenseRequest()
 		if ((deferredDRMRequestThread!= NULL) && (deferredDRMRequestThread->joinable()))
 		{
 			deferredDRMRequestThread->join();
-			delete deferredDRMRequestThread;
-			deferredDRMRequestThread = NULL;
+			SAFE_DELETE(deferredDRMRequestThread);
 		}
 
 		if(NULL == deferredDRMRequestThread)
@@ -6239,8 +6238,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					int representationCount = representations.size();
 					if ((representationCount != mBitrateIndexVector.size()) && mStreamInfo)
 					{
-						delete[] mStreamInfo;
-						mStreamInfo = NULL;
+						SAFE_DELETE_ARRAY(mStreamInfo);
 					}
 					if (!mStreamInfo)
 					{
@@ -6277,7 +6275,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								mStreamInfo[idx].resolution.framerate = frate;
 							}
 
-							delete representation;
+							SAFE_DELETE(representation);
 							// Skip profile by resolution, if profile capping already applied in Fog
 							if(ISCONFIGSET(eAAMPConfig_LimitResolution) && aamp->mProfileCappedStatus &&  aamp->mDisplayWidth > 0 && mStreamInfo[idx].resolution.width > aamp->mDisplayWidth)
 							{
@@ -6338,8 +6336,8 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
                                        	}	
 					if ((representationCount != GetProfileCount()) && mStreamInfo)
 					{
-						delete[] mStreamInfo;
-						mStreamInfo = NULL;
+						SAFE_DELETE_ARRAY(mStreamInfo);
+
 						// reset representationIndex to -1 to allow updating the currentProfileIndex for period change.
 						pMediaStreamContext->representationIndex = -1;
 						AAMPLOG_WARN("%s:%d representationIndex set to (-1) to find currentProfileIndex", __FUNCTION__, __LINE__);
@@ -7007,7 +7005,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 							if(ret != 0)
 							{
 								logprintf("StreamAbstractionAAMP_MPD::%s:%d pthread_create failed for TrackDownloader with errno = %d, %s", __FUNCTION__, __LINE__, errno, strerror(errno));
-								delete fetchParams;
+								SAFE_DELETE(fetchParams);
 							}
 							else
 							{
@@ -7104,7 +7102,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 									if(ret != 0)
 									{
 										logprintf("StreamAbstractionAAMP_MPD::%s:%d pthread_create failed for TrackDownloader with errno = %d, %s", __FUNCTION__, __LINE__, errno, strerror(errno));
-										delete fetchParams;
+										SAFE_DELETE(fetchParams);
 									}
 									else
 									{
@@ -7205,7 +7203,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 		AAMPLOG_TRACE("Waiting for pthread_join trackDownloadThread");
 		pthread_join(trackDownloadThreadID, NULL);
 		AAMPLOG_TRACE("Joined trackDownloadThread");
-		delete fetchParams;
+		SAFE_DELETE(fetchParams);
 	}
 }
 
@@ -7364,7 +7362,7 @@ void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 												AAMPLOG_TRACE("StreamAbstractionAAMP_MPD::%s:%d did not cache fragmentUrl %s fragmentTime %f", __FUNCTION__, __LINE__, fragmentUrl.c_str(), mMediaStreamContext[i]->fragmentTime); //CID:84438 - checked return
 											}
 										}
-										delete fragmentDescriptor;
+										SAFE_DELETE(fragmentDescriptor);
 										encryptionFound = true;
 									}
 								}
@@ -7934,8 +7932,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						if (parallelDownload[trackIdx])
 						{
 							parallelDownload[trackIdx]->join();
-							delete parallelDownload[trackIdx];
-							parallelDownload[trackIdx] = NULL;
+							SAFE_DELETE(parallelDownload[trackIdx]);
 						}
 					}
 
@@ -8335,23 +8332,13 @@ StreamAbstractionAAMP_MPD::~StreamAbstractionAAMP_MPD()
 	for (int iTrack = 0; iTrack < mMaxTracks; iTrack++)
 	{
 		MediaStreamContext *track = mMediaStreamContext[iTrack];
-		if(track)
-		{
-			delete track;
-		}
+		SAFE_DELETE(track);
 	}
 
 	aamp->SyncBegin();
-	if (mpd)
-	{
-		delete mpd;
-		mpd = NULL;
-	}
+	SAFE_DELETE(mpd);
 
-	if(mStreamInfo)
-	{
-		delete[] mStreamInfo;
-	}
+	SAFE_DELETE_ARRAY(mStreamInfo);
 
 	if(!indexedTileInfo.empty())
 	{
@@ -8364,10 +8351,7 @@ StreamAbstractionAAMP_MPD::~StreamAbstractionAAMP_MPD()
 		for(int i = 0; i < size ; i++)
 		{
 			StreamInfo *tmp = thumbnailtrack[i];
-			if(tmp)
-			{
-				delete tmp;
-			}
+			SAFE_DELETE(tmp);
 		}
 	}
 
@@ -8484,8 +8468,7 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 		{
 			mAbortDeferredLicenseLoop = true;
 			deferredDRMRequestThread->join();
-			delete deferredDRMRequestThread;
-			deferredDRMRequestThread = NULL;
+			SAFE_DELETE(deferredDRMRequestThread);
 		}
 	}
 

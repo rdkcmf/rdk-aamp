@@ -161,8 +161,7 @@ static void initEvent(JSContextRef context, JSObjectRef thisObj, size_t argument
 		{
 			ev->initEvent(evType, bubbles, cancelable);
 		}
-
-		delete[] evType;
+		SAFE_DELETE_ARRAY(evType);
 	}
 }
 
@@ -463,7 +462,7 @@ void AAMPJSEvent_finalize(JSObjectRef object)
 {
 	AAMPJSEvent *ev = (AAMPJSEvent *) JSObjectGetPrivate(object);
 
-	delete ev;
+	SAFE_DELETE(ev);
 }
 
 /**

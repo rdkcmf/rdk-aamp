@@ -945,18 +945,9 @@ TSProcessor::~TSProcessor()
 		}
 	}
 
-	if (m_vidDemuxer)
-	{
-		delete m_vidDemuxer;
-	}
-	if (m_audDemuxer)
-	{
-		delete m_audDemuxer;
-	}
-	if (m_dsmccDemuxer)
-	{
-		delete m_dsmccDemuxer;
-	}
+	SAFE_DELETE(m_vidDemuxer);
+	SAFE_DELETE(m_audDemuxer);
+	SAFE_DELETE(m_dsmccDemuxer);
 
 	if (m_queuedSegment)
 	{

@@ -24,6 +24,7 @@
 
 #include "isobmffbox.h"
 #include "AampConfig.h"
+#include "AampUtils.h"
 #include <stddef.h>
 #include <inttypes.h>
 
@@ -296,7 +297,7 @@ GenericContainerBox::~GenericContainerBox()
 	for (unsigned int i = children.size(); i>0;)
 	{
 		--i;
-		delete children.at(i);
+		SAFE_DELETE(children.at(i));
 		children.pop_back();
 	}
 	children.clear();

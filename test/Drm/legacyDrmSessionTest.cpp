@@ -55,7 +55,7 @@ TEST_GROUP(AampLegacyDrmSessionTests)
 		{
 			sessionManager->clearSessionData();
 			MemoryLeakWarningPlugin::turnOffNewDeleteOverloads();
-			delete sessionManager;
+			SAFE_DELETE(sessionManager);
 			MemoryLeakWarningPlugin::turnOnNewDeleteOverloads();
 		}
 

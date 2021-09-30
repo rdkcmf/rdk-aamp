@@ -203,10 +203,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 		std::lock_guard<std::mutex> lock (mPrvAampMtx);
 		aamp = NULL;
 	}
-	if (mInternalStreamSink)
-	{
-		delete mInternalStreamSink;
-	}
+	SAFE_DELETE(mInternalStreamSink);
 
 	// Stop the async thread, queue will be cleared during Stop
 	if (mAsyncRunning)
@@ -233,8 +230,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	if (isLastPlayerInstance && gpGlobalConfig)
 	{
 		logprintf("[%s][%p] Release GlobalConfig(%p)", __FUNCTION__,this,gpGlobalConfig);
-		delete gpGlobalConfig;
-		gpGlobalConfig = NULL;
+		SAFE_DELETE(gpGlobalConfig);
 	}
 }
 

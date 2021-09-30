@@ -48,7 +48,7 @@ CDAIObjectMPD::CDAIObjectMPD(PrivateInstanceAAMP* aamp): CDAIObject(aamp), mPriv
 
 CDAIObjectMPD::~CDAIObjectMPD()
 {
-	delete mPrivObj;
+	SAFE_DELETE(mPrivObj);
 }
 
 /**
@@ -112,10 +112,7 @@ void PrivateCDAIObjectMPD::PrunePeriodMaps(std::vector<std::string> &newPeriodId
 			auto adNodes = adBrkObj.second.ads;
 			for(AdNode &ad: *adNodes)
 			{
-				if(ad.mpd)
-				{
-					delete ad.mpd;
-				}
+				SAFE_DELETE(ad.mpd);
 			}
 			it = mAdBreaks.erase(it);
 		} else {
@@ -154,10 +151,7 @@ void PrivateCDAIObjectMPD::ClearMaps()
 		auto adNodes = adBrkObj.second.ads;
 		for(AdNode &ad: *adNodes)
 		{
-			if(ad.mpd)
-			{
-				delete ad.mpd;
-			}
+			SAFE_DELETE(ad.mpd);
 		}
 	}
 
@@ -599,7 +593,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 						}
 					}
 					adMpd = root->ToMPD();
-					delete root;
+					SAFE_DELETE(root);
 				}
 				else
 				{
@@ -678,8 +672,7 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 			if(!finalManifest)
 			{
 				AAMPLOG_INFO("%s:%d: Final manifest to be downloaded from the FOG later. Deleting the manifest got from CDN.", __FUNCTION__, __LINE__);
-				delete ad;
-				ad = NULL;
+				SAFE_DELETE(ad);
 			}
 			adBreakAssets->emplace_back(AdNode{false, false, mAdFulfillObj.adId, mAdFulfillObj.url, durationMs, bPeriodId, bOffset, ad});
 			AAMPLOG_WARN("%s:%d: New Ad successfully added[Id=%s, url=%s].", __FUNCTION__, __LINE__, mAdFulfillObj.adId.c_str(),mAdFulfillObj.url.c_str());
@@ -689,7 +682,7 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 		else
 		{
 			logprintf("%s:%d: AdBreadkId[%s] not existing. Dropping the Ad.", __FUNCTION__, __LINE__, periodId.c_str());
-			delete ad;
+			SAFE_DELETE(ad);
 		}
 	}
 	else

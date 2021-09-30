@@ -265,7 +265,7 @@ std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JS
         char* str = aamp_JSValueToCString(context, strRef, NULL);
 	LOG("[AAMP_JS] %s() array[%d] = '%s'.", __FUNCTION__, i, str);
         retval.push_back(str);
-        delete [] str;
+        SAFE_DELETE_ARRAY(str);
     }
 
     JSStringRelease(lengthStrRef);

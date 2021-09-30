@@ -1070,7 +1070,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 								__FUNCTION__, __LINE__, KeyTagStr.c_str());
 								aamp->aesCtrAttrDataList.push_back(*aesCtrAttrData);
 							}
-							delete aesCtrAttrData;
+							SAFE_DELETE(aesCtrAttrData);
 							pthread_mutex_unlock(&aamp->drmParserMutex);
 							aamp->fragmentCdmEncrypted = true;
 							InitiateDrmProcess(this->aamp);
@@ -2799,7 +2799,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 								aamp->aesCtrAttrDataList.push_back(*aesCtrAttrData);
 							}
 							/** No more use **/
-							delete aesCtrAttrData;
+							SAFE_DELETE(aesCtrAttrData);
 							pthread_mutex_unlock(&aamp->drmParserMutex);
 							/** Mark as CDM encryption is found in HLS **/
 							aamp->fragmentCdmEncrypted = true;
@@ -5748,10 +5748,8 @@ TrackState::~TrackState()
 		aamp_Free(&cachedFragment[j].fragment);
 	}
 	FlushIndex();
-	if (playContext)
-	{
-		delete playContext;
-	}
+	SAFE_DELETE(playContext);
+
 	if (mCMSha1Hash)
 	{
 		free(mCMSha1Hash);
@@ -5827,10 +5825,7 @@ StreamAbstractionAAMP_HLS::~StreamAbstractionAAMP_HLS()
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
 		TrackState *track = trackState[i];
-		if (track)
-		{
-			delete track;
-		}
+		SAFE_DELETE(track);
 	}
 
 	aamp->SyncBegin();

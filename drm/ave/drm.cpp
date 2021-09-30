@@ -274,7 +274,7 @@ public:
 		}
 		else
 		{
-			delete drmerrordata;  //CID:90132 - Resource leak
+			SAFE_DELETE(drmerrordata);  //CID:90132 - Resource leak
 		}
 		logprintf("DRMListener::%s:%d[%p]Track[%d] majorError = %d, minorError = %d drmState:%d", __FUNCTION__, __LINE__, mpAveDrm,mTrackType, (int)majorError, (int)minorError, mpAveDrm->mDrmState );
 		AAMP_LOG_DRM_ERROR ((int)majorError, (int)minorError);
@@ -353,7 +353,7 @@ static void freeDrmErrorData(void * arg)
 {
 	// free the memory when idletask is deleted
 	DRMErrorData *drmerrordata = (DRMErrorData*)arg;
-	delete drmerrordata;
+	SAFE_DELETE(drmerrordata);
 }
 
 /**
@@ -426,10 +426,8 @@ bool AveDrm::StoreDecryptInfoIfChanged( const DrmInfo *drmInfo)
 		// Found new DRM Info , need to set to AVE with decrypt info
 		mDrmInfo.method = drmInfo->method;
 		mDrmInfo.useFirst16BytesAsIV = drmInfo->useFirst16BytesAsIV;
-		if(mDrmInfo.iv)
-		{	delete[] mDrmInfo.iv ;mDrmInfo.iv = NULL;}
-		if(mDrmInfo.uri)
-		{	delete[] mDrmInfo.uri ; mDrmInfo.uri = NULL;}
+		SAFE_DELETE_ARRAY(mDrmInfo.iv);
+		SAFE_DELETE_ARRAY(mDrmInfo.uri);
 		if(drmInfo->iv) 
 		{	mDrmInfo.iv = new (std::nothrow) unsigned char[DRM_IV_LEN];
 			memcpy(mDrmInfo.iv, drmInfo->iv,DRM_IV_LEN);
@@ -621,38 +619,21 @@ void AveDrm::RestoreKeyState()
  */
 AveDrm::~AveDrm()
 {
-	if(m_pDrmListner)
-	{
-		delete m_pDrmListner;
-		m_pDrmListner = NULL;
-	}
+	SAFE_DELETEm_pDrmListner);
 	if(m_pDrmAdapter)
 	{
 		try
 		{
-			delete m_pDrmAdapter;
-			m_pDrmAdapter = NULL;
+			SAFE_DELETE(m_pDrmAdapter);
 		}
 		catch(...)
 		{
 			logprintf("Stack Exception caught in %s\n", __FUNCTION__);  //CID:82348- Uncaught exception
 		}
 	}
-	if(mMetaData.metadataPtr)
-	{
-		delete[] mMetaData.metadataPtr;
-		mMetaData.metadataPtr = NULL;
-	}
-	if(mDrmInfo.iv)
-	{
-		delete[] mDrmInfo.iv;
-		mDrmInfo.iv = NULL;
-	}
-	if(mDrmInfo.uri)
-	{
-		delete[] mDrmInfo.uri;
-		mDrmInfo.uri = NULL;
-	}
+	SAFE_DELETE_ARRAY(mMetaData.metadataPtr);
+	SAFE_DELETE_ARRAY(mDrmInfo.iv);
+	SAFE_DELETE_ARRAY(mDrmInfo.uri);
 
 	pthread_mutex_destroy(&mutex);
 	pthread_cond_destroy(&cond);
@@ -729,16 +710,8 @@ AveDrm::~AveDrm()
 {
 	pthread_mutex_destroy(&mutex);
 	pthread_cond_destroy(&cond);
-	if(mMetaData.metadataPtr)
-	{
-		delete[] mMetaData.metadataPtr;
-		mMetaData.metadataPtr = NULL;
-	}
-	if(mDrmInfo.iv)
-	{
-		delete[] mDrmInfo.iv;
-		mDrmInfo.iv = NULL; 
-	}
+	SAFE_DELETE_ARRAY(mMetaData.metadataPtr);
+	SAFE_DELETE_ARRAY(mDrmInfo.iv);
 }
 
 #endif // !AVE_DRM
@@ -843,7 +816,7 @@ void AveDrmManager::FlushAfterIndexList(const char* trackname,int trackType)
 				logprintf("[%s][%s] Erased unused DRM Metadata.Size remaining=%d ",__FUNCTION__,trackname,sAveDrmManager.size()-1);
 				aveDrmManager->mDrm->Release();
 				aveDrmManager->Reset();
-				delete aveDrmManager;
+				SAFE_DELETE(aveDrmManager);
 				iter = sAveDrmManager.erase(iter);
 			}
 			else
@@ -907,7 +880,7 @@ void AveDrmManager::ReleaseAll()
 
 		aveDrmManager->mDrm->Release();
 		aveDrmManager->Reset();
-		delete aveDrmManager;
+		SAFE_DELETE(aveDrmManager);
 		iter = sAveDrmManager.erase(iter);
 	}
 	mSessionTokenAcquireStarted = false;
@@ -1383,7 +1356,7 @@ long AveDrmManager::setSessionToken()
 		logprintf("%s:%d Get Session token call failed with curl error %d", __FUNCTION__, __LINE__, res);
 		error_code = res;
 	}
-	delete tokenReply;
+	SAFE_DELETE(tokenReply);
 	curl_easy_cleanup(curl);
 	return error_code;
 }

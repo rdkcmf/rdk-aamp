@@ -116,16 +116,8 @@ ThunderAccessAAMP::ThunderAccessAAMP(std::string callsign)
  */
 ThunderAccessAAMP::~ThunderAccessAAMP()
 {
-    if(NULL != controllerObject)
-    {
-        delete controllerObject;
-        controllerObject = NULL;
-    }
-    if(NULL != remoteObject)
-    {
-        delete remoteObject;
-        remoteObject = NULL;
-    }
+    SAFE_DELETE(controllerObject);
+    SAFE_DELETE(remoteObject);
 }
 
 /**

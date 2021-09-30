@@ -145,7 +145,7 @@ void AampDRMSessionManager::clearSessionData()
 	{
 		if (drmSessionContexts != NULL && drmSessionContexts[i].drmSession != NULL)
 		{
-			delete drmSessionContexts[i].drmSession;
+			SAFE_DELETE(drmSessionContexts[i].drmSession);
 			drmSessionContexts[i] = DrmSessionContext();
 		}
 
@@ -154,16 +154,8 @@ void AampDRMSessionManager::clearSessionData()
 			cachedKeyIDs[i] = KeyID();
 		}
 	}
-	if (drmSessionContexts != NULL)
-	{
-		delete[] drmSessionContexts;
-		drmSessionContexts = NULL;
-	}
-	if (cachedKeyIDs != NULL)
-	{
-		delete[] cachedKeyIDs;
-		cachedKeyIDs = NULL;
-	}
+	SAFE_DELETE_ARRAY(drmSessionContexts);
+	SAFE_DELETE_ARRAY(cachedKeyIDs);
 }
 
 /**
@@ -271,8 +263,7 @@ void AampDRMSessionManager::clearDrmSession(bool forceClearSession)
 			if (drmSessionContexts[i].drmSession != NULL)
 			{
 				logprintf("%s:%d AampDRMSessionManager:: Clearing failed Session Data Slot : %d", __FUNCTION__, __LINE__, i);
-				delete drmSessionContexts[i].drmSession;
-				drmSessionContexts[i].drmSession = nullptr;
+				SAFE_DELETE(drmSessionContexts[i].drmSession);
 			}
 		}
 	}
@@ -459,8 +450,8 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 			logprintf("%s:%d Get Session token call failed with curl error %d", __FUNCTION__, __LINE__, res);
 			error_code = res;
 		}
-		delete tokenReply;
-                delete callbackData;
+		SAFE_DELETE(tokenReply);
+		SAFE_DELETE(callbackData);
 		curl_easy_cleanup(curl);
 	}
 
@@ -730,8 +721,8 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	                                // Retry for curl 28 and curl 7 errors.
 	                                loopAgain = true;
 
-	                                delete keyInfo;
-	                                delete callbackData;
+	                                SAFE_DELETE(keyInfo);
+					SAFE_DELETE(callbackData);
 	                                keyInfo = new DrmData();
 	                                callbackData = new writeCallbackData();
 	                                callbackData->data = keyInfo;
@@ -755,8 +746,8 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 				if(*httpCode >= 500 && *httpCode < 600
 						&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && licenseRetryWaitTime > 0)
 				{
-					delete keyInfo;
-                                        delete callbackData;
+					SAFE_DELETE(keyInfo);
+					SAFE_DELETE(callbackData);
 					keyInfo = new DrmData();
                                         callbackData = new writeCallbackData();
                                         callbackData->data = keyInfo;
@@ -817,11 +808,10 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 
 	if(requestFailed && keyInfo != NULL)
 	{
-		delete keyInfo;
-		keyInfo = NULL;
+		SAFE_DELETE(keyInfo);
 	}
 
-        delete callbackData;
+	SAFE_DELETE(callbackData);
 	curl_slist_free_all(headers);
 	curl_easy_cleanup(curl);
 
@@ -1126,8 +1116,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 			AAMPLOG_WARN("%s:%d existing DRM session for %s has different key in slot %d", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str(), sessionSlot);
 		}
 		AAMPLOG_WARN("%s:%d deleting existing DRM session for %s ", __FUNCTION__, __LINE__, drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
-		delete drmSessionContexts[sessionSlot].drmSession;
-		drmSessionContexts[sessionSlot].drmSession = nullptr;
+		SAFE_DELETE(drmSessionContexts[sessionSlot].drmSession);
 	}
 
 	aampInstance->profiler.ProfileBegin(PROFILE_BUCKET_LA_PREPROC);

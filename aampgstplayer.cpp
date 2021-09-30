@@ -331,7 +331,7 @@ AAMPGstPlayer::~AAMPGstPlayer()
 	DestroyPipeline();
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 		pthread_mutex_destroy(&privateContext->stream[i].sourceLock);
-	delete privateContext;
+	SAFE_DELETE(privateContext);
 	pthread_mutex_destroy(&mBufferingLock);
 	pthread_mutex_destroy(&mProtectionLock);
 }

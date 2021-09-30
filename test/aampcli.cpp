@@ -817,8 +817,7 @@ inline void StopCachedChannel()
 	if(mBackgroundPlayer)
 	{
 		mBackgroundPlayer->Stop();
-		delete mBackgroundPlayer;
-		mBackgroundPlayer = NULL;
+		SAFE_DELETE(mBackgroundPlayer);
 	}
 }
 
@@ -1092,13 +1091,8 @@ static void ProcessCliCommand( char *cmd )
 	else if (strcmp(cmd, "exit") == 0)
 	{
 		mSingleton->Stop();
-		delete mSingleton;
-		mSingleton = NULL;
-		if (mBackgroundPlayer)
-		{
-			delete mBackgroundPlayer;
-			mBackgroundPlayer = NULL;
-		}
+		SAFE_DELETE(mSingleton);
+		SAFE_DELETE(mBackgroundPlayer);
 		TermPlayerLoop();
 		exit(0);
 	}
@@ -1161,8 +1155,7 @@ static void ProcessCliCommand( char *cmd )
 		printf("[AAMPCLI] Reset mSingleton instance %p \n", mSingleton);
 		mSingleton->Stop();
 
-		delete mSingleton;
-		mSingleton = NULL;
+		SAFE_DELETE(mSingleton);
 
 		mSingleton = new PlayerInstanceAAMP(
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
@@ -2528,7 +2521,7 @@ void glRender(void){
 		glBindVertexArray(0);
 
 		glutSwapBuffers();
-		delete yuvBuffer;
+		SAFE_DELETE(yuvBuffer);
 	}
 }
 
@@ -2542,7 +2535,7 @@ static void updateYUVFrame(uint8_t *buffer, int size, int width, int height)
 		if(appsinkData.yuvBuffer)
 		{
 			printf("[AAMPCLI] Drops frame.\n");
-			delete appsinkData.yuvBuffer;
+			SAFE_DELETE(appsinkData.yuvBuffer);
 		}
 		appsinkData.yuvBuffer = frameBuf;
 		appsinkData.width = width;
@@ -2791,8 +2784,8 @@ int main(int argc, char **argv)
 	if(mBackgroundPlayer)
 	{
 		mBackgroundPlayer->Stop();
-		delete mBackgroundPlayer;
+		SAFE_DELETE(mBackgroundPlayer);
 	}
 	mSingleton->Stop();
-	delete mSingleton;
+	SAFE_DELETE(mSingleton);
 }

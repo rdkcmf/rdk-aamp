@@ -25,6 +25,7 @@
 #define __AAMP_JSUTILS_H__
 
 #include "main_aamp.h"
+#include "AampUtils.h"
 
 #include <JavaScriptCore/JavaScript.h>
 #include <stdio.h>

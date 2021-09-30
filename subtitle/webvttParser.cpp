@@ -425,7 +425,7 @@ bool WebVTTParser::close()
 		{
 			VTTCue *cue = mVttQueue.front();
 			mVttQueue.pop();
-			delete cue;
+			SAFE_DELETE(cue);
 		}
 	}
 	pthread_mutex_unlock(&mVttQueueMutex);
@@ -504,7 +504,7 @@ void WebVTTParser::sendCueData()
 			{
 				AAMPLOG_WARN("Discarding cue with start:%.3f and text:%s", cue->mStart/1000.0, cue->mText.c_str());
 			}
-			delete cue;
+			SAFE_DELETE(cue);
 		}
 	}
 	pthread_mutex_unlock(&mVttQueueMutex);

@@ -39,6 +39,11 @@
 
 #define ARRAY_SIZE(A) (sizeof(A)/sizeof(A[0]))
 
+//Delete non-array object
+#define SAFE_DELETE(ptr) { delete(ptr); ptr = NULL; }
+//Delete Array object
+#define SAFE_DELETE_ARRAY(ptr) { delete [] ptr; ptr = NULL; }
+
 /**
  * @brief Get current time from epoch is milliseconds
  *

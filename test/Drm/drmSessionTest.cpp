@@ -232,7 +232,7 @@ TEST_GROUP(AampDrmSessionTests)
 		{
 			sessionManager->clearSessionData();
 			MemoryLeakWarningPlugin::turnOffNewDeleteOverloads();
-			delete sessionManager;
+			SAFE_DELETE(sessionManager);
 			MemoryLeakWarningPlugin::turnOnNewDeleteOverloads();
 		}
 
