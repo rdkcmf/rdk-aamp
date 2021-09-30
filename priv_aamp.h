@@ -2047,14 +2047,7 @@ public:
 	 *   @param[in] timeoutMS - Timeout in milliseconds
 	 *   @return void
 	 */
-	void SetStallTimeout(int timeoutMS);
-
-	/**
-	 *   @brief To set the Playback Position reporting interval.
-	 *
-	 *   @param  reportIntervalMS - playback reporting interval in milliseconds.
-	 */
-	void SetReportInterval(int reportIntervalMS);
+	void SetStallTimeout(int timeoutMS);	
 
 	/**
 	 *	 @brief To set the max retry attempts for init frag curl timeout failures

@@ -1315,14 +1315,14 @@ void PlayerInstanceAAMP::SetStallTimeout(int timeoutMS)
 /**
  *   @brief Set report interval duration
  *
- *   @param  reportIntervalMS - report interval duration in MS
+ *   @param  reportInterval - report interval duration in milliSeconds
  */
-void PlayerInstanceAAMP::SetReportInterval(int reportIntervalMS)
+void PlayerInstanceAAMP::SetReportInterval(int reportInterval)
 {
 	ERROR_STATE_CHECK_VOID();
-	if(reportIntervalMS > 0)
+	if(reportInterval > 0)
 	{
-		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ReportProgressInterval,reportIntervalMS);
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ReportProgressInterval,(double)reportInterval);
 	}
 }
 

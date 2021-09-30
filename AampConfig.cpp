@@ -153,7 +153,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"mpdDiscontinuityHandlingCdvr",eAAMPConfig_MPDDiscontinuityHandlingCdvr,-1,-1},
 	{"vodTrickPlayFps",eAAMPConfig_VODTrickPlayFPS,{.iMinValue=-1},{.iMaxValue=-1}},
 	{"linearTrickPlayFps",eAAMPConfig_LinearTrickPlayFPS,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"progressReportingInterval",eAAMPConfig_ReportProgressInterval,{.iMinValue=0},{.iMaxValue=-1}},
+	{"progressReportingInterval",eAAMPConfig_ReportProgressInterval,{.dMinValue=0},{.dMaxValue=-1}},
 	{"forceHttp",eAAMPConfig_ForceHttp,-1,-1},
 	{"internalRetune",eAAMPConfig_InternalReTune,-1,-1},
 	{"gstBufferAndPlay",eAAMPConfig_GStreamerBufferingBeforePlay,-1,-1},
@@ -381,7 +381,6 @@ void AampConfig::Initialize()
 	iAampCfgValue[eAAMPConfig_ABRNWConsistency-eAAMPConfig_IntStartValue].value		=	DEFAULT_ABR_NW_CONSISTENCY_CNT;
 	iAampCfgValue[eAAMPConfig_BufferHealthMonitorDelay-eAAMPConfig_IntStartValue].value     =       DEFAULT_BUFFER_HEALTH_MONITOR_DELAY;
 	iAampCfgValue[eAAMPConfig_BufferHealthMonitorInterval-eAAMPConfig_IntStartValue].value  =       DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL;
-	iAampCfgValue[eAAMPConfig_ReportProgressInterval-eAAMPConfig_IntStartValue].value	=	DEFAULT_REPORT_PROGRESS_INTERVAL;
 	iAampCfgValue[eAAMPConfig_LicenseRetryWaitTime-eAAMPConfig_IntStartValue].value		=	DEFAULT_LICENSE_REQ_RETRY_WAIT_TIME;
 	iAampCfgValue[eAAMPConfig_HarvestConfig-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_PreferredDRM-eAAMPConfig_IntStartValue].value			=	eDRM_PlayReady;
@@ -434,6 +433,7 @@ void AampConfig::Initialize()
 	dAampCfgValue[eAAMPConfig_ManifestTimeout-eAAMPConfig_DoubleStartValue].value     	=       CURL_FRAGMENT_DL_TIMEOUT;
 	dAampCfgValue[eAAMPConfig_PlaylistTimeout-eAAMPConfig_DoubleStartValue].value     	=       0;
 	dAampCfgValue[eAAMPConfig_PlaybackOffset-eAAMPConfig_DoubleStartValue].value		=	-1;
+	dAampCfgValue[eAAMPConfig_ReportProgressInterval-eAAMPConfig_DoubleStartValue].value	=	DEFAULT_REPORT_PROGRESS_INTERVAL;
 	dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_LIVE_OFFSET;
 	dAampCfgValue[eAAMPConfig_CDVRLiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_CDVR_LIVE_OFFSET;
 
@@ -1709,24 +1709,24 @@ void AampConfig::DoCustomSetting(ConfigPriority owner)
 		// if EC3 is disabled , no need to enable forceEC3
 		SetConfigValue<bool>(owner,eAAMPConfig_ForceEC3,false);
 	}
-	else if(IsConfigSet(eAAMPConfig_ABRBufferCheckEnabled) && (GetConfigOwner(eAAMPConfig_ABRBufferCheckEnabled) == AAMP_APPLICATION_SETTING))
+	if(IsConfigSet(eAAMPConfig_ABRBufferCheckEnabled) && (GetConfigOwner(eAAMPConfig_ABRBufferCheckEnabled) == AAMP_APPLICATION_SETTING))
 	{
 		SetConfigValue<bool>(AAMP_APPLICATION_SETTING,eAAMPConfig_NewDiscontinuity,true);
 		SetConfigValue<bool>(AAMP_APPLICATION_SETTING,eAAMPConfig_HLSAVTrackSyncUsingStartTime,true);
 
 	}
-	else if((!IsConfigSet(eAAMPConfig_EnableRectPropertyCfg)) && (GetConfigOwner(eAAMPConfig_EnableRectPropertyCfg) == AAMP_APPLICATION_SETTING))
-	{	
+	if((!IsConfigSet(eAAMPConfig_EnableRectPropertyCfg)) && (GetConfigOwner(eAAMPConfig_EnableRectPropertyCfg) == AAMP_APPLICATION_SETTING))
+	{
 		if(!IsConfigSet(eAAMPConfig_UseWesterosSink))
 		{
 			SetConfigValue<bool>(AAMP_APPLICATION_SETTING,eAAMPConfig_EnableRectPropertyCfg,true);
 		}
 	}
-	else if(IsConfigSet(eAAMPConfig_NewDiscontinuity) && (GetConfigOwner(eAAMPConfig_NewDiscontinuity) == AAMP_APPLICATION_SETTING))
+	if(IsConfigSet(eAAMPConfig_NewDiscontinuity) && (GetConfigOwner(eAAMPConfig_NewDiscontinuity) == AAMP_APPLICATION_SETTING))
 	{
 		SetConfigValue<bool>(AAMP_APPLICATION_SETTING,eAAMPConfig_HLSAVTrackSyncUsingStartTime,true);
 	}
-	else if(GetConfigOwner(eAAMPConfig_AuthToken) == AAMP_APPLICATION_SETTING)
+	if(GetConfigOwner(eAAMPConfig_AuthToken) == AAMP_APPLICATION_SETTING)
 	{
 		ConfigPriority tempowner;
 		std::string tempvalue;
@@ -1741,6 +1741,16 @@ void AampConfig::DoCustomSetting(ConfigPriority owner)
 		sAampCfgValue[eAAMPConfig_AuthToken-eAAMPConfig_StringStartValue].lastvalue = tempvalue;
 
 	}
+
+	if(GetConfigOwner(eAAMPConfig_ReportProgressInterval) != AAMP_DEFAULT_SETTING)
+	{
+		
+		double reportProgressInterval;
+		GetConfigValue(eAAMPConfig_ReportProgressInterval,reportProgressInterval);
+		reportProgressInterval = reportProgressInterval * 1000;
+		SetConfigValue<double>(owner,eAAMPConfig_ReportProgressInterval,reportProgressInterval);
+	}
+
 	ConfigureLogSettings();
 }
 

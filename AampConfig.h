@@ -199,7 +199,6 @@ typedef enum
 	eAAMPConfig_TuneEventConfig,									/**< When to send TUNED event*/
 	eAAMPConfig_VODTrickPlayFPS,								/**< Trickplay frames per second for VOD*/
 	eAAMPConfig_LinearTrickPlayFPS,								/**< Trickplay frames per second for Linear*/
-	eAAMPConfig_ReportProgressInterval,							/**< Interval of progress reporting*/
 	eAAMPConfig_LicenseRetryWaitTime,							/**< License retry wait interval*/
 	eAAMPConfig_PTSErrorThreshold,								/**< Max number of back-to-back PTS errors within designated time*/
 	eAAMPConfig_MaxPlaylistCacheSize,							/**< Max Playlist Cache Size  */
@@ -246,6 +245,7 @@ typedef enum
 	eAAMPConfig_NetworkTimeout,									/**< Fragment download timeout in sec*/
 	eAAMPConfig_ManifestTimeout,								/**< Manifest download timeout in sec*/
 	eAAMPConfig_PlaylistTimeout,								/**<playlist download time out in sec*/
+	eAAMPConfig_ReportProgressInterval,							/**< Interval of progress reporting*/
 	eAAMPConfig_PlaybackOffset,								/**<playback offset value in seconds*/
 	eAAMPConfig_LiveOffset, 									/**< Current LIVE offset*/
 	eAAMPConfig_CDVRLiveOffset, 								/**< CDVR LIVE offset*/
