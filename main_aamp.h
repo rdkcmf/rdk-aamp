@@ -1388,6 +1388,12 @@ public:
 	void SetReportVideoPTS(bool enabled);
 
 	/**
+	 *   @brief Disable 4K Support in player
+	 *
+	 *   @param[in] value - disabled if true
+	*/
+	void SetDisable4K(bool value);
+	/**
 	 *	 @brief Disable Content Restrictions - unlock
 	 *       @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
 	 *       @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
