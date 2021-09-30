@@ -7352,8 +7352,9 @@ bool PrivateInstanceAAMP::IsLiveAdjustRequired()
  *   @param[in] bitrateList - list of video bitrates available in asset
  *   @param[in] hasDrm - indicates if asset is encrypted/clear
  *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
+ *   @param[in] programStartTime - indicates the program or availability start time.
  */
-void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std::string>langList, std::vector<long> bitrateList, bool hasDrm, bool isIframeTrackPresent)
+void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std::string>langList, std::vector<long> bitrateList, bool hasDrm, bool isIframeTrackPresent, double programStartTime)
 {
 	std::vector<int> supportedPlaybackSpeeds { -64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64 };
 	int langCount = 0;
@@ -7371,7 +7372,7 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 		drmType = helper->friendlyName();
 	}
 
-	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(durationMs, width, height, hasDrm, IsLive(), drmType);
+	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(durationMs, width, height, hasDrm, IsLive(), drmType, programStartTime);
 
 	for (auto iter = langList.begin(); iter != langList.end(); iter++)
 	{

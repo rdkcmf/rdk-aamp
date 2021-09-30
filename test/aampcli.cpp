@@ -149,6 +149,7 @@ typedef enum{
 	eAAMP_SET_DownloadDelayOnFetch,
 	eAAMP_SET_PausedBehavior,
 	eAAMP_SET_AuxiliaryAudio,
+	eAAMP_SET_RegisterForMediaMetadata,
 	eAAMP_SET_TYPE_COUNT
 }AAMPSetTypes;
 
@@ -564,6 +565,7 @@ static void InitSetHelpText()
 	mSetHelpText[eAAMP_SET_DownloadDelayOnFetch] =               "<x>             // Set delay while downloading fragments (unsigned int x = download delay in ms)";
 	mSetHelpText[eAAMP_SET_PausedBehavior] =                     "<x>             // Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"";
 	mSetHelpText[eAAMP_SET_AuxiliaryAudio] =                     "<x>             // Set auxiliary audio language (x = string lang)";
+	mSetHelpText[eAAMP_SET_RegisterForMediaMetadata] =           "<x>             // Set Listen for AAMP_EVENT_MEDIA_METADATA events (x = 1 - add listener, x = 0 - remove)";
 }
 /**
  * @brief Show help menu with aamp command line interface
@@ -706,7 +708,7 @@ public:
 				{
 					printf("[AAMPCLI] language: %s\n", languages[i].c_str());
 				}
-				printf("[AAMPCLI] AAMP_EVENT_MEDIA_METADATA\n\tDuration=%ld\n\twidth=%d\n\tHeight=%d\n\tHasDRM=%d\n", ev->getDuration(), ev->getWidth(), ev->getHeight(), ev->hasDrm());
+				printf("[AAMPCLI] AAMP_EVENT_MEDIA_METADATA\n\tDuration=%ld\n\twidth=%d\n\tHeight=%d\n\tHasDRM=%d\n\tProgreamStartTime=%f\n", ev->getDuration(), ev->getWidth(), ev->getHeight(), ev->hasDrm(), ev->getProgramStartTime());
 				int bitrateCount = ev->getBitratesCount();
 				std::vector<long> bitrates = ev->getBitrates();
 				printf("[AAMPCLI] Bitrates:\n");
@@ -1602,6 +1604,24 @@ static void ProcessCliCommand( char *cmd )
 					}
 					break;
 				}
+
+				case eAAMP_SET_RegisterForMediaMetadata:
+				{
+					int mediaMetadataEventsEnabled;
+					printf("[AAMPCLI] Matched Command eAAMP_SET_RegisterForMediaMetadata - %s \n", cmd);
+					if (sscanf(cmd, "set %d %d", &opt, &mediaMetadataEventsEnabled) == 2){
+						if (mediaMetadataEventsEnabled)
+						{
+							mSingleton->AddEventListener(AAMP_EVENT_MEDIA_METADATA, myEventListener);
+						}
+						else
+						{
+							mSingleton->RemoveEventListener(AAMP_EVENT_MEDIA_METADATA, myEventListener);
+						}
+					}
+					break;
+				}
+
 				case eAAMP_SET_LanguageFormat:
 				{
 					LangCodePreference preference;
