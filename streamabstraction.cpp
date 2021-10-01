@@ -827,38 +827,29 @@ bool MediaTrack::ProcessFragmentChunk()
 			AAMPLOG_TRACE("%s:%d [%s] fPts %lld", __FUNCTION__, __LINE__,name, fPts);
 		}
 
+		uint32_t timeScale = 0;
 		if(type == eTRACK_VIDEO)
 		{
-			AAMPLOG_TRACE("%s:%d [%s] Video Scale: %d", __FUNCTION__, __LINE__, name,aamp->GetLLDashVidTimeScale());
-
-			if(aamp->GetLLDashVidTimeScale())
-			{
-				fpts = fPts/(aamp->GetLLDashVidTimeScale()*1.0);
-				fduration = totalChunkDuration/(aamp->GetLLDashVidTimeScale()*1.0);
-			}
-			else
-			{
-				//FIX-ME-Read from MPD INSTEAD
-				fpts = fPts/10000000.0;
-				fduration = totalChunkDuration/10000000.0;
-			}
+			timeScale = aamp->GetLLDashVidTimeScale();
 		}
 		else if(type == eTRACK_AUDIO)
 		{
-			AAMPLOG_TRACE("%s:%d [%s] Audio Scale: %d", __FUNCTION__, __LINE__, name,aamp->GetLLDashAudTimeScale());
+			timeScale = aamp->GetLLDashAudTimeScale();
+		}
 
-			if(aamp->GetLLDashAudTimeScale())
+		if(!timeScale)
+		{
+			//FIX-ME-Read from MPD INSTEAD
+			timeScale = GetContext()->GetCurrPeriodTimeScale();
+			if(!timeScale)
 			{
-				fpts = fPts/(aamp->GetLLDashAudTimeScale()*1.0);
-				fduration = totalChunkDuration/(aamp->GetLLDashAudTimeScale()*1.0);
-			}
-			else
-			{
-				//FIX-ME-Read from MPD INSTEAD
-				fpts = fPts/10000000.0;
-				fduration = totalChunkDuration/10000000.0;
+				timeScale = 10000000.0;
+				AAMPLOG_WARN("%s:%d [%s] Empty timeScale!!! Using default timeScale=%d", __FUNCTION__, __LINE__, name, timeScale);
 			}
 		}
+
+		fpts = fPts/(timeScale*1.0);
+		fduration = totalChunkDuration/(timeScale*1.0);
 
 		//Prepeare parsed buffer
 		aamp_AppendBytes(&parsedBufferChunk, unparsedBufferChunk.ptr, parsedBufferSize);

@@ -185,6 +185,7 @@ public:
 	double GetFirstPeriodStartTime(void);
 	void MonitorLatency();
 	void StartSubtitleParser() override;
+	uint32_t GetCurrPeriodTimeScale();
 
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);

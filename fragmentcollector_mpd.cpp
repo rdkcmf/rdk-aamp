@@ -6587,7 +6587,23 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 	return ret;
 }
 
+/**
+ *   @brief  Get timescale from current period
+ *   @retval timescale
+ */
+uint32_t StreamAbstractionAAMP_MPD::GetCurrPeriodTimeScale()
+{
+	IPeriod *currPeriod = mCurrentPeriod;
+	if(!currPeriod)
+	{
+		AAMPLOG_WARN("%s:%d :  currPeriod is null", __FUNCTION__, __LINE__);  //CID:80891 - Null Returns
+		return 0;
+	}
 
+	uint32_t timeScale = 0;
+	timeScale = GetPeriodSegmentTimeScale(currPeriod);
+	return timeScale;
+}
 
 /**
  * @brief Update culling state for live manifests

@@ -875,6 +875,7 @@ public:
 
 	virtual double GetFirstPeriodStartTime() { return 0; }
 	virtual double GetFirstPeriodDynamicStartTime() { return 0; }
+	virtual uint32_t GetCurrPeriodTimeScale()  { return 0; }
 	/**
 	 *   @brief Check for ramp down limit reached by player
 	 *   @return true if limit reached, false otherwise
