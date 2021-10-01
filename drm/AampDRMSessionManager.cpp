@@ -129,6 +129,8 @@ AampDRMSessionManager::~AampDRMSessionManager()
 	clearAccessToken();
 	clearSessionData();
 	pthread_mutex_destroy(&mDrmSessionLock);
+	pthread_mutex_destroy(&accessTokenMutex);
+	pthread_mutex_destroy(&cachedKeyMutex);
 }
 
 /**
@@ -1535,6 +1537,7 @@ void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp){
 			__FUNCTION__, __LINE__, rc);
 		}
 		aamp->drmSessionThreadStarted = false;
+		AAMPLOG_WARN("%s:%d DRMSession Thread Released", __FUNCTION__, __LINE__);
 	}
 }
 
