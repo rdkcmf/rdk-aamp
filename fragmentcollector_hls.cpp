@@ -86,6 +86,7 @@ static const double DEFAULT_STREAM_FRAMERATE = 25.0;
 #ifdef AAMP_HLS_DRM
 extern DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName);
 extern int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData);
+extern void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
 #endif 
 
 #define UseProgramDateTimeIfAvailable() (ISCONFIGSET(eAAMPConfig_HLSAVTrackSyncUsingStartTime) || aamp->mIsVSS)
@@ -5945,6 +5946,7 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 		}
 		aamp->mDRMSessionManager->notifyCleanup();
 		aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_INACTIVE);
+		ReleaseDRMLicenseAcquireThread(aamp);
 #endif
 	}
 	if(!clearChannelData)
