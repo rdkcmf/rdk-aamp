@@ -74,6 +74,7 @@ std::mutex appsinkData_mutex;
  * @brief Define the enum values of get types
  */
 typedef enum {
+	eAAMP_GET_CurrentState,
 	eAAMP_GET_CurrentAudioLan,
 	eAAMP_GET_CurrentDrm,
 	eAAMP_GET_PlaybackPosition,
@@ -498,6 +499,7 @@ const char *mSetHelpText[eAAMP_SET_TYPE_COUNT];
  */
 static void InitGetHelpText()
 {
+	mGetHelpText[eAAMP_GET_CurrentState] = "Get current player state";
 	mGetHelpText[eAAMP_GET_CurrentAudioLan] = "Get Current audio language";
 	mGetHelpText[eAAMP_GET_CurrentDrm] = "Get Current DRM";
 	mGetHelpText[eAAMP_GET_PlaybackPosition] = "Get Current Playback position";
@@ -2070,6 +2072,9 @@ static void ProcessCliCommand( char *cmd )
 			switch(opt-1){ // 1 based to zero based
 				case eAAMP_GET_ThumbnailConfig:
 					printf("[AAMPCLI] GETTING AVAILABLE THUMBNAIL TRACKS: %s\n", mSingleton->GetAvailableThumbnailTracks().c_str() );
+					break;
+				case eAAMP_GET_CurrentState:
+					printf("[AAMPCLI] GETTING CURRENT STATE: %d\n", (int) mSingleton->GetState());
 					break;
 				case eAAMP_GET_ThumbnailData:
 					sscanf(cmd, "get %d %d %d",&opt, &value1, &value2);
