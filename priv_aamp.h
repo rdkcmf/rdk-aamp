@@ -3142,6 +3142,12 @@ public:
 	 */
 	std::string GetAuxiliaryAudioLanguage() { return mAuxAudioLanguage; }
 
+	/**
+	*     @brief GetPauseOnFirstVideoFrameDisp
+	*     @return bool
+	*/
+	bool GetPauseOnFirstVideoFrameDisp(void);
+
 private:
 
 	/**

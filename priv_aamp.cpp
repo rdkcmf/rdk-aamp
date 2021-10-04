@@ -9499,3 +9499,12 @@ void PrivateInstanceAAMP::FlushLastId3Data()
 		lastId3Data = NULL;
 	}
 }
+
+/**
+ *     @brief GetPauseOnFirstVideoFrameDisp
+ *     @return bool
+ */
+bool PrivateInstanceAAMP::GetPauseOnFirstVideoFrameDisp(void)
+{
+    return mPauseOnFirstVideoFrameDisp;
+}
