@@ -303,6 +303,13 @@ class AAMPPlayer {
     }
 
     /**
+     * Gets available manifest
+     */
+     getManifest() {
+        return this.player.getManifest();
+    }
+
+    /**
      * Gets the current audio bitrate
      */
     getCurrentAudioBitrate() {
