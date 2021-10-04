@@ -3385,6 +3385,12 @@ public:
         */
 	class MediaStreamContext* GetMediaStreamContext(MediaType type);
 
+	/**
+	*     @brief GetPauseOnFirstVideoFrameDisp
+	*     @return bool
+	*/
+	bool GetPauseOnFirstVideoFrameDisp(void);
+
 private:
 
 	/**

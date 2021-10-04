@@ -10224,3 +10224,12 @@ MediaStreamContext* PrivateInstanceAAMP::GetMediaStreamContext(MediaType type)
     }
     return NULL;
 }
+
+/**
+ *     @brief GetPauseOnFirstVideoFrameDisp
+ *     @return bool
+ */
+bool PrivateInstanceAAMP::GetPauseOnFirstVideoFrameDisp(void)
+{
+    return mPauseOnFirstVideoFrameDisp;
+}
