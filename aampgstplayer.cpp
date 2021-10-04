@@ -384,7 +384,7 @@ static void analyze_streams(AAMPGstPlayer *_this)
  */
 static void need_data(GstElement *source, guint size, AAMPGstPlayer * _this)
 {
-	if (source == _this->privateContext->stream[eMEDIATYPE_SUBTITLE].source)
+ 	if (source == _this->privateContext->stream[eMEDIATYPE_SUBTITLE].source)
 	{
 		_this->aamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE); // signal fragment downloader thread
 	}
@@ -3096,7 +3096,19 @@ bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 			privateContext->buffering_in_progress = false;
 		}
 
-		gst_element_set_state(this->privateContext->pipeline, nextState);
+		GstStateChangeReturn rc = gst_element_set_state(this->privateContext->pipeline, nextState);
+		if (GST_STATE_CHANGE_ASYNC == rc)
+		{
+                        /* wait a bit longer for the state change to conclude */
+			if (nextState != validateStateWithMsTimeout(this,nextState, 100))
+			{
+				logprintf("AAMPGstPlayer_Pause - validateStateWithMsTimeout - FAILED GstState %d", nextState);
+			}
+		}
+		else if (GST_STATE_CHANGE_SUCCESS != rc)
+		{
+			logprintf("AAMPGstPlayer_Pause - gst_element_set_state - FAILED rc %d", rc);
+		}
 		privateContext->buffering_target_state = nextState;
 		privateContext->paused = pause;
 		privateContext->pendingPlayState = false;
