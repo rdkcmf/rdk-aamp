@@ -1472,6 +1472,35 @@ std::vector<long> PlayerInstanceAAMP::GetVideoBitrates(void)
 }
 
 /**
+ *   @brief To get the available manifest.
+ *
+ *   @ret available manifest
+ */
+const std::string PlayerInstanceAAMP::GetManifest(void)
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
+	GrowableBuffer manifest;
+	ContentType ContentType;
+	aamp->AcquireStreamLock();
+	if ((aamp->GetContentType() == ContentType_VOD) && (aamp->mMediaFormat == eMEDIAFORMAT_DASH))
+	{
+		std::string manifestUrl = aamp->GetManifestUrl();
+		memset(&manifest, 0, sizeof(manifest));
+		if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(manifestUrl, &manifest, manifestUrl))
+		{
+		logprintf("PlayerInstanceAAMP::%s:%d manifest retrieved from cache", __FUNCTION__, __LINE__);
+		}
+		else
+		{
+		memset(&manifest, 0, sizeof(manifest));
+		}
+	}
+
+	aamp->ReleaseStreamLock();
+	return std::string(manifest.ptr);
+}
+
+/**
  *   @brief To get the available audio bitrates.
  *
  *   @ret available audio bitrates

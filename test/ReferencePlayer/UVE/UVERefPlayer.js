@@ -645,6 +645,8 @@ function mediaPlaybackStarted() {
     if (availableVBitrates !== undefined) {
         createBitrateList(availableVBitrates);
     }
+    console.log("call getManifest");
+    var Manifest = playerObj.getManifest();
 }
 
 function mediaDurationChanged(event) {
