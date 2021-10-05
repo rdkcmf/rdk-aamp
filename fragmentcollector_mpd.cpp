@@ -2748,9 +2748,9 @@ Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd)
 }
 
 //Multiply two ints without overflow
-inline std::uint64_t safeMultiply(const int first, const int second)
+inline double safeMultiply(const int first, const int second)
 {
-    return static_cast<std::uint64_t>(first) * second;
+    return static_cast<double>(first * second);
 }
 
 /**
@@ -2767,10 +2767,10 @@ static double ParseISO8601Duration(const char *ptr)
 	int minute = 0;
 	double seconds = 0.0;
     
-	uint64_t returnValue = 0;
-	
-    //ISO 8601 does not specify specific values for months in a day
-    //or days in a year, so use 30 days/month and 365 days/year
+	double returnValue = 0.0;
+
+	//ISO 8601 does not specify specific values for months in a day
+	//or days in a year, so use 30 days/month and 365 days/year
 	static constexpr auto kMonthDays = 30;
 	static constexpr auto kYearDays = 365;
 	
