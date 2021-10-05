@@ -1068,6 +1068,7 @@ static gboolean buffering_timeout (gpointer data)
 				logprintf("%s: Set pipeline state to %s - buffering_timeout_cnt %u  frames %u", __FUNCTION__, gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1), frames);
 				gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
 				_this->privateContext->buffering_in_progress = false;
+				_this->aamp->UpdateSubtitleTimestamp();
 			}
 		}
 		if (!_this->privateContext->buffering_in_progress)
@@ -1572,7 +1573,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 		{
 			_this->privateContext->bufferingTimeoutTimerId = g_timeout_add_full(BUFFERING_TIMEOUT_PRIORITY, DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this, NULL);
 		}
-		_this->aamp->UpdateSubtitleTimestamp();
 
 		break;
 
