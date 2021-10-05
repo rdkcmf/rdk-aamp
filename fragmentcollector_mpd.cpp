@@ -5717,6 +5717,10 @@ void StreamAbstractionAAMP_MPD::StartSubtitleParser()
 	struct MediaStreamContext *subtitle = mMediaStreamContext[eMEDIATYPE_SUBTITLE];
 	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
 	{
+		if(aamp->IsLive())
+		{ // adjust subtitle presentation start to align with AV live offset
+			seekPosition -= aamp->mLiveOffset;
+		}
 		AAMPLOG_INFO("%s: sending init %.3f", __FUNCTION__, seekPosition);
 		subtitle->mSubtitleParser->init(seekPosition, 0);
 		subtitle->mSubtitleParser->mute(aamp->subtitles_muted);
