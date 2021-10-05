@@ -864,27 +864,33 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 			cJSON *drmConfig = cJSON_GetObjectItem(cfgdata,"drmConfig");
 			if(drmConfig)
 			{
+				logprintf("Parsed value for property DrmConfig");
 				cJSON *subitem = drmConfig->child;
 				DRMSystems drmType;
 				while( subitem )
 				{
+					std::string conv = std::string(subitem->valuestring);
 					if(strcasecmp("com.microsoft.playready",subitem->string)==0)
 					{
-						SetConfigValue<std::string>(owner,eAAMPConfig_PRLicenseServerUrl,(std::string)subitem->valuestring);
+						logprintf("Playready License Server URL config param received - %s", conv.c_str());
+						SetConfigValue<std::string>(owner,eAAMPConfig_PRLicenseServerUrl,conv);
 						drmType = eDRM_PlayReady;
 					}
 					if(strcasecmp("com.widevine.alpha",subitem->string)==0)
 					{
-						SetConfigValue<std::string>(owner,eAAMPConfig_WVLicenseServerUrl,(std::string)subitem->valuestring);
+						logprintf("Widevine License Server URL config param received - %s", conv.c_str());
+						SetConfigValue<std::string>(owner,eAAMPConfig_WVLicenseServerUrl,conv);
 						drmType = eDRM_WideVine;
 					}
 					if(strcasecmp("org.w3.clearkey",subitem->string)==0)
 					{
-						SetConfigValue<std::string>(owner,eAAMPConfig_CKLicenseServerUrl,(std::string)subitem->valuestring);
+						logprintf("ClearKey License Server URL config param received - %s", conv.c_str());
+						SetConfigValue<std::string>(owner,eAAMPConfig_CKLicenseServerUrl,conv);
 						drmType = eDRM_ClearKey;
 					}
 					if(strcasecmp("preferredKeysystem",subitem->string)==0)
 					{
+						logprintf("Preferred key system received - %s", conv.c_str());
 						SetConfigValue<int>(owner,eAAMPConfig_PreferredDRM,(int)drmType);
 					}
 					subitem = subitem->next;
