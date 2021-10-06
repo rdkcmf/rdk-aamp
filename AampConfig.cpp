@@ -300,7 +300,7 @@ void AampConfig::Initialize()
 #else
        bAampCfgValue[eAAMPConfig_EnableGstPositionQuery].value			=	true;
 #endif
-	bAampCfgValue[eAAMPConfig_MidFragmentSeek].value                        =       false;
+	bAampCfgValue[eAAMPConfig_MidFragmentSeek].value                        =       true;
 	bAampCfgValue[eAAMPConfig_PropogateURIParam].value			=	true;
 #if defined(REALTEKCE) || defined(AMLOGIC)	// Temporary till westerossink disable is rollbacked
 	bAampCfgValue[eAAMPConfig_UseWesterosSink].value			=	true;
