@@ -127,22 +127,168 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 		}
 		aamp->SetState(state);
 	}
-	if(tuned){
-		JsonObject videoInfoObj = playerData["videoInfo"].Object();
-		std::string currDisplyInfo = videoInfoObj["displayInfo"].String();
-		if(0 != prevDisplyInfo.compare(currDisplyInfo))
-		{
-			prevDisplyInfo = currDisplyInfo;
-			VideoScanType videoScanType = (videoInfoObj["progressive"].Boolean() ? eVIDEOSCAN_PROGRESSIVE : eVIDEOSCAN_INTERLACED);
-			double frameRate = 0.0;
-			double frameRateN = static_cast<double> (videoInfoObj["frameRateN"].Number());
-			double frameRateD = static_cast<double> (videoInfoObj["frameRateD"].Number());
-			if((0 != frameRateN) && (0 != frameRateD))
-				frameRate = frameRateN / frameRateD;
 
-			aamp->NotifyBitRateChangeEvent(videoInfoObj["bitrate"].Number(), eAAMP_BITRATE_CHANGE_BY_OTA, videoInfoObj["width"].Number(), videoInfoObj["height"].Number(), frameRate, 0, false, videoScanType, videoInfoObj["aspectRatioWidth"].Number(), videoInfoObj["aspectRatioHeight"].Number());
+	if((0 == currState.compare("PLAYING")) || (0 == currState.compare("BLOCKED")) &&  0 == reason.compare("SERVICE_PIN_LOCKED"))
+	{
+		if(PopulateMetaData(playerData))
+		{
+			SendMediaMetadataEvent();
+
+			// genereate Notify bitrate event if video w/h is changed
+			// this is lagacy event used by factory test app to get video info
+			if( (miPrevmiVideoWidth != miVideoWidth) ||  (miPrevmiVideoHeight != miVideoHeight) )
+			{
+				miPrevmiVideoWidth = miVideoWidth;
+				miPrevmiVideoHeight = miVideoHeight;
+				aamp->NotifyBitRateChangeEvent(mVideoBitrate, eAAMP_BITRATE_CHANGE_BY_OTA, miVideoWidth, miVideoHeight, mFrameRate, 0, false, mVideoScanType, mAspectRatioWidth, mAspectRatioHeight);
+			}
 		}
 	}
+
+}
+
+/**
+*   @brief  reads metadata properties from player status object and return true if any of data is changed
+*/
+bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
+{
+	bool isDataChanged = false;
+	std::string ratingString;
+	JsonObject ratingObj = playerData["rating"].Object();
+	ratingObj.ToString(ratingString);
+	
+	if( mPCRating != ratingString )
+	{
+		AAMPLOG_INFO( "[OTA_SHIM]%s ratings changed : old:%s new:%s ", __FUNCTION__, mPCRating.c_str(), ratingString.c_str());
+		mPCRating = ratingString;
+		isDataChanged = true;
+	}
+
+	int tempSSI = playerData["ssi"].Number();
+
+	if(tempSSI != mSsi)
+	{
+		AAMPLOG_INFO( "[OTA_SHIM]%s SSI changed : old:%d new:%d ", __FUNCTION__, mSsi, tempSSI);
+		mSsi = tempSSI;
+		isDataChanged = true;
+	}
+
+	/* Video info   */
+	JsonObject videoInfoObj = playerData["videoInfo"].Object();
+
+	VideoScanType tempScanType = (videoInfoObj["progressive"].Boolean() ? eVIDEOSCAN_PROGRESSIVE : eVIDEOSCAN_INTERLACED);
+	if(mVideoScanType != tempScanType)
+	{
+		AAMPLOG_INFO( "[OTA_SHIM]%s Scan type changed : old:%d new:%d ", __FUNCTION__, mVideoScanType, tempScanType);
+		isDataChanged = true;
+		mVideoScanType = tempScanType;
+	}
+
+	float tempframeRate = 0.0;
+	float frameRateN = static_cast<float> (videoInfoObj["frameRateN"].Number());
+	float frameRateD = static_cast<float> (videoInfoObj["frameRateD"].Number());
+	if((0 != frameRateN) && (0 != frameRateD))
+	{
+		tempframeRate = frameRateN / frameRateD;
+
+		if( mFrameRate != tempframeRate)
+		{
+			AAMPLOG_INFO( "[OTA_SHIM]%s mFrameRate changed : old:%f new:%f ", __FUNCTION__, mFrameRate, tempframeRate);
+			isDataChanged = true;
+			mFrameRate = tempframeRate;
+		}
+	}
+
+	int tempAspectRatioWidth = videoInfoObj["aspectRatioWidth"].Number();
+	if( tempAspectRatioWidth != mAspectRatioWidth)
+	{
+		isDataChanged = true;
+		AAMPLOG_INFO( "[OTA_SHIM]%s mAspectRatioWidth changed : old:%d new:%d ", __FUNCTION__, mAspectRatioWidth, tempAspectRatioWidth);
+		mAspectRatioWidth = tempAspectRatioWidth;
+	}
+
+	int tempAspectRatioHeight = videoInfoObj["aspectRatioHeight"].Number();
+	if( mAspectRatioHeight != tempAspectRatioHeight)
+	{
+		AAMPLOG_INFO( "[OTA_SHIM]%s tempAspectRatioHeight  : old:%d new:%d ", __FUNCTION__, mAspectRatioHeight, tempAspectRatioHeight);
+		isDataChanged = true;
+		mAspectRatioHeight = tempAspectRatioHeight;
+	}
+
+	int tempVideoWidth =  videoInfoObj["width"].Number();
+	if( miVideoWidth != tempVideoWidth)
+	{
+		AAMPLOG_INFO( "[OTA_SHIM]%s miVideoWidth  : old:%d new:%d ", __FUNCTION__, miVideoWidth, tempVideoWidth);
+		miVideoWidth = tempVideoWidth;
+		isDataChanged = true;
+	}
+
+	int tempVideoHeight =  videoInfoObj["height"].Number();
+	if( miVideoHeight != tempVideoHeight)
+	{
+		AAMPLOG_INFO( "[OTA_SHIM]%s miVideoHeight  : old:%d new:%d ", __FUNCTION__, miVideoHeight, tempVideoHeight);
+		miVideoHeight = tempVideoHeight;
+		isDataChanged = true;
+	}
+
+	std::string tempVideoCodec = videoInfoObj["codec"].String();
+	if(0 != mVideoCodec.compare(tempVideoCodec))
+	{
+		AAMPLOG_INFO( "[OTA_SHIM]%s mVideoCodec : old:%s new:%s ", __FUNCTION__, mVideoCodec.c_str(), tempVideoCodec.c_str());
+		mVideoCodec = tempVideoCodec;
+		isDataChanged = true;
+	}
+
+	mHdrType = videoInfoObj["hdrType"].String();
+
+	/* Audio Info   */
+	JsonObject audioInfoObj = playerData["audioInfo"].Object();
+
+	std::string tempAudioCodec = audioInfoObj["codec"].String();
+	if(0 != mAudioCodec.compare(tempAudioCodec))
+	{
+		AAMPLOG_INFO( "[OTA_SHIM]%s tempAudioCodec : old:%s new:%s ", __FUNCTION__, mAudioCodec.c_str(), mAudioCodec.c_str());
+		mAudioCodec = tempAudioCodec;
+		isDataChanged = true;
+	}
+
+	std::string tempAudioMixType = audioInfoObj["mixType"].String();
+	if(0 != mAudioMixType.compare(tempAudioMixType))
+	{
+		AAMPLOG_INFO( "[OTA_SHIM]%s tempAudioMixType : old:%s new:%s ", __FUNCTION__, mAudioMixType.c_str(), tempAudioMixType.c_str());
+		mAudioMixType = tempAudioMixType;
+		isDataChanged = true;
+	}
+
+	bool tempIsAtmos =  audioInfoObj["isAtmos"].Boolean();
+
+	if( mIsAtmos != tempIsAtmos)
+	{
+		AAMPLOG_INFO( "[OTA_SHIM]%s -- mIsAtmos  : old:%d new:%d ", __FUNCTION__, mIsAtmos, tempIsAtmos);
+		mIsAtmos = tempIsAtmos;
+		isDataChanged = true;
+	}
+
+	if( isDataChanged )
+	{
+		mVideoBitrate = videoInfoObj["bitrate"].Number();
+		mAudioBitrate = audioInfoObj["bitrate"].Number();
+	}
+
+	return isDataChanged;
+}
+
+void StreamAbstractionAAMP_OTA::SendMediaMetadataEvent()
+{
+	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(-1/*duration*/, miVideoWidth, miVideoHeight, false/*hasDrm*/,true/*isLive*/, ""/*drmtype*/, -1/*programStartTime*/);
+
+	// This is video bitrate
+	event->addBitrate(mVideoBitrate);
+	event->addSupportedSpeed(1);
+	event->SetVideoMetaData(mFrameRate,mVideoScanType,mAspectRatioWidth,mAspectRatioHeight, mVideoCodec,  mHdrType, mPCRating,mSsi);
+	event->SetAudioMetaData(mAudioCodec,mAudioMixType,mIsAtmos);
+	event->addAudioBitrate(mAudioBitrate);
+	aamp->SendEventAsync(event);
 }
 
 #endif
@@ -162,7 +308,13 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 #else
     AAMPLOG_INFO( "[OTA_SHIM]Inside %s ", __FUNCTION__ );
     prevState = "IDLE";
-    prevDisplyInfo = "";
+	
+    //initialize few veriables, it will invalidate mediametadata/Notifybitrate events
+    miVideoWidth = 0;
+    miVideoHeight = 0;
+    miPrevmiVideoWidth  = 0;
+    miPrevmiVideoHeight  = 0;
+
     prevBlockedReason = "";
     tuned = false;
 
@@ -196,7 +348,10 @@ StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *
                             , tuned(false),mEventSubscribed(false),
                             thunderAccessObj(MEDIAPLAYER_CALLSIGN),
                             mediaSettingsObj(MEDIASETTINGS_CALLSIGN),
-                            thunderRDKShellObj(RDKSHELL_CALLSIGN)
+                            thunderRDKShellObj(RDKSHELL_CALLSIGN),
+                            mPCRating(),mSsi(-1),mFrameRate(0),mVideoScanType(eVIDEOSCAN_UNKNOWN),mAspectRatioWidth(0),mAspectRatioHeight(0),
+                            mVideoCodec(),mHdrType(),mAudioBitrate(0),mAudioCodec(),mAudioMixType(),mIsAtmos(false),
+                            miVideoWidth(0),miVideoHeight(0),miPrevmiVideoWidth(0),miPrevmiVideoHeight(0)
 #endif
 { // STUB
 }
