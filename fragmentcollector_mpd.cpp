@@ -8004,7 +8004,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 
                                         }
 					int timeoutMs = refreshInterval - (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
-					if(timeoutMs <= 0 && mIsLiveManifest && rate > 0)
+					if( timeoutMs <= 0 && mIsLiveManifest )
 					{
 						liveMPDRefresh = true;
 						break;
@@ -8043,7 +8043,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 					iPeriod--;
 				}
 			} //Loop 2: End of Period while loop
-			if (exitFetchLoop || (rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || (!mIsLiveManifest && waitForAdBreakCatchup != true))
+			if (exitFetchLoop || (!mIsLiveManifest && ((rate < AAMP_NORMAL_PLAY_RATE && iPeriod < 0) || (rate > 1 && iPeriod >= numPeriods) || (waitForAdBreakCatchup != true))))
 			{
 				break;
 			}
