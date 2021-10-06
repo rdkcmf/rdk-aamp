@@ -97,12 +97,37 @@ private:
     ThunderAccessAAMP mediaSettingsObj;
     std::string prevState;
     std::string prevBlockedReason;
-    std::string prevDisplyInfo;
     bool tuned;
     bool mEventSubscribed;
 
     ThunderAccessAAMP thunderRDKShellObj;
     bool GetScreenResolution(int & screenWidth, int & screenHeight);
+
+	/* Additional data from ATSC playback  */
+	std::string mPCRating; /**< Parental control rating json string object  */
+	int mSsi;  /**<  Signal strength indicator 0-100 where 100 is a perfect signal. -1 indicates data not available  */
+	/* Video info   */
+	long mVideoBitrate;
+	float mFrameRate;		/**< FrameRate */
+	VideoScanType mVideoScanType;   /**< Video Scan Type progressive/interlaced */
+	int mAspectRatioWidth;		/**< Aspect Ratio Width*/
+	int mAspectRatioHeight;		/**< Aspect Ratio Height*/
+	std::string mVideoCodec;	 /**<  VideoCodec - E.g MPEG2.*/
+	std::string mHdrType; /**<  type of HDR being played, in example "DOLBY_VISION" */
+	int miVideoWidth;       /**<  Video Width  */
+	int miVideoHeight;       /**<  Video Height  */
+
+	int miPrevmiVideoWidth;
+	int miPrevmiVideoHeight;
+
+	/* Audio Info   */
+	long mAudioBitrate; 		/**<  int - Rate of the Audio stream in bps. Calculated based on transport stream rate. So will have some fluctuation. */
+	std::string mAudioCodec; /**< AudioCodec E.g AC3.*/
+	std::string mAudioMixType; /**<  AudioMixType(- E.g STEREO. */
+	bool  mIsAtmos;  	 		/**<  Is Atmos : 1 - True if audio playing is Dolby Atmos, 0 false ,  -1 indicates data not available */
+
+	bool PopulateMetaData(const JsonObject& parameters); /**< reads metadata properties from player status object and return true if any of data is changed  */
+	void SendMediaMetadataEvent();
 #endif
     void GetAudioTracks();
     int GetAudioTrackInternal();

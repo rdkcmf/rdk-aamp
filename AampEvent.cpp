@@ -254,7 +254,9 @@ unsigned long CCHandleEvent::getCCHandle() const
 MediaMetadataEvent::MediaMetadataEvent(long duration, int width, int height, bool hasDrm, bool isLive, const std::string &DrmType, double programStartTime):
 		AAMPEventObject(AAMP_EVENT_MEDIA_METADATA), mDuration(duration),
 		mLanguages(), mBitrates(), mWidth(width), mHeight(height),
-		mHasDrm(hasDrm), mSupportedSpeeds(), mIsLive(isLive), mDrmType(DrmType), mProgramStartTime(programStartTime)
+		mHasDrm(hasDrm), mSupportedSpeeds(), mIsLive(isLive), mDrmType(DrmType), mProgramStartTime(programStartTime),
+		mPCRating(),mSsi(-1),mFrameRate(0),mVideoScanType(eVIDEOSCAN_UNKNOWN),mAspectRatioWidth(0),mAspectRatioHeight(0),
+		mVideoCodec(),mHdrType(),mAudioBitrates(),mAudioCodec(),mAudioMixType(),isAtmos(false)
 {
 
 }
@@ -420,6 +422,27 @@ bool MediaMetadataEvent::isLive() const
 const std::string &MediaMetadataEvent::getDrmType() const
 {
 	return mDrmType;
+}
+
+void MediaMetadataEvent::SetVideoMetaData(float frameRate,VideoScanType videoScanType,int aspectRatioWidth,int  aspectRatioHeight, const std::string &  videoCodec, const std::string  & strHdrType, const std::string & strPCRating, int ssi)
+{
+	this->mFrameRate = frameRate;
+	this->mVideoScanType = videoScanType;
+	this->mAspectRatioWidth = aspectRatioWidth;
+	this->mAspectRatioHeight = aspectRatioHeight;
+	this->mVideoCodec = videoCodec;
+	this->mHdrType = strHdrType;
+	this->mSsi = ssi;
+	this->mPCRating = strPCRating;
+	return;
+}
+
+void MediaMetadataEvent::SetAudioMetaData(const std::string &audioCodec,const std::string &mixType,bool  isAtmos  )
+{
+	mAudioCodec = audioCodec;
+	mAudioMixType = mixType;
+	isAtmos = isAtmos;
+	return;
 }
 
 /*
