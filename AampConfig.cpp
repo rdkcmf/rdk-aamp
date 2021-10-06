@@ -1783,6 +1783,7 @@ void AampConfig::SetValue(J &setting, ConfigPriority newowner, const K &value, s
 		}
 		setting.value = value;
 		setting.owner = newowner;
+		logprintf("%s: %s New Owner[%d]",__FUNCTION__,cfgName.c_str(),newowner);
 	}
 	else
 	{
