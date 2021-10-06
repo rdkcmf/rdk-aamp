@@ -6998,6 +6998,15 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			return;
 		}
 
+		pthread_mutex_lock(&gMutex);
+		if (this->mIsRetuneInProgress)
+		{
+			logprintf("PrivateInstanceAAMP::%s:%d: Already Retune inprogress", __FUNCTION__, __LINE__);
+			pthread_mutex_unlock(&gMutex);
+			return;
+		}
+		pthread_mutex_unlock(&gMutex);
+
 		/*If underflow is caused by a discontinuity processing, continue playback from discontinuity*/
 		// If discontinuity process in progress, skip further processing
 		// DELIA-46559 Since discontinuity flags are reset a bit earlier, additional checks added below to check if discontinuity processing in progress
@@ -7032,7 +7041,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 			return;
 		}
 
-		MediaTrack* mediaTrack = (mpStreamAbstractionAAMP->GetMediaTrack((TrackType)trackType));
+		MediaTrack* mediaTrack = (mpStreamAbstractionAAMP != NULL) ? (mpStreamAbstractionAAMP->GetMediaTrack((TrackType)trackType)) : NULL;
 		
 		if((ISCONFIGSET_PRIV(eAAMPConfig_ReportBufferEvent)) &&
 		(errorType == eGST_ERROR_UNDERFLOW) &&
