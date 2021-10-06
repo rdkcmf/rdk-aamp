@@ -5801,6 +5801,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 		int  selAdaptationSetIndex = -1;
 		int selRepresentationIndex = -1;
 		bool isIframeAdaptationAvailable = false;
+		bool encryptedIframeTrackPresent = false;
 		int videoRepresentationIdx;   //CID:118900 - selRepBandwidth variable locally declared but not reflected
 		for (unsigned iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 		{
@@ -5929,6 +5930,11 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 						pMediaStreamContext->adaptationSetIdx = iAdaptationSet;
 						mNumberOfTracks = 1;
 						isIframeAdaptationAvailable = true;
+						if(!adaptationSet->GetContentProtection().empty())
+						{
+							encryptedIframeTrackPresent = true;
+							AAMPLOG_WARN("PrivateStreamAbstractionMPD::%s %d Detected encrypted iframe track", __FUNCTION__, __LINE__);
+						}
 						break;
 					}
 				}
@@ -6088,7 +6094,11 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 
 			ProcessContentProtection(period->GetAdaptationSets().at(selAdaptationSetIndex),(MediaType)i);
 			mNumberOfTracks++;
-		} // AAMP_NORMAL_PLAY_RATE
+		}
+		else if (AAMP_NORMAL_PLAY_RATE < rate && encryptedIframeTrackPresent) //Process content protection for encyrpted Iframe
+		{
+			ProcessContentProtection(period->GetAdaptationSets().at(pMediaStreamContext->adaptationSetIdx),(MediaType)i);
+		}
 
 		if(selAdaptationSetIndex < 0 && rate == 1)
 		{
