@@ -696,6 +696,23 @@ class MediaMetadataEvent: public AAMPEventObject
 	std::string mDrmType;			/**< DRM type */
 	double mProgramStartTime;		/**< Program/Availability start time */
 
+	/* Additional data from ATSC playback  */
+	std::string mPCRating; /**< Parental control rating json string object  */
+	int mSsi;  /**<  Signal strength indicator 0-100 where 100 is a perfect signal. -1 indicates data not available  */
+	/* Video info   */
+	float mFrameRate;		/**< FrameRate */
+	VideoScanType mVideoScanType;   /**< Video Scan Type progressive/interlaced */
+	int mAspectRatioWidth;		/**< Aspect Ratio Width*/
+	int mAspectRatioHeight;		/**< Aspect Ratio Height*/
+	std::string mVideoCodec;	 /**<  VideoCodec - E.g MPEG2.*/
+	std::string mHdrType; /**<  type of HDR being played, in example "DOLBY_VISION" */
+
+	/* Audio Info   */
+	std::vector<long> mAudioBitrates;		/**< Available Audio bitrates */
+	std::string mAudioCodec; /**< AudioCodec E.g AC3.*/
+	std::string mAudioMixType; /**<  AudioMixType(- E.g STEREO. */
+	bool  isAtmos;  	 		/**<  Is Atmos : 1 - True if audio playing is Dolby Atmos, 0 false ,  -1 indicates data not available */
+
 public:
 	MediaMetadataEvent() = delete;
 	MediaMetadataEvent(const MediaMetadataEvent&) = delete;
@@ -833,6 +850,121 @@ public:
 	 * @return Supported speeds count
 	 */
 	int getSupportedSpeedCount() const;
+
+	/*
+	 * @brief Sets additional metadata for video
+	 *
+	 * @param[in] mFrameRate - video framerate
+	 * @param[in] videoScanType   - Scan Type progressive/interlaced
+	 * @param[in] aspectRatioWidth   - Aspect Ratio Width
+	 * @param[in] aspectRatioHeight   - Aspect Ratio Height
+	 * @param[in] strVideoCodec  - VideoCodec(v1) - E.g MPEG2.
+	 * @param[in] strHdrType  - type of HDR being played, in example "DOLBY_VISION"
+	 * @param[in] strPCRating  - Parental control rating json string object
+	 * @param[int] ssi  - Signal strength indicator 0-100 where 100 is a perfect signal. -1 indicates data not available
+	 */
+	void SetVideoMetaData(float frameRate,VideoScanType videoScanType,int aspectRatioWidth,int  aspectRatioHeight, const std::string &videoCodec, const std::string  & hdrType, const std::string & pcRating, int ssi);
+
+	/**
+	 * @brief Get Bitrates
+	 *
+	 * @return Vector of supported bitrates
+	 */
+	const std::vector<long> &getAudioBitrates() const { return mAudioBitrates; }
+
+	/*
+	 * @brief Sets additional metadata for Audio
+	 *
+	 * @param[in] strAudioCodec   - AudioCodec - E.g AC3.
+	 * @param[in] strMixType   - AudioMixType - E.g STEREO.
+	 * @param[in] iAtmos   - 1 - True if audio playing is Dolby Atmos, 0 false ,  -1 indicates data not available
+	 */
+	void SetAudioMetaData(const std::string &audioCodec,const std::string & mixType,bool  isAtmos );
+
+	/**
+	 * @brief Add a supported bitrate
+	 *
+	 * @param[in] bitrate - Supported bitrate
+	 * @return void
+	 */
+	void addAudioBitrate(long bitrate) { return mAudioBitrates.push_back(bitrate); }
+
+	/**
+	 * @brief get Parental control ratings
+	 *
+	 * @return ratings string
+	 */
+	const std::string & getRatings() const { return mPCRating;}
+
+	/**
+	 * @brief get Signal strength indicator
+	 *
+	 * @return ratings string
+	 */
+	int getSsi() const { return mSsi;}
+
+	/**
+	 * @brief get framerate
+	 *
+	 * @return ratings string
+	 */
+	float getFrameRate() const {return mFrameRate;}
+
+	/**
+	 * @brief Get VideoScanType
+	 *
+	 * @return VideoScanType
+	 */
+	VideoScanType getVideoScanType() const { return mVideoScanType;}
+
+	/**
+	 * @brief Get AspectRatioWidth
+	 *
+	 * @return AspectRatioWidth
+	 */
+	int getAspectRatioWidth() const { return mAspectRatioWidth;}
+
+	/**
+	 * @brief Get AspectRatioHeight
+	 *
+	 * @return AspectRatioHeight
+	 */
+	int getAspectRatioHeight() const { return mAspectRatioHeight;}
+
+	/**
+	 * @brief Get VideoCodec
+	 *
+	 * @return VideoCodec
+	 */
+	const std::string & getVideoCodec() const { return mVideoCodec;}
+
+	/**
+	 * @brief Get HdrType
+	 *
+	 * @return HdrType
+	 */
+	const std::string & getHdrType() const { return mHdrType;}
+
+	/**
+	 * @brief Get AudioCodec
+	 *
+	 * @return AudioCodec
+	 */
+	const std::string & getAudioCodec() const {return mAudioCodec;}
+
+	/**
+	 * @brief returns AudioMixType
+	 *
+	 * @return AudioMixType
+	 */
+	const std::string & getAudioMixType() const {return mAudioMixType;}
+
+	/**
+	 * @brief Get Atmos info
+	 *
+	 * @return true/false
+	 */
+	bool getAtmosInfo() const {return  isAtmos;}
 };
 
 /**

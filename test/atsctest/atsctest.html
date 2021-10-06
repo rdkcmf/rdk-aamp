@@ -655,6 +655,7 @@ function playChannel()
 		{
 			aampPlayer = new AAMPMediaPlayer();
 			aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
+			 aampPlayer.addEventListener("mediaMetadata", mediaMetadataParsed,null);
 			aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
 			aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
 			aampPlayer.addEventListener("bitrateChanged", bitrateChangedEventHandler, null);;
@@ -715,6 +716,7 @@ function playHdmiin(url)
                         aampPlayer = new AAMPMediaPlayer();
                         aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);
                         aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
+						 aampPlayer.addEventListener("mediaMetadata", mediaMetadataParsed,null);
                         aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
                         aampPlayer.addEventListener("bitrateChanged", bitrateChangedEventHandler, null);;
 	
@@ -768,6 +770,7 @@ var chMapElement = document.getElementById("chMap");
 		aampPlayer.initConfig(languageListInitConfig);
 		aampPlayer.addEventListener("playbackStateChanged", playbackStateChanged, null);;
 		aampPlayer.addEventListener("playbackStarted", playbackStarted, null);;
+		 aampPlayer.addEventListener("mediaMetadata", mediaMetadataParsed,null);
 		aampPlayer.addEventListener("blocked", blockedEventHandler, null);;
 		aampPlayer.addEventListener("bitrateChanged", bitrateChangedEventHandler, null);;
 		clog("Tuning:"+strLocator);
@@ -1094,14 +1097,16 @@ function playbackStarted() {
 	log("Playback started event received");
 }
 
+function mediaMetadataParsed(event) {
+	clog("Media metadata event: " + JSON.stringify(event));
+}
+
 function blockedEventHandler(event) {
-    console.log("Blocked event: " + JSON.stringify(event));
-	log("Blocked event: " + JSON.stringify(event));
+	clog("Blocked event: " + JSON.stringify(event));
 }
 
 function bitrateChangedEventHandler(event) {
-    console.log("Bitrate changed event: " + JSON.stringify(event));
-	log("Bitrate changed  event: " + JSON.stringify(event));
+ 	clog("Bitrate changed  event: " + JSON.stringify(event));
 }
 
 </script>

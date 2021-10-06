@@ -348,6 +348,104 @@ public:
 		prop = JSStringCreateWithUTF8CString("DRM");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getDrmType().c_str()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
+
+		//ratings
+		if(!evt->getRatings().empty())
+		{
+			prop = JSStringCreateWithUTF8CString("ratings");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getRatings().c_str()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+		}
+
+		//ssi
+		if(evt->getSsi() >= 0 )
+		{
+			prop = JSStringCreateWithUTF8CString("ssi");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getSsi()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+		}
+
+		//framerate
+		if(evt->getFrameRate() > 0 )
+		{
+			prop = JSStringCreateWithUTF8CString("framerate");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getFrameRate()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+		}
+
+		if(eVIDEOSCAN_UNKNOWN != evt->getVideoScanType())
+		{
+			prop = JSStringCreateWithUTF8CString("progressive");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx, ((eVIDEOSCAN_PROGRESSIVE == evt->getVideoScanType())?true:false)), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+		}
+		//aspect ratio
+		if((0 != evt->getAspectRatioWidth()) && (0 != evt->getAspectRatioHeight()))
+		{
+			prop = JSStringCreateWithUTF8CString("aspectRatioWidth");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getAspectRatioWidth()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+
+			prop = JSStringCreateWithUTF8CString("aspectRatioHeight");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, evt->getAspectRatioHeight()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+		}
+
+		//VideoCodec
+		if(!evt->getVideoCodec().empty())
+		{
+			prop = JSStringCreateWithUTF8CString("videoCodec");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getVideoCodec().c_str()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+		}
+
+		//HdrType
+		if(!evt->getHdrType().empty())
+		{
+			prop = JSStringCreateWithUTF8CString("hdrType");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getHdrType().c_str()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+		}
+
+		//AudioBitrate
+		const std::vector<long> &audioBitrateVect = evt->getAudioBitrates();
+		count = audioBitrateVect.size();
+		if(count > 0 )
+		{
+			array = new JSValueRef[count];
+			for (int32_t i = 0; i < count; i++)
+			{
+				array[i] = JSValueMakeNumber(p_obj->_ctx, audioBitrateVect[i]);
+			}
+			propValue = JSObjectMakeArray(p_obj->_ctx, count, array, NULL);
+			delete [] array;
+
+			prop = JSStringCreateWithUTF8CString("audioBitrates");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, propValue, kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+		}
+
+
+		//AudioCodec
+		if(!evt->getAudioCodec().empty())
+		{
+			prop = JSStringCreateWithUTF8CString("audioCodec");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getAudioCodec().c_str()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+		}
+
+		//AudioMixType
+		if(!evt->getAudioMixType().empty())
+		{
+			prop = JSStringCreateWithUTF8CString("audioMixType");
+			JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getAudioMixType().c_str()), kJSPropertyAttributeReadOnly, NULL);
+			JSStringRelease(prop);
+		}
+
+		//AtmosInfo
+		prop = JSStringCreateWithUTF8CString("isAtmos");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx,evt->getAtmosInfo()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
 	}
 };
 
