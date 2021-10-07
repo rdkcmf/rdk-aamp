@@ -1309,6 +1309,15 @@ public:
 	long long GetDurationMs(void);
 
 	/**
+	 *   @brief Get asset duration in milliseconds
+	 *   For VIDEO TAG Based playback, mainly when
+	 *   aamp is used as plugin
+	 *
+	 *   @return Duration in ms.
+	 */
+	long long DurationFromStartOfPlaybackMs(void);
+
+	/**
 	 *   @brief Get playback position in milliseconds
 	 *
 	 *   @return Position in ms.
