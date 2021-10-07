@@ -48,7 +48,7 @@
 #define DEFAULT_BUFFER_HEALTH_MONITOR_DELAY 10
 #define DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL 5
 #define DEFAULT_ABR_CACHE_LENGTH 3                  /**< Default ABR cache length */
-#define DEFAULT_REPORT_PROGRESS_INTERVAL 1000     /**< Progress event reporting interval: 1msec */
+#define DEFAULT_REPORT_PROGRESS_INTERVAL 1     /**< Progress event reporting interval: 1sec */
 #define DEFAULT_LICENSE_REQ_RETRY_WAIT_TIME 500			/**< Wait time in milliseconds before retrying for DRM license */
 #define DEFAULT_INIT_BITRATE     2500000            /**< Initial bitrate: 2.5 mb - for non-4k playback */
 #define DEFAULT_INIT_BITRATE_4K 13000000            /**< Initial bitrate for 4K playback: 13mb ie, 3/4 profile */

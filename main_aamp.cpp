@@ -1322,7 +1322,11 @@ void PlayerInstanceAAMP::SetReportInterval(int reportInterval)
 	ERROR_STATE_CHECK_VOID();
 	if(reportInterval > 0)
 	{
-		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ReportProgressInterval,(double)reportInterval);
+	    // We now want the value in seconds but it is given in milliseconds so convert it here
+	    double dReportInterval = reportInterval;
+	    dReportInterval /= 1000;
+
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ReportProgressInterval,dReportInterval);
 	}
 }
 

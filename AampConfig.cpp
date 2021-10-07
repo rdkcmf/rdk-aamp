@@ -1776,15 +1776,6 @@ void AampConfig::DoCustomSetting(ConfigPriority owner)
 
 	}
 
-	if(GetConfigOwner(eAAMPConfig_ReportProgressInterval) != AAMP_DEFAULT_SETTING)
-	{
-		
-		double reportProgressInterval;
-		GetConfigValue(eAAMPConfig_ReportProgressInterval,reportProgressInterval);
-		reportProgressInterval = reportProgressInterval * 1000;
-		SetConfigValue<double>(owner,eAAMPConfig_ReportProgressInterval,reportProgressInterval);
-	}
-
 	ConfigureLogSettings();
 }
 

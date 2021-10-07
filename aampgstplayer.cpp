@@ -619,6 +619,8 @@ static gboolean IdleCallback(gpointer user_data)
 		{
 			 double  reportProgressInterval;
 			 _this->aamp->mConfig->GetConfigValue(eAAMPConfig_ReportProgressInterval,reportProgressInterval);
+			 reportProgressInterval *= 1000; //convert s to ms
+
 			 _this->privateContext->periodicProgressCallbackIdleTaskId = g_timeout_add((int)reportProgressInterval, ProgressCallbackOnTimeout, user_data);
 			AAMPLOG_WARN("%s:%d current %d, periodicProgressCallbackIdleTaskId %d", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
 		}
