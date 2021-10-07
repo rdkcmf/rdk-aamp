@@ -892,7 +892,15 @@ public:
 	 * 
 	 */
 	virtual void StartSubtitleParser() { };
-	
+
+	/**
+	 *   @brief Pause/unpause subtitles
+	 *
+	 *   @param pause - enable or disable pause
+	 *   @return void
+	 */
+	virtual void PauseSubtitleParser(bool pause) { };
+
 	/**
 	 *   @brief Waits subtitle track injection until caught up with audio track.
 	 *          Used internally by injection logic

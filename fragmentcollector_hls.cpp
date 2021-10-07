@@ -6288,16 +6288,16 @@ void StreamAbstractionAAMP_HLS::StartSubtitleParser()
 	}
 }
 
-void StreamAbstractionAAMP_HLS::NotifyPlaybackPaused(bool pause)
+/**
+ * @brief Set subtitle pause state
+ *
+ */
+void StreamAbstractionAAMP_HLS::PauseSubtitleParser(bool pause)
 {
-	StreamAbstractionAAMP::NotifyPlaybackPaused(pause);
-
-	AAMPLOG_INFO("%s: pause %d\n", __FUNCTION__, pause);
-
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
-
-	if (subtitle != NULL && subtitle->enabled && subtitle->mSubtitleParser)
+	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
 	{
+		AAMPLOG_INFO("%s: setting subtitles pause state = %d", __FUNCTION__, pause);
 		subtitle->mSubtitleParser->pause(pause);
 	}
 }
