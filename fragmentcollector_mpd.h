@@ -183,6 +183,7 @@ public:
 	bool PushNextFragment( class MediaStreamContext *pMediaStreamContext, unsigned int curlInstance);
 	double GetFirstPeriodStartTime(void);
 	void StartSubtitleParser() override;
+	void PauseSubtitleParser(bool pause) override;
 
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
