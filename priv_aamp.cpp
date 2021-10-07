@@ -8696,7 +8696,7 @@ int PrivateInstanceAAMP::GetAudioTrack()
  *   @param[in] trackId index of text track in available track list
  *   @return void
  */
-void PrivateInstanceAAMP::SetTextTrack(int trackId)
+void PrivateInstanceAAMP::SetTextTrack(int trackId, bool defaultEnable)
 {
 	if (mpStreamAbstractionAAMP)
 	{
@@ -8751,7 +8751,7 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 			else
 			{
 				//Unmute subtitles
-				SetCCStatus(true);
+				SetCCStatus(!defaultEnable); //if defualt enable, set the subtitle status mute
 
 				//TODO: Effective handling between subtitle and CC tracks
 				int textTrack = mpStreamAbstractionAAMP->GetTextTrack();
@@ -8759,15 +8759,16 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 				if (trackId != textTrack)
 				{
 					SetPreferredTextTrack(track);
-					discardEnteringLiveEvt = true;
-					
-					seek_pos_seconds = GetPositionMilliseconds()/1000.0;
-					AcquireStreamLock();
-					TeardownStream(false);
-					TuneHelper(eTUNETYPE_SEEK);
-					ReleaseStreamLock();
-
-					discardEnteringLiveEvt = false;
+					if(!defaultEnable) //avoid retune for default enable
+					{
+						discardEnteringLiveEvt = true;
+						seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+						AcquireStreamLock();
+						TeardownStream(false);
+						TuneHelper(eTUNETYPE_SEEK);
+						ReleaseStreamLock();						
+						discardEnteringLiveEvt = false;
+					}
 				}
 			}
 		}
