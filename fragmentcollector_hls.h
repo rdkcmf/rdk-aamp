@@ -444,8 +444,6 @@ public:
 	GrowableBuffer thumbnailManifest;	/**< Thumbnail manifest buffer holder */
 	std::vector<TileInfo> indexedTileInfo;	/**< Indexed Thumbnail information */
 	
-	void NotifyPlaybackPaused(bool pause) override;
-
 	// Function to get the total number of profiles
 	int GetTotalProfileCount() { return mProfileCount;}
 //private:
@@ -484,7 +482,10 @@ public:
 
 	// Signals subtitle renderer to begin presentation
 	void StartSubtitleParser() override;
-	
+
+	// Set subtitle pause state
+	void PauseSubtitleParser(bool pause) override;
+
 	/// Function to get matching mediaInfo index for a language and track type
 	int GetMediaIndexForLanguage(std::string lang, TrackType type);
 

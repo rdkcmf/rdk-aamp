@@ -3101,7 +3101,7 @@ bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 		GstStateChangeReturn rc = gst_element_set_state(this->privateContext->pipeline, nextState);
 		if (GST_STATE_CHANGE_ASYNC == rc)
 		{
-                        /* wait a bit longer for the state change to conclude */
+			/* wait a bit longer for the state change to conclude */
 			if (nextState != validateStateWithMsTimeout(this,nextState, 100))
 			{
 				logprintf("AAMPGstPlayer_Pause - validateStateWithMsTimeout - FAILED GstState %d", nextState);
@@ -3114,6 +3114,9 @@ bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 		privateContext->buffering_target_state = nextState;
 		privateContext->paused = pause;
 		privateContext->pendingPlayState = false;
+
+		aamp->PauseSubtitleParser(pause);
+
 	}
 	else
 	{
