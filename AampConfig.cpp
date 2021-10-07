@@ -923,24 +923,49 @@ void AampConfig::CustomArrayRead( cJSON *customArray,ConfigPriority owner )
 	int length = cJSON_GetArraySize(customArray);
 	if(customArray != NULL)
 	{
-		for(int i = 0; i < length ; i++){
+		for(int i = 0; i < length ; i++)
+		{
 			customVal = cJSON_GetArrayItem(customArray,i);
-			if(searchVal = cJSON_GetObjectItem(customVal,"url")){
-				keyname = "url";}
-			else if(searchVal = cJSON_GetObjectItem(customVal,"playerId")){
-				keyname = "playerId";}
-			else if(searchVal = cJSON_GetObjectItem(customVal,"appName")){
-				keyname = "appName";}
+			if(searchVal = cJSON_GetObjectItem(customVal,"url"))
+			{
+				keyname = "url";
+			}
+			else if(searchVal = cJSON_GetObjectItem(customVal,"playerId"))
+			{
+				keyname = "playerId";
+			}
+			else if(searchVal = cJSON_GetObjectItem(customVal,"appName"))
+			{
+				keyname = "appName";
+			}
 			customValues.config = keyname;
-			customValues.configValue = searchVal->valuestring;
-			vCustom.push_back(customValues);
-			for (auto it = mAampLookupTable.begin(); it != mAampLookupTable.end(); ++it){
-				keyname =  it->first;
-				searchVal = cJSON_GetObjectItem(customVal,keyname.c_str());
-				if(searchVal){
-				customValues.config = keyname;
+			if(searchVal->valuestring != NULL)
+			{
 				customValues.configValue = searchVal->valuestring;
 				vCustom.push_back(customValues);
+			}
+			else
+			{
+				logprintf("Invalid format for %s \n",keyname.c_str());
+				continue;
+			}
+			for (auto it = mAampLookupTable.begin(); it != mAampLookupTable.end(); ++it)
+			{
+				keyname =  it->first;
+				searchVal = cJSON_GetObjectItem(customVal,keyname.c_str());
+				if(searchVal)
+				{
+					customValues.config = keyname;
+					if(searchVal->valuestring != NULL)
+					{
+						customValues.configValue = searchVal->valuestring;
+						vCustom.push_back(customValues);
+					}
+					else
+					{
+						logprintf("Invalid format for %s \n",keyname.c_str());
+						continue;
+					}
 				}
 			}
 		}
@@ -970,8 +995,8 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 	std::string playerId_custom = std::to_string(playerId);
 	std::string appName_custom = appname;
 	std::string keyname;
-	std::string player = "url";
-	std::string urlName = "playerId";
+	std::string urlName = "url";
+	std::string player = "playerId";
 	std::string appName = "appName";
 	size_t foundurl;
 	int index = 0;
@@ -981,7 +1006,8 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 		{
 			int distance = std::distance(vCustom.begin(),it);
 			foundurl = url_custom.find(vCustom[distance].configValue);
-			if( foundurl != std::string::npos){
+			if( foundurl != std::string::npos)
+			{
 				index = distance;
 				logprintf("FOUND URL %s \n", vCustom[index].configValue.c_str());
 				found = true;
@@ -993,7 +1019,8 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 		{
 			int distance = std::distance(vCustom.begin(),it1);
 			foundurl = playerId_custom.find(vCustom[distance].configValue);
-			if( foundurl != std::string::npos){
+			if( foundurl != std::string::npos)
+			{
 				index = distance;
 				logprintf("FOUND PLAYERID %s \n", vCustom[index].configValue.c_str());
 				found = true;
@@ -1005,7 +1032,8 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 		{
 			int distance = std::distance(vCustom.begin(),it2);
 			foundurl = appName_custom.find(vCustom[distance].configValue);
-			if( foundurl != std::string::npos){
+			if( foundurl != std::string::npos)
+			{
 				index = distance;
 				logprintf("FOUND AAPNAME %s \n",vCustom[index].configValue.c_str());
 				found = true;
