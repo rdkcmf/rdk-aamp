@@ -5790,6 +5790,33 @@ long long PrivateInstanceAAMP::GetDurationMs()
 }
 
 /**
+ * @brief Get stream duration for Video Tag based playback
+ * Mainly when aamp is used as plugin
+ * @retval duration is milliseconds
+ */
+long long PrivateInstanceAAMP::DurationFromStartOfPlaybackMs()
+{
+	if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
+	{
+		long long ms = mStreamSink->GetDurationMilliseconds();
+		durationSeconds = ms/1000.0;
+		return ms;
+	}
+	else
+	{
+		if( mIsLive )
+		{
+			long long ms = (culledSeconds * 1000.0) + (durationSeconds * 1000.0);
+			return ms;
+		}
+		else
+		{
+			return (long long)(durationSeconds*1000.0);
+		}
+	}
+}
+
+/**
  * @brief Get current stream position
  * @retval current stream position in ms
  */
