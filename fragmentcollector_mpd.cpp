@@ -74,6 +74,9 @@
 #define SCHEME_ID_URI_EC3_EXT_CODEC "tag:dolby.com,2018:dash:EC3_ExtensionType:2018"
 #define EC3_EXT_VALUE_AUDIO_ATMOS "JOC"
 
+#define SCHEME_ID_URI_VSS_STREAM "urn:comcast:x1:lin:ck"
+#define SCHEME_ID_URI_DAI_STREAM "urn:comcast:dai:2018"
+
 #define MEDIATYPE_VIDEO "video"
 #define MEDIATYPE_AUDIO "audio"
 #define MEDIATYPE_TEXT "text"
@@ -4844,6 +4847,9 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 				const std::string& schemeIdUri = node->GetAttributeValue("schemeIdUri");
 #ifdef AAMP_RFC_ENABLED
 				const std::string& schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
+#else
+				const std::string& schemeIdUriDai = SCHEME_ID_URI_DAI_STREAM;
+#endif
 				if (schemeIdUri == schemeIdUriDai && node->HasAttribute("id")) {
 					const std::string& ID = node->GetAttributeValue("id");
 					if (ID == "identityADS" && node->HasAttribute("value")) {
@@ -4892,7 +4898,6 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 						continue;
 					}
 				}
-#endif
 				continue;
 			}
 		}
@@ -4923,6 +4928,9 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodSupplementalProperty(Node* node, st
 		{
 #ifdef AAMP_RFC_ENABLED
 			const std::string& schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
+#else
+			const std::string& schemeIdUriDai = SCHEME_ID_URI_DAI_STREAM;
+#endif
 			if ((schemeIdUri == schemeIdUriDai) && node->HasAttribute("id")) {
 				const std::string& ID = node->GetAttributeValue("id");
 				if ((ID == "Tracking") && node->HasAttribute("value")) {
@@ -4964,7 +4972,6 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodSupplementalProperty(Node* node, st
 					}
 				}
 			}
-#endif
 			if (!AdID.empty() && (schemeIdUri == "urn:scte:scte130-10:2014")) {
 				std::vector<Node*> children = node->GetSubNodes();
 				for (size_t i=0; i < children.size(); i++) {
@@ -8158,9 +8165,13 @@ bool StreamAbstractionAAMP_MPD::CheckForVssTags()
 			{
 				if (childNode->HasAttribute("schemeIdUri"))
 				{
-#ifdef AAMP_RFC_ENABLED
+
 					const std::string& schemeIdUri = childNode->GetAttributeValue("schemeIdUri");
+#ifdef AAMP_RFC_ENABLED
 					const std::string& schemeIdUriVss = RFCSettings::getSchemeIdUriVssStream();
+#else
+					const std::string& schemeIdUriVss = SCHEME_ID_URI_VSS_STREAM;
+#endif
 					if (schemeIdUri == schemeIdUriVss)
 					{
 						if (childNode->HasAttribute("value"))
@@ -8171,7 +8182,6 @@ bool StreamAbstractionAAMP_MPD::CheckForVssTags()
 							isVss = true;
 						}
 					}
-#endif
 				}
 			}
 		}

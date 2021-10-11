@@ -38,7 +38,8 @@
 #define LICENCE_REQUEST_HEADER_ACCEPT "Accept:"
 
 #define LICENCE_REQUEST_HEADER_CONTENT_TYPE "Content-Type:"
-
+#define COMCAST_LICENCE_REQUEST_HEADER_ACCEPT_VALUE "application/vnd.xcal.mds.licenseResponse+json; version=1"
+#define COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE_VALUE "application/vnd.xcal.mds.licenseRequest+json; version=1"
 #define LICENCE_RESPONSE_JSON_LICENCE_KEY "license"
 #define DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
 #define DRM_METADATA_TAG_END "</ckm:policy>"
@@ -1482,6 +1483,10 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 #ifdef AAMP_RFC_ENABLED
 			std:string lhrAcceptValue = RFCSettings::getLHRAcceptValue();
 			std::string lhrContentType = RFCSettings::getLRHContentType();
+#else
+			std:string lhrAcceptValue = COMCAST_LICENCE_REQUEST_HEADER_ACCEPT_VALUE;
+			std::string lhrContentType = COMCAST_LICENCE_REQUEST_HEADER_CONTENT_TYPE_VALUE;
+#endif
 			// Content metadata is available, Add corresponding headers 
 			if (customHeaders.empty())
 			{
@@ -1490,7 +1495,6 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 			}
 			licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_ACCEPT, {lhrAcceptValue.c_str()}});
 			licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_CONTENT_TYPE, {lhrContentType.c_str()}});
-#endif
 		}
 		licenseServerProxy = aampInstance->GetLicenseReqProxy(); 
 	}
