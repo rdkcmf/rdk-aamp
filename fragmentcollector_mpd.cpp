@@ -3088,13 +3088,12 @@ double aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(IPeriod * period)
 					if(timeline != NULL)
 					{
 						uint64_t timelineStart = timeline->GetStartTime();
-						AAMPLOG_TRACE("%s timeline start : %" PRIu64 "", __FUNCTION__, timelineStart);
 						if(timelineStart > presentationTimeOffset)
 						{
 							deltaBwFirstSegmentAndOffset = timelineStart - presentationTimeOffset;
 						}
 						duration = (double) deltaBwFirstSegmentAndOffset / timeScale;
-						AAMPLOG_INFO("%s() offset delta : %lf", __FUNCTION__, duration);
+						AAMPLOG_TRACE("%s timeline start : %" PRIu64 " offset delta : %lf", __FUNCTION__, timelineStart,duration);
 					}
 
 					duration = (double) deltaBwFirstSegmentAndOffset / timeScale;
