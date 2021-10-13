@@ -1495,7 +1495,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						 *  mPeriodStartTime and currentTime
 			 */
 			double fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration;
-			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time > (mPeriodStartTime + mPeriodDuration/1000)))
+			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentTime > (mPeriodStartTime + mPeriodDuration/1000)))
 							|| (rate < 0 )))
 					|| (mIsLiveStream && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
 							|| (pMediaStreamContext->fragmentDescriptor.Time < mPeriodStartTime))))  //CID:93022 - No effect
