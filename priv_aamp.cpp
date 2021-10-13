@@ -689,51 +689,6 @@ void getActiveInterfaceEventHandler (const char *owner, IARM_EventId_t eventId, 
 #endif
 
 /**
- * @brief Check device capability for 4k contents
- *
- * @return bool - true if platform supports 4k
- */
-static bool IsResolution4KSupported (void)
-{
-	bool content4kSupported = false;
-	bool isConnected = false;
-#ifdef IARM_MGR
-	try {
-		//Get the port
-		device::Manager::Initialize();
-		device::VideoOutputPort vPort = ::device::Host::getInstance().getVideoOutputPort(std::string("HDMI0"));
-		isConnected = vPort.isDisplayConnected();
-		if(isConnected)
-		{
-			const device::List<device::VideoResolution> resolutions = vPort.getType().getSupportedResolutions();
-			{
-				/* Iterated through supported Resolutions */
-				for (size_t j = 0; j < resolutions.size(); j++)
-				{
-					device::VideoResolution resolution = resolutions.at(j);
-					AAMPLOG_TRACE("Checking resolution %s : %s", resolution.getName().c_str(), resolution.getPixelResolution().toString().c_str());
-					if(resolution.getPixelResolution() == device::PixelResolution::kMax ||
-						resolution.getPixelResolution() == device::PixelResolution::k4096x2160 ||
-						resolution.getPixelResolution() == device::PixelResolution:: k3840x2160 ||
-						resolution.getName() == "2160p60" || resolution.getName() == "2160p30")
-					{
-						AAMPLOG_TRACE("%s() 4K is supported by platform", __FUNCTION__);
-						content4kSupported = true;
-						break;
-					}
-				}
-			}
-		}
-		device::Manager::DeInitialize();
-    }
-    catch (const std::exception e) {
-        logprintf("DeviceSettings exception caught in %s", __FUNCTION__);
-    }
-#endif
-	return content4kSupported;
-}
-
-/**
  * @brief Active streaming interface is wifi
  *
  * @return bool - true if wifi interface connected
@@ -1337,13 +1292,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
 	mAsyncTuneEnabled = ISCONFIGSET_PRIV(eAAMPConfig_AsyncTune);
 	profiler.SetMicroEventFlag(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents));
-	if(!IsResolution4KSupported())
-	{
-		// 4k is not supported by platform
-		// Permenantly set this configuration with maximum priority
-		SETCONFIGVALUE_PRIV(AAMP_DEV_CFG_SETTING, eAAMPConfig_Disable4K, true);
-		AAMPLOG_WARN("4K stream support is disabled in platform");
-	}
 }
 
 /**
