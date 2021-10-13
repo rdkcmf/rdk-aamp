@@ -5660,6 +5660,21 @@ void StreamAbstractionAAMP_MPD::StartSubtitleParser()
 }
 
 /**
+ * @brief Set subtitle pause state
+ *
+ */
+void StreamAbstractionAAMP_MPD::PauseSubtitleParser(bool pause)
+{
+	struct MediaStreamContext *subtitle = mMediaStreamContext[eMEDIATYPE_SUBTITLE];
+	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
+	{
+		AAMPLOG_INFO("%s: setting subtitles pause state = %d", __FUNCTION__, pause);
+		subtitle->mSubtitleParser->pause(pause);
+	}
+}
+
+
+/**
  * @brief Does stream selection
  * @param newTune true if this is a new tune
  */

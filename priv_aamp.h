@@ -2103,6 +2103,12 @@ public:
 	void UpdateSubtitleTimestamp();
 
 	/**
+	 * @brief pause/un-pause subtitles
+	 * 
+	 */
+	void PauseSubtitleParser(bool pause);
+
+	/**
 	 *  @brief Reset trick start position
 	 *
 	 *  @return void

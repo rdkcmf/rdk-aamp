@@ -185,6 +185,7 @@ public:
 	double GetFirstPeriodStartTime(void);
 	void MonitorLatency();
 	void StartSubtitleParser() override;
+	void PauseSubtitleParser(bool pause) override;
 	uint32_t GetCurrPeriodTimeScale();
 
 private:

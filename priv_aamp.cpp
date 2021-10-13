@@ -7899,6 +7899,18 @@ void PrivateInstanceAAMP::UpdateSubtitleTimestamp()
 }
 
 /**
+ * @brief Set subtitle pause state
+ * 
+ */
+void PrivateInstanceAAMP::PauseSubtitleParser(bool pause)
+{
+	if (mpStreamAbstractionAAMP)
+	{
+		mpStreamAbstractionAAMP->PauseSubtitleParser(pause);
+	}
+}
+
+/**
  * @brief Notifiy first buffer is processed
  */
 void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
