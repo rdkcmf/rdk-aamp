@@ -340,7 +340,11 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_UseAbsoluteTimeline].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_WideVineKIDWorkaround].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_RepairIframes].value                  	=       false;
+#ifdef CONTENT_4K_SUPPORTED
 	bAampCfgValue[eAAMPConfig_Disable4K].value				=	false;
+#else
+	bAampCfgValue[eAAMPConfig_Disable4K].value                              =       true;
+#endif
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
