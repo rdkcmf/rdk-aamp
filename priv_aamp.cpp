@@ -5760,7 +5760,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 		}
 		else
 		{
-			if (!mIsLive)
+			if (!mIsLiveStream)
 			{
 				long long durationMs  = GetDurationMs();
 				if(positionMiliseconds > durationMs)
