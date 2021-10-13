@@ -153,6 +153,7 @@ void AampOutputProtection::SetHDMIStatus()
 
     try {
         //Get the HDMI port
+	device::Manager::Initialize();
         ::device::VideoOutputPort &vPort = ::device::Host::getInstance().getVideoOutputPort("HDMI0");
         isConnected        = vPort.isDisplayConnected();
         hdcpProtocol       = (dsHdcpProtocolVersion_t)vPort.getHDCPProtocol();
@@ -209,6 +210,8 @@ void AampOutputProtection::SetHDMIStatus()
             isHDCPEnabled = false;
             SetResolution(DISPLAY_RESOLUTION_NA,DISPLAY_RESOLUTION_NA);
         }
+
+	device::Manager::DeInitialize();
     }
     catch (const std::exception e) {
         logprintf("DeviceSettings exception caught in %s", __FUNCTION__);
