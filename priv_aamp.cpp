@@ -469,18 +469,23 @@ static gboolean SendAsynchronousEvent(gpointer user_data)
 {
 	//TODO protect mEventListener
 	AsyncEventDescriptor* e = (AsyncEventDescriptor*)user_data;
-	//Get current idle handler's id
-	guint callbackID = aamp_GetSourceID();
-	if (callbackID != 0)
+	PrivAAMPState state;
+	e->aamp->GetState(state);
+	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)) 
 	{
-		e->aamp->SetCallbackAsDispatched(callbackID);
+		//Get current idle handler's id
+		guint callbackID = aamp_GetSourceID();
+		if (callbackID != 0)
+		{
+			e->aamp->SetCallbackAsDispatched(callbackID);
+		}
+		else
+		{
+			AAMPLOG_ERR("PrivateInstanceAAMP::%s:%d [type = %d] aamp_GetSourceID returned zero, which is unexpected behavior!", __FUNCTION__, __LINE__, e->event->getType());
+			assert(false);
+		}	
+		e->aamp->SendEventSync(e->event);
 	}
-	else
-	{
-		AAMPLOG_ERR("PrivateInstanceAAMP::%s:%d [type = %d] aamp_GetSourceID returned zero, which is unexpected behavior!", __FUNCTION__, __LINE__, e->event->getType());
-		assert(false);
-	}
-	e->aamp->SendEventSync(e->event);
 	return G_SOURCE_REMOVE;
 }
 
