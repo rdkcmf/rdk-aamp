@@ -6284,7 +6284,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 			ProcessContentProtection(period->GetAdaptationSets().at(selAdaptationSetIndex),(MediaType)i);
 			mNumberOfTracks++;
 		}
-		else if (AAMP_NORMAL_PLAY_RATE < rate && encryptedIframeTrackPresent) //Process content protection for encyrpted Iframe
+		else if (encryptedIframeTrackPresent) //Process content protection for encyrpted Iframe
 		{
 			ProcessContentProtection(period->GetAdaptationSets().at(pMediaStreamContext->adaptationSetIdx),(MediaType)i);
 		}
