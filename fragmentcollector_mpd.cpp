@@ -5818,6 +5818,10 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 							tTracks.push_back(TextTrackInfo(index, lang, false, group, name, codec, empty, type));
 						}
 					}
+					if(tTracks.empty())
+					{
+						AAMPLOG_WARN("StreamAbstractionAAMP_MPD::%s() Text Track not found", __FUNCTION__);
+					}
 				}
 				// Look in VIDEO adaptation for inband CC track related info
 				else if (eMEDIATYPE_VIDEO == i)
