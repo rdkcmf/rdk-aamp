@@ -2657,6 +2657,10 @@ bool StreamAbstractionAAMP::IsEOSReached()
 	bool eos = true;
 	for (int i = 0 ; i < AAMP_TRACK_COUNT; i++)
 	{
+	    // For determining EOS we will Ignore the subtitle track
+	    if ((TrackType)i == eTRACK_SUBTITLE)
+	        continue;
+
 		MediaTrack *track = GetMediaTrack((TrackType) i);
 		if (track && track->enabled)
 		{
