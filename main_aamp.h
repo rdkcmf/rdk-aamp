@@ -975,13 +975,6 @@ public:
 	std::vector<long> GetVideoBitrates(void);
 
 	/**
-         *   @brief To get the available manifest.
-         *
-         *   @ret available manifest
-         */
-        const std::string GetManifest(void);
-
-	/**
 	 *   @brief To get the available audio bitrates.
 	 *
 	 *   @ret available audio bitrates
