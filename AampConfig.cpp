@@ -451,7 +451,7 @@ void AampConfig::Initialize()
 	//sAampCfgValue[eAAMPConfig_RedirectUrl-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_WVLicenseServerUrl-eAAMPConfig_StringStartValue].value	=	"";
 	sAampCfgValue[eAAMPConfig_UserAgent-eAAMPConfig_StringStartValue].value			=	"";
-	sAampCfgValue[eAAMPConfig_SubTitleLanguage-eAAMPConfig_StringStartValue].value		=	"";
+	sAampCfgValue[eAAMPConfig_SubTitleLanguage-eAAMPConfig_StringStartValue].value		=	"en";
 	sAampCfgValue[eAAMPConfig_CustomHeader-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_URIParameter-eAAMPConfig_StringStartValue].value		=	"";
 	sAampCfgValue[eAAMPConfig_NetworkProxy-eAAMPConfig_StringStartValue].value		=	"";

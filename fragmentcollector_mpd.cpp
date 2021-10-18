@@ -5735,6 +5735,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 		int selRepresentationIndex = -1;
 		bool isIframeAdaptationAvailable = false;
 		bool encryptedIframeTrackPresent = false;
+		bool isFrstAvailableTxtTrackSelected = false;
 		int videoRepresentationIdx;   //CID:118900 - selRepBandwidth variable locally declared but not reflected
 		for (unsigned iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 		{
@@ -5864,37 +5865,44 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 					}
 				}
 				
-				// Set audio/text track related structures
-				SetAudioTrackInfo(aTracks, aTrackIdx);
-				SetTextTrackInfo(tTracks, tTrackIdx);
 				
 				if (AAMP_NORMAL_PLAY_RATE == rate)
 				{
-					if (eMEDIATYPE_SUBTITLE == i && selAdaptationSetIndex == -1)
+					//if isFrstAvailableTxtTrackSelected is true, we should look for the best option (aamp->mSubLanguage) among all the tracks
+					if (eMEDIATYPE_SUBTITLE == i && (selAdaptationSetIndex == -1 || isFrstAvailableTxtTrackSelected))
 					{
 						AAMPLOG_INFO("%s:%d Checking subs - mime %s lang %s selAdaptationSetIndex %d",
 							__FUNCTION__, __LINE__, adaptationSet->GetMimeType().c_str(), GetLanguageForAdaptationSet(adaptationSet).c_str(), selAdaptationSetIndex);
-						if(aamp->GetPreferredTextTrack().index.empty())
+						
+						TextTrackInfo *firstAvailTextTrack = nullptr;
+						if(aamp->GetPreferredTextTrack().index.empty() && !isFrstAvailableTxtTrackSelected)
 						{
-							//If no subtitles are selected, opt for the first subtitle track as the default one,
-							//Since it is default, the subtitle enabled will me on muted state,
-							//and subtitle enable call from player will just unmute it rather than going for an expensive retune
-							std::vector<TextTrackInfo> tracks = GetAvailableTextTracks();
-							for(int i =0 ; i < tracks.size(); i++)
+							//If no subtitles are selected, opt for the first subtitle as default, and
+							for(int j =0 ; j < tTracks.size(); j++)
 							{
-								if(!tracks[i].isCC)
+								if(!tTracks[j].isCC)
 								{
-									aamp->SetTextTrack(i, true);
-									break;
+									if(nullptr == firstAvailTextTrack)
+									{
+										firstAvailTextTrack = &tTracks[j];
+									}
 								}
 							}
+						}
+						if(nullptr != firstAvailTextTrack)
+						{
+							isFrstAvailableTxtTrackSelected = true;
+							AAMPLOG_INFO("%s:%d Selected first subtitle track, lang:%s, index:%s",
+								__FUNCTION__, __LINE__, firstAvailTextTrack->language.c_str(), firstAvailTextTrack->index.c_str());
+							aamp->SetCCStatus(false);
 						}
 						
 						// TTML selection as follows:
 						// 1. Text track as set from SetTextTrack API (this is confusingly named preferredTextTrack, even though it's explicitly set)
 						// 2. The *actual* preferred text track, as set through the SetPreferredSubtitleLanguage API
+						// 3. First text track and keep it
 						// 3. Not set
-						const auto selectedTextTrack = aamp->GetPreferredTextTrack();
+						const auto selectedTextTrack = (nullptr != firstAvailTextTrack) ? *firstAvailTextTrack : aamp->GetPreferredTextTrack();
 
 						if (!selectedTextTrack.index.empty())
 						{
@@ -5912,32 +5920,9 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 						{
 							AAMPLOG_INFO("%s:%d matched default sub language %s [%d]", __FUNCTION__, __LINE__, aamp->mSubLanguage.c_str(), iAdaptationSet);
 							selAdaptationSetIndex = iAdaptationSet;
+							aamp->SetCCStatus(false);
 						}
 
-						if (selAdaptationSetIndex != -1)
-						{
-							std::string mimeType = adaptationSet->GetMimeType();
-							if (mimeType.empty())
-							{
-								if (pMediaStreamContext->mSubtitleParser->init(0.0, 0))
-								{
-									pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
-								}
-								else
-								{
-									pMediaStreamContext->mSubtitleParser.reset(nullptr); 
-									pMediaStreamContext->mSubtitleParser = NULL;
-								}
-							}
-							tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
-							pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, mimeType);
-							if (!pMediaStreamContext->mSubtitleParser)
-							{
-								pMediaStreamContext->enabled = false;
-								selAdaptationSetIndex = -1;
-							}
-							aamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE);
-						}
 					}
 					else if (eMEDIATYPE_AUX_AUDIO == i && aamp->IsAuxiliaryAudioEnabled())
 					{
@@ -6016,6 +6001,32 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 
 			}
 		} // next iAdaptationSet
+		
+		
+		if (eMEDIATYPE_SUBTITLE == i && selAdaptationSetIndex != -1)
+		{
+			std::string mimeType = period->GetAdaptationSets().at(selAdaptationSetIndex)->GetMimeType();
+			if (mimeType.empty())
+			{
+				if (pMediaStreamContext->mSubtitleParser->init(0.0, 0))
+				{
+					pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
+				}
+				else
+				{
+					pMediaStreamContext->mSubtitleParser.reset(nullptr);
+					pMediaStreamContext->mSubtitleParser = NULL;
+				}
+			}
+			tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
+			pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(aamp, mimeType);
+			if (!pMediaStreamContext->mSubtitleParser)
+			{
+				pMediaStreamContext->enabled = false;
+				selAdaptationSetIndex = -1;
+			}
+			aamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE);
+		}
 
 		if ((eAUDIO_UNKNOWN == mAudioType) && (AAMP_NORMAL_PLAY_RATE == rate) && (eMEDIATYPE_VIDEO != i) && selAdaptationSetIndex >= 0)
 		{
@@ -6101,6 +6112,10 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 		mMediaStreamContext[eMEDIATYPE_VIDEO]->profileChanged = true;
 		mMediaStreamContext[eMEDIATYPE_AUDIO]->enabled = false;
 	}
+	
+	// Set audio/text track related structures
+	SetAudioTrackInfo(aTracks, aTrackIdx);
+	SetTextTrackInfo(tTracks, tTrackIdx);
 
 }
 
