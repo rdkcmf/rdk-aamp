@@ -1480,9 +1480,11 @@ void MediaTrack::FlushFragmentChunks()
 
 	fragmentChunkIdxToInject = 0;
 	fragmentChunkIdxToFetch = 0;
+	pthread_mutex_lock(&mutex);
 	numberOfFragmentChunksCached = 0;
 	totalFragmentChunksDownloaded = 0;
 	totalInjectedChunksDuration = 0;
+	pthread_mutex_unlock(&mutex);
 }
 
 /**
@@ -2143,7 +2145,7 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 		stAbrInfo.desiredProfileIndex = desiredProfileIndex;
 		StreamInfo* streamInfodesired = GetStreamInfo(desiredProfileIndex);
 		StreamInfo* streamInfocurrent = GetStreamInfo(currentProfileIndex);
-		if((streamInfocurrent != NULL) || (streamInfodesired != NULL))
+		if((streamInfocurrent != NULL) && (streamInfodesired != NULL))   //CID:160715 - Forward null
 		{
 			stAbrInfo.currentBandwidth = streamInfocurrent->bandwidthBitsPerSecond;
 			stAbrInfo.desiredBandwidth = streamInfodesired->bandwidthBitsPerSecond;
@@ -2371,6 +2373,7 @@ void StreamAbstractionAAMP::UpdateIframeTracks()
  */
 void StreamAbstractionAAMP::NotifyPlaybackPaused(bool paused)
 {
+	pthread_mutex_lock(&mLock);
 	mIsPaused = paused;
 	if (paused)
 	{
@@ -2389,6 +2392,7 @@ void StreamAbstractionAAMP::NotifyPlaybackPaused(bool paused)
 			AAMPLOG_WARN("StreamAbstractionAAMP: mLastPausedTimeStamp -1");
 		}
 	}
+	pthread_mutex_unlock(&mLock);   //CID:136243 - Missing_lock
 }
 
 
@@ -2600,46 +2604,50 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 {
 	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
 	MediaTrack *subtitle = GetMediaTrack(eTRACK_SUBTITLE);
-	if(subtitle != NULL)
-	{
-		//Check if its muxed a/v
-		if (audio && !audio->enabled)
-		{
-			audio = GetMediaTrack(eTRACK_VIDEO);
-		}
-
-		struct timespec ts;
-		int ret = 0;
-
-		pthread_mutex_lock(&mLock);
-		double audioDuration = audio->GetTotalInjectedDuration();
-		double subtitleDuration = subtitle->GetTotalInjectedDuration();
-		//Allow subtitles to be ahead by 5 seconds compared to audio
-		while ((subtitleDuration > (audioDuration + audio->fragmentDurationSeconds + 15.0)) && aamp->DownloadsAreEnabled() && !subtitle->IsDiscontinuityProcessed() && !audio->IsInjectionAborted())
-		{
-			traceprintf("Blocked on Inside mSubCond with sub:%f and audio:%f", subtitleDuration, audioDuration);
-	#ifdef AAMP_DEBUG_FETCH_INJECT
-			AAMPLOG_WARN("waiting for mSubCond - subtitleDuration %f audioDuration %f",
-				subtitleDuration, audioDuration);
-	#endif
-			ts = aamp_GetTimespec(100);
-
-			ret = pthread_cond_timedwait(&mSubCond, &mLock, &ts);
-
-			if (ret == 0)
-			{
-				break;
-			}
-			if (ret != ETIMEDOUT)
-			{
-				AAMPLOG_WARN("error while calling pthread_cond_timedwait - %s", strerror(ret));
-			}
-			audioDuration = audio->GetTotalInjectedDuration();
-		}
+	if((subtitle == NULL)  && (audio == NULL))
+	{  //CID:88017 - forward null
+		AAMPLOG_WARN("subtitle and audio is null");  //CID:85996 - Null Returns
+		return;
 	}
-	else
+	//Check if its muxed a/v
+	if (audio && !audio->enabled)
 	{
-		AAMPLOG_WARN("subtitle    is null");  //CID:85996 - Null Returns
+		audio = GetMediaTrack(eTRACK_VIDEO);
+	}
+
+	struct timespec ts;
+	int ret = 0;
+
+	pthread_mutex_lock(&mLock);
+	if(audio == NULL)
+	{
+		AAMPLOG_WARN("audio  is null");
+		pthread_mutex_unlock(&mLock);
+                return;
+	}
+	double audioDuration = audio->GetTotalInjectedDuration();
+	double subtitleDuration = subtitle->GetTotalInjectedDuration();
+	//Allow subtitles to be ahead by 5 seconds compared to audio
+	while ((subtitleDuration > (audioDuration + audio->fragmentDurationSeconds + 15.0)) && aamp->DownloadsAreEnabled() && !subtitle->IsDiscontinuityProcessed() && !audio->IsInjectionAborted())
+	{
+		traceprintf("Blocked on Inside mSubCond with sub:%f and audio:%f", subtitleDuration, audioDuration);
+	#ifdef AAMP_DEBUG_FETCH_INJECT
+		AAMPLOG_WARN("waiting for mSubCond - subtitleDuration %f audioDuration %f",
+			subtitleDuration, audioDuration);
+	#endif
+		ts = aamp_GetTimespec(100);
+
+		ret = pthread_cond_timedwait(&mSubCond, &mLock, &ts);
+
+		if (ret == 0)
+		{
+			break;
+		}
+		if (ret != ETIMEDOUT)
+		{
+			AAMPLOG_WARN("error while calling pthread_cond_timedwait - %s", strerror(ret));
+		}
+		audioDuration = audio->GetTotalInjectedDuration();
 	}
 	pthread_mutex_unlock(&mLock);
 }

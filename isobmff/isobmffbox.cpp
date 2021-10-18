@@ -869,7 +869,7 @@ EmsgBox* EmsgBox::constructEmsgBox(uint32_t sz, uint8_t *ptr)
 			READ_U8(schemeId, ptr, schemeIdLen);
 			remainingSize -= (sizeof(uint8_t) * schemeIdLen);
 			uint32_t schemeIdValueLen = ReadCStringLen(ptr, remainingSize);
-			if (schemeIdValueLen)
+			if (schemeIdValueLen) 
 			{
 				schemeIdValue = (uint8_t*) malloc(sizeof(uint8_t)*schemeIdValueLen);
 				READ_U8(schemeIdValue, ptr, schemeIdValueLen);
@@ -911,6 +911,10 @@ EmsgBox* EmsgBox::constructEmsgBox(uint32_t sz, uint8_t *ptr)
 				retBox->setValue(schemeIdValue);
 			}
 		}
+	}
+	if(schemeIdValue)
+	{
+		free(schemeIdValue);
 	}
 	return retBox;
 }

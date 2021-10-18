@@ -62,6 +62,11 @@ static bool aveDrmIndividualizationInProgress = false;
 static bool aveDrmIndividualized = false;
 
 #define AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS 8
+#define CURL_EASY_SETOPT(curl, CURLoption, option)\
+    if (curl_easy_setopt(curl, CURLoption, option) != 0) {\
+          logprintf("Failed at curl_easy_setopt ");\
+    }  //CID:132698,135078 - checked return
+
 
 #ifdef AVE_DRM
 
@@ -657,6 +662,7 @@ void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int tra
 	if( !m_pDrmAdapter )
 	{
 		logprintf("%s:%d:%d WARNING !!! KeyAcquisition cannot be done without SetMetadata !!!",__FUNCTION__,__LINE__,trackType);
+		pthread_mutex_unlock(&mutex);  //CID:136264 - lock
 		return;
 	}
 
@@ -1303,16 +1309,16 @@ long AveDrmManager::setSessionToken()
 	long httpCode = -1;
 
 	CURL *curl = curl_easy_init();;
-	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback_session);
-	curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1L);
-	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
-	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-	curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, tokenReply);
-	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-	curl_easy_setopt(curl, CURLOPT_URL, SESSION_TOKEN_URL);
+	CURL_EASY_SETOPT(curl, CURLOPT_NOSIGNAL, 1L);
+	CURL_EASY_SETOPT(curl, CURLOPT_WRITEFUNCTION, write_callback_session);
+	CURL_EASY_SETOPT(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
+	CURL_EASY_SETOPT(curl, CURLOPT_TIMEOUT, 1L);
+	CURL_EASY_SETOPT(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
+	CURL_EASY_SETOPT(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	CURL_EASY_SETOPT(curl, CURLOPT_NOPROGRESS, 0L);
+	CURL_EASY_SETOPT(curl, CURLOPT_WRITEDATA, tokenReply);
+	CURL_EASY_SETOPT(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+	CURL_EASY_SETOPT(curl, CURLOPT_URL, SESSION_TOKEN_URL);
 
 	res = curl_easy_perform(curl);
 
@@ -1362,6 +1368,7 @@ long AveDrmManager::setSessionToken()
 	}
 	SAFE_DELETE(tokenReply);
 	curl_easy_cleanup(curl);
+	free(urlEncodedkeyId);   //CID:142774 - Resource leak
 	return error_code;
 }
 #endif

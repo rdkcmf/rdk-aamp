@@ -165,9 +165,11 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 			uint64_t fPts = 0;
 			if (buffer.getFirstPTS(fPts))
 			{
+				pthread_mutex_lock(&m_mutex);
 				basePTS = fPts;
 				processPTSComplete = true;
 				AAMPLOG_WARN("IsoBmffProcessor:: [%s] Base PTS (%lld) set", IsoBmffProcessorTypeName[type], basePTS);
+				pthread_mutex_unlock(&m_mutex);
 			}
 			else
 			{
