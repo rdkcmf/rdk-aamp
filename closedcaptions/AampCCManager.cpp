@@ -566,9 +566,15 @@ void AampCCManagerBase::Start()
 
 int AampCCManagerBase::Init(void *handle)
 {
-	if(Initialize(handle) != 0)
+	if (handle == NULL)
 	{
-		AAMPLOG_WARN("AampCCManagerBase::%s %d Initialize failure ", __FUNCTION__, __LINE__);
+		AAMPLOG_WARN("AampCCManagerBase::%s %d NULL handle", __FUNCTION__, __LINE__);
+		return -1;
+	}
+
+	if (Initialize(handle) != 0)
+	{
+		AAMPLOG_WARN("AampCCManagerBase::%s %d Initialize failure", __FUNCTION__, __LINE__);
 		return -1;
 	}
 
