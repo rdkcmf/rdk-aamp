@@ -277,15 +277,18 @@ std::string aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int data
  *  @param[in]	Pointer to PSSH data.
  *  @param[in]	dataLength - Length of PSSH data.
  *  @param[in]	startStr, endStr - Pointer to delimiter strings.
+ *  @param[in]  verStr - Pointer to version delimiter string.
  *  @param[out]	len - Gets updated with length of content meta data.
  *  @return		Extracted data between delimiters; NULL if not found.
  *  @note		Memory of returned data is dynamically allocated, deallocation
  *				should be handled at the caller side.
  */
 unsigned char * aamp_ExtractDataFromPssh(const char* psshData, int dataLength,
-										const char* startStr, const char* endStr, int *len) {
+						const char* startStr, const char* endStr, int *len, const char* verStr) {
 	int endPos = -1;
 	unsigned char* contentMetaData = NULL;
+	const char* verTag = "version=\"";
+	bool verError = true;
 
 	//Clear the 00  bytes
 	char* cleanedPssh = (char*) malloc(dataLength);
@@ -299,18 +302,37 @@ unsigned char * aamp_ExtractDataFromPssh(const char* psshData, int dataLength,
 		}
 	}
 
-	int startPos = aamp_FindSubstr(cleanedPssh, cleanedPsshLen, 0, startStr);  //CID:108195 - UNUSED_VALUE - Providing a direct declaration
-
-	if(startPos >= 0)
+	int verPos = aamp_FindSubstr(cleanedPssh, cleanedPsshLen, 0, verTag);
+	if (verPos > 0)
 	{
-		aamp_FindSubstr(cleanedPssh, cleanedPsshLen, startPos, endStr, &endPos);
-		if(endPos > 0 && startPos < endPos)
+		//compare with version values, if pssh version is greater than supported version then update error
+		char* psshVer = cleanedPssh + verPos + 1;
+		int val = strncmp(verStr, psshVer,7);
+		if (val < 0)
 		{
-			*len = endPos - startPos - 1;
-			contentMetaData = (unsigned char*)malloc(*len + 1);
-			memset(contentMetaData, 0, *len + 1);
-			strncpy(reinterpret_cast<char*>(contentMetaData),reinterpret_cast<char*>(cleanedPssh + startPos + 1), *len);
-			//logprintf("%s:%d Content Meta data length  : %d", __FUNCTION__, __LINE__,*len);
+			logprintf ("%s:%d Unsupported PSSH version AAMP[%s] MPD[%c.%c.%c.%c]", __FUNCTION__, __LINE__, verStr, psshVer[0],psshVer[2],psshVer[4],psshVer[6]);
+		}
+		else
+		{
+			verError = false; // reset verError on pssh version supported case
+		}
+	}
+
+	if (!verError)
+	{
+		int startPos = aamp_FindSubstr(cleanedPssh, cleanedPsshLen, 0, startStr);  //CID:108195 - UNUSED_VALUE - Providing a direct declaration
+
+		if(startPos >= 0)
+		{
+			aamp_FindSubstr(cleanedPssh, cleanedPsshLen, startPos, endStr, &endPos);
+			if(endPos > 0 && startPos < endPos)
+			{
+				*len = endPos - startPos - 1;
+				contentMetaData = (unsigned char*)malloc(*len + 1);
+				memset(contentMetaData, 0, *len + 1);
+				strncpy(reinterpret_cast<char*>(contentMetaData),reinterpret_cast<char*>(cleanedPssh + startPos + 1), *len);
+				//logprintf("%s:%d Content Meta data length  : %d", __FUNCTION__, __LINE__,*len);
+			}
 		}
 	}
 	free(cleanedPssh);
