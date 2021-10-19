@@ -645,6 +645,14 @@ function mediaPlaybackStarted() {
     if (availableVBitrates !== undefined) {
         createBitrateList(availableVBitrates);
     }
+    console.log("call getManifest");
+    var Manifest = playerObj.getManifest();
+    if (Manifest.length) {
+	console.log("Got Valid Manifest");
+	}
+	else{
+	console.log("Got Invalid Manifest");
+	}
 }
 
 function mediaDurationChanged(event) {
