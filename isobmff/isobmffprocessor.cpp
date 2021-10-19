@@ -62,6 +62,8 @@ IsoBmffProcessor::IsoBmffProcessor(class PrivateInstanceAAMP *aamp, IsoBmffProce
 IsoBmffProcessor::~IsoBmffProcessor()
 {
 	clearInitSegment();
+	pthread_mutex_destroy(&m_mutex);
+	pthread_cond_destroy(&m_cond);
 }
 
 /**

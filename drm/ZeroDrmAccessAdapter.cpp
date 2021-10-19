@@ -134,6 +134,11 @@ ZeroDRMAccessAdapter::~ZeroDRMAccessAdapter ()
 		mZWorkerDataQue.pop();
 		SAFE_DELETE(qptr);
 	}
+	pthread_cond_destroy(&mJobStatusCondVar);
+	pthread_cond_destroy(&mJobPostingCondVar);
+	pthread_mutex_destroy(&mMutexJSCondVar);
+	pthread_mutex_destroy(&mMutexJPCondVar);
+	pthread_mutex_destroy(&mMutexVar);
 }
 
 ////////////////////// Public API - Initialize ZeroDrm for a new context 

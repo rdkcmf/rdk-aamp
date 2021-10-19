@@ -1637,6 +1637,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_mutex_destroy(&mFragmentCachingLock);
 	pthread_mutex_destroy(&mEventLock);
 	pthread_mutex_destroy(&mStreamLock);
+	pthread_mutexattr_destroy(&mMutexAttr);
 #ifdef AAMP_HLS_DRM
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
