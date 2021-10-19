@@ -88,6 +88,10 @@ struct DrmSessionContext
 		drmSession = other.drmSession;
 		return *this;
 	}
+	~DrmSessionContext()
+	{
+		pthread_mutex_destroy(&sessionMutex);
+	}
 };
 
 /**
