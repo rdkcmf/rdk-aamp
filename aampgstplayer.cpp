@@ -188,6 +188,7 @@ struct AAMPGstPlayerPriv
 	int decodeErrorCBCount; //Total decode error cb received within thresold time
 	bool progressiveBufferingEnabled;
 	bool progressiveBufferingStatus;
+	bool firstFrameProgressCallbackHandled;
 
 	AAMPGstPlayerPriv() : pipeline(NULL), bus(NULL), current_rate(0),
 			total_bytes(0), n_audio(0), current_audio(0), firstProgressCallbackIdleTaskId(0),
@@ -215,7 +216,7 @@ struct AAMPGstPlayerPriv
 			firstTuneWithWesterosSinkOff(false),
 #endif
 			decodeErrorMsgTimeMS(0), decodeErrorCBCount(0),
-			progressiveBufferingEnabled(false), progressiveBufferingStatus(false)
+			progressiveBufferingEnabled(false), progressiveBufferingStatus(false),firstFrameProgressCallbackHandled(false)
 	{
 		memset(videoRectangle, '\0', VIDEO_COORDINATES_SIZE);
 #ifdef INTELCE
@@ -639,6 +640,8 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 		// twice in this function, since it updates timestamp for calculating time elapsed, its trivial
 		aamp->NotifyFirstBufferProcessed();
 
+		privateContext->firstFrameProgressCallbackHandled = true;
+
 		if (!privateContext->decoderHandleNotified)
 		{
 			privateContext->decoderHandleNotified = true;
@@ -1018,6 +1021,14 @@ static gboolean buffering_timeout (gpointer data)
 				logprintf("%s: Set pipeline state to %s - buffering_timeout_cnt %u  bytes %u  frames %u", __FUNCTION__, gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1), bytes, frames);
 				gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
 				_this->privateContext->buffering_in_progress = false;
+#ifndef REALTEKCE
+				if((0 != _this->privateContext->periodicProgressCallbackIdleTaskId) && (!_this->privateContext->firstFrameProgressCallbackHandled) && (_this->privateContext->buffering_target_state == GST_STATE_PLAYING))
+				{
+					logprintf("%s: Forcefully calling first frame notification", __FUNCTION__);
+					_this->aamp->NotifyFirstBufferProcessed();
+				}
+#endif
+
 			}
 		}
 		if (!_this->privateContext->buffering_in_progress)
@@ -3358,6 +3369,8 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		g_source_remove(privateContext->bufferingTimeoutTimerId);
 		privateContext->bufferingTimeoutTimerId = 0;
 	}
+
+	privateContext->firstFrameProgressCallbackHandled = false;
 
 	if (stream->using_playersinkbin)
 	{
