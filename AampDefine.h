@@ -37,6 +37,20 @@
 #define MACRO_TO_STRING(s) X_STR(s)
 #define X_STR(s) #s
 
+#if defined(REALTEKCE)
+#define GST_VIDEOBUFFER_SIZE_BYTES_BASE 5242880          // XIONE-6722 more generous buffering - RealTek UHD specific
+#else
+#define GST_VIDEOBUFFER_SIZE_BYTES_BASE 4194304
+#endif
+#define GST_AUDIOBUFFER_SIZE_BYTES_BASE 512000
+#if defined(CONTENT_4K_SUPPORTED)
+#define GST_VIDEOBUFFER_SIZE_BYTES (GST_VIDEOBUFFER_SIZE_BYTES_BASE*3)
+#define GST_AUDIOBUFFER_SIZE_BYTES (GST_AUDIOBUFFER_SIZE_BYTES_BASE*3)
+#else
+#define GST_VIDEOBUFFER_SIZE_BYTES (GST_VIDEOBUFFER_SIZE_BYTES_BASE)
+#define GST_AUDIOBUFFER_SIZE_BYTES (GST_AUDIOBUFFER_SIZE_BYTES_BASE)
+#endif
+
 #define MAX_PTS_ERRORS_THRESHOLD 4
 #define DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS (1000)    /**< Wait time in milliseconds before retry for 5xx errors */
 #define MAX_PLAYLIST_CACHE_SIZE    (3*1024) // Approx 3MB -> 2 video profiles + one audio profile + one iframe profile, 500-700K MainManifest
@@ -99,6 +113,8 @@
 #define DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK	20					/**< Default cached fragement chunks per track */
 #define DEFAULT_ABR_CHUNK_CACHE_LENGTH			10					/**< Default ABR chunk cache length */
 #define DEFAULT_AAMP_ABR_CHUNK_THRESHOLD_SIZE		(DEFAULT_AAMP_ABR_THRESHOLD_SIZE)	/**< aamp abr Chunk threshold size */
+#define MAX_GST_VIDEO_BUFFER_BYTES			(GST_VIDEOBUFFER_SIZE_BYTES)
+#define MAX_GST_AUDIO_BUFFER_BYTES			(GST_AUDIOBUFFER_SIZE_BYTES)
 #define DEFAULT_ABR_CHUNK_SPEEDCNT			10					/**< Chunk Speed Count Store Size */
 #define DEFAULT_ABR_ELAPSED_MILLIS_FOR_ESTIMATE		100					/**< Duration(ms) to check Chunk Speed */
 #define DEFAULT_ABR_BYTES_TRANSFERRED_FOR_ESTIMATE	(512 * 1024)				/**< 512K */

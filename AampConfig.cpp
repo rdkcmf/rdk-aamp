@@ -237,6 +237,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"latencyMonitorInterval",eAAMPConfig_LatencyMonitorInterval,-1,-1},
 	{"downloadBufferChunks",eAAMPConfig_MaxFragmentChunkCached,-1,-1},
 	{"abrChunkThresholdSize",eAAMPConfig_ABRChunkThresholdSize,-1,-1},
+	{"gstVideoBufBytes", eAAMPConfig_GstVideoBufBytes,-1,-1},
+	{"gstAudioBufBytes", eAAMPConfig_GstAudioBufBytes,-1,-1},
 	{"enableLowLatencyOffsetMin",eAAMPConfig_EnableLowLatencyOffsetMin,-1,-1},
 	{"seiTimeCode",eAAMPConfig_SEITimeCode,-1,-1},
 	{"tsbInterruptHandling", eAAMPConfig_InterruptHandling, -1, -1},
@@ -418,6 +420,8 @@ void AampConfig::Initialize()
 	iAampCfgValue[eAAMPConfig_LatencyMonitorInterval-eAAMPConfig_IntStartValue].value       =       DEFAULT_LATENCY_MONITOR_INTERVAL;
 	iAampCfgValue[eAAMPConfig_MaxFragmentChunkCached-eAAMPConfig_IntStartValue].value       =       DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK;
 	iAampCfgValue[eAAMPConfig_ABRChunkThresholdSize-eAAMPConfig_IntStartValue].value        = 	DEFAULT_AAMP_ABR_CHUNK_THRESHOLD_SIZE;
+	iAampCfgValue[eAAMPConfig_GstVideoBufBytes-eAAMPConfig_IntStartValue].value             =       MAX_GST_VIDEO_BUFFER_BYTES;
+	iAampCfgValue[eAAMPConfig_GstAudioBufBytes-eAAMPConfig_IntStartValue].value             =       MAX_GST_AUDIO_BUFFER_BYTES;
 
 	///////////////// Following for long data types /////////////////////////////
 	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value	=	DEFAULT_DISCONTINUITY_TIMEOUT;

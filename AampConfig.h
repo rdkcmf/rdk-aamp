@@ -226,6 +226,8 @@ typedef enum
 	eAAMPConfig_LatencyMonitorInterval,                         				/**< Latency Monitor Interval */
 	eAAMPConfig_MaxFragmentChunkCached,                         				/**< fragment chunk cache length*/
 	eAAMPConfig_ABRChunkThresholdSize,                         				/**< AAMP ABR Chunk threshold size*/
+	eAAMPConfig_GstVideoBufBytes,                                                           /**< Gstreamer Max Video buffering bytes*/
+	eAAMPConfig_GstAudioBufBytes,                                                           /**< Gstreamer Max Audio buffering bytes*/
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,
