@@ -219,6 +219,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"repairIframes",eAAMPConfig_RepairIframes,-1,-1},
 	{"customHeaderLicense",eAAMPConfig_CustomHeaderLicense,-1,-1},
 	{"preferredAudioLanguage",eAAMPConfig_PreferredAudioLanguage,-1,-1},
+	{"gstVideoBufBytes", eAAMPConfig_GstVideoBufBytes,-1,-1},
+	{"gstAudioBufBytes", eAAMPConfig_GstAudioBufBytes,-1,-1},
 	{"seiTimeCode",eAAMPConfig_SEITimeCode,-1,-1},
 	{"disable4K" , eAAMPConfig_Disable4K, -1, -1},
 	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, -1,-1}
@@ -386,6 +388,8 @@ void AampConfig::Initialize()
 	iAampCfgValue[eAAMPConfig_MaxABRNWBufferRampUp-eAAMPConfig_IntStartValue].value         =       AAMP_HIGH_BUFFER_BEFORE_RAMPUP;
 	iAampCfgValue[eAAMPConfig_DownloadDelay-eAAMPConfig_IntStartValue].value         	=       0;
 	iAampCfgValue[eAAMPConfig_LivePauseBehavior-eAAMPConfig_IntStartValue].value            =       ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE;
+	iAampCfgValue[eAAMPConfig_GstVideoBufBytes-eAAMPConfig_IntStartValue].value             =       MAX_GST_VIDEO_BUFFER_BYTES;
+	iAampCfgValue[eAAMPConfig_GstAudioBufBytes-eAAMPConfig_IntStartValue].value             =       MAX_GST_AUDIO_BUFFER_BYTES;
 
 	///////////////// Following for long data types /////////////////////////////
 	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value	=	DEFAULT_DISCONTINUITY_TIMEOUT;

@@ -90,6 +90,7 @@ typedef enum {
 #else
 #define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (5)          // if the video decoder has this many queued frames start.. even at 60fps, close to 100ms...
 #endif
+
 #define DEFAULT_BUFFERING_MAX_MS (1000)                  // max buffering time
 #define DEFAULT_BUFFERING_MAX_CNT (DEFAULT_BUFFERING_MAX_MS/DEFAULT_BUFFERING_TO_MS)   // max buffering timeout count
 #define AAMP_MIN_PTS_UPDATE_INTERVAL 4000
@@ -458,19 +459,17 @@ static void InitializeSource(AAMPGstPlayer *_this, GObject *source, MediaType me
 	gst_app_src_set_stream_type(GST_APP_SRC(source), GST_APP_STREAM_TYPE_SEEKABLE);
 	if (eMEDIATYPE_VIDEO == mediaType )
 	{
-#ifdef CONTENT_4K_SUPPORTED
-		g_object_set(source, "max-bytes", 4194304 * 3, NULL); // 4096k * 3
-#else
-		g_object_set(source, "max-bytes", (guint64)4194304, NULL); // 4096k
-#endif
+		int MaxGstVideoBufBytes = 0;
+		_this->aamp->mConfig->GetConfigValue(eAAMPConfig_GstVideoBufBytes,MaxGstVideoBufBytes);
+		AAMPLOG_INFO("%s:%d Setting gst Video buffer max bytes to %d",__FUNCTION__, __LINE__, MaxGstVideoBufBytes);
+		g_object_set(source, "max-bytes", MaxGstVideoBufBytes, NULL);
 	}
 	else if (eMEDIATYPE_AUDIO == mediaType || eMEDIATYPE_AUX_AUDIO == mediaType)
 	{
-#ifdef CONTENT_4K_SUPPORTED
-		g_object_set(source, "max-bytes", 512000 * 3, NULL); // 512k * 3 for audio
-#else
-		g_object_set(source, "max-bytes", (guint64)512000, NULL); // 512k for audio
-#endif
+		int MaxGstAudioBufBytes = 0;
+                _this->aamp->mConfig->GetConfigValue(eAAMPConfig_GstAudioBufBytes,MaxGstAudioBufBytes);
+		AAMPLOG_INFO("%s:%d Setting gst Audio buffer max bytes to %d",__FUNCTION__, __LINE__, MaxGstAudioBufBytes);
+		g_object_set(source, "max-bytes", MaxGstAudioBufBytes, NULL);
 	}
 	g_object_set(source, "min-percent", 50, NULL);
 	g_object_set(source, "format", GST_FORMAT_TIME, NULL);
@@ -2014,11 +2013,10 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 #if defined(REALTEKCE)
 		if (eMEDIATYPE_VIDEO == streamId && (mediaFormat==eMEDIAFORMAT_DASH || mediaFormat==eMEDIAFORMAT_HLS_MP4) )
 		{ // enable multiqueue (Refer : XIONE-6138)
-			#ifdef CONTENT_4K_SUPPORTED 
-			g_object_set(stream->sinkbin, "buffer-size", 4194304 * 3, NULL);// 4096k * 3
-			#else 
-			g_object_set(stream->sinkbin, "buffer-size", (guint64)4194304, NULL); // 4096k
-			#endif
+	                int MaxGstVideoBufBytes = 0;
+			_this->aamp->mConfig->GetConfigValue(eAAMPConfig_GstVideoBufBytes,MaxGstVideoBufBytes);
+			AAMPLOG_INFO("%s:%d Setting gst Video buffer size bytes to %d",__FUNCTION__, __LINE__, MaxGstVideoBufBytes);
+			g_object_set(stream->sinkbin, "buffer-size", (guint64)MaxGstVideoBufBytes, NULL);
 			g_object_set(stream->sinkbin, "buffer-duration", 3000000000, NULL); //3000000000(ns), 3s
 		}
 #endif
