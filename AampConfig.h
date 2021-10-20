@@ -210,6 +210,8 @@ typedef enum
 	eAAMPConfig_SourceSetupTimeout, 							/**<Timeout value wait for GStreamer appsource setup to complete*/
 	eAAMPConfig_DownloadDelay,
 	eAAMPConfig_LivePauseBehavior,                                                          /**< player paused state behavior */
+	eAAMPConfig_GstVideoBufBytes,                                                           /**< Gstreamer Max Video buffering bytes*/
+	eAAMPConfig_GstAudioBufBytes,                                                           /**< Gstreamer Max Audio buffering bytes*/
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,
