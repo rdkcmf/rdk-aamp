@@ -4835,6 +4835,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 			}
 		}
+		// Set mIsLiveStream to keep live the history.
+		if(newTune)
+		{
+			aamp->SetIsLiveStream(aamp->IsLive());
+		}
 
 		//reiterate loop when player receive an update in seek position
 		for (int iTrack = AAMP_TRACK_COUNT - 1; iTrack >= 0; iTrack--)
