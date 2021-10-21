@@ -4301,7 +4301,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		mPeriodDuration =  GetPeriodDuration(mpd, mCurrentPeriodIdx);
 		mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
 		mCurrentPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
-		if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && !mIsFogTSB)
+		if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && !mIsFogTSB && mIsLiveStream)
 		{
 			// For live stream, take period start time
 			mStartTimeOfFirstPTS = (mPeriodStartTime - mAvailabilityStartTime) * 1000;
