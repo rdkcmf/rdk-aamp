@@ -270,8 +270,7 @@ public:
 	 * @param discontinuity true if fragment is discontinuous
 	 * @retval true on success
 	 */
-	bool CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false
-		, bool playingAd = false
+	bool CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false, bool playingAd = false , double pto = 0, uint32_t scale = 0
 	)
 	{
 		bool ret = false;
@@ -317,6 +316,31 @@ public:
 			aamp->UpdateVideoEndMetrics( actualType,
 									bitrate? bitrate : fragmentDescriptor.Bandwidth,
 									(iFogError > 0 ? iFogError : http_code),effectiveUrl,duration, downloadTime);
+		}
+
+		if(!initSegment && context->mperiodChanged)
+		{
+			IsoBmffBuffer buffer;
+			buffer.setBuffer((uint8_t *)cachedFragment->fragment.ptr, cachedFragment->fragment.len);
+			buffer.parseBuffer();
+			uint64_t pts = 0;
+			buffer.getFirstPTS(pts);
+			double delta = 0;
+			AAMPLOG_INFO("%s:%d Period changed, pts:%" PRIu64 " pto:%f scale:%lu",__FUNCTION__, __LINE__,  pts, pto, scale);
+			if( pto > 0.0 && scale > 0 && type == 0)
+			{
+				context->mperiodChanged = false;
+				delta = double((double)(pto - pts)/(double)scale);
+				AAMPLOG_INFO("%s:%d Calculating PTO delta, delta:%f pos:%f",__FUNCTION__, __LINE__, delta,position);
+				if( delta >0.0 )
+				{
+				  	aamp->Setseekdelta( delta+position);
+				}
+				else
+				{			  
+					aamp->Setseekdelta(0.0);
+				}
+			}
 		}
 
 		context->mCheckForRampdown = false;
@@ -627,10 +651,16 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *
 	,mServerUtcTime(0)
 	,mDeltaTime(0)
 	,mHasServerUtcTime(0)
+	,mperiodChanged (false)
 {
 	this->aamp = aamp;
 	memset(&mMediaStreamContext, 0, sizeof(mMediaStreamContext));
-	for (int i=0; i<AAMP_TRACK_COUNT; i++) mFirstFragPTS[i] = 0.0;
+	for (int i=0; i<AAMP_TRACK_COUNT; i++)
+	{
+		mFirstFragPTS[i] = 0.0;
+		mpresentationTimeOffset[i] = 0.0;
+		mtimeScale[i] = 0;
+	}
 	GetABRManager().clearProfiles();
 	mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
 
@@ -1266,7 +1296,7 @@ bool StreamAbstractionAAMP_MPD::FetchFragment(MediaStreamContext *pMediaStreamCo
 //	logprintf("%s:%d [%s] mFirstFragPTS %f  position %f -> %f ", __FUNCTION__, __LINE__, pMediaStreamContext->name, mFirstFragPTS[pMediaStreamContext->mediaType], position, mFirstFragPTS[pMediaStreamContext->mediaType]+position);
 	position += mFirstFragPTS[pMediaStreamContext->mediaType];
 	bool fragmentCached = pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, position, duration, NULL, isInitializationSegment, discontinuity
-		,(mCdaiObject->mAdState == AdState::IN_ADBREAK_AD_PLAYING));
+		,(mCdaiObject->mAdState == AdState::IN_ADBREAK_AD_PLAYING),mpresentationTimeOffset[pMediaStreamContext->mediaType],mtimeScale[pMediaStreamContext->mediaType]);
 	// Check if we have downloaded the fragment and waiting for init fragment download on
 	// bitrate switching before caching it.
 	bool fragmentSaved = (NULL != pMediaStreamContext->mDownloadedFragment.ptr);
@@ -1753,6 +1783,9 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			uint32_t duration = segmentTemplates.GetDuration();
 			double fragmentDuration =  ComputeFragmentDuration(duration,timeScale);
 			long startNumber = segmentTemplates.GetStartNumber();
+
+			mtimeScale[pMediaStreamContext->mediaType] = segmentTemplates.GetTimescale();
+			mpresentationTimeOffset[pMediaStreamContext->mediaType] = (double)  segmentTemplates.GetPresentationTimeOffset();
 
 			if (0 == pMediaStreamContext->lastSegmentNumber)
 			{
@@ -7718,6 +7751,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							mPrevAdaptationSetCount = adaptationSetCount;
 							periodChanged = true;
 							requireStreamSelection = true;
+							mperiodChanged = true;
 							logprintf("playing period %d/%d", iPeriod, (int)numPeriods);
 						}
 						else

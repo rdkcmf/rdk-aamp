@@ -183,6 +183,7 @@ public:
 	bool PushNextFragment( class MediaStreamContext *pMediaStreamContext, unsigned int curlInstance);
 	double GetFirstPeriodStartTime(void);
 	void StartSubtitleParser() override;
+	bool mperiodChanged;
 
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
@@ -259,6 +260,8 @@ private:
 	AudioType mAudioType;
 	int mPrevAdaptationSetCount;
 	std::vector<long> mBitrateIndexVector;
+	double mpresentationTimeOffset[AAMP_TRACK_COUNT];
+	uint32_t mtimeScale[AAMP_TRACK_COUNT];
 	
 	// In case of streams with multiple video Adaptation Sets, A profile
 	// is a combination of an Adaptation Set and Representation within

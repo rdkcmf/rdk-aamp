@@ -530,6 +530,7 @@ public:
 	 * @return void
 	 */
 	void TuneHelper(TuneType tuneType, bool seekWhilePaused = false);
+	void SeekToPto(double secondsRelativeToTuneTime);
 
 	/**
 	 * @brief Terminate the stream
@@ -754,6 +755,12 @@ public:
 	int32_t lastId3DataLen; // last sent ID3 data length
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
 	std::mutex lockId3Data;// guard for lastId3Data
+	double seekdelta;
+    bool isEos;
+    bool FirstFrameReceived;
+	
+	void Setseekdelta(double position);
+	double Getseekdelta();
 
 	/**
 	 * @brief Check if segment starts with an ID3 section

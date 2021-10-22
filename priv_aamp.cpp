@@ -1205,6 +1205,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mIsWVKIDWorkaround(false)
 	, mAbsoluteEndPosition(0), mIsLiveStream(false)
 	, id3MetadataCallbackIdleTaskId(0), id3MetadataCallbackTaskPending(false), lastId3DataLen(0), lastId3Data(NULL), lockId3Data()
+	,seekdelta(0.0)
+	,isEos(false)
+	,FirstFrameReceived(false)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -2283,7 +2286,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 			mStreamSink->Stop(true);
 #endif
 			mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat);
-			mStreamSink->Configure(mVideoFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus(), true /*setReadyAfterPipelineCreation*/);
+			mStreamSink->Configure(mVideoFormat, mAudioFormat, mpStreamAbstractionAAMP->GetESChangeStatus(), IsLive() /*setReadyAfterPipelineCreation*/);
 			mpStreamAbstractionAAMP->ResetESChangeStatus();
 			mpStreamAbstractionAAMP->StartInjection();
 			mStreamSink->Stream();
@@ -2351,7 +2354,16 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 	}
 	else
 	{
-		ProcessPendingDiscontinuity();
+		if(Getseekdelta() > 0.0 && !IsLive())
+		{
+			AAMPLOG_INFO("%s:%d Calling SeekToPto as Getseekdelta() > 0 Getseekdelta(): %f ",__FUNCTION__, __LINE__,  Getseekdelta());
+			SeekToPto(Getseekdelta());
+		}
+		else
+		{
+			AAMPLOG_INFO("%s:%d Calling ProcessPendingDiscontinuity Getseekdelta() < 0 IsLive(): %d ",__FUNCTION__, __LINE__,  IsLive());
+			ProcessPendingDiscontinuity();
+		}
 		DeliverAdEvents();
 		logprintf("PrivateInstanceAAMP::%s:%d  EOS due to discontinuity handled", __FUNCTION__, __LINE__);
 	}
@@ -4062,6 +4074,19 @@ void PrivateInstanceAAMP::SendMessage2Receiver(AAMP2ReceiverMsgType type, const 
 #else
 	AAMPLOG_INFO("AAMP=>XRE: %s",data);
 #endif
+}
+
+void PrivateInstanceAAMP::SeekToPto(double secondsRelativeToTuneTime)
+{
+	seek_pos_seconds = secondsRelativeToTuneTime;
+	if (mpStreamAbstractionAAMP)
+	{ // for seek while streaming
+		SetState(eSTATE_SEEKING);
+		AcquireStreamLock();
+		TuneHelper(eTUNETYPE_SEEK, false);
+		ReleaseStreamLock();
+	}
+	Setseekdelta(0.0);
 }
 
 /**
@@ -9036,4 +9061,17 @@ void PrivateInstanceAAMP::FlushLastId3Data()
 		g_free(lastId3Data);
 		lastId3Data = NULL;
 	}
+}
+
+void PrivateInstanceAAMP::Setseekdelta(double position)
+{
+	   pthread_mutex_lock(&mLock);
+	   seekdelta = position;
+	   pthread_mutex_unlock(&mLock);
+}
+double PrivateInstanceAAMP::Getseekdelta()
+{
+	   pthread_mutex_unlock(&mLock);
+	   return seekdelta;
+	   pthread_mutex_unlock(&mLock);
 }
