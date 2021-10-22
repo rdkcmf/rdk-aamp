@@ -1130,9 +1130,7 @@ static gboolean IdleCallbackOnId3Metadata(gpointer user_data)
         id3->aamp->SendId3MetadataEvent(id3->data, id3->schemeIdUri, id3->value, id3->timeScale, id3->presentationTime, id3->eventDuration, id3->id, id3->timestampOffset);
         id3->aamp->id3MetadataCallbackTaskPending = false;
         id3->aamp->id3MetadataCallbackIdleTaskId = 0;
-
         delete id3;
-
         return G_SOURCE_REMOVE;
 }
 
@@ -1206,7 +1204,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mConfig (config),mSubLanguage(), mHarvestCountLimit(0), mHarvestConfig(0)
 	, mIsWVKIDWorkaround(false)
 	, mAbsoluteEndPosition(0), mIsLiveStream(false)
-	, id3MetadataCallbackIdleTaskId(0), id3MetadataCallbackTaskPending(false), lastId3DataLen(0), lastId3Data(NULL)
+	, id3MetadataCallbackIdleTaskId(0), id3MetadataCallbackTaskPending(false), lastId3DataLen(0), lastId3Data(NULL), lockId3Data()
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -9008,6 +9006,7 @@ void PrivateInstanceAAMP::ProcessID3Metadata(char *segment, size_t size, MediaTy
  */
 void PrivateInstanceAAMP::ReportID3Metadata(const uint8_t* ptr, uint32_t len, const char* schemeIdURI, const char* id3Value, uint64_t presTime, uint32_t id3ID, uint32_t eventDur, uint32_t tScale, uint64_t tStampOffset)
 {
+	std::lock_guard<std::mutex> lock(lockId3Data);
 	FlushLastId3Data();
 	Id3CallbackData* id3Metadata = new Id3CallbackData(this, static_cast<const uint8_t*>(ptr), len, static_cast<const char*>(schemeIdURI), static_cast<const char*>(id3Value), presTime, id3ID, eventDur, tScale, tStampOffset);
 	lastId3Data = (uint8_t*)g_malloc(len);
@@ -9016,7 +9015,6 @@ void PrivateInstanceAAMP::ReportID3Metadata(const uint8_t* ptr, uint32_t len, co
 		lastId3DataLen = len;
 		memcpy(lastId3Data, ptr, len);
 	}
-
 	this->id3MetadataCallbackTaskPending = true;
 	this->id3MetadataCallbackIdleTaskId = ScheduleAsyncTask(IdleCallbackOnId3Metadata, (void *)id3Metadata);
 	if (!this->id3MetadataCallbackTaskPending)

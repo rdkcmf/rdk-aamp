@@ -753,6 +753,7 @@ public:
 	std::atomic<bool> id3MetadataCallbackTaskPending; //Set if an id3 metadata callback is pending
 	int32_t lastId3DataLen; // last sent ID3 data length
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
+	std::mutex lockId3Data;// guard for lastId3Data
 
 	/**
 	 * @brief Check if segment starts with an ID3 section
