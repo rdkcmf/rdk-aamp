@@ -4313,9 +4313,18 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			logprintf("mpStreamAbstractionAAMP Init Failed.Seek Position(%f) out of range(%lld)",mpStreamAbstractionAAMP->GetStreamPosition(),(GetDurationMs()/1000));
 			NotifyEOSReached();
 		}
-		else if(retVal == eAAMPSTATUS_FAKE_TUNE_COMPLETE)
+		else if(mIsFakeTune)
 		{
-			logprintf("mpStreamAbstractionAAMP Init Completed as fake tune.");
+			if(retVal == eAAMPSTATUS_FAKE_TUNE_COMPLETE)
+			{
+				logprintf("mpStreamAbstractionAAMP Init Completed as fake tune.");
+			}
+			else
+			{
+				SetState(eSTATE_COMPLETE);
+				SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_EOS));
+				AAMPLOG_WARN("%s : Stopping fake tune playback", __FUNCTION__);
+			}
 		}
 		else if (DownloadsAreEnabled())
 		{
