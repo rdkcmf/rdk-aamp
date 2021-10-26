@@ -3636,6 +3636,16 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					}
 				}
 
+				if (mIsFirstRequestToFOG && mTSBEnabled && eMEDIATYPE_MANIFEST == simType)
+				{
+					std::string customHeader = "4k: 1";
+					if (ISCONFIGSET_PRIV(eAAMPConfig_Disable4K))
+					{
+						customHeader = "4k: 0";
+					}                                        
+                                        httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
+				}
+
 				if (httpHeaders != NULL)
 				{
 					curl_easy_setopt(curl, CURLOPT_HTTPHEADER, httpHeaders);
