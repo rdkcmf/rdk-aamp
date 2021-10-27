@@ -48,24 +48,21 @@
 AampConfig *gpGlobalConfig=NULL;
 
 #define ERROR_STATE_CHECK_VOID() \
-	PrivAAMPState state; \
-	aamp->GetState(state); \
+	PrivAAMPState state = GetState(); \
 	if( state == eSTATE_ERROR){ \
 		logprintf("%s() operation is not allowed when player in eSTATE_ERROR state !", __FUNCTION__ );\
 		return; \
 	}
 
 #define ERROR_STATE_CHECK_VAL(val) \
-	PrivAAMPState state; \
-	aamp->GetState(state); \
+	PrivAAMPState state = GetState(); \
 	if( state == eSTATE_ERROR){ \
 		logprintf("%s() operation is not allowed when player in eSTATE_ERROR state !", __FUNCTION__ );\
 		return val; \
 	}
 
 #define ERROR_OR_IDLE_STATE_CHECK_VOID() \
-	PrivAAMPState state; \
-	aamp->GetState(state); \
+	PrivAAMPState state = GetState(); \
 	if( state == eSTATE_ERROR || state == eSTATE_IDLE){ \
 		logprintf("%s() operation is not allowed when player in %s state !", __FUNCTION__ ,\
 		(state == eSTATE_ERROR) ? "eSTATE_ERROR" : "eSTATE_IDLE" );\
@@ -73,16 +70,14 @@ AampConfig *gpGlobalConfig=NULL;
 	}
 
 #define NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID() \
-	PrivAAMPState state; \
-	aamp->GetState(state); \
+	PrivAAMPState state = GetState(); \
 	if( state != eSTATE_IDLE && state != eSTATE_RELEASED){ \
 		logprintf("%s() operation is not allowed when player not in eSTATE_IDLE or eSTATE_RELEASED state !", __FUNCTION__ );\
 		return; \
 	}
 
 #define ERROR_OR_IDLE_STATE_CHECK_VAL(val) \
-	PrivAAMPState state; \
-	aamp->GetState(state); \
+	PrivAAMPState state = GetState(); \
 	if( state == eSTATE_ERROR || state == eSTATE_IDLE){ \
 		logprintf("%s() operation is not allowed in %s state !", __FUNCTION__ ,\
 		(state == eSTATE_ERROR) ? "eSTATE_ERROR" : "eSTATE_IDLE" );\
@@ -1007,7 +1002,7 @@ void PlayerInstanceAAMP::SetAudioVolume(int volume)
 		AAMPLOG_WARN("%s:%d Audio level (%d) is outside the range supported.. discarding it..",
 		__FUNCTION__, __LINE__, volume);
 	}
-	else
+	else if (aamp != NULL)
 	{
 		aamp->audio_volume = volume;
 		if (aamp->mpStreamAbstractionAAMP)
