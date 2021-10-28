@@ -3685,6 +3685,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						mFogErrorString.clear();
 						mFogErrorString.assign(httpRespHeaders[curlInstance].data);
 						AAMPLOG_WARN("Fog Error : '%s'", mFogErrorString.c_str());
+						httpRespHeaders[curlInstance].type = eHTTPHEADERTYPE_UNKNOWN;
+						httpRespHeaders[curlInstance].data.clear();
 					}
 
 					if(effectiveUrlPtr)
