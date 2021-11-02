@@ -2489,7 +2489,7 @@ void AAMPGstPlayer::Stream()
 void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux)
 {
 	FN_TRACE( __FUNCTION__ );
-	logprintf("AAMPGstPlayer::%s %d > videoFormat %d audioFormat %d auxFormat %d", __FUNCTION__, __LINE__, format, audioFormat, auxFormat);
+	AAMPLOG_WARN("videoFormat %d audioFormat %d auxFormat %d",format, audioFormat, auxFormat);
 	StreamOutputFormat newFormat[AAMP_TRACK_COUNT];
 	newFormat[eMEDIATYPE_VIDEO] = format;
 	newFormat[eMEDIATYPE_AUDIO] = audioFormat;
@@ -2537,8 +2537,8 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		{
 			if (newFormat[i] != FORMAT_INVALID)
 			{
-				logprintf("AAMPGstPlayer::%s %d > Closing stream %d old format = %d, new format = %d",
-								__FUNCTION__, __LINE__, i, stream->format, newFormat[i]);
+				AAMPLOG_WARN("Closing stream %d old format = %d, new format = %d",
+								i, stream->format, newFormat[i]);
 				configureStream[i] = true;
 			}
 		}
@@ -2559,7 +2559,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		/* Force configure the bin for mid stream audio type change */
 		if (!configureStream[i] && bESChangeStatus && (eMEDIATYPE_AUDIO == i))
 		{
-			logprintf("AAMPGstPlayer::%s %d > AudioType Changed. Force configure pipeline", __FUNCTION__, __LINE__);
+			AAMPLOG_WARN("AudioType Changed. Force configure pipeline");
 			configureStream[i] = true;
 		}
 
@@ -2577,7 +2577,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	#ifdef USE_PLAYERSINKBIN
 			if (FORMAT_MPEGTS == stream->format )
 			{
-				logprintf("AAMPGstPlayer::%s %d > - using playersinkbin, track = %d", __FUNCTION__, __LINE__, i);
+				AAMPLOG_WARN("using playersinkbin, track = %d", i);
 				stream->using_playersinkbin = TRUE;
 			}
 			else
@@ -2618,7 +2618,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	privateContext->decodeErrorMsgTimeMS = 0;
 	privateContext->decodeErrorCBCount = 0;
 #ifdef TRACE
-	logprintf("exiting AAMPGstPlayer::%s", __FUNCTION__);
+	AAMPLOG_WARN("exiting AAMPGstPlayer");
 #endif
 }
 

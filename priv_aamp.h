@@ -857,6 +857,8 @@ public:
 	bool mbUsingExternalPlayer; /**<Playback using external players eg:OTA, HDMIIN,Composite*/
 
 	std::string seiTimecode; /**< SEI Timestamp information from Westeros */
+        
+        bool mbDetached;
 
 
 	/**

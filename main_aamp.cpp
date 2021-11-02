@@ -545,7 +545,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
 			return;
 		}
-		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (0 != rate))
+		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (0 != rate) && !aamp->mbDetached)
 		{
 			AAMPLOG_WARN("PLAYER[%d] Player %s=>%s.", aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
 			aamp->mbPlayEnabled = true;
@@ -561,7 +561,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			}
 		}
 		bool retValue = true;
-		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE)
+		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE && !aamp->mbDetached)
 		{
 			AAMPLOG_WARN("Already at logical live point, hence skipping operation");
 			aamp->NotifyOnEnteringLive();
@@ -650,7 +650,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			// DELIA-39530 - For 1.0->0.0 and 0.0->1.0 if eAAMPConfig_EnableGstPositionQuery is enabled, GStreamer position query will give proper value
 			// Fallback case added for when eAAMPConfig_EnableGstPositionQuery is disabled, since we will be using elapsedTime to calculate position and
 			// trickStartUTCMS has to be reset
-			if (!ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery))
+			if (!ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery) && !aamp->mbDetached)
 			{
 				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000;
 				aamp->trickStartUTCMS = -1;
@@ -660,7 +660,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		logprintf("aamp_SetRate (%d)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
 		logprintf("aamp_SetRate rate(%d)->(%d) cur pipeline: %s. Adj position: %f Play/Pause Position:%lld", aamp->rate,rate,aamp->pipeline_paused ? "paused" : "playing",aamp->seek_pos_seconds,aamp->GetPositionMilliseconds()); // current position relative to tune time
 
-		if (!aamp->mSeekFromPausedState && (rate == aamp->rate))
+		if (!aamp->mSeekFromPausedState && (rate == aamp->rate) && !aamp->mbDetached)
 		{ // no change in desired play rate
 			// no deferring for playback resume
 			if (aamp->pipeline_paused && rate != 0)
@@ -703,6 +703,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			aamp->rate = rate;
 			aamp->pipeline_paused = false;
 			aamp->mSeekFromPausedState = false;
+			aamp->EnableDownloads();
 			aamp->ResumeDownloads();
 			aamp->AcquireStreamLock();
 			aamp->TuneHelper(tuneTypePlay); // this unpauses pipeline as side effect
@@ -2422,7 +2423,7 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 		aamp->sendTuneMetrics(false);
 	}
 
-	logprintf("PLAYER[%d] aamp_stop PlayerState=%d", aamp->mPlayerId, state);
+	AAMPLOG_WARN("aamp_stop PlayerState=%d",state);
 
 	if (sendStateChangeEvent)
 	{
