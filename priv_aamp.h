@@ -2991,7 +2991,7 @@ public:
 	 *   @param[in] trackId - index of text track in available track list
 	 *   @return void
 	 */
-	void SetTextTrack(int trackId, bool defaultEnable = false);
+	void SetTextTrack(int trackId);
 
 	/**
 	 *   @brief Get current text track index
