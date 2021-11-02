@@ -1452,6 +1452,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mIsPeriodChangeMarked(false)
 	, mLogObj(NULL)
 	, mEventManager (NULL)
+	, mbDetached(false)
 {
 	for(int i=0; i<AAMP_TRACK_COUNT; i++)
 	{
@@ -5620,8 +5621,11 @@ void PrivateInstanceAAMP::detach()
 {
 	if(mpStreamAbstractionAAMP && mbPlayEnabled) //Player is running
 	{
-		AAMPLOG_WARN("PLAYER[%d] Player %s=>%s and soft release.", mPlayerId, STRFGPLAYER, STRBGPLAYER );
 		pipeline_paused = true;
+		seek_pos_seconds  = GetPositionMilliseconds()/1000.0;
+		AAMPLOG_WARN("Player %s=>%s and soft release.Detach at position %f", STRFGPLAYER, STRBGPLAYER,seek_pos_seconds );
+		DisableDownloads(); //disable download
+		mpStreamAbstractionAAMP->SeekPosUpdate(seek_pos_seconds );
 		mpStreamAbstractionAAMP->StopInjection();
 #ifdef AAMP_CC_ENABLED
 		// Stop CC when pipeline is stopped
@@ -5632,8 +5636,10 @@ void PrivateInstanceAAMP::detach()
 		}
 #endif
 		mStreamSink->Stop(true);
-		mbPlayEnabled = false;
+		//mbPlayEnabled = false;
+		mbDetached=true;
 		mPlayerPreBuffered  = false;
+		//EnableDownloads();// enable downloads
 	}
 }
 

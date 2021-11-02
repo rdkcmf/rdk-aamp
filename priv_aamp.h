@@ -856,6 +856,8 @@ public:
 	pthread_mutex_t  mDiscoCompleteLock; // Lock the period jump if discontinuity already in progress
 	pthread_cond_t mWaitForDiscoToComplete; // Conditional wait for period jump
 	bool mIsPeriodChangeMarked; // Mark if a period change occurred.
+        
+        bool mbDetached;
 
 
 	/**

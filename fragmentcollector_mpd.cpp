@@ -3605,8 +3605,12 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 	aamp->IsTuneTypeNew = newTune;
 
 #ifdef AAMP_MPD_DRM
-	pushEncInitFragment = newTune || (eTUNETYPE_RETUNE == tuneType);
+	pushEncInitFragment = newTune || (eTUNETYPE_RETUNE == tuneType) || aamp->mbDetached;
 #endif
+        if(aamp->mbDetached){
+                /* No more needed reset it **/
+                aamp->mbDetached = false;
+        }
 
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{

@@ -167,7 +167,7 @@ public:
 	void StopInjection(void) override;
 	void StartInjection(void) override;
 	double GetBufferedDuration();
-	void SeekPosUpdate(double secondsRelativeToTuneTime) { };
+	void SeekPosUpdate(double secondsRelativeToTuneTime) {seekPosition = secondsRelativeToTuneTime; }
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
 	int GetProfileCount();
 	int GetProfileIndexForBandwidth(long mTsbBandwidth);
