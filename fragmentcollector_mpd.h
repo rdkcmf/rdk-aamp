@@ -190,7 +190,7 @@ private:
 	void FetcherLoop();
 	StreamInfo* GetStreamInfo(int idx) override;
 	AAMPStatusType UpdateMPD(bool init = false);
-	bool FindServerUTCTime(MPD* mpd);
+	bool FindServerUTCTime(Node* root);
 	void FindTimedMetadata(MPD* mpd, Node* root, bool init = false, bool reportBulkMet = false);
 	void ProcessPeriodSupplementalProperty(Node* node, std::string& AdID, uint64_t startMS, uint64_t durationMS, bool isInit, bool reportBulkMeta=false);
 	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID,bool isInit, bool reportBulkMeta=false);
