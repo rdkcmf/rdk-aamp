@@ -2335,6 +2335,10 @@ AAMPStatusType StreamAbstractionAAMP_MPD::GetMpdFromManfiest(const GrowableBuffe
 					{
 						aamp->ReportTimedMetadata(false);
 					}
+					if(mIsLiveManifest)
+					{
+						mHasServerUtcTime = FindServerUTCTime(root);
+					}
 					if(mIsFogTSB && ISCONFIGSET(eAAMPConfig_InterruptHandling))
 					{
 						FindPeriodGapsAndReport();
@@ -4466,10 +4470,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 			{
 				CheckForVssTags();
 			}
-			if(mIsLiveManifest)
-			{
-				mHasServerUtcTime = FindServerUTCTime(mpd);
-			}
 			if (!retrievedPlaylistFromCache && !mIsLiveManifest)
 			{
 				aamp->getAampCacheHandler()->InsertToPlaylistCache(origManifestUrl, &manifest, aamp->GetManifestUrl(), mIsLiveStream,eMEDIATYPE_MANIFEST);
@@ -4646,13 +4646,13 @@ void StreamAbstractionAAMP_MPD::FindPeriodGapsAndReport()
  * @retval Return true if UTCTiming element is available in the manifest
  */
 
-bool  StreamAbstractionAAMP_MPD::FindServerUTCTime(MPD* mpd)
+bool  StreamAbstractionAAMP_MPD::FindServerUTCTime(Node* root)
 {
 	bool hasServerUtcTime = false;
-	if( mpd )
+	if( root )
 	{
 		mServerUtcTime = 0;
-		for ( auto node :  mpd->GetAdditionalSubNodes() )
+		for ( auto node :  root->GetSubNodes() )
 		{
 			if(node)
 			{
