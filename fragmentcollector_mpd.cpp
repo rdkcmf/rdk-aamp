@@ -1622,7 +1622,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 							pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->lastSegmentTime,duration,pMediaStreamContext->fragmentTime,endTime);
 #endif
 						retval = true;
-						if(!mPeriodDuration || (mPeriodDuration !=0 && (mPeriodStartTime + positionInPeriod) < endTime))
+						if(mIsFogTSB || (mPeriodDuration !=0 && (mPeriodStartTime + positionInPeriod) < endTime))
 						{
 							retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
 						}
