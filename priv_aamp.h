@@ -192,7 +192,6 @@ enum TuneType
 enum AAMPStatusType
 {
 	eAAMPSTATUS_OK,
-	eAAMPSTATUS_FAKE_TUNE_COMPLETE,
 	eAAMPSTATUS_GENERIC_ERROR,
 	eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR,
 	eAAMPSTATUS_PLAYLIST_VIDEO_DOWNLOAD_ERROR,
@@ -804,8 +803,6 @@ public:
 	std::atomic<bool> id3MetadataCallbackTaskPending; //Set if an id3 metadata callback is pending
 	int32_t lastId3DataLen; // last sent ID3 data length
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
-
-	bool mIsFakeTune;
 
 	/**
 	 * @brief Check if segment starts with an ID3 section
