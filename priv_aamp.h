@@ -202,7 +202,6 @@ enum TuneType
 enum AAMPStatusType
 {
 	eAAMPSTATUS_OK,
-	eAAMPSTATUS_FAKE_TUNE_COMPLETE,
 	eAAMPSTATUS_GENERIC_ERROR,
 	eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR,
 	eAAMPSTATUS_PLAYLIST_VIDEO_DOWNLOAD_ERROR,
@@ -867,8 +866,6 @@ public:
 	bool mbUsingExternalPlayer; /**<Playback using external players eg:OTA, HDMIIN,Composite*/
 
 	std::string seiTimecode; /**< SEI Timestamp information from Westeros */
-
-	bool mIsFakeTune;
 
 	/**
 	 * @brief Check if segment starts with an ID3 section

@@ -1509,7 +1509,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, seiTimecode()
 	, contentGaps()
 	, mCCId(0)
-	, mIsFakeTune(false)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -2362,11 +2361,6 @@ void PrivateInstanceAAMP::SendEventAsync(AAMPEventPtr e)
 void PrivateInstanceAAMP::SendEventSync(AAMPEventPtr e)
 {
 	AAMPEventType eventType = e->getType();
-	if(mIsFakeTune && !(AAMP_EVENT_STATE_CHANGED == eventType && eSTATE_COMPLETE == std::dynamic_pointer_cast<StateChangedEvent>(e)->getState()) && !(AAMP_EVENT_EOS == eventType))
-	{
-		AAMPLOG_TRACE("Events are disabled for fake tune");
-		return;
-	}
 	if (eventType != AAMP_EVENT_PROGRESS)
 	{
 		if (eventType != AAMP_EVENT_STATE_CHANGED)
@@ -4808,19 +4802,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			logprintf("mpStreamAbstractionAAMP Init Failed.Seek Position(%f) out of range(%lld)",mpStreamAbstractionAAMP->GetStreamPosition(),(GetDurationMs()/1000));
 			NotifyEOSReached();
 		}
-		else if(mIsFakeTune)
-		{
-			if(retVal == eAAMPSTATUS_FAKE_TUNE_COMPLETE)
-			{
-				logprintf("mpStreamAbstractionAAMP Init Completed as fake tune.");
-			}
-			else
-			{
-				SetState(eSTATE_COMPLETE);
-				SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_EOS));
-				AAMPLOG_WARN("%s : Stopping fake tune playback", __FUNCTION__);
-			}
-		}
 		else if (DownloadsAreEnabled())
 		{
 			logprintf("mpStreamAbstractionAAMP Init Failed.Error(%d)",retVal);
@@ -4980,8 +4961,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	}
 
 #ifdef AAMP_CC_ENABLED
-	if(retVal != eAAMPSTATUS_FAKE_TUNE_COMPLETE)
-	{
 	AAMPLOG_INFO("%s:%d - mCCId: %d\n",__FUNCTION__,__LINE__,mCCId);
 	// if mCCId has non zero value means it is same instance and cc release was not calle then dont get id. if zero then call getid.
 	if(mCCId == 0 )
@@ -4990,7 +4969,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	}
 	//restore CC if it was enabled for previous content.
 	AampCCManager::GetInstance()->RestoreCC();
-	}
 #endif
 
 	if (newTune)
@@ -5069,7 +5047,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 #ifdef AAMP_RFC_ENABLED
 	schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
 #endif
-	mIsFakeTune = strcasestr(mainManifestUrl, "fakeTune=true");
 
 	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))

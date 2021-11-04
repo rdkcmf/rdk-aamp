@@ -1779,11 +1779,6 @@ void *CreateDRMSession(void *arg)
 			sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 		}
 	}
-	if(sessionParams->aamp->mIsFakeTune)
-	{
-		sessionParams->aamp->SetState(eSTATE_COMPLETE);
-		sessionParams->aamp->SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_EOS));
-	}
 	return NULL;
 }
 
