@@ -4534,6 +4534,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PlaylistTimeout,tmpVar);
 	mPlaylistTimeoutMs = (long)CONVERT_SEC_TO_MS(tmpVar);
 	if(mPlaylistTimeoutMs <= 0) mPlaylistTimeoutMs = mManifestTimeoutMs;
+
+	subtitles_muted = true;
 	
 	mLogTimetoTopProfile = true;
 	// Reset mProgramDateTime to 0 , to avoid spill over to next tune if same session is 
