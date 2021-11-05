@@ -614,7 +614,7 @@ static gboolean IdleCallback(gpointer user_data)
 	if (_this)
 	{
 		// mAsyncTuneEnabled passed, because this could be called from Scheduler or main loop
-		_this->aamp->ReportProgress(!_this->aamp->mAsyncTuneEnabled);
+		_this->aamp->ReportProgress();
 		_this->privateContext->firstProgressCallbackIdleTaskPending = false;
 		_this->privateContext->firstProgressCallbackIdleTaskId = 0;
 		if (0 == _this->privateContext->periodicProgressCallbackIdleTaskId)
@@ -2302,7 +2302,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
                 buffer.destroyBoxes();
         }
 
-	if (aamp->GetEventListenerStatus(AAMP_EVENT_ID3_METADATA) &&
+	if (aamp->IsEventListenerAvailable(AAMP_EVENT_ID3_METADATA) &&
 		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
 	{
 		uint32_t len = getId3TagSize(static_cast<const uint8_t*>(ptr));

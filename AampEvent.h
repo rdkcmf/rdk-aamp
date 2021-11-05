@@ -42,6 +42,7 @@
  */
 typedef enum
 {
+	AAMP_EVENT_ALL_EVENTS = 0,		/**< 0,	 All Events */
 	AAMP_EVENT_TUNED = 1,			/**< 1,	 Tune success*/
 	AAMP_EVENT_TUNE_FAILED,			/**< 2,	 Tune failure*/
 	AAMP_EVENT_SPEED_CHANGED,		/**< 3,	 Speed changed internally*/
@@ -84,6 +85,17 @@ typedef enum
 	AAMP_EVENT_CONTENT_GAP,			/**< 40, Content gap event for progress gap reporting*/
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
+
+
+/**
+ * @brief AAMP event modes
+ */
+typedef enum
+{
+	AAMP_EVENT_DEFAULT_MODE = 0,
+	AAMP_EVENT_SYNC_MODE,
+	AAMP_EVENT_ASYNC_MODE
+}AAMPEventMode;
 
 /**
  * @brief AAMP playback error codes

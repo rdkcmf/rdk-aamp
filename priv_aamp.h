@@ -56,6 +56,7 @@
 #include <memory>
 #include <inttypes.h>
 #include "AampRfc.h"
+#include "AampEventManager.h"
 
 static const char *mMediaFormatName[] =
 {
@@ -134,7 +135,6 @@ static const char *mMediaFormatName[] =
 #define STRBGPLAYER "BACKGROUND"
 #define STRFGPLAYER "FOREGROUND"
 
-#define AAMP_MAX_EVENT_PRIORITY (-70) /** Maximum allowed priority value for events */
 
 /**
  * @brief Structure of X-Start HLS Tag
@@ -452,14 +452,6 @@ struct ThumbnailData {
 	double d; /**< time duration of this tile */
 	int x;    /**< x coordinate of thumbnail within tile */
 	int y;    /**< y coordinate of Thumbnail within tile */
-};
-
-/**
- * @brief  Structure of the event listener list
- */
-struct ListenerData {
-	EventListener* eventListener;   /**< Event listener */
-	ListenerData* pNext;                /**< Next listener */
 };
 
 struct SpeedCache
@@ -858,7 +850,6 @@ public:
 	double mProgressReportOffset; /**< Offset time for progress reporting */
 	double mAbsoluteEndPosition; /**< Live Edge position for absolute reporting */
 	AampConfig *mConfig;
-
 	guint id3MetadataCallbackIdleTaskId; //ID of handler created to send ID3 metadata events
 	std::atomic<bool> id3MetadataCallbackTaskPending; //Set if an id3 metadata callback is pending
 	int32_t lastId3DataLen[AAMP_TRACK_COUNT]; // last sent ID3 data length
@@ -1128,14 +1119,14 @@ public:
 	 * @return void
 	 */
 	void RemoveEventListener(AAMPEventType eventType, EventListener* eventListener);
-
 	/**
-	 * @brief Send events synchronously
+	 * @brief IsEventListenerAvailable Check if Event is registered
 	 *
-	 * @param[in] e - Event object
+	 * @param[in] eventType - Event type
 	 * @return void
 	 */
-	void SendEventAsync(AAMPEventPtr e);
+	bool IsEventListenerAvailable(AAMPEventType eventType);
+
 
 	/**
 	 * @brief Handles errors and sends events to application if required.
@@ -1186,12 +1177,14 @@ public:
 	void ResetBufUnderFlowStatus() { mBufUnderFlowStatus = false;}
 
 	/**
-	 * @brief Send events synchronously
+	 * @brief SendEvent Function to send event
 	 *
-	 * @param[in] e - Event object
+	 * @param[in] eventData - Event data
+	 * @param[in] eventMode - Sync/Async/Default mode(decided based on AsyncTuneEnabled/SourceId
 	 * @return void
 	 */
-	void SendEventSync(AAMPEventPtr e);
+
+	void SendEvent(AAMPEventPtr eventData, AAMPEventMode eventMode=AAMP_EVENT_DEFAULT_MODE);
 
 	/**
 	 * @brief Notify speed change
@@ -1693,7 +1686,18 @@ public:
 	 */
 	void RegisterEvents(EventListener* eventListener)
 	{
-		mEventListener = eventListener;
+		mEventManager->AddListenerForAllEvents(eventListener);
+	}
+
+	/**
+	 *   @brief UnRegister event listener
+	 *
+	 *   @param[in] eventListener - Handle to event listener
+	 *   @return void
+	 */
+	void UnRegisterEvents(EventListener* eventListener)
+	{
+		mEventManager->RemoveListenerForAllEvents(eventListener);
 	}
 
 	/**
@@ -2783,13 +2787,6 @@ public:
 	 */
 	void SendId3MetadataEvent(std::vector<uint8_t> &data, std::string &schIDUri, std::string &id3Value, uint32_t timeScale, uint64_t presentationTime, uint32_t eventDuration, uint32_t id, uint64_t timestampOffset);
 
-	/**
-	 * @brief Gets the registration status of a given event
-	 * @param[in] eventType - type of the event to be checked
-	 *
-	 * @retval bool - True if event is registered
-	 */
-	bool GetEventListenerStatus(AAMPEventType eventType);
 
 	/**
 	 * @brief Check if track can inject data into GStreamer.
@@ -3480,7 +3477,6 @@ private:
 	 */
 	void ResetDiscontinuityInTracks();
 
-	ListenerData* mEventListeners[AAMP_MAX_NUM_EVENTS];
 	TuneType mTuneType;
 	int m_fd;
 	bool mIsLive;				// Flag to indicate manifest type.
@@ -3524,7 +3520,7 @@ private:
 	std::string mAppName;
 	PreCacheUrlList mPreCacheDnldList;
 	bool mProgressReportFromProcessDiscontinuity; /** flag dentoes if progress reporting is in execution from ProcessPendingDiscontinuity*/
-
+	AampEventManager *mEventManager;
 	AampCacheHandler *mAampCacheHandler;
 	int mMinInitialCacheSeconds; /**< Minimum cached duration before playing in seconds*/
 	std::string mDrmInitData; // DRM init data from main manifest URL (if present)
