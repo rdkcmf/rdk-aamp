@@ -5922,7 +5922,6 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 							isFrstAvailableTxtTrackSelected = true;
 							AAMPLOG_INFO("%s:%d Selected first subtitle track, lang:%s, index:%s",
 								__FUNCTION__, __LINE__, firstAvailTextTrack->language.c_str(), firstAvailTextTrack->index.c_str());
-							aamp->SetCCStatus(false);
 						}
 						
 						// TTML selection as follows:
@@ -5948,7 +5947,6 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 						{
 							AAMPLOG_INFO("%s:%d matched default sub language %s [%d]", __FUNCTION__, __LINE__, aamp->mSubLanguage.c_str(), iAdaptationSet);
 							selAdaptationSetIndex = iAdaptationSet;
-							aamp->SetCCStatus(false);
 						}
 
 					}
