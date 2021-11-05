@@ -1996,7 +1996,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		g_object_get(stream->sinkbin, "flags", &flags, NULL);
 		AAMPLOG_WARN("playbin flags1: 0x%x", flags); // 0x617 on settop
 #if (defined(__APPLE__) || defined(NO_NATIVE_AV)) 
-		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO;
+		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_SOFT_VOLUME;;
 #elif defined (REALTEKCE)
 		flags = GST_PLAY_FLAG_VIDEO | GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_NATIVE_AUDIO | GST_PLAY_FLAG_NATIVE_VIDEO | GST_PLAY_FLAG_SOFT_VOLUME;
 #else
@@ -3259,7 +3259,7 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 		gSource = stream->sinkbin;
 		propertyName = (char*)"audio-mute";
 	}
-#if defined (REALTEKCE)
+#if (defined(__APPLE__) || defined(REALTEKCE))
 	else if (stream->sinkbin)
 	{
 		gSource = stream->sinkbin;
