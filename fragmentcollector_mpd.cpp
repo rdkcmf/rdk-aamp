@@ -4155,10 +4155,10 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		}
 		else if(mNumberOfTracks)
 		{
-			aamp->SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_PLAYLIST_INDEXED));
+			aamp->SendEvent(std::make_shared<AAMPEventObject>(AAMP_EVENT_PLAYLIST_INDEXED),AAMP_EVENT_ASYNC_MODE);
 			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == aamp->GetTuneEventConfig(mIsLiveStream))
 			{
-				if (aamp->SendTunedEvent(!aamp->GetAsyncTuneConfig()))
+				if (aamp->SendTunedEvent())
 				{
 					AAMPLOG_WARN("aamp: mpd - sent tune event after indexing playlist");
 				}

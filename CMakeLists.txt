@@ -143,6 +143,7 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     drm/aes/aamp_aes.cpp
                     aamplogging.cpp
 		    AampConfig.cpp
+		    AampEventManager.cpp
                     subtitle/webvttParser.cpp
                     isobmff/isobmffbox.cpp
                     isobmff/isobmffbuffer.cpp
@@ -537,7 +538,7 @@ install(TARGETS aamp-cli DESTINATION bin)
 install(TARGETS playbintest DESTINATION bin)
 
 install(TARGETS aamp DESTINATION lib PUBLIC_HEADER DESTINATION include PRIVATE_HEADER DESTINATION include)
-install(FILES AampEvent.h AampConfig.h AampDefine.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.h AampMediaType.h
+install(FILES AampEvent.h AampConfig.h AampEventManager.h AampDefine.h AampEventListener.h drm/AampMemorySystem.h drm/AampDRMSessionManager.h AampDrmSystems.h AampMediaType.h
   drm/AampDrmData.h drm/AampDrmInfo.h drm/AampDrmMediaFormat.h AampDrmCallbacks.h AampLogManager.h 
   drm/AampDrmSession.h drm/ClearKeyDrmSession.h drm/AampDRMutils.h drm/aampdrmsessionfactory.h
   drm/helper/AampDrmHelper.h subtitle/vttCue.h AampUtils.h

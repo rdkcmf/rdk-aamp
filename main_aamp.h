@@ -637,6 +637,13 @@ public:
 	 *   @return void
 	 */
 	void RegisterEvents(EventListener* eventListener);
+	/**
+	 *   @brief UnRegister event handler.
+	 *
+	 *   @param[in]  eventListener - pointer to implementation of EventListener to receive events.
+	 *   @return void
+	 */
+	void UnRegisterEvents(EventListener* eventListener);
 
 	/**
 	 *   @brief Specify video rectangle.

@@ -4880,7 +4880,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		//Currently un-used playlist indexed event, might save some JS overhead
 		if (!ISCONFIGSET(eAAMPConfig_DisablePlaylistIndexEvent))
 		{
-			aamp->SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_PLAYLIST_INDEXED));
+			aamp->SendEvent(std::make_shared<AAMPEventObject>(AAMP_EVENT_PLAYLIST_INDEXED),AAMP_EVENT_ASYNC_MODE);
 		}
 		if (newTune)
 		{
@@ -4899,7 +4899,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			
 			if (eTUNED_EVENT_ON_PLAYLIST_INDEXED == aamp->GetTuneEventConfig(aamp->IsLive()))
 			{
-				if (aamp->SendTunedEvent(!aamp->GetAsyncTuneConfig()))
+				if (aamp->SendTunedEvent())
 				{
 					AAMPLOG_WARN("aamp: hls - sent tune event after indexing playlist");
 				}

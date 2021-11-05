@@ -450,44 +450,6 @@ static gboolean PrivateInstanceAAMP_Retune(gpointer ptr)
 	return G_SOURCE_REMOVE;
 }
 
-/**
- * @brief Function invoked at the end of idle task for freeing resources
- * @param user_data pointer to AsyncEventDescriptor object
- */
-static void AsyncEventDestroyNotify(gpointer user_data)
-{
-	AsyncEventDescriptor* e = (AsyncEventDescriptor*)user_data;
-	SAFE_DELETE(e);
-}
-
-/**
- * @brief Idle task for sending asynchronous event
- * @param user_data pointer to AsyncEventDescriptor object
- * @retval G_SOURCE_REMOVE
- */
-static gboolean SendAsynchronousEvent(gpointer user_data)
-{
-	//TODO protect mEventListener
-	AsyncEventDescriptor* e = (AsyncEventDescriptor*)user_data;
-	PrivAAMPState state;
-	e->aamp->GetState(state);
-	if ((state != eSTATE_IDLE) && (state != eSTATE_RELEASED)) 
-	{
-		//Get current idle handler's id
-		guint callbackID = aamp_GetSourceID();
-		if (callbackID != 0)
-		{
-			e->aamp->SetCallbackAsDispatched(callbackID);
-		}
-		else
-		{
-			AAMPLOG_ERR("PrivateInstanceAAMP: [type = %d] aamp_GetSourceID returned zero, which is unexpected behavior!", e->event->getType());
-			assert(false);
-		}	
-		e->aamp->SendEventSync(e->event);
-	}
-	return G_SOURCE_REMOVE;
-}
 
 /**
  * @brief Simulate VOD asset as a "virtual linear" stream.
@@ -1398,24 +1360,6 @@ static void curl_unlock_callback(CURL *curl, curl_lock_data data, curl_lock_acce
 	pthread_mutex_unlock(&gCurlInitMutex);
 }
 
-/**
- * @brief Idle callback to notify ID3 metadata event
- * @param[in] user_data pointer to Id3CallbackData object containing AAMPGstPlayer instance
- * @retval G_SOURCE_REMOVE, if the source should be removed
- */
-static gboolean IdleCallbackOnId3Metadata(gpointer user_data)
-{
-        Id3CallbackData *id3 = (Id3CallbackData*)user_data;
-
-        id3->aamp->SendId3MetadataEvent(id3->data, id3->schemeIdUri, id3->value, id3->timeScale, id3->presentationTime, id3->eventDuration, id3->id, id3->timestampOffset);
-        id3->aamp->id3MetadataCallbackTaskPending = false;
-        id3->aamp->id3MetadataCallbackIdleTaskId = 0;
-
-        SAFE_DELETE(id3);
-
-        return G_SOURCE_REMOVE;
-}
-
 // End of curl callback functions
 
 /**
@@ -1488,7 +1432,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mAuxFormat(FORMAT_INVALID), mAuxAudioLanguage()
 	, mAbsoluteEndPosition(0), mIsLiveStream(false)
 	, mbUsingExternalPlayer (false)
-	, id3MetadataCallbackIdleTaskId(0),	id3MetadataCallbackTaskPending(false)
 	, mCCId(0)
 	, seiTimecode()
 	, contentGaps()
@@ -1508,6 +1451,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mDiscoCompleteLock()
 	, mIsPeriodChangeMarked(false)
 	, mLogObj(NULL)
+	, mEventManager (NULL)
 {
 	for(int i=0; i<AAMP_TRACK_COUNT; i++)
 	{
@@ -1521,6 +1465,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	AampCCManager::GetInstance()->SetLogger(mConfig->GetLoggerInstance());
 #endif
 	profiler.SetLogger(mConfig->GetLoggerInstance());
+	// Create the event manager for player instance 
+	mEventManager = new AampEventManager(mLogObj);
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
 	int maxDrmSession;
 	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxDASHDRMSessions,maxDrmSession);
@@ -1554,10 +1500,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 		httpRespHeaders[i].type = eHTTPHEADERTYPE_UNKNOWN;
 		httpRespHeaders[i].data.clear();
 		curlDLTimeout[i] = 0;
-	}
-	for (int i = 0; i < AAMP_MAX_NUM_EVENTS; i++)
-	{
-		mEventListeners[i] = NULL;
 	}
 
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
@@ -1625,15 +1567,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_mutex_unlock(&gMutex);
 
 	pthread_mutex_lock(&mLock);
-	for (int i = 0; i < AAMP_MAX_NUM_EVENTS; i++)
-	{
-		while (mEventListeners[i] != NULL)
-		{
-			ListenerData* pListener = mEventListeners[i];
-			mEventListeners[i] = pListener->pNext;
-			SAFE_DELETE(pListener);
-		}
-	}
+
 #ifdef SESSION_STATS
 	SAFE_DELETE(mVideoEnd);
 #endif
@@ -1668,6 +1602,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 #ifdef IARM_MGR
 	IARM_Bus_RemoveEventHandler("NET_SRV_MGR", IARM_BUS_NETWORK_MANAGER_EVENT_INTERFACE_IPADDRESS, getActiveInterfaceEventHandler);
 #endif //IARM_MGR
+	SAFE_DELETE(mEventManager);
 }
 
 /**
@@ -1836,11 +1771,11 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 
 			if (sync)
 			{
-				SendEventSync(evt);
+				mEventManager->SendEvent(evt,AAMP_EVENT_SYNC_MODE);
 			}
 			else
 			{
-				SendEventAsync(evt);
+				mEventManager->SendEvent(evt);
 			}
 		}
 
@@ -1869,11 +1804,11 @@ void PrivateInstanceAAMP::ReportAdProgress(bool sync)
 		AdPlacementEventPtr evt = std::make_shared<AdPlacementEvent>(AAMP_EVENT_AD_PLACEMENT_PROGRESS, mAdProgressId, (uint32_t)(mAdCurOffset * 100) / mAdDuration);
 		if(sync)
 		{
-			SendEventSync(evt);
+			mEventManager->SendEvent(evt,AAMP_EVENT_SYNC_MODE);
 		}
 		else
 		{
-			SendEventAsync(evt);
+			mEventManager->SendEvent(evt);
 		}
 	}
 }
@@ -2039,20 +1974,7 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
  */
 void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
-	//logprintf("[AAMP_JS] %s(%d, %p)", __FUNCTION__, eventType, eventListener);
-	if ((eventListener != NULL) && (eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
-	{
-		ListenerData* pListener = new ListenerData;
-		if (pListener)
-		{
-			//logprintf("[AAMP_JS] %s(%d, %p) new %p", __FUNCTION__, eventType, eventListener, pListener);
-			pthread_mutex_lock(&mLock);
-			pListener->eventListener = eventListener;
-			pListener->pNext = mEventListeners[eventType];
-			mEventListeners[eventType] = pListener;
-			pthread_mutex_unlock(&mLock);
-		}
-	}
+	mEventManager->AddEventListener(eventType,eventListener);
 }
 
 
@@ -2063,25 +1985,16 @@ void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, EventListene
  */
 void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
-	if ((eventListener != NULL) && (eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
-	{
-		pthread_mutex_lock(&mLock);
-		ListenerData** ppLast = &mEventListeners[eventType];
-		while (*ppLast != NULL)
-		{
-			ListenerData* pListener = *ppLast;
-			if (pListener->eventListener == eventListener)
-			{
-				*ppLast = pListener->pNext;
-				pthread_mutex_unlock(&mLock);
-				AAMPLOG_INFO("[AAMP_JS] (%d, %p) delete %p", eventType, eventListener, pListener);
-				SAFE_DELETE(pListener);
-				return;
-			}
-			ppLast = &(pListener->pNext);
-		}
-		pthread_mutex_unlock(&mLock);
-	}
+	mEventManager->RemoveEventListener(eventType,eventListener);
+}
+
+/**
+ * @brief Check if IsEventListenerAvailable for any event
+ * @param eventType
+ */
+bool PrivateInstanceAAMP::IsEventListenerAvailable(AAMPEventType eventType)
+{
+	return mEventManager->IsEventListenerAvailable(eventType);
 }
 
 /**
@@ -2211,7 +2124,7 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure, lo
  */
 void PrivateInstanceAAMP::SendAnomalyEvent(AAMPAnomalyMessageType type, const char* format, ...)
 {
-	if(NULL != format)
+	if(NULL != format && mEventManager->IsEventListenerAvailable(AAMP_EVENT_REPORT_ANOMALY))
 	{
 		va_list args;
 		va_start(args, format);
@@ -2224,7 +2137,7 @@ void PrivateInstanceAAMP::SendAnomalyEvent(AAMPAnomalyMessageType type, const ch
 		AnomalyReportEventPtr e = std::make_shared<AnomalyReportEvent>(type, msgData);
 
 		AAMPLOG_INFO("Anomaly evt:%d msg:%s", e->getSeverity(), msgData);
-		SendEventAsync(e);
+		SendEvent(e,AAMP_EVENT_ASYNC_MODE);
 		va_end(args);  //CID:82734 - VARAGAS
 	}
 }
@@ -2257,7 +2170,7 @@ void PrivateInstanceAAMP::SendBufferChangeEvent(bool bufferingStopped)
 
 	SetBufUnderFlowStatus(bufferingStopped);
 	AAMPLOG_INFO("PrivateInstanceAAMP: Sending Buffer Change event status (Buffering): %s", (e->buffering() ? "Start": "End"));
-	SendEventAsync(e);
+	SendEvent(e,AAMP_EVENT_ASYNC_MODE);
 }
 
 /**
@@ -2347,7 +2260,7 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 			NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE, false); // During trick play if the playback failed, send speed change event to XRE to reset its current speed rate.
 		}
 
-		SendEventAsync(e);
+		SendEvent(e,AAMP_EVENT_ASYNC_MODE);
 	}
 	else
 	{
@@ -2357,105 +2270,14 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 
 
 /**
- * @brief Send event asynchronously to listeners
+ * @brief Send event  to listeners
+ * @param eventData event
+ * @param bForceSyncEvent Flag to Send event synchronously
  * @param e event
  */
-void PrivateInstanceAAMP::SendEventAsync(AAMPEventPtr e)
+void PrivateInstanceAAMP::SendEvent(AAMPEventPtr eventData, AAMPEventMode eventMode)
 {
-	AAMPEventType eventType = e->getType();
-	if (mEventListener || mEventListeners[0] || mEventListeners[eventType])
-	{
-		AsyncEventDescriptor* aed = new AsyncEventDescriptor();
-		aed->event = e;
-		ScheduleEvent(aed);
-		if(eventType != AAMP_EVENT_PROGRESS)
-		{
-			if(eventType != AAMP_EVENT_STATE_CHANGED)
-			{
-				AAMPLOG_INFO("[AAMP_JS] (type=%d)", eventType);
-			}
-			else
-			{
-				AAMPLOG_WARN("[AAMP_JS] (type=%d)(state=%d)", eventType, std::dynamic_pointer_cast<StateChangedEvent>(e)->getState());
-			}
-		}
-	}
-	else
-	{
-		AAMPLOG_INFO("PrivateInstanceAAMP: Failed to send event type  %d", eventType);
-	}
-}
-
-
-/**
- * @brief Send event synchronously to listeners
- * @param e event
- */
-void PrivateInstanceAAMP::SendEventSync(AAMPEventPtr e)
-{
-	AAMPEventType eventType = e->getType();
-	if (eventType != AAMP_EVENT_PROGRESS)
-	{
-		if (eventType != AAMP_EVENT_STATE_CHANGED)
-		{
-			AAMPLOG_INFO("[AAMP_JS] (type=%d)", eventType);
-		}
-		else
-		{
-			AAMPLOG_WARN("[AAMP_JS] (type=%d)(state=%d)", eventType, std::dynamic_pointer_cast<StateChangedEvent>(e)->getState());
-		}
-	}
-	if (0 == aamp_GetSourceID())
-	{
-		AAMPLOG_ERR("PrivateInstanceAAMP: [type = %d] aamp_GetSourceID returned zero, which is unexpected behavior!", eventType);
-		assert(false);
-	}
-
-	//TODO protect mEventListener
-	if (mEventListener)
-	{
-		mEventListener->SendEvent(e);
-	}
-
-	if ((eventType < 0) || (eventType >= AAMP_MAX_NUM_EVENTS))  //CID:81883 - Resolve OVER_RUN
-		return;
-
-	// Build list of registered event listeners.
-	ListenerData* pList = NULL;
-	pthread_mutex_lock(&mLock);
-	ListenerData* pListener = mEventListeners[eventType];
-	while (pListener != NULL)
-	{
-		ListenerData* pNew = new ListenerData;
-		pNew->eventListener = pListener->eventListener;
-		pNew->pNext = pList;
-		pList = pNew;
-		pListener = pListener->pNext;
-	}
-	pListener = mEventListeners[0];  // listeners registered for "all" event types
-	while (pListener != NULL)
-	{
-		ListenerData* pNew = new ListenerData;
-		pNew->eventListener = pListener->eventListener;
-		pNew->pNext = pList;
-		pList = pNew;
-		pListener = pListener->pNext;
-	}
-	pthread_mutex_unlock(&mLock);
-
-	// After releasing the lock, dispatch each of the registered listeners.
-	// This allows event handlers to add/remove listeners for future events.
-	while (pList != NULL)
-	{
-		ListenerData* pCurrent = pList;
-		if (pCurrent->eventListener != NULL)
-		{
-			//logprintf("[AAMP_JS] %s(type=%d) listener=%p", __FUNCTION__, eventType, pCurrent->eventListener);
-			pCurrent->eventListener->SendEvent(e);
-		}
-		pList = pCurrent->pNext;
-		SAFE_DELETE(pCurrent);
-	}
+	mEventManager->SendEvent(eventData, eventMode);
 }
 
 /**
@@ -2468,10 +2290,9 @@ void PrivateInstanceAAMP::SendEventSync(AAMPEventPtr e)
  */
 void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double frameRate, double position, bool GetBWIndex, VideoScanType scantype, int aspectRatioWidth, int aspectRatioHeight)
 {
-	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_BITRATE_CHANGED])
+	if(mEventManager->IsEventListenerAvailable(AAMP_EVENT_BITRATE_CHANGED))
 	{
-		AsyncEventDescriptor* e = new AsyncEventDescriptor();
-		e->event = std::make_shared<BitrateChangeEvent>((int)aamp_GetCurrentTimeMS(), bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mProfileCappedStatus, mDisplayWidth, mDisplayHeight, scantype, aspectRatioWidth, aspectRatioHeight);
+		AAMPEventPtr event = std::make_shared<BitrateChangeEvent>((int)aamp_GetCurrentTimeMS(), bitrate, BITRATEREASON2STRING(reason), width, height, frameRate, position, mProfileCappedStatus, mDisplayWidth, mDisplayHeight, scantype, aspectRatioWidth, aspectRatioHeight);
 
 		/* START: Added As Part of DELIA-28363 and DELIA-28247 */
 		if(GetBWIndex)
@@ -2486,7 +2307,7 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeRea
 		}
 		/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
-		ScheduleEvent(e);
+		SendEvent(event,AAMP_EVENT_ASYNC_MODE);
 	}
 	else
 	{
@@ -2544,11 +2365,11 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 	if(ISCONFIGSET_PRIV(eAAMPConfig_RepairIframes))
 	{
 		AAMPLOG_WARN("mRepairIframes is set, sending pseudo rate %d for the actual rate %d", getPseudoTrickplayRate(rate), rate);
-		SendEventAsync(std::make_shared<SpeedChangedEvent>(getPseudoTrickplayRate(rate)));
+		SendEvent(std::make_shared<SpeedChangedEvent>(getPseudoTrickplayRate(rate)),AAMP_EVENT_ASYNC_MODE);
 	}
 	else
 	{
-		SendEventAsync(std::make_shared<SpeedChangedEvent>(rate));
+		SendEvent(std::make_shared<SpeedChangedEvent>(rate),AAMP_EVENT_ASYNC_MODE);
 	}
 }
 
@@ -2558,7 +2379,7 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
  */
 void PrivateInstanceAAMP::SendDRMMetaData(DrmMetaDataEventPtr e)
 {
-        SendEventAsync(e);
+	SendEvent(e,AAMP_EVENT_ASYNC_MODE);
         AAMPLOG_WARN("SendDRMMetaData name = %s value = %x", e->getAccessStatus().c_str(), e->getAccessStatusValue());
 }
 
@@ -2652,7 +2473,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		SyncEnd();
 
 		// To notify app of discontinuity processing complete
-		ReportProgress(!GetAsyncTuneConfig());
+		ReportProgress();
 
 		// There is a chance some other operation maybe invoked from JS/App because of the above ReportProgress
 		// Make sure we have still mDiscontinuityTuneOperationInProgress set
@@ -2719,7 +2540,7 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 		if (!isLive && rate > 0)
 		{
 			SetState(eSTATE_COMPLETE);
-			SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_EOS));
+			SendEvent(std::make_shared<AAMPEventObject>(AAMP_EVENT_EOS),AAMP_EVENT_ASYNC_MODE);
 			if (ContentType_EAS == mContentType) //Fix for DELIA-25590
 			{
 				mStreamSink->Stop(false);
@@ -2766,21 +2587,8 @@ void PrivateInstanceAAMP::NotifyOnEnteringLive()
 	{
 		return;
 	}
-	SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_ENTERING_LIVE));
+	SendEvent(std::make_shared<AAMPEventObject>(AAMP_EVENT_ENTERING_LIVE),AAMP_EVENT_ASYNC_MODE);
 }
-
-/**
- * @brief Schedule asynchronous event
- * @param e event descriptor
- */
-void PrivateInstanceAAMP::ScheduleEvent(AsyncEventDescriptor* e)
-{
-	//TODO protect mEventListener
-	e->aamp = shared_from_this();
-	guint callbackID = g_idle_add_full(mEventPriority, SendAsynchronousEvent, e, AsyncEventDestroyNotify);
-	SetCallbackAsPending(callbackID);
-}
-
 /**
  * @brief Send tune events to receiver
  *
@@ -2796,9 +2604,11 @@ void PrivateInstanceAAMP::sendTuneMetrics(bool success)
 	//for now, avoid use of AAMPLOG_WARN, to avoid potential truncation when URI in tune profiling or
 	//extra events push us over limit
 	AAMPLOG_WARN("tune-profiling: %s", eventsJSON.c_str());
-
-	TuneProfilingEventPtr e = std::make_shared<TuneProfilingEvent>(eventsJSON);
-	SendEventAsync(e);
+	if(mEventManager->IsEventListenerAvailable(AAMP_EVENT_TUNE_PROFILING))
+	{
+		TuneProfilingEventPtr e = std::make_shared<TuneProfilingEvent>(eventsJSON);
+		SendEvent(e,AAMP_EVENT_ASYNC_MODE);
+	}
 }
 
 /**
@@ -4493,14 +4303,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		if (!ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			CCHandleEventPtr event = std::make_shared<CCHandleEvent>(0);
-			if (!GetAsyncTuneConfig())
-			{
-				SendEventSync(event);
-			}
-			else
-			{
-				SendEventAsync(event);
-			}
+			mEventManager->SendEvent(event);
 			AAMPLOG_WARN("Sent AAMP_EVENT_CC_HANDLE_RECEIVED with NULL handle");
 		}
 #else
@@ -5037,7 +4840,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING,eAAMPConfig_LicenseServerUrl,std::string(remapLicenseUrl));
 		}
 	}
-	
+	mEventManager->SetPlayerState(eSTATE_IDLE);
 	mConfig->CustomSearch(mainManifestUrl,mPlayerId,mAppName);
 
 	mConfig->logging.setLogLevel(eLOGLEVEL_INFO);
@@ -5075,7 +4878,9 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 #ifdef AAMP_RFC_ENABLED
 	schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
 #endif
-
+	// Set the EventManager config
+	// TODO When faketune code is added later , push the faketune status here 
+	mEventManager->SetAsyncTuneState(mAsyncTuneEnabled);
 	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
 	{
@@ -6539,6 +6344,10 @@ bool PrivateInstanceAAMP::IsLiveStream()
  */
 void PrivateInstanceAAMP::Stop()
 {
+	// Clear all the player events in the queue and sets its state to RELEASED as everything is done
+	mEventManager->SetPlayerState(eSTATE_RELEASED);
+	mEventManager->FlushPendingEvents();
+
 	pthread_mutex_lock(&gMutex);
 	for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
 	{
@@ -6579,6 +6388,7 @@ void PrivateInstanceAAMP::Stop()
 
 	TeardownStream(true);
 
+<<<<<<< HEAD
 	if (id3MetadataCallbackTaskPending)
 	{
 		AAMPLOG_WARN("Remove id3MetadataCallbackIdleTaskId %d", id3MetadataCallbackIdleTaskId);
@@ -6588,6 +6398,9 @@ void PrivateInstanceAAMP::Stop()
 	}
 
 	for(int i=0; i<AAMP_TRACK_COUNT; i++)
+=======
+	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
+>>>>>>> 63e65656... DELIA-53114: [AAMP] Event Handling stability and Code refactoring
 	{
 		FlushLastId3Data((MediaType)i);
 	}
@@ -6752,14 +6565,7 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 				}
 				// Sending BulkTimedMetaData event as synchronous event.
 				// SCTE35 events are async events in TimedMetadata, and this event is sending only from HLS
-				if (!GetAsyncTuneConfig())
-				{
-					SendEventSync(eventData);
-				}
-				else
-				{
-					SendEventAsync(eventData);
-				}
+				mEventManager->SendEvent(eventData);
 				free(bulkData);
 			}
 			cJSON_Delete(root);
@@ -6842,14 +6648,13 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 			AAMPLOG_WARN("aamp timedMetadata: [%ld] '%s'", (long)(timeMilliseconds), content.c_str());
 		}
 
-
-		if (!bSyncCall || GetAsyncTuneConfig() || 0 == aamp_GetSourceID())
+		if (!bSyncCall)
 		{
-			SendEventAsync(eventData);
+			mEventManager->SendEvent(eventData,AAMP_EVENT_ASYNC_MODE);
 		}
 		else
 		{
-			SendEventSync(eventData);
+			mEventManager->SendEvent(eventData,AAMP_EVENT_SYNC_MODE);
 		}
 	}
 }
@@ -6930,14 +6735,7 @@ void PrivateInstanceAAMP::ReportContentGap(long long timeMilliseconds, std::stri
 	{
 		ContentGapEventPtr eventData = std::make_shared<ContentGapEvent>(timeMilliseconds, durationMS);
 		AAMPLOG_INFO("aamp contentGap: start: %lld duration: %ld", timeMilliseconds, (long) durationMS);
-		if (GetAsyncTuneConfig() || aamp_GetSourceID() == 0)
-		{
-			SendEventAsync(eventData);
-		}
-		else
-		{
-			SendEventSync(eventData);
-		}
+		mEventManager->SendEvent(eventData);
 	}
 }
 
@@ -6959,7 +6757,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 	if (eTUNED_EVENT_ON_GST_PLAYING == GetTuneEventConfig(IsLive()))
 	{
 		// This is an idle callback, so we can sent event synchronously
-		if (SendTunedEvent(!mAsyncTuneEnabled))
+		if (SendTunedEvent())
 		{
 			AAMPLOG_WARN("aamp: - sent tune event on Tune Completion.");
 		}
@@ -6983,14 +6781,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 #endif
 		{
 			CCHandleEventPtr event = std::make_shared<CCHandleEvent>(mStreamSink->getCCDecoderHandle());
-			if (mAsyncTuneEnabled)
-			{
-				SendEventAsync(event);				
-			}
-			else
-			{
-				SendEventSync(event);
-			}
+			mEventManager->SendEvent(event);
 		}
 	}
 }
@@ -7202,60 +6993,35 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
  */
 void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 {
-	bool sentSync = true;
+	//bool sentSync = true;
 
 	if (mState == state)
 	{ // noop
 		return;
 	}
 
-	if (0 == aamp_GetSourceID())
-	{
-		sentSync = false;
-	}
-
 	if ( (state == eSTATE_PLAYING || state == eSTATE_BUFFERING || state == eSTATE_PAUSED)
-		 && mState == eSTATE_SEEKING && (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_SEEKED]))
+		&& mState == eSTATE_SEEKING && (mEventManager->IsEventListenerAvailable(AAMP_EVENT_SEEKED)))
 	{
 		SeekedEventPtr event = std::make_shared<SeekedEvent>(GetPositionMilliseconds());
-		if (sentSync)
-		{
-			SendEventSync(event);
-		}
-		else
-		{
-			SendEventAsync(event);
-		}
+		mEventManager->SendEvent(event,AAMP_EVENT_SYNC_MODE);
+
 	}
 
 	pthread_mutex_lock(&mLock);
 	mState = state;
 	pthread_mutex_unlock(&mLock);
 
-	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_STATE_CHANGED])
+	if (mEventManager->IsEventListenerAvailable(AAMP_EVENT_STATE_CHANGED))
 	{
 		if (mState == eSTATE_PREPARING)
 		{
 			StateChangedEventPtr eventData = std::make_shared<StateChangedEvent>(eSTATE_INITIALIZED);
-			if (sentSync)
-			{
-				SendEventSync(eventData);
-			}
-			else
-			{
-				SendEventAsync(eventData);
-			}
+			mEventManager->SendEvent(eventData,AAMP_EVENT_SYNC_MODE);
 		}
 
 		StateChangedEventPtr eventData = std::make_shared<StateChangedEvent>(mState);
-		if (sentSync)
-		{
-			SendEventSync(eventData);
-		}
-		else
-		{
-			SendEventAsync(eventData);
-		}
+		mEventManager->SendEvent(eventData,AAMP_EVENT_SYNC_MODE);
 	}
 }
 
@@ -7342,14 +7108,7 @@ bool PrivateInstanceAAMP::SendTunedEvent(bool isSynchronous)
 	if(ret)
 	{
 		AAMPEventPtr ev = std::make_shared<AAMPEventObject>(AAMP_EVENT_TUNED);
-		if (isSynchronous)
-		{
-			SendEventSync(ev);
-		}
-		else
-		{
-			SendEventAsync(ev);
-		}
+		mEventManager->SendEvent(ev , AAMP_EVENT_SYNC_MODE);
 	}
 	return ret;
 }
@@ -7363,6 +7122,7 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 {
 	bool ret = false;
 #ifdef SESSION_STATS
+	if(mEventManager->IsEventListenerAvailable(AAMP_EVENT_REPORT_METRICS_DATA)) {
 	char * strVideoEndJson = NULL;
 	// Required for protecting mVideoEnd object
 	pthread_mutex_lock(&mLock);
@@ -7411,9 +7171,10 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 	{
 		AAMPLOG_INFO("VideoEnd:%s", strVideoEndJson);
 		MetricsDataEventPtr e = std::make_shared<MetricsDataEvent>(MetricsDataType::AAMP_DATA_VIDEO_END, this->mTraceUUID, strVideoEndJson);
-		SendEventAsync(e);
+		SendEvent(e,AAMP_EVENT_ASYNC_MODE);
 		free(strVideoEndJson);
 		ret = true;
+	}
 	}
 #endif
 	return ret;
@@ -8148,7 +7909,7 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 		event->addSupportedSpeed(1);
 	}
 
-	SendEventAsync(event);
+	SendEvent(event,AAMP_EVENT_ASYNC_MODE);
 }
 
 /**
@@ -8178,7 +7939,7 @@ void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPres
 	}
 
 	AAMPLOG_WARN("aamp: sending supported speeds changed event with count %d", event->getSupportedSpeedCount());
-	SendEventAsync(event);
+	SendEvent(event,AAMP_EVENT_ASYNC_MODE);
 }
 
 /**
@@ -8189,7 +7950,7 @@ void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPres
 void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 {
 	BlockedEventPtr event = std::make_shared<BlockedEvent>(reason);
-	SendEventAsync(event);
+	SendEvent(event,AAMP_EVENT_ASYNC_MODE);
 #ifdef AAMP_CC_ENABLED
 	if (0 == reason.compare("SERVICE_PIN_LOCKED"))
 	{
@@ -8200,7 +7961,6 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 	}
 #endif
 }
-
 
 /**
  *   @brief To check if tune operation completed
@@ -8277,7 +8037,7 @@ void PrivateInstanceAAMP::SendAdResolvedEvent(const std::string &adId, bool stat
 	{
 		AdResolvedEventPtr e = std::make_shared<AdResolvedEvent>(status, adId, startMS, durationMs);
 		AAMPLOG_WARN("PrivateInstanceAAMP: [CDAI] Sent resolved status=%d for adId[%s]", status, adId.c_str());
-		SendEventAsync(e);
+		SendEvent(e,AAMP_EVENT_ASYNC_MODE);
 	}
 }
 
@@ -8292,11 +8052,11 @@ void PrivateInstanceAAMP::DeliverAdEvents(bool immediate)
 		AAMPEventPtr e = mAdEventsQ.front();
 		if(immediate)
 		{
-			SendEventAsync(e); 	//Need to send all events from gst idle thread.
+			mEventManager->SendEvent(e,AAMP_EVENT_SYNC_MODE);
 		}
 		else
 		{
-			SendEventSync(e);	//Already from gst idle thread
+			mEventManager->SendEvent(e,AAMP_EVENT_ASYNC_MODE);
 		}
 		AAMPEventType evtType = e->getType();
 		AAMPLOG_WARN("PrivateInstanceAAMP:, [CDAI] Delivered AdEvent[%s] to JSPP.", ADEVENT2STRING(evtType));
@@ -8619,10 +8379,10 @@ void PrivateInstanceAAMP::NotifyVideoBasePTS(unsigned long long basepts, unsigne
 void PrivateInstanceAAMP::SendVTTCueDataAsEvent(VTTCue* cue)
 {
 	//This function is called from an idle handler and hence we call SendEventSync
-	if (mEventListener || mEventListeners[0] || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA])
+	if (mEventManager->IsEventListenerAvailable(AAMP_EVENT_WEBVTT_CUE_DATA))
 	{
 		WebVttCueEventPtr ev = std::make_shared<WebVttCueEvent>(cue);
-		SendEventSync(ev);
+		mEventManager->SendEvent(ev,AAMP_EVENT_SYNC_MODE);
 	}
 }
 
@@ -8635,7 +8395,7 @@ bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 {
 	// Assumption being that enableSubtec and event listener will not be registered at the same time
 	// in which case subtec gets priority over event listener
-	return (ISCONFIGSET_PRIV(eAAMPConfig_Subtec_subtitle)  || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA] != NULL);
+	return (ISCONFIGSET_PRIV(eAAMPConfig_Subtec_subtitle)  || 	mEventManager->IsEventListenerAvailable(AAMP_EVENT_WEBVTT_CUE_DATA));
 	//(!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
 }
 
@@ -8646,7 +8406,7 @@ bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
  */
 bool PrivateInstanceAAMP::WebVTTCueListenersRegistered(void)
 {
-	return (mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA] != NULL);
+	return mEventManager->IsEventListenerAvailable(AAMP_EVENT_WEBVTT_CUE_DATA);
 }
 
 /**
@@ -8665,9 +8425,10 @@ void PrivateInstanceAAMP::GetCustomLicenseHeaders(std::unordered_map<std::string
  *   @param[in] data pointer to ID3 metadata.
  *   @param[in] length length of ID3 metadata.
  */
-void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data, std::string &schIDUri, std::string &id3Value, uint32_t timeScale, uint64_t presentationTime, uint32_t eventDuration, uint32_t id, uint64_t timestampOffset)
+void PrivateInstanceAAMP::SendId3MetadataEvent(Id3CallbackData* id3Metadata)
 {
-	ID3MetadataEventPtr e = std::make_shared<ID3MetadataEvent>(data, schIDUri, id3Value, timeScale, presentationTime, eventDuration, id, timestampOffset);
+	if(id3Metadata) {
+	ID3MetadataEventPtr e = std::make_shared<ID3MetadataEvent>(id3Metadata->data, id3Metadata->schemeIdUri, id3Metadata->value, id3Metadata->timeScale, id3Metadata->presentationTime, id3Metadata->eventDuration, id3Metadata->id, id3Metadata->timestampOffset);
 	if (ISCONFIGSET_PRIV(eAAMPConfig_ID3Logging))
 	{
 		std::vector<uint8_t> metadata = e->getMetadata();
@@ -8701,32 +8462,9 @@ void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data, std::
 			AAMPLOG_WARN("ID3 log was truncated, original size %d (printable %d)" , metadataLen, printableLen);
 		}
 	}
-
-	if (mAsyncTuneEnabled)
-	{
-		SendEventAsync(e);
-	}
-	else
-	{
-		SendEventSync(e);
+	mEventManager->SendEvent(e,AAMP_EVENT_ASYNC_MODE);
 	}
 }
-
-/**
- * @brief Gets the listener registration status of a given event
- * @param[in] eventType - type of the event to be checked
- *
- * @retval bool - True if an event listener for the event type exists
- */
-bool PrivateInstanceAAMP::GetEventListenerStatus(AAMPEventType eventType)
-{
-	if (mEventListeners[eventType] != NULL)
-	{
-		return true;
-	}
-	return false;
-}
-
 /**
  *   @brief Sending a flushing seek to stream sink with given position
  *
@@ -9054,7 +8792,7 @@ std::string PrivateInstanceAAMP::GetAppName()
 void PrivateInstanceAAMP::individualization(const std::string& payload)
 {
 	DrmMessageEventPtr event = std::make_shared<DrmMessageEvent>(payload);
-	SendEventAsync(event);
+	SendEvent(event,AAMP_EVENT_ASYNC_MODE);
 }
 
 /**
@@ -9404,7 +9142,7 @@ void PrivateInstanceAAMP::SetCCStatus(bool enabled)
  */
 void PrivateInstanceAAMP::NotifyAudioTracksChanged()
 {
-	SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_AUDIO_TRACKS_CHANGED));
+	SendEvent(std::make_shared<AAMPEventObject>(AAMP_EVENT_AUDIO_TRACKS_CHANGED),AAMP_EVENT_ASYNC_MODE);
 }
 
 /**
@@ -9414,7 +9152,7 @@ void PrivateInstanceAAMP::NotifyAudioTracksChanged()
  */
 void PrivateInstanceAAMP::NotifyTextTracksChanged()
 {
-	SendEventAsync(std::make_shared<AAMPEventObject>(AAMP_EVENT_TEXT_TRACKS_CHANGED));
+	SendEvent(std::make_shared<AAMPEventObject>(AAMP_EVENT_TEXT_TRACKS_CHANGED),AAMP_EVENT_ASYNC_MODE);
 }
 
 /**
@@ -9957,7 +9695,7 @@ bool PrivateInstanceAAMP::hasId3Header(const uint8_t* data, uint32_t length)
 void PrivateInstanceAAMP::ProcessID3Metadata(char *segment, size_t size, MediaType type, uint64_t timeStampOffset)
 {
 	// Logic for ID3 metadata
-	if(segment)
+	if(segment && mEventManager->IsEventListenerAvailable(AAMP_EVENT_ID3_METADATA))
 	{
 		IsoBmffBuffer buffer(mLogObj);
 		buffer.setBuffer((uint8_t *)segment, size);
@@ -10015,13 +9753,8 @@ void PrivateInstanceAAMP::ReportID3Metadata(MediaType mediaType, const uint8_t* 
 		memcpy(lastId3Data[mediaType], ptr, len);
 	}
 
-	this->id3MetadataCallbackTaskPending = true;
-	this->id3MetadataCallbackIdleTaskId = ScheduleAsyncTask(IdleCallbackOnId3Metadata, (void *)id3Metadata);
-	if (!this->id3MetadataCallbackTaskPending)
-	{
-		AAMPLOG_WARN("id3MetadataCallbackTask already finished, reset id");
-		this->id3MetadataCallbackIdleTaskId = 0;
-	}
+	SendId3MetadataEvent(id3Metadata);
+	SAFE_DELETE(id3Metadata);
 }
 
 /**

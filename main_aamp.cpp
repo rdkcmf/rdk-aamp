@@ -370,6 +370,16 @@ void PlayerInstanceAAMP::RegisterEvents(EventListener* eventListener)
 }
 
 /**
+ *   @brief UnRegister event handler.
+ *
+ *   @param  eventListener - pointer to implementation of EventListener to receive events.
+ */
+void PlayerInstanceAAMP::UnRegisterEvents(EventListener* eventListener)
+{
+	aamp->UnRegisterEvents(eventListener);
+}
+
+/**
  * @brief Set retry limit on Segment injection failure.
  *
  */
