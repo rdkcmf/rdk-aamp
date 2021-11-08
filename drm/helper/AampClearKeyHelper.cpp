@@ -132,11 +132,11 @@ bool AampClearKeyHelperFactory::isDRM(const struct DrmInfo& drmInfo) const
 		);
 }
 
-std::shared_ptr<AampDrmHelper> AampClearKeyHelperFactory::createHelper(const struct DrmInfo& drmInfo) const
+std::shared_ptr<AampDrmHelper> AampClearKeyHelperFactory::createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj) const
 {
 	if (isDRM(drmInfo))
 	{
-		return std::make_shared<AampClearKeyHelper>(drmInfo);
+		return std::make_shared<AampClearKeyHelper>(drmInfo,logObj);
 	}
 	return NULL;
 }

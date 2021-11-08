@@ -39,7 +39,7 @@ using namespace WPEFramework;
 class ThunderAccessAAMP
 {
 public:
-    ThunderAccessAAMP(std::string callsign);
+    ThunderAccessAAMP(std::string callsign, AampLogManager *logObj=NULL);
     ~ThunderAccessAAMP();
     // Copy constructor and Copy assignment disabled
     ThunderAccessAAMP(const ThunderAccessAAMP&) = delete;
@@ -56,5 +56,6 @@ private:
     /*The Remote object connected to controller Plugin*/
     JSONRPC::LinkType<Core::JSON::IElement> *controllerObject;
     std::string pluginCallsign;
+    AampLogManager *mLogObj;
 };
 #endif // THUNDERACCESS_H_

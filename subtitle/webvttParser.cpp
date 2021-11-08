@@ -117,7 +117,7 @@ static long long convertHHMMSSToTime(char *str)
 
 	if (argCount == 1)
 	{
-		AAMPLOG_ERR("%s:%d Unsupported value received!", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("Unsupported value received!");
 	}
 	//HH:MM:SS.MS
 	else
@@ -160,7 +160,7 @@ static gboolean SendVttCueToExt(gpointer user_data)
 * @param type[in] VTT data type
 * @return void
 ***************************************************************************/
-WebVTTParser::WebVTTParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(aamp, type),
+WebVTTParser::WebVTTParser(AampLogManager* logObj, PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(logObj, aamp, type),
 	mStartPTS(0), mCurrentPos(0), mStartPos(0), mPtsOffset(0),
 	mReset(true), mVttQueue(), mVttQueueIdleTaskId(0), mVttQueueMutex(), lastCue(),
 	mProgressOffset(0)
@@ -201,7 +201,7 @@ bool WebVTTParser::init(double startPosSeconds, unsigned long long basePTS)
 		mVttQueueIdleTaskId = g_timeout_add(VTT_QUEUE_TIMER_INTERVAL, SendVttCueToExt, this);
 	}
 
-	AAMPLOG_WARN("WebVTTParser::%s %d startPos:%.3f and mStartPTS:%lld", __FUNCTION__, __LINE__, startPosSeconds, mStartPTS);
+	AAMPLOG_WARN("WebVTTParser::startPos:%.3f and mStartPTS:%lld", startPosSeconds, mStartPTS);
 	//We are ready to receive data, unblock in PrivateInstanceAAMP
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 	return ret;
@@ -222,13 +222,13 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 {
 	bool ret = false;
 
-	AAMPLOG_TRACE("WebVTTParser::%s %d Enter with position:%.3f and duration:%.3f ", __FUNCTION__, __LINE__, position, duration);
+	AAMPLOG_TRACE("WebVTTParser::Enter with position:%.3f and duration:%.3f ", position, duration);
 
 	if (mReset)
 	{
 		mStartPos = (position * 1000) - mProgressOffset;
 		mReset = false;
-		AAMPLOG_WARN("WebVTTParser::%s %d Received first buffer after reset with mStartPos:%.3f", __FUNCTION__, __LINE__, mStartPos);
+		AAMPLOG_WARN("WebVTTParser::Received first buffer after reset with mStartPos:%.3f",  mStartPos);
 	}
 
 	//Check for VTT signature at the start of buffer
@@ -254,7 +254,7 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 			}
 			else
 			{
-				AAMPLOG_WARN("%s:%d :  token  is null", __FUNCTION__, __LINE__);  //CID:85449,85515 - Null Returns
+				AAMPLOG_WARN("token  is null");  //CID:85449,85515 - Null Returns
 			}
 		}
 	}
@@ -397,7 +397,7 @@ bool WebVTTParser::processData(char* buffer, size_t bufferLen, double position, 
 		}
 	}
 	mCurrentPos = (position + duration) * 1000.0;
-	AAMPLOG_TRACE("%s:%d ################# Exit sub PTS:%.3f", __FUNCTION__, __LINE__, mCurrentPos);
+	AAMPLOG_TRACE("################# Exit sub PTS:%.3f", mCurrentPos);
 	return ret;
 }
 
@@ -413,7 +413,7 @@ bool WebVTTParser::close()
 	bool ret = true;
 	if (mVttQueueIdleTaskId != 0)
 	{
-                AAMPLOG_INFO("WebVTTParser::%s %d Remove mVttQueueIdleTaskId %d", __FUNCTION__, __LINE__, mVttQueueIdleTaskId);
+                AAMPLOG_INFO("WebVTTParser:: Remove mVttQueueIdleTaskId %d", mVttQueueIdleTaskId);
                 g_source_remove(mVttQueueIdleTaskId);
                 mVttQueueIdleTaskId = 0;
 	}
@@ -448,7 +448,7 @@ void WebVTTParser::reset()
 {
 	//Called on discontinuity, blocks further VTT processing
 	//Blocked until we get new basePTS
-	AAMPLOG_WARN("WebVTTParser::%s %d Reset subtitle parser at position:%.3f", __FUNCTION__, __LINE__, mCurrentPos);
+	AAMPLOG_WARN("WebVTTParser::Reset subtitle parser at position:%.3f", mCurrentPos);
 	//Avoid calling stop injection if the first buffer is discontinuous
 	if (!mReset)
 	{

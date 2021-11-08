@@ -27,7 +27,6 @@
 #include "AampUtils.h"
 #include <stddef.h>
 #include <inttypes.h>
-
 /**
  * @brief Read a string from buffer and return it
  *
@@ -185,7 +184,7 @@ const char* Box::getBoxType() const
  * @param[in] maxSz - box size
  * @return newly constructed Box object
  */
-Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, bool correctBoxSize)
+Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, AampLogManager *mLogObj, bool correctBoxSize)
 {
 	L_RESTART:
 	uint8_t *hdr_start = hdr;
@@ -214,7 +213,7 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, bool correctBoxSize)
                 if(correctBoxSize)
                 {
                         //Fix box size to handle cases like receiving whole file for HTTP range requests
-			AAMPLOG_WARN("%s:%d: Box[%s] fixing size error:size[%u] > maxSz[%u]",__FUNCTION__, __LINE__, type, size, maxSz);
+			AAMPLOG_WARN("Box[%s] fixing size error:size[%u] > maxSz[%u]", type, size, maxSz);
                         hdr = hdr_start;
                         WRITE_U32(hdr,maxSz);
                         goto L_RESTART;
@@ -885,7 +884,7 @@ EmsgBox* EmsgBox::constructEmsgBox(uint32_t sz, uint8_t *ptr)
 	}
 	else
 	{
-		AAMPLOG_WARN("%s():%d Unsupported emsg box version", __FUNCTION__, __LINE__);
+		AAMPLOG_WARN("Unsupported emsg box version");
 		return new EmsgBox(fbox, 0, 0, 0, 0, 0);
 	}
 

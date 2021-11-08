@@ -37,7 +37,7 @@
 ProfileEventAAMP::ProfileEventAAMP():
 	tuneStartMonotonicBase(0), tuneStartBaseUTCMS(0), bandwidthBitsPerSecondVideo(0),
         bandwidthBitsPerSecondAudio(0), drmErrorCode(0), enabled(false), xreTimeBuckets(), tuneEventList(),
-	tuneEventListMtx(), mTuneFailBucketType(PROFILE_BUCKET_MANIFEST), mTuneFailErrorCode(0),bEnableMicroEvent(false)
+	tuneEventListMtx(), mTuneFailBucketType(PROFILE_BUCKET_MANIFEST), mTuneFailErrorCode(0),bEnableMicroEvent(false),mLogObj(NULL)
 {
 
 }
@@ -55,7 +55,7 @@ void ProfileEventAAMP::addtuneEvent(ProfilerBucketType pbt, unsigned int start, 
 {
 	if (pbt >= PROFILE_BUCKET_TYPE_COUNT)
 	{
-		AAMPLOG_WARN("%s:%d bucketId=%d > PROFILE_BUCKET_TYPE_COUNT. How did it happen?", __FUNCTION__, __LINE__, pbt);
+		AAMPLOG_WARN("bucketId=%d > PROFILE_BUCKET_TYPE_COUNT. How did it happen?", pbt);
 		return;
 	}
 
@@ -423,7 +423,7 @@ void ProfileEventAAMP::SetTuneFailCode(int tuneFailCode, ProfilerBucketType fail
 {
 	if(!mTuneFailErrorCode)
 	{
-		AAMPLOG_INFO("%s:%d Tune Fail: ProfilerBucketType: %d, tuneFailCode: %d", __FUNCTION__, __LINE__, failBucketType, tuneFailCode);
+		AAMPLOG_INFO("Tune Fail: ProfilerBucketType: %d, tuneFailCode: %d", failBucketType, tuneFailCode);
 		mTuneFailErrorCode = tuneFailCode;
 		mTuneFailBucketType = failBucketType;
 	}

@@ -148,8 +148,8 @@ struct Rpc_Secbuf_Info {
 //The following flag is used to use old or new(wpeframework) OpenCDM implementation
 #define USE_NEW_OPENCDM 1
 
-AAMPOCDMSession::AAMPOCDMSession(const string& keySystem) :
-		AampDrmSession(keySystem),
+AAMPOCDMSession::AAMPOCDMSession(AampLogManager *logObj, const string& keySystem) :
+		AampDrmSession(logObj, keySystem),
 		m_eKeyState(KEY_INIT), 
 		m_pOutputProtection(NULL),
 		m_pOpencdm(NULL),
@@ -427,7 +427,7 @@ int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 	if(retvalue != 0)
 	{
 		media::OpenCdm::KeyStatus keyStatus = m_pOpencdm->Status();
-		AAMPLOG_INFO("%s : decrypt returned : %d key status is : %d", __FUNCTION__, retvalue,keyStatus);
+		AAMPLOG_INFO("decrypt returned : %d key status is : %d", retvalue,keyStatus);
 		if(keyStatus == media::OpenCdm::KeyStatus::OutputRestricted){
 			retvalue =  HDCP_OUTPUT_PROTECTION_FAILURE;
 		}

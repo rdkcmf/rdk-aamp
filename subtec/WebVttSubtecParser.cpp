@@ -20,16 +20,16 @@
 #include "WebVttSubtecParser.hpp"
 #include "TtmlPacket.hpp"
 
-WebVTTSubtecParser::WebVTTSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(aamp, type), m_channel(nullptr)
+WebVTTSubtecParser::WebVTTSubtecParser(AampLogManager *logObj, PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(logObj, aamp, type), m_channel(nullptr)
 {
 	if (!PacketSender::Instance()->Init())
 	{
-		AAMPLOG_INFO("%s: Init failed to connect to subtitle renderer - subtitle parsing disabled\n", __FUNCTION__);
+		AAMPLOG_INFO("Init failed to connect to subtitle renderer - subtitle parsing disabled\n");
 		throw std::runtime_error("PacketSender init failed");
 	}
 
 	m_channel = make_unique<WebVttChannel>();
-	AAMPLOG_INFO("%s: Sending RESET ALL", __FUNCTION__);
+	AAMPLOG_INFO("Sending RESET ALL");
 	m_channel->SendResetAllPacket();
 	int width = 1920, height = 1080;
 	m_channel->SendMutePacket();
@@ -39,7 +39,7 @@ WebVTTSubtecParser::WebVTTSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeTy
 
 void WebVTTSubtecParser::updateTimestamp(unsigned long long positionMs)
 {
-	AAMPLOG_INFO("%s: positionMs %lld", __FUNCTION__, positionMs);
+	AAMPLOG_INFO("positionMs %lld",  positionMs);
 	m_channel->SendTimestampPacket(positionMs);
 }
 
@@ -51,7 +51,7 @@ void WebVTTSubtecParser::reset()
 
 bool WebVTTSubtecParser::init(double startPosSeconds, unsigned long long basePTS)
 {
-	AAMPLOG_INFO("%s: startPos %f basePTS %lld", __FUNCTION__, startPosSeconds, basePTS);
+	AAMPLOG_INFO("startPos %f basePTS %lld",  startPosSeconds, basePTS);
 
 	m_channel->SendTimestampPacket(static_cast<uint64_t>(basePTS));
 

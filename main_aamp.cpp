@@ -46,25 +46,26 @@
 #include <regex>
 
 AampConfig *gpGlobalConfig=NULL;
+AampLogManager *mLogObj=NULL;
 
 #define ERROR_STATE_CHECK_VOID() \
 	PrivAAMPState state = GetState(); \
 	if( state == eSTATE_ERROR){ \
-		logprintf("%s() operation is not allowed when player in eSTATE_ERROR state !", __FUNCTION__ );\
+		AAMPLOG_WARN("operation is not allowed when player in eSTATE_ERROR state !");\
 		return; \
 	}
 
 #define ERROR_STATE_CHECK_VAL(val) \
 	PrivAAMPState state = GetState(); \
 	if( state == eSTATE_ERROR){ \
-		logprintf("%s() operation is not allowed when player in eSTATE_ERROR state !", __FUNCTION__ );\
+		AAMPLOG_WARN("operation is not allowed when player in eSTATE_ERROR state !");\
 		return val; \
 	}
 
 #define ERROR_OR_IDLE_STATE_CHECK_VOID() \
 	PrivAAMPState state = GetState(); \
 	if( state == eSTATE_ERROR || state == eSTATE_IDLE){ \
-		logprintf("%s() operation is not allowed when player in %s state !", __FUNCTION__ ,\
+		AAMPLOG_WARN("operation is not allowed when player in %s state !",\
 		(state == eSTATE_ERROR) ? "eSTATE_ERROR" : "eSTATE_IDLE" );\
 		return; \
 	}
@@ -72,14 +73,14 @@ AampConfig *gpGlobalConfig=NULL;
 #define NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID() \
 	PrivAAMPState state = GetState(); \
 	if( state != eSTATE_IDLE && state != eSTATE_RELEASED){ \
-		logprintf("%s() operation is not allowed when player not in eSTATE_IDLE or eSTATE_RELEASED state !", __FUNCTION__ );\
+		AAMPLOG_WARN("operation is not allowed when player not in eSTATE_IDLE or eSTATE_RELEASED state !");\
 		return; \
 	}
 
 #define ERROR_OR_IDLE_STATE_CHECK_VAL(val) \
 	PrivAAMPState state = GetState(); \
 	if( state == eSTATE_ERROR || state == eSTATE_IDLE){ \
-		logprintf("%s() operation is not allowed in %s state !", __FUNCTION__ ,\
+		AAMPLOG_WARN("operation is not allowed in %s state !",\
 		(state == eSTATE_ERROR) ? "eSTATE_ERROR" : "eSTATE_IDLE" );\
 		return val; \
 	}
@@ -103,17 +104,17 @@ if(!iarmInitialized)
         IARM_Result_t result;
         sprintf (processName, "AAMP-PLAYER-%u", getpid());
         if (IARM_RESULT_SUCCESS == (result = IARM_Bus_Init((const char*) &processName))) {
-                logprintf("IARM Interface Inited in AAMP");
+                AAMPLOG_WARN("IARM Interface Inited in AAMP");
         }
         else {
-            logprintf("IARM Interface Inited Externally : %d", result);
+            AAMPLOG_WARN("IARM Interface Inited Externally : %d", result);
         }
 
         if (IARM_RESULT_SUCCESS == (result = IARM_Bus_Connect())) {
-                logprintf("IARM Interface Connected  in AAMP");
+                AAMPLOG_WARN("IARM Interface Connected  in AAMP");
         }
         else {
-            logprintf ("IARM Interface Connected Externally :%d", result);
+            AAMPLOG_WARN ("IARM Interface Connected Externally :%d", result);
         }
 	iarmInitialized = true;
 }
@@ -126,7 +127,7 @@ if(!iarmInitialized)
 	const char* szJSLib = "libaamp.so";
 #endif
 	mJSBinding_DL = dlopen(szJSLib, RTLD_GLOBAL | RTLD_LAZY);
-	logprintf("[AAMP_JS] dlopen(\"%s\")=%p", szJSLib, mJSBinding_DL);
+	AAMPLOG_WARN("[AAMP_JS] dlopen(\"%s\")=%p", szJSLib, mJSBinding_DL);
 #endif
 
 	// Create very first instance of Aamp Config to read the cfg & Operator file .This is needed for very first
@@ -135,12 +136,12 @@ if(!iarmInitialized)
 	{		
 #ifdef AAMP_BUILD_INFO
 		std::string tmpstr = MACRO_TO_STRING(AAMP_BUILD_INFO);
-		logprintf(" AAMP_BUILD_INFO: %s",tmpstr.c_str());
+		AAMPLOG_WARN(" AAMP_BUILD_INFO: %s",tmpstr.c_str());
 #endif
 		gpGlobalConfig =  new AampConfig();
 		// Init the default values
 		gpGlobalConfig->Initialize();
-		logprintf("[AAMP_JS][%p]Creating GlobalConfig Instance[%p]",this,gpGlobalConfig);
+		AAMPLOG_WARN("[AAMP_JS][%p]Creating GlobalConfig Instance[%p]",this,gpGlobalConfig);
 		if(!gpGlobalConfig->ReadAampCfgTxtFile())
 		{
 			gpGlobalConfig->ReadAampCfgJsonFile();
@@ -148,7 +149,7 @@ if(!iarmInitialized)
 		gpGlobalConfig->ReadOperatorConfiguration();		
 		gpGlobalConfig->ShowDevCfgConfiguration();
 		gpGlobalConfig->ShowOperatorSetConfiguration();
-		
+		::mLogObj = gpGlobalConfig->GetLoggerInstance();
 	}
 
 	// Copy the default configuration to session configuration .
@@ -157,9 +158,11 @@ if(!iarmInitialized)
 
 	sp_aamp = std::make_shared<PrivateInstanceAAMP>(&mConfig);
 	aamp = sp_aamp.get();
+	mLogObj = mConfig.GetLoggerInstance();
+	mConfig.logging.setPlayerId(aamp->mPlayerId);
 	if (NULL == streamSink)
 	{
-		mInternalStreamSink = new AAMPGstPlayer(aamp
+		mInternalStreamSink = new AAMPGstPlayer(mConfig.GetLoggerInstance(), aamp
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
                 , exportFrames
 #endif
@@ -223,13 +226,13 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 #ifdef SUPPORT_JS_EVENTS 
 	if (mJSBinding_DL && isLastPlayerInstance)
 	{
-		logprintf("[AAMP_JS] dlclose(%p)", mJSBinding_DL);
+		AAMPLOG_WARN("[AAMP_JS] dlclose(%p)", mJSBinding_DL);
 		dlclose(mJSBinding_DL);
 	}
 #endif
 	if (isLastPlayerInstance && gpGlobalConfig)
 	{
-		logprintf("[%s][%p] Release GlobalConfig(%p)", __FUNCTION__,this,gpGlobalConfig);
+		AAMPLOG_WARN("[%p] Release GlobalConfig(%p)",this,gpGlobalConfig);
 		SAFE_DELETE(gpGlobalConfig);
 	}
 }
@@ -241,7 +244,7 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
  */
 void PlayerInstanceAAMP::ResetConfiguration()
 {
-	AAMPLOG_WARN("%s Resetting Configuration to default values ",__FUNCTION__);
+	AAMPLOG_WARN("Resetting Configuration to default values ");
 	// Copy the default configuration to session configuration .App can modify the configuration set
 	mConfig = *gpGlobalConfig;
 	// Based on the default condition , reset the AsyncTune scheduler
@@ -439,12 +442,12 @@ void PlayerInstanceAAMP::SetMinimumBitrate(long bitrate)
 {
 	if (bitrate > 0)
 	{
-		AAMPLOG_INFO("%s:%d Setting minimum bitrate: %ld", __FUNCTION__, __LINE__, bitrate);
+		AAMPLOG_INFO("Setting minimum bitrate: %ld", bitrate);
 		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_MinBitrate,bitrate);
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Invalid bitrate value %ld", __FUNCTION__,__LINE__, bitrate);
+		AAMPLOG_WARN("Invalid bitrate value %ld",  bitrate);
 	}
 
 }
@@ -457,12 +460,12 @@ void PlayerInstanceAAMP::SetMaximumBitrate(long bitrate)
 {
 	if (bitrate > 0)
 	{
-		AAMPLOG_INFO("%s:%d Setting maximum bitrate : %ld", __FUNCTION__,__LINE__, bitrate);
+		AAMPLOG_INFO("Setting maximum bitrate : %ld", bitrate);
 		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_MaxBitrate,bitrate);
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Invalid bitrate value %d", __FUNCTION__,__LINE__, bitrate);
+		AAMPLOG_WARN("Invalid bitrate value %d", bitrate);
 	}
 }
 
@@ -490,19 +493,19 @@ bool PlayerInstanceAAMP::IsValidRate(int rate)
  */
 void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 {
-	AAMPLOG_INFO("%s:%d PLAYER[%d] rate=%d.", __FUNCTION__, __LINE__, aamp->mPlayerId, rate);
+	AAMPLOG_INFO("PLAYER[%d] rate=%d.", aamp->mPlayerId, rate);
 
 	ERROR_STATE_CHECK_VOID();
 
 	if (!IsValidRate(rate))
 	{
-		AAMPLOG_WARN("%s:%d SetRate ignored!! Invalid rate (%d)", __FUNCTION__, __LINE__, rate);
+		AAMPLOG_WARN("SetRate ignored!! Invalid rate (%d)", rate);
 		return;
 	}
 	//Hack For DELIA-51318 convert the incoming rates into acceptable rates
 	if(ISCONFIGSET(eAAMPConfig_RepairIframes))
 	{
-		AAMPLOG_WARN("%s:%d mRepairIframes is true, setting actual rate %d for the recieved rate %d", __FUNCTION__, __LINE__, getWorkingTrickplayRate(rate), rate);
+		AAMPLOG_WARN("mRepairIframes is true, setting actual rate %d for the recieved rate %d", getWorkingTrickplayRate(rate), rate);
 		rate = getWorkingTrickplayRate(rate);
 	}
 
@@ -510,13 +513,13 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 	{
 		if (!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0 && aamp->mMediaFormat != eMEDIAFORMAT_PROGRESSIVE)
 		{
-			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
+			AAMPLOG_WARN("Ignoring trickplay. No iframe tracks in stream");
 			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
 			return;
 		}
 		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (AAMP_RATE_PAUSE != rate))
 		{
-			AAMPLOG_WARN("%s:%d PLAYER[%d] Player %s=>%s.", __FUNCTION__, __LINE__, aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
+			AAMPLOG_WARN("PLAYER[%d] Player %s=>%s.", aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
 			aamp->mbPlayEnabled = true;
 			if (AAMP_NORMAL_PLAY_RATE == rate)
 			{
@@ -532,7 +535,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		bool retValue = true;
 		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE)
 		{
-			AAMPLOG_WARN("%s(): Already at logical live point, hence skipping operation", __FUNCTION__);
+			AAMPLOG_WARN("Already at logical live point, hence skipping operation");
 			aamp->NotifyOnEnteringLive();
 			return;
 		}
@@ -541,7 +544,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		// Additional check for pipeline_paused is because of 0(PAUSED) -> 1(PLAYING), where aamp->rate == 1.0 in PAUSED state
 		if ((!aamp->pipeline_paused && rate == aamp->rate && !aamp->GetPauseOnFirstVideoFrameDisp()) || (rate == 0 && aamp->pipeline_paused))
 		{
-			AAMPLOG_WARN("%s(): Already running at playback rate(%d) pipeline_paused(%d), hence skipping set rate for (%d)", __FUNCTION__, aamp->rate, aamp->pipeline_paused, rate);
+			AAMPLOG_WARN("Already running at playback rate(%d) pipeline_paused(%d), hence skipping set rate for (%d)", aamp->rate, aamp->pipeline_paused, rate);
 			return;
 		}
 
@@ -602,7 +605,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 				}
 				else
 				{
-					AAMPLOG_WARN("%s:%d new seek_pos_seconds calculated is invalid(%f), discarding it!", __FUNCTION__, __LINE__, newSeekPosInSec);
+					AAMPLOG_WARN("new seek_pos_seconds calculated is invalid(%f), discarding it!", newSeekPosInSec);
 				}
 			}
 			else
@@ -626,8 +629,8 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			}
 		}
 
-		logprintf("aamp_SetRate (%d)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
-		logprintf("aamp_SetRate rate(%d)->(%d) cur pipeline: %s. Adj position: %f Play/Pause Position:%lld", aamp->rate,rate,aamp->pipeline_paused ? "paused" : "playing",aamp->seek_pos_seconds,aamp->GetPositionMilliseconds()); // current position relative to tune time
+		AAMPLOG_WARN("aamp_SetRate (%d)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
+		AAMPLOG_WARN("aamp_SetRate rate(%d)->(%d) cur pipeline: %s. Adj position: %f Play/Pause Position:%lld", aamp->rate,rate,aamp->pipeline_paused ? "paused" : "playing",aamp->seek_pos_seconds,aamp->GetPositionMilliseconds()); // current position relative to tune time
 
 		if (!aamp->mSeekFromPausedState && (rate == aamp->rate))
 		{ // no change in desired play rate
@@ -688,7 +691,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d aamp_SetRate rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", __FUNCTION__, __LINE__, aamp->rate, aamp->mpStreamAbstractionAAMP, state);
+		AAMPLOG_WARN("aamp_SetRate rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", aamp->rate, aamp->mpStreamAbstractionAAMP, state);
 	}
 }
 
@@ -707,7 +710,7 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 	PrivAAMPState state;
         aamp->GetState(state);
         if( state == eSTATE_ERROR){
-                logprintf("%s() operation is not allowed when player in eSTATE_ERROR state !", __FUNCTION__ );\
+                AAMPLOG_WARN("operation is not allowed when player in eSTATE_ERROR state !");\
                 return false;
         }
 
@@ -717,11 +720,11 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 		tuneType = eTUNETYPE_SEEKTOLIVE;
 	}
 
-	logprintf("%s:%d aamp_Seek(%f) and seekToLive(%d)",__FUNCTION__,__LINE__, aamp->seek_pos_seconds, isSeekToLive);
+	AAMPLOG_WARN("aamp_Seek(%f) and seekToLive(%d)", aamp->seek_pos_seconds, isSeekToLive);
 
 	if (isSeekToLive && !aamp->IsLive())
 	{
-		logprintf("%s:%d - Not live, skipping seekToLive",__FUNCTION__,__LINE__);
+		AAMPLOG_WARN("Not live, skipping seekToLive");
 		return false;
 	}
 
@@ -730,7 +733,7 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 		double currPositionSecs = aamp->GetPositionMilliseconds() / 1000.00;
 		if (isSeekToLive || aamp->seek_pos_seconds >= currPositionSecs)
 		{
-			logprintf("%s():Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", __FUNCTION__, aamp->seek_pos_seconds, currPositionSecs, isSeekToLive);
+			AAMPLOG_WARN("Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", aamp->seek_pos_seconds, currPositionSecs, isSeekToLive);
 			aamp->NotifyOnEnteringLive();
 			return false;
 		}
@@ -740,7 +743,7 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 	{
 		// resume downloads and clear paused flag for foreground instance. state change will be done
 		// on streamSink configuration.
-		logprintf("%s(): paused state, so resume downloads", __FUNCTION__);
+		AAMPLOG_WARN("paused state, so resume downloads");
 		aamp->pipeline_paused = false;
 		aamp->ResumeDownloads();
 		sentSpeedChangedEv = true;
@@ -748,7 +751,7 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 
 	if (tuneType == eTUNETYPE_SEEK)
 	{
-		logprintf("%s(): tune type is SEEK", __FUNCTION__);
+		AAMPLOG_WARN("tune type is SEEK");
 	}
 	if (aamp->rate != AAMP_NORMAL_PLAY_RATE)
 	{
@@ -786,13 +789,13 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 
 	if ((aamp->mMediaFormat == eMEDIAFORMAT_HLS || aamp->mMediaFormat == eMEDIAFORMAT_HLS_MP4) && (eSTATE_INITIALIZING == state)  && aamp->mpStreamAbstractionAAMP)
 	{
-		logprintf("%s:%d aamp_Seek(%f) at the middle of tune, no fragments downloaded yet.state(%d)",__FUNCTION__,__LINE__, secondsRelativeToTuneTime,state);
+		AAMPLOG_WARN("aamp_Seek(%f) at the middle of tune, no fragments downloaded yet.state(%d)", secondsRelativeToTuneTime,state);
 		aamp->mpStreamAbstractionAAMP->SeekPosUpdate(secondsRelativeToTuneTime);
 		SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_PlaybackOffset,secondsRelativeToTuneTime);
 	}
 	else if (eSTATE_INITIALIZED == state || eSTATE_PREPARING == state)
 	{
-		logprintf("%s:%d aamp_Seek(%f) will be called after preparing the content.state(%d)",__FUNCTION__,__LINE__, secondsRelativeToTuneTime,state);
+		AAMPLOG_WARN("aamp_Seek(%f) will be called after preparing the content.state(%d)", secondsRelativeToTuneTime,state);
 		aamp->seek_pos_seconds = secondsRelativeToTuneTime ;
 		SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_PlaybackOffset,secondsRelativeToTuneTime);
 		g_idle_add(SeekAfterPrepared, (gpointer)aamp);
@@ -805,18 +808,18 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 			tuneType = eTUNETYPE_SEEKTOLIVE;
 		}
 
-		logprintf("%s:%d aamp_Seek(%f) and seekToLive(%d) state(%d)",__FUNCTION__,__LINE__, secondsRelativeToTuneTime, isSeekToLive,state);
+		AAMPLOG_WARN("aamp_Seek(%f) and seekToLive(%d) state(%d)", secondsRelativeToTuneTime, isSeekToLive,state);
 
 		if (isSeekToLive && !aamp->IsLive())
 		{
-			logprintf("%s:%d - Not live, skipping seekToLive",__FUNCTION__,__LINE__);
+			AAMPLOG_WARN("Not live, skipping seekToLive");
 			return;
 		}
 
 		if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET(eAAMPConfig_InterruptHandling) && aamp->IsTSBSupported())
 		{
 			secondsRelativeToTuneTime += aamp->mProgressReportOffset;
-			logprintf("aamp_Seek position adjusted to absolute value for TSB : %lf", __FUNCTION__, secondsRelativeToTuneTime);
+			AAMPLOG_WARN("aamp_Seek position adjusted to absolute value for TSB : %lf", secondsRelativeToTuneTime);
 		}
 
 		if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
@@ -825,7 +828,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 
 			if (isSeekToLive || secondsRelativeToTuneTime >= currPositionSecs)
 			{
-				logprintf("%s():Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", __FUNCTION__, secondsRelativeToTuneTime, currPositionSecs, isSeekToLive);
+				AAMPLOG_WARN("Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", secondsRelativeToTuneTime, currPositionSecs, isSeekToLive);
 				aamp->NotifyOnEnteringLive();
 				return;
 			}
@@ -839,7 +842,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 		{
 			// resume downloads and clear paused flag. state change will be done
 			// on streamSink configuration.
-			logprintf("%s(): paused state, so resume downloads", __FUNCTION__);
+			AAMPLOG_WARN("paused state, so resume downloads");
 			aamp->pipeline_paused = false;
 			aamp->ResumeDownloads();
 			sentSpeedChangedEv = true;
@@ -895,17 +898,17 @@ void PlayerInstanceAAMP::SeekToLive(bool keepPaused)
 void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTime)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
-	logprintf("aamp_SetRateAndSeek(%d)(%f)", rate, secondsRelativeToTuneTime);
+	AAMPLOG_WARN("aamp_SetRateAndSeek(%d)(%f)", rate, secondsRelativeToTuneTime);
 	if (!IsValidRate(rate))
 	{
-		AAMPLOG_WARN("%s:%d SetRate ignored!! Invalid rate (%d)", __FUNCTION__, __LINE__, rate);
+		AAMPLOG_WARN("SetRate ignored!! Invalid rate (%d)", rate);
 		return;
 	}
 
 	//Hack For DELIA-51318 convert the incoming rates into acceptable rates
 	if(ISCONFIGSET(eAAMPConfig_RepairIframes))
 	{
-		AAMPLOG_WARN("%s:%d mRepairIframes is true, setting actual rate %d for the recieved rate %d", __FUNCTION__, __LINE__, getWorkingTrickplayRate(rate), rate);
+		AAMPLOG_WARN("mRepairIframes is true, setting actual rate %d for the recieved rate %d", getWorkingTrickplayRate(rate), rate);
 		rate = getWorkingTrickplayRate(rate);
 	}
 
@@ -913,7 +916,7 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 	{
 		if ((!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0))
 		{
-			AAMPLOG_WARN("%s:%d Ignoring trickplay. No iframe tracks in stream", __FUNCTION__, __LINE__);
+			AAMPLOG_WARN("Ignoring trickplay. No iframe tracks in stream");
 			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
 			return;
 		}
@@ -927,7 +930,7 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 		{
 			if (!aamp->pipeline_paused)
 			{
-				logprintf("Pausing Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
+				AAMPLOG_WARN("Pausing Playback at Position '%lld'.", aamp->GetPositionMilliseconds());
 				aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
 				aamp->StopDownloads();
 				bool retValue = aamp->mStreamSink->Pause(true, false);
@@ -937,7 +940,7 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d aamp_SetRateAndSeek rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", __FUNCTION__, __LINE__, aamp->rate, aamp->mpStreamAbstractionAAMP, state);
+		AAMPLOG_WARN("aamp_SetRateAndSeek rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", aamp->rate, aamp->mpStreamAbstractionAAMP, state);
 	}
 }
 
@@ -971,8 +974,7 @@ void PlayerInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Player is in state (%s) , value has been cached",
-		__FUNCTION__, __LINE__, "eSTATE_IDLE");
+		AAMPLOG_WARN("Player is in state (eSTATE_IDLE), value has been cached");
 	}
 	aamp->ReleaseStreamLock();
 }
@@ -993,7 +995,7 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d Player is in state eSTATE_IDLE, value has been cached", __FUNCTION__, __LINE__);
+		AAMPLOG_WARN("Player is in state eSTATE_IDLE, value has been cached");
 	}
 	aamp->ReleaseStreamLock();
 }
@@ -1008,8 +1010,8 @@ void PlayerInstanceAAMP::SetAudioVolume(int volume)
 	ERROR_STATE_CHECK_VOID();
 	if (volume < AAMP_MINIMUM_AUDIO_LEVEL || volume > AAMP_MAXIMUM_AUDIO_LEVEL)
 	{
-		AAMPLOG_WARN("%s:%d Audio level (%d) is outside the range supported.. discarding it..",
-		__FUNCTION__, __LINE__, volume);
+		AAMPLOG_WARN("Audio level (%d) is outside the range supported.. discarding it..",
+		 volume);
 	}
 	else if (aamp != NULL)
 	{
@@ -1020,7 +1022,7 @@ void PlayerInstanceAAMP::SetAudioVolume(int volume)
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d Player is in state eSTATE_IDLE, value has been cached", __FUNCTION__, __LINE__);
+			AAMPLOG_WARN("Player is in state eSTATE_IDLE, value has been cached");
 		}
 	}
 }
@@ -1048,7 +1050,7 @@ void PlayerInstanceAAMP::SetSubscribedTags(std::vector<std::string> subscribedTa
 	aamp->subscribedTags = subscribedTags;
 
 	for (int i=0; i < aamp->subscribedTags.size(); i++) {
-	        logprintf("    subscribedTags[%d] = '%s'", i, subscribedTags.at(i).data());
+	        AAMPLOG_WARN("    subscribedTags[%d] = '%s'", i, subscribedTags.at(i).data());
 	}
 }
 
@@ -1060,13 +1062,13 @@ void PlayerInstanceAAMP::SetSubscribedTags(std::vector<std::string> subscribedTa
  */
 void PlayerInstanceAAMP::LoadJS(void* context)
 {
-	logprintf("[AAMP_JS] %s(%p)", __FUNCTION__, context);
+	AAMPLOG_WARN("[AAMP_JS] (%p)", context);
 	if (mJSBinding_DL) {
 		void(*loadJS)(void*, void*);
 		const char* szLoadJS = "aamp_LoadJS";
 		loadJS = (void(*)(void*, void*))dlsym(mJSBinding_DL, szLoadJS);
 		if (loadJS) {
-			logprintf("[AAMP_JS] %s() dlsym(%p, \"%s\")=%p", __FUNCTION__, mJSBinding_DL, szLoadJS, loadJS);
+			AAMPLOG_WARN("[AAMP_JS]  dlsym(%p, \"%s\")=%p", mJSBinding_DL, szLoadJS, loadJS);
 			loadJS(context, this);
 		}
 	}
@@ -1079,13 +1081,13 @@ void PlayerInstanceAAMP::LoadJS(void* context)
  */
 void PlayerInstanceAAMP::UnloadJS(void* context)
 {
-	logprintf("[AAMP_JS] %s(%p)", __FUNCTION__, context);
+	AAMPLOG_WARN("[AAMP_JS] (%p)", context);
 	if (mJSBinding_DL) {
 		void(*unloadJS)(void*);
 		const char* szUnloadJS = "aamp_UnloadJS";
 		unloadJS = (void(*)(void*))dlsym(mJSBinding_DL, szUnloadJS);
 		if (unloadJS) {
-			logprintf("[AAMP_JS] %s() dlsym(%p, \"%s\")=%p", __FUNCTION__, mJSBinding_DL, szUnloadJS, unloadJS);
+			AAMPLOG_WARN("[AAMP_JS] dlsym(%p, \"%s\")=%p", mJSBinding_DL, szUnloadJS, unloadJS);
 			unloadJS(context);
 		}
 	}
@@ -1203,7 +1205,7 @@ void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 	}
 	else
     {
-          AAMPLOG_ERR("PlayerInstanceAAMP::%s - invalid drm type(%d) received.", __FUNCTION__, type);
+          AAMPLOG_ERR("PlayerInstanceAAMP:: invalid drm type(%d) received.", type);
     }
 }
 
@@ -1367,7 +1369,7 @@ PrivAAMPState PlayerInstanceAAMP::GetState(void)
 	}
 	catch (std::exception &e)
 	{
-		AAMPLOG_WARN("%s:%d: Invalid access to the instance of PrivateInstanceAAMP (%s), returning %s as current state", __FUNCTION__, __LINE__, e.what(),"eSTATE_RELEASED");
+		AAMPLOG_WARN("Invalid access to the instance of PrivateInstanceAAMP (%s), returning %s as current state",  e.what(),"eSTATE_RELEASED");
 	}
 	return currentState;
 }
@@ -1409,7 +1411,7 @@ void PlayerInstanceAAMP::SetVideoBitrate(long bitrate)
 		long gpDefaultBitRate;
 		gpGlobalConfig->GetConfigValue( eAAMPConfig_DefaultBitrate ,gpDefaultBitRate);
 		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DefaultBitrate,gpDefaultBitRate);
-		AAMPLOG_WARN("%s:%d Resetting default bitrate to  %ld",__FUNCTION__, __LINE__,gpDefaultBitRate);
+		AAMPLOG_WARN("Resetting default bitrate to  %ld", gpDefaultBitRate);
 	}
 }
 
@@ -1451,8 +1453,8 @@ int PlayerInstanceAAMP::GetAudioVolume(void)
 	ERROR_STATE_CHECK_VAL(0);
 	if (eSTATE_IDLE == state) 
 	{
-		AAMPLOG_WARN("%s:%d GetAudioVolume is returning cached value since player is at %s",
-		__FUNCTION__, __LINE__,"eSTATE_IDLE");
+		AAMPLOG_WARN(" GetAudioVolume is returning cached value since player is at %s",
+		 "eSTATE_IDLE");
 	}
 	return aamp->audio_volume;
 }
@@ -1505,7 +1507,7 @@ std::string PlayerInstanceAAMP::GetManifest(void)
 			/*char pointer to string conversion*/
 			std::string Manifest(manifest.ptr,manifest.len);
 			aamp_Free(&manifest);
-			AAMPLOG_INFO("PlayerInstanceAAMP::%s:%d manifest retrieved from cache", __FUNCTION__, __LINE__);
+			AAMPLOG_INFO("PlayerInstanceAAMP: manifest retrieved from cache");
 			return Manifest;
 		}
 	}
@@ -1745,7 +1747,7 @@ void PlayerInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
 void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
 {
 	ERROR_STATE_CHECK_VOID();
-        AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d (%s)->(%s)", __FUNCTION__, __LINE__, aamp->mSubLanguage.c_str(), language);
+        AAMPLOG_WARN("PlayerInstanceAAMP::(%s)->(%s)",  aamp->mSubLanguage.c_str(), language);
 
 	if (aamp->mSubLanguage.compare(language) == 0)
 		return;
@@ -1753,11 +1755,11 @@ void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
 	
 	if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 	{
-		AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d \"%s\" language set prior to tune start", __FUNCTION__, __LINE__, language);
+		AAMPLOG_WARN("PlayerInstanceAAMP:: \"%s\" language set prior to tune start",  language);
 	}
 	else
 	{
-		AAMPLOG_WARN("PlayerInstanceAAMP::%s():%d \"%s\" language set - will take effect on next tune", __FUNCTION__, __LINE__, language);
+		AAMPLOG_WARN("PlayerInstanceAAMP:: \"%s\" language set - will take effect on next tune", language);
 	}
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_SubTitleLanguage,(std::string)language);
 }
@@ -1926,7 +1928,7 @@ void PlayerInstanceAAMP::SetPreferredCodec(const char *codecList)
 		while(std::getline(ss, codec, ','))
 		{
 			aamp->preferredCodecList.push_back(codec);
-			AAMPLOG_INFO("%s:%d: Parsed preferred codec: %s", __FUNCTION__, __LINE__,
+			AAMPLOG_INFO(" Parsed preferred codec: %s",  
 					codec.c_str());
 		}
 
@@ -1934,7 +1936,7 @@ void PlayerInstanceAAMP::SetPreferredCodec(const char *codecList)
 		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioCodec,aamp->preferredCodecString);
 	}
 
-	AAMPLOG_INFO("%s:%d: Number of preferred codecs: %d", __FUNCTION__, __LINE__,
+	AAMPLOG_INFO("Number of preferred codecs: %d", 
 			aamp->preferredCodecList.size());
 }
 
@@ -1960,7 +1962,7 @@ void PlayerInstanceAAMP::SetPreferredRenditions(const char *renditionList)
 		while(std::getline(ss, rendition, ','))
 		{
 			aamp->preferredRenditionList.push_back(rendition);
-			AAMPLOG_INFO("%s:%d: Parsed preferred rendition: %s", __FUNCTION__, __LINE__,
+			AAMPLOG_INFO("Parsed preferred rendition: %s",  
 					rendition.c_str());
 		}
 
@@ -1968,7 +1970,7 @@ void PlayerInstanceAAMP::SetPreferredRenditions(const char *renditionList)
 		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioRendition,aamp->preferredRenditionString);
 	}
 
-	AAMPLOG_INFO("%s:%d: Number of preferred renditions: %d", __FUNCTION__, __LINE__,
+	AAMPLOG_INFO("Number of preferred renditions: %d",  
 			aamp->preferredRenditionList.size());
 }
 
@@ -2108,7 +2110,7 @@ void PlayerInstanceAAMP::EnableVideoRectangle(bool rectProperty)
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d Skipping the configuration value[%d], since westerossink is disabled", __FUNCTION__, __LINE__, rectProperty);			
+			AAMPLOG_WARN("Skipping the configuration value[%d], since westerossink is disabled",  rectProperty);			
 		}
 	}
 	else 
@@ -2350,7 +2352,7 @@ void PlayerInstanceAAMP::AsyncStartStop()
 	// Additional check added here, since this API can be called from jsbindings/native app
 	if (ISCONFIGSET(eAAMPConfig_AsyncTune) && !mAsyncRunning)
 	{
-		AAMPLOG_WARN("%s:%d Enable async tune operation!!", __FUNCTION__, __LINE__);
+		AAMPLOG_WARN("Enable async tune operation!!" );
 		mAsyncRunning = true;
 		StartScheduler();
 		aamp->SetEventPriorityAsyncTune(true);
@@ -2358,7 +2360,7 @@ void PlayerInstanceAAMP::AsyncStartStop()
 	}
 	else if(!ISCONFIGSET(eAAMPConfig_AsyncTune) && mAsyncRunning)
 	{
-		AAMPLOG_WARN("%s:%d Disable async tune operation!!", __FUNCTION__, __LINE__);
+		AAMPLOG_WARN("Disable async tune operation!!");
 		aamp->SetEventPriorityAsyncTune(false);
 		StopScheduler();
 		mAsyncRunning = false;
@@ -2404,9 +2406,9 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 	AAMPLOG_WARN("%s PLAYER[%d] Stopping Playback at Position '%lld'.\n",(aamp->mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), aamp->mPlayerId, aamp->GetPositionMilliseconds());
 	aamp->Stop();
 	// Revert all custom specific setting, tune specific setting and stream specific setting , back to App/default setting
-	mConfig.RestoreConfiguration(AAMP_CUSTOM_DEV_CFG_SETTING);
-	mConfig.RestoreConfiguration(AAMP_TUNE_SETTING);
-	mConfig.RestoreConfiguration(AAMP_STREAM_SETTING);
+	mConfig.RestoreConfiguration(AAMP_CUSTOM_DEV_CFG_SETTING, mLogObj);
+	mConfig.RestoreConfiguration(AAMP_TUNE_SETTING, mLogObj);
+	mConfig.RestoreConfiguration(AAMP_STREAM_SETTING, mLogObj);
 }
 
 /**
@@ -2420,7 +2422,7 @@ void PlayerInstanceAAMP::SetPausedBehavior(int behavior)
 
 	if(behavior >= 0 && behavior < ePAUSED_BEHAVIOR_MAX)
 	{
-		AAMPLOG_WARN("%s:%d Player Paused behavior : %d", __FUNCTION__, __LINE__, behavior);
+		AAMPLOG_WARN("Player Paused behavior : %d", behavior);
 		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LivePauseBehavior,behavior);
 	}
 }
@@ -2518,7 +2520,7 @@ void PlayerInstanceAAMP::SetAuxiliaryLanguage(const std::string &language)
 		}
 	}
 #else
-	AAMPLOG_ERR("%s:%d Auxiliary audio language is not supported in this platform, ignoring the input!", __FUNCTION__, __LINE__);
+	AAMPLOG_ERR("Auxiliary audio language is not supported in this platform, ignoring the input!");
 #endif
 }
 

@@ -170,7 +170,7 @@ void AesDec::AcquireKey()
  *
  * @retval eDRM_SUCCESS
  */
-DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata,int trackType)
+DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata,int trackType, AampLogManager *mLogObj)
 {
 	return eDRM_SUCCESS;
 }
@@ -183,7 +183,7 @@ DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata,int tra
  *
  * @retval None
  */
-void AesDec::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType)
+void AesDec::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType, AampLogManager *mLogObj)
 {
 
 }
@@ -206,7 +206,7 @@ DRMState AesDec::GetState()
  * @param drmInfo Drm information
  * @retval eDRM_SUCCESS on success
  */
-DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo)
+DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo, AampLogManager *mLogObj)
 {
 	DrmReturn err = eDRM_ERROR;
 	pthread_mutex_lock(&mMutex);
@@ -222,7 +222,7 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 	{
 		if ((eDRM_KEY_ACQUIRED == mDrmState) && (drmInfo->keyURI == mDrmUrl))
 		{
-			AAMPLOG_TRACE("AesDec::%s:%d same url:%s - not acquiring key",__FUNCTION__, __LINE__, mDrmUrl.c_str());
+			AAMPLOG_TRACE("AesDec: same url:%s - not acquiring key", mDrmUrl.c_str());
 			pthread_mutex_unlock(&mMutex);
 			return eDRM_SUCCESS;
 		}
@@ -259,7 +259,7 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 		licenseAcquisitionThreadStarted = true;
 	}
 	pthread_mutex_unlock(&mMutex);
-	AAMPLOG_INFO("AesDec::%s:%d drmState:%d ",__FUNCTION__, __LINE__, mDrmState);
+	AAMPLOG_INFO("AesDec: drmState:%d ", mDrmState);
 	return err;
 }
 
@@ -300,7 +300,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 	}
 	if (mDrmState == eDRM_KEY_ACQUIRED)
 	{
-		AAMPLOG_INFO("AesDec::%s:%d Starting decrypt", __FUNCTION__, __LINE__);
+		AAMPLOG_INFO("AesDec: Starting decrypt");
 		unsigned char *decryptedDataBuf = (unsigned char *)malloc(encryptedDataLen);
 		int decryptedDataLen = 0;
 		if (decryptedDataBuf)
@@ -322,7 +322,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 				{
 					decryptedDataLen = decLen;
 					decLen = 0;
-					AAMPLOG_INFO("AesDec::%s:%d: EVP_DecryptUpdate success decryptedDataLen = %d encryptedDataLen %d", __FUNCTION__, __LINE__, (int) decryptedDataLen, (int)encryptedDataLen);
+					AAMPLOG_INFO("AesDec: EVP_DecryptUpdate success decryptedDataLen = %d encryptedDataLen %d", (int) decryptedDataLen, (int)encryptedDataLen);
 					if (!EVP_DecryptFinal_ex(OPEN_SSL_CONTEXT, decryptedDataBuf + decryptedDataLen, &decLen))
 					{
 						logprintf("AesDec::%s:%d: EVP_DecryptFinal_ex failed mDrmState = %d", __FUNCTION__, __LINE__,
@@ -331,7 +331,7 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 					else
 					{
 						decryptedDataLen += decLen;
-						AAMPLOG_INFO("AesDec::%s:%d decrypt success", __FUNCTION__, __LINE__);
+						AAMPLOG_INFO("AesDec: decrypt success");
 						err = eDRM_SUCCESS;
 					}
 				}

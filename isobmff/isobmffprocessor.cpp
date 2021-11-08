@@ -38,13 +38,14 @@ static const char *IsoBmffProcessorTypeName[] =
  * @param[in] trackType - track type (A/V)
  * @param[in] peerBmffProcessor - peer instance of IsoBmffProcessor
  */
-IsoBmffProcessor::IsoBmffProcessor(class PrivateInstanceAAMP *aamp, IsoBmffProcessorType trackType, IsoBmffProcessor* peerBmffProcessor)
+IsoBmffProcessor::IsoBmffProcessor(class PrivateInstanceAAMP *aamp, AampLogManager *logObj, IsoBmffProcessorType trackType, IsoBmffProcessor* peerBmffProcessor)
 	: p_aamp(aamp), type(trackType), peerProcessor(peerBmffProcessor), basePTS(0),
 	processPTSComplete(false), timeScale(0), initSegment(),
 	playRate(1.0f), abortAll(false), m_mutex(), m_cond(),
-	initSegmentProcessComplete(false)
+	initSegmentProcessComplete(false),
+	mLogObj(logObj)	
 {
-	AAMPLOG_WARN("IsoBmffProcessor::%s() %d Created IsoBmffProcessor(%p) for type:%d and peerProcessor(%p)", __FUNCTION__, __LINE__, this, type, peerBmffProcessor);
+	AAMPLOG_WARN("IsoBmffProcessor:: Created IsoBmffProcessor(%p) for type:%d and peerProcessor(%p)", this, type, peerBmffProcessor);
 	if (peerProcessor)
 	{
 		peerProcessor->setPeerProcessor(this);
@@ -82,14 +83,14 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 	ptsError = false;
 	bool ret = true;
 
-	AAMPLOG_TRACE("IsoBmffProcessor::%s() %d [%s] sending segment at pos:%f dur:%f", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], position, duration);
+	AAMPLOG_TRACE("IsoBmffProcessor:: [%s] sending segment at pos:%f dur:%f", IsoBmffProcessorTypeName[type], position, duration);
 
 	// Logic for Audio Track
 	if (type == eBMFFPROCESSOR_TYPE_AUDIO)
 	{
 		if (!processPTSComplete)
 		{
-			IsoBmffBuffer buffer;
+			IsoBmffBuffer buffer(mLogObj);
 			buffer.setBuffer((uint8_t *)segment, size);
 			buffer.parseBuffer();
 
@@ -104,7 +105,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 				pthread_mutex_lock(&m_mutex);
 				if (!processPTSComplete)
 				{
-					AAMPLOG_INFO("IsoBmffProcessor::%s() %d [%s] Going into wait for PTS processing to complete", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type]);
+					AAMPLOG_INFO("IsoBmffProcessor:: [%s] Going into wait for PTS processing to complete",  IsoBmffProcessorTypeName[type]);
 					pthread_cond_wait(&m_cond, &m_mutex);
 				}
 				if (abortAll)
@@ -142,7 +143,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 	if (ret && !processPTSComplete && playRate == AAMP_NORMAL_PLAY_RATE)
 	{
 		// We need to parse PTS from first buffer
-		IsoBmffBuffer buffer;
+		IsoBmffBuffer buffer(mLogObj);
 		buffer.setBuffer((uint8_t *)segment, size);
 		buffer.parseBuffer();
 
@@ -152,7 +153,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 			if (buffer.getTimeScale(tScale))
 			{
 				timeScale = tScale;
-				AAMPLOG_INFO("IsoBmffProcessor::%s() %d [%s] TimeScale (%ld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], timeScale);
+				AAMPLOG_INFO("IsoBmffProcessor:: [%s] TimeScale (%ld) set", IsoBmffProcessorTypeName[type], timeScale);
 			}
 
 			cacheInitSegment(segment, size);
@@ -166,11 +167,11 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 			{
 				basePTS = fPts;
 				processPTSComplete = true;
-				AAMPLOG_WARN("IsoBmffProcessor::%s() %d [%s] Base PTS (%lld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], basePTS);
+				AAMPLOG_WARN("IsoBmffProcessor:: [%s] Base PTS (%lld) set", IsoBmffProcessorTypeName[type], basePTS);
 			}
 			else
 			{
-				AAMPLOG_ERR("IsoBmffProcessor::%s() %d [%s] Failed to process pts from buffer at pos:%f and dur:%f", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], position, duration);
+				AAMPLOG_ERR("IsoBmffProcessor:: [%s] Failed to process pts from buffer at pos:%f and dur:%f", IsoBmffProcessorTypeName[type], position, duration);
 			}
 
 			pthread_mutex_lock(&m_mutex);
@@ -186,22 +187,22 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 				{
 					if (initSegment.empty())
 					{
-						AAMPLOG_WARN("IsoBmffProcessor::%s() %d [%s] Init segment missing during PTS processing!", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type]);
+						AAMPLOG_WARN("IsoBmffProcessor::  [%s] Init segment missing during PTS processing!",  IsoBmffProcessorTypeName[type]);
 						p_aamp->SendErrorEvent(AAMP_TUNE_MP4_INIT_FRAGMENT_MISSING);
 						ret = false;
 					}
 					else
 					{
-						AAMPLOG_WARN("IsoBmffProcessor::%s() %d [%s] MDHD/MVHD boxes are missing in init segment!", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type]);
+						AAMPLOG_WARN("IsoBmffProcessor:: [%s] MDHD/MVHD boxes are missing in init segment!",  IsoBmffProcessorTypeName[type]);
 						uint32_t tScale = 0;
 						if (buffer.getTimeScale(tScale))
 						{
 							timeScale = tScale;
-							AAMPLOG_INFO("IsoBmffProcessor::%s() %d [%s] TimeScale (%ld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], timeScale);
+							AAMPLOG_INFO("IsoBmffProcessor:: [%s] TimeScale (%ld) set",  IsoBmffProcessorTypeName[type], timeScale);
 						}
 						if (timeScale == 0)
 						{
-							AAMPLOG_ERR("IsoBmffProcessor::%s() %d [%s] TimeScale value missing in init segment and mp4 fragment, setting to a default of 1!", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type]);
+							AAMPLOG_ERR("IsoBmffProcessor:: [%s] TimeScale value missing in init segment and mp4 fragment, setting to a default of 1!",  IsoBmffProcessorTypeName[type]);
 							timeScale = 1; // to avoid div-by-zero errors later. MDHD and MVHD are mandatory boxes, but lets relax for now
 						}
 
@@ -298,7 +299,7 @@ void IsoBmffProcessor::setRate(double rate, PlayMode mode)
  */
 void IsoBmffProcessor::setBasePTS(uint64_t pts, uint32_t tScale)
 {
-	AAMPLOG_WARN("%s:%d [%s] Base PTS (%lld) and TimeScale (%ld) set", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type], pts, tScale);
+	AAMPLOG_WARN("[%s] Base PTS (%lld) and TimeScale (%ld) set",  IsoBmffProcessorTypeName[type], pts, tScale);
 	pthread_mutex_lock(&m_mutex);
 	basePTS = pts;
 	timeScale = tScale;
@@ -317,7 +318,7 @@ void IsoBmffProcessor::setBasePTS(uint64_t pts, uint32_t tScale)
 void IsoBmffProcessor::cacheInitSegment(char *segment, size_t size)
 {
 	// Save init segment for later. Init segment will be pushed once basePTS is calculated
-	AAMPLOG_INFO("IsoBmffProcessor::%s() %d [%s] Caching init fragment", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type]);
+	AAMPLOG_INFO("IsoBmffProcessor::[%s] Caching init fragment", IsoBmffProcessorTypeName[type]);
 	GrowableBuffer *buffer = new GrowableBuffer();
 	memset(buffer, 0x00, sizeof(GrowableBuffer));
 	aamp_AppendBytes(buffer, segment, size);
@@ -333,7 +334,7 @@ void IsoBmffProcessor::cacheInitSegment(char *segment, size_t size)
 void IsoBmffProcessor::pushInitSegment(double position)
 {
 	// Push init segment now, duration = 0
-	AAMPLOG_WARN("IsoBmffProcessor::%s() %d [%s] Push init fragment", __FUNCTION__, __LINE__, IsoBmffProcessorTypeName[type]);
+	AAMPLOG_WARN("IsoBmffProcessor:: [%s] Push init fragment", IsoBmffProcessorTypeName[type]);
 	if (initSegment.size() > 0)
 	{
 		for (auto it = initSegment.begin(); it != initSegment.end();)

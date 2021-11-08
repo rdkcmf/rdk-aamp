@@ -62,7 +62,7 @@ public:
 	/**
 	 * @brief ClearKeySession Constructor
 	 */
-	ClearKeySession();
+	ClearKeySession(AampLogManager *logObj);
 
 	/**
 	 * @brief ClearKeySession Destructor

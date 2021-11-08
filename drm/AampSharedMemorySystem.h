@@ -36,7 +36,7 @@ struct AampSharedMemoryInterchangeBuffer {
 
 class AampSharedMemorySystem : public AAMPMemorySystem {
 public:
-	AampSharedMemorySystem();
+	AampSharedMemorySystem(AampLogManager *logObj);
 	virtual ~AampSharedMemorySystem();
 
 	/**
@@ -60,7 +60,7 @@ private:
 	const int AAMP_SHARED_MEMORY_CREATE_OFLAGS{O_RDWR | O_CREAT};
 	const int AAMP_SHARED_MEMORY_READ_OFLAGS{O_RDONLY};
 	const mode_t AAMP_SHARED_MEMORY_MODE{ S_IRWXU | S_IRWXG | S_IRWXO };
-
+	
 };
 
 

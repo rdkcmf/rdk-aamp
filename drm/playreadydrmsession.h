@@ -81,7 +81,7 @@ private:
 
 public:
 
-	PlayReadyDRMSession();
+	PlayReadyDRMSession(AampLogManager *logObj);
 
 	~PlayReadyDRMSession();
 

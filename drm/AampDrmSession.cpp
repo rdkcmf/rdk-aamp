@@ -27,7 +27,7 @@
 /**
  *  @brief	AampDrmSession constructor.
  */
-AampDrmSession::AampDrmSession(const string &keySystem) : m_keySystem(keySystem),m_OutputProtectionEnabled(false)
+AampDrmSession::AampDrmSession(AampLogManager *logObj, const string &keySystem) : mLogObj(logObj), m_keySystem(keySystem),m_OutputProtectionEnabled(false)
 {
 }
 

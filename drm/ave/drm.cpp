@@ -114,11 +114,12 @@ private:
 	PrivateInstanceAAMP *mpAamp;
 	AveDrm* mpAveDrm;
 	int mTrackType;
+	AampLOgManager *mLOgObj;
 public:
 	/**
 	 * @brief TheDRMListener Constructor
 	 */
-	TheDRMListener(PrivateInstanceAAMP *pAamp, AveDrm* aveDrm,int trackType) : mpAamp(pAamp), mpAveDrm(aveDrm), mTrackType(trackType)
+	TheDRMListener(PrivateInstanceAAMP *pAamp, AveDrm* aveDrm,int trackType, AampLogManager *logObj) : mpAamp(pAamp), mpAveDrm(aveDrm), mTrackType(trackType), mLogobj(logObj)
 	{
 		logprintf("TheDRMListener::%s:%d AveDrm[%p]Listner[%p]Track[%d]", __FUNCTION__, __LINE__, mpAveDrm,this,mTrackType);
 	}
@@ -365,16 +366,17 @@ static void freeDrmErrorData(void * arg)
  *
  * @retval eDRM_SUCCESS on success
  */
-DrmReturn AveDrm::SetMetaData( class PrivateInstanceAAMP *aamp, void *metadata,int trackType)
+DrmReturn AveDrm::SetMetaData( class PrivateInstanceAAMP *aamp, void *metadata,int trackType, AampLogManager *logObj)
 {
 	const DrmMetadata *drmMetadata = ( DrmMetadata *)metadata;
 	pthread_mutex_lock(&mutex);
+	mLogObj = logObj;
 	mpAamp = aamp;
 	DrmReturn err = eDRM_SUCCESS;
 	if( !m_pDrmAdapter )
 	{
 		m_pDrmAdapter = new MyFlashAccessAdapter();
-		m_pDrmListner = new TheDRMListener(mpAamp, this,trackType);
+		m_pDrmListner = new TheDRMListener(mpAamp, this,trackType, mLogObj);
 		// Need to store the Metadata as part of AveDrm as FragmentCollector frees the Metadata memory
 		// inside Flush . This Metadata pointer is referred inside AVE Lib, so its safe to keep a copy within instance
 		mMetaData.metadataPtr = new (std::nothrow) unsigned char[drmMetadata->metadataSize];
@@ -451,10 +453,11 @@ bool AveDrm::StoreDecryptInfoIfChanged( const DrmInfo *drmInfo)
  * @param drmInfo DRM information required to decrypt
  * @retval eDRM_SUCCESS on success
  */
-DrmReturn AveDrm::SetDecryptInfo( PrivateInstanceAAMP *aamp, const DrmInfo *drmInfo)
+DrmReturn AveDrm::SetDecryptInfo( PrivateInstanceAAMP *aamp, const DrmInfo *drmInfo, AampLogManager *logObj)
 {
 	DrmReturn err = eDRM_ERROR;
 	pthread_mutex_lock(&mutex);
+	mLogobj = logObj;
 	mpAamp = aamp;
 
 	// find if same DRMInfo is available and already set to Ave-Lib ?? 
@@ -535,11 +538,11 @@ DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 	}
 	else if (eDRM_KEY_FLUSH == mDrmState)
 	{          
-		AAMPLOG_WARN("AveDrm::%s:%d[%p]  Decryption cancelled", __FUNCTION__, __LINE__, this);
+		AAMPLOG_WARN("AveDrm:[%p]  Decryption cancelled", this);
 	}
 	else
 	{
-		AAMPLOG_ERR( "AveDrm::%s:%d[%p]  aamp:key acquisition failure! mDrmState = %d", __FUNCTION__, __LINE__, this, (int)mDrmState);
+		AAMPLOG_ERR( "AveDrm:[%p]  aamp:key acquisition failure! mDrmState = %d", (int)mDrmState);
 	}
 	pthread_mutex_unlock(&mutex);
 	return err;
@@ -645,10 +648,11 @@ AveDrm::~AveDrm()
 * @param[in] aamp      Pointer to PrivateInstanceAAMP object associated with player
 * @param[in] metadata  Pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
 */
-void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType)
+void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType, AampLogManager *logObj)
 {
 	(void)metadata;
 	pthread_mutex_lock(&mutex);
+	mLogObj = logObj;
 	mpAamp = aamp;
 	if( !m_pDrmAdapter )
 	{
@@ -668,17 +672,17 @@ void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int tra
 
 #else  // for Non-AVE macro
 
-DrmReturn AveDrm::SetMetaData(class PrivateInstanceAAMP *aamp, void *drmMetadata,int trackType)
+DrmReturn AveDrm::SetMetaData(class PrivateInstanceAAMP *aamp, void *drmMetadata,int trackType, AampLogManager *logObj)
 {
 	return eDRM_ERROR;
 }
 
-void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata, int trackType)
+void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata, int trackType, AampLogManager *logObj)
 {
 
 }
 
-DrmReturn AveDrm::SetDecryptInfo( PrivateInstanceAAMP *aamp, const DrmInfo *drmInfo)
+DrmReturn AveDrm::SetDecryptInfo( PrivateInstanceAAMP *aamp, const DrmInfo *drmInfo, AampLogManager *logObj)
 {
 	return eDRM_ERROR;
 }
@@ -722,7 +726,7 @@ AveDrm::~AveDrm()
  */
 AveDrm::AveDrm() : mpAamp(NULL), m_pDrmAdapter(NULL), m_pDrmListner(NULL),
 		mDrmState(eDRM_INITIALIZED), mPrevDrmState(eDRM_INITIALIZED),
-		mMetaData(), mDrmInfo(), cond(), mutex()
+		mMetaData(), mDrmInfo(), cond(), mutex(), mLogObj(NULL)
 {
 	pthread_mutex_init(&mutex, NULL);
 	pthread_cond_init(&cond, NULL);
@@ -907,7 +911,7 @@ void AveDrmManager::RestoreKeyStateAll()
 * @param[in] metaDataNode  DRM meta data node containing meta-data to be set.
 * @param[in] trackType     Source track type (audio/video)
 */
-void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType)
+void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType, AampLogManager *mLogObj)
 {
 	AveDrmManager* aveDrmManager = NULL;
 	bool drmMetaDataAlreadyStored = false;
@@ -939,7 +943,7 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 		aveDrmManager->mTrackType |= (1<<trackType);
 		memcpy(aveDrmManager->mSha1Hash, metaDataNode->sha1Hash, DRM_SHA1_HASH_LEN);
 		aveDrmManager->mDeferredTime = metaDataNode->drmKeyReqTime;
-		aveDrmManager->mDrm->SetMetaData(aamp, &metaDataNode->metaData,trackType);
+		aveDrmManager->mDrm->SetMetaData(aamp, &metaDataNode->metaData,trackType, mLogObj);
 		logprintf("%s:%d: Created new AveDrmManager[%s] .Track[%d].Total Sz=%d", __FUNCTION__, __LINE__,metaDataNode->sha1Hash,trackType,sAveDrmManager.size());
 	}
 	pthread_mutex_unlock(&aveDrmManagerMutex);
@@ -955,7 +959,7 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 * @param[in] trackType Track type audio / video
 * @param[in] overrideDeferring Flag to indicate override deferring and request key immediately
 */
-bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType,bool overrideDeferring)
+bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType, AampLogManager *mLogObj, bool overrideDeferring)
 {
 	bool retStatus = true;
 	AveDrmManager* aveDrmManager = NULL;
@@ -1024,7 +1028,7 @@ bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaD
 		if(currState != DRMState::eDRM_KEY_FLUSH)
 		{
 			logprintf("[%s][%d][%d] Request KeyIdx[%d] for hash[%s]",__FUNCTION__,__LINE__,trackType,metaIdx,metaDataNode->sha1Hash);
-			sAveDrmManager[metaIdx]->mDrm->AcquireKey(aamp, &metaDataNode->metaData,trackType);
+			sAveDrmManager[metaIdx]->mDrm->AcquireKey(aamp, &metaDataNode->metaData,trackType, mLogObj);
 		}
 	}
 
@@ -1077,7 +1081,7 @@ void AveDrmManager::DumpCachedLicenses()
  * @return AveDrm  Instance corresponds to sha1Hash
  * @return NULL    If AveDrm instance configured with the meta-data is not available
  */
-std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType)
+std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType, AampLogManager *mLogObj)
 {
         std::shared_ptr<AveDrm>  aveDrm = nullptr;
         pthread_mutex_lock(&aveDrmManagerMutex);
@@ -1104,7 +1108,7 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType)
                 }
                 else
                 {
-                        AAMPLOG_WARN("%s:%d:[%d] sHlsDrmContext[%d].mDrmContexSet is false", __FUNCTION__, __LINE__,trackType, i);
+                        AAMPLOG_WARN("[%d] sHlsDrmContext[%d].mDrmContexSet is false",trackType, i);
                 }
         }
 	}
@@ -1115,25 +1119,25 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType)
 		{
 			aveDrm = sAveDrmManager[0]->mDrm;
 			sAveDrmManager[0]->mHasBeenUsed = true;
-			AAMPLOG_INFO("%s:%d:[%d] Returned only available Drm Instance ", __FUNCTION__, __LINE__,trackType);
+			AAMPLOG_INFO("[%d] Returned only available Drm Instance ",trackType);
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d:[%d] sHlsDrmContextmDrmContexSet is false", __FUNCTION__, __LINE__,trackType);
+			AAMPLOG_WARN("[%d] sHlsDrmContextmDrmContexSet is false",trackType);
 		}
 	}
 	// case b.2
 	else if(sAveDrmManager.size() > 1)
 	{
-		AAMPLOG_INFO("%s:%d:[%d] Multi Meta[%d]available  without hash.Matching trackTypee ", __FUNCTION__, __LINE__,trackType,sAveDrmManager.size());
+		AAMPLOG_INFO("[%d] Multi Meta[%d]available  without hash.Matching trackTypee ",trackType,sAveDrmManager.size());
 		for (int i = 0; i < sAveDrmManager.size(); i++)
 		{
-			AAMPLOG_INFO("%s:%d:[%d] Idx[%d] ContextSet[%d] mTractType[%d]",__FUNCTION__, __LINE__,trackType,i,sAveDrmManager[i]->mDrmContexSet,sAveDrmManager[i]->mTrackType);
+			AAMPLOG_INFO("[%d] Idx[%d] ContextSet[%d] mTractType[%d]",trackType,i,sAveDrmManager[i]->mDrmContexSet,sAveDrmManager[i]->mTrackType);
 			if (sAveDrmManager[i]->mDrmContexSet && (sAveDrmManager[i]->mTrackType & (1<<trackType)))
 			{
 				aveDrm = sAveDrmManager[i]->mDrm;
 				sAveDrmManager[i]->mHasBeenUsed = true;
-				AAMPLOG_INFO("%s:%d:[%d] Found Matching Multi Meta drm asset State[%d]",__FUNCTION__, __LINE__,trackType,aveDrm->GetState());
+				AAMPLOG_INFO("[%d] Found Matching Multi Meta drm asset State[%d]",trackType,aveDrm->GetState());
 				break;
 			}
 		}

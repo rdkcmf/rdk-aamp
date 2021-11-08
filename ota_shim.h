@@ -51,7 +51,7 @@ typedef struct ATSCSettings
 class StreamAbstractionAAMP_OTA : public StreamAbstractionAAMP
 {
 public:
-    StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+    StreamAbstractionAAMP_OTA(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seekpos, float rate);
     ~StreamAbstractionAAMP_OTA();
     StreamAbstractionAAMP_OTA(const StreamAbstractionAAMP_OTA&) = delete;
     StreamAbstractionAAMP_OTA& operator=(const StreamAbstractionAAMP_OTA&) = delete;
@@ -91,7 +91,6 @@ public:
     bool SetThumbnailTrack(int) override;
     std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 private:
-
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
     ThunderAccessAAMP thunderAccessObj;
     ThunderAccessAAMP mediaSettingsObj;

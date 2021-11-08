@@ -103,11 +103,11 @@ bool AampVgdrmHelperFactory::isDRM(const struct DrmInfo& drmInfo) const
 	return false;
 }
 
-std::shared_ptr<AampDrmHelper> AampVgdrmHelperFactory::createHelper(const struct DrmInfo& drmInfo) const
+std::shared_ptr<AampDrmHelper> AampVgdrmHelperFactory::createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj) const
 {
 	if (isDRM(drmInfo))
 	{
-		return std::make_shared<AampVgdrmHelper>(drmInfo);
+		return std::make_shared<AampVgdrmHelper>(drmInfo, logObj);
 	}
 	return NULL;
 }

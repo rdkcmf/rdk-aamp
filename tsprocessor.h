@@ -110,7 +110,7 @@ typedef enum
 class TSProcessor : public MediaProcessor
 {
    public:
-      TSProcessor(class PrivateInstanceAAMP *aamp, StreamOperation streamOperation, int track = 0, TSProcessor* peerTSProcessor = NULL, TSProcessor* auxTSProcessor = NULL);
+      TSProcessor(AampLogManager *logObj, class PrivateInstanceAAMP *aamp, StreamOperation streamOperation, int track = 0, TSProcessor* peerTSProcessor = NULL, TSProcessor* auxTSProcessor = NULL);
       TSProcessor(const TSProcessor&) = delete;
       TSProcessor& operator=(const TSProcessor&) = delete;
       ~TSProcessor();
@@ -325,6 +325,7 @@ class TSProcessor : public MediaProcessor
       unsigned char m_AudioTrackIndexToPlay;
       TSProcessor* m_auxTSProcessor;
       bool m_auxiliaryAudio;
+      AampLogManager *mLogObj;
 };
 
 #endif

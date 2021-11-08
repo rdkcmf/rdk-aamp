@@ -51,7 +51,7 @@ public:
 	*
 	 * @param[in] aamp - Pointer to PrivateInstanceAAMP
 	*/
-	CDAIObjectMPD(PrivateInstanceAAMP* aamp);
+	CDAIObjectMPD(AampLogManager *logObj, PrivateInstanceAAMP* aamp);
 
 	/**
 	 * @brief CDAIObjectMPD destructor.
@@ -279,6 +279,7 @@ struct PlacementObj {
 class PrivateCDAIObjectMPD
 {
 public:
+	AampLogManager*				       mLogObj;
 	PrivateInstanceAAMP*                           mAamp;               /**< AAMP player's private instance */
 	std::mutex                                     mDaiMtx;             /**< Mutex protecting DAI critical section */
 	bool                                           mIsFogTSB;           /**< Channel playing from TSB or not */
@@ -299,7 +300,7 @@ public:
 	*
 	* @param[in] aamp - Pointer to PrivateInstanceAAMP
 	*/
-	PrivateCDAIObjectMPD(PrivateInstanceAAMP* aamp);
+	PrivateCDAIObjectMPD(AampLogManager* logObj, PrivateInstanceAAMP* aamp);
 
 	/**
 	* @brief PrivateCDAIObjectMPD destructor

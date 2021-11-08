@@ -19,8 +19,8 @@
 #include <sys/time.h>
 #include <gst/gstbuffer.h>
 
-AAMPOCDMSessionAdapter::AAMPOCDMSessionAdapter(std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *callbacks) :
-		AampDrmSession(drmHelper->ocdmSystemId()),
+AAMPOCDMSessionAdapter::AAMPOCDMSessionAdapter(AampLogManager *logObj, std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *callbacks) :
+		AampDrmSession(logObj, drmHelper->ocdmSystemId()),
 		m_eKeyState(KEY_INIT),
 		m_pOpenCDMSystem(NULL),
 		m_pOpenCDMSession(NULL),
@@ -92,7 +92,7 @@ AAMPOCDMSessionAdapter::~AAMPOCDMSessionAdapter()
 void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData)
 {
-	AAMPLOG_INFO("%s:%d: at %p, with %p, %p", __FUNCTION__, __LINE__, this , m_pOpenCDMSystem, m_pOpenCDMSession);
+	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 
 	pthread_mutex_lock(&decryptMutex);
 
@@ -108,7 +108,7 @@ void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 		m_OCDMSessionCallbacks.process_challenge_callback = [](OpenCDMSession* session, void* userData, const char destUrl[], const uint8_t challenge[], const uint16_t challengeSize) {
 			AAMPOCDMSessionAdapter* userSession = reinterpret_cast<AAMPOCDMSessionAdapter*>(userData);
 			userSession->timeBeforeCallback = ((aamp_GetCurrentTimeMS())-(userSession->timeBeforeCallback));
-			AAMPLOG_INFO("Duration for process_challenge_callback %lld",(userSession->timeBeforeCallback));
+			logprintf("Duration for process_challenge_callback %lld",(userSession->timeBeforeCallback));
 			userSession->processOCDMChallenge(destUrl, challenge, challengeSize);
 		};
 
@@ -147,7 +147,7 @@ void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 
 void AAMPOCDMSessionAdapter::processOCDMChallenge(const char destUrl[], const uint8_t challenge[], const uint16_t challengeSize) {
 
-	AAMPLOG_INFO("%s:%d: at %p, with %p, %p", __FUNCTION__, __LINE__, this , m_pOpenCDMSystem, m_pOpenCDMSession);
+	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 
 	const std::string challengeData(reinterpret_cast<const char *>(challenge), challengeSize);
 	const std::set<std::string> individualisationTypes = {"individualization-request", "3"};
@@ -180,7 +180,7 @@ void AAMPOCDMSessionAdapter::processOCDMChallenge(const char destUrl[], const ui
 }
 
 void AAMPOCDMSessionAdapter::keyUpdateOCDM(const uint8_t key[], const uint8_t keySize) {
-	AAMPLOG_INFO("%s:%d: at %p, with %p, %p", __FUNCTION__, __LINE__, this , m_pOpenCDMSystem, m_pOpenCDMSession);
+	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	if (m_pOpenCDMSession) {
 		m_keyStatus = opencdm_session_status(m_pOpenCDMSession, key, keySize);
 		m_keyStateIndeterminate = false;
@@ -194,13 +194,13 @@ void AAMPOCDMSessionAdapter::keyUpdateOCDM(const uint8_t key[], const uint8_t ke
 }
 
 void AAMPOCDMSessionAdapter::keysUpdatedOCDM() {
-	AAMPLOG_INFO("%s:%d: at %p, with %p, %p", __FUNCTION__, __LINE__, this , m_pOpenCDMSystem, m_pOpenCDMSession);
+	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	m_keyStatusReady.signal();
 }
 
 DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL, uint32_t timeout)
 {
-	AAMPLOG_INFO("%s:%d: at %p, with %p, %p", __FUNCTION__, __LINE__, this , m_pOpenCDMSystem, m_pOpenCDMSession);
+	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	DrmData * result = NULL;
 
 	m_eKeyState = KEY_ERROR;
@@ -219,10 +219,10 @@ DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL,
 			m_eKeyState = KEY_PENDING;
 		}
 		else {
-			AAMPLOG_WARN("%s:%d: Empty keyRequest", __FUNCTION__, __LINE__ );
+			AAMPLOG_WARN("Empty keyRequest");
 		}
 	} else {
-		AAMPLOG_WARN("%s:%d: Timed out waiting for keyRequest", __FUNCTION__, __LINE__ );
+		AAMPLOG_WARN("Timed out waiting for keyRequest");
 	}
 
 	return result;
@@ -231,7 +231,7 @@ DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL,
 
 int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 {
-	AAMPLOG_INFO("%s:%d: at %p, with %p, %p", __FUNCTION__, __LINE__, this , m_pOpenCDMSystem, m_pOpenCDMSession);
+	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	int retValue = -1;
 
 	const uint8_t* keyMessage = key ? key->getData() : nullptr;
@@ -390,7 +390,7 @@ bool AAMPOCDMSessionAdapter::verifyOutputProtection()
 		if (!m_pOutputProtection->isHDCPConnection2_2())
 		{
 			// UHD and not HDCP 2.2
-			AAMPLOG_WARN("%s : UHD source but not HDCP 2.2. FAILING decrypt", __FUNCTION__);
+			AAMPLOG_WARN("UHD source but not HDCP 2.2. FAILING decrypt");
 			return false;
 		}
 	}

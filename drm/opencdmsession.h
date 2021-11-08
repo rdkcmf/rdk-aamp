@@ -47,7 +47,7 @@ private:
 	void initAampDRMSession();
 
 public:
-    AAMPOCDMSession(const string& keySystem);
+    AAMPOCDMSession(AampLogManager *logObj, const string& keySystem);
 	~AAMPOCDMSession();
 	AAMPOCDMSession(const AAMPOCDMSession&) = delete;
 	AAMPOCDMSession& operator=(const AAMPOCDMSession&) = delete;

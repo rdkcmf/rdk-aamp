@@ -44,7 +44,7 @@ public:
 
 	virtual const std::string& friendlyName() const override { return FRIENDLY_NAME; };
 
-	AampClearKeyHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo), mInitData(), mKeyID(), mPsshStr(),
+	AampClearKeyHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj) : AampDrmHelper(drmInfo,logObj), mInitData(), mKeyID(), mPsshStr(),
 		CLEARKEY_KEY_ID("1"), FRIENDLY_NAME("Clearkey"), CODEC_TYPE(0), CLEARKEY_DASH_KEY_ID_OFFSET(32u),
 		CLEARKEY_DASH_KEY_ID_LEN(16u), KEY_ID_OFFSET(12), KEY_PAYLOAD_OFFSET(14), BASE_16(16)
 	{}
@@ -72,7 +72,7 @@ class AampClearKeyHelperFactory : public AampDrmHelperFactory
 public:
 	static const int CLEARKEY_WEIGHTING = DEFAULT_WEIGHTING * 2;
 
-	std::shared_ptr<AampDrmHelper> createHelper(const struct DrmInfo& drmInfo) const;
+	std::shared_ptr<AampDrmHelper> createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj=NULL) const;
 
 	void appendSystemId(std::vector<std::string>& systemIds) const;
 

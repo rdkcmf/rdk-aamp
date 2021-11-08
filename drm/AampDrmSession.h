@@ -75,7 +75,7 @@ protected:
 	std::string m_keySystem;
 	bool m_OutputProtectionEnabled;
 public:
-
+	AampLogManager *mLogObj;
 	/**
 	 * @brief Create drm session with given init data
 	 * @param f_pbInitData : pointer to initdata
@@ -148,8 +148,10 @@ public:
 	 * @brief Constructor for AampDrmSession.
 	 * @param keySystem : DRM key system uuid
 	 */
-	AampDrmSession(const string &keySystem);
+	AampDrmSession(AampLogManager *logObj, const string &keySystem);
 
+	AampDrmSession(const AampDrmSession&) = delete;
+	AampDrmSession& operator=(const AampDrmSession&) = delete;
 	/**
 	 * @brief Destructor for AampDrmSession..
 	 */

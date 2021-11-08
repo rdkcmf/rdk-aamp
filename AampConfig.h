@@ -436,13 +436,14 @@ public:
 	const char * GetChannelLicenseOverride(const std::string chName);
 	bool ProcessConfigJson(const char *, ConfigPriority owner );
 	bool ProcessConfigText(std::string &cfg, ConfigPriority owner );
-	void RestoreConfiguration(ConfigPriority owner);
+	void RestoreConfiguration(ConfigPriority owner, AampLogManager *mLogObj);
 	void ConfigureLogSettings();
 	bool GetAampConfigJSONStr(std::string &str);
 	bool GetDeveloperConfigData(std::string &key,std::string &value);
 	void DoCustomSetting(ConfigPriority owner);
 	void CustomArrayRead( cJSON *customArray,ConfigPriority owner );
 	bool CustomSearch( std::string url, int playerId , std::string appname);
+	AampLogManager *GetLoggerInstance() { return &logging;}
 
 	////////// Special Functions /////////////////////////
 	std::string GetUserAgentString();

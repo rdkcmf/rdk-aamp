@@ -76,6 +76,7 @@ private:
 	pthread_mutex_t mCondVarMutex;
 	pthread_cond_t mCondVar ;
 	pthread_t mAsyncCleanUpTaskThreadId;
+	AampLogManager *mLogObj;
 private:
 
 	/**
@@ -122,7 +123,7 @@ public:
 	 *
 	 *	 @return void
 	 */
-	AampCacheHandler();
+	AampCacheHandler(AampLogManager *logObj);
 
 	/**
 	* @brief Destructor Function

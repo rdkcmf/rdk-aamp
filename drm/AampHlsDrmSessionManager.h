@@ -26,7 +26,6 @@
 class AampHlsDrmSessionManager
 {
 	AampDrmSession* mDrmSession;
-
 public:
 	/*
 	 * Get an instance of the Hls DRM Session Manager
@@ -45,7 +44,7 @@ public:
 	 * @param drmInfo DrmInfo built by the HLS manifest parser
 	 * @return true if a DRM support available, false otherwise
 	 */
-	std::shared_ptr<HlsDrmBase> createSession(PrivateInstanceAAMP* aampInstance, const struct DrmInfo& drmInfo, MediaType streamType);
+	std::shared_ptr<HlsDrmBase> createSession(PrivateInstanceAAMP* aampInstance, const struct DrmInfo& drmInfo, MediaType streamType, AampLogManager *logObj=NULL);
 };
 
 #endif //_AAMP_HLS_DRM_SESSION_MGR_H

@@ -71,9 +71,9 @@ void print_nop(const char *format, ...){}
 #define FATAL print_nop
 #else
 
-#define NOTICE(FORMAT, ...) 	AAMPLOG(eLOGLEVEL_INFO,  FORMAT, ##__VA_ARGS__)
-#define WARNING(FORMAT, ...) 	AAMPLOG(eLOGLEVEL_WARN, FORMAT, ##__VA_ARGS__)
-#define ERROR(FORMAT, ...) 	AAMPLOG(eLOGLEVEL_ERROR,  FORMAT, ##__VA_ARGS__)
+#define NOTICE(FORMAT, ...) 	AAMPLOG(mLogObj, eLOGLEVEL_INFO, "INFO", FORMAT, ##__VA_ARGS__)
+#define WARNING(FORMAT, ...) 	AAMPLOG(mLogObj, eLOGLEVEL_WARN, "WARN", FORMAT, ##__VA_ARGS__)
+#define ERROR(FORMAT, ...) 	AAMPLOG(mLogObj, eLOGLEVEL_ERROR, "ERROR", FORMAT, ##__VA_ARGS__)
 #endif
 
 
@@ -223,6 +223,7 @@ T exchange(T& obj, U&& new_value)
 class Demuxer
 {
 private:
+	AampLogManager *mLogObj;
 	class PrivateInstanceAAMP *aamp;
 	int pes_state;
 	int pes_header_ext_len;
@@ -303,7 +304,7 @@ public:
 	 * @param[in] aamp pointer to PrivateInstanceAAMP object associated with demux
 	 * @param[in] type Media type to be demuxed
 	 */
-	Demuxer(class PrivateInstanceAAMP *aamp,MediaType type) : aamp(aamp), pes_state(0),
+	Demuxer(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,MediaType type) : mLogObj(logObj), aamp(aamp), pes_state(0),
 		pes_header_ext_len(0), pes_header_ext_read(0), pes_header(),
 		es(), position(0), duration(0), base_pts{0}, current_pts{0},
 		current_dts{0}, type(type), trickmode(false), finalized_base_pts(false),
@@ -370,7 +371,7 @@ public:
 			INFO("demux : sending remaining bytes. es.len %d", (int)es.len);
 			send();
 		}
-		AAMPLOG_INFO("Demuxer::%s:%d: count %d in duration %f", __FUNCTION__, __LINE__, sentESCount, duration);
+		AAMPLOG_INFO("Demuxer::count %d in duration %f",sentESCount, duration);
 		reset();
 	}
 
@@ -822,7 +823,7 @@ static StreamOutputFormat getStreamFormatForCodecType(int streamType)
  * @param[in] track MediaType to be operated on. Not relavent for demux operation
  * @param[in] peerTSProcessor Peer TSProcessor used along with this in case of separate audio/video playlists
  */
-TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamOperation, int track, TSProcessor* peerTSProcessor, TSProcessor* auxTSProcessor)
+TSProcessor::TSProcessor(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,StreamOperation streamOperation, int track, TSProcessor* peerTSProcessor, TSProcessor* auxTSProcessor)
 	: m_needDiscontinuity(true),
 	m_PatPmtLen(0), m_PatPmt(0), m_PatPmtTrickLen(0), m_PatPmtTrick(0), m_PatPmtPcrLen(0), m_PatPmtPcr(0),
 	m_nullPFrame(0), m_nullPFrameLength(0), m_nullPFrameNextCount(0), m_nullPFrameOffset(0),
@@ -854,6 +855,7 @@ TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamO
 	, m_AudioTrackIndexToPlay(0)
 	, m_auxTSProcessor(auxTSProcessor)
 	, m_auxiliaryAudio(false)
+	, mLogObj(logObj)
 {
 	INFO("constructor - %p", this);
 
@@ -867,21 +869,21 @@ TSProcessor::TSProcessor(class PrivateInstanceAAMP *aamp,StreamOperation streamO
 
 	if ((m_streamOperation == eStreamOp_DEMUX_ALL) || (m_streamOperation == eStreamOp_DEMUX_VIDEO) || (m_streamOperation == eStreamOp_DEMUX_VIDEO_AND_AUX))
 	{
-		m_vidDemuxer = new Demuxer(aamp, eMEDIATYPE_VIDEO);
+		m_vidDemuxer = new Demuxer(mLogObj, aamp, eMEDIATYPE_VIDEO);
 		//demux DSM CC stream only together with video stream
-		m_dsmccDemuxer = new Demuxer(aamp, eMEDIATYPE_DSM_CC);
+		m_dsmccDemuxer = new Demuxer(mLogObj, aamp, eMEDIATYPE_DSM_CC);
 		m_demux = true;
 	}
 
 	if ((m_streamOperation == eStreamOp_DEMUX_ALL) || (m_streamOperation == eStreamOp_DEMUX_AUDIO))
 	{
-		m_audDemuxer = new Demuxer(aamp, eMEDIATYPE_AUDIO);
+		m_audDemuxer = new Demuxer(mLogObj, aamp, eMEDIATYPE_AUDIO);
 		m_demux = true;
 	}
 	else if ((m_streamOperation == eStreamOp_DEMUX_AUX) || m_streamOperation == eStreamOp_DEMUX_VIDEO_AND_AUX)
 	{
 		m_auxiliaryAudio = true;
-		m_audDemuxer = new Demuxer(aamp, eMEDIATYPE_AUX_AUDIO);
+		m_audDemuxer = new Demuxer(mLogObj, aamp, eMEDIATYPE_AUX_AUDIO);
 		// Map auxiliary specific streamOperation back to generic streamOperation used by TSProcessor
 		if (m_streamOperation == eStreamOp_DEMUX_AUX)
 		{
@@ -2346,7 +2348,7 @@ void TSProcessor::sendQueuedSegment(long long basepts, double updatedStartPosito
 			}
 			if(!demuxAndSend(m_queuedSegment, m_queuedSegmentLen, m_queuedSegmentPos, m_queuedSegmentDuration, m_queuedSegmentDiscontinuous ))
 			{
-				AAMPLOG_WARN("%s:%d: demuxAndSend", __FUNCTION__, __LINE__);  //CID:90622- checked return
+				AAMPLOG_WARN("demuxAndSend");  //CID:90622- checked return
 			}
 		}
 		else

@@ -26,7 +26,7 @@
 
 #include "AampConfig.h"
 
-AampSharedMemorySystem::AampSharedMemorySystem() {
+AampSharedMemorySystem::AampSharedMemorySystem(AamplOgManager *logObj): AAMPMemorySystem(logObj) {
 }
 
 AampSharedMemorySystem::~AampSharedMemorySystem() {

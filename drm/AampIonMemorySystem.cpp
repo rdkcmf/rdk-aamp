@@ -26,21 +26,22 @@
 
 #include "AampConfig.h"
 
-AampIonMemorySystem::AampIonMemorySystem() : context_() {
+
+AampIonMemorySystem::AampIonMemorySystem(AampLogManager *logObj) : AAMPMemorySystem(logObj),context_(logObj) {
 }
 
 AampIonMemorySystem::~AampIonMemorySystem() {
 }
 
-AampIonMemorySystem::AampIonMemoryContext::AampIonMemoryContext() : fd_(0), handle_(0) {};
+AampIonMemorySystem::AampIonMemoryContext::AampIonMemoryContext(AampLogManager *logObj) : fd_(0), handle_(0), mLogObj(logObj) {};
 
 bool AampIonMemorySystem::AampIonMemoryContext::createBuffer(size_t len) {
 	fd_ = ion_open();
 	if (fd_ < 0) {
-		AAMPLOG_WARN("%s:%d: Calling ion_open(): %d", __FUNCTION__, __LINE__, fd_);
+		AAMPLOG_WARN("Calling ion_open(): %d", fd_);
 		return false;
 	}
-	AAMPLOG_INFO("%s:%d: Got %d from ion_open()", __FUNCTION__, __LINE__, fd_);
+	AAMPLOG_INFO("Got %d from ion_open()", fd_);
 
 	int ret = ion_alloc(fd_, len,
 		AAMP_ION_MEMORY_ALIGN,
@@ -48,7 +49,7 @@ bool AampIonMemorySystem::AampIonMemoryContext::createBuffer(size_t len) {
 		AAMP_ION_MEMORY_FLAGS, &handle_);
 
 	if (ret != 0) {
-		AAMPLOG_WARN("%s:%d: Calling ion_alloc(): %d", __FUNCTION__, __LINE__, fd_);
+		AAMPLOG_WARN("Calling ion_alloc(): %d", fd_);
 		ion_close(fd_);
 		fd_ = 0;
 	}
@@ -81,14 +82,14 @@ void AampIonMemorySystem::AampIonMemoryContext::close() {
 		int ret = ion_free(fd_, handle_);
 		handle_ = 0;
 		if (ret) {
-			AAMPLOG_ERR("%s:%d: ion_free_buffer failed", __FUNCTION__, __LINE__);
+			AAMPLOG_ERR("ion_free_buffer failed");
 		}
 	}
 	if (fd_ != 0) {
 		ion_close(fd_);
 		fd_ = 0;
 	}
-	AAMPLOG_INFO("%s:%d: Closed ION memory ok", __FUNCTION__, __LINE__);
+	AAMPLOG_INFO("Closed ION memory ok");
 }
 
 bool AampIonMemorySystem::AampIonMemoryContext::share(int& shareFd) {
@@ -109,14 +110,14 @@ bool AampIonMemorySystem::encode(const uint8_t *dataIn, uint32_t dataInSz, std::
 	
 	if (!context_.createBuffer(dataInSz))
 	{
-		AAMPLOG_WARN("%s:%d: Failed to create Ion memory object: %d", __FUNCTION__, __LINE__, errno);
+		AAMPLOG_WARN("Failed to create Ion memory object: %d", errno);
 		return false;
 	}
 
 	int share_fd;
 	if (!context_.share(share_fd))
 	{
-		AAMPLOG_WARN("%s:%d: Failed to share Ion memory object: %d", __FUNCTION__, __LINE__, errno);
+		AAMPLOG_WARN("Failed to share Ion memory object: %d", errno);
 		return false;
 	}
 
@@ -125,7 +126,7 @@ bool AampIonMemorySystem::encode(const uint8_t *dataIn, uint32_t dataInSz, std::
 	void *dataWr = mmap(NULL, dataInSz, PROT_WRITE | PROT_READ, MAP_SHARED, share_fd, 0);
 	if (dataWr == 0) 
 	{
-		AAMPLOG_WARN("%s:%d: Failed to map the Ion memory object %d", __FUNCTION__, __LINE__, errno);
+		AAMPLOG_WARN("Failed to map the Ion memory object %d", errno);
 		return false;
 	}
 	
@@ -134,13 +135,13 @@ bool AampIonMemorySystem::encode(const uint8_t *dataIn, uint32_t dataInSz, std::
 	int status = munmap(dataWr, dataInSz);
 	if (status < 0)
 	{
-		AAMPLOG_WARN("%s:%d: Failed to unmap the Ion memory object %d", __FUNCTION__, __LINE__, errno);
+		AAMPLOG_WARN("Failed to unmap the Ion memory object %d", errno);
 		return false;
 	}
 	// Only send the size of the Ion memory, nothing else
 	AampIonMemoryInterchangeBuffer ib { };
 	if (!context_.phyAddr(&ib.phyAddr)) {
-		AAMPLOG_WARN("%s:%d: Failed to find the physical address of the Ion memory object %d", __FUNCTION__, __LINE__, errno);
+		AAMPLOG_WARN("Failed to find the physical address of the Ion memory object %d", errno);
 		return false;
 	}
 	ib.size = sizeof(ib);
@@ -161,23 +162,23 @@ bool AampIonMemorySystem::decode(const uint8_t * dataIn, uint32_t dataInSz, uint
 	const AampIonMemoryInterchangeBuffer *pib = reinterpret_cast<const AampIonMemoryInterchangeBuffer *>(dataIn);
 	if (dataInSz != sizeof(AampIonMemoryInterchangeBuffer))
 	{
-		AAMPLOG_WARN("%s:%d: Wrong data packet size, expected %d, got %d", __FUNCTION__, __LINE__, sizeof(AampIonMemoryInterchangeBuffer), dataInSz);
+		AAMPLOG_WARN("Wrong data packet size, expected %d, got %d", sizeof(AampIonMemoryInterchangeBuffer), dataInSz);
 		return false;
 	}
 	unsigned long phyAddr;
 	if (!context_.phyAddr(&phyAddr)) {
-		AAMPLOG_WARN("%s:%d: Failed to get physical address of ION memory: %d", __FUNCTION__, __LINE__, errno);
+		AAMPLOG_WARN("Failed to get physical address of ION memory: %d", errno);
 		return false;
 	}
 	if (pib->phyAddr != phyAddr) {
-		AAMPLOG_WARN("%s:%d: Physical address of ION memory not what was sent... %d", __FUNCTION__, __LINE__, errno);
+		AAMPLOG_WARN("Physical address of ION memory not what was sent... %d", errno);
 		return false;
 	}
 
 	int share_fd;
 	if (!context_.share(share_fd))
 	{
-		AAMPLOG_WARN("%s:%d: Failed to share Ion memory object: %d", __FUNCTION__, __LINE__, errno);
+		AAMPLOG_WARN("Failed to share Ion memory object: %d", errno);
 		return false;
 	}
 
@@ -187,20 +188,20 @@ bool AampIonMemorySystem::decode(const uint8_t * dataIn, uint32_t dataInSz, uint
 	void *dataRd = mmap(NULL, packetSize, PROT_READ, MAP_SHARED, share_fd, 0);
 	if (dataRd == 0) 
 	{
-		AAMPLOG_WARN("%s:%d: Failed to map the Ion memory object %d", __FUNCTION__, __LINE__, errno);
+		AAMPLOG_WARN("Failed to map the Ion memory object %d", errno);
 		return false;
 	}
 	
 	if (packetSize > dataOutSz)
 	{
-		AAMPLOG_WARN("%s:%d: Received data is bigger than provided buffer. %d > %d", __FUNCTION__, __LINE__, packetSize, dataOutSz);
+		AAMPLOG_WARN("Received data is bigger than provided buffer. %d > %d", packetSize, dataOutSz);
 	}
 	memmove(dataOut, dataRd, std::min(packetSize, dataOutSz));
 	
 	int status = munmap(dataRd, packetSize);
 	if (status < 0)
 	{
-		AAMPLOG_WARN("%s:%d: Failed to unmap the shared memory object %d", __FUNCTION__, __LINE__, errno);
+		AAMPLOG_WARN("Failed to unmap the shared memory object %d", errno);
 		return false;
 	}
 	
@@ -209,6 +210,6 @@ bool AampIonMemorySystem::decode(const uint8_t * dataIn, uint32_t dataInSz, uint
 }
 
 void AampIonMemorySystem::terminateEarly() {
-	AAMPLOG_WARN("%s:%d: closing transfer early", __FUNCTION__, __LINE__);
+	AAMPLOG_WARN("closing transfer early");
 	context_.close();
 }

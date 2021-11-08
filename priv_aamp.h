@@ -3563,6 +3563,7 @@ private:
 	bool mLiveOffsetAppRequest;
 	time_t mTime;
 	long mCurrentLatency;
+	AampLogManager *mLogObj;
 };
 
 /**

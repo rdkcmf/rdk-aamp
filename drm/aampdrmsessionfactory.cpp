@@ -41,7 +41,7 @@
  *  @param[in]	drmHelper - DrmHelper instance
  *  @return		Pointer to DrmSession.
  */
-AampDrmSession* AampDrmSessionFactory::GetDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *drmCallbacks)
+AampDrmSession* AampDrmSessionFactory::GetDrmSession(AampLogManager *logObj, std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *drmCallbacks)
 {
 	const std::string systemId = drmHelper->ocdmSystemId();
 
@@ -51,17 +51,17 @@ AampDrmSession* AampDrmSessionFactory::GetDrmSession(std::shared_ptr<AampDrmHelp
 #if defined(USE_CLEARKEY)
 		if (systemId == CLEAR_KEY_SYSTEM_STRING)
 		{
-			return new ClearKeySession();
+			return new ClearKeySession(logObj);
 		}
 		else
 #endif
 		{
-			return new AAMPOCDMBasicSessionAdapter(drmHelper, drmCallbacks);
+			return new AAMPOCDMBasicSessionAdapter(logObj, drmHelper, drmCallbacks);
 		}
 	}
 	else
 	{
-		return new AAMPOCDMGSTSessionAdapter(drmHelper);
+		return new AAMPOCDMGSTSessionAdapter(logObj, drmHelper);
 	}
 #elif defined (USE_OPENCDM)
 	return new AAMPOCDMSession(systemId);
@@ -69,13 +69,13 @@ AampDrmSession* AampDrmSessionFactory::GetDrmSession(std::shared_ptr<AampDrmHelp
 	if (systemId == PLAYREADY_KEY_SYSTEM_STRING)
 	{
 #if defined(USE_PLAYREADY)
-		return new PlayReadyDRMSession();
+		return new PlayReadyDRMSession(logObj);
 #endif // USE_PLAYREADY
 	}
 	else if (systemId == CLEAR_KEY_SYSTEM_STRING)
 	{
 #if defined(USE_CLEARKEY)
-		return new ClearKeySession();
+		return new ClearKeySession(logObj);
 #endif // USE_CLEARKEY
 	}
 #endif // Not USE_OPENCDM

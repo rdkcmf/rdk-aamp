@@ -177,7 +177,7 @@ class TrackState : public MediaTrack
 {
 public:
 	/// Constructor
-	TrackState(TrackType type, class StreamAbstractionAAMP_HLS* parent, PrivateInstanceAAMP* aamp, const char* name);
+	TrackState(AampLogManager *logObj, TrackType type, class StreamAbstractionAAMP_HLS* parent, PrivateInstanceAAMP* aamp, const char* name);
 	/// Copy Constructor
 	TrackState(const TrackState&) = delete;
 	/// Destructor
@@ -389,7 +389,7 @@ public:
 	/// Function to to handle parse and indexing of individual tracks 
 	void IndexPlaylist(TrackState *trackState);
 	/// Constructor 
-	StreamAbstractionAAMP_HLS(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+	StreamAbstractionAAMP_HLS(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seekpos, float rate);
 	/// Copy Constructor
 	StreamAbstractionAAMP_HLS(const StreamAbstractionAAMP_HLS&) = delete;
 	/// Destructor 

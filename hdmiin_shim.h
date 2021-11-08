@@ -41,7 +41,7 @@ using namespace std;
 class StreamAbstractionAAMP_HDMIIN : public StreamAbstractionAAMP_VIDEOIN
 {
 public:
-    StreamAbstractionAAMP_HDMIIN(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+    StreamAbstractionAAMP_HDMIIN(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seekpos, float rate);
     ~StreamAbstractionAAMP_HDMIIN();
     StreamAbstractionAAMP_HDMIIN(const StreamAbstractionAAMP_HDMIIN&) = delete;
     StreamAbstractionAAMP_HDMIIN& operator=(const StreamAbstractionAAMP_HDMIIN&) = delete;

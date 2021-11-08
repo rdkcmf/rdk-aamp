@@ -37,7 +37,7 @@ using namespace std;
 class StreamAbstractionAAMP_PROGRESSIVE : public StreamAbstractionAAMP
 {
 public:
-    StreamAbstractionAAMP_PROGRESSIVE(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+    StreamAbstractionAAMP_PROGRESSIVE(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seekpos, float rate);
     ~StreamAbstractionAAMP_PROGRESSIVE();
     StreamAbstractionAAMP_PROGRESSIVE(const StreamAbstractionAAMP_PROGRESSIVE&) = delete;
     StreamAbstractionAAMP_PROGRESSIVE& operator=(const StreamAbstractionAAMP_PROGRESSIVE&) = delete;

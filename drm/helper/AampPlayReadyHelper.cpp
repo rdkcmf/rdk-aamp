@@ -51,7 +51,7 @@ bool AampPlayReadyHelper::parsePssh(const uint8_t* initData, uint32_t initDataLe
 	// Extract key
 	unsigned char *keydata = aamp_ExtractDataFromPssh(reinterpret_cast<const char*>(initData),
 			initDataLen, KEYID_TAG_START, KEYID_TAG_END, &keyIdLen, PLAYREADY_VERSION);
-	//AAMPLOG_INFO("%s:%d pr keyid: %s keyIdlen: %d", __FUNCTION__, __LINE__, keydata, keyIdLen);
+	//AAMPLOG_INFO("pr keyid: %s keyIdlen: %d", keydata, keyIdLen);
 	if (keydata)
 	{
 		size_t decodedDataLen = 0;
@@ -59,7 +59,7 @@ bool AampPlayReadyHelper::parsePssh(const uint8_t* initData, uint32_t initDataLe
 
 		if (decodedDataLen != PLAYREADY_DECODED_KEY_ID_LEN)
 		{
-			AAMPLOG_ERR("%s:%d Invalid key size found while extracting PR Decoded-KeyID-Length: %d (PR KeyID: %s  KeyID-Length: %d)", __FUNCTION__, __LINE__, decodedDataLen, keydata, keyIdLen);
+			AAMPLOG_ERR("Invalid key size found while extracting PR Decoded-KeyID-Length: %d (PR KeyID: %s  KeyID-Length: %d)", decodedDataLen, keydata, keyIdLen);
 		}
 		else
 		{
@@ -143,11 +143,11 @@ bool AampPlayReadyHelperFactory::isDRM(const struct DrmInfo& drmInfo) const
 		);
 }
 
-std::shared_ptr<AampDrmHelper> AampPlayReadyHelperFactory::createHelper(const struct DrmInfo& drmInfo) const
+std::shared_ptr<AampDrmHelper> AampPlayReadyHelperFactory::createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj) const
 {
 	if (isDRM(drmInfo))
 	{
-		return std::make_shared<AampPlayReadyHelper>(drmInfo);
+		return std::make_shared<AampPlayReadyHelper>(drmInfo,logObj);
 	}
 	return NULL;
 }

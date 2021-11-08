@@ -23,11 +23,11 @@
 #include <regex>
 
 
-TtmlSubtecParser::TtmlSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(aamp, type), m_channel(nullptr)
+TtmlSubtecParser::TtmlSubtecParser(AampLogManager *logObj, PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(logObj, aamp, type), m_channel(nullptr)
 {
 	if (!PacketSender::Instance()->Init())
 	{
-		AAMPLOG_INFO("%s: Init failed - subtitle parsing disabled", __FUNCTION__);
+		AAMPLOG_INFO("Init failed - subtitle parsing disabled");
 		throw std::runtime_error("PacketSender init failed");
 	}
 	m_channel = make_unique<TtmlChannel>();
@@ -42,7 +42,7 @@ TtmlSubtecParser::TtmlSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType t
 
 bool TtmlSubtecParser::init(double startPosSeconds, unsigned long long basePTS)
 {
-	AAMPLOG_INFO("%s:%d startPos %.3fs", __FUNCTION__, __LINE__, startPosSeconds);
+	AAMPLOG_INFO("startPos %.3fs", startPosSeconds);
 	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPosSeconds * 1000.0));
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 
@@ -99,7 +99,7 @@ static std::int64_t parseFirstBegin(std::stringstream &ss)
 
 bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double position, double duration)
 {
-	IsoBmffBuffer isobuf;
+	IsoBmffBuffer isobuf(mLogObj);
 
 	isobuf.setBuffer(reinterpret_cast<uint8_t *>(buffer), bufferLen);
 	isobuf.parseBuffer();
@@ -129,8 +129,8 @@ bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double positi
 
 		if (!m_sentOffset && m_parsedFirstPacket && m_isLinear)
 		{
-			AAMPLOG_TRACE("%s:%d Linear content - parsing first begin as offset - pos %.3f dur %.3f m_firstBeginOffset %.3f", 
-				__FUNCTION__, __LINE__, position, duration, m_firstBeginOffset);
+			AAMPLOG_TRACE("Linear content - parsing first begin as offset - pos %.3f dur %.3f m_firstBeginOffset %.3f", 
+				 position, duration, m_firstBeginOffset);
 			std::stringstream ss(std::string(data.begin(), data.end()));
 			std::int64_t offset = parseFirstBegin(ss);
 			
@@ -143,7 +143,7 @@ bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double positi
 				std::stringstream output;
 				output << "setting totalOffset " << totalOffset << " positionDeltaSecs " << positionDeltaSecs <<
 					" timeFromStartMs " << timeFromStartMs;
-				AAMPLOG_TRACE("%s:%d %s", __FUNCTION__, __LINE__, output.str().c_str());
+				AAMPLOG_TRACE("%s",  output.str().c_str());
 				m_sentOffset = true;
 				m_channel->SendTimestampPacket(totalOffset);
 			}
@@ -156,7 +156,7 @@ bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double positi
 	}
 	else
 	{
-		AAMPLOG_INFO("%s:%d Init Segment", __FUNCTION__, __LINE__);
+		AAMPLOG_INFO("Init Segment");
 	}
 	return true;
 }

@@ -47,13 +47,13 @@ void AampDrmHelperEngine::getSystemIds(std::vector<std::string>& ids) const
 	}
 }
 
-std::shared_ptr<AampDrmHelper> AampDrmHelperEngine::createHelper(const struct DrmInfo& drmInfo) const
+std::shared_ptr<AampDrmHelper> AampDrmHelperEngine::createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj) const
 {
 	for (auto helper : factories)
 	{
 		if (true == helper->isDRM(drmInfo))
 		{
-			return helper->createHelper(drmInfo);
+			return helper->createHelper(drmInfo, logObj);
 		}
 	}
 

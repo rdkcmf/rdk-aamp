@@ -31,7 +31,8 @@
 AampScheduler::AampScheduler() : mTaskQueue(), mQMutex(), mQCond(),
 	mSchedulerRunning(false), mSchedulerThread(), mExMutex(),
 	mExLock(mExMutex, std::defer_lock), mNextTaskId(AAMP_SCHEDULER_ID_DEFAULT),
-	mCurrentTaskId(AAMP_SCHEDULER_ID_INVALID), mLockOut(false)
+	mCurrentTaskId(AAMP_SCHEDULER_ID_INVALID), mLockOut(false),
+	mLogObj(NULL)
 {
 }
 
@@ -85,12 +86,12 @@ int AampScheduler::ScheduleTask(AsyncTaskObj obj)
 		else
 		{
 			// Operation is skipped here, this might happen due to race conditions during normal operation, hence setting as info log
-			AAMPLOG_INFO("%s:%d Warning: Attempting to schedule a task when scheduler is locked out, skipping operation!!", __FUNCTION__, __LINE__);
+			AAMPLOG_INFO("Warning: Attempting to schedule a task when scheduler is locked out, skipping operation!!");
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("%s:%d Attempting to schedule a task when scheduler is not running, undefined behavior!", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("Attempting to schedule a task when scheduler is not running, undefined behavior!");
 	}
 	return id;
 }
@@ -107,12 +108,12 @@ void AampScheduler::ExecuteAsyncTask()
 	{
 		if (mTaskQueue.empty())
 		{
-			AAMPLOG_WARN("%s:%d Waiting for any functions to be queued!!", __FUNCTION__, __LINE__);
+			AAMPLOG_WARN("Waiting for any functions to be queued!!");
 			mQCond.wait(lock);
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d Found entry in function queue!!", __FUNCTION__, __LINE__);
+			AAMPLOG_WARN("Found entry in function queue!!");
 			AsyncTaskObj obj = mTaskQueue.front();
 			mTaskQueue.pop_front();
 			if (obj.mId != AAMP_SCHEDULER_ID_INVALID)
@@ -121,7 +122,7 @@ void AampScheduler::ExecuteAsyncTask()
 			}
 			else
 			{
-				AAMPLOG_ERR("%s:%d Scheduler found a task with invalid ID, skip task!", __FUNCTION__, __LINE__);
+				AAMPLOG_ERR("Scheduler found a task with invalid ID, skip task!");
 				continue;
 			}
 
@@ -150,7 +151,7 @@ void AampScheduler::RemoveAllTasks()
 	std::lock_guard<std::mutex>lock(mQMutex);
 	if (!mTaskQueue.empty())
 	{
-		AAMPLOG_WARN("%s:%d Clearing up %d entries from mFuncQueue", __FUNCTION__, __LINE__, mTaskQueue.size());
+		AAMPLOG_WARN("Clearing up %d entries from mFuncQueue", mTaskQueue.size());
 		mTaskQueue.clear();
 	}
 	// A cleanup process is in progress, we should temporarily disable any new tasks from getting scheduled.

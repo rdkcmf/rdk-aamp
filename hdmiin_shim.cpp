@@ -42,8 +42,8 @@ HdmiInput thunder plugin reference: https://wiki.rdkcentral.com/display/RDK/HDMI
  * @param seek_pos Seek position
  * @param rate playback rate
  */
-StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
-                             : StreamAbstractionAAMP_VIDEOIN("HDMIIN", HDMIINPUT_CALLSIGN,aamp,seek_pos,rate)
+StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
+                             : StreamAbstractionAAMP_VIDEOIN("HDMIIN", HDMIINPUT_CALLSIGN,logObj,aamp,seek_pos,rate)
 {
 	aamp->SetContentType("HDMI_IN");
 }
@@ -53,7 +53,7 @@ StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(class PrivateInstance
  */
 StreamAbstractionAAMP_HDMIIN::~StreamAbstractionAAMP_HDMIIN()
 {
-	AAMPLOG_WARN("%s:%d destructor ",__FUNCTION__,__LINE__);
+	AAMPLOG_WARN("destructor ");
 }
 /**
  *   @brief  Initialize a newly created object.
@@ -100,7 +100,7 @@ void StreamAbstractionAAMP_HDMIIN::Stop(bool clearChannelData)
  */
 std::vector<StreamInfo*> StreamAbstractionAAMP_HDMIIN::GetAvailableThumbnailTracks(void)
 { // STUB
-	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN:%s:%d",__FUNCTION__,__LINE__);
+	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN");
 	return std::vector<StreamInfo*>();
 }
 
@@ -130,7 +130,7 @@ void StreamAbstractionAAMP_HDMIIN::OnVideoStreamInfoUpdate(const JsonObject& par
 {
         std::string message;
         parameters.ToString(message);
-        AAMPLOG_WARN("%s:%d :%s",__FUNCTION__,__LINE__,message.c_str());
+        AAMPLOG_WARN("%s",message.c_str());
 
         JsonObject videoInfoObj = parameters;
         VideoScanType videoScanType = (videoInfoObj["progressive"].Boolean() ? eVIDEOSCAN_PROGRESSIVE : eVIDEOSCAN_INTERLACED);

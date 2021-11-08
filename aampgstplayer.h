@@ -80,7 +80,7 @@ public:
 	bool AdjustPlayBackRate(double position, double rate);
 	
 	struct AAMPGstPlayerPriv *privateContext;
-	AAMPGstPlayer(PrivateInstanceAAMP *aamp
+	AAMPGstPlayer(AampLogManager *logObj, PrivateInstanceAAMP *aamp
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 	, std::function< void(uint8_t *, int, int, int) > exportFrames = nullptr
 #endif
@@ -88,7 +88,7 @@ public:
 	AAMPGstPlayer(const AAMPGstPlayer&) = delete;
 	AAMPGstPlayer& operator=(const AAMPGstPlayer&) = delete;
 	~AAMPGstPlayer();
-	static void InitializeAAMPGstreamerPlugins();
+	static void InitializeAAMPGstreamerPlugins(AampLogManager *logObj=NULL);
 	void NotifyEOS();
 	void NotifyFirstFrame(MediaType type);
 	void DumpDiagnostics();
@@ -113,6 +113,7 @@ private:
 	bool ForwardAudioBuffersToAux();
 	pthread_mutex_t mBufferingLock;
 	pthread_mutex_t mProtectionLock;
+	AampLogManager *mLogObj;
 };
 
 #endif // AAMPGSTPLAYER_H

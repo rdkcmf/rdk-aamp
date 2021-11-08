@@ -147,7 +147,7 @@ public :
 class StreamAbstractionAAMP_MPD : public StreamAbstractionAAMP
 {
 public:
-	StreamAbstractionAAMP_MPD(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+	StreamAbstractionAAMP_MPD(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seekpos, float rate);
 	~StreamAbstractionAAMP_MPD();
 	StreamAbstractionAAMP_MPD(const StreamAbstractionAAMP_MPD&) = delete;
 	StreamAbstractionAAMP_MPD& operator=(const StreamAbstractionAAMP_MPD&) = delete;

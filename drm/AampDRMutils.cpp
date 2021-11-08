@@ -242,14 +242,14 @@ std::string aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int data
                                (psshData[header+2] & 0x000000FFu) << 8 |
                                (psshData[header+3] & 0x000000FFu));
 
-	AAMPLOG_INFO("%s:%d content meta data length  : %d", __FUNCTION__, __LINE__,content_id_size);
+	AAMPLOG_INFO("content meta data length  : %d",content_id_size);
 	if ((header + 4 + content_id_size) <= dataLength)
 	{
 		metadata = std::string(psshData + header + 4, content_id_size);
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d  psshData : %d bytes in length, metadata would read past end of buffer", __FUNCTION__, __LINE__,dataLength);
+		AAMPLOG_WARN("psshData : %d bytes in length, metadata would read past end of buffer", dataLength);
 	}
 
 	return metadata;

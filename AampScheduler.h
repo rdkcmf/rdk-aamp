@@ -31,6 +31,7 @@
 #include <deque>
 #include <thread>
 #include <utility>
+#include "AampLogManager.h"
 
 #define AAMP_SCHEDULER_ID_MAX_VALUE 10000
 #define AAMP_SCHEDULER_ID_DEFAULT 1		//ID ranges from DEFAULT to MAX
@@ -73,6 +74,8 @@ public:
 	 */
 	AampScheduler();
 
+	AampScheduler(const AampScheduler&) = delete;
+	AampScheduler& operator=(const AampScheduler&) = delete;
 	/**
 	 * @brief AampScheduler Destructor
 	 */
@@ -136,7 +139,7 @@ protected:
 	 * @return void
 	 */
 	void EnableScheduleTask();
-
+	AampLogManager *mLogObj;
 private:
 	/**
 	 * @brief Executes scheduled tasks - invoked by thread

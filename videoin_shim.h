@@ -42,7 +42,7 @@ using namespace std;
 class StreamAbstractionAAMP_VIDEOIN : public StreamAbstractionAAMP
 {
 public:
-    StreamAbstractionAAMP_VIDEOIN(const std::string name, const std::string callSign, class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+    StreamAbstractionAAMP_VIDEOIN(const std::string name, const std::string callSign, AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seekpos, float rate);
     ~StreamAbstractionAAMP_VIDEOIN();
     StreamAbstractionAAMP_VIDEOIN(const StreamAbstractionAAMP_VIDEOIN&) = delete;
     StreamAbstractionAAMP_VIDEOIN& operator=(const StreamAbstractionAAMP_VIDEOIN&) = delete;

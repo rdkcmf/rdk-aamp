@@ -56,13 +56,14 @@ class CDAIObject
 {
 private:
 	PrivateInstanceAAMP* mAamp;       /**< AAMP player's private instance */
+	AampLogManager *mLogObj;
 public:
 	/**
 	 * @brief CDAIObject constructor.
 	 *
 	 * @param[in] aamp - Pointer to PrivateInstanceAAMP
 	 */
-	CDAIObject(PrivateInstanceAAMP* aamp): mAamp(aamp)
+	CDAIObject(AampLogManager *logObj, PrivateInstanceAAMP* aamp): mLogObj(logObj), mAamp(aamp)
 	{
 
 	}
@@ -96,7 +97,7 @@ public:
 	 */
 	virtual void SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url, uint64_t startMS=0, uint32_t breakdur=0)
 	{
-		AAMPLOG_WARN("%s:%d Stream doesn't support CDAI. Rejecting the promise.", __FUNCTION__, __LINE__);
+		AAMPLOG_WARN("Stream doesn't support CDAI. Rejecting the promise.");
 		mAamp->SendAdResolvedEvent(adId, false, 0, 0);
 	}
 };

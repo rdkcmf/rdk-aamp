@@ -28,6 +28,8 @@
 #include <cstdint>
 #include <vector>
 #include <string.h>
+#include <string>
+#include "AampLogManager.h"
 
 #define READ_U32(buf) \
 	(buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3]; buf+=4;
@@ -167,7 +169,7 @@ public:
 	 * @param[in] maxSz - box size
 	 * @return newly constructed Box object
 	 */
-	static Box* constructBox(uint8_t *hdr, uint32_t maxSz, bool correctBoxSize = false); 
+	static Box* constructBox(uint8_t *hdr, uint32_t maxSz, AampLogManager *mLOgObj=NULL, bool correctBoxSize = false); 
 };
 
 

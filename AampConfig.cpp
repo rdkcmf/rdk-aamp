@@ -1885,7 +1885,7 @@ bool AampConfig::ValidateRange(std::string key, T& value)
  * @param[in] owner - Owner value for reverting
  * @return None
  */
-void AampConfig::RestoreConfiguration(ConfigPriority owner)
+void AampConfig::RestoreConfiguration(ConfigPriority owner, AampLogManager *mLogObj)
 {
 	// All Bool values
 	for(int i=0;i<eAAMPConfig_BoolMaxValue;i++)

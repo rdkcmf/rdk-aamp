@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <vector>
 #include <unistd.h>
+#include "AampConfig.h"
 
 class AAMPMemorySystem {
 public:
@@ -48,8 +49,11 @@ public:
 	 */
 	virtual void terminateEarly() {}
 
-	AAMPMemorySystem() {}
+	AAMPMemorySystem(AampLogManager *logObj): mLogObj(logObj) {}
+	AAMPMemorySystem(const AAMPMemorySystem&) = delete;
+	AAMPMemorySystem& operator=(const AAMPMemorySystem&) = delete;
 	virtual ~AAMPMemorySystem() {}
+	AampLogManager *mLogObj;
 };
 
 // This just closes a file on descope
