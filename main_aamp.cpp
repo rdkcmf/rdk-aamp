@@ -125,6 +125,15 @@ if(!iarmInitialized)
             logprintf ("IARM Interface Connected Externally :%d", result);
         }
 	iarmInitialized = true;
+        try
+        {
+        device::Manager::Initialize();
+        AAMPLOG_INFO("PlayerInstanceAAMP::%s:%d, Successfully initialized device::Manager", __FUNCTION__, __LINE__);
+        }
+        catch (...)
+        {
+        AAMPLOG_ERR("PlayerInstanceAAMP::%s:%d, device::Manager initialization failed", __FUNCTION__, __LINE__);
+        }
 }
 #endif
 
