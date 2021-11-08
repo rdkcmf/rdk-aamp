@@ -110,8 +110,8 @@ DRM_API DRM_RESULT DRM_CALL DRM_UTL_ReadNetworkBytesToNativeGUID(
 /**
  * @brief PlayReadyDRMSession Constructor
  */
-PlayReadyDRMSession::PlayReadyDRMSession() :
-		AampDrmSession(PLAYREADY_KEY_SYSTEM_STRING), m_ptrAppContext(NULL), m_sbOpaBuf(NULL),
+PlayReadyDRMSession::PlayReadyDRMSession(AampLogManager *logObj) :
+		AampDrmSession(logObj, PLAYREADY_KEY_SYSTEM_STRING), m_ptrAppContext(NULL), m_sbOpaBuf(NULL),
 		m_cbOpaBuf(0), m_sbRevocateBuf(NULL), m_eKeyState(KEY_INIT), m_fCommit(FALSE),
 		m_pbChallenge(NULL), m_cbChallenge(0), m_ptrDestURL(NULL), m_pbPRO(NULL), m_cbPRO(0)
 {
@@ -569,7 +569,7 @@ int PlayReadyDRMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 {
 	if(!key)
 	{
-		AAMPLOG_ERR("PlayReadyDRMSession:: %s:%d:: Cannot Process Null Key ", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("PlayReadyDRMSession: Cannot Process Null Key ");
 		return 0; //err
 	}
 

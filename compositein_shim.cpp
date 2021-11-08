@@ -37,8 +37,8 @@
  * @param seek_pos Seek position
  * @param rate playback rate
  */
-StreamAbstractionAAMP_COMPOSITEIN::StreamAbstractionAAMP_COMPOSITEIN(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
-                             : StreamAbstractionAAMP_VIDEOIN("COMPOSITEIN", COMPOSITEINPUT_CALLSIGN,aamp,seek_pos,rate)
+StreamAbstractionAAMP_COMPOSITEIN::StreamAbstractionAAMP_COMPOSITEIN(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
+                             : StreamAbstractionAAMP_VIDEOIN("COMPOSITEIN", COMPOSITEINPUT_CALLSIGN, logObj, aamp,seek_pos,rate)
 {
 	aamp->SetContentType("COMPOSITE_IN");
 }
@@ -48,7 +48,7 @@ StreamAbstractionAAMP_COMPOSITEIN::StreamAbstractionAAMP_COMPOSITEIN(class Priva
  */
 StreamAbstractionAAMP_COMPOSITEIN::~StreamAbstractionAAMP_COMPOSITEIN()
 {
-	AAMPLOG_WARN("%s:%d destructor ",__FUNCTION__,__LINE__);
+	AAMPLOG_WARN("destructor ");
 }
 /**
  *   @brief  Initialize a newly created object.
@@ -90,7 +90,7 @@ void StreamAbstractionAAMP_COMPOSITEIN::Stop(bool clearChannelData)
  */
 std::vector<StreamInfo*> StreamAbstractionAAMP_COMPOSITEIN::GetAvailableThumbnailTracks(void)
 { // STUB
-        AAMPLOG_WARN("StreamAbstractionAAMP_COMPOSITEIN:%s:%d",__FUNCTION__,__LINE__);
+        AAMPLOG_WARN("StreamAbstractionAAMP_COMPOSITEIN");
 	return std::vector<StreamInfo*>();
 }
 

@@ -41,7 +41,7 @@ using namespace std;
 class StreamAbstractionAAMP_COMPOSITEIN : public StreamAbstractionAAMP_VIDEOIN
 {
 public:
-    StreamAbstractionAAMP_COMPOSITEIN(class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+    StreamAbstractionAAMP_COMPOSITEIN(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seekpos, float rate);
     ~StreamAbstractionAAMP_COMPOSITEIN();
     StreamAbstractionAAMP_COMPOSITEIN(const StreamAbstractionAAMP_COMPOSITEIN&) = delete;
     StreamAbstractionAAMP_COMPOSITEIN& operator=(const StreamAbstractionAAMP_COMPOSITEIN&) = delete;

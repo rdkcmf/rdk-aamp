@@ -146,6 +146,7 @@ class AampDRMSessionManager
 {
 
 private:
+	AampLogManager *mLogObj;
 	DrmSessionContext *drmSessionContexts;
 	KeyID *cachedKeyIDs;
 	char* accessToken;
@@ -171,7 +172,7 @@ private:
 			double dlnow, double ultotal, double ulnow );
 public:
 
-	AampDRMSessionManager(int maxDrmSessions);
+	AampDRMSessionManager(AampLogManager *logObj, int maxDrmSessions);
 
 	void initializeDrmSessions();
 

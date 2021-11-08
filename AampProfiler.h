@@ -29,6 +29,7 @@
 #include <list>
 #include <sstream>
 #include <string>
+#include "AampLogManager.h"
 
 /**
  * @addtogroup AAMP_COMMON_TYPES
@@ -188,6 +189,7 @@ private:
 
 	ProfilerBucketType mTuneFailBucketType;  /* ProfilerBucketType in case of error */
 	int mTuneFailErrorCode;			/* tune Fail Error Code */
+	AampLogManager *mLogObj;
 
 	/**
 	 * @brief Calculating effective time of two overlapping buckets.
@@ -215,6 +217,9 @@ public:
 	 * @brief ProfileEventAAMP Destructor
 	 */
 	~ProfileEventAAMP(){}
+
+	ProfileEventAAMP(const ProfileEventAAMP&) = delete;
+	ProfileEventAAMP& operator=(const ProfileEventAAMP&) = delete;
 
 	/**
 	 * @brief Setting video bandwidth in bps
@@ -394,6 +399,8 @@ public:
 	 * @return void
 	 */
 	void SetMicroEventFlag(bool bValue) { bEnableMicroEvent = bValue;}
+
+	void SetLogger(AampLogManager *logObj) { mLogObj = logObj;}
 };
 
 #endif /* __AAMP_PROFILER_H__ */

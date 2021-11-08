@@ -9,7 +9,7 @@ class AAMPOCDMGSTSessionAdapter : public AAMPOCDMSessionAdapter
         void ExtractSEI( GstBuffer *buffer);
 #endif
 public:
-	AAMPOCDMGSTSessionAdapter(std::shared_ptr<AampDrmHelper> drmHelper) : AAMPOCDMSessionAdapter(drmHelper)
+	AAMPOCDMGSTSessionAdapter(AampLogManager *logObj, std::shared_ptr<AampDrmHelper> drmHelper) : AAMPOCDMSessionAdapter(logObj, drmHelper)
 #if defined(AMLOGIC)
 , AAMPOCDMGSTSessionDecrypt(nullptr)
 	{

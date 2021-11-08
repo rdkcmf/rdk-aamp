@@ -153,7 +153,7 @@ public:
 	 * @param[in] aamp - Pointer to PrivateInstanceAAMP
 	 * @param[in] name - Media track name
 	 */
-	MediaTrack(TrackType type, PrivateInstanceAAMP* aamp, const char* name);
+	MediaTrack(AampLogManager *logObj, TrackType type, PrivateInstanceAAMP* aamp, const char* name);
 
 	/**
 	 * @brief MediaTrack Destructor
@@ -524,6 +524,7 @@ public:
 	int noMDATCount;                    /**< MDAT Chunk Not Found count continuously while chunk buffer processoing*/
 
 protected:
+	AampLogManager *mLogObj;
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */
 	CachedFragmentChunk cachedFragmentChunks[DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK];
@@ -563,7 +564,6 @@ private:
 
 	BufferHealthStatus bufferStatus;     /**< Buffer status of the track*/
 	BufferHealthStatus prevBufferStatus; /**< Previous buffer status of the track*/
-
 };
 
 /**
@@ -575,7 +575,7 @@ public:
 	/**
 	 * @brief StreamAbstractionAAMP constructor.
 	 */
-	StreamAbstractionAAMP(PrivateInstanceAAMP* aamp);
+	StreamAbstractionAAMP(AampLogManager *logObj, PrivateInstanceAAMP* aamp);
 
 	/**
 	 * @brief StreamAbstractionAAMP destructor.
@@ -719,6 +719,7 @@ public:
 
 	PrivateInstanceAAMP* aamp;  /**< Pointer to PrivateInstanceAAMP object associated with stream*/
 
+	AampLogManager *mLogObj;
 	/**
 	 * @brief Rampdown profile
 	 *

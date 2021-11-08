@@ -3554,6 +3554,7 @@ private:
 	time_t mTime;
 	long mCurrentLatency;
 	int mCCId;
+	AampLogManager *mLogObj;
 };
 
 /**

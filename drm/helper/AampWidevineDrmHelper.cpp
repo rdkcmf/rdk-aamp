@@ -59,7 +59,7 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 			4 byte (Data size) + (Data)  ]
 	*/
 
-	//AAMPLOG_INFO("%s:%d wv pssh data version - %u ", __FUNCTION__, __LINE__, psshDataVer);
+	//AAMPLOG_INFO("wv pssh data version - %u ", psshDataVer);
 	if (psshDataVer == 0)
 	{
 		uint32_t header = 0;
@@ -78,7 +78,7 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d WV Version: %u, Keyid indicator byte not found using default logic", __FUNCTION__, __LINE__, psshDataVer);
+			AAMPLOG_WARN("WV Version: %u, Keyid indicator byte not found using default logic", psshDataVer);
 			header = WIDEVINE_PSSH_KEYID_SIZE_OFFSET;  //pssh data in default format
 		}
 		psshData = initData;
@@ -101,7 +101,7 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 				}
 				else
 				{
-					AAMPLOG_INFO("%s:%d WV version: %u, KeyIdlen: %u", __FUNCTION__, __LINE__, psshDataVer, keyIdSize);
+					AAMPLOG_INFO("WV version: %u, KeyIdlen: %u", psshDataVer, keyIdSize);
 				}
 
 				i += keyIdSize;
@@ -111,13 +111,13 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 				contentIdSize = psshData[i +1];
 				i += 2; //Content key Id size indicator (1byte) + Content Id size (1byte)
 				i += contentIdSize; // move forward to next id tag
-				AAMPLOG_INFO("%s:%d WV Skipping content-id size : %d", __FUNCTION__, __LINE__, contentIdSize);
+				AAMPLOG_INFO("WV Skipping content-id size : %d", contentIdSize);
 
 			}
 			else
 			{
 				keyIdSize = psshData[i +1];
-				AAMPLOG_INFO("%s:%d WV Invalid type : %d size:%d", __FUNCTION__, __LINE__, psshData[i], keyIdSize);
+				AAMPLOG_INFO("WV Invalid type : %d size:%d", psshData[i], keyIdSize);
                                 i +=2; // Skip key Id size indicator (1byte) + key Id size (1byte)
                                 i += keyIdSize;
 			}
@@ -142,12 +142,12 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 		}
 		else
 		{
-			AAMPLOG_INFO("%s:%d WV version: %u, KeyIdlen: %u", __FUNCTION__, __LINE__, psshDataVer, keyIdSize);
+			AAMPLOG_INFO("WV version: %u, KeyIdlen: %u", psshDataVer, keyIdSize);
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("%s:%d Unsupported PSSH version: %u", __FUNCTION__, __LINE__, psshDataVer);
+		AAMPLOG_ERR("Unsupported PSSH version: %u", psshDataVer);
 	}
 	return ret;
 }
@@ -224,11 +224,11 @@ bool AampWidevineDrmHelperFactory::isDRM(const struct DrmInfo& drmInfo) const
 		);
 }
 
-std::shared_ptr<AampDrmHelper> AampWidevineDrmHelperFactory::createHelper(const struct DrmInfo& drmInfo) const
+std::shared_ptr<AampDrmHelper> AampWidevineDrmHelperFactory::createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj) const
 {
 	if (isDRM(drmInfo))
 	{
-		return std::make_shared<AampWidevineDrmHelper>(drmInfo);
+		return std::make_shared<AampWidevineDrmHelper>(drmInfo,logObj);
 	}
 	return NULL;
 }

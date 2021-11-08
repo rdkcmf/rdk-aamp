@@ -23,7 +23,7 @@
 */
 
 #include "isobmffbuffer.h"
-#include "priv_aamp.h" //Required for AAMPLOG_WARN
+#include "priv_aamp.h" //Required for AAMPLOG_WARN1
 #include <string.h>
 
 /**
@@ -63,7 +63,7 @@ bool IsoBmffBuffer::parseBuffer(bool correctBoxSize)
 	size_t curOffset = 0;
 	while (curOffset < bufSize)
 	{
-		Box *box = Box::constructBox(buffer+curOffset, bufSize - curOffset, correctBoxSize);
+		Box *box = Box::constructBox(buffer+curOffset, bufSize - curOffset, mLogObj, correctBoxSize);
 		if( ((bufSize - curOffset) < 4) || ( (bufSize - curOffset) < box->getSize()) )
 		{
 			chunkedBox = box;
@@ -102,7 +102,7 @@ bool IsoBmffBuffer::parseBoxInternal(const std::vector<Box*> *boxes, const char 
 	for (size_t i = 0; i < boxes->size(); i++)
 	{
 		Box *box = boxes->at(i);
-		AAMPLOG_TRACE("%s: Offset[%u] Type[%s] Size[%u]", __FUNCTION__, box->getOffset(), box->getType(), box->getSize());
+		AAMPLOG_TRACE("Offset[%u] Type[%s] Size[%u]", box->getOffset(), box->getType(), box->getSize());
 		if (IS_TYPE(box->getType(), name))
 		{
 			size_t offset = box->getOffset() + BOX_HEADER_SIZE;

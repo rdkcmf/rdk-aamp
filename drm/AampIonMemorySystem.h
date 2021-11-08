@@ -35,7 +35,7 @@ struct AampIonMemoryInterchangeBuffer {
 
 class AampIonMemorySystem : public AAMPMemorySystem {
 public:
-	AampIonMemorySystem();
+	AampIonMemorySystem(AampLogManager *logObj);
 	virtual ~AampIonMemorySystem();
 
 	/**

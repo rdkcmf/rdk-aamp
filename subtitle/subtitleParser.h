@@ -53,7 +53,7 @@ class SubtitleParser
 {
 public:
 
-	SubtitleParser(PrivateInstanceAAMP* aamp, SubtitleMimeType type) : mAamp(aamp),
+	SubtitleParser(AampLogManager* logObj, PrivateInstanceAAMP* aamp, SubtitleMimeType type) : mLogObj(logObj), mAamp(aamp),
 		mType(type)
 	{
 	}
@@ -82,6 +82,7 @@ protected:
 
 	SubtitleMimeType mType;
 	PrivateInstanceAAMP* mAamp;
+	AampLogManager* mLogObj;
 };
 
 #endif /* __SUBTITLE_PARSER_H__ */

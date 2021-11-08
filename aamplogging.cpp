@@ -501,6 +501,60 @@ void logprintf(const char *format, ...)
 #endif
 }
 
+
+/**
+ * @brief Print logs to console / log file
+ * @param[in] format - printf style string
+ * @retuen void
+ */
+void logprintf_new(int playerId,const char* levelstr,const char* file, int line,const char *format, ...)
+{
+	int len = 0;
+	va_list args;
+	va_start(args, format);
+
+	char gDebugPrintBuffer[MAX_DEBUG_LOG_BUFF_SIZE];
+	len = sprintf(gDebugPrintBuffer, "[AAMP-PLAYER][%d][%s][%s][%d]",playerId,levelstr,file,line);
+	vsnprintf(gDebugPrintBuffer+len, MAX_DEBUG_LOG_BUFF_SIZE-len, format, args);
+	gDebugPrintBuffer[(MAX_DEBUG_LOG_BUFF_SIZE-1)] = 0;
+
+	va_end(args);
+
+#if (defined (USE_SYSTEMD_JOURNAL_PRINT) || defined (USE_SYSLOG_HELPER_PRINT))
+	if(!AampLogManager::disableLogRedirection)
+	{
+#ifdef USE_SYSTEMD_JOURNAL_PRINT
+		sd_journal_print(LOG_NOTICE, "%s", gDebugPrintBuffer);
+#else
+		send_logs_to_syslog(gDebugPrintBuffer);
+#endif
+	}
+	else
+	{
+		struct timeval t;
+		gettimeofday(&t, NULL);
+		printf("%ld:%3ld : %s\n", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
+	}
+#else	//USE_SYSTEMD_JOURNAL_PRINT
+#ifdef AAMP_SIMULATOR_BUILD
+	static bool init;
+
+	FILE *f = fopen(gAampLog, (init ? "a" : "w"));
+	if (f)
+	{
+		init = true;
+		fputs(gDebugPrintBuffer, f);
+		fclose(f);
+	}
+
+	struct timeval t;
+	gettimeofday(&t, NULL);
+	printf("%ld:%3ld : %s\n", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
+#endif
+#endif
+}
+
+
 /**
  * @brief Compactly log blobs of binary data
  *

@@ -25,7 +25,7 @@
 class WebVTTSubtecParser : public SubtitleParser
 {
 public:
-	WebVTTSubtecParser(PrivateInstanceAAMP *aamp, SubtitleMimeType type);
+	WebVTTSubtecParser(AampLogManager *logObj, PrivateInstanceAAMP *aamp, SubtitleMimeType type);
 	
 	WebVTTSubtecParser(const WebVTTSubtecParser&) = delete;
 	WebVTTSubtecParser& operator=(const WebVTTSubtecParser&) = delete;

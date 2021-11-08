@@ -61,15 +61,15 @@ public:
 	AveDrm(const AveDrm&) = delete;
 	AveDrm& operator=(const AveDrm&) = delete;
 	~AveDrm();
-	DrmReturn SetMetaData(class PrivateInstanceAAMP *aamp, void* metadata,int trackType);
-	DrmReturn SetDecryptInfo(PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo);
+	DrmReturn SetMetaData(class PrivateInstanceAAMP *aamp, void* metadata,int trackType, AampLogManager *logObj=NULL);
+	DrmReturn SetDecryptInfo(PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo, AampLogManager *logObj=NULL);
 	DrmReturn Decrypt(ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs);
 	void Release();
 	void CancelKeyWait();
 	void RestoreKeyState();
 	void SetState(DRMState state);
 	DRMState GetState();
-	void AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType);
+	void AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType, AampLogManager *logObj);
 	DRMState mDrmState;
 private:
 	PrivateInstanceAAMP *mpAamp;
@@ -82,6 +82,7 @@ private:
 	pthread_mutex_t mutex;
 	// Function to store the new DecrypytInfo 
 	bool StoreDecryptInfoIfChanged( const DrmInfo *drmInfo);
+	AampLogManager *mLogObj;
 };
 
 
@@ -122,14 +123,14 @@ public:
 	static void CancelKeyWaitAll();
 	static void ReleaseAll();
 	static void RestoreKeyStateAll();
-	static void SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType);
+	static void SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType, AampLogManager *mLogObj = NULL);
 	static void PrintSha1Hash( char* sha1Hash);
 	static void DumpCachedLicenses();
 	static void FlushAfterIndexList(const char* trackname,int trackType);
 	static void UpdateBeforeIndexList(const char* trackname,int trackType);
 	static int IsMetadataAvailable(char* sha1Hash);
-	static std::shared_ptr<AveDrm> GetAveDrm(char* sha1Hash,int trackType);
-	static bool AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType,bool overrideDeferring=false);
+	static std::shared_ptr<AveDrm> GetAveDrm(char* sha1Hash,int trackType, AampLogManager *logObj=NULL);
+	static bool AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType, AampLogManager *logObj = NULL, bool overrideDeferring=false);
 	static int GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmMetadataCount);
 	static void ApplySessionToken();
 private:

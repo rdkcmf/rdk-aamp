@@ -28,8 +28,9 @@
 #include "isobmffbox.h"
 #include <stddef.h>
 #include <vector>
+#include <string>
 #include <cstdint>
-
+#include "AampLogManager.h"
 /**
  * @brief Class for ISO BMFF Buffer
  */
@@ -41,7 +42,7 @@ private:
 	size_t bufSize;
 	Box* chunkedBox; //will hold one element only
 	size_t mdatCount;
-
+	AampLogManager *mLogObj;
 	/**
 	 * @brief Get first PTS of buffer
 	 *
@@ -104,7 +105,7 @@ public:
 	/**
 	 * @brief IsoBmffBuffer constructor
 	 */
-	IsoBmffBuffer(): boxes(), buffer(NULL), bufSize(0), chunkedBox(NULL), mdatCount(0)
+	IsoBmffBuffer(AampLogManager *logObj): mLogObj(logObj), boxes(), buffer(NULL), bufSize(0), chunkedBox(NULL), mdatCount(0)
 	{
 
 	}

@@ -64,7 +64,7 @@ public:
 
 	virtual const std::string& friendlyName() const override { return FRIENDLY_NAME; };
 
-	AampVgdrmHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo), mPsshStr(), memorySystem() {}
+	AampVgdrmHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj) : AampDrmHelper(drmInfo, logObj), mPsshStr(), memorySystem(logObj) {}
 	~AampVgdrmHelper() { }
 
 private:
@@ -84,7 +84,7 @@ private:
 
 class AampVgdrmHelperFactory : public AampDrmHelperFactory
 {
-	std::shared_ptr<AampDrmHelper> createHelper(const struct DrmInfo& drmInfo) const;
+	std::shared_ptr<AampDrmHelper> createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj=NULL) const;
 
 	void appendSystemId(std::vector<std::string>& systemIds) const;
 

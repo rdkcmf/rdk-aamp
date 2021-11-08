@@ -93,12 +93,12 @@ void aamp_MoveBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len)
         }
         else
         {
-            AAMPLOG_WARN("%s:%d WARNING - Something is wrong!! Trying to move more than available!!!", __FUNCTION__, __LINE__);
+            AAMPLOG_WARN("WARNING - Something is wrong!! Trying to move more than available!!!");
         }
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d WARNING - NULL pointer input!!!", __FUNCTION__, __LINE__);
+		AAMPLOG_WARN("WARNING - NULL pointer input!!!");
 	}
 }
 

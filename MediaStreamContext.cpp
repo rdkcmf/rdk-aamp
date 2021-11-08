@@ -20,7 +20,7 @@ void MediaStreamContext::InjectFragmentInternal(CachedFragment* cachedFragment, 
     }
     else
     {
-        AAMPLOG_TRACE("%s:%d Full Fragment Send Ignored in LL Mode", __FUNCTION__, __LINE__);
+        AAMPLOG_TRACE("Full Fragment Send Ignored in LL Mode");
     }
     fragmentDiscarded = false;
 } // InjectFragmentInternal
@@ -91,7 +91,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
     context->mCheckForRampdown = false;
     if(bitrate > 0 && bitrate != fragmentDescriptor.Bandwidth)
     {
-        AAMPLOG_INFO("%s:%d Bitrate changed from %u to %ld", __FUNCTION__, __LINE__, fragmentDescriptor.Bandwidth, bitrate);
+        AAMPLOG_INFO("Bitrate changed from %u to %ld",fragmentDescriptor.Bandwidth, bitrate);
         fragmentDescriptor.Bandwidth = bitrate;
         context->SetTsbBandwidth(bitrate);
         mDownloadedFragment.ptr = cachedFragment->fragment.ptr;
@@ -102,7 +102,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
     }
     else if (!ret)
     {
-	AAMPLOG_INFO("%s:%d fragment fetch failed - Free cachedFragment",__FUNCTION__, __LINE__);
+	AAMPLOG_INFO("fragment fetch failed - Free cachedFragment");
         aamp_Free(&cachedFragment->fragment);
         if( aamp->DownloadsAreEnabled())
         {
@@ -112,7 +112,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
                 // Skip segment on error, and increse fail count
                 if(ISCONFIGSET(eAAMPConfig_InterruptHandling) && aamp->mTSBEnabled && 504 == http_code)
                 {
-                    AAMPLOG_INFO("%s:%d Skipping fog error 504...", __FUNCTION__, __LINE__);
+                    AAMPLOG_INFO("Skipping fog error 504...");
                 }
                 else
                 {
@@ -133,13 +133,13 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
                 {
                     if (!initSegment)
                     {
-                        AAMPLOG_ERR("%s:%d Not able to download fragments; reached failure threshold sending tune failed event",__FUNCTION__, __LINE__);
+                        AAMPLOG_ERR("Not able to download fragments; reached failure threshold sending tune failed event");
                         aamp->SendDownloadErrorEvent(AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, http_code);
                     }
                     else
                     {
                         // When rampdown limit is not specified, init segment will be ramped down, this wil
-                        AAMPLOG_ERR("%s:%d Not able to download init fragments; reached failure threshold sending tune failed event",__FUNCTION__, __LINE__);
+                        AAMPLOG_ERR("Not able to download init fragments; reached failure threshold sending tune failed event");
                         aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
                     }
                 }
@@ -157,28 +157,28 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
                         // Rampdown attempt success, download same segment from lower profile.
                         mSkipSegmentOnError = false;
                     }
-                    AAMPLOG_WARN( "StreamAbstractionAAMP_MPD::%s:%d > Error while fetching fragment:%s, failedCount:%d. decrementing profile",
-                            __FUNCTION__, __LINE__, fragmentUrl.c_str(), segDLFailCount);
+                    AAMPLOG_WARN( "StreamAbstractionAAMP_MPD::Error while fetching fragment:%s, failedCount:%d. decrementing profile",
+                             fragmentUrl.c_str(), segDLFailCount);
                 }
                 else
                 {
                     if(!playingAd && initSegment)
                     {
                         // Already at lowest profile, send error event for init fragment.
-                        AAMPLOG_ERR("%s:%d Not able to download init fragments; reached failure threshold sending tune failed event",__FUNCTION__, __LINE__);
+                        AAMPLOG_ERR("Not able to download init fragments; reached failure threshold sending tune failed event");
                         aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
                     }
                     else
                     {
-                        AAMPLOG_WARN("StreamAbstractionAAMP_MPD::%s:%d Already at the lowest profile, skipping segment", __FUNCTION__,__LINE__);
+                        AAMPLOG_WARN("StreamAbstractionAAMP_MPD::Already at the lowest profile, skipping segment");
                         context->mRampDownCount = 0;
                     }
                 }
             }
             else if (AAMP_IS_LOG_WORTHY_ERROR(http_code))
             {
-                AAMPLOG_WARN("StreamAbstractionAAMP_MPD::%s:%d > Error on fetching %s fragment. failedCount:%d",
-                        __FUNCTION__, __LINE__, name, segDLFailCount);
+                AAMPLOG_WARN("StreamAbstractionAAMP_MPD::Error on fetching %s fragment. failedCount:%d",
+                         name, segDLFailCount);
                 // For init fragment, rampdown limit is reached. Send error event.
                 if(!playingAd && initSegment)
                 {
@@ -216,7 +216,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
 
 bool MediaStreamContext::CacheFragmentChunk(MediaType actualType, char *ptr, size_t size, std::string remoteUrl)
 {
-    AAMPLOG_TRACE("%s:%d [%s] Chunk Buffer Length %d Remote URL %s", __FUNCTION__, __LINE__,name, size, remoteUrl.c_str());
+    AAMPLOG_TRACE("[%s] Chunk Buffer Length %d Remote URL %s", name, size, remoteUrl.c_str());
 
     bool ret = true;
     if (WaitForCachedFragmentChunkInjected())
@@ -225,13 +225,13 @@ bool MediaStreamContext::CacheFragmentChunk(MediaType actualType, char *ptr, siz
         cachedFragmentChunk = GetFetchChunkBuffer(true);
         if(NULL == cachedFragmentChunk)
         {
-                AAMPLOG_WARN("%s:%d [%s] Something Went wrong - Can't get FetchChunkBuffer",__FUNCTION__, __LINE__,name);
+                AAMPLOG_WARN("[%s] Something Went wrong - Can't get FetchChunkBuffer", name);
                 return false;
         }
         cachedFragmentChunk->type = actualType;
         aamp_AppendBytes(&cachedFragmentChunk->fragmentChunk, ptr, size);
 
-        AAMPLOG_TRACE("%s:%d [%s] cachedFragmentChunk %p ptr %p", __FUNCTION__, __LINE__,
+        AAMPLOG_TRACE("[%s] cachedFragmentChunk %p ptr %p",
                 name, cachedFragmentChunk, cachedFragmentChunk->fragmentChunk.ptr);
 
         UpdateTSAfterChunkFetch();
@@ -278,7 +278,7 @@ void MediaStreamContext::ABRProfileChanged(void)
         }
         else
         {
-            AAMPLOG_WARN("%s:%d :  representation is null", __FUNCTION__, __LINE__);  //CID:83962 - Null Returns
+            AAMPLOG_WARN("representation is null");  //CID:83962 - Null Returns
         }
     }
     else

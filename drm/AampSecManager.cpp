@@ -158,7 +158,7 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 #ifdef DEBUG_SECMAMANER
 	std::string params;
 	param.ToString(params);
-	AAMPLOG_WARN("%s:%d SecManager openPlaybackSession param: %s", __FUNCTION__, __LINE__, params.c_str());
+	AAMPLOG_WARN("SecManager openPlaybackSession param: %s", params.c_str());
 #endif
 
 	{
@@ -171,23 +171,23 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 #ifdef DEBUG_SECMAMANER
 		std::string output;
 		response.ToString(output);
-		AAMPLOG_WARN("%s:%d SecManager openPlaybackSession o/p: %s", __FUNCTION__, __LINE__, output.c_str());
+		AAMPLOG_WARN("SecManager openPlaybackSession o/p: %s", output.c_str());
 #endif
 		if (response["success"].Boolean())
 		{
 			std::string license = response["license"].String();
-			AAMPLOG_TRACE("%s:%d SecManager obtained license with length: %d and data: %s", __FUNCTION__, __LINE__, license.size(), license.c_str());
+			AAMPLOG_TRACE("SecManager obtained license with length: %d and data: %s", license.size(), license.c_str());
 			if (!license.empty())
 			{
 				// Here license is base64 encoded
 				unsigned char * licenseDecoded = NULL;
 				size_t licenseDecodedLen = 0;
 				licenseDecoded = base64_Decode(license.c_str(), &licenseDecodedLen);
-				AAMPLOG_TRACE("%s:%d SecManager license decoded len: %d and data: %p", __FUNCTION__, __LINE__, licenseDecodedLen, licenseDecoded);
+				AAMPLOG_TRACE("SecManager license decoded len: %d and data: %p", licenseDecodedLen, licenseDecoded);
 
 				if (licenseDecoded != NULL && licenseDecodedLen != 0)
 				{
-					AAMPLOG_INFO("%s:%d SecManager license post base64 decode length: %d", __FUNCTION__, __LINE__, *licenseResponseLength);
+					AAMPLOG_INFO("SecManager license post base64 decode length: %d", *licenseResponseLength);
 					*licenseResponse = (char*) malloc(licenseDecodedLen);
 					if (*licenseResponse)
 					{
@@ -196,14 +196,14 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 					}
 					else
 					{
-						AAMPLOG_ERR("%s:%d SecManager failed to allocate memory for license!", __FUNCTION__, __LINE__);
+						AAMPLOG_ERR("SecManager failed to allocate memory for license!");
 					}
 					free(licenseDecoded);
 					ret = true;
 				}
 				else
 				{
-					AAMPLOG_ERR("%s:%d SecManager license base64 decode failed!", __FUNCTION__, __LINE__);
+					AAMPLOG_ERR("SecManager license base64 decode failed!");
 				}
 			}
 		}
@@ -219,7 +219,7 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 	}
 	else
 	{
-		AAMPLOG_ERR("%s:%d SecManager openPlaybackSession failed", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("SecManager openPlaybackSession failed");
 	}
 	return ret;
 }
@@ -237,7 +237,7 @@ void AampSecManager::UpdateSessionState(int64_t sessionId, bool active)
 	JsonObject param;
 	param["clientId"] = "aamp";
 	param["sessionId"] = sessionId;
-	AAMPLOG_INFO("%s:%d SecManager call setPlaybackSessionState for ID: %" PRId64 " and state: %d", __FUNCTION__, __LINE__, sessionId, active);
+	AAMPLOG_INFO("SecManager call setPlaybackSessionState for ID: %" PRId64 " and state: %d", sessionId, active);
 	if (active)
 	{
 		param["sessionState"] = "active";
@@ -258,12 +258,12 @@ void AampSecManager::UpdateSessionState(int64_t sessionId, bool active)
 		{
 			std::string responseStr;
 			result.ToString(responseStr);
-			AAMPLOG_ERR("%s:%d SecManager setPlaybackSessionState failed for ID: %" PRId64 ", active:%d and result: %s", __FUNCTION__, __LINE__, sessionId, active, responseStr.c_str());
+			AAMPLOG_ERR("SecManager setPlaybackSessionState failed for ID: %" PRId64 ", active:%d and result: %s", sessionId, active, responseStr.c_str());
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("%s:%d SecManager setPlaybackSessionState failed for ID: %" PRId64 " and active: %d", __FUNCTION__, __LINE__, sessionId, active);
+		AAMPLOG_ERR("SecManager setPlaybackSessionState failed for ID: %" PRId64 " and active: %d", sessionId, active);
 	}
 }
 
@@ -279,7 +279,7 @@ void AampSecManager::ReleaseSession(int64_t sessionId)
 	JsonObject param;
 	param["clientId"] = "aamp";
 	param["sessionId"] = sessionId;
-	AAMPLOG_INFO("%s:%d SecManager call closePlaybackSession for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
+	AAMPLOG_INFO("SecManager call closePlaybackSession for ID: %" PRId64 "", sessionId);
 
 	{
 		std::lock_guard<std::mutex> lock(mMutex);
@@ -292,12 +292,12 @@ void AampSecManager::ReleaseSession(int64_t sessionId)
 		{
 			std::string responseStr;
 			result.ToString(responseStr);
-			AAMPLOG_ERR("%s:%d SecManager closePlaybackSession failed for ID: %" PRId64 " and result: %s", __FUNCTION__, __LINE__, sessionId, responseStr.c_str());
+			AAMPLOG_ERR("SecManager closePlaybackSession failed for ID: %" PRId64 " and result: %s", sessionId, responseStr.c_str());
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("%s:%d SecManager closePlaybackSession failed for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
+		AAMPLOG_ERR("SecManager closePlaybackSession failed for ID: %" PRId64 "", sessionId);
 	}
 	/*Clear aampInstanse pointer*/
 	mAamp = NULL;
@@ -319,7 +319,7 @@ bool AampSecManager::setVideoWindowSize(int64_t sessionId, int64_t video_width, 
        param["videoWidth"] = video_width;
        param["videoHeight"] = video_height;
 
-       AAMPLOG_INFO("%s:%d SecManager call setVideoWindowSize for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
+       AAMPLOG_INFO("SecManager call setVideoWindowSize for ID: %" PRId64 "", sessionId);
        {
                std::lock_guard<std::mutex> lock(mMutex);
                rpcResult = mSecManagerObj.InvokeJSONRPC("setVideoWindowSize", param, result);
@@ -331,14 +331,14 @@ bool AampSecManager::setVideoWindowSize(int64_t sessionId, int64_t video_width, 
                {
                        std::string responseStr;
                        result.ToString(responseStr);
-                       AAMPLOG_ERR("%s:%d SecManager setVideoWindowSize failed for ID: %" PRId64 " and result: %s", __FUNCTION__, __LINE__, sessionId, responseStr.c_str());
+                       AAMPLOG_ERR("SecManager setVideoWindowSize failed for ID: %" PRId64 " and result: %s", sessionId, responseStr.c_str());
                        rpcResult = false;
                }
 
        }
        else
        {
-               AAMPLOG_ERR("%s:%d SecManager setVideoWindowSize failed for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
+               AAMPLOG_ERR("SecManager setVideoWindowSize failed for ID: %" PRId64 "", sessionId);
        }
        return rpcResult;
 }
@@ -360,7 +360,7 @@ bool AampSecManager::setPlaybackSpeedState(int64_t sessionId, int64_t playback_s
        param["playbackSpeed"] = playback_speed;
        param["playbackPosition"] = playback_position;
 
-       AAMPLOG_INFO("%s:%d SecManager call setPlaybackSpeedState for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
+       AAMPLOG_INFO("SecManager call setPlaybackSpeedState for ID: %" PRId64 "", sessionId);
 
        {
                std::lock_guard<std::mutex> lock(mMutex);
@@ -373,13 +373,13 @@ bool AampSecManager::setPlaybackSpeedState(int64_t sessionId, int64_t playback_s
                {
                        std::string responseStr;
                        result.ToString(responseStr);
-                       AAMPLOG_ERR("%s:%d SecManager setPlaybackSpeedState failed for ID: %" PRId64 " and result: %s", __FUNCTION__, __LINE__, sessionId, responseStr.c_str());
+                       AAMPLOG_ERR("SecManager setPlaybackSpeedState failed for ID: %" PRId64 " and result: %s", sessionId, responseStr.c_str());
                        rpcResult = false;
                }
        }
        else
        {
-               AAMPLOG_ERR("%s:%d SecManager setPlaybackSpeedState failed for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
+               AAMPLOG_ERR("SecManager setPlaybackSpeedState failed for ID: %" PRId64 "", sessionId);
        }
        return rpcResult;
 }
@@ -400,7 +400,7 @@ bool AampSecManager::setContentAspectRatio(int64_t sessionId, float aspect_ratio
        param["aspectRatio"] = aspect_ratio;
 
 #if 0
-       AAMPLOG_INFO("%s:%d SecManager call setContentAspectRatio for ID: ", __FUNCTION__, __LINE__);
+       AAMPLOG_INFO("SecManager call setContentAspectRatio for ID: ");
 
        {
                std::lock_guard<std::mutex> lock(mMutex);
@@ -413,13 +413,13 @@ bool AampSecManager::setContentAspectRatio(int64_t sessionId, float aspect_ratio
                {
                        std::string responseStr;
                        result.ToString(responseStr);
-                       AAMPLOG_ERR("%s:%d SecManager setContentAspectRatio failed for ID:X and result: %s", __FUNCTION__, __LINE__,  responseStr.c_str());
+                       AAMPLOG_ERR("SecManager setContentAspectRatio failed for ID:X and result: %s",  responseStr.c_str());
                        rpcResult = false;
                }
        }
        else
        {
-               AAMPLOG_ERR("%s:%d SecManager setContentAspectRatio failed for ID: ", __FUNCTION__, __LINE__);
+               AAMPLOG_ERR("SecManager setContentAspectRatio failed for ID: ");
        }
        return rpcResult;
 #endif
@@ -449,7 +449,7 @@ bool AampSecManager::loadClutWatermark(int64_t sessionId, int64_t graphicId, int
        param["watermarkHeight"] = watermarkHeight;
        param["aspectRatio"] = aspectRatio;
 
-       AAMPLOG_INFO("%s:%d SecManager call loadClutWatermark for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
+       AAMPLOG_INFO("SecManager call loadClutWatermark for ID: %" PRId64 "", sessionId);
 
        {
                std::lock_guard<std::mutex> lock(mMutex);
@@ -462,13 +462,13 @@ bool AampSecManager::loadClutWatermark(int64_t sessionId, int64_t graphicId, int
                {
                        std::string responseStr;
                        result.ToString(responseStr);
-                       AAMPLOG_ERR("%s:%d SecManager loadClutWatermark failed for ID: %" PRId64 " and result: %s", __FUNCTION__, __LINE__, sessionId, responseStr.c_str());
+                       AAMPLOG_ERR("SecManager loadClutWatermark failed for ID: %" PRId64 " and result: %s", sessionId, responseStr.c_str());
                        rpcResult = false;
                }
        }
        else
        {
-               AAMPLOG_ERR("%s:%d SecManager loadClutWatermark failed for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
+               AAMPLOG_ERR("SecManager loadClutWatermark failed for ID: %" PRId64 "", sessionId);
        }
        return rpcResult;
 
@@ -529,7 +529,7 @@ void AampSecManager::watermarkSessionHandler(const JsonObject& parameters)
 {
 	std::string param;
 	parameters.ToString(param);
-	AAMPLOG_WARN("AampSecManager::%s:%d i/p params: %s", __FUNCTION__, __LINE__, param.c_str());
+	AAMPLOG_WARN("AampSecManager: i/p params: %s", param.c_str());
 	if(NULL != mAamp)
 	{
 		mAamp->SendWatermarkSessionUpdateEvent( parameters["sessionId"].Number(),parameters["conditionContext"].Number(),parameters["watermarkingSystem"].String());
@@ -544,7 +544,7 @@ void AampSecManager::addWatermarkHandler(const JsonObject& parameters)
 	std::string param;
 	parameters.ToString(param);
 
-	AAMPLOG_WARN("AampSecManager::%s:%d i/p params: %s", __FUNCTION__, __LINE__, param.c_str());
+	AAMPLOG_WARN("AampSecManager: i/p params: %s", param.c_str());
 #endif
 	if(mSchedulerStarted)
 	{
@@ -559,7 +559,7 @@ void AampSecManager::addWatermarkHandler(const JsonObject& parameters)
 
 		int graphicId = parameters["graphicId"].Number();
 		int zIndex = parameters["zIndex"].Number();
-		AAMPLOG_WARN("AampSecManager::%s:%d graphicId : %d index : %d ", __FUNCTION__, __LINE__, graphicId, zIndex);
+		AAMPLOG_WARN("AampSecManager: graphicId : %d index : %d ", graphicId, zIndex);
 		ScheduleTask(AsyncTaskObj([graphicId, zIndex](void *data)
 					  {
 						AampSecManager *instance = static_cast<AampSecManager *>(data);
@@ -568,7 +568,7 @@ void AampSecManager::addWatermarkHandler(const JsonObject& parameters)
 
 		int smKey = parameters["graphicImage"].Number();
 		int smSize = parameters["graphicImageSize"].Number();/*ToDo : graphicImageSize (long) long conversion*/
-		AAMPLOG_WARN("AampSecManager::%s:%d graphicId : %d smKey: %d smSize: %d", __FUNCTION__, __LINE__, graphicId, smKey, smSize);
+		AAMPLOG_WARN("AampSecManager: graphicId : %d smKey: %d smSize: %d", graphicId, smKey, smSize);
 		ScheduleTask(AsyncTaskObj([graphicId, smKey, smSize](void *data)
 					  {
 						AampSecManager *instance = static_cast<AampSecManager *>(data);
@@ -593,7 +593,7 @@ void AampSecManager::updateWatermarkHandler(const JsonObject& parameters)
 #ifdef DEBUG_SECMAMANER
 	std::string param;
 	parameters.ToString(param);
-	AAMPLOG_WARN("AampSecManager::%s:%d i/p params: %s", __FUNCTION__, __LINE__, param.c_str());
+	AAMPLOG_WARN("AampSecManager: i/p params: %s", param.c_str());
 #endif
 }
 /**
@@ -604,12 +604,12 @@ void AampSecManager::removeWatermarkHandler(const JsonObject& parameters)
 #ifdef DEBUG_SECMAMANER
 	std::string param;
 	parameters.ToString(param);
-	AAMPLOG_WARN("AampSecManager::%s:%d i/p params: %s", __FUNCTION__, __LINE__, param.c_str());
+	AAMPLOG_WARN("AampSecManager: i/p params: %s", param.c_str());
 #endif
 	if(mSchedulerStarted)
 	{
 		int graphicId = parameters["graphicId"].Number();
-		AAMPLOG_WARN("AampSecManager::%s:%d graphicId : %d ", __FUNCTION__, __LINE__, graphicId);
+		AAMPLOG_WARN("AampSecManager: graphicId : %d ", graphicId);
 		ScheduleTask(AsyncTaskObj([graphicId](void *data)
 					  {
 						AampSecManager *instance = static_cast<AampSecManager *>(data);
@@ -642,7 +642,7 @@ void AampSecManager::ShowWatermark(bool show)
 	JsonObject result;
 	bool rpcResult = false;
 
-	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
+	AAMPLOG_ERR("AampSecManager");
 	std::lock_guard<std::mutex> lock(mMutex);
 
 	param["show"] = show;
@@ -653,12 +653,12 @@ void AampSecManager::ShowWatermark(bool show)
 		{
 			std::string responseStr;
 			result.ToString(responseStr);
-			AAMPLOG_ERR("AampSecManager::%s failed and result: %s", __FUNCTION__, responseStr.c_str());
+			AAMPLOG_ERR("AampSecManager: failed and result: %s", responseStr.c_str());
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("AampSecManager::%s thunder invocation failed!", __FUNCTION__);
+		AAMPLOG_ERR("AampSecManager: thunder invocation failed!");
 	}
 
 	return;
@@ -673,7 +673,7 @@ void AampSecManager::CreateWatermark(int graphicId, int zIndex )
 	JsonObject result;
 	bool rpcResult = false;
 
-	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
+	AAMPLOG_ERR("AampSecManager");
 	std::lock_guard<std::mutex> lock(mMutex);
 
 	param["id"] = graphicId;
@@ -685,12 +685,12 @@ void AampSecManager::CreateWatermark(int graphicId, int zIndex )
 		{
 			std::string responseStr;
 			result.ToString(responseStr);
-			AAMPLOG_ERR("AampSecManager::%s failed and result: %s", __FUNCTION__, responseStr.c_str());
+			AAMPLOG_ERR("AampSecManager: failed and result: %s", responseStr.c_str());
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("AampSecManager::%s thunder invocation failed!", __FUNCTION__);
+		AAMPLOG_ERR("AampSecManager: thunder invocation failed!");
 	}
 
 	return;
@@ -705,7 +705,7 @@ void AampSecManager::DeleteWatermark(int graphicId)
 	JsonObject result;
 	bool rpcResult = false;
 
-	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
+	AAMPLOG_ERR("AampSecManager");
 	std::lock_guard<std::mutex> lock(mMutex);
 
 	param["id"] = graphicId;
@@ -716,12 +716,12 @@ void AampSecManager::DeleteWatermark(int graphicId)
 		{
 			std::string responseStr;
 			result.ToString(responseStr);
-			AAMPLOG_ERR("AampSecManager::%s failed and result: %s", __FUNCTION__, responseStr.c_str());
+			AAMPLOG_ERR("AampSecManager: failed and result: %s", responseStr.c_str());
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("AampSecManager::%s thunder invocation failed!", __FUNCTION__);
+		AAMPLOG_ERR("AampSecManager: thunder invocation failed!");
 	}
 
 	return;
@@ -736,7 +736,7 @@ void AampSecManager::UpdateWatermark(int graphicId, int smKey, int smSize )
 	JsonObject result;
 	bool rpcResult = false;
 
-	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
+	AAMPLOG_ERR("AampSecManager");
 	std::lock_guard<std::mutex> lock(mMutex);
 
 	param["id"] = graphicId;
@@ -749,12 +749,12 @@ void AampSecManager::UpdateWatermark(int graphicId, int smKey, int smSize )
 		{
 			std::string responseStr;
 			result.ToString(responseStr);
-			AAMPLOG_ERR("AampSecManager::%s failed and result: %s", __FUNCTION__, responseStr.c_str());
+			AAMPLOG_ERR("AampSecManager: failed and result: %s", responseStr.c_str());
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("AampSecManager::%s thunder invocation failed!", __FUNCTION__);
+		AAMPLOG_ERR("AampSecManager: thunder invocation failed!");
 	}
 
 	return;
@@ -769,7 +769,7 @@ void AampSecManager::AlwaysShowWatermarkOnTop(bool show)
 	JsonObject result;
 	bool rpcResult = false;
 
-	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
+	AAMPLOG_ERR("AampSecManager");
 	std::lock_guard<std::mutex> lock(mMutex);
 
 	param["show"] = show;
@@ -780,11 +780,11 @@ void AampSecManager::AlwaysShowWatermarkOnTop(bool show)
 		{
 			std::string responseStr;
 			result.ToString(responseStr);
-			AAMPLOG_ERR("AampSecManager::%s failed and result: %s", __FUNCTION__, responseStr.c_str());
+			AAMPLOG_ERR("AampSecManager: failed and result: %s", responseStr.c_str());
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("AampSecManager::%s thunder invocation failed!", __FUNCTION__);
+		AAMPLOG_ERR("AampSecManager: thunder invocation failed!");
 	}
 }

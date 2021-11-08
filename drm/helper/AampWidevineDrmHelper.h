@@ -54,7 +54,7 @@ public:
 
 	virtual const std::string& friendlyName() const override { return FRIENDLY_NAME; };
 
-	AampWidevineDrmHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo), FRIENDLY_NAME("Widevine"),
+	AampWidevineDrmHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj) : AampDrmHelper(drmInfo, logObj), FRIENDLY_NAME("Widevine"),
 		CODEC_TYPE(1), WIDEVINE_KEY_ID_SIZE_INDICATOR(0x12), WIDEVINE_DASH_KEY_ID_OFFSET(32u),
 		WIDEVINE_CONTENT_METADATA_OFFSET(28u), mInitData(), mKeyID(), mKeyIDs(), mContentMetadata()
 		,WIDEVINE_PSSH_DATA_VERSION_POSITION(8u), WIDEVINE_PSSH_KEYID_SIZE_OFFSET(32u), 
@@ -85,7 +85,7 @@ private:
 
 class AampWidevineDrmHelperFactory : public AampDrmHelperFactory
 {
-	std::shared_ptr<AampDrmHelper> createHelper(const struct DrmInfo& drmInfo) const;
+	std::shared_ptr<AampDrmHelper> createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj=NULL) const;
 
 	void appendSystemId(std::vector<std::string>& systemIds) const;
 

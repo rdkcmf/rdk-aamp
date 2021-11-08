@@ -67,7 +67,7 @@ public:
 	 * @param metadata DRM specific metadata
 	 * @retval 0 on success
 	 */
-	virtual DrmReturn SetMetaData( class PrivateInstanceAAMP *aamp, void* metadata,int trackType) = 0;
+	virtual DrmReturn SetMetaData( class PrivateInstanceAAMP *aamp, void* metadata,int trackType, AampLogManager *logObj=NULL) = 0;
 
 	/**
 	 * @brief Set information required for decryption
@@ -76,7 +76,7 @@ public:
 	 * @param drmInfo Drm information
 	 * @retval eDRM_SUCCESS on success
 	 */
-	virtual DrmReturn SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo) = 0;
+	virtual DrmReturn SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo, AampLogManager *logObj=NULL) = 0;
 
 
 	/**
@@ -108,7 +108,7 @@ public:
 	* @brief AcquireKey Function to get DRM Key
 	*
 	*/
-	virtual void AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType) = 0;
+	virtual void AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType, AampLogManager *logObj=NULL) = 0;
 	/**
 	* @brief GetState Function to get current DRM state
 	*

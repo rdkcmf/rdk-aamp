@@ -55,7 +55,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 	parameters.ToString(message);
 
 	JsonObject playerData = parameters[APP_ID].Object();
-	AAMPLOG_TRACE( "[OTA_SHIM]%s Received event : message : %s ", __FUNCTION__, message.c_str());
+	AAMPLOG_TRACE( "[OTA_SHIM]Received event : message : %s ",  message.c_str());
 	/* For detailed event data, we can print or use details like
 	   playerData["locator"].String(), playerData["length"].String(), playerData["position"].String() */
 
@@ -75,7 +75,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 	{
 		PrivAAMPState state = eSTATE_IDLE;
 		prevBlockedReason.clear();
-		AAMPLOG_WARN( "[OTA_SHIM]%s State changed from %s to %s ", __FUNCTION__, prevState.c_str(), currState.c_str());
+		AAMPLOG_WARN( "[OTA_SHIM] State changed from %s to %s ",  prevState.c_str(), currState.c_str());
 		prevState = currState;
 		if(0 == currState.compare("PENDING"))
 		{
@@ -85,7 +85,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 			std::string ratingString;
 			JsonObject ratingObj = playerData["rating"].Object();
 			ratingObj.ToString(ratingString);
-			AAMPLOG_WARN( "[OTA_SHIM]%s Received BLOCKED event from player with REASON: %s Current Ratings: %s", __FUNCTION__, reason.c_str(), ratingString.c_str());
+			AAMPLOG_WARN( "[OTA_SHIM] Received BLOCKED event from player with REASON: %s Current Ratings: %s",  reason.c_str(), ratingString.c_str());
 
 			aamp->SendAnomalyEvent(ANOMALY_WARNING,"BLOCKED REASON:%s", reason.c_str());
 			aamp->SendBlockedEvent(reason);
@@ -105,7 +105,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 			std::string ratingString;
 			JsonObject ratingObj = playerData["rating"].Object();
 			ratingObj.ToString(ratingString);
-			AAMPLOG_WARN( "[OTA_SHIM]%s PLAYING STATE Current Ratings : %s", __FUNCTION__, ratingString.c_str());
+			AAMPLOG_WARN( "[OTA_SHIM] PLAYING STATE Current Ratings : %s", ratingString.c_str());
 			state = eSTATE_PLAYING;
 		}else if(0 == currState.compare("DONE"))
 		{
@@ -120,7 +120,7 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 				aamp->SendAnomalyEvent(ANOMALY_WARNING, "ATSC Tuner Idle");
 			}else{
 				/* Currently plugin lists only "IDLE","ERROR","PROCESSING","PLAYING"&"DONE" */
-				AAMPLOG_INFO( "[OTA_SHIM]%s Unsupported state change!", __FUNCTION__);
+				AAMPLOG_INFO( "[OTA_SHIM] Unsupported state change!");
 			}
 			/* Need not set a new state hence returning */
 			return;
@@ -159,7 +159,7 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 	
 	if( mPCRating != ratingString )
 	{
-		AAMPLOG_INFO( "[OTA_SHIM]%s ratings changed : old:%s new:%s ", __FUNCTION__, mPCRating.c_str(), ratingString.c_str());
+		AAMPLOG_INFO( "[OTA_SHIM]ratings changed : old:%s new:%s ", mPCRating.c_str(), ratingString.c_str());
 		mPCRating = ratingString;
 		isDataChanged = true;
 	}
@@ -168,7 +168,7 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 
 	if(tempSSI != mSsi)
 	{
-		AAMPLOG_INFO( "[OTA_SHIM]%s SSI changed : old:%d new:%d ", __FUNCTION__, mSsi, tempSSI);
+		AAMPLOG_INFO( "[OTA_SHIM]SSI changed : old:%d new:%d ", mSsi, tempSSI);
 		mSsi = tempSSI;
 		isDataChanged = true;
 	}
@@ -179,7 +179,7 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 	VideoScanType tempScanType = (videoInfoObj["progressive"].Boolean() ? eVIDEOSCAN_PROGRESSIVE : eVIDEOSCAN_INTERLACED);
 	if(mVideoScanType != tempScanType)
 	{
-		AAMPLOG_INFO( "[OTA_SHIM]%s Scan type changed : old:%d new:%d ", __FUNCTION__, mVideoScanType, tempScanType);
+		AAMPLOG_INFO( "[OTA_SHIM]Scan type changed : old:%d new:%d ", mVideoScanType, tempScanType);
 		isDataChanged = true;
 		mVideoScanType = tempScanType;
 	}
@@ -193,7 +193,7 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 
 		if( mFrameRate != tempframeRate)
 		{
-			AAMPLOG_INFO( "[OTA_SHIM]%s mFrameRate changed : old:%f new:%f ", __FUNCTION__, mFrameRate, tempframeRate);
+			AAMPLOG_INFO( "[OTA_SHIM] mFrameRate changed : old:%f new:%f ", mFrameRate, tempframeRate);
 			isDataChanged = true;
 			mFrameRate = tempframeRate;
 		}
@@ -203,14 +203,14 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 	if( tempAspectRatioWidth != mAspectRatioWidth)
 	{
 		isDataChanged = true;
-		AAMPLOG_INFO( "[OTA_SHIM]%s mAspectRatioWidth changed : old:%d new:%d ", __FUNCTION__, mAspectRatioWidth, tempAspectRatioWidth);
+		AAMPLOG_INFO( "[OTA_SHIM] mAspectRatioWidth changed : old:%d new:%d ", mAspectRatioWidth, tempAspectRatioWidth);
 		mAspectRatioWidth = tempAspectRatioWidth;
 	}
 
 	int tempAspectRatioHeight = videoInfoObj["aspectRatioHeight"].Number();
 	if( mAspectRatioHeight != tempAspectRatioHeight)
 	{
-		AAMPLOG_INFO( "[OTA_SHIM]%s tempAspectRatioHeight  : old:%d new:%d ", __FUNCTION__, mAspectRatioHeight, tempAspectRatioHeight);
+		AAMPLOG_INFO( "[OTA_SHIM] tempAspectRatioHeight  : old:%d new:%d ", mAspectRatioHeight, tempAspectRatioHeight);
 		isDataChanged = true;
 		mAspectRatioHeight = tempAspectRatioHeight;
 	}
@@ -218,7 +218,7 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 	int tempVideoWidth =  videoInfoObj["width"].Number();
 	if( miVideoWidth != tempVideoWidth)
 	{
-		AAMPLOG_INFO( "[OTA_SHIM]%s miVideoWidth  : old:%d new:%d ", __FUNCTION__, miVideoWidth, tempVideoWidth);
+		AAMPLOG_INFO( "[OTA_SHIM] miVideoWidth  : old:%d new:%d ",  miVideoWidth, tempVideoWidth);
 		miVideoWidth = tempVideoWidth;
 		isDataChanged = true;
 	}
@@ -226,7 +226,7 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 	int tempVideoHeight =  videoInfoObj["height"].Number();
 	if( miVideoHeight != tempVideoHeight)
 	{
-		AAMPLOG_INFO( "[OTA_SHIM]%s miVideoHeight  : old:%d new:%d ", __FUNCTION__, miVideoHeight, tempVideoHeight);
+		AAMPLOG_INFO( "[OTA_SHIM] miVideoHeight  : old:%d new:%d ",  miVideoHeight, tempVideoHeight);
 		miVideoHeight = tempVideoHeight;
 		isDataChanged = true;
 	}
@@ -234,7 +234,7 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 	std::string tempVideoCodec = videoInfoObj["codec"].String();
 	if(0 != mVideoCodec.compare(tempVideoCodec))
 	{
-		AAMPLOG_INFO( "[OTA_SHIM]%s mVideoCodec : old:%s new:%s ", __FUNCTION__, mVideoCodec.c_str(), tempVideoCodec.c_str());
+		AAMPLOG_INFO( "[OTA_SHIM] mVideoCodec : old:%s new:%s ",  mVideoCodec.c_str(), tempVideoCodec.c_str());
 		mVideoCodec = tempVideoCodec;
 		isDataChanged = true;
 	}
@@ -247,7 +247,7 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 	std::string tempAudioCodec = audioInfoObj["codec"].String();
 	if(0 != mAudioCodec.compare(tempAudioCodec))
 	{
-		AAMPLOG_INFO( "[OTA_SHIM]%s tempAudioCodec : old:%s new:%s ", __FUNCTION__, mAudioCodec.c_str(), mAudioCodec.c_str());
+		AAMPLOG_INFO( "[OTA_SHIM] tempAudioCodec : old:%s new:%s ",  mAudioCodec.c_str(), mAudioCodec.c_str());
 		mAudioCodec = tempAudioCodec;
 		isDataChanged = true;
 	}
@@ -255,7 +255,7 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 	std::string tempAudioMixType = audioInfoObj["mixType"].String();
 	if(0 != mAudioMixType.compare(tempAudioMixType))
 	{
-		AAMPLOG_INFO( "[OTA_SHIM]%s tempAudioMixType : old:%s new:%s ", __FUNCTION__, mAudioMixType.c_str(), tempAudioMixType.c_str());
+		AAMPLOG_INFO( "[OTA_SHIM] tempAudioMixType : old:%s new:%s ",  mAudioMixType.c_str(), tempAudioMixType.c_str());
 		mAudioMixType = tempAudioMixType;
 		isDataChanged = true;
 	}
@@ -264,7 +264,7 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 
 	if( mIsAtmos != tempIsAtmos)
 	{
-		AAMPLOG_INFO( "[OTA_SHIM]%s -- mIsAtmos  : old:%d new:%d ", __FUNCTION__, mIsAtmos, tempIsAtmos);
+		AAMPLOG_INFO( "[OTA_SHIM] -- mIsAtmos  : old:%d new:%d ",  mIsAtmos, tempIsAtmos);
 		mIsAtmos = tempIsAtmos;
 		isDataChanged = true;
 	}
@@ -306,7 +306,7 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
     logprintf( "[OTA_SHIM]Inside %s CURL ACCESS", __FUNCTION__ );
     AAMPStatusType retval = eAAMPSTATUS_OK;
 #else
-    AAMPLOG_INFO( "[OTA_SHIM]Inside %s ", __FUNCTION__ );
+    AAMPLOG_INFO( "[OTA_SHIM]Inside" );
     prevState = "IDLE";
 	
     //initialize few veriables, it will invalidate mediametadata/Notifybitrate events
@@ -342,13 +342,13 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
  * @param seek_pos Seek position
  * @param rate playback rate
  */
-StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
-                          : StreamAbstractionAAMP(aamp)
+StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
+                          : StreamAbstractionAAMP(logObj, aamp)
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
                             , tuned(false),mEventSubscribed(false),
-                            thunderAccessObj(MEDIAPLAYER_CALLSIGN),
-                            mediaSettingsObj(MEDIASETTINGS_CALLSIGN),
-                            thunderRDKShellObj(RDKSHELL_CALLSIGN),
+                            thunderAccessObj(MEDIAPLAYER_CALLSIGN, logObj),
+                            mediaSettingsObj(MEDIASETTINGS_CALLSIGN, logObj),
+                            thunderRDKShellObj(RDKSHELL_CALLSIGN,logObj),
                             mPCRating(),mSsi(-1),mFrameRate(0),mVideoScanType(eVIDEOSCAN_UNKNOWN),mAspectRatioWidth(0),mAspectRatioHeight(0),
                             mVideoCodec(),mHdrType(),mAudioBitrate(0),mAudioCodec(),mAudioMixType(),mIsAtmos(false),
                             miVideoWidth(0),miVideoHeight(0),miPrevmiVideoWidth(0),miPrevmiVideoHeight(0)
@@ -451,7 +451,7 @@ void StreamAbstractionAAMP_OTA::Start(void)
         // logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
 
 #else
-	AAMPLOG_INFO( "[OTA_SHIM]Inside %s : url : %s ", __FUNCTION__ , url.c_str());
+	AAMPLOG_INFO( "[OTA_SHIM] url : %s ", url.c_str());
 	JsonObject result;
 
 	SetPreferredAudioLanguages();
@@ -518,7 +518,7 @@ bool StreamAbstractionAAMP_OTA::GetScreenResolution(int & screenWidth, int & scr
 	 {
 		 screenWidth = result["w"].Number();
 		 screenHeight = result["h"].Number();
-		 AAMPLOG_INFO( "StreamAbstractionAAMP_OTA:%s:%d screenWidth:%d screenHeight:%d  ",__FUNCTION__, __LINE__,screenWidth, screenHeight);
+		 AAMPLOG_INFO( "StreamAbstractionAAMP_OTA: screenWidth:%d screenHeight:%d  ",screenWidth, screenHeight);
 		 bRetVal = true;
 	 }
 	 return bRetVal;
@@ -629,7 +629,7 @@ void StreamAbstractionAAMP_OTA::SetPreferredAudioLanguages()
 	JsonObject properties;
 	bool modifiedLang = false;
 	bool modifiedRend = false;
-	//AAMPLOG_WARN( "[OTA_SHIM]Inside %s %d aamp->preferredLanguagesString : %s, gATSCSettings.preferredLanguages : %s aamp->preferredRenditionString : %s gATSCSettings.preferredRendition : %s", __FUNCTION__ , __LINE__, aamp->preferredLanguagesString.c_str(),gATSCSettings.preferredLanguages.c_str(), aamp->preferredRenditionString.c_str(), gATSCSettings.preferredRendition.c_str());fflush(stdout);
+	//AAMPLOG_WARN( "[OTA_SHIM]aamp->preferredLanguagesString : %s, gATSCSettings.preferredLanguages : %s aamp->preferredRenditionString : %s gATSCSettings.preferredRendition : %s",  aamp->preferredLanguagesString.c_str(),gATSCSettings.preferredLanguages.c_str(), aamp->preferredRenditionString.c_str(), gATSCSettings.preferredRendition.c_str());fflush(stdout);
 
 	if((0 != aamp->preferredLanguagesString.length()) && (aamp->preferredLanguagesString != gATSCSettings.preferredLanguages)){
 		properties["preferredAudioLanguage"] = aamp->preferredLanguagesString.c_str();
@@ -659,11 +659,11 @@ void StreamAbstractionAAMP_OTA::SetPreferredAudioLanguages()
 			if (!result["success"].Boolean()){
 				std::string responseStr;
 				result.ToString(responseStr);
-				AAMPLOG_WARN( "[OTA_SHIM] %s:%d setProperties API failed result:%s",__FUNCTION__, __LINE__, responseStr.c_str());
+				AAMPLOG_WARN( "[OTA_SHIM] setProperties API failed result:%s", responseStr.c_str());
 			}else{
 				std::string paramStr;
 				param.ToString(paramStr);
-				AAMPLOG_WARN( "[OTA_SHIM] %s:%d setProperties success with param:%s",__FUNCTION__, __LINE__, paramStr.c_str());
+				AAMPLOG_WARN( "[OTA_SHIM] setProperties success with param:%s", paramStr.c_str());
 				/*Thunder call success save global settings*/
 				if(modifiedLang){
 					gATSCSettings.preferredLanguages = aamp->preferredLanguagesString;
@@ -754,7 +754,7 @@ void StreamAbstractionAAMP_OTA::GetAudioTracks()
     thunderAccessObj.InvokeJSONRPC("getAudioTracks", param, result);
 
     result.ToString(output);
-    AAMPLOG_TRACE( "[OTA_SHIM]:%s:%d audio track output : %s ", __FUNCTION__, __LINE__, output.c_str());
+    AAMPLOG_TRACE( "[OTA_SHIM]:audio track output : %s ",  output.c_str());
     outputArray = result["table"].Array();
     arrayCount = outputArray.Length();
 
@@ -793,7 +793,7 @@ int StreamAbstractionAAMP_OTA::GetAudioTrackInternal()
     JsonObject param;
     JsonObject result;
 
-    AAMPLOG_TRACE("[OTA_SHIM]Entered %s ", __FUNCTION__);
+    AAMPLOG_TRACE("[OTA_SHIM]Entered ");
     param["id"] = APP_ID;
     thunderAccessObj.InvokeJSONRPC("getAudioTrack", param, result);
     pk = result["pk"].Number();
@@ -833,7 +833,7 @@ void StreamAbstractionAAMP_OTA::SetAudioTrack(int trackId)
  */
 std::vector<TextTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableTextTracks()
 {
-	AAMPLOG_TRACE("[OTA_SHIM]%s ", __FUNCTION__);
+	AAMPLOG_TRACE("[OTA_SHIM]");
 	if (mTextTracks.empty())
 		GetTextTracks();
 
@@ -848,7 +848,7 @@ std::vector<TextTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableTextTracks()
  */
 void StreamAbstractionAAMP_OTA::GetTextTracks()
 {
-	AAMPLOG_TRACE("[OTA_SHIM]%s ", __FUNCTION__);
+	AAMPLOG_TRACE("[OTA_SHIM]");
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 #else
 	JsonObject param;
@@ -877,7 +877,7 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 	thunderAccessObj.InvokeJSONRPC("getSubtitleTracks", param, result);
 
 	result.ToString(output);
-	AAMPLOG_TRACE( "[OTA_SHIM]:%s:%d text track output : %s ", __FUNCTION__, __LINE__, output.c_str());
+	AAMPLOG_TRACE( "[OTA_SHIM]:text track output : %s ", output.c_str());
 	outputArray = result["table"].Array();
 	arrayCount = outputArray.Length();
 
@@ -911,7 +911,7 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 				}
 				else
 				{
-					AAMPLOG_WARN( "[OTA_SHIM]:%s:%d unexpected text track for 708 CC", __FUNCTION__, __LINE__);
+					AAMPLOG_WARN( "[OTA_SHIM]:unexpected text track for 708 CC");
 				}
 			}
 			else if(textData["ccType"].String() == std::string{"CC608"})
@@ -924,7 +924,7 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 				}
 				else
 				{
-					AAMPLOG_WARN( "[OTA_SHIM]:%s:%d unexpected text track for 608 CC", __FUNCTION__, __LINE__);
+					AAMPLOG_WARN( "[OTA_SHIM]:unexpected text track for 608 CC");
 				}
 			}
 			else if(textData["ccType"].String() == std::string{"TEXT"})
@@ -937,17 +937,17 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 				}
 				else
 				{
-					AAMPLOG_WARN( "[OTA_SHIM]:%s:%d unexpected text track for TEXT CC", __FUNCTION__, __LINE__);
+					AAMPLOG_WARN( "[OTA_SHIM]:unexpected text track for TEXT CC");
 				}
 			}
 			else
 			{
-				AAMPLOG_WARN( "[OTA_SHIM]:%s:%d unexpected ccType: '%s'", __FUNCTION__, __LINE__, textData["ccType"].String().c_str());
+				AAMPLOG_WARN( "[OTA_SHIM]:unexpected ccType: '%s'",  textData["ccType"].String().c_str());
 			}
 
 			txtTracks.push_back(TextTrackInfo(index, languageCode, true, empty, textData["name"].String(), serviceNo, empty, (int)textData["pk"].Number()));
 			//values shared: index, language, isCC, rendition-empty, name, instreamId, characteristics-empty, primarykey
-			AAMPLOG_WARN("[OTA_SHIM]::%s Text Track - index:%s lang:%s, isCC:true, rendition:empty, name:%s, instreamID:%s, characteristics:empty, primarykey:%d", __FUNCTION__, index.c_str(), languageCode.c_str(), textData["name"].String().c_str(), serviceNo.c_str(), (int)textData["pk"].Number());
+			AAMPLOG_WARN("[OTA_SHIM]:: Text Track - index:%s lang:%s, isCC:true, rendition:empty, name:%s, instreamID:%s, characteristics:empty, primarykey:%d",  index.c_str(), languageCode.c_str(), textData["name"].String().c_str(), serviceNo.c_str(), (int)textData["pk"].Number());
 		}
 	}
 
@@ -984,17 +984,17 @@ void StreamAbstractionAAMP_OTA::DisableContentRestrictions(long grace, long time
 		param["grace"] = -1;
 		param["time"] = -1;
 		param["eventChange"] = false;
-		AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked till next reboot or explicit enable", __FUNCTION__ );
+		AAMPLOG_WARN( "[OTA_SHIM] unlocked till next reboot or explicit enable" );
 	}else{
 		param["grace"] = 0;
 		param["time"] = time;
 		param["eventChange"] = eventChange;
 
 		if(-1 != time)
-			AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked for %ld sec ", __FUNCTION__, time);
+			AAMPLOG_WARN( "[OTA_SHIM] unlocked for %ld sec ", time);
 
 		if(eventChange)
-			AAMPLOG_WARN( "[OTA_SHIM]%s: unlocked till next program ", __FUNCTION__);
+			AAMPLOG_WARN( "[OTA_SHIM] unlocked till next program ");
 	}
 	thunderAccessObj.InvokeJSONRPC("disableContentRestrictionsUntil", param, result);
 
@@ -1011,7 +1011,7 @@ void StreamAbstractionAAMP_OTA::EnableContentRestrictions()
 {
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
 #else
-	AAMPLOG_WARN( "[OTA_SHIM]%s: locked ", __FUNCTION__);
+	AAMPLOG_WARN( "[OTA_SHIM] locked ");
 	JsonObject param;
 	JsonObject result;
 	param["id"] = APP_ID;

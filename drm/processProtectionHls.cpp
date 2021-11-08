@@ -68,12 +68,12 @@ static int GetFieldValue(string &attrName, string keyName, string &valuePtr){
 	int valueEndPos = attrName.length();
 	int status = DRM_API_FAILED;
 
-	AAMPLOG_TRACE("%s:%d Entring..", __FUNCTION__, __LINE__);
+	AAMPLOG_TRACE("Entring..");
 
 	if (attrName.find(keyName) != std::string::npos)
 	{
-		AAMPLOG_TRACE("%s:%d keyName = %s",
-		 __FUNCTION__, __LINE__, keyName.c_str());
+		AAMPLOG_TRACE("keyName = %s",
+		 keyName.c_str());
 
 		valueStartPos = attrName.find(keyName) + keyName.length();
 		if (attrName.at(valueStartPos) == '=')
@@ -81,8 +81,8 @@ static int GetFieldValue(string &attrName, string keyName, string &valuePtr){
 			string valueTempPtr = attrName.substr(valueStartPos);
 			valueTempPtr = valueTempPtr.substr(1);
 
-			AAMPLOG_TRACE("%s:%d valueTempPtr = %s",
-			__FUNCTION__, __LINE__, valueTempPtr.c_str());
+			AAMPLOG_TRACE("valueTempPtr = %s",
+			valueTempPtr.c_str());
 
 			/* update start position based on substring */
 			valueStartPos = 0;
@@ -102,21 +102,21 @@ static int GetFieldValue(string &attrName, string keyName, string &valuePtr){
 			}
 
 			valuePtr = valueTempPtr.substr(valueStartPos, valueEndPos);
-			AAMPLOG_INFO("%s:%d Value found : %s for Key : %s",
-			__FUNCTION__, __LINE__, valuePtr.c_str(), keyName.c_str());
+			AAMPLOG_INFO("Value found : %s for Key : %s",
+			valuePtr.c_str(), keyName.c_str());
 			status = DRM_API_SUCCESS;
 		}
 		else
 		{
-			AAMPLOG_ERR("%s:%d Could not able to find %s= in %s",
-			__FUNCTION__, __LINE__, keyName.c_str(), attrName.c_str());
+			AAMPLOG_ERR("Could not able to find %s= in %s",
+			keyName.c_str(), attrName.c_str());
 			status = DRM_API_FAILED;
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("%s:%d Could not able to find %s in %s",
-		__FUNCTION__, __LINE__, keyName.c_str(), attrName.c_str());
+		AAMPLOG_ERR("Could not able to find %s in %s",
+		keyName.c_str(), attrName.c_str());
 		status = DRM_API_FAILED;
 	}
 
@@ -146,8 +146,8 @@ static int getKeyId(string attrName, string &keyId){
 
 	int status = GetFieldValue(attrName, "KEYID", keyId );
 	if(DRM_API_SUCCESS != status){
-		AAMPLOG_INFO("%s:%d Could not able to get Key Id from manifest",
-		__FUNCTION__, __LINE__);
+		AAMPLOG_INFO("Could not able to get Key Id from manifest"
+		);
 		return status;
 	}
 
@@ -167,8 +167,8 @@ static int getPsshData(string attrName, string &psshData){
 
 	int status = GetFieldValue(attrName, "URI", psshData );
 	if(DRM_API_SUCCESS != status){
-		AAMPLOG_ERR("%s:%d Could not able to get psshData from manifest",
-		__FUNCTION__, __LINE__);
+		AAMPLOG_ERR("Could not able to get psshData from manifest"
+		);
 		return status;
 	}
 	/* Split string based on , and get the PSSH Data */
@@ -189,9 +189,9 @@ static uint8_t getPsshDataVersion(string attrName){
 	string psshDataVerStr = "";
 
 	if(DRM_API_SUCCESS != GetFieldValue(attrName, "KEYFORMATVERSIONS", psshDataVerStr )){
-		AAMPLOG_WARN("%s:%d Could not able to receive pssh data version from manifest"
-		"returning default value as 0",
-		__FUNCTION__, __LINE__);
+		AAMPLOG_WARN("Could not able to receive pssh data version from manifest"
+		"returning default value as 0"
+		);
 	}else {
 		psshDataVer = (uint8_t)std::atoi(psshDataVerStr.c_str());
 	}
@@ -210,8 +210,8 @@ static std::shared_ptr<AampDrmHelper> getDrmHelper(string attrName , bool bPropa
 	string systemId = "";
 	
 	if(DRM_API_SUCCESS != GetFieldValue(attrName, "KEYFORMAT", systemId )){
-		AAMPLOG_ERR("%s:%d Could not able to receive key id from manifest",
-		__FUNCTION__, __LINE__);
+		AAMPLOG_ERR("Could not able to receive key id from manifest"
+		);
 		return nullptr;
 	}
 
@@ -245,6 +245,7 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 	 *    4.2 Reuse the thread function CreateDRMSession which is used in MPD for HLS also
 	 * 5. Else delete keyId and return
 	 */
+	AampLogManager *mLogObj = aamp->mConfig->GetLoggerInstance();
 	shared_ptr<AampDrmHelper> drmHelper;
 	unsigned char* data = NULL;
 	unsigned char* contentMetadata = NULL;
@@ -259,15 +260,13 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 	do{
 		drmHelper = getDrmHelper(attrName , ISCONFIGSET(eAAMPConfig_PropogateURIParam));
 		if (nullptr == drmHelper){
-			AAMPLOG_ERR("%s:%d Failed to get DRM type/helper from manifest!",
-			__FUNCTION__, __LINE__);
+			AAMPLOG_ERR("Failed to get DRM type/helper from manifest!");
 			break;
 		}
 
 		status  = getPsshData(attrName, psshDataStr);
 		if (DRM_API_SUCCESS != status){
-			AAMPLOG_ERR("%s:%d Failed to get PSSH Data from manifest!",
-			__FUNCTION__, __LINE__);
+			AAMPLOG_ERR("Failed to get PSSH Data from manifest!");
 			break;
 		}
 		psshData = (char*) malloc(psshDataStr.length() + 1);
@@ -282,14 +281,13 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 
 		if (dataLength == 0)
 		{
-			AAMPLOG_ERR("%s:%d Could not able to retrive DRM data from PSSH",
-						__FUNCTION__, __LINE__);
+			AAMPLOG_ERR("Could not able to retrive DRM data from PSSH");
 			break;
 		}
 		if (gpGlobalConfig->logging.trace)
 		{
-			AAMPLOG_TRACE("%s:%d content metadata from manifest; length %d",
-			__FUNCTION__, __LINE__, dataLength);
+			AAMPLOG_TRACE("content metadata from manifest; length %d",
+			dataLength);
 			printf("*****************************************************************\n");
 			for (int i = 0; i < dataLength; i++)
 			{
@@ -305,8 +303,7 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 		}
 		if (!drmHelper->parsePssh(data, dataLength)) 
 		{
-			AAMPLOG_ERR("%s:%d Failed to get key Id from manifest",
-			__FUNCTION__, __LINE__);
+			AAMPLOG_ERR("Failed to get key Id from manifest");
 			
 			if(data) {
 				free(data);
@@ -319,8 +316,8 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 
 		if (drmHelper){
 			/** Push Drm Information for later use do not free the memory here*/
-			//AAMPLOG_INFO("%s:%d - Storing DRM Info at keyId %s",
-			//__FUNCTION__, __LINE__, keyId);
+			//AAMPLOG_INFO("Storing DRM Info at keyId %s",
+			//keyId);
 
 			/** Populate session data **/
 			DrmSessionParams* sessionParams = new DrmSessionParams;
@@ -351,8 +348,8 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 #else
 
 void* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::string attrName){
-	AAMPLOG_INFO("%s:%d AAMP_HLS_DRM not enabled", 
-				__FUNCTION__, __LINE__);
+	AAMPLOG_INFO("AAMP_HLS_DRM not enabled" 
+	);
 	return NULL;
 }
 #endif /** AAMP_HLS_DRM */

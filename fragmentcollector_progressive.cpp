@@ -228,7 +228,7 @@ AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
  * @param seek_pos Seek position
  * @param rate playback rate
  */
-StreamAbstractionAAMP_PROGRESSIVE::StreamAbstractionAAMP_PROGRESSIVE(class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(aamp),
+StreamAbstractionAAMP_PROGRESSIVE::StreamAbstractionAAMP_PROGRESSIVE(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(logObj, aamp),
 fragmentCollectorThreadStarted(false), fragmentCollectorThreadID(0), seekPosition(seek_pos)
 {
     trickplayMode = (rate != AAMP_NORMAL_PLAY_RATE);

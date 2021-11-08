@@ -36,6 +36,6 @@
 class AampDrmSessionFactory
 {
 public:
-	static AampDrmSession* GetDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *drmCallbacks);
+	static AampDrmSession* GetDrmSession(AampLogManager *logObj, std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *drmCallbacks);
 };
 #endif

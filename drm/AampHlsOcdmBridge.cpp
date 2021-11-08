@@ -23,12 +23,13 @@
 
 using namespace std;
 
-AampHlsOcdmBridge::AampHlsOcdmBridge(AampDrmSession * aampDrmSession) :
+AampHlsOcdmBridge::AampHlsOcdmBridge(AampLogManager *logObj, AampDrmSession * aampDrmSession) :
 	m_drmInfo(nullptr),
 	m_aampInstance(nullptr),
 	m_drmSession(aampDrmSession),
 	m_drmState(eDRM_INITIALIZED),
-	m_Mutex()
+	m_Mutex(),
+	mLogObj(logObj)
 {
 	pthread_mutex_init(&m_Mutex, NULL);
 }
@@ -38,7 +39,7 @@ AampHlsOcdmBridge::~AampHlsOcdmBridge()
 	pthread_mutex_destroy(&m_Mutex);
 }
 
-DrmReturn AampHlsOcdmBridge::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo)
+DrmReturn AampHlsOcdmBridge::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo, AampLogManager *logObj)
 {
 	DrmReturn result  = eDRM_ERROR;
 
@@ -52,7 +53,7 @@ DrmReturn AampHlsOcdmBridge::SetDecryptInfo( PrivateInstanceAAMP *aamp, const st
 		result = eDRM_SUCCESS; //frag_collector ignores the return
 	}
 	pthread_mutex_unlock(&m_Mutex);
-	AAMPLOG_TRACE("%s:%d DecryptInfo Set\n", __FUNCTION__, __LINE__);
+	AAMPLOG_TRACE("DecryptInfo Set\n");
 
 	return result;
 }
@@ -64,21 +65,21 @@ DrmReturn AampHlsOcdmBridge::Decrypt( ProfilerBucketType bucketType, void *encry
 	pthread_mutex_lock(&m_Mutex);
 	if (m_drmState == eDRM_KEY_ACQUIRED)
 	{
-		 AAMPLOG_TRACE("%s:%d Starting decrypt\n", __FUNCTION__, __LINE__);
+		 AAMPLOG_TRACE("Starting decrypt\n");
 		 int retVal = m_drmSession->decrypt(m_drmInfo->iv, DRM_IV_LEN, (const uint8_t *)encryptedDataPtr , encryptedDataLen, NULL);
 		 if (retVal)
 		 {
-			AAMPLOG_WARN("%s:%d: Decrypt failed err = %d\n", __FUNCTION__, __LINE__, retVal);
+			AAMPLOG_WARN("Decrypt failed err = %d\n", retVal);
 		 }
 		 else
 		 {
-			AAMPLOG_TRACE("%s:%d Decrypt success\n", __FUNCTION__, __LINE__);
+			AAMPLOG_TRACE("Decrypt success\n");
 			result = eDRM_SUCCESS;
 		 }
 	}
 	else
 	{
-		AAMPLOG_WARN("%s:%d:Decrypt Called in Incorrect State! DrmState = %d\n",  __FUNCTION__, __LINE__, (int)m_drmState);
+		AAMPLOG_WARN("Decrypt Called in Incorrect State! DrmState = %d\n", (int)m_drmState);
 	}
 	pthread_mutex_unlock(&m_Mutex);
 
@@ -87,7 +88,7 @@ DrmReturn AampHlsOcdmBridge::Decrypt( ProfilerBucketType bucketType, void *encry
 
 void AampHlsOcdmBridge::Release(void)
 {
-	AAMPLOG_WARN("%s:%d: Releasing the Opencdm Session\n", __FUNCTION__, __LINE__);
+	AAMPLOG_WARN("Releasing the Opencdm Session\n");
 	m_drmSession->clearDecryptContext();
 }
 

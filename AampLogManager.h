@@ -39,13 +39,18 @@
 /**
  * @brief Macro for validating the log level to be enabled
  *
- * if gpGlobalConfig is not initialized, skip logging
- * if gpGlobalConfig is initialized,  check the LogLevel
+ * if mConfig or gpGlobalConfig is not initialized, skip logging
+ * if mconfig or gpGlobalConfig is initialized,  check the LogLevel
  */
-#define AAMPLOG(LEVEL,FORMAT, ...) \
-		do { if (gpGlobalConfig && gpGlobalConfig->logging.isLogLevelAllowed(LEVEL)) { \
-				logprintf(FORMAT, ##__VA_ARGS__); \
-		} } while (0)
+#define AAMPLOG(MYLOGOBJ,LEVEL,LEVELSTR,FORMAT, ...) \
+				do { \
+					if (MYLOGOBJ) { \
+					       	if(MYLOGOBJ->isLogLevelAllowed(LEVEL)) { \
+							logprintf_new(MYLOGOBJ->getPlayerId(),LEVELSTR, __FUNCTION__, __LINE__,FORMAT, ##__VA_ARGS__); }\
+						} \
+					else if (gpGlobalConfig && gpGlobalConfig->logging.isLogLevelAllowed(LEVEL)) { \
+						logprintf_new(-1,LEVELSTR, __FUNCTION__, __LINE__,FORMAT, ##__VA_ARGS__); }\
+				 } while (0)
 
 /**
  * @brief Macro for Triage Level Logging Support
@@ -56,18 +61,20 @@
 #define AAMP_LOG_ABR_INFO			gpGlobalConfig->logging.LogABRInfo
 #define AAMP_IS_LOG_WORTHY_ERROR	gpGlobalConfig->logging.isLogworthyErrorCode
 
+#define AAMPLOG_FAILOVER(FORMAT, ...) \
+		if (mLogObj && mLogObj->failover) { \
+				logprintf_new(mLogObj->getPlayerId(), "FAILOVER",__FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__); \
+		}
+
 /**
  * @brief AAMP logging defines, this can be enabled through setLogLevel() as per the need
  */
-#define AAMPLOG_TRACE(FORMAT, ...) AAMPLOG(eLOGLEVEL_TRACE, FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_INFO(FORMAT, ...) AAMPLOG(eLOGLEVEL_INFO,  FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_WARN(FORMAT, ...) AAMPLOG(eLOGLEVEL_WARN, FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_ERR(FORMAT, ...) AAMPLOG(eLOGLEVEL_ERROR,  FORMAT, ##__VA_ARGS__)
 
-#define AAMPLOG_FAILOVER(FORMAT, ...) \
-		if (gpGlobalConfig->logging.failover) { \
-				logprintf(FORMAT, ##__VA_ARGS__); \
-		}
+#define AAMPLOG_TRACE(FORMAT, ...) AAMPLOG(mLogObj,eLOGLEVEL_TRACE, "TRACE", FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_INFO(FORMAT, ...) AAMPLOG(mLogObj,eLOGLEVEL_INFO, "INFO", FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_WARN(FORMAT, ...) AAMPLOG(mLogObj,eLOGLEVEL_WARN, "WARN", FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_ERR(FORMAT, ...) AAMPLOG(mLogObj,eLOGLEVEL_ERROR, "ERROR", FORMAT, ##__VA_ARGS__)
+
 
 /**
  * @brief maximum supported mediatype for latency logging
@@ -145,11 +152,12 @@ public:
 	bool logMetadata;	 /**< Timed metadata logs*/
 	bool id3;		/**< Display ID3 tag from stream logs */
 	static bool disableLogRedirection;
-
+	int  mPlayerId;	/**< Store PlayerId*/
 	/**
 	 * @brief AampLogManager constructor
 	 */
-	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), curlHeader(false), logMetadata(false), curlLicense(false),stream(false), id3(false)
+	AampLogManager() : aampLoglevel(eLOGLEVEL_WARN), info(false), debug(false), trace(false), gst(false), curl(false), progress(false), failover(false), curlHeader(false), 
+							logMetadata(false), curlLicense(false),stream(false), id3(false),mPlayerId(-1)
 	{
 	}
 
@@ -215,6 +223,20 @@ public:
 	 */
 	bool isLogLevelAllowed(AAMP_LogLevel chkLevel);
 
+
+	/**
+	 * @brief Set PlayerId
+	 *
+	 * @param[in] newLevel - log level new value
+	 * @retuen void
+	 */
+	void setPlayerId(int playerId) { mPlayerId = playerId;}
+	/**
+	 * @brief Get PlayerId 
+	 *
+	 * @retuen int - playerId
+	 */
+	int getPlayerId() { return mPlayerId;}
 	/**
 	 * @brief Set the log level for print mechanism
 	 *
@@ -252,6 +274,8 @@ private:
 	AAMP_LogLevel aampLoglevel;
 };
 
+extern AampLogManager *mLogObj;
+
 /* Context-free utility function */
 
 /**
@@ -260,6 +284,7 @@ private:
  * @retuen void
  */
 extern void logprintf(const char *format, ...);
+extern void logprintf_new(int playerId,const char* levelstr,const char* file, int line,const char *format, ...);
 
 /**
  * @brief Compactly log blobs of binary data
