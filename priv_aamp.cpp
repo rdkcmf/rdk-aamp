@@ -1488,7 +1488,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mAuxFormat(FORMAT_INVALID), mAuxAudioLanguage()
 	, mAbsoluteEndPosition(0), mIsLiveStream(false)
 	, mbUsingExternalPlayer (false)
-	, id3MetadataCallbackIdleTaskId(0),	id3MetadataCallbackTaskPending(false), lastId3DataLen(0), lastId3Data(NULL)
+	, id3MetadataCallbackIdleTaskId(0),	id3MetadataCallbackTaskPending(false)
 	, mCCId(0)
 	, seiTimecode()
 	, contentGaps()
@@ -1508,6 +1508,11 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mDiscoCompleteLock()
 	, mIsPeriodChangeMarked(false)
 {
+	for(int i=0; i<AAMP_TRACK_COUNT; i++)
+	{
+		lastId3Data[i] = NULL;
+		lastId3DataLen[i] = 0;
+	}
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
 	int maxDrmSession;
@@ -6573,8 +6578,11 @@ void PrivateInstanceAAMP::Stop()
 		id3MetadataCallbackTaskPending = false;
 		id3MetadataCallbackIdleTaskId = 0;
 	}
-	FlushLastId3Data();
 
+	for(int i=0; i<AAMP_TRACK_COUNT; i++)
+	{
+		FlushLastId3Data((MediaType)i);
+	}
 	pthread_mutex_lock(&mEventLock);
 	if (mPendingAsyncEvents.size() > 0)
 	{
@@ -9963,10 +9971,10 @@ void PrivateInstanceAAMP::ProcessID3Metadata(char *segment, size_t size, MediaTy
 					AAMPLOG_TRACE("PrivateInstanceAAMP::%s()::%d Found ID3 metadata[%d]", __FUNCTION__, __LINE__, type);
 					if(mMediaFormat == eMEDIAFORMAT_DASH)
 					{
-						ReportID3Metadata(message, messageLen, (char*)(schemeIDUri), (char*)(value), presTime, id, eventDuration, timeScale, timeStampOffset);
+						ReportID3Metadata(type, message, messageLen, (char*)(schemeIDUri), (char*)(value), presTime, id, eventDuration, timeScale, GetMediaStreamContext(type)->timeStampOffset);
 					}else
 					{
-						ReportID3Metadata(message, messageLen, (char*)(schemeIDUri), (char*)(value), presTime, id, eventDuration, timeScale);
+						ReportID3Metadata(type, message, messageLen, (char*)(schemeIDUri), (char*)(value), presTime, id, eventDuration, timeScale);
 					}
 				}
 			}
@@ -9988,15 +9996,15 @@ void PrivateInstanceAAMP::ProcessID3Metadata(char *segment, size_t size, MediaTy
  * @param[in] tStampOffset - timeStampOffset
  * @return void
  */
-void PrivateInstanceAAMP::ReportID3Metadata(const uint8_t* ptr, uint32_t len, const char* schemeIdURI, const char* id3Value, uint64_t presTime, uint32_t id3ID, uint32_t eventDur, uint32_t tScale, uint64_t tStampOffset)
+void PrivateInstanceAAMP::ReportID3Metadata(MediaType mediaType, const uint8_t* ptr, uint32_t len, const char* schemeIdURI, const char* id3Value, uint64_t presTime, uint32_t id3ID, uint32_t eventDur, uint32_t tScale, uint64_t tStampOffset)
 {
-	FlushLastId3Data();
+	FlushLastId3Data(mediaType);
 	Id3CallbackData* id3Metadata = new Id3CallbackData(this, static_cast<const uint8_t*>(ptr), len, static_cast<const char*>(schemeIdURI), static_cast<const char*>(id3Value), presTime, id3ID, eventDur, tScale, tStampOffset);
-	lastId3Data = (uint8_t*)g_malloc(len);
-	if (lastId3Data)
+	lastId3Data[mediaType] = (uint8_t*)g_malloc(len);
+	if (lastId3Data[mediaType])
 	{
-		lastId3DataLen = len;
-		memcpy(lastId3Data, ptr, len);
+		lastId3DataLen[mediaType] = len;
+		memcpy(lastId3Data[mediaType], ptr, len);
 	}
 
 	this->id3MetadataCallbackTaskPending = true;
@@ -10012,13 +10020,13 @@ void PrivateInstanceAAMP::ReportID3Metadata(const uint8_t* ptr, uint32_t len, co
  * @brief Flush last saved ID3 metadata
  * @return void
  */
-void PrivateInstanceAAMP::FlushLastId3Data()
+void PrivateInstanceAAMP::FlushLastId3Data(MediaType mediaType)
 {
-	if(lastId3Data)
+	if(lastId3Data[mediaType])
 	{
-		lastId3DataLen = 0;
-		g_free(lastId3Data);
-		lastId3Data = NULL;
+		lastId3DataLen[mediaType] = 0;
+		g_free(lastId3Data[mediaType]);
+		lastId3Data[mediaType] = NULL;
 	}
 }
 

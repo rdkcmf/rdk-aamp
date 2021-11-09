@@ -859,12 +859,13 @@ public:
 	bool mbUsingExternalPlayer; /**<Playback using external players eg:OTA, HDMIIN,Composite*/
 	guint id3MetadataCallbackIdleTaskId; //ID of handler created to send ID3 metadata events
 	std::atomic<bool> id3MetadataCallbackTaskPending; //Set if an id3 metadata callback is pending
-	int32_t lastId3DataLen; // last sent ID3 data length
-	uint8_t *lastId3Data; // ptr with last sent ID3 data
+	int32_t lastId3DataLen[AAMP_TRACK_COUNT]; // last sent ID3 data length
+	uint8_t *lastId3Data[AAMP_TRACK_COUNT]; // ptr with last sent ID3 data
 
 	pthread_mutex_t  mDiscoCompleteLock; // Lock the period jump if discontinuity already in progress
 	pthread_cond_t mWaitForDiscoToComplete; // Conditional wait for period jump
 	bool mIsPeriodChangeMarked; // Mark if a period change occurred.
+
 
 	/**
 	 * @brief Check if segment starts with an ID3 section
@@ -900,13 +901,13 @@ public:
 	 * @param[in] tStampOffset - timestampOffset 
 	 * @return void
 	 */
-	void ReportID3Metadata(const uint8_t* ptr, uint32_t len, const char* schemeIdURI = NULL, const char* id3Value = NULL, uint64_t presTime = 0, uint32_t id3ID = 0, uint32_t eventDur = 0, uint32_t tScale = 0, uint64_t tStampOffset=0);
+	void ReportID3Metadata(MediaType mediaType, const uint8_t* ptr, uint32_t len, const char* schemeIdURI = NULL, const char* id3Value = NULL, uint64_t presTime = 0, uint32_t id3ID = 0, uint32_t eventDur = 0, uint32_t tScale = 0, uint64_t tStampOffset=0);
 
 	/**
 	 * @brief Flush last saved ID3 metadata
 	 * @return void
 	 */
-	void FlushLastId3Data();
+	void FlushLastId3Data(MediaType mediaType);
 
 	/**
 	 * @brief Curl initialization function

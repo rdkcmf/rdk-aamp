@@ -2263,24 +2263,25 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 	media_stream *stream = &privateContext->stream[mediaType];
 	bool isFirstBuffer = stream->resetPosition;
 
-	if (aamp->GetEventListenerStatus(AAMP_EVENT_ID3_METADATA) &&
-		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
-	{
-		uint32_t len = getId3TagSize(static_cast<const uint8_t*>(ptr));
-		if (len && (len != aamp->lastId3DataLen ||
-					!aamp->lastId3Data ||
-					(memcmp(ptr, aamp->lastId3Data, aamp->lastId3DataLen) != 0)))
-		{
-			AAMPLOG_INFO("AAMPGstPlayer %s: Found new ID3 frame",__FUNCTION__);
-			aamp->ReportID3Metadata(static_cast<const uint8_t*>(ptr), len);
-		}
-	}
-
 	// Ignore eMEDIATYPE_DSM_CC packets
 	if(mediaType == eMEDIATYPE_DSM_CC)
 	{
 		return false;
 	}
+
+	if (aamp->GetEventListenerStatus(AAMP_EVENT_ID3_METADATA) && mediaType < AAMP_TRACK_COUNT &&
+		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
+	{
+		uint32_t len = getId3TagSize(static_cast<const uint8_t*>(ptr));
+		if (len && (len != aamp->lastId3DataLen[mediaType] ||
+					!aamp->lastId3Data[mediaType] ||
+					(memcmp(ptr, aamp->lastId3Data[mediaType], aamp->lastId3DataLen[mediaType]) != 0)))
+		{
+			AAMPLOG_INFO("AAMPGstPlayer %s: Found new ID3 frame",__FUNCTION__);
+			aamp->ReportID3Metadata(mediaType, static_cast<const uint8_t*>(ptr), len);
+		}
+	}
+
 
 	// Make sure source element is present before data is injected
 	// If format is FORMAT_INVALID, we don't know what we are doing here
