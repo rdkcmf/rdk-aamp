@@ -5601,7 +5601,21 @@ std::string StreamAbstractionAAMP_MPD::GetLanguageForAdaptationSet(IAdaptationSe
 //	{
 //		lang = aamp->language;
 //	}
-	lang = Getiso639map_NormalizeLanguageCode(lang,aamp->GetLangCodePreference());
+	if(!lang.empty())
+	{
+		lang = Getiso639map_NormalizeLanguageCode(lang,aamp->GetLangCodePreference());
+	}
+	else
+	{
+		// set und+id as lang, this is required because sometimes lang is not present and stream has multiple audio track.
+		// this unique lang string will help app to SetAudioTrack by index.
+		// Attempt is made to make lang unique by picking ID of first representation under current adaptation
+		IRepresentation* representation = adaptationSet->GetRepresentation().at(0);
+		if(NULL != representation)
+		{
+			lang = "und_" + representation->GetId();
+		}
+	}
 	return lang;
 }
 
