@@ -1530,7 +1530,10 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				}
 				retval = FetchFragment(pMediaStreamContext, media, fragmentDuration, false, curlInstance);
 				double positionInPeriod = 0;
-				positionInPeriod = (pMediaStreamContext->lastSegmentNumber - startNumber) * fragmentDuration;
+				if(pMediaStreamContext->lastSegmentNumber > startNumber)
+				{
+					positionInPeriod = (pMediaStreamContext->lastSegmentNumber - startNumber) * fragmentDuration;
+				}
 				string startTimeStringValue = mpd->GetPeriods().at(mCurrentPeriodIdx)->GetStart();
 				double periodstartValue = 0;
 				if(mIsLiveStream && ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline))
