@@ -6386,7 +6386,7 @@ long long PrivateInstanceAAMP::GetPositionMs()
  */
 long long PrivateInstanceAAMP::GetPositionMilliseconds()
 {
-	long long positionMiliseconds = seek_pos_seconds * 1000.0;
+	long long positionMiliseconds = seek_pos_seconds != -1 ? seek_pos_seconds * 1000.0 : 0.0;
 	if (trickStartUTCMS >= 0)
 	{
 		//DELIA-39530 - Audio only playback is un-tested. Hence disabled for now
@@ -6590,6 +6590,7 @@ void PrivateInstanceAAMP::Stop()
 	}
 
 	seek_pos_seconds = -1;
+	prevPositionMiliseconds = -1;
 	culledSeconds = 0;
 	mIsLiveStream = false;
 	durationSeconds = 0;
