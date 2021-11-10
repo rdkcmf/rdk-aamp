@@ -2352,7 +2352,10 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 		SendEvent(std::make_shared<SpeedChangedEvent>(rate),AAMP_EVENT_ASYNC_MODE);
 	}
 #ifdef USE_SECMANAGER
-	mDRMSessionManager->setPlaybackSpeedState(rate,seek_pos_seconds);
+	if(ISCONFIGSET_PRIV(eAAMPConfig_UseSecManager))
+	{
+		mDRMSessionManager->setPlaybackSpeedState(rate,seek_pos_seconds);
+	}
 #endif
 }
 
@@ -7674,12 +7677,15 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	AAMPLOG_WARN("seek pos %.3f", seek_pos_seconds);
 
 #ifdef USE_SECMANAGER
+	if(ISCONFIGSET_PRIV(eAAMPConfig_UseSecManager))
+	{
         mDRMSessionManager->setPlaybackSpeedState(rate,seek_pos_seconds);
-	int x,y,w,h;
-	sscanf(mStreamSink->GetVideoRectangle().c_str(),"%d,%d,%d,%d",&x,&y,&w,&h);
-        AAMPLOG_WARN("calling setContentAspectRatio  w:%d x h:%d h/w=%f 2.3",w,h,(float)w/(float)h);
+		int x,y,w,h;
+		sscanf(mStreamSink->GetVideoRectangle().c_str(),"%d,%d,%d,%d",&x,&y,&w,&h);
+        logprintf("In %s calling setContentAspectRatio  w:%d x h:%d h/w=%f 2.3",__FUNCTION__,w,h,(float)w/(float)h);
         mDRMSessionManager->setVideoWindowSize(w,h);
         mDRMSessionManager->setContentAspectRatio((float)w/(float)h);
+	}
 #endif
 	
 }

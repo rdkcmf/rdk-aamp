@@ -8540,7 +8540,10 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 	if (clearChannelData)
 	{
 #ifdef AAMP_MPD_DRM
-		aamp->mDRMSessionManager->notifyCleanup();
+		if(ISCONFIGSET(eAAMPConfig_UseSecManager))
+		{
+			aamp->mDRMSessionManager->notifyCleanup();
+		}
 #endif
 	}
 #ifdef AAMP_MPD_DRM

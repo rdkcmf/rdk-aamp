@@ -609,94 +609,105 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	//logprintf("mediaUsage is %s", mediaUsage);
 	//logprintf("sessionToken is %s", sessionToken);
 #if USE_SECMANAGER
-	int64_t statusCode;
-	int64_t reasonCode;
-	bool res = AampSecManager::GetInstance()->AcquireLicense(aampInstance, licenseRequest.url.c_str(),
-							requestMetadata,
-							((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
-							encodedData,
-							encodedChallengeData,
-							keySystem,
-							mediaUsage,
-							secclientSessionToken,
-							challengeInfo.accessToken.length(),
-							&mSessionId,
-							&licenseResponseStr, &licenseResponseLength,
-							&statusCode, &reasonCode);
-	if (res)
+	if(aampInstance->mConfig->IsConfigSet(eAAMPConfig_UseSecManager))
 	{
-		AAMPLOG_WARN("acquireLicense via SecManager SUCCESS!");
-		//TODO: Sort this out for backward compatibility
-		*httpCode = 200;
-		*httpExtStatusCode = 0;
-		if (licenseResponseStr)
+		int64_t statusCode;
+		int64_t reasonCode;
+		bool res = AampSecManager::GetInstance()->AcquireLicense(aampInstance, licenseRequest.url.c_str(),
+																 requestMetadata,
+																 ((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
+																 encodedData,
+																 encodedChallengeData,
+																 keySystem,
+																 mediaUsage,
+																 secclientSessionToken,
+																 &mSessionId,
+																 &licenseResponseStr, &licenseResponseLength,
+																 &statusCode, &reasonCode);
+		if (res)
 		{
-			licenseResponse = new DrmData((unsigned char *)licenseResponseStr, licenseResponseLength);
-			free(licenseResponseStr);
-		}
-	}
-	else
-	{
-		logprintf("%s:%d acquireLicense via SecManager FAILED!",__FUNCTION__, __LINE__);
-		//TODO: Sort this out for backward compatibility
-		*httpCode = statusCode;
-		*httpExtStatusCode = reasonCode;
-	}
-#elif USE_SECCLIENT
-	int32_t sec_client_result = SEC_CLIENT_RESULT_FAILURE;
-	SecClient_ExtendedStatus statusInfo;
-	unsigned int attemptCount = 0;
-	int sleepTime ;
-	aampInstance->mConfig->GetConfigValue(eAAMPConfig_LicenseRetryWaitTime,sleepTime) ;
-				if(sleepTime<=0) sleepTime = 100;
-	while (attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
-	{
-		attemptCount++;
-		sec_client_result = SecClient_AcquireLicense(licenseRequest.url.c_str(), 1,
-							requestMetadata, numberOfAccessAttributes,
-							((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
-							encodedData,
-							strlen(encodedData),
-							encodedChallengeData, strlen(encodedChallengeData), keySystem, mediaUsage,
-							secclientSessionToken,
-							&licenseResponseStr, &licenseResponseLength, &refreshDuration, &statusInfo);
-
-		if (((sec_client_result >= 500 && sec_client_result < 600)||
-			(sec_client_result >= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_TLS  && sec_client_result <= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_GENERIC ))
-			&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
-		{
-			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
-			if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
-			logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, sleepTime);
-			mssleep(sleepTime);
+			AAMPLOG_WARN("%s:%d acquireLicense via SecManager SUCCESS!",__FUNCTION__, __LINE__);
+			//TODO: Sort this out for backward compatibility
+			*httpCode = 200;
+			*httpExtStatusCode = 0;
+			if (licenseResponseStr)
+			{
+				licenseResponse = new DrmData((unsigned char *)licenseResponseStr, licenseResponseLength);
+				free(licenseResponseStr);
+			}
 		}
 		else
 		{
-			break;
+			logprintf("%s:%d acquireLicense via SecManager FAILED!",__FUNCTION__, __LINE__);
+			//TODO: Sort this out for backward compatibility
+			*httpCode = statusCode;
+			*httpExtStatusCode = reasonCode;
 		}
 	}
-	if (gpGlobalConfig->logging.debug)
-	{
-		logprintf("licenseResponse is %s", licenseResponseStr);
-		logprintf("licenseResponse len is %zd", licenseResponseLength);
-		logprintf("accessAttributesStatus is %d", statusInfo.accessAttributeStatus);
-		logprintf("refreshDuration is %d", refreshDuration);
-	}
-
-	if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
-	{
-		logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d extStatus %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result, statusInfo.statusCode);
-		*httpCode = sec_client_result;
-		*httpExtStatusCode = statusInfo.statusCode;
+#endif
+#if USE_SECCLIENT
+#if USE_SECMANAGER
 	}
 	else
 	{
-		logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : sec_client %d",__FUNCTION__, __LINE__, attemptCount, sec_client_result);
-		eventHandle->setAccessStatusValue(statusInfo.accessAttributeStatus);
-		licenseResponse = new DrmData((unsigned char *)licenseResponseStr, licenseResponseLength);
+#endif
+		int32_t sec_client_result = SEC_CLIENT_RESULT_FAILURE;
+		SecClient_ExtendedStatus statusInfo;
+		unsigned int attemptCount = 0;
+		int sleepTime ;
+		aampInstance->mConfig->GetConfigValue(eAAMPConfig_LicenseRetryWaitTime,sleepTime) ;
+		if(sleepTime<=0) sleepTime = 100;
+		while (attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+		{
+			attemptCount++;
+			sec_client_result = SecClient_AcquireLicense(licenseRequest.url.c_str(), 1,
+														 requestMetadata, numberOfAccessAttributes,
+														 ((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
+														 encodedData,
+														 strlen(encodedData),
+														 encodedChallengeData, strlen(encodedChallengeData), keySystem, mediaUsage,
+														 secclientSessionToken,
+														 &licenseResponseStr, &licenseResponseLength, &refreshDuration, &statusInfo);
+			
+			if (((sec_client_result >= 500 && sec_client_result < 600)||
+				 (sec_client_result >= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_TLS  && sec_client_result <= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_GENERIC ))
+				&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+			{
+				logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
+				if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
+				logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, sleepTime);
+				mssleep(sleepTime);
+			}
+			else
+			{
+				break;
+			}
+		}
+		if (gpGlobalConfig->logging.debug)
+		{
+			logprintf("licenseResponse is %s", licenseResponseStr);
+			logprintf("licenseResponse len is %zd", licenseResponseLength);
+			logprintf("accessAttributesStatus is %d", statusInfo.accessAttributeStatus);
+			logprintf("refreshDuration is %d", refreshDuration);
+		}
+		
+		if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
+		{
+			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d extStatus %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result, statusInfo.statusCode);
+			*httpCode = sec_client_result;
+			*httpExtStatusCode = statusInfo.statusCode;
+		}
+		else
+		{
+			logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : sec_client %d",__FUNCTION__, __LINE__, attemptCount, sec_client_result);
+			eventHandle->setAccessStatusValue(statusInfo.accessAttributeStatus);
+			licenseResponse = new DrmData((unsigned char *)licenseResponseStr, licenseResponseLength);
+		}
+		
+		if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
+#if USE_SECMANAGER
 	}
-
-	if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
+#endif
 #endif
 	free(encodedData);
 	free(encodedChallengeData);
