@@ -2292,12 +2292,12 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
 	{
 		uint32_t len = getId3TagSize(static_cast<const uint8_t*>(ptr));
-		if (len && (len != aamp->lastId3DataLen ||
-					!aamp->lastId3Data ||
-					(memcmp(ptr, aamp->lastId3Data, aamp->lastId3DataLen) != 0)))
+		if (len && (len != aamp->lastId3DataLen[mediaType] ||
+					!aamp->lastId3Data[mediaType] ||
+					(memcmp(ptr, aamp->lastId3Data[mediaType], aamp->lastId3DataLen[mediaType]) != 0)))
 		{
 			AAMPLOG_INFO("AAMPGstPlayer %s: Found new ID3 frame",__FUNCTION__);
-			aamp->ReportID3Metadata(static_cast<const uint8_t*>(ptr), len);
+			aamp->ReportID3Metadata(mediaType, static_cast<const uint8_t*>(ptr), len);
 		}
 	}
 
