@@ -49,7 +49,10 @@ AampSecManager* AampSecManager::GetInstance()
  */
 void AampSecManager::DestroyInstance()
 {
-	SAFE_DELETE(mInstance);
+	if(mInstance)
+	{
+		SAFE_DELETE(mInstance);
+	}
 }
 
 /**
