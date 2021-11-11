@@ -1895,7 +1895,9 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 				}
 				//Adding logic to report error if fragment downloads are failing continuously
 				//Avoid sending error for failure to download subtitle fragments
-				if((MAX_SEG_DOWNLOAD_FAIL_COUNT <= segDLFailCount) && aamp->DownloadsAreEnabled() && type != eTRACK_SUBTITLE)
+				int FragmentDownloadFailThreshold;
+				GETCONFIGVALUE(eAAMPConfig_FragmentDownloadFailThreshold,FragmentDownloadFailThreshold);
+				if((FragmentDownloadFailThreshold <= segDLFailCount) && aamp->DownloadsAreEnabled() && type != eTRACK_SUBTITLE)
 				{
 					AAMPLOG_ERR("Not able to download fragments; reached failure threshold sending tune failed event");
 					aamp->SendDownloadErrorEvent(AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, http_error);
