@@ -38,6 +38,7 @@
 #include "priv_aamp.h"
 #include <pthread.h>
 #include <atomic>
+#include "isobmffbuffer.h"
 
 
 #ifdef __APPLE__
@@ -2288,6 +2289,19 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 	media_stream *stream = &privateContext->stream[mediaType];
 	bool isFirstBuffer = stream->resetPosition;
 
+        if(ptr && stream->format == FORMAT_ISO_BMFF)
+        {
+                IsoBmffBuffer buffer(mLogObj);
+                buffer.setBuffer((uint8_t *)ptr, len);
+                buffer.parseBuffer();
+                uint64_t first_pts = 0;
+                buffer.getFirstPTS(first_pts);
+                pts = first_pts;
+                dts = first_pts;
+                AAMPLOG_TRACE("Type[%d] rate %d fpts %f fdts %f pts %llu First PTS from buffer: %" PRIu64, (int)mediaType, privateContext->rate, fpts, fdts, (unsigned long long)pts, first_pts);
+                buffer.destroyBoxes();
+        }
+
 	if (aamp->GetEventListenerStatus(AAMP_EVENT_ID3_METADATA) &&
 		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
 	{
@@ -2366,6 +2380,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 				GST_BUFFER_PTS(buffer) = pts;
 				GST_BUFFER_DTS(buffer) = dts;
 				GST_BUFFER_DURATION(buffer) = duration;
+				AAMPLOG_TRACE("Sending segment for mediaType[%d]. pts %" G_GUINT64_FORMAT " dts %" G_GUINT64_FORMAT" ", mediaType, pts, dts);
 			}
 			else
 			{
