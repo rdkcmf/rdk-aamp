@@ -213,7 +213,7 @@ typedef enum
 	eAAMPConfig_MaxABRNWBufferRampUp,							/**< Maximum ABR Buffer for Rampup*/
 	eAAMPConfig_PrePlayBufferCount, 							/** Count of segments to be downloaded until play state */
 	eAAMPConfig_PreCachePlaylistTime,							/** Max time to complete PreCaching .In Minutes  */
-	eAAMPConfig_CEAPreferred,									/*** To force 608/708 track selection in CC manager */
+	eAAMPConfig_CEAPreferred,								/*** To force 608/708 track selection in CC manager */
 	eAAMPConfig_StallErrorCode,
 	eAAMPConfig_StallTimeoutMS,
 	eAAMPConfig_InitialBuffer,
@@ -227,6 +227,7 @@ typedef enum
 	eAAMPConfig_LatencyMonitorInterval,                         				/**< Latency Monitor Interval */
 	eAAMPConfig_MaxFragmentChunkCached,                         				/**< fragment chunk cache length*/
 	eAAMPConfig_ABRChunkThresholdSize,                         				/**< AAMP ABR Chunk threshold size*/
+	eAAMPConfig_FragmentDownloadFailThreshold, 						/**<Retry attempts for non-init fragment curl timeout failures*/
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,
