@@ -243,7 +243,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"seiTimeCode",eAAMPConfig_SEITimeCode,-1,-1},
 	{"tsbInterruptHandling", eAAMPConfig_InterruptHandling, -1, -1},
 	{"disable4K" , eAAMPConfig_Disable4K, -1, -1},
-	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, -1,-1}
+	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, -1,-1},
+	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -422,6 +423,7 @@ void AampConfig::Initialize()
 	iAampCfgValue[eAAMPConfig_ABRChunkThresholdSize-eAAMPConfig_IntStartValue].value        = 	DEFAULT_AAMP_ABR_CHUNK_THRESHOLD_SIZE;
 	iAampCfgValue[eAAMPConfig_GstVideoBufBytes-eAAMPConfig_IntStartValue].value             =       MAX_GST_VIDEO_BUFFER_BYTES;
 	iAampCfgValue[eAAMPConfig_GstAudioBufBytes-eAAMPConfig_IntStartValue].value             =       MAX_GST_AUDIO_BUFFER_BYTES;
+	iAampCfgValue[eAAMPConfig_FragmentDownloadFailThreshold-eAAMPConfig_IntStartValue].value=	MAX_SEG_DOWNLOAD_FAIL_COUNT;
 
 	///////////////// Following for long data types /////////////////////////////
 	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value	=	DEFAULT_DISCONTINUITY_TIMEOUT;
