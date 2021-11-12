@@ -7,12 +7,15 @@ var lastMajorChannel;
 var tuneSamples = [];
 var map;
 
+var mdrite;
+
 /*
 average pretune (PLUI/UVE) overhead is ~152ms
 average delay after first frame signaled by gstreamer to MR reporting "tune complete" is ~51ms
 average delay for PLUI measured tune-completion vs. MR reported (due to reliance on 'status') is 145ms; this makes PLUI-only telemetry based tune time measurement slightly slower than real eyes-on-glass (with MR logs taken into account, we can avoid this problem)
 unexpected: we have many more WPE logs for tunes than MR logs, which makes analysis less reliable
 */
+
 var mr_tags = [
 	"MRT_INFO_SETMEDIA", // playerId=MainPlayer, uictx=, url=live:///9, mediaMeta=[RETUNE 0 USER.PLAYERSTATE 1 USER.SERVICEPK 9] [USER.CCID "ccid:?spk=9"] [], speed=100, seek={mUnit=ePsuBytes, mOffset=0, mOffsetIsRelative=true, }
 			   // MediaRite comes to know tune request
@@ -261,14 +264,21 @@ function DumpCSV()
 		csv.value += "," + sample.time_keypress;
 		csv.value += "," + sample.time_uve_tune;
 		csv.value += "," + sample.time_playing_status;
-		csv.value += "," + sample.mr_latency;
+		// some samples don't have mr_latency, hence give default as 0
+        var mrLatency = sample.mr_latency!=undefined ? sample.mr_latency : 0;
+		csv.value += "," + mrLatency;
 		for( var iTag=0; iTag<mr_tags.length; iTag++ )
 		{
-			csv.value += "," + sample[mr_tags[iTag]];
+			// give default value 0 if the tag does not exist in the sample
+			var tagValue = sample[mr_tags[iTag]] != undefined ? sample[mr_tags[iTag]] : 0;
+			csv.value += "," + tagValue;
 		}
+
+		var tunerDelay = ((sample["MRT_INFO_AV_INFO_VIDEO"] != undefined) && (sample["MRT_INFO_SETMEDIA"] != undefined)) ? sample["MRT_INFO_AV_INFO_VIDEO"]-sample["MRT_INFO_SETMEDIA"] : 0
+		var gstreamDelay = ((sample["MRT_INFO_AV_FIRST_FRAME"] != undefined) && (sample["MRT_INFO_AV_INFO_VIDEO"] != undefined)) ? sample["MRT_INFO_AV_FIRST_FRAME"]-sample["MRT_INFO_AV_INFO_VIDEO"] : 0
 		
-		csv.value += "," + (sample["MRT_INFO_AV_INFO_VIDEO"]-sample["MRT_INFO_SETMEDIA"]); // "tuner delay" (lock and first data)
-		csv.value += "," + (sample["MRT_INFO_AV_FIRST_FRAME"]-sample["MRT_INFO_AV_INFO_VIDEO"]); // "gstreamer delay" - from injection to first frame)
+		csv.value += "," + tunerDelay; // "tuner delay" (lock and first data)
+		csv.value += "," + gstreamDelay; // "gstreamer delay" - from injection to first frame)
 
 		csv.value += "\n";
 	}
@@ -276,6 +286,7 @@ function DumpCSV()
 						
 function OutputStatistics()
 {
+	ProcessMediaRiteLog(mdrite);
 	DumpCSV();
 
 	var majorChannelNumbers = getUniqueMajorChannelNumbers();
@@ -456,7 +467,9 @@ function handleLogSelect(evt) {
 }
 										
 function myMRLoadHandler(e) {
-	ProcessMediaRiteLog(e.target.result.split("\n"));
+	// mediarite log parsing needs to be done last
+	// Hence save the data and do parsing later to avoid asyncronous processing of JS
+	mdrite = e.target.result.split("\n")
 }
 function handleMRSelect(evt) {
 	var files = evt.target.files;
