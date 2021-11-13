@@ -280,15 +280,18 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 
 void StreamAbstractionAAMP_OTA::SendMediaMetadataEvent()
 {
-	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(-1/*duration*/, miVideoWidth, miVideoHeight, false/*hasDrm*/,true/*isLive*/, ""/*drmtype*/, -1/*programStartTime*/);
+	if(aamp->IsEventListenerAvailable(AAMP_EVENT_MEDIA_METADATA))
+	{
+		MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(-1/*duration*/, miVideoWidth, miVideoHeight, false/*hasDrm*/,true/*isLive*/, ""/*drmtype*/, -1/*programStartTime*/);
 
-	// This is video bitrate
-	event->addBitrate(mVideoBitrate);
-	event->addSupportedSpeed(1);
-	event->SetVideoMetaData(mFrameRate,mVideoScanType,mAspectRatioWidth,mAspectRatioHeight, mVideoCodec,  mHdrType, mPCRating,mSsi);
-	event->SetAudioMetaData(mAudioCodec,mAudioMixType,mIsAtmos);
-	event->addAudioBitrate(mAudioBitrate);
-	aamp->SendEventAsync(event);
+		// This is video bitrate
+		event->addBitrate(mVideoBitrate);
+		event->addSupportedSpeed(1);
+		event->SetVideoMetaData(mFrameRate,mVideoScanType,mAspectRatioWidth,mAspectRatioHeight, mVideoCodec,  mHdrType, mPCRating,mSsi);
+		event->SetAudioMetaData(mAudioCodec,mAudioMixType,mIsAtmos);
+		event->addAudioBitrate(mAudioBitrate);
+		aamp->SendEvent(event,AAMP_EVENT_ASYNC_MODE);
+	}
 }
 
 #endif
