@@ -26,6 +26,7 @@
 
 #include "AampConfig.h"
 
+
 AampIonMemorySystem::AampIonMemorySystem(AampLogManager *logObj) : AAMPMemorySystem(logObj),context_() {
 }
 
@@ -37,10 +38,10 @@ AampIonMemorySystem::AampIonMemoryContext::AampIonMemoryContext() : fd_(0), hand
 bool AampIonMemorySystem::AampIonMemoryContext::createBuffer(size_t len) {
 	fd_ = ion_open();
 	if (fd_ < 0) {
-		AAMPLOG_WARN("Calling ion_open(): %d", fd_);
+		logprintf("Calling ion_open(): %d", fd_);
 		return false;
 	}
-	AAMPLOG_INFO("Got %d from ion_open()", fd_);
+	//AAMPLOG_INFO("Got %d from ion_open()", fd_);
 
 	int ret = ion_alloc(fd_, len,
 		AAMP_ION_MEMORY_ALIGN,
@@ -48,7 +49,7 @@ bool AampIonMemorySystem::AampIonMemoryContext::createBuffer(size_t len) {
 		AAMP_ION_MEMORY_FLAGS, &handle_);
 
 	if (ret != 0) {
-		AAMPLOG_WARN("Calling ion_alloc(): %d", fd_);
+		logprintf("Calling ion_alloc(): %d", fd_);
 		ion_close(fd_);
 		fd_ = 0;
 	}
@@ -81,14 +82,14 @@ void AampIonMemorySystem::AampIonMemoryContext::close() {
 		int ret = ion_free(fd_, handle_);
 		handle_ = 0;
 		if (ret) {
-			AAMPLOG_ERR("ion_free_buffer failed");
+			logprintf("ion_free_buffer failed");
 		}
 	}
 	if (fd_ != 0) {
 		ion_close(fd_);
 		fd_ = 0;
 	}
-	AAMPLOG_INFO("Closed ION memory ok");
+	//AAMPLOG_INFO("Closed ION memory ok");
 }
 
 bool AampIonMemorySystem::AampIonMemoryContext::share(int& shareFd) {

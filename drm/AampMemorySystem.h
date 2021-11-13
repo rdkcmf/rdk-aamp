@@ -23,6 +23,7 @@
 #include <stdint.h>
 #include <vector>
 #include <unistd.h>
+#include "AampConfig.h"
 
 class AAMPMemorySystem {
 public:
