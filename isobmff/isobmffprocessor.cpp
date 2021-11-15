@@ -38,7 +38,7 @@ static const char *IsoBmffProcessorTypeName[] =
  * @param[in] trackType - track type (A/V)
  * @param[in] peerBmffProcessor - peer instance of IsoBmffProcessor
  */
-IsoBmffProcessor::IsoBmffProcessor(AampLogManager *logObj, class PrivateInstanceAAMP *aamp, IsoBmffProcessorType trackType, IsoBmffProcessor* peerBmffProcessor)
+IsoBmffProcessor::IsoBmffProcessor(class PrivateInstanceAAMP *aamp, AampLogManager *logObj, IsoBmffProcessorType trackType, IsoBmffProcessor* peerBmffProcessor)
 	: p_aamp(aamp), type(trackType), peerProcessor(peerBmffProcessor), basePTS(0),
 	processPTSComplete(false), timeScale(0), initSegment(),
 	playRate(1.0f), abortAll(false), m_mutex(), m_cond(),

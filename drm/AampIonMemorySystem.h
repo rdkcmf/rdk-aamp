@@ -63,7 +63,9 @@ public:
 public:
 	class AampIonMemoryContext {
 	public:
-		AampIonMemoryContext();
+		AampIonMemoryContext(AampLogManager *logObj=NULL);
+		AampIonMemoryContext(const AampIonMemoryContext&) = delete;
+		AampIonMemoryContext& operator=(const AampIonMemoryContext&) = delete;
 		~AampIonMemoryContext();
 		void close();
 		bool createBuffer(size_t len);
@@ -72,7 +74,7 @@ public:
 	private:
 		int fd_;
 		ion_user_handle_t handle_;
-
+		AampLogManager *mLogObj;
 		const int AAMP_ION_MEMORY_REGION{RTK_PHOENIX_ION_HEAP_MEDIA_MASK};
 		const int AAMP_ION_MEMORY_FLAGS{(ION_FLAG_NONCACHED | ION_FLAG_SCPUACC | ION_FLAG_HWIPACC)};
 		const int AAMP_ION_MEMORY_ALIGN{0};

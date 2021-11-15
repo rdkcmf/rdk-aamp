@@ -53,7 +53,7 @@ public:
 	 * @param[in] trackType - track type (A/V)
 	 * @param[in] peerBmffProcessor - peer instance of IsoBmffProcessor
 	 */
-	IsoBmffProcessor(AampLogManager *logObj, class PrivateInstanceAAMP *aamp, IsoBmffProcessorType trackType = eBMFFPROCESSOR_TYPE_VIDEO, IsoBmffProcessor* peerBmffProcessor = NULL);
+	IsoBmffProcessor(class PrivateInstanceAAMP *aamp, AampLogManager *logObj=NULL, IsoBmffProcessorType trackType = eBMFFPROCESSOR_TYPE_VIDEO, IsoBmffProcessor* peerBmffProcessor = NULL);
 
 	/**
 	 * @brief IsoBmffProcessor destructor

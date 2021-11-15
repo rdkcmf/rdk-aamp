@@ -105,7 +105,7 @@ public:
 	/**
 	 * @brief IsoBmffBuffer constructor
 	 */
-	IsoBmffBuffer(AampLogManager *logObj): mLogObj(logObj), boxes(), buffer(NULL), bufSize(0), chunkedBox(NULL), mdatCount(0)
+	IsoBmffBuffer(AampLogManager *logObj=NULL): mLogObj(logObj), boxes(), buffer(NULL), bufSize(0), chunkedBox(NULL), mdatCount(0)
 	{
 
 	}

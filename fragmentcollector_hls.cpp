@@ -4566,7 +4566,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						{
 							processor = static_cast<IsoBmffProcessor*> (trackState[eMEDIATYPE_AUDIO]->playContext);
 						}
-						ts->playContext = new IsoBmffProcessor(mLogObj, aamp, (IsoBmffProcessorType) iTrack, processor);
+						ts->playContext = new IsoBmffProcessor(aamp, mLogObj, (IsoBmffProcessorType) iTrack, processor);
 						ts->playContext->setRate(this->rate, PlayMode_normal);
 						//Disable subtitle for fragmented MP4 assets, as we need tsprocessor support for webvtt parsing now
 						if (subtitle->enabled)
