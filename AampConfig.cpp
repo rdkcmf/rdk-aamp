@@ -252,8 +252,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"supportTLS",eAAMPConfig_TLSVersion,{.lMinValue=CURL_SSLVERSION_DEFAULT},{.lMaxValue=CURL_SSLVERSION_TLSv1_3}},
 	{"fogMaxConcurrentDownloads",eAAMPConfig_FogMaxConcurrentDownloads, -1, -1},
         {"enableFogConfig", eAAMPConfig_EnableAampConfigToFog, -1, -1},
-	{"allowPageHeaders",eAAMPConfig_AllowPageHeaders,-1,-1}
-	
+	{"allowPageHeaders",eAAMPConfig_AllowPageHeaders,-1,-1},
+	{"customLicenseData",eAAMPConfig_CustomLicenseData,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -525,6 +525,7 @@ void AampConfig::Initialize()
 	sAampCfgValue[eAAMPConfig_PreferredAudioRendition-eAAMPConfig_StringStartValue].value	=	"";
 	sAampCfgValue[eAAMPConfig_PreferredAudioCodec-eAAMPConfig_StringStartValue].value	=	"";
 	sAampCfgValue[eAAMPConfig_PreferredAudioLanguage-eAAMPConfig_StringStartValue].value    =       "en";
+	sAampCfgValue[eAAMPConfig_CustomLicenseData-eAAMPConfig_StringStartValue].value        =       "";
 }
 
 #if 0
@@ -960,6 +961,11 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 						AAMPLOG_WARN("Preferred key system received - %s", conv.c_str());
 						SetConfigValue<int>(owner,eAAMPConfig_PreferredDRM,(int)drmType);
 					}
+					if(strcasecmp("customData",subitem->string)==0)
+					{
+						AAMPLOG_WARN("customData received - %s", conv.c_str());
+						SetConfigValue<std::string>(owner,eAAMPConfig_CustomLicenseData,conv);
+					}					
 					subitem = subitem->next;
 				}
 			}

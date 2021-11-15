@@ -1563,6 +1563,14 @@ public:
 	 *   @return void
 	 */
 	void SetAuxiliaryLanguage(const std::string &language);
+	
+	/**
+	 *   @brief Set License Custom Data
+	 *
+	 *   @param[in]  customData - custom data string to be passed to the license server.
+	 *   @return void
+	 */
+	void SetLicenseCustomData(const char *customData);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 	std::shared_ptr<PrivateInstanceAAMP> sp_aamp; /* shared pointer for aamp resource */

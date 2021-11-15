@@ -121,7 +121,7 @@ public:
     AAMPOCDMSessionAdapter(const AAMPOCDMSessionAdapter&) = delete;
 	AAMPOCDMSessionAdapter& operator=(const AAMPOCDMSessionAdapter&) = delete;
 	void generateAampDRMSession(const uint8_t *f_pbInitData,
-			uint32_t f_cbInitData);
+			uint32_t f_cbInitData, std::string &customData);
 	DrmData * aampGenerateKeyRequest(string& destinationURL, uint32_t timeout);
 	int aampDRMProcessKey(DrmData* key, uint32_t timeout);
 	KeyState getState();

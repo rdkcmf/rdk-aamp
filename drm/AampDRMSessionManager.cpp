@@ -1016,7 +1016,7 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 		return nullptr;
 	}
 
-	code = initializeDrmSession(drmHelper, selectedSlot, eventHandle);
+	code = initializeDrmSession(drmHelper, selectedSlot, eventHandle, aampInstance);
 	if (code != KEY_INIT)
 	{
 		AAMPLOG_WARN(" Unable to initialize DrmSession : Key State %d ", code);
@@ -1272,7 +1272,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 /**
  * Initialize the Drm System with InitData(PSSH)
  */
-KeyState AampDRMSessionManager::initializeDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, DrmMetaDataEventPtr eventHandle)
+KeyState AampDRMSessionManager::initializeDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, DrmMetaDataEventPtr eventHandle,  PrivateInstanceAAMP* aampInstance)
 {
 	KeyState code = KEY_ERROR;
 
@@ -1280,7 +1280,9 @@ KeyState AampDRMSessionManager::initializeDrmSession(std::shared_ptr<AampDrmHelp
 	drmHelper->createInitData(drmInitData);
 
 	AampMutexHold sessionMutex(drmSessionContexts[sessionSlot].sessionMutex);
-	drmSessionContexts[sessionSlot].drmSession->generateAampDRMSession(drmInitData.data(), drmInitData.size());
+	std::string customData = aampInstance->GetLicenseCustomData();
+	AAMPLOG_INFO("DRM session Custom Data - %s ", customData.empty()?"NULL":customData.c_str());
+	drmSessionContexts[sessionSlot].drmSession->generateAampDRMSession(drmInitData.data(), drmInitData.size(), customData);
 
 	code = drmSessionContexts[sessionSlot].drmSession->getState();
 	if (code != KEY_INIT)

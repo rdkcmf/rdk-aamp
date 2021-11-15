@@ -86,7 +86,7 @@ public:
 	~PlayReadyDRMSession();
 
 	void generateAampDRMSession(const uint8_t *f_pbInitData,
-			uint32_t f_cbInitData);
+			uint32_t f_cbInitData, std::string &customData);
 
 	DrmData * aampGenerateKeyRequest(string& destinationURL, uint32_t timeout);
 

@@ -84,7 +84,7 @@ public:
 	 * @param f_pbInitData : pointer to initdata
 	 * @param f_cbInitData : init data size
 	 */
-	virtual void generateAampDRMSession(const uint8_t *f_pbInitData,uint32_t f_cbInitData) = 0;
+	virtual void generateAampDRMSession(const uint8_t *f_pbInitData,uint32_t f_cbInitData, std::string &customData ) = 0;
 
 	/**
 	 * @brief Generate key request from DRM session

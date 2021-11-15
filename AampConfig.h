@@ -284,6 +284,7 @@ typedef enum
 	eAAMPConfig_PreferredAudioRendition,								/**< PreferredAudioRendition*/
 	eAAMPConfig_PreferredAudioCodec,								/**< PreferredAudioCodec*/
 	eAAMPConfig_PreferredAudioLanguage,								/**< PreferredAudioLanguage*/
+	eAAMPConfig_CustomLicenseData,                                         /**< Custom Data for License Request */
 	eAAMPConfig_StringMaxValue,
 	eAAMPConfig_MaxValue
 }AAMPConfigSettings;

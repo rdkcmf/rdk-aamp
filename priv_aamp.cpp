@@ -10539,3 +10539,16 @@ int PrivateInstanceAAMP::SearchForAnyForegroundPlayers()
 	pthread_mutex_unlock(&gMutex);
 	return ret;
 }
+
+/**
+ * @brief Get License Custom Data
+ *
+ * @return CustomData String
+ */
+std::string PrivateInstanceAAMP::GetLicenseCustomData()
+{
+    std::string customData;
+    GETCONFIGVALUE_PRIV(eAAMPConfig_CustomLicenseData,customData);
+    return customData;
+}
+

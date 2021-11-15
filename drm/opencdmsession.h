@@ -52,7 +52,7 @@ public:
 	AAMPOCDMSession(const AAMPOCDMSession&) = delete;
 	AAMPOCDMSession& operator=(const AAMPOCDMSession&) = delete;
 	void generateAampDRMSession(const uint8_t *f_pbInitData,
-			uint32_t f_cbInitData);
+			uint32_t f_cbInitData, std::string &customData);
 	DrmData * aampGenerateKeyRequest(string& destinationURL, uint32_t timeout);
 	int aampDRMProcessKey(DrmData* key, uint32_t timeout);
 	int decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,

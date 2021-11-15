@@ -179,7 +179,7 @@ void AAMPOCDMSession::initAampDRMSession()
 }
 
 void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
-		uint32_t f_cbInitData)
+		uint32_t f_cbInitData, std::string &customData)
 {
 
 	pthread_mutex_lock(&decryptMutex);
