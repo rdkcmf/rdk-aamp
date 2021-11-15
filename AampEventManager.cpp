@@ -162,7 +162,7 @@ void AampEventManager::AddEventListener(AAMPEventType eventType, EventListener* 
 		ListenerData* pListener = new ListenerData;
 		if (pListener)
 		{
-			//logprintf("[AAMP_JS] %s(%d, %p) new %p", __FUNCTION__, eventType, eventListener, pListener);
+			AAMPLOG_INFO("EventType:%d, Listener %p new %p", eventType, eventListener, pListener);
 			pthread_mutex_lock(&mMutexVar);
 			pListener->eventListener = eventListener;
 			pListener->pNext = mEventListeners[eventType];
@@ -318,7 +318,7 @@ void AampEventManager::AsyncEvent()
 	}
 	pthread_mutex_unlock(&mMutexVar);
 	// Push the new event in sync mode from the idle task
-	if(eventData && mPlayerState != eSTATE_RELEASED) {
+	if(eventData && (IsEventListenerAvailable(eventData->getType())) && (mPlayerState != eSTATE_RELEASED)) {
 		SendEventSync(eventData);
 	}
 }
@@ -439,12 +439,13 @@ void AampEventManager::SetCallbackAsDispatched(guint id)
 	AsyncEventListIter  itr = mPendingAsyncEvents.find(id);
 	if(itr != mPendingAsyncEvents.end())
 	{
+		AAMPLOG_INFO("id:%d in mPendingAsyncEvents, erasing it. State:%d", id,itr->second);
 		assert (itr->second);
 		mPendingAsyncEvents.erase(itr);
 	}
 	else
 	{
-		AAMPLOG_WARN("id not in mPendingAsyncEvents, insert and mark as not pending", id);
+		AAMPLOG_WARN("id:%d not in mPendingAsyncEvents, insert and mark as not pending", id);
 		mPendingAsyncEvents[id] = false;
 	}
 	pthread_mutex_unlock(&mMutexVar);
@@ -460,13 +461,14 @@ void AampEventManager::SetCallbackAsPending(guint id)
 	AsyncEventListIter  itr = mPendingAsyncEvents.find(id);
 	if(itr != mPendingAsyncEvents.end())
 	{
+		AAMPLOG_WARN("id:%d already in mPendingAsyncEvents and completed, erase it State:%d",id,itr->second);
 		assert (!itr->second);
-		AAMPLOG_WARN("id already in mPendingAsyncEvents and completed, erase it",id);
 		mPendingAsyncEvents.erase(itr);
 	}
 	else
 	{
 		mPendingAsyncEvents[id] = true;
+		AAMPLOG_INFO("id:%d in mPendingAsyncEvents, added to list", id);
 	}
 	pthread_mutex_unlock(&mMutexVar);
 }
