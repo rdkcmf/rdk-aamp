@@ -202,7 +202,7 @@ void PlayReadyDRMSession::initAampDRMSession()
  * @param f_cbInitData init data size
  */
 void PlayReadyDRMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
-		uint32_t f_cbInitData)
+		uint32_t f_cbInitData, std::string &customData)
 {
 	DRM_RESULT drm_res = DRM_SUCCESS;
 

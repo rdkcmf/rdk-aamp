@@ -80,7 +80,7 @@ public:
 	 * @param f_cbInitData init data size
 	 */
 	void generateAampDRMSession(const uint8_t *f_pbInitData,
-			uint32_t f_cbInitData);
+			uint32_t f_cbInitData, std::string &customData);
 
 	/**
 	 * @brief Generate key request from DRM session

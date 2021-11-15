@@ -376,6 +376,7 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 		char *wvLicenseServerURL = NULL;
 		char *ckLicenseServerURL = NULL;
 		char *keySystem = NULL;
+		char *customData = NULL;
 		bool ret = false;
 		ret = ParseJSPropAsString(ctx, drmConfigObj, "com.microsoft.playready", prLicenseServerURL);
 		if (ret)
@@ -384,6 +385,13 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 			privObj->_aamp->SetLicenseServerURL(prLicenseServerURL, eDRM_PlayReady);
 
 			SAFE_DELETE_ARRAY(prLicenseServerURL);
+		}
+		ret = ParseJSPropAsString(ctx, drmConfigObj, "customData", customData);
+		if (ret)
+		{
+			ERROR("%s(): CustomData config param received - %s", __FUNCTION__, customData);
+			privObj->_aamp->SetLicenseCustomData(customData);
+			SAFE_DELETE_ARRAY(customData);
 		}
 
 		ret = ParseJSPropAsString(ctx, drmConfigObj, "com.widevine.alpha", wvLicenseServerURL);

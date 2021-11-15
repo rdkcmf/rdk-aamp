@@ -90,7 +90,7 @@ AAMPOCDMSessionAdapter::~AAMPOCDMSessionAdapter()
 }
 
 void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
-		uint32_t f_cbInitData)
+		uint32_t f_cbInitData, std::string &customData)
 {
 	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 
@@ -124,6 +124,9 @@ void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 			AAMPOCDMSessionAdapter* userSession = reinterpret_cast<AAMPOCDMSessionAdapter*>(userData);
 			userSession->keysUpdatedOCDM();
 		};
+		const unsigned char *customDataMessage = customData.empty() ? nullptr:reinterpret_cast<const unsigned char *>(customData.c_str()) ;
+		const uint16_t customDataMessageLength = customData.length();
+		AAMPLOG_INFO("data length : %d: ", customDataMessageLength);
 #ifdef USE_THUNDER_OCDM_API_0_2
 	OpenCDMError ocdmRet = opencdm_construct_session(m_pOpenCDMSystem, LicenseType::Temporary, "video/mp4",
 #else
@@ -131,7 +134,7 @@ void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 #endif
 
 				  const_cast<unsigned char*>(f_pbInitData), f_cbInitData,
-				  nullptr, 0, //No Custom Data
+				  customDataMessage, customDataMessageLength,
 				  &m_OCDMSessionCallbacks,
 				  static_cast<void*>(this),
 				  &m_pOpenCDMSession);

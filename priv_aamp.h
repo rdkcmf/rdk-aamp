@@ -3452,6 +3452,13 @@ public:
 	 * @brief unblock wait for Discontinuity handling complete
 	 */
 	void UnblockWaitForDiscontinuityProcessToComplete(void);
+        
+	/**
+	 * @brief Get License Custom Data
+	 *
+	 * @return Custom data string
+	 */
+	std::string GetLicenseCustomData();
 
 	/**
 	*     @brief GetPeriodDurationTimeValue

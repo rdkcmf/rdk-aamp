@@ -2624,6 +2624,17 @@ void PlayerInstanceAAMP::SetAuxiliaryLanguage(const std::string &language)
 #endif
 }
 
+/*
+ *   @brief Set License Custom Data
+ *
+ *   @param  customData - custom data string to be passed to the license server.
+ */
+void PlayerInstanceAAMP::SetLicenseCustomData(const char *customData)
+{
+    ERROR_STATE_CHECK_VOID();
+    SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CustomLicenseData,std::string(customData));
+}
+
 /**
  * @}
  */

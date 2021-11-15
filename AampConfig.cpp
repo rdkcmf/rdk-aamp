@@ -251,7 +251,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"fogMaxConcurrentDownloads",eAAMPConfig_FogMaxConcurrentDownloads, -1, -1},
         {"enableFogConfig", eAAMPConfig_EnableAampConfigToFog, -1, -1},
 	{"allowPageHeaders",eAAMPConfig_AllowPageHeaders,-1,-1},
-	
+	{"customLicenseData",eAAMPConfig_CustomLicenseData,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -522,6 +522,7 @@ void AampConfig::Initialize()
 	sAampCfgValue[eAAMPConfig_PreferredAudioRendition-eAAMPConfig_StringStartValue].value	=	"";
 	sAampCfgValue[eAAMPConfig_PreferredAudioCodec-eAAMPConfig_StringStartValue].value	=	"";
 	sAampCfgValue[eAAMPConfig_PreferredAudioLanguage-eAAMPConfig_StringStartValue].value    =       "en";
+	sAampCfgValue[eAAMPConfig_CustomLicenseData-eAAMPConfig_StringStartValue].value        =       "";
 }
 
 #if 0

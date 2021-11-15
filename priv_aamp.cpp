@@ -10462,3 +10462,15 @@ void PrivateInstanceAAMP::LoadFogConfig(void)
 	long http_error = -1;
 	ProcessCustomCurlRequest(remoteUrl, NULL, &http_error, eCURL_POST, jsonStr);
 }
+
+/**
+ * @brief Get License Custom Data
+ *
+ * @return CustomData String
+ */
+std::string PrivateInstanceAAMP::GetLicenseCustomData()
+{
+    std::string customData;
+    GETCONFIGVALUE_PRIV(eAAMPConfig_CustomLicenseData,customData);
+    return customData;
+}
