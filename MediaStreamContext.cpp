@@ -106,7 +106,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
         aamp_Free(&cachedFragment->fragment);
         if( aamp->DownloadsAreEnabled())
         {
-            logprintf("%s:%d %sfragment fetch failed -- fragmentUrl %s", __FUNCTION__, __LINE__, (initSegment)?"Init ":" ", fragmentUrl.c_str());
+            AAMPLOG_WARN("%sfragment fetch failed -- fragmentUrl %s", (initSegment)?"Init ":" ", fragmentUrl.c_str());
             if (mSkipSegmentOnError)
             {
                 // Skip segment on error, and increse fail count
@@ -195,7 +195,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
 #ifdef AAMP_DEBUG_INJECT
         if (discontinuity)
         {
-            logprintf("%s:%d Discontinuous fragment", __FUNCTION__, __LINE__);
+            AAMPLOG_WARN("Discontinuous fragment");
         }
         if ((1 << type) & AAMP_DEBUG_INJECT)
         {
@@ -238,7 +238,7 @@ bool MediaStreamContext::CacheFragmentChunk(MediaType actualType, char *ptr, siz
     }
     else
     {
-        logprintf("%s:%d [%s] WaitForCachedFragmentChunkInjected aborted", __FUNCTION__, __LINE__, name);
+        AAMPLOG_WARN("[%s] WaitForCachedFragmentChunkInjected aborted", name);
         ret = false;
     }
     return ret;
@@ -259,7 +259,7 @@ void MediaStreamContext::ABRProfileChanged(void)
         IRepresentation *pNewRepresentation = pNewAdaptationSet->GetRepresentation().at(reprIdxFromProfile);
         if(representation != NULL)
         {
-            logprintf("StreamAbstractionAAMP_MPD::%s:%d - ABR %dx%d[%d] -> %dx%d[%d]", __FUNCTION__, __LINE__,
+            AAMPLOG_WARN("StreamAbstractionAAMP_MPD: ABR %dx%d[%d] -> %dx%d[%d]",
                     representation->GetWidth(), representation->GetHeight(), representation->GetBandwidth(),
                     pNewRepresentation->GetWidth(), pNewRepresentation->GetHeight(), pNewRepresentation->GetBandwidth());
             adaptationSetIdx = adaptIdxFromProfile;

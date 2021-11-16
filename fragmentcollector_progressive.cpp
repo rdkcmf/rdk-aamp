@@ -106,7 +106,7 @@ static size_t StreamWriteCallback( void *ptr, size_t size, size_t nmemb, void *u
    }
    else
    {
-       logprintf("write_callback - interrupted\n");
+       AAMPLOG_WARN("write_callback - interrupted\n");
        nmemb = 0;
    }
    //pthread_mutex_unlock(&context->aamp->mLock);
@@ -176,7 +176,7 @@ static void * FragmentCollector(void *arg)
 {
     if(aamp_pthread_setname(pthread_self(), "aampPSFetcher"))
     {
-        logprintf("%s:%d: aamp_pthread_setname failed\n", __FUNCTION__, __LINE__);
+        AAMPLOG_WARN("aamp_pthread_setname failed\n");
     }
     StreamAbstractionAAMP_PROGRESSIVE *context = (StreamAbstractionAAMP_PROGRESSIVE *)arg;
     context->FetcherLoop();
@@ -262,7 +262,7 @@ void StreamAbstractionAAMP_PROGRESSIVE::Stop(bool clearChannelData)
         int rc = pthread_join(fragmentCollectorThreadID, NULL);
         if (rc != 0)
         {
-            logprintf("%s:%d ***pthread_join failed, returned %d\n", __FUNCTION__, __LINE__, rc);
+            AAMPLOG_WARN("***pthread_join failed, returned %d\n", rc);
         }
         fragmentCollectorThreadStarted = false;
 
