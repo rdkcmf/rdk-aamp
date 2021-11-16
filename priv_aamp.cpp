@@ -1461,6 +1461,12 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mCurrentAudioTrackId(-1)
 	, mCurrentVideoTrackId(-1)
 	, mIsTrackIdMismatch(false)
+	, mNextPeriodDuration(0)
+	, mNextPeriodStartTime(0)
+	, mNextPeriodScaledPtoStartTime(0)
+	, mbEnableFirstPtsSeekPosOverride(false)
+	, mbEnableSegmentTemplateHandling(false)
+	, mbIgnoreStopPosProcessing(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -4349,6 +4355,12 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 #endif
 		if (!forceStop && ((!newTune && ISCONFIGSET_PRIV(eAAMPConfig_DemuxVideoHLSTrack)) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline)))
 		{
+			if(ISCONFIGSET_PRIV(eAAMPConfig_EnablePTO) && mbEnableSegmentTemplateHandling)
+			{
+				//Set condition for ignore in Flush
+				mbIgnoreStopPosProcessing = true;
+			}
+
 			mStreamSink->Flush(0, rate);
 		}
 		else
@@ -4785,7 +4797,15 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 				mStreamSink->Flush(0, rate);
 			}
 			*/
-			mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+			if(mbEnableFirstPtsSeekPosOverride)
+			{
+				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate, false);
+				mbEnableFirstPtsSeekPosOverride = false;
+			}
+			else
+			{
+				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+			}
 		}
 		else if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
 		{
@@ -4914,6 +4934,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	// reused 
 	mProgramDateTime = 0;
 	mMPDPeriodsInfo.clear();
+    
+	for (int i = 0; i < AAMP_TRACK_COUNT; i++) mbNewSegmentEvtSent[i] = false;
 
 #ifdef AAMP_RFC_ENABLED
 	schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
@@ -6343,11 +6365,12 @@ void PrivateInstanceAAMP::SendStreamCopy(MediaType mediaType, const void *ptr, s
  * @param fpts pts in seconds
  * @param fdts dts in seconds
  * @param fDuration duration of buffer
+ * @param[in] initFragment flag for buffer type (init, data)
  */
-void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration)
+void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration, bool initFragment)
 {
 	profiler.ProfilePerformed(PROFILE_BUCKET_FIRST_BUFFER);
-	mStreamSink->SendTransfer(mediaType, buffer, fpts, fdts, fDuration);
+	mStreamSink->SendTransfer(mediaType, buffer, fpts, fdts, fDuration, initFragment);
 }
 
 /**
@@ -10041,4 +10064,31 @@ MediaStreamContext* PrivateInstanceAAMP::GetMediaStreamContext(MediaType type)
 bool PrivateInstanceAAMP::GetPauseOnFirstVideoFrameDisp(void)
 {
     return mPauseOnFirstVideoFrameDisp;
+}
+
+/**
+ *     @brief GetPeriodDurationTimeValue
+ *     @return double
+ */
+double PrivateInstanceAAMP::GetPeriodDurationTimeValue(void)
+{
+        return mNextPeriodDuration;
+}
+
+/**
+ *     @brief GetPeriodStartTimeValue
+ *     @return double
+ */
+double PrivateInstanceAAMP::GetPeriodStartTimeValue(void)
+{
+        return mNextPeriodStartTime;
+}
+
+/**
+ *     @brief GetPeriodScaledPtoStartTime
+ *     @return double
+ */
+double PrivateInstanceAAMP::GetPeriodScaledPtoStartTime(void)
+{
+       return mNextPeriodScaledPtoStartTime;
 }

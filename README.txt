@@ -140,6 +140,7 @@ disableLowLatencyMonitor	Enable/Disable Low Latency Monitor. Default is true
 disableLowLatencyABR		Enable/Disable Low Latency ABR. Default is true
 disableLowLatencyCorrection	Enable/Disable Low Latency Correction. Default is true
 sharedSSL			Enabled/Disable curl shared SSL session. Default is true
+enablePTO			Enable/Disable PTO Handling
 
 // Integer inputs
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune

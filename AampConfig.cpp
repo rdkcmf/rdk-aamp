@@ -246,7 +246,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, -1,-1},
 	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}},
 	{"useSecManager",eAAMPConfig_UseSecManager, -1,-1,},
-	{"xreSupportedTune",eAAMPConfig_XRESupportedTune,-1,-1}
+	{"xreSupportedTune",eAAMPConfig_XRESupportedTune,-1,-1},
+	{"enablePTO", eAAMPConfig_EnablePTO, -1, -1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -379,6 +380,8 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_Disable4K].value                              =       true;
 #endif
 	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	true;
+	bAampCfgValue[eAAMPConfig_EnablePTO].value				=       true;
+
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_ABRCacheLife-eAAMPConfig_IntStartValue].value			=	DEFAULT_ABR_CACHE_LIFE;

@@ -182,6 +182,7 @@ typedef enum
 	eAAMPConfig_EnableSharedSSLSession,                                             /** Enable/Disable config for shared ssl session reuse */
 	eAAMPConfig_UseSecManager,                                             /** Enable/Disable secmanager instead of secclient for license acquisition */
 	eAAMPConfig_XRESupportedTune,							   /**< Enable/Disable XRE supported tune*/
+	eAAMPConfig_EnablePTO,								/** Enable/Disable PTO Handling */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
