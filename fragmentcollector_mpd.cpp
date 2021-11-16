@@ -98,6 +98,36 @@ static double ComputeFragmentDuration( uint32_t duration, uint32_t timeScale )
 	AAMPLOG_WARN( "bad fragment duration");
 	return newduration;
 }
+
+class PeriodElement
+{ //  Common (Adaptation Set) and representation-specific parts
+private:
+	const IRepresentation *pRepresentation; // primary (representation)
+	const IAdaptationSet *pAdaptationSet; // secondary (adaptation set)
+	
+public:
+	PeriodElement(const PeriodElement &other) = delete;
+	PeriodElement& operator=(const PeriodElement& other) = delete;
+	
+	PeriodElement(const IAdaptationSet *adaptationSet, const IRepresentation *representation ):
+	pAdaptationSet(NULL),pRepresentation(NULL)
+	{
+		pRepresentation = representation;
+		pAdaptationSet = adaptationSet;
+	}
+	~PeriodElement()
+	{
+	}
+	
+	std::string GetMimeType()
+	{
+				FN_TRACE_F_MPD( __FUNCTION__ );
+		std::string mimeType;
+		if( pAdaptationSet ) mimeType = pAdaptationSet->GetMimeType();
+		if( mimeType.empty() && pRepresentation ) mimeType = pRepresentation->GetMimeType();
+		return mimeType;
+	}
+};//PerioidElement
 	
 class SegmentTemplates
 { //  SegmentTemplate can be split info common (Adaptation Set) and representation-specific parts
@@ -578,7 +608,8 @@ static bool IsContentType(IAdaptationSet *adaptationSet, MediaType mediaType )
 		}
 		else
 		{
-			if (IsCompatibleMimeType(adaptationSet->GetMimeType(), mediaType) )
+			PeriodElement periodElement(adaptationSet, NULL);
+			if (IsCompatibleMimeType(periodElement.GetMimeType(), mediaType) )
 			{
 				return true;
 			}
@@ -586,7 +617,8 @@ static bool IsContentType(IAdaptationSet *adaptationSet, MediaType mediaType )
 			for (int i = 0; i < representation.size(); i++)
 			{
 				const IRepresentation * rep = representation.at(i);
-				if (IsCompatibleMimeType(rep->GetMimeType(), mediaType) )
+				PeriodElement periodElement(adaptationSet, rep);
+				if (IsCompatibleMimeType(periodElement.GetMimeType(), mediaType) )
 				{
 					return true;
 				}
@@ -5845,7 +5877,6 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 
 					// check for codec defined in Adaptation Set
 					const std::vector<string> adapCodecs = adaptationSet->GetCodecs();
-					const std::string adapMimeType = adaptationSet->GetMimeType();
 					for (int representationIndex = 0; representationIndex < representation.size(); representationIndex++)
 					{
 						std::string index = std::to_string(iAdaptationSet) + "-" + std::to_string(representationIndex);
@@ -5865,7 +5896,8 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 						else
 						{
 							// For subtitle, it might be vtt/ttml format
-							codec = adaptationSet->GetMimeType();
+							PeriodElement periodElement(adaptationSet, rep);
+							codec = periodElement.GetMimeType();
 						}
 
 						if (eMEDIATYPE_AUDIO == i)
@@ -5934,7 +5966,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 					if (eMEDIATYPE_SUBTITLE == i && (selAdaptationSetIndex == -1 || isFrstAvailableTxtTrackSelected))
 					{
 						AAMPLOG_INFO("Checking subs - mime %s lang %s selAdaptationSetIndex %d",
-							adaptationSet->GetMimeType().c_str(), GetLanguageForAdaptationSet(adaptationSet).c_str(), selAdaptationSetIndex);
+									 adaptationSet->GetMimeType().c_str(), GetLanguageForAdaptationSet(adaptationSet).c_str(), selAdaptationSetIndex);
 						
 						TextTrackInfo *firstAvailTextTrack = nullptr;
 						if(aamp->GetPreferredTextTrack().index.empty() && !isFrstAvailableTxtTrackSelected)
@@ -6065,7 +6097,9 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 		
 		if (eMEDIATYPE_SUBTITLE == i && selAdaptationSetIndex != -1)
 		{
-			std::string mimeType = period->GetAdaptationSets().at(selAdaptationSetIndex)->GetMimeType();
+			const IAdaptationSet *pAdaptationSet = period->GetAdaptationSets().at(selAdaptationSetIndex);
+			PeriodElement periodElement(pAdaptationSet, pAdaptationSet->GetRepresentation().at(selRepresentationIndex));
+			std::string mimeType = periodElement.GetMimeType();
 			if (mimeType.empty())
 			{
 				if( !pMediaStreamContext->mSubtitleParser )
@@ -8882,6 +8916,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 						{
 							const dash::mpd::IRepresentation *rep = representation.at(repIndex);
 							const std::vector<INode *> subnodes = rep->GetAdditionalSubNodes();
+							PeriodElement periodElement(adaptationSets.at(j), rep);
 							for (unsigned i = 0; i < subnodes.size() && !done; i++)
 							{
 								INode *xml = subnodes[i];
@@ -8925,7 +8960,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 							bandwidth = rep->GetBandwidth();
 							if(thumbIndexValue < 0 || trackEmpty)
 							{
-								std::string mimeType = rep->GetMimeType();
+								std::string mimeType = periodElement.GetMimeType();
 								StreamInfo *tmp = new StreamInfo;
 								tmp->bandwidthBitsPerSecond = (long) bandwidth;
 								tmp->resolution.width = rep->GetWidth()/w;
@@ -9787,7 +9822,8 @@ bool StreamAbstractionAAMP_MPD::IsMatchingLanguageAndMimeType(MediaType type, st
 	   AAMPLOG_INFO("type %d inlang %s current lang %s", type, lang.c_str(), adapLang.c_str());
 	   if (adapLang == lang)
 	   {
-			   std::string adaptationMimeType = adaptationSet->GetMimeType();
+			   PeriodElement periodElement(adaptationSet, NULL);
+			   std::string adaptationMimeType = periodElement.GetMimeType();
 			   if (!adaptationMimeType.empty())
 			   {
 					   if (IsCompatibleMimeType(adaptationMimeType, type))
@@ -9802,7 +9838,8 @@ bool StreamAbstractionAAMP_MPD::IsMatchingLanguageAndMimeType(MediaType type, st
 					   for (int repIndex = 0; repIndex < representation.size(); repIndex++)
 					   {
 							   const dash::mpd::IRepresentation *rep = representation.at(repIndex);
-							   std::string mimeType = rep->GetMimeType();
+							   PeriodElement periodElement(adaptationSet, rep);
+							   std::string mimeType = periodElement.GetMimeType();
 							   if (!mimeType.empty() && (IsCompatibleMimeType(mimeType, type)))
 							   {
 									   ret = true;
