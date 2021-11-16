@@ -2141,7 +2141,9 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 			privateContext->segmentStart = 0;
 		}
 	}
-
+#if 0
+// Sending segment event is handled by app source in brcm, so avoiding it.
+// This can be emited to limit the playback at a particular start and/or stop position.
 #ifdef USE_GST1
 	GstSegment segment;
 	gst_segment_init(&segment, GST_FORMAT_TIME);
@@ -2165,7 +2167,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 	{
 		AAMPLOG_WARN("gst_pad_push_event segment error");
 	}
-
+#endif
 	if (stream->format == FORMAT_ISO_BMFF)
 	{
 		// There is a possibility that only single protection event is queued for multiple type
