@@ -1454,7 +1454,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mEventManager (NULL)
 	, mbDetached(false)
 {
-	for(int i=0; i<AAMP_TRACK_COUNT; i++)
+	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
 		lastId3Data[i] = NULL;
 		lastId3DataLen[i] = 0;
@@ -6394,19 +6394,7 @@ void PrivateInstanceAAMP::Stop()
 
 	TeardownStream(true);
 
-<<<<<<< HEAD
-	if (id3MetadataCallbackTaskPending)
-	{
-		AAMPLOG_WARN("Remove id3MetadataCallbackIdleTaskId %d", id3MetadataCallbackIdleTaskId);
-		RemoveAsyncTask(id3MetadataCallbackIdleTaskId);
-		id3MetadataCallbackTaskPending = false;
-		id3MetadataCallbackIdleTaskId = 0;
-	}
-
-	for(int i=0; i<AAMP_TRACK_COUNT; i++)
-=======
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
->>>>>>> 63e65656... DELIA-53114: [AAMP] Event Handling stability and Code refactoring
 	{
 		FlushLastId3Data((MediaType)i);
 	}

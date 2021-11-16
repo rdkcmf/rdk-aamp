@@ -850,8 +850,8 @@ public:
 	AampConfig *mConfig;
 
 	bool mbUsingExternalPlayer; /**<Playback using external players eg:OTA, HDMIIN,Composite*/
-	int32_t lastId3DataLen[AAMP_TRACK_COUNT]; // last sent ID3 data length
-	uint8_t *lastId3Data[AAMP_TRACK_COUNT]; // ptr with last sent ID3 data
+	int32_t lastId3DataLen[eMEDIATYPE_DEFAULT]; // last sent ID3 data length
+	uint8_t *lastId3Data[eMEDIATYPE_DEFAULT]; // ptr with last sent ID3 data
 
 	pthread_mutex_t  mDiscoCompleteLock; // Lock the period jump if discontinuity already in progress
 	pthread_cond_t mWaitForDiscoToComplete; // Conditional wait for period jump
