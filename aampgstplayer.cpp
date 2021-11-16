@@ -2290,13 +2290,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
                 buffer.destroyBoxes();
         }
 
-	// Ignore eMEDIATYPE_DSM_CC packets
-	if(mediaType == eMEDIATYPE_DSM_CC)
-	{
-		return false;
-	}
-
-	if (aamp->IsEventListenerAvailable(AAMP_EVENT_ID3_METADATA) && mediaType < AAMP_TRACK_COUNT &&
+	if (aamp->IsEventListenerAvailable(AAMP_EVENT_ID3_METADATA) &&
 		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
 	{
 		uint32_t len = getId3TagSize(static_cast<const uint8_t*>(ptr));
@@ -2309,6 +2303,11 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 		}
 	}
 
+	// Ignore eMEDIATYPE_DSM_CC packets
+	if(mediaType == eMEDIATYPE_DSM_CC)
+	{
+		return false;
+	}
 
 	// Make sure source element is present before data is injected
 	// If format is FORMAT_INVALID, we don't know what we are doing here

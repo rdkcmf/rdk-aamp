@@ -852,8 +852,8 @@ public:
 	AampConfig *mConfig;
 	guint id3MetadataCallbackIdleTaskId; //ID of handler created to send ID3 metadata events
 	std::atomic<bool> id3MetadataCallbackTaskPending; //Set if an id3 metadata callback is pending
-	int32_t lastId3DataLen[AAMP_TRACK_COUNT]; // last sent ID3 data length
-	uint8_t *lastId3Data[AAMP_TRACK_COUNT]; // ptr with last sent ID3 data
+	int32_t lastId3DataLen[eMEDIATYPE_DEFAULT]; // last sent ID3 data length
+	uint8_t *lastId3Data[eMEDIATYPE_DEFAULT]; // ptr with last sent ID3 data
 	bool mbUsingExternalPlayer; /**<Playback using external players eg:OTA, HDMIIN,Composite*/
 
 	std::string seiTimecode; /**< SEI Timestamp information from Westeros */
