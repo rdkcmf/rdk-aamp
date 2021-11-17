@@ -35,7 +35,6 @@ Install gst packages:
 brew install gstreamer gst-validate gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-validate gst-libav
 ```
 
-You can find help [here](https://wesleyli.co/2016/10/running-gstreamer-on-mac-os-x).
 More details about packages available at [freedesktop.org](https://gstreamer.freedesktop.org/documentation/installing/on-mac-osx.html)
 
 **3.1 Build and install patched gst-plugins-good**
