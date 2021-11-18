@@ -1366,24 +1366,6 @@ static void curl_unlock_callback(CURL *curl, curl_lock_data data, curl_lock_acce
 	pthread_mutex_unlock(&gCurlInitMutex);
 }
 
-/**
- * @brief Idle callback to notify ID3 metadata event
- * @param[in] user_data pointer to Id3CallbackData object containing AAMPGstPlayer instance
- * @retval G_SOURCE_REMOVE, if the source should be removed
- */
-static gboolean IdleCallbackOnId3Metadata(gpointer user_data)
-{
-        Id3CallbackData *id3 = (Id3CallbackData*)user_data;
-
-        id3->aamp->SendId3MetadataEvent(id3->data, id3->schemeIdUri, id3->value, id3->timeScale, id3->presentationTime, id3->eventDuration, id3->id, id3->timestampOffset);
-        id3->aamp->id3MetadataCallbackTaskPending = false;
-        id3->aamp->id3MetadataCallbackIdleTaskId = 0;
-
-        SAFE_DELETE(id3);
-
-        return G_SOURCE_REMOVE;
-}
-
 // End of curl callback functions
 
 /**
@@ -1455,7 +1437,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mIsWVKIDWorkaround(false)
 	, mAuxFormat(FORMAT_INVALID), mAuxAudioLanguage()
 	, mAbsoluteEndPosition(0), mIsLiveStream(false)
-	, id3MetadataCallbackIdleTaskId(0), id3MetadataCallbackTaskPending(false)
 	, mAampLLDashServiceData{}
 	, bLowLatencyServiceConfigured(false)
 	, mLLDashCurrentPlayRate(AAMP_NORMAL_PLAY_RATE)
@@ -6398,14 +6379,6 @@ void PrivateInstanceAAMP::Stop()
 
 	TeardownStream(true);
 
-	if (id3MetadataCallbackTaskPending)
-	{
-		AAMPLOG_WARN("Remove id3MetadataCallbackIdleTaskId %d", id3MetadataCallbackIdleTaskId);
-		RemoveAsyncTask(id3MetadataCallbackIdleTaskId);
-		id3MetadataCallbackTaskPending = false;
-		id3MetadataCallbackIdleTaskId = 0;
-	}
-
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
 		FlushLastId3Data((MediaType)i);
@@ -8466,9 +8439,10 @@ void PrivateInstanceAAMP::GetCustomLicenseHeaders(std::unordered_map<std::string
  *   @param[in] data pointer to ID3 metadata.
  *   @param[in] length length of ID3 metadata.
  */
-void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data, std::string &schIDUri, std::string &id3Value, uint32_t timeScale, uint64_t presentationTime, uint32_t eventDuration, uint32_t id, uint64_t timestampOffset)
+void PrivateInstanceAAMP::SendId3MetadataEvent(Id3CallbackData* id3Metadata)
 {
-	ID3MetadataEventPtr e = std::make_shared<ID3MetadataEvent>(data, schIDUri, id3Value, timeScale, presentationTime, eventDuration, id, timestampOffset);
+	if(id3Metadata) {
+	ID3MetadataEventPtr e = std::make_shared<ID3MetadataEvent>(id3Metadata->data, id3Metadata->schemeIdUri, id3Metadata->value, id3Metadata->timeScale, id3Metadata->presentationTime, id3Metadata->eventDuration, id3Metadata->id, id3Metadata->timestampOffset);
 	if (ISCONFIGSET_PRIV(eAAMPConfig_ID3Logging))
 	{
 		std::vector<uint8_t> metadata = e->getMetadata();
@@ -8502,7 +8476,8 @@ void PrivateInstanceAAMP::SendId3MetadataEvent(std::vector<uint8_t> &data, std::
 			AAMPLOG_WARN("ID3 log was truncated, original size %d (printable %d)" , metadataLen, printableLen);
 		}
 	}
-	mEventManager->SendEvent(e);
+	mEventManager->SendEvent(e,AAMP_EVENT_ASYNC_MODE);
+	}
 }
 /**
  *   @brief Sending a flushing seek to stream sink with given position
@@ -9792,13 +9767,8 @@ void PrivateInstanceAAMP::ReportID3Metadata(MediaType mediaType, const uint8_t* 
 		memcpy(lastId3Data[mediaType], ptr, len);
 	}
 
-	this->id3MetadataCallbackTaskPending = true;
-	this->id3MetadataCallbackIdleTaskId = ScheduleAsyncTask(IdleCallbackOnId3Metadata, (void *)id3Metadata);
-	if (!this->id3MetadataCallbackTaskPending)
-	{
-		AAMPLOG_WARN("id3MetadataCallbackTask already finished, reset id");
-		this->id3MetadataCallbackIdleTaskId = 0;
-	}
+	SendId3MetadataEvent(id3Metadata);
+	SAFE_DELETE(id3Metadata);
 }
 
 /**

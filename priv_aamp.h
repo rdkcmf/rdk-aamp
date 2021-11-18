@@ -351,6 +351,7 @@ struct EventBreakInfo
 	{}
 };
 
+class Id3CallbackData;
 
 /**
  * @brief Class for Timed Metadata
@@ -850,8 +851,6 @@ public:
 	double mProgressReportOffset; /**< Offset time for progress reporting */
 	double mAbsoluteEndPosition; /**< Live Edge position for absolute reporting */
 	AampConfig *mConfig;
-	guint id3MetadataCallbackIdleTaskId; //ID of handler created to send ID3 metadata events
-	std::atomic<bool> id3MetadataCallbackTaskPending; //Set if an id3 metadata callback is pending
 	int32_t lastId3DataLen[eMEDIATYPE_DEFAULT]; // last sent ID3 data length
 	uint8_t *lastId3Data[eMEDIATYPE_DEFAULT]; // ptr with last sent ID3 data
 	bool mbUsingExternalPlayer; /**<Playback using external players eg:OTA, HDMIIN,Composite*/
@@ -2780,14 +2779,9 @@ public:
 	/**
 	 *   @brief Sends an ID3 metadata event.
 	 *
-	 *   @param[in] data ID3 metadata
-	 *   @param[in] timeScale - timeScale of ID3 data
-	 *   @param[in] presentationTime - PTS value
-	 *   @param[in] eventDuration - eventDuration
-	 *   @param[in] id - id of ID3 data
-	 *   @param[in] timestampOffset 
+	 *   @param[in] ID3 metadata
 	 */
-	void SendId3MetadataEvent(std::vector<uint8_t> &data, std::string &schIDUri, std::string &id3Value, uint32_t timeScale, uint64_t presentationTime, uint32_t eventDuration, uint32_t id, uint64_t timestampOffset);
+	void SendId3MetadataEvent(Id3CallbackData* id3Metadata);
 
 
 	/**
