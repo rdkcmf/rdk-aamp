@@ -1100,13 +1100,18 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					uint32_t tScale = segmentTemplates.GetTimescale();
 					uint64_t periodStart = 0;
 					string startTimeStr = mpd->GetPeriods().at(mCurrentPeriodIdx)->GetStart();
+
+					pMediaStreamContext->timeStampOffset = 0;
+
 					if(!startTimeStr.empty())
 					{
-						periodStart = (ParseISO8601Duration(startTimeStr.c_str()) / 10000);
-						pMediaStreamContext->timeStampOffset = (periodStart - (presentationTimeOffset/tScale));
-					}else
-					{
-						pMediaStreamContext->timeStampOffset = 0;
+						periodStart = (uint64_t)(ParseISO8601Duration(startTimeStr.c_str()) / 1000);
+						int64_t timeStampOffset = (int64_t)(periodStart - (uint64_t)(presentationTimeOffset/tScale));
+
+						if (timeStampOffset > 0)
+						{
+							pMediaStreamContext->timeStampOffset = timeStampOffset;
+						}
 					}
 
 					if (presentationTimeOffset > 0 && pMediaStreamContext->lastSegmentDuration ==  0
