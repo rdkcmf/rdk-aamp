@@ -245,7 +245,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"disable4K" , eAAMPConfig_Disable4K, -1, -1},
 	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, -1,-1},
 	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}},
-	{"useSecManager",eAAMPConfig_UseSecManager, -1,-1}
+	{"useSecManager",eAAMPConfig_UseSecManager, -1,-1,},
+	{"xreSupprotedTune",eAAMPConfig_XRESupportedTune,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -317,6 +318,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_StreamLogging].value				=	false;
 	bAampCfgValue[eAAMPConfig_ID3Logging].value    				= 	false;
 	bAampCfgValue[eAAMPConfig_CurlHeader].value					=	false;
+	bAampCfgValue[eAAMPConfig_XRESupportedTune].value			=	true;
 	//bAampCfgValue[eAAMPConfig_XREEventReporting].value			=	true;
 #ifdef INTELCE
 	bAampCfgValue[eAAMPConfig_EnableGstPositionQuery].value			=	false;

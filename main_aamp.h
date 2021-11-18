@@ -1516,6 +1516,12 @@ public:
 	 *   @return void
 	 */
 	void SetAuxiliaryLanguage(const std::string &language);
+	/**
+	 *   @brief To set whether the JS playback session is from XRE or not.
+	 *
+	 *   @param[in] bool On/Off
+	 */
+	void XRESupprotedTune(bool xreSupported);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 	std::shared_ptr<PrivateInstanceAAMP> sp_aamp; /* shared pointer for aamp resource */
