@@ -1475,7 +1475,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mEventManager (NULL)
 	, mbDetached(false)
 {
-	for(int i=0; i<AAMP_TRACK_COUNT; i++)
+	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
 		lastId3Data[i] = NULL;
 		lastId3DataLen[i] = 0;
@@ -6406,7 +6406,7 @@ void PrivateInstanceAAMP::Stop()
 		id3MetadataCallbackIdleTaskId = 0;
 	}
 
-	for(int i=0; i<AAMP_TRACK_COUNT; i++)
+	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
 		FlushLastId3Data((MediaType)i);
 	}
