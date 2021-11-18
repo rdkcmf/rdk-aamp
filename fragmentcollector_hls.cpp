@@ -5199,12 +5199,13 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					ts->playTargetBufferCalc = ts->playTarget;
 				}
 
-				if(ISCONFIGSET(eAAMPConfig_SyncAudioFragments) && !(ISCONFIGSET(eAAMPConfig_MidFragmentSeek)) && iTrack == 0)
+				// To avoid audio loss while seeking HLS/TS AV of different duration w/o affecting VOD Discontinuities
+				if(iTrack == 0 && ISCONFIGSET(eAAMPConfig_SyncAudioFragments) && !(ISCONFIGSET(eAAMPConfig_MidFragmentSeek) || audio->mDiscontinuityIndexCount))
 				{
+					AAMPLOG_TRACE("Setting audio playtarget %f to video playtarget %f", audio->playTarget, ts->playTarget);
 					audio->playTarget = ts->playTarget;
 				}
 			}
-
 			if (IsLive() && audio->enabled && !ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 			{
 				AAMPStatusType retValue = SyncTracks();

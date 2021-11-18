@@ -397,7 +397,11 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_LimitResolution].value                        =       false;
 	bAampCfgValue[eAAMPConfig_UseAbsoluteTimeline].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_WideVineKIDWorkaround].value                  	=       false;
-	bAampCfgValue[eAAMPConfig_SyncAudioFragments].value                  	=       false;
+#ifdef REALTEKCE
+	bAampCfgValue[eAAMPConfig_SyncAudioFragments].value                  	=       true;
+#else
+	bAampCfgValue[eAAMPConfig_SyncAudioFragments].value			=       false;
+#endif
 	bAampCfgValue[eAAMPConfig_RepairIframes].value                  	=       false;
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyDash].value			=	false;
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyABR].value		    	=	true;
