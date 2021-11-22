@@ -5052,6 +5052,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					mIsAtLivePoint = true;
 				logprintf("aamp: after live adjust - V-target %f A-target %f S-target %f Aux-target %f offsetFromLive %f offsetToLive %f offsetVideo[%f] offsetAudio[%f] AtLivePoint[%d]",
 				        video->playTarget, audio->playTarget, subtitle->playTarget, aux->playTarget, offsetFromLive, offsetToLive,offsetToLiveVideo,offsetToLiveAudio,mIsAtLivePoint);
+				if(ContentType_LINEAR == aamp->GetContentType())
+				{
+					video->playTarget = audio->playTarget = offsetFromLive = offsetToLive = offsetToLiveVideo = offsetToLiveAudio = 48.0;
+					AAMPLOG_WARN("aamp: after live adjust (Current forced values) - V-target %f A-target %f S-target %f Aux-target %f offsetFromLive %f offsetToLive %f offsetVideo[%f]                                            offsetAudio[%f] AtLivePoint[%d]", video->playTarget, audio->playTarget, subtitle->playTarget, aux->playTarget, offsetFromLive, offsetToLive,offsetToLiveVideo,                                              offsetToLiveAudio,mIsAtLivePoint);
+				}
 			}
 			else
 			{
