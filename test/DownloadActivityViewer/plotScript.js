@@ -128,10 +128,20 @@ window.onload = function() {
         for (var i = 0; i < samples.length; i++) {
             var line = samples[i];
             var aampLogOffset = line.indexOf( "[AAMP-PLAYER]" );
-            var offs;
             if( aampLogOffset >=0 )
-            { // aamp-related logging
-                var payload = line.substr(aampLogOffset+13); // skip "[AAMP-PLAYER]" prefix
+            {   // aamp-related logging
+                // pattern to identify AAMP log format  "[AAMP-PLAYER][Object][Log level][Function name][Line number]log"
+                var logPattern = new RegExp("\\[AAMP-PLAYER\\]\\[[0-9]+\\]\\[[A-Za-z]+\\]\\[.*\\]\\[[0-9]+\\]");
+                var logMatch = line.substr(aampLogOffset).match(logPattern);
+                if(logMatch) {
+                    // if the log has latest format update the offset
+                    aampLogOffset += logMatch[0].length;
+                }  else {
+                    // for logs in old format
+                    aampLogOffset +=  "[AAMP-PLAYER]".length
+                }
+
+                var payload = line.substr(aampLogOffset);  // skip the aamp log prefix
                 var param;
                 if( payload.startsWith("HttpRequestEnd:") )
                 {
