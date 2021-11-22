@@ -8389,8 +8389,7 @@ bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 {
 	// Assumption being that enableSubtec and event listener will not be registered at the same time
 	// in which case subtec gets priority over event listener
-	return (ISCONFIGSET_PRIV(eAAMPConfig_Subtec_subtitle)  || 	mEventManager->IsEventListenerAvailable(AAMP_EVENT_WEBVTT_CUE_DATA));
-	//(!IsDashAsset() && (mEventListener || mEventListeners[AAMP_EVENT_WEBVTT_CUE_DATA]));
+	return (ISCONFIGSET_PRIV(eAAMPConfig_Subtec_subtitle)  || 	WebVTTCueListenersRegistered());
 }
 
 /**
@@ -8400,7 +8399,7 @@ bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
  */
 bool PrivateInstanceAAMP::WebVTTCueListenersRegistered(void)
 {
-	return mEventManager->IsEventListenerAvailable(AAMP_EVENT_WEBVTT_CUE_DATA);
+	return mEventManager->IsSpecificEventListenerAvailable(AAMP_EVENT_WEBVTT_CUE_DATA);
 }
 
 /**

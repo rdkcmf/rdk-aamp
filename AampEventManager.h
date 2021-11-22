@@ -179,6 +179,12 @@ public:
 	 * @return True if listner present
 	 */
 	bool IsEventListenerAvailable(AAMPEventType eventType);
+	/**
+	 * @brief IsSpecificEventListenerAvailable - Check if this particular listener present for this event
+	 * @param AAMPEventType - Event Type
+	 * @return True if listner present
+	 */
+	bool IsSpecificEventListenerAvailable(AAMPEventType eventType);
 
 	/**
 	 * @brief FlushPendingEvents - Clear all pending events from EventManager
