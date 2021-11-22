@@ -8090,7 +8090,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 
                                         }
 					int timeoutMs = refreshInterval - (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
-					if( timeoutMs <= 0 && mIsLiveManifest && rate > 0 )
+					if( timeoutMs <= 0 && mIsLiveManifest )
 					{
 						liveMPDRefresh = true;
 						break;
