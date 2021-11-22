@@ -7470,10 +7470,7 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 							delta = rate / vodTrickplayFPS;
 						}
 						double currFragTime = pMediaStreamContext->fragmentTime;
-						if(rate > 0)
-						{
 						delta = SkipFragments(pMediaStreamContext, delta);
-						}
 						mBasePeriodOffset += (pMediaStreamContext->fragmentTime - currFragTime);
 					}
 					if (PushNextFragment(pMediaStreamContext, getCurlInstanceByMediaType(static_cast<MediaType>(trackIdx))))
@@ -8070,7 +8067,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 
                                         }
 					int timeoutMs = refreshInterval - (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
-					if( timeoutMs <= 0 && mIsLiveManifest )
+					if( timeoutMs <= 0 && mIsLiveManifest && rate > 0 )
 					{
 						liveMPDRefresh = true;
 						break;
