@@ -211,6 +211,18 @@ void AampEventManager::RemoveEventListener(AAMPEventType eventType, EventListene
  * @param AAMPEventType - Event Type
  * @return True if listner present
  */
+bool AampEventManager::IsSpecificEventListenerAvailable(AAMPEventType eventType)
+{	
+	bool retVal=false;
+	pthread_mutex_lock(&mMutexVar);
+	if(eventType > AAMP_EVENT_ALL_EVENTS &&  eventType < AAMP_MAX_NUM_EVENTS && mEventListeners[eventType])
+	{
+		retVal = true;
+	}
+	pthread_mutex_unlock(&mMutexVar);
+	return retVal;
+}
+
 bool AampEventManager::IsEventListenerAvailable(AAMPEventType eventType)
 {
 	bool retVal=false;
