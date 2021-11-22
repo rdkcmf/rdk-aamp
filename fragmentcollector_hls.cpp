@@ -7988,7 +7988,7 @@ StreamOutputFormat StreamAbstractionAAMP_HLS::GetStreamOutputFormatForTrack(Trac
 		format = map->format;
 		AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d Track[%d] format is %d [%s]", __FUNCTION__, __LINE__, type, map->format, map->codec);
 	}
-	else
+	else if ((type == eTRACK_AUDIO) || (type ==  eTRACK_AUX_AUDIO))
 	{ // HACK
 		AAMPLOG_WARN("StreamAbstractionAAMP_HLS::%s %d assuming stereo", __FUNCTION__, __LINE__);
 		format = FORMAT_AUDIO_ES_AAC;
