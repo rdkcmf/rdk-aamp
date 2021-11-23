@@ -7369,36 +7369,6 @@ void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 							}
 							else
 							{
-								// Push Encrypted headers early only if manifest has the PSSH data
-								// Extract the PSSH data
-								bool psshDataFound = false ;
-								for (int iContentProt = 0; iContentProt < contentProt.size(); iContentProt++ )
-								{
-									const vector<INode*> node = contentProt.at(iContentProt)->GetAdditionalSubNodes();
-									if (!node.empty())
-									{
-										for(int i=0; i < node.size(); i++){
-											std::string tagName = node.at(i)->GetName();
-											if (tagName.find("pssh") != std::string::npos)
-											{
-												string psshData = node.at(i)->GetText();
-												if (!psshData.empty())
-												{
-													psshDataFound = true;
-													break;
-												}
-											}
-										}
-									}
-									if (psshDataFound) break;
-								}
-								if (!psshDataFound)
-								{
-									AAMPLOG_INFO("No PSSH data in manifest, Removing early encrypted Header push"
-									);
-									encryptionFound = true; //No need to continue further
-									continue;
-								}
 								IRepresentation *representation = NULL;
 								size_t representionIndex = 0;
 								if(MediaType(i) == eMEDIATYPE_VIDEO)
