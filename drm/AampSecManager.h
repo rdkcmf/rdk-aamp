@@ -123,6 +123,7 @@ private:
 	void addWatermarkHandler(const JsonObject& parameters);
 	void updateWatermarkHandler(const JsonObject& parameters);
 	void removeWatermarkHandler(const JsonObject& parameters);
+	void showWatermarkHandler(const JsonObject& parameters);
 
 	void ShowWatermark(bool show);
 	void CreateWatermark(int graphicId, int zIndex);

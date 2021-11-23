@@ -509,6 +509,11 @@ void AampSecManager::RegisterAllEvents ()
 	std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> removeWatermarkMethod = std::bind(&AampSecManager::removeWatermarkHandler, this, std::placeholders::_1);
 
 	RegisterEvent("onRemoveWatermark",removeWatermarkMethod);
+
+	std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> showWatermarkMethod = std::bind(&AampSecManager::showWatermarkHandler, this, std::placeholders::_1);
+
+	RegisterEvent("onShowWatermark",showWatermarkMethod);
+
 }
 
 /**
@@ -548,15 +553,6 @@ void AampSecManager::addWatermarkHandler(const JsonObject& parameters)
 #endif
 	if(mSchedulerStarted)
 	{
-		/*To Do: ShowWatermark(true) and ShowWatermark(false) need to be called only once. Hence needs 
-		  correction for multiple watermark images case. showWatermark(false) will clear all watermarks*/
-		bool show = true;
-		ScheduleTask(AsyncTaskObj([show](void *data)
-					  {
-						AampSecManager *instance = static_cast<AampSecManager *>(data);
-						instance->ShowWatermark(show);
-					  }, (void *) this));
-
 		int graphicId = parameters["graphicId"].Number();
 		int zIndex = parameters["zIndex"].Number();
 		AAMPLOG_WARN("AampSecManager: graphicId : %d index : %d ", graphicId, zIndex);
@@ -615,12 +611,6 @@ void AampSecManager::removeWatermarkHandler(const JsonObject& parameters)
 						AampSecManager *instance = static_cast<AampSecManager *>(data);
 						instance->DeleteWatermark(graphicId);
 					  }, (void *) this));
-		bool show = false;
-		ScheduleTask(AsyncTaskObj([show](void *data)
-					  {
-						AampSecManager *instance = static_cast<AampSecManager *>(data);
-						instance->ShowWatermark(show);
-					  }, (void *) this));
 #if 0
 		/*Method to be called only if RDKShell is used for rendering*/
 		ScheduleTask(AsyncTaskObj([show](void *data)
@@ -632,6 +622,29 @@ void AampSecManager::removeWatermarkHandler(const JsonObject& parameters)
 	}
 
 }
+
+/**
+ *   @brief Handles watermark calls to be only once
+*/
+void AampSecManager::showWatermarkHandler(const JsonObject& parameters)
+{
+	bool show = true;
+	if(parameters["hideWatermark"].Boolean())
+	{
+		show = false;
+	}
+	if(mSchedulerStarted)
+	{
+		ScheduleTask(AsyncTaskObj([show](void *data)
+		{
+			AampSecManager *instance = static_cast<AampSecManager *>(data);
+			instance->ShowWatermark(show);
+		}, (void *) this));
+	}
+	
+	return;
+}
+
 
 /**
  *   @brief Show watermark image
