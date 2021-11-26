@@ -744,6 +744,10 @@ public:
 	int32_t lastId3DataLen; // last sent ID3 data length
 	uint8_t *lastId3Data; // ptr with last sent ID3 data
 
+	pthread_mutex_t  mDiscoCompleteLock; // Lock the period jump if discontinuity already in progress
+	pthread_cond_t mWaitForDiscoToComplete; // Conditional wait for period jump
+	bool mIsPeriodChangeMarked; // Mark if a period change occurred.
+
 	/**
 	 * @brief Check if segment starts with an ID3 section
 	 *
@@ -3003,6 +3007,18 @@ public:
 	 *
 	 */
 	void UpdateLiveOffset();
+
+
+	/**
+	 * @brief wait for Discontinuity handling complete
+	 */
+	void WaitForDiscontinuityProcessToComplete(void);
+
+	/**
+	 * @brief unblock wait for Discontinuity handling complete
+	 */
+	void UnblockWaitForDiscontinuityProcessToComplete(void);
+
 
 private:
 
