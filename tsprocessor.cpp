@@ -236,6 +236,7 @@ private:
 	uint33_t current_pts;
 	uint33_t current_dts;
 	uint33_t first_pts;
+	bool update_first_pts;
 	MediaType type;
 	bool trickmode;
 	bool finalized_base_pts;
@@ -308,7 +309,7 @@ public:
 		pes_header_ext_len(0), pes_header_ext_read(0), pes_header(),
 		es(), position(0), duration(0), base_pts{0}, current_pts{0},
 		current_dts{0}, type(type), trickmode(false), finalized_base_pts(false),
-		sentESCount(0), allowPtsRewind(false), first_pts{0}, reached_steady_state(false)
+		sentESCount(0), allowPtsRewind(false), first_pts{0}, update_first_pts(false), reached_steady_state(false)
 	{
 		init(0, 0, false, true);
 	}
@@ -352,6 +353,7 @@ public:
 		current_dts = 0;
 		current_pts = 0;
 		first_pts = 0;
+		update_first_pts = false;
 		finalized_base_pts = false;
 		memset(&pes_header, 0x00, sizeof(GrowableBuffer));
 		memset(&es, 0x00, sizeof(GrowableBuffer));
@@ -563,9 +565,10 @@ public:
 				}
 				DEBUG(" PES_PAYLOAD_LENGTH %d", PES_PAYLOAD_LENGTH(pesStart));
 			}
-			if (first_pts == 0)
+			if ((first_pts == 0) && !update_first_pts)
 			{
 				first_pts = current_pts;
+				update_first_pts = true;
 				//Notify first video PTS to AAMP for VTT initialization
 				if (!trickmode && type == eMEDIATYPE_VIDEO)
 				{
