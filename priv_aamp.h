@@ -860,6 +860,10 @@ public:
         bool mbDetached;
 
 
+	pthread_mutex_t  mDiscoCompleteLock; // Lock the period jump if discontinuity already in progress
+	pthread_cond_t mWaitForDiscoToComplete; // Conditional wait for period jump
+	bool mIsPeriodChangeMarked; // Mark if a period change occurred.
+
 	/**
 	 * @brief Check if segment starts with an ID3 section
 	 *
@@ -3381,6 +3385,16 @@ public:
 	*     @return bool
 	*/
 	bool GetPauseOnFirstVideoFrameDisp(void);
+
+	/**
+	 * @brief wait for Discontinuity handling complete
+	 */
+	void WaitForDiscontinuityProcessToComplete(void);
+
+	/**
+	 * @brief unblock wait for Discontinuity handling complete
+	 */
+	void UnblockWaitForDiscontinuityProcessToComplete(void);
 
 private:
 

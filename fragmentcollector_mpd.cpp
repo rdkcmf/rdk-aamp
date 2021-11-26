@@ -7727,6 +7727,12 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 					int adaptationSetCount = adapatationSets.size();
 					if(currentPeriodId != mCurrentPeriod->GetId())
 					{
+						if (!mIsFogTSB && aamp->mIsPeriodChangeMarked)
+						{
+							AAMPLOG_WARN("Discontinuity process is yet to complete, going to wait until it is done");
+							aamp->WaitForDiscontinuityProcessToComplete();
+						}
+
 						/*DELIA-47914:  If next period is empty, period ID change is  not processing.
 						Will check the period change for the same period in the next iteration.*/
 						if(adaptationSetCount > 0 || !IsEmptyPeriod(mCurrentPeriod , mIsFogTSB))
@@ -7735,6 +7741,10 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							currentPeriodId = mCurrentPeriod->GetId();
 							mPrevAdaptationSetCount = adaptationSetCount;
 							periodChanged = true;
+							if (!trickPlay)
+                                                        {
+								aamp->mIsPeriodChangeMarked = true;
+                                                        }
 							requireStreamSelection = true;
 							AAMPLOG_WARN("playing period %d/%d", iPeriod, (int)numPeriods);
 						}
@@ -7858,10 +7868,10 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						if(ignoreDiscontinuity)
 						{
 							AAMPLOG_WARN("Error! Audio or Video track missing in period, ignoring discontinuity");
+							aamp->mIsPeriodChangeMarked = false;
 						}
 						else
 						{
-				
 							if( segmentTemplates.HasSegmentTemplate() )
 							{
 								uint64_t segmentStartTime = GetFirstSegmentStartTime(mCurrentPeriod);
@@ -7909,14 +7919,17 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 								else
 								{
 									AAMPLOG_WARN("StreamAbstractionAAMP_MPD: No discontinuity detected nextSegmentTime %" PRIu64 " FirstSegmentStartTime %" PRIu64 " ", nextSegmentTime, segmentStartTime);
+									aamp->mIsPeriodChangeMarked = false;
 								}
 							}
 							else
 							{
 								traceprintf("StreamAbstractionAAMP_MPD::%s:%d Segment template not available", __FUNCTION__, __LINE__);
+								aamp->mIsPeriodChangeMarked = false;
 							}
 						}
 					}
+
 					FetchAndInjectInitialization(discontinuity);
 					if(mCdaiObject->mAdFailed)
 					{

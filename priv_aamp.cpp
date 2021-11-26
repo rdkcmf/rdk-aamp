@@ -1455,6 +1455,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mLogObj(NULL)
 	, mEventManager (NULL)
 	, mbDetached(false)
+	, mWaitForDiscoToComplete()
+	, mDiscoCompleteLock()
+	, mIsPeriodChangeMarked(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -1486,6 +1489,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	pthread_mutex_init(&mFragmentCachingLock, &mMutexAttr);
 	pthread_mutex_init(&mEventLock, &mMutexAttr);
 	pthread_mutex_init(&mStreamLock, &mMutexAttr);
+	pthread_mutex_init(&mDiscoCompleteLock,&mMutexAttr);
 	mCurlShared = curl_share_init();
 	curl_share_setopt(mCurlShared, CURLSHOPT_LOCKFUNC, curl_lock_callback);
 	curl_share_setopt(mCurlShared, CURLSHOPT_UNLOCKFUNC, curl_unlock_callback);
@@ -1534,7 +1538,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	mCustomHeaders["Connection:"] = std::vector<std::string> { "Keep-Alive" };
 	pthread_cond_init(&mCondDiscontinuity, NULL);
 	pthread_cond_init(&waitforplaystart, NULL);
-	pthread_mutex_init(&mMutexPlaystart, NULL);	
+	pthread_mutex_init(&mMutexPlaystart, NULL);
+	pthread_cond_init(&mWaitForDiscoToComplete,NULL);
 	preferredLanguagesList.push_back("en");
 
 #ifdef AAMP_HLS_DRM
@@ -1577,12 +1582,14 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_cond_destroy(&mDownloadsDisabled);
 	pthread_cond_destroy(&mCondDiscontinuity);
 	pthread_cond_destroy(&waitforplaystart);
+	pthread_cond_destroy(&mWaitForDiscoToComplete);
 	pthread_mutex_destroy(&mMutexPlaystart);
 	pthread_mutex_destroy(&mLock);
 	pthread_mutex_destroy(&mParallelPlaylistFetchLock);
 	pthread_mutex_destroy(&mFragmentCachingLock);
 	pthread_mutex_destroy(&mEventLock);
 	pthread_mutex_destroy(&mStreamLock);
+	pthread_mutex_destroy(&mDiscoCompleteLock);
 	pthread_mutexattr_destroy(&mMutexAttr);
 #ifdef AAMP_HLS_DRM
 	aesCtrAttrDataList.clear();
@@ -1602,6 +1609,28 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	IARM_Bus_RemoveEventHandler("NET_SRV_MGR", IARM_BUS_NETWORK_MANAGER_EVENT_INTERFACE_IPADDRESS, getActiveInterfaceEventHandler);
 #endif //IARM_MGR
 	SAFE_DELETE(mEventManager);
+}
+
+/**
+* @brief wait for Discontinuity handling complete
+*/
+void PrivateInstanceAAMP::WaitForDiscontinuityProcessToComplete(void)
+{
+	pthread_mutex_lock(&mDiscoCompleteLock);
+	pthread_cond_wait(&mWaitForDiscoToComplete, &mDiscoCompleteLock);
+	pthread_mutex_unlock(&mDiscoCompleteLock);
+}
+
+/**
+* @brief unblock wait for Discontinuity handling complete
+*/
+void PrivateInstanceAAMP::UnblockWaitForDiscontinuityProcessToComplete(void)
+{
+	mIsPeriodChangeMarked = false;
+
+	pthread_mutex_lock(&mDiscoCompleteLock);
+	pthread_cond_signal(&mWaitForDiscoToComplete);
+	pthread_mutex_unlock(&mDiscoCompleteLock);
 }
 
 /**
@@ -2394,6 +2423,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 	{
 		SyncEnd();
 		AAMPLOG_WARN("PrivateInstanceAAMP: Discontinuity Tune Operation already in progress");
+		UnblockWaitForDiscontinuityProcessToComplete();
 		return ret; // true so that PrivateInstanceAAMP_ProcessDiscontinuity can cleanup properly
 	}
 	SyncEnd();
@@ -2401,6 +2431,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 	if (!(DiscontinuitySeenInAllTracks()))
 	{
 		AAMPLOG_ERR("PrivateInstanceAAMP: Discontinuity status of video - (%d), audio - (%d) and aux - (%d)", mProcessingDiscontinuity[eMEDIATYPE_VIDEO], mProcessingDiscontinuity[eMEDIATYPE_AUDIO], mProcessingDiscontinuity[eMEDIATYPE_AUX_AUDIO]);
+		UnblockWaitForDiscontinuityProcessToComplete();
 		return ret; // true so that PrivateInstanceAAMP_ProcessDiscontinuity can cleanup properly
 	}
 
@@ -2500,6 +2531,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		SyncEnd();
 	}
 
+	UnblockWaitForDiscontinuityProcessToComplete();
 	return ret;
 }
 
@@ -4278,6 +4310,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 
 	//reset discontinuity related flags
 	ResetDiscontinuityInTracks();
+	UnblockWaitForDiscontinuityProcessToComplete();
 	ResetTrackDiscontinuityIgnoredStatus();
 	pthread_mutex_unlock(&mLock);
 
@@ -6374,6 +6407,8 @@ void PrivateInstanceAAMP::Stop()
 	}
 
 	DisableDownloads();
+	UnblockWaitForDiscontinuityProcessToComplete();
+
 	// Stopping the playback, release all DRM context
 	if (mpStreamAbstractionAAMP)
 	{
