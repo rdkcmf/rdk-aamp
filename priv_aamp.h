@@ -853,6 +853,9 @@ public:
 	bool mbUsingExternalPlayer; /**<Playback using external players eg:OTA, HDMIIN,Composite*/
 	int32_t lastId3DataLen[eMEDIATYPE_DEFAULT]; // last sent ID3 data length
 	uint8_t *lastId3Data[eMEDIATYPE_DEFAULT]; // ptr with last sent ID3 data
+        
+        bool mbDetached;
+	bool mbSeeked; /**< Flag to inidicate play after seek */
 
 	double mNextPeriodDuration; /**< Keep Next Period duration  */
 	double mNextPeriodStartTime; /**< Keep Next Period Start Time  */

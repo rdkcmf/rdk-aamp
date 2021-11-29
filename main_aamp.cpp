@@ -547,7 +547,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
 			return;
 		}
-		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (AAMP_RATE_PAUSE != rate) && !aamp->mbDetached)
+		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (AAMP_RATE_PAUSE != rate) && (aamp->mbSeeked || !aamp->mbDetached))
 		{
 			AAMPLOG_WARN("PLAYER[%d] Player %s=>%s.", aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
 			aamp->mbPlayEnabled = true;
@@ -559,6 +559,7 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 				aamp->mpStreamAbstractionAAMP->StartInjection();
 				aamp->mStreamSink->Stream();
 				aamp->pipeline_paused = false;
+				aamp->mbSeeked = false;
 				return;
 			}
 		}
@@ -691,6 +692,11 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		}
 		else
 		{
+			//Enable playback if setRate call after detach
+			if(aamp->mbDetached){ 
+				aamp->mbPlayEnabled = true;
+			}
+
 			TuneType tuneTypePlay = eTUNETYPE_SEEK;
 			if(aamp->mJumpToLiveFromPause)
 			{
@@ -918,6 +924,9 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 				aamp->NotifySpeedChanged(aamp->rate, false);
 			}
 		}
+
+		/**Set the flag true to indicate seeked **/
+		aamp->mbSeeked = true;
 	}
 }
 
