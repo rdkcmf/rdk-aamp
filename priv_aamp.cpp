@@ -1492,6 +1492,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mbEnableSegmentTemplateHandling(false)
 	, mbIgnoreStopPosProcessing(false)
 	, mIsFakeTune(false)
+	, mbSeeked(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -5752,7 +5753,7 @@ void PrivateInstanceAAMP::detach()
 		}
 #endif
 		mStreamSink->Stop(true);
-		//mbPlayEnabled = false;
+		mbPlayEnabled = false;
 		mbDetached=true;
 		mPlayerPreBuffered  = false;
 		//EnableDownloads();// enable downloads

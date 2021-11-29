@@ -867,6 +867,7 @@ public:
 	std::string seiTimecode; /**< SEI Timestamp information from Westeros */
         
         bool mbDetached;
+		bool mbSeeked; /**< Flag to inidicate play after seek */
 
 	double mNextPeriodDuration; /**< Keep Next Period duration  */
 	double mNextPeriodStartTime; /**< Keep Next Period Start Time  */
