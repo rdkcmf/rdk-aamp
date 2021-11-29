@@ -1,0 +1,27 @@
+<html>
+   <head>
+      <title>Auto Triage Tool</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <link rel="stylesheet" href="autoTriageStyle.css">
+      <script src="parseUtils.js"></script>
+      <script src="autoTriageScript.js"></script>
+   </head>
+   <body>
+      <div id="navbar" class="triage-tool-bar">
+         <a id="triageTool"><b>AUTO TRIAGE TOOL</b></a>
+         <label id="fileUpload" for="files">1. Upload</label>
+         <input type="file" name="files" multiple id="files" />
+         <button id="indexButton">2. Index</button>
+         <nobr class="check-box-name">3. Session:</nobr> 
+         <select name="session" id="session" class="session-drop-down">
+         </select>
+         <input id="timeminus" type="button" value="←"/>
+         <input id="timeplus" type="button" value="→"/>
+         <nobr id="durationID" class="check-box-name"></nobr>
+         <input type="text" id="jumpPosition" name="jumpPosition" placeholder="time(MM:SS) or GMT">
+         <button id="jumpButton">JUMP </button>
+         <button id="jumpHelpButton">? </button> 
+      </div>
+	  <canvas id="myCanvas" style="overflow: scroll;"></canvas>
+   </body>
+</html>
