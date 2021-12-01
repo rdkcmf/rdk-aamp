@@ -26,9 +26,8 @@
 #define __AAMP_SECMANAGER_H__
 
 #include <mutex>
-#include "priv_aamp.h"
 #include "ThunderAccess.h"
-
+#include "priv_aamp.h"
 
 #define SECMANAGER_CALL_SIGN "org.rdk.SecManager.1"
 #define WATERMARK_PLUGIN_CALLSIGN "org.rdk.Watermark.1"
