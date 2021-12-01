@@ -307,6 +307,38 @@ public:
 				}
 				//CID:101284 - To resolve the deadcode
 			}
+			else
+			{
+				if(actualType == eMEDIATYPE_INIT_VIDEO || actualType == eMEDIATYPE_INIT_AUDIO)
+				{
+					IsoBmffBuffer buffer;
+				    buffer.setBuffer((uint8_t *)cachedFragment->fragment.ptr, cachedFragment->fragment.len);
+					buffer.parseBuffer();
+					uint32_t track_id = 0;
+					buffer.getTrack_id(track_id);
+					
+					if(actualType == eMEDIATYPE_INIT_VIDEO)
+					{
+						AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Video track_id: %d ", __FUNCTION__, __LINE__, track_id);
+						if(aamp->mCurrentVideoTrackId != -1 && track_id != aamp->mCurrentVideoTrackId)
+						{
+							aamp->mIsTrackIdMismatch = true;
+							AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d TrackId mismatch detected for video", __FUNCTION__, __LINE__);
+						}
+						aamp->mCurrentVideoTrackId = track_id;
+					}
+					else
+					{
+						AAMPLOG_INFO("PrivateInstanceAAMP::%s:%d Audio track_id: %d ", __FUNCTION__, __LINE__, track_id);
+						if(aamp->mCurrentAudioTrackId != -1 && track_id != aamp->mCurrentAudioTrackId)
+						{
+							aamp->mIsTrackIdMismatch = true;
+							AAMPLOG_WARN("PrivateInstanceAAMP::%s:%d TrackId mismatch detected for audio", __FUNCTION__, __LINE__);
+						}
+						aamp->mCurrentAudioTrackId = track_id;
+					}
+				}
+			}
 
 			//update videoend info
 			aamp->UpdateVideoEndMetrics( actualType,

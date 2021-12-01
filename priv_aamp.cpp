@@ -1216,6 +1216,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mIsFakeTune(false)
 	, contentGaps()
 	, lockId3Data()
+	, mCurrentAudioTrackId(-1)
+	, mCurrentVideoTrackId(-1)
+	, mIsTrackIdMismatch(false)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -2347,10 +2350,11 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 				mAuxFormat,
 				mpStreamAbstractionAAMP->GetESChangeStatus(),
 				mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus(),
-				true /*setReadyAfterPipelineCreation*/);
+				mIsTrackIdMismatch /*setReadyAfterPipelineCreation*/);
 			mpStreamAbstractionAAMP->ResetESChangeStatus();
 			mpStreamAbstractionAAMP->StartInjection();
 			mStreamSink->Stream();
+			mIsTrackIdMismatch = false;			
 		}
 		else
 		{
@@ -4705,6 +4709,9 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mPersistedProfileIndex	=	-1;
 	mServiceZone.clear(); //clear the value if present
 	mIsIframeTrackPresent = false;
+	mIsTrackIdMismatch = false;
+	mCurrentAudioTrackId = -1;
+	mCurrentVideoTrackId = -1;
 	mCurrentDrm = nullptr;
 	SETCONFIGVALUE_PRIV(AAMP_STREAM_SETTING, eAAMPConfig_InterruptHandling, (mTSBEnabled && strcasestr(mainManifestUrl, "networkInterruption=true")));
 	if(!ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling))

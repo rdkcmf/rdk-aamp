@@ -186,8 +186,8 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, bool correctBoxSize)
 		return GenericContainerBox::constructContainer(size, MOOV, hdr);
 	}
 	else if (IS_TYPE(type, TRAK))
-	{
-		return GenericContainerBox::constructContainer(size, TRAK, hdr);
+	{		
+		return TrakBox::constructTrakBox(size,hdr);
 	}
 	else if (IS_TYPE(type, MDIA))
 	{
@@ -856,4 +856,43 @@ EmsgBox* EmsgBox::constructEmsgBox(uint32_t sz, uint8_t *ptr)
 		}
 	}
 	return retBox;
+}
+
+/**
+ * @brief Static function to construct a trak object
+ *
+ * @param[in] sz - box size
+ * @param[in] ptr - pointer to box
+ * @return newly constructed Trak box object
+ */
+TrakBox* TrakBox::constructTrakBox(uint32_t sz, uint8_t *ptr)
+{
+	TrakBox *cbox = new TrakBox(sz);
+	uint32_t curOffset = sizeof(uint32_t) + sizeof(uint32_t); //Sizes of size & type fields
+	while (curOffset < sz)
+	{
+		Box *box = Box::constructBox(ptr, sz-curOffset);
+		box->setOffset(curOffset);
+		if(IS_TYPE(box->getType(),TKHD))
+		{
+			uint8_t *tkhd_start = ptr;
+			uint32_t skip = sizeof(uint32_t) * 2 + 3; //Sizes of size, type fields and size of flags
+			uint8_t version = READ_VERSION(ptr);
+			if( true ) //version == 1 ) need to recheck
+			{
+				skip += sizeof(uint64_t)*2; //CreationTime + ModificationTime				
+			}
+			else
+			{
+				skip += sizeof(uint32_t)*2; //CreationTime + ModificationTime
+			}
+			ptr += skip;
+			cbox->track_id = READ_U32(ptr);
+			ptr = tkhd_start;
+		}
+		cbox->addChildren(box);
+		curOffset += box->getSize();
+		ptr += box->getSize();
+	}
+	return cbox;
 }

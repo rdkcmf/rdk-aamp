@@ -292,7 +292,7 @@ AAMPGstPlayer::AAMPGstPlayer(PrivateInstanceAAMP *aamp
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
         , std::function< void(uint8_t *, int, int, int) > exportFrames
 #endif
-	) : aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock()
+	) : aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock(), PipelineSetToReady(false)
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 	, cbExportYUVFrame(NULL)
 #endif
@@ -1427,8 +1427,9 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #endif
 		}
 
-		if (old_state == GST_STATE_NULL && new_state == GST_STATE_READY)
+		if ((old_state == GST_STATE_NULL && new_state == GST_STATE_READY) || (new_state == GST_STATE_READY && old_state == GST_STATE_PAUSED && _this->PipelineSetToReady))
 		{
+			_this->PipelineSetToReady = false;
 #ifndef INTELCE
 			if ((NULL != msg->src) && AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this))
 			{
@@ -2496,9 +2497,17 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		CreatePipeline();
 	}
 
-	if (setReadyAfterPipelineCreation && gst_element_set_state(this->privateContext->pipeline, GST_STATE_READY) == GST_STATE_CHANGE_FAILURE)
+	if (setReadyAfterPipelineCreation)
 	{
-		logprintf("AAMPGstPlayer_Configure GST_STATE_READY failed");
+		if(gst_element_set_state(this->privateContext->pipeline, GST_STATE_READY) == GST_STATE_CHANGE_FAILURE)
+		{
+			logprintf("AAMPGstPlayer_Configure GST_STATE_READY failed");
+		}
+		else
+		{
+			AAMPLOG_INFO("AAMPGstPlayer::%s %d forcefully set pipeline to ready state due to track_id change", __FUNCTION__, __LINE__);
+			PipelineSetToReady = true;
+		}
 	}
 
 	bool configureStream[AAMP_TRACK_COUNT];

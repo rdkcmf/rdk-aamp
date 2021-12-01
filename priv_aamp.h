@@ -524,6 +524,9 @@ class PrivateInstanceAAMP : public AampDrmCallbacks, public std::enable_shared_f
 	#define AAMP2ReceiverMsgHdrSz (sizeof(AAMP2ReceiverMsg)-1)
 
 public:
+	int mCurrentAudioTrackId;
+	int mCurrentVideoTrackId;
+	bool mIsTrackIdMismatch;
 	/**
 	 * @brief Get profiler bucket type
 	 *

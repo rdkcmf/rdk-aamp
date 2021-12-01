@@ -48,6 +48,7 @@ private:
 	 * @return true if parse was successful. false otherwise
 	 */
 	bool getFirstPTSInternal(const std::vector<Box*> *boxes, uint64_t &pts);
+	bool getTrackIdInternal (const std::vector<Box*> *boxes, uint32_t &track_id);
 
 	/**
 	 * @brief Get TimeScale value of buffer
@@ -120,6 +121,14 @@ public:
 	 * @return true if parse was successful. false otherwise
 	 */
 	bool getFirstPTS(uint64_t &pts);
+	
+	/**
+	 * @brief Get first PTS of buffer
+	 *
+	 * @param[out] pts - pts value
+	 * @return true if parse was successful. false otherwise
+	 */
+	bool getTrack_id(uint32_t &track_id);
 
 	/**
 	 * @brief Get TimeScale value of buffer

@@ -76,7 +76,7 @@ public:
 	void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len, MediaType type);
 	void ClearProtectionEvent();
 	void StopBuffering(bool forceStop);
-
+	bool PipelineSetToReady;
 
 	struct AAMPGstPlayerPriv *privateContext;
 	AAMPGstPlayer(PrivateInstanceAAMP *aamp

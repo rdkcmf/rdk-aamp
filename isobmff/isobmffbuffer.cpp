@@ -202,6 +202,37 @@ bool IsoBmffBuffer::getFirstPTSInternal(const std::vector<Box*> *boxes, uint64_t
 }
 
 /**
+ * @brief Get track_id of the stream by traversing the boxes recursively
+ *
+ * @param[in] boxes - ISOBMFF boxes
+ * @param[out] track_id - trak_id value
+ * @return true if parse was successful. false otherwise
+ */
+bool IsoBmffBuffer::getTrackIdInternal(const std::vector<Box*> *boxes, uint32_t &track_id)
+{
+	bool ret = false;
+	for (size_t i = 0; (false == ret) && i < boxes->size(); i++)
+	{
+		Box *box = boxes->at(i);
+		if (IS_TYPE(box->getType(), Box::TRAK))
+		{
+			try {
+				track_id = dynamic_cast<TrakBox *>(box)->getTrack_Id();
+				ret = true;
+				break;
+			} catch (std::bad_cast& bc){
+				//do nothing
+			}			
+		}
+		if (box->hasChildren())
+		{
+			ret = getTrackIdInternal(box->getChildren(), track_id);
+		}
+	}
+	return ret;
+}
+
+/**
  * @brief Get first PTS of buffer
  *
  * @param[out] pts - pts value
@@ -211,6 +242,18 @@ bool IsoBmffBuffer::getFirstPTS(uint64_t &pts)
 {
 	return getFirstPTSInternal(&boxes, pts);
 }
+
+/**
+ * @brief Get track_d iof the stream
+ *
+ * @param[out] track_id - track id
+ * @return true if parse was successful. false otherwise
+ */
+bool IsoBmffBuffer::getTrack_id(uint32_t &track_id)
+{
+	return getTrackIdInternal(&boxes, track_id);
+}
+
 
 /**
  * @brief Get TimeScale value of buffer
