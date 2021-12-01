@@ -25,6 +25,7 @@
 
 #include "aampgstplayer.h"
 #include "AampUtils.h"
+#include "isobmffbuffer.h"
 #include "AampGstUtils.h"
 #include <gst/gst.h>
 #include <gst/app/gstappsrc.h>
@@ -114,10 +115,12 @@ struct media_stream
 	bool eosReached;
 	bool sourceConfigured;
 	pthread_mutex_t sourceLock;
+	uint32_t timeScale;
 
 	media_stream() : sinkbin(NULL), source(NULL), format(FORMAT_INVALID),
 			 using_playersinkbin(FALSE), flush(false), resetPosition(false),
 			 bufferUnderrun(false), eosReached(false), sourceConfigured(false), sourceLock(PTHREAD_MUTEX_INITIALIZER)
+			, timeScale(1)
 	{
 
 	}
@@ -1028,6 +1031,7 @@ static gboolean buffering_timeout (gpointer data)
 			if (_this->privateContext->video_dec)
 			{
 				g_object_get(_this->privateContext->video_dec,"queued_frames",&frames,NULL);
+				AAMPLOG_TRACE("%s %d queued_frames: %i", __FUNCTION__, __LINE__, frames);
 			}
 			MediaFormat mediaFormatRet;
 			mediaFormatRet = _this->aamp->GetMediaFormatTypeEnum();
@@ -1540,6 +1544,29 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				g_object_set_property(G_OBJECT(msg->src), "aamp",&val);
 			}
 		}
+
+#ifndef __APPLE__
+		if (old_state == GST_STATE_READY && new_state == GST_STATE_PAUSED &&
+		!_this->aamp->IsLive() && _this->aamp->mConfig->IsConfigSet(eAAMPConfig_EnableSegmentTempateHandling))
+		{
+			GstState current, pending;
+			GstStateChangeReturn ret;
+			ret = gst_element_get_state(_this->privateContext->pipeline, &current, &pending, 100 * GST_MSECOND);
+			if(GST_STATE_PAUSED == current && !_this->aamp->mbPipelineFlushed)
+			{
+				if (!gst_element_seek(_this->privateContext->pipeline, _this->aamp->rate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
+					_this->aamp->GetFirstPTS() * GST_SECOND,
+					GST_SEEK_TYPE_SET,
+					((_this->aamp->GetPeriodDurationTimeValue()/1000.0) * GST_SECOND +  _this->aamp->GetFirstPTS() * GST_SECOND)))
+				{
+					AAMPLOG_WARN("gst_element_seek failed");
+				}
+				AAMPLOG_WARN("gst_element_seek called position: %f", _this->aamp->GetFirstPTS());
+				_this->aamp->mbPipelineFlushed = true;
+			}
+		}
+#endif
+
 		break;
 #ifdef USE_GST1
 	case GST_MESSAGE_NEED_CONTEXT:
@@ -2268,7 +2295,7 @@ uint32_t getId3TagSize(const uint8_t *data)
  * @param[in] fDuration duration of buffer (in sec)
  * @param[in] copy to map or transfer the buffer
  */
-bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration, bool copy)
+bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration, bool copy, bool initFragment)
 {
 	GstClockTime pts = (GstClockTime)(fpts * GST_SECOND);
 	GstClockTime dts = (GstClockTime)(fdts * GST_SECOND);
@@ -2276,6 +2303,33 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 	gboolean discontinuity = FALSE;
 	media_stream *stream = &privateContext->stream[mediaType];
 	bool isFirstBuffer = stream->resetPosition;
+
+	if(ptr && stream->format == FORMAT_ISO_BMFF && !aamp->IsLive() && ISCONFIGSET(eAAMPConfig_EnableSegmentTempateHandling))
+	{
+		IsoBmffBuffer buffer;
+		buffer.setBuffer((uint8_t *)ptr ,len);
+		buffer.parseBuffer();
+		uint64_t first_pts = 0;
+		buffer.getFirstPTS(first_pts);
+		if(initFragment)
+		{
+			buffer.getTimeScale(stream->timeScale);
+		}
+
+		AAMPLOG_INFO("%s:%d Type[%d] initFragment[%d] first_pts: %" PRIu64 " timeScale: %" PRIu32, __FUNCTION__, __LINE__, (int)mediaType, initFragment, (uint64_t)pts, stream->timeScale);
+		if(stream->timeScale)
+		{
+			double scaled_pts = (double) first_pts/stream->timeScale;
+			pts =  (GstClockTime)(scaled_pts* GST_SECOND);
+			dts =  (GstClockTime)(scaled_pts* GST_SECOND);
+		}
+		else
+		{
+			pts =  first_pts;
+			dts = first_pts;
+		}
+		buffer.destroyBoxes();
+	}
 
 	if (aamp->GetEventListenerStatus(AAMP_EVENT_ID3_METADATA) &&
 		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
@@ -2313,6 +2367,8 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 
 	if (isFirstBuffer)
 	{
+		AAMPLOG_INFO("AAMPGstPlayer %s: Send Segment Event for for mediaType[%d] First Buffer pts: %" PRIu64 " stop_pts: %" PRIu64,__FUNCTION__, mediaType, pts);
+
 		AAMPGstPlayer_SendPendingEvents(aamp, privateContext, mediaType, pts);
 
 		if (mediaType == eMEDIATYPE_AUDIO && ForwardAudioBuffersToAux())
@@ -2321,6 +2377,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 		}
 
 		discontinuity = TRUE;
+		AAMPLOG_INFO("AAMPGstPlayer %s: mediaType[%d] First Buffer Processed !!!", __FUNCTION__, mediaType);
 	}
 	if( aamp->DownloadsAreEnabled())
 	{
@@ -2340,6 +2397,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 				GST_BUFFER_PTS(buffer) = pts;
 				GST_BUFFER_DTS(buffer) = dts;
 				GST_BUFFER_DURATION(buffer) = duration;
+				AAMPLOG_TRACE("Sending segment for mediaType[%d]. pts %" G_GUINT64_FORMAT " dts %" G_GUINT64_FORMAT" ", mediaType, pts, dts);
 			}
 			else
 			{
@@ -2355,6 +2413,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 				GST_BUFFER_PTS(buffer) = pts;
 				GST_BUFFER_DTS(buffer) = dts;
 				GST_BUFFER_DURATION(buffer) = duration;
+				AAMPLOG_TRACE("Sending segment for mediaType[%d]. pts %" G_GUINT64_FORMAT " dts %" G_GUINT64_FORMAT" ", mediaType, pts, dts);
 			}
 			else
 			{
@@ -2432,9 +2491,9 @@ void AAMPGstPlayer::SendCopy(MediaType mediaType, const void *ptr, size_t len0, 
  * @param[in] fdts DTS of buffer (in sec)
  * @param[in] fDuration duration of buffer (in sec)
  */
-void AAMPGstPlayer::SendTransfer(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration)
+void AAMPGstPlayer::SendTransfer(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration, bool initFragment)
 {
-	if( !SendHelper( mediaType, pBuffer->ptr, pBuffer->len, fpts, fdts, fDuration, false /*transfer*/ ) )
+	if( !SendHelper( mediaType, pBuffer->ptr, pBuffer->len, fpts, fdts, fDuration, false /*transfer*/, initFragment) )
 	{ // unable to transfer - free up the buffer we were passed.
 		aamp_Free(pBuffer);
 	}
@@ -3475,10 +3534,31 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		{
 			playRate = rate;
 		}
-		if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
-				position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
+
+		if(aamp->IsLive() || !ISCONFIGSET(eAAMPConfig_EnableSegmentTempateHandling))
 		{
-			logprintf("Seek failed");
+			if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
+			position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
+			{
+				AAMPLOG_WARN("Seek failed");
+			}
+		}
+		else
+		{
+			double duration = aamp->GetPeriodDurationTimeValue()/1000.0;
+			double seekEnd = position + duration;
+			if(aamp->mbEnableFirstPtsSeekPosOverride)
+			{
+				position = aamp->seek_pos_seconds;
+			}
+			AAMPLOG_INFO("%s %d: ====> FLUSH START: %f END: %f",__FUNCTION__,__LINE__,position,duration);
+			if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
+			position * GST_SECOND,
+			GST_SEEK_TYPE_SET,
+			seekEnd * GST_SECOND))
+			{
+				AAMPLOG_WARN("Seek failed");
+			}
 		}
 
 		if (bPauseNeeded)

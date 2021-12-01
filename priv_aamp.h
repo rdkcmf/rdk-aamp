@@ -717,6 +717,7 @@ public:
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
 	int rate; // most recent (non-zero) play rate for non-paused content
 	bool pipeline_paused; // true if pipeline is paused
+	bool mbPipelineFlushed;
 	
 	char mLanguageList[MAX_LANGUAGE_COUNT][MAX_LANGUAGE_TAG_LENGTH]; // list of languages in stream
 	int mCurrentLanguageIndex; // Index of current selected lang in mLanguageList, this is used for VideoStat event data collection
@@ -810,6 +811,9 @@ public:
 	std::mutex lockId3Data;// guard for lastId3Data
 
 	bool mIsFakeTune;
+
+	double mNextPeriodDuration; /**< Keep Next Period duration  */
+	bool mbEnableFirstPtsSeekPosOverride; /**< Enable MidSegmentHandling  */
 
 	/**
 	 * @brief Check if segment starts with an ID3 section
@@ -1285,7 +1289,7 @@ public:
 	 *   @param[in]  fDuration - Buffer duration.
 	 *   @return void
 	 */
-	void SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration);
+	void SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration, bool initFragment = 0);
 
 	/**
 	 * @brief Setting the stream sink
@@ -3145,6 +3149,12 @@ public:
 	 *   @return std::string auxiliary audio language
 	 */
 	std::string GetAuxiliaryAudioLanguage() { return mAuxAudioLanguage; }
+
+    /**
+	*     @brief GetPeriodDurationTimeValue
+	*     @return double
+	*/
+	double GetPeriodDurationTimeValue(void);
 
 private:
 

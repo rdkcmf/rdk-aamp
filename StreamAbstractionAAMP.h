@@ -92,6 +92,7 @@ struct CachedFragment
 	GrowableBuffer fragment;    /**< Buffer to keep fragment content */
 	double position;            /**< Position in the playlist */
 	double duration;            /**< Fragment duration */
+	bool initFragment;	        /**< Is init frgment */
 	bool discontinuity;         /**< PTS discontinuity status */
 	int profileIndex;           /**< Profile index; Updated internally */
 #ifdef AAMP_DEBUG_INJECT

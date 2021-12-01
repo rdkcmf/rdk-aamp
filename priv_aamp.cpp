@@ -1219,6 +1219,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mCurrentAudioTrackId(-1)
 	, mCurrentVideoTrackId(-1)
 	, mIsTrackIdMismatch(false)
+	, mbPipelineFlushed(false)
+	, mNextPeriodDuration(0)
+	, mbEnableFirstPtsSeekPosOverride(false)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -4433,7 +4436,16 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 				mStreamSink->Flush(0, rate);
 			}
 			*/
-			mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+			if(mbEnableFirstPtsSeekPosOverride)
+			{
+				AAMPLOG_INFO("%s: seek_pos_seconds %f updatedSeekPosition :%f", __FUNCTION__, seek_pos_seconds,updatedSeekPosition);
+				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate, false);
+				mbEnableFirstPtsSeekPosOverride = false;
+			}
+			else
+			{
+				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+			}
 		}
 		else if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
 		{
@@ -5985,10 +5997,10 @@ void PrivateInstanceAAMP::SendStreamCopy(MediaType mediaType, const void *ptr, s
  * @param fdts dts in seconds
  * @param fDuration duration of buffer
  */
-void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration)
+void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration, bool initFragment)
 {
 	profiler.ProfilePerformed(PROFILE_BUCKET_FIRST_BUFFER);
-	mStreamSink->SendTransfer(mediaType, buffer, fpts, fdts, fDuration);
+	mStreamSink->SendTransfer(mediaType, buffer, fpts, fdts, fDuration, initFragment);
 }
 
 /**
@@ -9509,4 +9521,13 @@ void PrivateInstanceAAMP::FlushLastId3Data()
 		g_free(lastId3Data);
 		lastId3Data = NULL;
 	}
+}
+
+/**
+ *     @brief GetPeriodDurationTimeValue
+ *     @return double
+ */
+double PrivateInstanceAAMP::GetPeriodDurationTimeValue(void)
+{
+        return mNextPeriodDuration;
 }

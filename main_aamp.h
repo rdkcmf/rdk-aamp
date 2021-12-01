@@ -285,7 +285,7 @@ public:
 	 *   @param[in]  duration - Buffer duration.
 	 *   @return void
 	 */
-	virtual void SendTransfer( MediaType mediaType, struct GrowableBuffer* buffer, double fpts, double fdts, double duration)= 0;
+	virtual void SendTransfer( MediaType mediaType, struct GrowableBuffer* buffer, double fpts, double fdts, double duration, bool initFragment = false)= 0;
 
 	/**
 	 *   @brief  Notifies EOS to sink

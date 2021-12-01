@@ -207,6 +207,7 @@ public:
 			adaptationSetId(0), fragmentDescriptor(), context(ctx), initialization(""),
 			mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true),
 			downloadedDuration(0)
+			, scaledPTO(0)
 	{
 		memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
 		fragmentDescriptor.bUseMatchingBaseUrl = ISCONFIGSET(eAAMPConfig_MatchBaseUrl);
@@ -250,7 +251,7 @@ public:
 	{
 		aamp->ProcessID3Metadata(cachedFragment->fragment.ptr, cachedFragment->fragment.len, (MediaType) type, timeStampOffset);
 		aamp->SendStreamTransfer((MediaType)type, &cachedFragment->fragment,
-					cachedFragment->position, cachedFragment->position, cachedFragment->duration);
+					cachedFragment->position, cachedFragment->position, cachedFragment->duration, cachedFragment->initFragment);
 		fragmentDiscarded = false;
 	} // InjectFragmentInternal
 
@@ -278,6 +279,8 @@ public:
 		long bitrate = 0;
 		double downloadTime = 0;
 		MediaType actualType = (MediaType)(initSegment?(eMEDIATYPE_INIT_VIDEO+mediaType):mediaType); //Need to revisit the logic
+
+		cachedFragment->initFragment = initSegment;
 
 		if(!initSegment && mDownloadedFragment.ptr)
 		{
@@ -580,6 +583,7 @@ public:
 	std::string initialization;
 	uint32_t adaptationSetId;
 	bool mSkipSegmentOnError;
+	double scaledPTO;
 }; // MediaStreamContext
 
 /**
@@ -1870,7 +1874,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						 *  mPeriodStartTime and currentTime
 			 */
 			double fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration;
-			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentTime > (mPeriodStartTime + mPeriodDuration/1000)))
+			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentTime >= (mPeriodStartTime + mPeriodDuration/1000)))
 							|| (rate < 0 )))
 					|| (mIsLiveStream && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
 							|| (pMediaStreamContext->fragmentDescriptor.Time < mPeriodStartTime))))  //CID:93022 - No effect
@@ -1903,6 +1907,15 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				{
 					pMediaStreamContext->fragmentDescriptor.Number = pMediaStreamContext->lastSegmentNumber;
 				}
+
+				if ((!mIsLiveStream && ((mPeriodEndTime && ((pMediaStreamContext->fragmentTime + fragmentDuration) > (mPeriodStartTime + mPeriodDuration/1000)))))
+				|| (mIsLiveStream && (((pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration) > mPeriodEndTime)
+				|| (pMediaStreamContext->fragmentDescriptor.Time < mPeriodStartTime))))  //CID:93022 - No effect
+				{
+					fragmentDuration = (mPeriodStartTime + mPeriodDuration/1000) - pMediaStreamContext->fragmentDescriptor.Time;
+					AAMPLOG_INFO("%s:%d Type[%d] EOS on mid fragment. pMediaStreamContext->lastSegmentNumber %" PRIu64 " fragmentDescriptor.Time=%f mPeriodEndTime=%f mPeriodStartTime %f  currentTimeSeconds %f FTime=%f fDur=%f",__FUNCTION__, __LINE__, pMediaStreamContext->type, pMediaStreamContext->lastSegmentNumber, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime, fragmentDuration);
+				}
+
 				retval = FetchFragment(pMediaStreamContext, media, fragmentDuration, false, curlInstance);
 				double positionInPeriod = 0;
 				positionInPeriod = (pMediaStreamContext->lastSegmentNumber - startNumber) * fragmentDuration;
@@ -1946,6 +1959,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					pMediaStreamContext->fragmentDescriptor.Time -= fragmentDuration;
 				}
 				pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
+				AAMPLOG_TRACE("%s %d: Type[%d] Printing fragmentDescriptor.Number %" PRIu64 " Time=%f  ", __FUNCTION__, __LINE__, pMediaStreamContext->type, pMediaStreamContext->lastSegmentNumber, pMediaStreamContext->fragmentDescriptor.Time);
 			}
 		}
 	}
@@ -2445,7 +2459,7 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					{
 						uint64_t number = (skipTime / segmentDuration) + 1; // Number is 1-based index
 						double fragmentTimeFromNumber = ceil((segmentDuration * (number - 1)) * 1000.0) / 1000.0;
-						pMediaStreamContext->fragmentDescriptor.Number += number;
+						pMediaStreamContext->fragmentDescriptor.Number += (number - 1);
 						pMediaStreamContext->fragmentTime = fragmentTimeFromNumber;
 						pMediaStreamContext->fragmentDescriptor.Time = fragmentTimeFromNumber;
 						pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
@@ -2893,7 +2907,7 @@ static double ParseISO8601Duration(const char *ptr)
 				ptr = temp + 1;
 			}
 			temp = strchr(ptr, 'M');
-			if (temp && ( NULL != pMptr && indexforM < indexforT ) )
+			if (temp && ( NULL != pMptr ) )
 			{
 				sscanf(ptr, "%dM", &months);
 				ptr = temp + 1;
@@ -3487,6 +3501,10 @@ double aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(IPeriod * period)
 				}
 			}
 		}
+               else
+               {
+                       AAMPLOG_TRACE("%s:%d segmentTimeline not available", __FUNCTION__, __LINE__);
+		}
 	}
 	return duration;
 }
@@ -3568,8 +3586,13 @@ double StreamAbstractionAAMP_MPD::GetPeriodStartTime(IMPD *mpd, int periodIndex)
 						durationTotal += aamp_GetPeriodDuration(mpd, periodIndex, mLastPlaylistDownloadTimeMs);
 					}
 				}
-				periodStart =  mAvailabilityStartTime + ((double)durationTotal / (double)1000);
-				AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d - MPD periodIndex %d periodStart %f", __FUNCTION__, __LINE__, periodIndex, periodStart);
+				periodStart =  ((double)durationTotal / (double)1000);
+				if(aamp->IsLiveStream() && (periodStart > 0))
+				{
+					periodStart += mAvailabilityStartTime;
+				}
+
+				AAMPLOG_INFO("StreamAbstractionAAMP_MPD: - MPD periodIndex %d periodStart %f", periodIndex, periodStart);
 			}
 		}
 	}
@@ -3710,7 +3733,11 @@ double StreamAbstractionAAMP_MPD::GetPeriodEndTime(IMPD *mpd, int periodIndex, u
 			{
 				periodStartMs = ParseISO8601Duration(startTimeStr.c_str()) + (aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(period)* 1000);
 			}
-			periodEndTime = mAvailabilityStartTime + ((double)(periodStartMs + periodDurationMs) /1000);
+			periodEndTime = ((double)(periodStartMs + periodDurationMs) /1000);
+			if(aamp->IsLiveStream())
+			{
+				periodEndTime +=  mAvailabilityStartTime;
+			}
 		}
 		AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d - MPD periodIndex:%d periodEndTime %f", __FUNCTION__, __LINE__, periodIndex, periodEndTime);
 	}
@@ -6872,13 +6899,27 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 				mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
 				mPeriodStartTime = GetPeriodStartTime(mpd, mCurrentPeriodIdx);
 				mPeriodDuration = GetPeriodDuration(mpd, mCurrentPeriodIdx);
+				aamp->mNextPeriodDuration = mPeriodDuration;
 			}
 
 			SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),pMediaStreamContext->adaptationSet->GetSegmentTemplate());
 			if( segmentTemplates.HasSegmentTemplate())
 			{
+				if(segmentTemplates.GetTimescale())
+				{
+					pMediaStreamContext->scaledPTO = (double)segmentTemplates.GetPresentationTimeOffset() / (double)segmentTemplates.GetTimescale();
+					AAMPLOG_INFO("PTO = %lld tScale : %ld", segmentTemplates.GetPresentationTimeOffset(), segmentTemplates.GetTimescale());
+				}
+
+				if(i == eMEDIATYPE_VIDEO && !aamp->IsLive())
+				{
+					mFirstPTS = pMediaStreamContext->scaledPTO;
+					AAMPLOG_INFO("StreamAbstractionAAMP_MPD: Track %d Set mFirstPTS:%lf",i,mFirstPTS);
+				}
+
+				AAMPLOG_INFO("PTO = %lld tScale : %ld", segmentTemplates.GetPresentationTimeOffset(), segmentTemplates.GetTimescale());
 				pMediaStreamContext->fragmentDescriptor.Number = segmentTemplates.GetStartNumber();
-				AAMPLOG_INFO("StreamAbstractionAAMP_MPD::%s:%d Track %d timeLineIndex %d fragmentDescriptor.Number %lu", __FUNCTION__, __LINE__, i, pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentDescriptor.Number);
+				AAMPLOG_INFO("StreamAbstractionAAMP_MPD: Track %d timeLineIndex %d fragmentDescriptor.Number %lld mFirstPTS:%lf", i, pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentDescriptor.Number, mFirstPTS);
 			}
 
 				
