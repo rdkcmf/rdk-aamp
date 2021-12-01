@@ -592,7 +592,7 @@ void AampSecManager::addWatermarkHandler(const JsonObject& parameters)
 						instance->CreateWatermark(graphicId, zIndex);
 					  }, (void *) this));
 
-		int smKey = parameters["graphicImage"].Number();
+		int smKey = parameters["graphicImageBufferKey"].Number();
 		int smSize = parameters["graphicImageSize"].Number();/*ToDo : graphicImageSize (long) long conversion*/
 		AAMPLOG_WARN("AampSecManager: graphicId : %d smKey: %d smSize: %d", graphicId, smKey, smSize);
 		ScheduleTask(AsyncTaskObj([graphicId, smKey, smSize](void *data)
