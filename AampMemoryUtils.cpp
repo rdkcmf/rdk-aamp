@@ -26,6 +26,7 @@
 #include "AampConfig.h"
 #include <assert.h>
 #include <glib.h>
+#include <errno.h>
 
 /**
  * @brief Free memory allocated by aamp_Malloc
@@ -111,3 +112,91 @@ void aamp_AppendNulTerminator(struct GrowableBuffer *buffer)
 	char zeros[2] = { 0, 0 }; // append two bytes, to distinguish between internal inserted 0x00's and a final 0x00 0x00
 	aamp_AppendBytes(buffer, zeros, 2);
 }
+
+#ifdef USE_SECMANAGER
+
+/**
+ * @brief Createa share memory and provide the key
+ * @param shmPointer Pointer to the created memory
+ * @param shmLen Length of the buffer to be created
+ * @param shmKey shared memory key
+ */
+void * aamp_CreateSharedMem( size_t shmLen, key_t & shmKey)
+{
+	void *shmPointer = NULL;
+	if( shmLen > 0)
+	{
+		for( int retryCount=0; retryCount<SHMGET_RETRY_MAX; retryCount++ )
+		{
+			// generate pseudo-random value to use as a unique key
+			shmKey = rand() + 1; // must be non-zero to allow access to non-child processes
+			
+			// allocate memory segment and identifier
+			int shmId = shmget(shmKey, shmLen,
+							   IPC_CREAT | // create new segment
+							   IPC_EXCL | // fail if already exists
+							   SHM_ACCESS_PERMISSION); // owner, group, other permissions
+			if (shmId != -1 )
+			{ // map newly allocated segment to shared memory pointer
+				shmPointer = shmat(shmId, NULL, 0 );
+				if( shmPointer != (void *)-1 )
+				{ // success!
+					AAMPLOG_WARN("%s:%d Shared memory shmId=%d ptr=%p created for the key, %u\n",
+								 __FUNCTION__, __LINE__, shmId, shmPointer, shmKey);
+				}
+				else
+				{
+					AAMPLOG_ERR("%s:%d shmat err=%d shmId=%d\n", __FUNCTION__, __LINE__, errno, shmId );
+					aamp_CleanUpSharedMem( shmPointer, shmKey, shmLen);
+					shmPointer = NULL;
+				}
+				break;
+			}
+			else
+			{
+				AAMPLOG_ERR("%s:%d shmget err=%d", __FUNCTION__, __LINE__, errno);
+			}
+		}
+	}
+	else
+	{
+		AAMPLOG_ERR("%s:%d invalid shmLen=%zu", __FUNCTION__, __LINE__, shmLen);
+	}
+	return shmPointer;
+}
+
+
+/**
+ * @brief Detatch and delete shared memory
+ * @param shmPointer Pointer to the created memory
+ * @param shmKey shared memory key
+ * @param shmLen Length of the buffer
+ */
+void aamp_CleanUpSharedMem(void* shmPointer, key_t shmKey, size_t shmLen)
+{
+	if( NULL != shmPointer && (void*)-1 != shmPointer)
+	{ // detach shared memory
+		if( -1 == shmdt(shmPointer) )
+		{
+			AAMPLOG_ERR("%s:%d shmdt failure %d for key %u \n", __FUNCTION__, __LINE__, errno, shmKey);
+		}
+		int shmId = shmget(shmKey, shmLen, SHM_ACCESS_PERMISSION);
+		if( shmId != -1 )
+		{ // mark segment to be destroyed
+			if( -1 == shmctl(shmId, IPC_RMID, NULL) )
+			{
+				AAMPLOG_ERR("%s:%d shmctl err=%d shmId=%d\n", __FUNCTION__, __LINE__, errno, shmId );
+			}
+		}
+		else
+		{
+			AAMPLOG_ERR("%s:%d  bad shmKey=%u\n", __FUNCTION__, __LINE__, shmKey);
+		}
+	}
+	else
+	{
+		AAMPLOG_ERR("%s:%d bad shmPointer=%p\n", __FUNCTION__, __LINE__, shmPointer );
+	}
+}
+
+#endif

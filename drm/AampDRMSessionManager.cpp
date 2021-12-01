@@ -619,6 +619,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 							keySystem,
 							mediaUsage,
 							secclientSessionToken,
+							challengeInfo.accessToken.length(),
 							&mSessionId,
 							&licenseResponseStr, &licenseResponseLength,
 							&statusCode, &reasonCode);

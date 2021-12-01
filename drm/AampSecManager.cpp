@@ -110,7 +110,7 @@ AampSecManager::~AampSecManager()
 bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licenseUrl, const char* moneyTraceMetdata[][2],
 					const char* accessAttributes[][2], const char* contentMetdata,
 					const char* licenseRequest, const char* keySystemId,
-					const char* mediaUsage, const char* accessToken,
+					const char* mediaUsage, const char* accessToken, size_t accessTokenLen,
 					int64_t* sessionId,
 					char** licenseResponse, size_t* licenseResponseLength,
 					int64_t* statusCode, int64_t* reasonCode)
@@ -120,7 +120,9 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 
 	bool ret = false;
 	bool rpcResult = false;
-
+	void * sharedMemPt = NULL;
+	key_t sharedMemKey = 0;
+	
 	const char* apiName = "openPlaybackSession";
 	JsonObject param;
 	JsonObject response;
@@ -146,8 +148,7 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 	param["licenseRequest"] = licenseRequest;
 	param["contentMetadata"] = contentMetdata;
 	param["mediaUsage"] = mediaUsage;
-	param["accessToken"] = accessToken;
-
+	
 	// If sessionId is present, we are trying to acquire a new license within the same session
 	if (*sessionId != -1)
 	{
@@ -160,10 +161,35 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 	param.ToString(params);
 	AAMPLOG_WARN("SecManager openPlaybackSession param: %s", params.c_str());
 #endif
-
+	
 	{
 		std::lock_guard<std::mutex> lock(mMutex);
-		rpcResult = mSecManagerObj.InvokeJSONRPC(apiName, param, response, 10000);
+		
+		sharedMemPt = aamp_CreateSharedMem(accessTokenLen, sharedMemKey);
+		if(NULL != sharedMemPt)
+		{
+			//Set shared memory with the buffer
+			if (NULL != accessToken && accessTokenLen > 0)
+			{
+				//copy buffer to shm
+				memcpy(sharedMemPt, accessToken, accessTokenLen);
+				AAMPLOG_WARN("%s:%d Access token is copied to the shared memory successfully. sharing details with SecManager Key = %d, length = %zu", __FUNCTION__, __LINE__, sharedMemKey, accessTokenLen);
+				
+				//Set json params to be used by sec manager
+				param["accessTokenBufferKey"] = sharedMemKey;
+				param["accessTokenLength"] = accessTokenLen;
+				//invoke "openPlaybackSession"
+				rpcResult = mSecManagerObj.InvokeJSONRPC(apiName, param, response, 10000);
+				//Cleanup the shared memory after sharing it with sec manager
+				aamp_CleanUpSharedMem( sharedMemPt, sharedMemKey, accessTokenLen);
+				
+				
+			}
+			else
+			{
+				AAMPLOG_WARN("%s:%d Failed to copy access token to the shared memory, open playback session is aborted", __FUNCTION__, __LINE__);
+			}
+		}
 	}
 
 	if (rpcResult)
@@ -366,7 +392,7 @@ bool AampSecManager::setPlaybackSpeedState(int64_t sessionId, int64_t playback_s
                std::lock_guard<std::mutex> lock(mMutex);
                rpcResult = mSecManagerObj.InvokeJSONRPC("setPlaybackSpeedState", param, result);
        }
-
+	   
        if (rpcResult)
        {
                if (!result["success"].Boolean())
@@ -692,7 +718,6 @@ void AampSecManager::CreateWatermark(int graphicId, int zIndex )
 	{
 		AAMPLOG_ERR("AampSecManager: thunder invocation failed!");
 	}
-
 	return;
 }
 

@@ -70,7 +70,7 @@ public:
 	bool AcquireLicense(PrivateInstanceAAMP* aamp, const char* licenseUrl, const char* moneyTraceMetdata[][2],
 						const char* accessAttributes[][2], const char* contentMetadata,
 						const char* licenseRequest, const char* keySystemId,
-						const char* mediaUsage, const char* accessToken,
+						const char* mediaUsage, const char* accessToken, size_t accessTokenLen,
 						int64_t* sessionId,
 						char** licenseResponse, size_t* licenseResponseLength,
 						int64_t* statusCode, int64_t* reasonCode);
