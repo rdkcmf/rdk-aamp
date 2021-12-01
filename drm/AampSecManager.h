@@ -129,6 +129,8 @@ private:
 	void DeleteWatermark(int graphicId);
 	void UpdateWatermark(int graphicId, int smKey, int smSize);
 	void AlwaysShowWatermarkOnTop(bool show);
+	void GetWaterMarkPalette(int sessionId, int graphicId);
+	void ModifyWatermarkPalette(int graphicId, int clutKey, int imageKey);
 
 	static AampSecManager *mInstance;  /**< singleton instance*/
 	PrivateInstanceAAMP* mAamp;        /**< Pointer to the PrivateInstanceAAMP*/
@@ -137,6 +139,7 @@ private:
 	std::mutex mMutex;		   /**<  Lock for accessing mSecManagerObj*/
 	std::list<std::string> mRegisteredEvents;
 	bool mSchedulerStarted;
+	int mCurrentGraphicId;
 };
 
 #endif /* __AAMP_SECMANAGER_H__ */
