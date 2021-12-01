@@ -244,8 +244,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"tsbInterruptHandling", eAAMPConfig_InterruptHandling, -1, -1},
 	{"disable4K" , eAAMPConfig_Disable4K, -1, -1},
 	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, -1,-1},
-	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}},
-	{"useSecManager",eAAMPConfig_UseSecManager, -1,-1}
+	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -376,7 +375,7 @@ void AampConfig::Initialize()
 #else
 	bAampCfgValue[eAAMPConfig_Disable4K].value                              =       true;
 #endif
-	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	true;
+
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_ABRCacheLife-eAAMPConfig_IntStartValue].value			=	DEFAULT_ABR_CACHE_LIFE;
