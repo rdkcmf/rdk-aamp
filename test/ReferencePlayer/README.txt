@@ -30,18 +30,17 @@ C. General setup:
             Appendix section.
 
             b.1. /opt/webfilterpatterns.conf
-            b.2. /opt/xrehtmlappswhitelist.conf
 
+         c. To get input fields rendered correctly, add the following line in /opt/SetEnv.sh
+           c.1 export RFC_WEBKIT_NICOSIA_PAINTING_THREADS=0
 
-         c. To launch reference player, use Chariot App (https://send2chariot.xreapps.net:8443/send2chariot/#/send/html)
-           c.1 Fill in X1 Device ID (from XRAY)
-           c.2 Select "Chariot XRE" for Launch Type
-           c.3 fill in URL to launch (i.e. http://localhost:50050/ReferencePlayer/index.html)
-           c.4 Specify "Default" for Browser Type
-           c.5 Select "Mute Player"
-           c.6 Select "Use Background"
-           c.7 Select "Enable Debug Mode -1"
-           c.8 Click "Send" button
+         d. To launch ReferencePlayer, use IBIS App (https://ibis.comcast.com)
+           d.1 Login to IBIS
+           d.2 Select "Manage Devices" and select Pair the device using either XRE Easy pair or using IBIS pair
+           d.3 Select "Launch HTML App" tab
+           d.4 Selct the device
+           d.5 fill in URL to launch (i.e. http://localhost:50050/ReferencePlayer/index.html) and any App name
+           d.6 Click "Launch" button
 
 D. Features
 
@@ -83,21 +82,3 @@ a. /opt/webfilterpatterns.conf
   {"scheme":"*", "block":"0"},
   {"block":"1"}
 ]}
-
-b. /opt/xrehtmlappswhitelist.conf
-{"htmlappswhitelist":
-  [
-    {
-      "name" : "About Blank Page",
-      "url" : "about:blank"
-    },
-    {
-      "name" : "Google",
-      "url" : "www.google.com"
-    },
-    {
-      "name" : "AAMP Reference Player",
-      "url" : "localhost:50050/ReferencePlayer/index.html"
-    }
-  ]
-}
