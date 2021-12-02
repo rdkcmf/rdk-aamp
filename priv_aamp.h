@@ -813,8 +813,10 @@ public:
 	bool mIsFakeTune;
 
 	double mNextPeriodDuration; /**< Keep Next Period duration  */
-	bool mbEnableFirstPtsSeekPosOverride; /**< Enable MidSegmentHandling  */
-
+	double mNextPeriodStartTime; /**< Keep Next Period Start Time  */
+	bool mbEnableFirstPtsSeekPosOverride; /**< Enable   FirstPtsSeekPosOverride */
+	bool mbEnableSegmentTemplateHandling;/**< Enable SegmentTemplate Handling  */
+	bool mbIgnoreStopPosProcessing; /**< Ignore Stop Position Processing in Segment Template handling case */
 	/**
 	 * @brief Check if segment starts with an ID3 section
 	 *
@@ -3155,6 +3157,12 @@ public:
 	*     @return double
 	*/
 	double GetPeriodDurationTimeValue(void);
+
+	/**
+	*     @brief GetPeriodStartTimeValue
+	*     @return double
+	*/
+	double GetPeriodStartTimeValue(void);
 
 private:
 

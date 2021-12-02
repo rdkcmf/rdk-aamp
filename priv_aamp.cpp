@@ -1221,7 +1221,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mIsTrackIdMismatch(false)
 	, mbPipelineFlushed(false)
 	, mNextPeriodDuration(0)
+	, mNextPeriodStartTime(0)
 	, mbEnableFirstPtsSeekPosOverride(false)
+	, mbEnableSegmentTemplateHandling(false)
+	, mbIgnoreStopPosProcessing(false)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -3996,6 +3999,12 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 #endif
 		if (!forceStop && ((!newTune && ISCONFIGSET_PRIV(eAAMPConfig_DemuxVideoHLSTrack)) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline)))
 		{
+			if(ISCONFIGSET_PRIV(eAAMPConfig_EnableSegmentTempateHandling) && mbEnableSegmentTemplateHandling)
+			{
+				//Set condition for ignore in Flush
+				mbIgnoreStopPosProcessing = true;
+			}
+
 			mStreamSink->Flush(0, rate);
 		}
 		else
@@ -9530,4 +9539,13 @@ void PrivateInstanceAAMP::FlushLastId3Data()
 double PrivateInstanceAAMP::GetPeriodDurationTimeValue(void)
 {
         return mNextPeriodDuration;
+}
+
+/**
+ *     @brief GetPeriodStartTimeValue
+ *     @return double
+ */
+double PrivateInstanceAAMP::GetPeriodStartTimeValue(void)
+{
+        return mNextPeriodStartTime;
 }

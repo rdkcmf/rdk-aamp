@@ -2316,7 +2316,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 			buffer.getTimeScale(stream->timeScale);
 		}
 
-		AAMPLOG_INFO("%s:%d Type[%d] initFragment[%d] first_pts: %" PRIu64 " timeScale: %" PRIu32, __FUNCTION__, __LINE__, (int)mediaType, initFragment, (uint64_t)pts, stream->timeScale);
+		AAMPLOG_TRACE("%s:%d Type[%d] initFragment[%d] first_pts: %" PRIu64 " timeScale: %" PRIu32, __FUNCTION__, __LINE__, (int)mediaType, initFragment, (uint64_t)pts, stream->timeScale);
 		if(stream->timeScale)
 		{
 			double scaled_pts = (double) first_pts/stream->timeScale;
@@ -2377,7 +2377,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 		}
 
 		discontinuity = TRUE;
-		AAMPLOG_INFO("AAMPGstPlayer %s: mediaType[%d] First Buffer Processed !!!", __FUNCTION__, mediaType);
+		AAMPLOG_TRACE("AAMPGstPlayer %s: mediaType[%d] First Buffer Processed !!!", __FUNCTION__, mediaType);
 	}
 	if( aamp->DownloadsAreEnabled())
 	{
@@ -3545,19 +3545,32 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		}
 		else
 		{
-			double duration = aamp->GetPeriodDurationTimeValue()/1000.0;
-			double seekEnd = position + duration;
-			if(aamp->mbEnableFirstPtsSeekPosOverride)
+			if(ISCONFIGSET(eAAMPConfig_EnableSegmentTempateHandling) && aamp->mbEnableSegmentTemplateHandling && !aamp->mbIgnoreStopPosProcessing)
 			{
-				position = aamp->seek_pos_seconds;
+				double duration = aamp->GetPeriodDurationTimeValue()/1000.0;
+				double seekEnd = position + duration;
+				if(aamp->mbEnableFirstPtsSeekPosOverride)
+				{
+					position = aamp->seek_pos_seconds - aamp->GetPeriodStartTimeValue();
+				}
+				AAMPLOG_INFO("%s %d: FLUSH START: %f END: %f duration: %f",__FUNCTION__,__LINE__,position, seekEnd, duration);
+				if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
+				position * GST_SECOND,
+				GST_SEEK_TYPE_SET,
+				seekEnd * GST_SECOND))
+				{
+					AAMPLOG_WARN("Seek failed");
+				}
 			}
-			AAMPLOG_INFO("%s %d: ====> FLUSH START: %f END: %f",__FUNCTION__,__LINE__,position,duration);
-			if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
-			position * GST_SECOND,
-			GST_SEEK_TYPE_SET,
-			seekEnd * GST_SECOND))
+			else
 			{
-				AAMPLOG_WARN("Seek failed");
+				if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
+				position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
+				{
+					AAMPLOG_WARN("Seek failed");
+				}
+				//Cleanup
+				if(aamp->mbIgnoreStopPosProcessing) mbIgnoreStopPosProcessing = false;
 			}
 		}
 
