@@ -1222,9 +1222,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mbPipelineFlushed(false)
 	, mNextPeriodDuration(0)
 	, mbEnableFirstPtsSeekPosOverride(false)
-	, mWaitForDiscoToComplete()
-	, mDiscoCompleteLock()
-	, mIsPeriodChangeMarked(false)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -1243,7 +1240,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	pthread_mutex_init(&mFragmentCachingLock, &mMutexAttr);
 	pthread_mutex_init(&mEventLock, &mMutexAttr);
 	pthread_mutex_init(&mStreamLock, &mMutexAttr);
-	pthread_mutex_init(&mDiscoCompleteLock,&mMutexAttr);
 	mCurlShared = curl_share_init();
 	curl_share_setopt(mCurlShared, CURLSHOPT_LOCKFUNC, curl_lock_callback);
 	curl_share_setopt(mCurlShared, CURLSHOPT_UNLOCKFUNC, curl_unlock_callback);
@@ -1296,8 +1292,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	mCustomHeaders["Connection:"] = std::vector<std::string> { "Keep-Alive" };
 	pthread_cond_init(&mCondDiscontinuity, NULL);
 	pthread_cond_init(&waitforplaystart, NULL);
-	pthread_mutex_init(&mMutexPlaystart, NULL);
-	pthread_cond_init(&mWaitForDiscoToComplete,NULL);
+	pthread_mutex_init(&mMutexPlaystart, NULL);	
 	preferredLanguagesList.push_back("en");
 
 #ifdef AAMP_HLS_DRM
@@ -1352,14 +1347,12 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_cond_destroy(&mDownloadsDisabled);
 	pthread_cond_destroy(&mCondDiscontinuity);
 	pthread_cond_destroy(&waitforplaystart);
-	pthread_cond_destroy(&mWaitForDiscoToComplete);
 	pthread_mutex_destroy(&mMutexPlaystart);
 	pthread_mutex_destroy(&mLock);
 	pthread_mutex_destroy(&mParallelPlaylistFetchLock);
 	pthread_mutex_destroy(&mFragmentCachingLock);
 	pthread_mutex_destroy(&mEventLock);
 	pthread_mutex_destroy(&mStreamLock);
-	pthread_mutex_destroy(&mDiscoCompleteLock);
 #ifdef AAMP_HLS_DRM
 	aesCtrAttrDataList.clear();
 	pthread_mutex_destroy(&drmParserMutex);
@@ -1384,26 +1377,6 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 #ifdef IARM_MGR
 	IARM_Bus_RemoveEventHandler("NET_SRV_MGR", IARM_BUS_NETWORK_MANAGER_EVENT_INTERFACE_IPADDRESS, getActiveInterfaceEventHandler);
 #endif //IARM_MGR
-}
-
-/**
-* @brief wait for Discontinuity handling complete
-*/
-void PrivateInstanceAAMP::WaitForDiscontinuityProcessToComplete(void)
-{
-	pthread_mutex_lock(&mDiscoCompleteLock);
-	pthread_cond_wait(&mWaitForDiscoToComplete, &mDiscoCompleteLock);
-	pthread_mutex_unlock(&mDiscoCompleteLock);
-}
-
-/**
-* @brief unblock wait for Discontinuity handling complete
-*/
-void PrivateInstanceAAMP::UnblockWaitForDiscontinuityProcessToComplete(void)
-{
-	pthread_mutex_lock(&mDiscoCompleteLock);
-	pthread_cond_signal(&mWaitForDiscoToComplete);
-	pthread_mutex_unlock(&mDiscoCompleteLock);
 }
 
 /**
@@ -2287,7 +2260,6 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 	{
 		SyncEnd();
 		logprintf("PrivateInstanceAAMP::%s:%d Discontinuity Tune Operation already in progress", __FUNCTION__, __LINE__);
-		UnblockWaitForDiscontinuityProcessToComplete();
 		return ret; // true so that PrivateInstanceAAMP_ProcessDiscontinuity can cleanup properly
 	}
 	SyncEnd();
@@ -2295,7 +2267,6 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 	if (!(DiscontinuitySeenInAllTracks()))
 	{
 		AAMPLOG_ERR("PrivateInstanceAAMP::%s:%d Discontinuity status of video - (%d), audio - (%d) and aux - (%d)", __FUNCTION__, __LINE__, mProcessingDiscontinuity[eMEDIATYPE_VIDEO], mProcessingDiscontinuity[eMEDIATYPE_AUDIO], mProcessingDiscontinuity[eMEDIATYPE_AUX_AUDIO]);
-		UnblockWaitForDiscontinuityProcessToComplete();
 		return ret; // true so that PrivateInstanceAAMP_ProcessDiscontinuity can cleanup properly
 	}
 
@@ -2314,7 +2285,6 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		lastUnderFlowTimeMs[eMEDIATYPE_VIDEO] = 0;
 		lastUnderFlowTimeMs[eMEDIATYPE_AUDIO] = 0;
 		lastUnderFlowTimeMs[eMEDIATYPE_AUX_AUDIO] = 0;
-		mIsPeriodChangeMarked = false;
 
 		{
 			double newPosition = GetPositionMilliseconds() / 1000.0;
@@ -2403,7 +2373,6 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		SyncEnd();
 	}
 
-	UnblockWaitForDiscontinuityProcessToComplete();
 	return ret;
 }
 
@@ -3991,7 +3960,6 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 
 	//reset discontinuity related flags
 	ResetDiscontinuityInTracks();
-	mIsPeriodChangeMarked = false;
 	ResetTrackDiscontinuityIgnoredStatus();
 	pthread_mutex_unlock(&mLock);
 
