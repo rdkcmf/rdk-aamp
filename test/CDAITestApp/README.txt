@@ -23,13 +23,15 @@ C. General setup:
             Appendix section.
 
             b.1. /opt/webfilterpatterns.conf
-            b.2. /opt/xrehtmlappswhitelist.conf
 
 
-         c. To launch CDAI Test App, use IBIS App (https://ibis.comcast.com/app-dev-tool/send-html-app)
-           c.1 Selct the device
-           c.2 fill in URL to launch (i.e. http://localhost:50050/AAMPCDAITestApp/index.html) and App name
-           c.3 Click "Launch" button
+         c. To launch CDAI Test App, use IBIS App (https://ibis.comcast.com)
+           c.1 Login to IBIS
+           c.2 Select "Manage Devices" and select Pair the device using either XRE Easy pair or using IBIS pair
+           c.3 Select "Launch HTML App" tab
+           c.4 Selct the device
+           c.5 fill in URL to launch (i.e. http://localhost:50050/AAMPCDAITestApp/index.html) and any App name
+           c.6 Click "Launch" button
 
 
 D. Folder structure
@@ -56,21 +58,3 @@ a. /opt/webfilterpatterns.conf
   {"scheme":"*", "block":"0"},
   {"block":"1"}
 ]}
-
-b. /opt/xrehtmlappswhitelist.conf
-{"htmlappswhitelist":
-  [
-    {
-      "name" : "About Blank Page",
-      "url" : "about:blank"
-    },
-    {
-      "name" : "Google",
-      "url" : "www.google.com"
-    },
-    {
-      "name" : "AAMP CDAI Player",
-      "url" : "localhost:50050/AAMPCDAITestApp/index.html"
-    }
-  ]
-}

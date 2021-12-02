@@ -1,0 +1,64 @@
+body{
+    background-color: #56565a;
+}
+
+#files {
+    all: initial;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 18px;
+    color: #ffffff;
+    background-color: rgb(11, 141, 87);
+    border: 2px solid rgba(103, 238, 110, 0.89);
+}
+
+.log-finder-bar {
+    position: fixed;
+    text-align: center;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding-top: 15px;
+    background-color: rgb(30, 28, 32);
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 20px;
+    height: 30px;
+}
+
+#logFinderHeader {
+    margin-top: 5%;
+    text-align: center;
+    color: rgba(103, 238, 110, 0.89);
+}
+
+.log-finder-widget {
+    margin-top: 10%;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 40px; 
+}
+
+.widget-text {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 18px;
+    color: #ffffff;
+}
+
+#AnalysisId {
+    cursor: pointer;
+    background-color: rgb(11, 141, 87);
+    text-align: center;
+    border: 2px solid rgba(103, 238, 110, 0.89);
+    font-size: 18px;
+    padding: 7px;
+    color: white;
+}
+
+#AnalysisId:hover {
+    background-color: rgb(22, 175, 111);
+}
+
+#AnalysisId:active {
+    background-color: rgb(14, 104, 34);
+    border: 2px solid rgb(252, 255, 51);
+}
+   
