@@ -59,7 +59,7 @@ void AampSecManager::DestroyInstance()
  * @brief AampScheduler Constructor
  */
 AampSecManager::AampSecManager() : mSecManagerObj(SECMANAGER_CALL_SIGN), mMutex(),mSchedulerStarted(false),
-				   mRegisteredEvents(), mWatermarkPluginObj(WATERMARK_PLUGIN_CALLSIGN), mCurrentGraphicId(-1)
+				   mRegisteredEvents(), mWatermarkPluginObj(WATERMARK_PLUGIN_CALLSIGN)
 {
 	std::lock_guard<std::mutex> lock(mMutex);
 	mSecManagerObj.ActivatePlugin();
@@ -541,7 +541,7 @@ void AampSecManager::RegisterAllEvents ()
 
 	std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> showWatermarkMethod = std::bind(&AampSecManager::showWatermarkHandler, this, std::placeholders::_1);
 
-	RegisterEvent("onShowWatermark",showWatermarkMethod);
+	RegisterEvent("onDisplayWatermark",showWatermarkMethod);
 
 }
 
@@ -603,24 +603,12 @@ void AampSecManager::addWatermarkHandler(const JsonObject& parameters)
 		if (parameters["adjustVisibilityRequired"].Boolean())
 		{
 			int sessionId = parameters["sessionId"].Number();
-			//To make sure that clut is initialized only once per session
-			//(assuming for a session if there multiple watermarks,
-			// only one would require perceptibility adjustment )
-			//TODO : Remove this condition once the proposed cb for onDisplayWatermark is
-			//implemented
-			if( mCurrentGraphicId != graphicId)
-			{
-				mCurrentGraphicId = graphicId;
-				AAMPLOG_WARN("AampSecManager::%s:%d adjustVisibilityRequired is true, invoking GetWaterMarkPalette. graphicId : %d", __FUNCTION__, __LINE__, graphicId);
-				ScheduleTask(AsyncTaskObj([sessionId, graphicId](void *data)
+			AAMPLOG_WARN("AampSecManager::%s:%d adjustVisibilityRequired is true, invoking GetWaterMarkPalette. graphicId : %d", __FUNCTION__, __LINE__, graphicId);
+			ScheduleTask(AsyncTaskObj([sessionId, graphicId](void *data)
 									  {
-					AampSecManager *instance = static_cast<AampSecManager *>(data);
-					instance->GetWaterMarkPalette(sessionId, graphicId);
-				}, (void *) this));
-			}
-			else {
-				AAMPLOG_WARN("AampSecManager::%s:%d adjustVisibilityRequired is true for graphicId : %d, but CLUT is already initialized", __FUNCTION__, __LINE__, graphicId);
-			}
+				AampSecManager *instance = static_cast<AampSecManager *>(data);
+				instance->GetWaterMarkPalette(sessionId, graphicId);
+			}, (void *) this));
 		}
 		else
 		{
@@ -701,6 +689,7 @@ void AampSecManager::showWatermarkHandler(const JsonObject& parameters)
 	{
 		show = false;
 	}
+	AAMPLOG_INFO("Received onDisplayWatermark, show: %d ", show);
 	if(mSchedulerStarted)
 	{
 		ScheduleTask(AsyncTaskObj([show](void *data)
