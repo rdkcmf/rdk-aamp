@@ -149,6 +149,28 @@ bool TtmlSubtecParser::processData(char* buffer, size_t bufferLen, double positi
 			}
 		}
 
+		if (!m_isLinear)
+		{
+			//Additional Viper-only hack for LLAMA-4748
+			//The original sub format was missing the "cellResolution" property
+			//This means that new subs and old subs on VOD have wildly different font sizes
+			//This workaround looks for cellResolution in the demuxed VOD TTML and adds the
+			//originally intended default if necessary
+			std::string ttml(data.begin(), data.end());
+
+			if (ttml.find("ttp:cellResolution") == std::string::npos)
+			{
+				AAMPLOG_TRACE("No cellResolution found");
+				std::size_t pos;
+				if ((pos = ttml.find("<tt")) != std::string::npos)
+				{
+					pos += 4; // for "<tt "
+					ttml.insert(pos, "ttp:cellResolution=\"40 30\" ");
+					data.assign(ttml.begin(), ttml.end());
+				}
+			}
+		}
+
 		m_channel->SendDataPacket(std::move(data), 0);
 
 		free(mdat);
