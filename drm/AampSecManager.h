@@ -141,7 +141,6 @@ private:
 	std::mutex mMutex;		   /**<  Lock for accessing mSecManagerObj*/
 	std::list<std::string> mRegisteredEvents;
 	bool mSchedulerStarted;
-	int mCurrentGraphicId;
 };
 
 #endif /* __AAMP_SECMANAGER_H__ */
