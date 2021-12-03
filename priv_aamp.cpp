@@ -2582,7 +2582,10 @@ void PrivateInstanceAAMP::sendTuneMetrics(bool success)
 {
 	std::string eventsJSON;
 	profiler.getTuneEventsJSON(eventsJSON, getStreamTypeString(),GetTunedManifestUrl(),success);
-	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,eventsJSON.c_str());
+	if (ISCONFIGSET_PRIV(eAAMPConfig_XRESupportedTune))
+	{
+		SendMessage2Receiver(E_AAMP2Receiver_EVENTS,eventsJSON.c_str());
+	}
 
 	//for now, avoid use of AAMPLOG_WARN, to avoid potential truncation when URI in tune profiling or
 	//extra events push us over limit
@@ -2613,14 +2616,17 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 	{
 		if(mLogTune)
 		{
-			char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
-			mLogTune = false;
-			profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
-			SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
+			if (ISCONFIGSET_PRIV(eAAMPConfig_XRESupportedTune))
+			{
+				char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
+				profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
+				SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
+			}
 			if(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents))
 			{
 				sendTuneMetrics(success);
 			}
+			mLogTune = false;
 			mTuneCompleted = true;
 			mFirstTune = false;
 		}
