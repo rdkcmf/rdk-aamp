@@ -290,7 +290,10 @@ int AAMPOCDMGSTSessionAdapter::decrypt(GstBuffer *keyIDBuffer, GstBuffer *ivBuff
 
 #if defined(AMLOGIC)
 		if (AAMPOCDMGSTSessionDecrypt && !gst_caps_is_empty(caps))
+		{
+			AAMPLOG_TRACE("Caps is %s", gst_caps_to_string(caps));
 			retValue = AAMPOCDMGSTSessionDecrypt(m_pOpenCDMSession, buffer, subSamplesBuffer, subSampleCount, ivBuffer, keyIDBuffer, 0, caps);
+		}
 		else
 #endif
 			retValue = opencdm_gstreamer_session_decrypt(m_pOpenCDMSession, buffer, subSamplesBuffer, subSampleCount, ivBuffer, keyIDBuffer, 0);
