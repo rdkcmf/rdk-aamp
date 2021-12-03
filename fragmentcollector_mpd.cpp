@@ -1819,6 +1819,12 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			logprintf("%s:%d segmentTimeline not available", __FUNCTION__, __LINE__);
 #endif
 
+			if(ISCONFIGSET(eAAMPConfig_EnableSegmentTempateHandling) &&
+				!aamp->mbEnableSegmentTemplateHandling)
+			{
+				aamp->mbEnableSegmentTemplateHandling = true;
+			}
+
 			double currentTimeSeconds = (double)aamp_GetCurrentTimeMS() / 1000;
 			
 			uint32_t duration = segmentTemplates.GetDuration();
@@ -6900,6 +6906,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 				mPeriodStartTime = GetPeriodStartTime(mpd, mCurrentPeriodIdx);
 				mPeriodDuration = GetPeriodDuration(mpd, mCurrentPeriodIdx);
 				aamp->mNextPeriodDuration = mPeriodDuration;
+				aamp->mNextPeriodStartTime = mPeriodStartTime;
 			}
 
 			SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),pMediaStreamContext->adaptationSet->GetSegmentTemplate());
@@ -6908,7 +6915,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 				if(segmentTemplates.GetTimescale())
 				{
 					pMediaStreamContext->scaledPTO = (double)segmentTemplates.GetPresentationTimeOffset() / (double)segmentTemplates.GetTimescale();
-					AAMPLOG_INFO("PTO = %lld tScale : %ld", segmentTemplates.GetPresentationTimeOffset(), segmentTemplates.GetTimescale());
 				}
 
 				if(i == eMEDIATYPE_VIDEO && !aamp->IsLive())
@@ -6917,12 +6923,10 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					AAMPLOG_INFO("StreamAbstractionAAMP_MPD: Track %d Set mFirstPTS:%lf",i,mFirstPTS);
 				}
 
-				AAMPLOG_INFO("PTO = %lld tScale : %ld", segmentTemplates.GetPresentationTimeOffset(), segmentTemplates.GetTimescale());
+				AAMPLOG_TRACE("PTO = %lld tScale : %ld", segmentTemplates.GetPresentationTimeOffset(), segmentTemplates.GetTimescale());
 				pMediaStreamContext->fragmentDescriptor.Number = segmentTemplates.GetStartNumber();
 				AAMPLOG_INFO("StreamAbstractionAAMP_MPD: Track %d timeLineIndex %d fragmentDescriptor.Number %lld mFirstPTS:%lf", i, pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentDescriptor.Number, mFirstPTS);
 			}
-
-				
 		}
 	}
 	return ret;
