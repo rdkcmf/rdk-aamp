@@ -9549,3 +9549,12 @@ double PrivateInstanceAAMP::GetPeriodStartTimeValue(void)
 {
         return mNextPeriodStartTime;
 }
+
+/**
+ *     @brief GetPeriodScaledPtoStartTime
+ *     @return double
+ */
+double PrivateInstanceAAMP::GetPeriodScaledPtoStartTime(void)
+{
+       return mNextPeriodScaledPtoStartTime;
+}

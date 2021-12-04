@@ -3551,7 +3551,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 				double seekEnd = position + duration;
 				if(aamp->mbEnableFirstPtsSeekPosOverride)
 				{
-					position = aamp->seek_pos_seconds - aamp->GetPeriodStartTimeValue();
+					position = (aamp->seek_pos_seconds - aamp->GetPeriodStartTimeValue()) + aamp->GetPeriodScaledPtoStartTime();
 				}
 				AAMPLOG_INFO("%s %d: FLUSH START: %f END: %f duration: %f",__FUNCTION__,__LINE__,position, seekEnd, duration);
 				if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,

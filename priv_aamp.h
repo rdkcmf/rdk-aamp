@@ -814,6 +814,8 @@ public:
 
 	double mNextPeriodDuration; /**< Keep Next Period duration  */
 	double mNextPeriodStartTime; /**< Keep Next Period Start Time  */
+	double mNextPeriodScaledPtoStartTime; /**< Keep Next Period Start Time as per PTO  */
+
 	bool mbEnableFirstPtsSeekPosOverride; /**< Enable   FirstPtsSeekPosOverride */
 	bool mbEnableSegmentTemplateHandling;/**< Enable SegmentTemplate Handling  */
 	bool mbIgnoreStopPosProcessing; /**< Ignore Stop Position Processing in Segment Template handling case */
@@ -3163,6 +3165,12 @@ public:
 	*     @return double
 	*/
 	double GetPeriodStartTimeValue(void);
+
+	/**
+	*     @brief GetPeriodScaledPtoStartTime
+	*     @return double
+	*/
+	double GetPeriodScaledPtoStartTime(void);
 
 private:
 

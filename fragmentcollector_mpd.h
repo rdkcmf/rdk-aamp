@@ -179,11 +179,15 @@ public:
 	const IAdaptationSet* GetAdaptationSetAtIndex(int idx);
 	struct ProfileInfo GetAdaptationSetAndRepresetationIndicesForProfile(int profileIndex);
 	int64_t GetMinUpdateDuration() { return mMinUpdateDurationMs;}
-	bool FetchFragment( class MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance, bool discontinuity = false );
+	bool FetchFragment( class MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance, bool discontinuity = false, double pto = 0 , uint32_t scale = 0 );
 	bool PushNextFragment( class MediaStreamContext *pMediaStreamContext, unsigned int curlInstance);
 	double GetFirstPeriodStartTime(void);
 	void StartSubtitleParser() override;
 	void PauseSubtitleParser(bool pause) override;
+	bool mperiodChanged[AAMP_TRACK_COUNT];
+	bool mpendingPtoProcessing[AAMP_TRACK_COUNT];
+	double mtempDelta[AAMP_TRACK_COUNT];
+	double mFirstBufferScaledPts[AAMP_TRACK_COUNT];
 
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
