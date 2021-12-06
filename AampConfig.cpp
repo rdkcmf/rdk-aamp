@@ -360,7 +360,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableSharedSSLSession].value			=	true;
 	bAampCfgValue[eAAMPConfig_InterruptHandling].value			=	false;
 
-	bAampCfgValue[eAAMPConfig_EnableSegmentTempateHandling].value           =       false;
+	bAampCfgValue[eAAMPConfig_EnableSegmentTempateHandling].value           =       true;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
