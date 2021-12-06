@@ -272,8 +272,6 @@ public:
 	{
 		bool ret = false;
 
-		AAMPLOG_TRACE("%s:%d Type[%d] fragmentUrl %s fragmentTime %f discontinuity %d pto %f  scale %lu", __FUNCTION__, __LINE__, type, fragmentUrl.c_str(), position, discontinuity, pto, scale);
-
 		fragmentDurationSeconds = duration;
 		ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(mediaType, initSegment);
 		CachedFragment* cachedFragment = GetFetchBuffer(true);
@@ -351,45 +349,44 @@ public:
 									(iFogError > 0 ? iFogError : http_code),effectiveUrl,duration, downloadTime);
 		}
 
-		//Check delta from first buffer PTS
-		if(!initSegment &&
-		pto > 0.0 && scale > 0 &&
-		ISCONFIGSET(eAAMPConfig_EnableSegmentTempateHandling) &&
-		aamp->mbEnableSegmentTemplateHandling &&
-		!aamp->IsLiveStream())
-		{
-			if(context->mperiodChanged[type])
-			{
-				IsoBmffBuffer buffer;
-				buffer.setBuffer((uint8_t *)cachedFragment->fragment.ptr, cachedFragment->fragment.len);
-				buffer.parseBuffer();
-				uint64_t pts = 0;
-				buffer.getFirstPTS(pts);
-				buffer.destroyBoxes();
-				AAMPLOG_INFO("%s:%d Type[%d] Period changed, pts:%" PRIu64 " pto:%f scale:%lu duration: %f",__FUNCTION__, __LINE__,type,  pts, pto, scale, duration);
-				context->mtempDelta[type] = double((double)(pto - pts)/(double)scale);
-				context->mFirstBufferScaledPts[type] = double((double)(pts)/(double)scale);
-				AAMPLOG_INFO("%s:%d Type[%d] Calculating PTO delta, delta:%f pos:%f",__FUNCTION__, __LINE__, type,context->mtempDelta[type],position);
-				context->mperiodChanged[type] = false;
-				context->mpendingPtoProcessing[type] = true;
-			}
-			if(context->mpendingPtoProcessing[type])
-			{
-				//skip unwanted fragment caching
-				if (context->mtempDelta[type] >  duration)
-				{
-					AAMPLOG_TRACE("%s:%d Type[%d] Ignore Fragment !!!",__FUNCTION__, __LINE__,type);
-					context->mtempDelta[type] = context->mtempDelta[type] - duration;
-					aamp_Free(&cachedFragment->fragment);
-					return ret;
-				}
-				AAMPLOG_TRACE("%s:%d Type[%d] Received Position: %f Duration: %f",__FUNCTION__, __LINE__,type,position, duration);
-				//duration = duration - context->mtempDelta[type];
-				//AAMPLOG_INFO("%s:%d Type[%d] New Position: %f New Duration: %f",__FUNCTION__, __LINE__,type,position,duration);
-				context->mpendingPtoProcessing[type] = false;
-				context->mtempDelta[type] = 0.0;
-			}
-		}
+#if 0
+    //Check delta from first buffer PTS
+    if(!initSegment &&
+            pto > 0.0 && scale > 0)
+    {
+            if(context->mperiodChanged[type])
+            {
+                IsoBmffBuffer buffer;
+                buffer.setBuffer((uint8_t *)cachedFragment->fragment.ptr, cachedFragment->fragment.len);
+                buffer.parseBuffer();
+                uint64_t pts = 0;
+                buffer.getFirstPTS(pts);
+                buffer.destroyBoxes();
+                AAMPLOG_INFO("%s:%d Type[%d] Period changed, pts:%" PRIu64 " pto:%f scale:%lu duration: %f",__FUNCTION__, __LINE__,type,  pts, pto, scale, duration);
+                context->mtempDelta[type] = double((double)(pto - pts)/(double)scale);
+                context->mFirstBufferScaledPts[type] = double((double)(pts)/(double)scale);
+                AAMPLOG_INFO("%s:%d Type[%d] Calculating PTO delta, delta:%f pos:%f",__FUNCTION__, __LINE__, type,context->mtempDelta[type],position);
+                context->mperiodChanged[type] = false;
+                context->mpendingPtoProcessing[type] = true;
+            }
+            if(context->mpendingPtoProcessing[type])
+            {
+                //skip unwanted fragment caching
+                if (context->mtempDelta[type] >  duration)
+                {
+                    AAMPLOG_INFO("%s:%d Type[%d] Ignore Fragment !!!",__FUNCTION__, __LINE__,type);
+                    context->mtempDelta[type] = context->mtempDelta[type] - duration;
+                    aamp_Free(&cachedFragment->fragment);
+                    return ret;
+                }
+                AAMPLOG_INFO("%s:%d Type[%d] Received Position: %f Duration: %f",__FUNCTION__, __LINE__,type,position, duration);
+                duration = duration - context->mtempDelta[type];
+                AAMPLOG_INFO("%s:%d Type[%d] New Position: %f New Duration: %f",__FUNCTION__, __LINE__,type,position,duration);
+                context->mpendingPtoProcessing[type] = false;
+                context->mtempDelta[type] = 0.0;
+            }
+    }
+#endif
 
 		context->mCheckForRampdown = false;
 		if(bitrate > 0 && bitrate != fragmentDescriptor.Bandwidth)
@@ -8001,13 +7998,6 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							mPrevAdaptationSetCount = adaptationSetCount;
 							periodChanged = true;
 							requireStreamSelection = true;
-
-							for (int i = 0; i < mNumberOfTracks; i++)
-							{
-								mperiodChanged[i] = true;
-								mtempDelta[i] = 0.0;
-							}
-
 							logprintf("playing period %d/%d", iPeriod, (int)numPeriods);
 						}
 						else
