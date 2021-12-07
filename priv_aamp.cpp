@@ -1565,13 +1565,13 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
     mCCId = 0;
 #endif
     pthread_mutex_lock(&gMutex);
-	for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
+	auto iter = std::find_if(std::begin(gActivePrivAAMPs), std::end(gActivePrivAAMPs), [this](const gActivePrivAAMP_t& el)
 	{
-		if (this == iter->pAAMP)
-		{
-			gActivePrivAAMPs.erase(iter);
-			break;
-		}
+		return el.pAAMP == this;
+	});
+	if(iter != gActivePrivAAMPs.end())
+	{
+		gActivePrivAAMPs.erase(iter);
 	}
 	pthread_mutex_unlock(&gMutex);
 
@@ -6397,18 +6397,19 @@ void PrivateInstanceAAMP::Stop()
 	mEventManager->FlushPendingEvents();
 
 	pthread_mutex_lock(&gMutex);
-	for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
+	auto iter = std::find_if(std::begin(gActivePrivAAMPs), std::end(gActivePrivAAMPs), [this](const gActivePrivAAMP_t& el)
 	{
-		if (this == iter->pAAMP)
+		return el.pAAMP == this;
+	});
+
+	if(iter != gActivePrivAAMPs.end())
+	{
+		if (iter->reTune && mIsRetuneInProgress)
 		{
-			if (iter->reTune && mIsRetuneInProgress)
-			{
-				// Wait for any ongoing re-tune operation to complete
-				pthread_cond_wait(&gCond, &gMutex);
-			}
-			iter->reTune = false;
-			break;
+			// Wait for any ongoing re-tune operation to complete
+			pthread_cond_wait(&gCond, &gMutex);
 		}
+		iter->reTune = false;
 	}
 	pthread_mutex_unlock(&gMutex);
 
