@@ -1453,6 +1453,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mLogObj(NULL)
 	, mEventManager (NULL)
 	, mbDetached(false)
+	, mIsFakeTune(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -4633,6 +4634,19 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			AAMPLOG_WARN("mpStreamAbstractionAAMP Init Failed.Seek Position(%f) out of range(%lld)",mpStreamAbstractionAAMP->GetStreamPosition(),(GetDurationMs()/1000));
 			NotifyEOSReached();
 		}
+		else if(mIsFakeTune)
+		{
+			if(retVal == eAAMPSTATUS_FAKE_TUNE_COMPLETE)
+			{
+				AAMPLOG(mLogObj, eLOGLEVEL_FATAL, "FATAL", "Fake tune completed");
+			}
+			else
+			{
+				SetState(eSTATE_COMPLETE);
+				mEventManager->SendEvent(std::make_shared<AAMPEventObject>(AAMP_EVENT_EOS));
+				AAMPLOG(mLogObj, eLOGLEVEL_FATAL, "FATAL", "Stopping fake tune playback");
+			}
+		}
 		else if (DownloadsAreEnabled())
 		{
 			AAMPLOG_ERR("mpStreamAbstractionAAMP Init Failed.Error(%d)",retVal);
@@ -4792,17 +4806,20 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	}
 
 #ifdef AAMP_CC_ENABLED
-	AAMPLOG_INFO("mCCId: %d\n",mCCId);
-	// if mCCId has non zero value means it is same instance and cc release was not calle then dont get id. if zero then call getid.
-	if(mCCId == 0 )
+	if(!mIsFakeTune)
 	{
-		mCCId = AampCCManager::GetInstance()->GetId();
+		AAMPLOG_INFO("mCCId: %d\n",mCCId);
+		// if mCCId has non zero value means it is same instance and cc release was not calle then dont get id. if zero then call getid.
+		if(mCCId == 0 )
+		{
+			mCCId = AampCCManager::GetInstance()->GetId();
+		}
+		//restore CC if it was enabled for previous content.
+		AampCCManager::GetInstance()->RestoreCC();
 	}
-	//restore CC if it was enabled for previous content.
-	AampCCManager::GetInstance()->RestoreCC();
 #endif
 
-	if (newTune)
+	if (newTune && !mIsFakeTune)
 	{
 		PrivAAMPState state;
 		GetState(state);
@@ -4882,6 +4899,14 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	// Set the EventManager config
 	// TODO When faketune code is added later , push the faketune status here 
 	mEventManager->SetAsyncTuneState(mAsyncTuneEnabled);
+	mIsFakeTune = strcasestr(mainManifestUrl, "fakeTune=true");
+	if(mIsFakeTune)
+	{
+		mConfig->logging.setLogLevel(eLOGLEVEL_FATAL);
+		gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_FATAL);
+	}
+	mEventManager->SetFakeTuneFlag(mIsFakeTune);
+
 	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
 	{

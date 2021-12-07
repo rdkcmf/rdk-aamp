@@ -285,6 +285,11 @@ void AampEventManager::SendEvent(const AAMPEventPtr &eventData, AAMPEventMode ev
 	AAMPEventType eventType = eventData->getType();
 	if ((eventType < AAMP_EVENT_ALL_EVENTS) || (eventType >= AAMP_MAX_NUM_EVENTS))  //CID:81883 - Resolve OVER_RUN
                 return;
+	if(mIsFakeTune && !(AAMP_EVENT_STATE_CHANGED == eventType && eSTATE_COMPLETE == std::dynamic_pointer_cast<StateChangedEvent>(eventData)->getState()) && !(AAMP_EVENT_EOS == eventType))
+	{
+		AAMPLOG_TRACE("Events are disabled for fake tune");
+		return;
+	}
 
 	if(eventMode < AAMP_EVENT_DEFAULT_MODE || eventMode > 	AAMP_EVENT_ASYNC_MODE)
 		eventMode = AAMP_EVENT_DEFAULT_MODE;
@@ -380,12 +385,6 @@ void AampEventManager::SendEventSync(const AAMPEventPtr &eventData)
 		return;
 	}
 	
-	if(mIsFakeTune && !(AAMP_EVENT_STATE_CHANGED == eventType && eSTATE_COMPLETE == std::dynamic_pointer_cast<StateChangedEvent>(eventData)->getState()) && !(AAMP_EVENT_EOS == eventType))
-	{
-		AAMPLOG_TRACE("Events are disabled for fake tune");
-		pthread_mutex_unlock(&mMutexVar);
-		return;
-	}
 	mEventStats[eventType]++;
 	if (eventType != AAMP_EVENT_PROGRESS)
 	{

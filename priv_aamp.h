@@ -202,6 +202,7 @@ enum TuneType
 enum AAMPStatusType
 {
 	eAAMPSTATUS_OK,
+	eAAMPSTATUS_FAKE_TUNE_COMPLETE,
 	eAAMPSTATUS_GENERIC_ERROR,
 	eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR,
 	eAAMPSTATUS_PLAYLIST_VIDEO_DOWNLOAD_ERROR,
@@ -858,8 +859,7 @@ public:
 	bool mIsPeriodChangeMarked; // Mark if a period change occurred.
         
         bool mbDetached;
-
-
+	bool mIsFakeTune;
 	/**
 	 * @brief Check if segment starts with an ID3 section
 	 *
