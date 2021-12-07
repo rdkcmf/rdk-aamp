@@ -1,0 +1,126 @@
+From f6cc4ea70e98f2c062c3c1bb4c9f01375a90e6e8 Mon Sep 17 00:00:00 2001
+From: Balaji Selvam <balaji_selvam@comcast.com>
+Date: Thu, 30 Jan 2020 19:17:45 +0000
+Subject: [PATCH] Subject: [PATCH] BCOM-3327 - [DASH] Support iframe trickmode
+ for multi period assets.
+
+Support smooth PTS restamping across period boundaries
+by handling discontinuity by a new custom event.
+
+Source: COMCAST
+License: LGPL-2.0-or-later
+Upstream-Status: Pending
+Notice: Code in patch files takes the license of the source which is being patched.
+
+Signed-off-by: Christo Joseph <Christo_Joseph@comcast.com>
+---
+ gst/isomp4/qtdemux.c | 41 ++++++++++++++++++++++++++++++-----------
+ gst/isomp4/qtdemux.h |  2 ++
+ 2 files changed, 32 insertions(+), 11 deletions(-)
+
+diff --git a/gst/isomp4/qtdemux.c b/gst/isomp4/qtdemux.c
+index 70ba6fa..e0528f8 100644
+--- a/gst/isomp4/qtdemux.c
++++ b/gst/isomp4/qtdemux.c
+@@ -684,6 +684,8 @@ gst_qtdemux_init (GstQTDemux * qtdemux)
+   qtdemux->aamp_override_enabled = FALSE;
+   qtdemux->aamp_player_enabled = FALSE;
+   qtdemux->aamp_rate = 1.0;
++  qtdemux->aamp_last_pts = GST_CLOCK_TIME_NONE;
++  qtdemux->aamp_pts_offset = 0;
+ }
+ 
+ static void
+@@ -2517,6 +2519,8 @@ gst_qtdemux_handle_sink_event (GstPad * sinkpad, GstObject * parent,
+         if (gst_structure_has_name(structure, "aamp_override"))
+         {
+             demux->aamp_base_pts = GST_CLOCK_TIME_NONE;
++            demux->aamp_last_pts = GST_CLOCK_TIME_NONE;
++            demux->aamp_pts_offset = 0;
+             demux->aamp_rate = g_value_get_float(gst_structure_get_value(structure, "rate"));
+             demux->aamp_override_enabled = g_value_get_boolean(gst_structure_get_value(structure, "enable"));
+             demux->aamp_player_enabled = g_value_get_boolean(gst_structure_get_value(structure, "aampplayer"));
+@@ -2541,6 +2545,17 @@ gst_qtdemux_handle_sink_event (GstPad * sinkpad, GstObject * parent,
+             gst_event_unref (event);
+             goto drop;
+         }
++        else if (gst_structure_has_name(structure, "aamp-tm-disc"))
++        {
++            demux->aamp_base_pts = GST_CLOCK_TIME_NONE;
++            if (GST_CLOCK_TIME_NONE != demux->aamp_last_pts)
++            {
++                guint fps = g_value_get_uint(gst_structure_get_value(structure, "fps"));
++                demux->aamp_pts_offset = demux->aamp_last_pts + (1000*GST_MSECOND/fps);
++            }
++            gst_event_unref (event);
++            goto drop;
++        }
+         break;
+     }
+     default:
+@@ -6302,14 +6317,17 @@ gst_qtdemux_decorate_and_push_buffer (GstQTDemux * qtdemux,
+           {
+               qtdemux->aamp_base_pts = qtdemux->aamp_base_pts_override;
+           }
+-          g_print("%s:%d - aamp %f first pts %"G_GUINT64_FORMAT" ms\n",
+-                  __FUNCTION__, __LINE__, rate, GST_TIME_AS_MSECONDS(pts));
+-          gst_segment_init(&segment, GST_FORMAT_TIME);
+-          segment.start = 0;
+-          GstEvent* event = gst_event_new_segment(&segment);
+-          if (!gst_pad_push_event(stream->pad, event))
++          g_print("%s:%d - aamp rate %f first pts %" G_GUINT64_FORMAT " ms aamp_pts_offset %" G_GUINT64_FORMAT " ms\n",
++                  __FUNCTION__, __LINE__, rate, GST_TIME_AS_MSECONDS(pts), GST_TIME_AS_MSECONDS(qtdemux->aamp_pts_offset));
++          if (G_LIKELY (0 == qtdemux->aamp_pts_offset))
+           {
+-              g_print("%s: gst_pad_push_event segment error\n", __FUNCTION__);
++              gst_segment_init(&segment, GST_FORMAT_TIME);
++              segment.start = 0;
++              GstEvent* event = gst_event_new_segment(&segment);
++              if (!gst_pad_push_event(stream->pad, event))
++              {
++                  g_print("%s: gst_pad_push_event segment error\n", __FUNCTION__);
++              }
+           }
+       }
+       if ( rate > 0 )
+@@ -6319,19 +6337,20 @@ gst_qtdemux_decorate_and_push_buffer (GstQTDemux * qtdemux,
+               gst_buffer_unref(buf);
+               goto exit;
+           }
+-          GST_BUFFER_DTS (buf) = ( dts - qtdemux->aamp_base_pts)/rate;
+-          GST_BUFFER_PTS (buf) = ( pts - qtdemux->aamp_base_pts)/rate;
++          GST_BUFFER_DTS (buf) = qtdemux->aamp_pts_offset + ( dts - qtdemux->aamp_base_pts)/rate;
++          GST_BUFFER_PTS (buf) = qtdemux->aamp_pts_offset + ( pts - qtdemux->aamp_base_pts)/rate;
+           GST_DEBUG_OBJECT (qtdemux, "aamp_trickmode %f orig pts %"G_GUINT64_FORMAT" restamped pts %"G_GUINT64_FORMAT" ms\n",
+                   rate, GST_TIME_AS_MSECONDS(pts), GST_TIME_AS_MSECONDS(GST_BUFFER_PTS (buf)));
+       }
+       else
+       {
+           rate = -rate;
+-          GST_BUFFER_DTS (buf) = ( qtdemux->aamp_base_pts - dts)/rate;
+-          GST_BUFFER_PTS (buf) = ( qtdemux->aamp_base_pts - pts)/rate;
++          GST_BUFFER_DTS (buf) = qtdemux->aamp_pts_offset + ( qtdemux->aamp_base_pts - dts)/rate;
++          GST_BUFFER_PTS (buf) = qtdemux->aamp_pts_offset + ( qtdemux->aamp_base_pts - pts)/rate;
+           GST_DEBUG_OBJECT (qtdemux, "aamp_trickmode %f orig pts %"G_GUINT64_FORMAT" restamped pts %"G_GUINT64_FORMAT" ms\n",
+                   -rate, GST_TIME_AS_MSECONDS(pts), GST_TIME_AS_MSECONDS(GST_BUFFER_PTS (buf)));
+       }
++      qtdemux->aamp_last_pts = GST_BUFFER_PTS (buf);
+   }
+   GST_BUFFER_DURATION (buf) = duration;
+   GST_BUFFER_OFFSET (buf) = -1;
+diff --git a/gst/isomp4/qtdemux.h b/gst/isomp4/qtdemux.h
+index ed37c52..906d442 100644
+--- a/gst/isomp4/qtdemux.h
++++ b/gst/isomp4/qtdemux.h
+@@ -257,6 +257,8 @@ struct _GstQTDemux {
+   GstClockTime aamp_base_pts_override;
+   gdouble aamp_rate;
+   gboolean aamp_override_enabled;
++  GstClockTime aamp_last_pts;
++  GstClockTime aamp_pts_offset;
+ };
+ 
+ struct _GstQTDemuxClass {
+-- 
+2.14.2
+

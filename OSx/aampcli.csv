@@ -1,0 +1,3 @@
+1,HOSTED_FRAGMP4,https://cpetestutility.stb.r53.xcal.tv/VideoTestStream/main_mp4.m3u8,,,,,,,,,,
+2,HOSTED_HLS,https://cpetestutility.stb.r53.xcal.tv/VideoTestStream/main.m3u8,,,,,,,,,,
+3,HOSTED_DASH,https://cpetestutility.stb.r53.xcal.tv/VideoTestStream/main.mpd,,,,,,,,,,
