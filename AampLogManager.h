@@ -89,7 +89,8 @@ enum AAMP_LogLevel
 	eLOGLEVEL_TRACE,    /**< Trace level */
 	eLOGLEVEL_INFO,     /**< Info level */
 	eLOGLEVEL_WARN,     /**< Warn level */
-	eLOGLEVEL_ERROR     /**< Error level */
+	eLOGLEVEL_ERROR,     /**< Error level */
+	eLOGLEVEL_FATAL     /**< Fatal log level */
 };
 
 /**

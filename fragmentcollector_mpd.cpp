@@ -4227,6 +4227,12 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		}
 
 		StreamSelection(true, forceSpeedsChangedEvent);
+
+		if(aamp->mIsFakeTune)
+		{
+			// Aborting init here after stream and DRM initialization.
+			return eAAMPSTATUS_FAKE_TUNE_COMPLETE;
+		}
 		//DELIA-51402 - calling ReportTimedMetadata function after drm creation in order
 		//to reduce the delay caused
 		aamp->ReportTimedMetadata(true);

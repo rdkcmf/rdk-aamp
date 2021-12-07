@@ -202,6 +202,7 @@ enum TuneType
 enum AAMPStatusType
 {
 	eAAMPSTATUS_OK,
+	eAAMPSTATUS_FAKE_TUNE_COMPLETE,
 	eAAMPSTATUS_GENERIC_ERROR,
 	eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR,
 	eAAMPSTATUS_PLAYLIST_VIDEO_DOWNLOAD_ERROR,
@@ -876,6 +877,8 @@ public:
 	bool mbEnableFirstPtsSeekPosOverride; /**< Enable   FirstPtsSeekPosOverride */
 	bool mbEnableSegmentTemplateHandling;/**< Enable SegmentTemplate Handling  */
 	bool mbIgnoreStopPosProcessing; /**< Ignore Stop Position Processing in Segment Template handling case */
+	bool mIsFakeTune;
+
 	/**
 	 * @brief Check if segment starts with an ID3 section
 	 *

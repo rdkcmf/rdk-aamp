@@ -1034,6 +1034,14 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 		return nullptr;
 	}
 
+	if(aampInstance->mIsFakeTune)
+	{
+		AAMPLOG(mLogObj, eLOGLEVEL_FATAL, "FATAL", "Exiting fake tune after DRM initialization.");
+		AampMutexHold keymutex(cachedKeyMutex);
+		cachedKeyIDs[selectedSlot].isFailedKeyId = true;
+		return nullptr;
+	}
+
 	code = acquireLicense(drmHelper, selectedSlot, cdmError, eventHandle, aampInstance, streamType);
 	if (code != KEY_READY)
 	{
@@ -1786,6 +1794,11 @@ void *CreateDRMSession(void *arg)
 			}
 			sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 		}
+	}
+	if(sessionParams->aamp->mIsFakeTune)
+	{
+		sessionParams->aamp->SetState(eSTATE_COMPLETE);
+		sessionParams->aamp->SendEvent(std::make_shared<AAMPEventObject>(AAMP_EVENT_EOS));
 	}
 	return NULL;
 }
