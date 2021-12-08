@@ -256,14 +256,47 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
  *
  * @return None
  */
-AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAampDevCmdTable(),vCustom(),vCustomIt(),customFound(false)
+AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAampDevCmdTable(),vCustom(),vCustomIt(),customFound(false),mLogObj(NULL)
 {
 	for(int i=0; i<sizeof(ConfigLookUpTable) / sizeof(AampConfigLookupEntry); ++i)
 	{
 		mAampLookupTable[ConfigLookUpTable[i].cmdString] = ConfigLookUpTable[i];
 	}
+	mLogObj = &logging;
 }
 
+/**
+ * @brief AampConfig Copy Constructor function 
+ *
+ * @return New Config instance with copied values
+ */
+AampConfig& AampConfig::operator=(const AampConfig& rhs) 
+{
+	// set the pointer to instance logger object , not the one from copyinstance
+	for(int i=0; i<sizeof(ConfigLookUpTable) / sizeof(AampConfigLookupEntry); ++i)
+	{
+		mAampLookupTable[ConfigLookUpTable[i].cmdString] = ConfigLookUpTable[i];
+	}
+	logging  = rhs.logging;
+	mChannelOverrideMap = rhs.mChannelOverrideMap;
+	mAampDevCmdTable = rhs.mAampDevCmdTable;
+	vCustom = rhs.vCustom;
+	customFound = rhs.customFound;		
+	mLogObj = &logging;
+	memcpy(bAampCfgValue , rhs.bAampCfgValue , sizeof(bAampCfgValue));
+	memcpy(iAampCfgValue , rhs.iAampCfgValue , sizeof(iAampCfgValue));
+	memcpy(lAampCfgValue , rhs.lAampCfgValue , sizeof(lAampCfgValue));
+	memcpy(dAampCfgValue , rhs.dAampCfgValue , sizeof(dAampCfgValue));
+
+ 	for(int index=0;index < (eAAMPConfig_StringMaxValue-eAAMPConfig_StringStartValue) ; index++)	
+	{
+		sAampCfgValue[index].owner = rhs.sAampCfgValue[index].owner;
+		sAampCfgValue[index].lastowner = rhs.sAampCfgValue[index].lastowner;
+		sAampCfgValue[index].value = rhs.sAampCfgValue[index].value;
+		sAampCfgValue[index].lastvalue = rhs.sAampCfgValue[index].lastvalue;
+	}
+	return *this;
+}
 
 void AampConfig::Initialize()
 {
@@ -554,7 +587,7 @@ ConfigPriority AampConfig::GetConfigOwner(AAMPConfigSettings cfg)
 	}
 	else
 	{
-		logprintf("%s:%d Cfg Index Not in range : %d \n",__FUNCTION__,__LINE__,cfg);
+		AAMPLOG_ERR("Cfg Index Not in range : %d",cfg);
 	}
 	return ret;
 }
@@ -680,7 +713,7 @@ void AampConfig::ToggleConfigValue(ConfigPriority owner, AAMPConfigSettings cfg 
 	}
 	else
 	{
-		logprintf("%s:%d Index beyond range : %d Max:%d \n",__FUNCTION__,__LINE__,cfg,eAAMPConfig_BoolMaxValue);
+		AAMPLOG_ERR("Index beyond range : %d Max:%d ",cfg,eAAMPConfig_BoolMaxValue);
 	}
 }
 
@@ -725,10 +758,11 @@ void AampConfig::SetConfigValue(ConfigPriority owner, AAMPConfigSettings cfg ,co
 		}
 	}
 	else
-	{
-		logprintf("%s:%d Cfg Index Not in range : %d \n",__FUNCTION__,__LINE__,cfg);
+	{		
+		AAMPLOG_ERR("Cfg Index Not in range : %d ",cfg);
 	}
 }
+
 
 /**
  * @brief SetConfigValue - Set function to set string data type configuration
@@ -747,7 +781,7 @@ void AampConfig::SetConfigValue(ConfigPriority owner, AAMPConfigSettings cfg , c
 	}
 	else
 	{
-		logprintf("%s:%d Index Not in range : %d [%d-%d] \n",__FUNCTION__,__LINE__,cfg,eAAMPConfig_StringStartValue,eAAMPConfig_StringMaxValue);
+		AAMPLOG_ERR("Index Not in range : %d [%d-%d] ",cfg,eAAMPConfig_StringStartValue,eAAMPConfig_StringMaxValue);
 	}
 }
 
@@ -789,61 +823,61 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 						if(cJSON_IsTrue(searchObj))
 						{
 							SetConfigValue<bool>(owner,cfgEnum,true);
-							logprintf("Parsed value for property %s - true",keyname.c_str());
+							AAMPLOG_WARN("Parsed value for property %s - true",keyname.c_str());
 						}
 						else
 						{
 							SetConfigValue<bool>(owner,cfgEnum,false);
-							logprintf("Parsed value for property %s - false",keyname.c_str());
+							AAMPLOG_WARN("Parsed value for property %s - false",keyname.c_str());
 						}
 					}
 					else if(cfgEnum > eAAMPConfig_IntStartValue && cfgEnum < eAAMPConfig_IntMaxValue && cJSON_IsNumber(searchObj))
 					{
 						// For those parameters in Integer Settings
 						int conv = (int)searchObj->valueint;
-						logprintf("Parsed value for property %s - %d",keyname.c_str(),conv);
+						AAMPLOG_WARN("Parsed value for property %s - %d",keyname.c_str(),conv);
 						if(ValidateRange(keyname,conv))
 						{
 							SetConfigValue<int>(owner,cfgEnum,conv);
 						}
 						else
 						{
-							logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+							AAMPLOG_ERR("Set failed .Input beyond the configured range");
 						}
 					}
 					else if(cfgEnum > eAAMPConfig_LongStartValue && cfgEnum < eAAMPConfig_LongMaxValue && cJSON_IsNumber(searchObj))
 					{
 						// For those parameters in long Settings
 						long conv = (long)searchObj->valueint;
-						logprintf("Parsed value for property %s - %ld",keyname.c_str(),conv);
+						AAMPLOG_WARN("Parsed value for property %s - %ld",keyname.c_str(),conv);
 						if(ValidateRange(keyname,conv))
 						{
 							SetConfigValue<long>(owner,cfgEnum,conv);
 						}
 						else
 						{
-							logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+							AAMPLOG_ERR("Set failed .Input beyond the configured range");
 						}
 					}
 					else if(cfgEnum > eAAMPConfig_DoubleStartValue && cfgEnum < eAAMPConfig_DoubleMaxValue && cJSON_IsNumber(searchObj))
 					{
 						// For those parameters in double settings
 						double conv= (double)searchObj->valuedouble;
-						logprintf("Parsed value for property %s - %f",keyname.c_str(),conv);
+						AAMPLOG_WARN("Parsed value for property %s - %f",keyname.c_str(),conv);
 						if(ValidateRange(keyname,conv))
 						{
 							SetConfigValue<double>(owner,cfgEnum,conv);
 						}
 						else
 						{
-							logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+							AAMPLOG_ERR("Set failed .Input beyond the configured range");
 						}
 					}
 					else if(cfgEnum > eAAMPConfig_StringStartValue && cfgEnum < eAAMPConfig_StringMaxValue && cJSON_IsString(searchObj))
 					{
 						// For those parameters in string Settings
 						std::string conv = std::string(searchObj->valuestring);
-						logprintf("Parsed value for property %s - %s",keyname.c_str(),conv.c_str());
+						AAMPLOG_WARN("Parsed value for property %s - %s",keyname.c_str(),conv.c_str());
 						SetConfigValue<std::string>(owner,cfgEnum,conv);
 					}
 				}
@@ -873,14 +907,14 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 				}
 				else
 				{
-					logprintf("%s %d JSON Channel Override format is wrong", __FUNCTION__,__LINE__);
+					AAMPLOG_ERR("JSON Channel Override format is wrong");
 				}
 			}
 
 			cJSON *drmConfig = cJSON_GetObjectItem(cfgdata,"drmConfig");
 			if(drmConfig)
 			{
-				logprintf("Parsed value for property DrmConfig");
+				AAMPLOG_WARN("Parsed value for property DrmConfig");
 				cJSON *subitem = drmConfig->child;
 				DRMSystems drmType;
 				while( subitem )
@@ -888,25 +922,25 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 					std::string conv = std::string(subitem->valuestring);
 					if(strcasecmp("com.microsoft.playready",subitem->string)==0)
 					{
-						logprintf("Playready License Server URL config param received - %s", conv.c_str());
+						AAMPLOG_WARN("Playready License Server URL config param received - %s", conv.c_str());
 						SetConfigValue<std::string>(owner,eAAMPConfig_PRLicenseServerUrl,conv);
 						drmType = eDRM_PlayReady;
 					}
 					if(strcasecmp("com.widevine.alpha",subitem->string)==0)
 					{
-						logprintf("Widevine License Server URL config param received - %s", conv.c_str());
+						AAMPLOG_WARN("Widevine License Server URL config param received - %s", conv.c_str());
 						SetConfigValue<std::string>(owner,eAAMPConfig_WVLicenseServerUrl,conv);
 						drmType = eDRM_WideVine;
 					}
 					if(strcasecmp("org.w3.clearkey",subitem->string)==0)
 					{
-						logprintf("ClearKey License Server URL config param received - %s", conv.c_str());
+						AAMPLOG_WARN("ClearKey License Server URL config param received - %s", conv.c_str());
 						SetConfigValue<std::string>(owner,eAAMPConfig_CKLicenseServerUrl,conv);
 						drmType = eDRM_ClearKey;
 					}
 					if(strcasecmp("preferredKeysystem",subitem->string)==0)
 					{
-						logprintf("Preferred key system received - %s", conv.c_str());
+						AAMPLOG_WARN("Preferred key system received - %s", conv.c_str());
 						SetConfigValue<int>(owner,eAAMPConfig_PreferredDRM,(int)drmType);
 					}
 					subitem = subitem->next;
@@ -962,7 +996,7 @@ void AampConfig::CustomArrayRead( cJSON *customArray,ConfigPriority owner )
 			}
 			else
 			{
-				logprintf("Invalid format for %s \n",keyname.c_str());
+				AAMPLOG_ERR("Invalid format for %s",keyname.c_str());
 				continue;
 			}
 			for (auto it = mAampLookupTable.begin(); it != mAampLookupTable.end(); ++it)
@@ -979,7 +1013,7 @@ void AampConfig::CustomArrayRead( cJSON *customArray,ConfigPriority owner )
 					}
 					else
 					{
-						logprintf("Invalid format for %s \n",keyname.c_str());
+						AAMPLOG_ERR("Invalid format for %s ",keyname.c_str());
 						continue;
 					}
 				}
@@ -987,7 +1021,7 @@ void AampConfig::CustomArrayRead( cJSON *customArray,ConfigPriority owner )
 		}
 		for(int i = 0; i < vCustom.size(); i++)
 		{
-			logprintf("Custom Values listed %s %s \n",vCustom[i].config.c_str(),vCustom[i].configValue.c_str());
+			AAMPLOG_INFO("Custom Values listed %s %s",vCustom[i].config.c_str(),vCustom[i].configValue.c_str());
 		}
 	}
 }
@@ -1006,7 +1040,7 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 		return false;
 	}
 	bool found = false;
-	logprintf("url %s playerid %d appname %s \n",url.c_str(),playerId,appname.c_str());
+	AAMPLOG_INFO("url %s playerid %d appname %s ",url.c_str(),playerId,appname.c_str());
 	std::string url_custom = url;
 	std::string playerId_custom = std::to_string(playerId);
 	std::string appName_custom = appname;
@@ -1025,7 +1059,7 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 			if( foundurl != std::string::npos)
 			{
 				index = distance;
-				logprintf("FOUND URL %s \n", vCustom[index].configValue.c_str());
+				AAMPLOG_INFO("FOUND URL %s", vCustom[index].configValue.c_str());
 				found = true;
 				break;
 			}
@@ -1038,7 +1072,7 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 			if( foundurl != std::string::npos)
 			{
 				index = distance;
-				logprintf("FOUND PLAYERID %s \n", vCustom[index].configValue.c_str());
+				AAMPLOG_INFO("FOUND PLAYERID %s", vCustom[index].configValue.c_str());
 				found = true;
 				break;
 			}
@@ -1051,12 +1085,12 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 			if( foundurl != std::string::npos)
 			{
 				index = distance;
-				logprintf("FOUND AAPNAME %s \n",vCustom[index].configValue.c_str());
+				AAMPLOG_INFO("FOUND AAPNAME %s",vCustom[index].configValue.c_str());
 				found = true;
 				break;
 			}
 		}
-        	logprintf("Not applicable values \n");
+        	//logprintf("Not applicable values \n");
 	}while (0);
 
 	if (found == true)
@@ -1098,7 +1132,7 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 							}
 							else
 							{
-								logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+								AAMPLOG_ERR("Set failed .Input beyond the configured range");
 							}
 						}
 						else if(cfgEnum > eAAMPConfig_LongStartValue && cfgEnum < eAAMPConfig_LongMaxValue)
@@ -1110,7 +1144,7 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 							}
 							else
 							{
-								logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+								AAMPLOG_ERR("Set failed .Input beyond the configured range");
 							}
 						}
 						else if(cfgEnum > eAAMPConfig_DoubleStartValue && cfgEnum < eAAMPConfig_DoubleMaxValue)
@@ -1122,7 +1156,7 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 							}
 							else
 							{
-								logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+								AAMPLOG_ERR("Set failed .Input beyond the configured range");
 							}
 						}
 						else if(cfgEnum > eAAMPConfig_StringStartValue && cfgEnum < eAAMPConfig_StringMaxValue)
@@ -1242,7 +1276,7 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 						channelInfo.uri = token;
 					else if ((token.compare(0,5,"live:") == 0) || (token.compare(0,3,"mr:") == 0) || (token.compare(0,5,"tune:") == 0))
 					{
-						logprintf("%s %d Overriden OTA Url!!", __FUNCTION__,__LINE__);
+						AAMPLOG_INFO("Overriden OTA Url!!");
 						channelInfo.uri = token;
 					}
 					else if (token.compare(0,17,"licenseServerUrl=") == 0)
@@ -1283,7 +1317,7 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 			{
 				AampConfigLookupEntry cfg = iter->second;
 				AAMPConfigSettings cfgEnum = cfg.cfgEntryValue;
-				logprintf("Parsed value for dev cfg property %s - %s",key.c_str(),value.c_str());
+				AAMPLOG_WARN("Parsed value for dev cfg property %s - %s",key.c_str(),value.c_str());
 				// For those parameters in Boolean Settings
 				if(cfgEnum < eAAMPConfig_BoolMaxValue )
 				{
@@ -1304,7 +1338,7 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 							else if(strcasecmp(value.c_str(),"false")==0)
 								SetConfigValue<bool>(owner,cfgEnum,(bool)false);
 							else
-								logprintf("%s Wrong input provided for Cfg:%s Value:%s",__FUNCTION__,iter->first.c_str(),value.c_str());
+								AAMPLOG_ERR("Wrong input provided for Cfg:%s Value:%s",iter->first.c_str(),value.c_str());
 						}
 					}
 					else
@@ -1325,7 +1359,7 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 						}
 						else
 						{
-							logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+							AAMPLOG_ERR("Set failed .Input beyond the configured range");
 						}
 					}
 				}
@@ -1341,7 +1375,7 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 						}
 						else
 						{
-							logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+							AAMPLOG_ERR("Set failed .Input beyond the configured range");
 						}
 					}
 				}
@@ -1357,7 +1391,7 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 						}
 						else
 						{
-							logprintf("%s:%d Set failed .Input beyond the configured range",__FUNCTION__,__LINE__);
+							AAMPLOG_ERR("Set failed .Input beyond the configured range");
 						}
 					}
 				}
@@ -1372,7 +1406,7 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 			else
 			{
 				mAampDevCmdTable[key]=value;
-				logprintf("%s:%d Unknown command(%s) added to DeveloperTable",__FUNCTION__,__LINE__,key.c_str());
+				AAMPLOG_WARN("Unknown command(%s) added to DeveloperTable",key.c_str());
 			}
 		}
 	}
@@ -1416,7 +1450,7 @@ bool AampConfig::ReadAampCfgJsonFile()
 			std::ifstream f(cfgPath, std::ifstream::in | std::ifstream::binary);
 			if (f.good())
 			{
-				logprintf("%s:INFO opened aampcfg.json\n",__FUNCTION__);
+				AAMPLOG_INFO("opened aampcfg.json");
 				std::filebuf* pbuf = f.rdbuf();
 				std::size_t size = pbuf->pubseekoff (0,f.end,f.in);
 				pbuf->pubseekpos (0,f.in);
@@ -1469,7 +1503,7 @@ bool AampConfig::ReadAampCfgTxtFile()
 		std::ifstream f(cfgPath, std::ifstream::in | std::ifstream::binary);
 		if (f.good())
 		{
-			logprintf("%s:INFO opened aamp.cfg\n",__FUNCTION__);
+			AAMPLOG_INFO("opened aamp.cfg");
 			std::string buf;
 			while (f.good())
 			{
@@ -1504,7 +1538,7 @@ void AampConfig::ReadOperatorConfiguration()
 				((cloudConf[i] < 0x20) || (cloudConf[i] > 0x7E)))
 			{
 				bCharCompliant = false;
-				logprintf("%s ERROR Non Compliant char[0x%X] found, Ignoring whole config  \n",__FUNCTION__,cloudConf[i]);
+				AAMPLOG_ERR("Non Compliant char[0x%X] found, Ignoring whole config ",cloudConf[i]);
 				break;
 			}
 		}
@@ -1521,7 +1555,7 @@ void AampConfig::ReadOperatorConfiguration()
 				{
 					if (line.length() > 0)
 					{
-						logprintf("%s INFO aamp-cmd:[%s]\n",__FUNCTION__, line.c_str());
+						AAMPLOG_INFO("aamp-cmd:[%s]\n", line.c_str());
 						ProcessConfigText(line,AAMP_OPERATOR_SETTING);
 					}
 				}
@@ -1535,7 +1569,7 @@ void AampConfig::ReadOperatorConfiguration()
 	const char *env_aamp_force_aac = getenv("AAMP_FORCE_AAC");
 	if(env_aamp_force_aac)
 	{
-		logprintf("AAMP_FORCE_AAC present: Changing preference to AAC over ATMOS & DD+");
+		AAMPLOG_INFO("AAMP_FORCE_AAC present: Changing preference to AAC over ATMOS & DD+");
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_DisableEC3,true);
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_DisableATMOS,true);
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_ForceEC3,false);
@@ -1548,7 +1582,7 @@ void AampConfig::ReadOperatorConfiguration()
 		int minInitCache = 0;
 		if(sscanf(env_aamp_min_init_cache,"%d",&minInitCache) && minInitCache >= 0)
 		{
-			logprintf("AAMP_MIN_INIT_CACHE present: Changing min initial cache to %d seconds",minInitCache);
+			AAMPLOG_INFO("AAMP_MIN_INIT_CACHE present: Changing min initial cache to %d seconds",minInitCache);
 			SetConfigValue<int>(AAMP_OPERATOR_SETTING,eAAMPConfig_InitialBuffer,minInitCache);
 		}
 	}
@@ -1557,14 +1591,14 @@ void AampConfig::ReadOperatorConfiguration()
 	const char *env_enable_micro_events = getenv("TUNE_MICRO_EVENTS");
 	if(env_enable_micro_events)
 	{
-		logprintf("TUNE_MICRO_EVENTS present: Enabling TUNE_MICRO_EVENTS.");
+		AAMPLOG_INFO("TUNE_MICRO_EVENTS present: Enabling TUNE_MICRO_EVENTS.");
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_EnableMicroEvents,true);
 	}
 
 	const char *env_enable_cdai = getenv("CLIENT_SIDE_DAI");
 	if(env_enable_cdai)
 	{
-		logprintf("CLIENT_SIDE_DAI present: Enabling CLIENT_SIDE_DAI.");
+		AAMPLOG_INFO("CLIENT_SIDE_DAI present: Enabling CLIENT_SIDE_DAI.");
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_EnableClientDai,true);
 	}
 
@@ -1575,11 +1609,11 @@ void AampConfig::ReadOperatorConfiguration()
 		int iValue = atoi(env_enable_westoros_sink);
 		bool bValue = (strcasecmp(env_enable_westoros_sink,"true") == 0);
 
-		logprintf("AAMP_ENABLE_WESTEROS_SINK present, Value = %d", (bValue ? bValue : (iValue ? iValue : 0)));
+		AAMPLOG_INFO("AAMP_ENABLE_WESTEROS_SINK present, Value = %d", (bValue ? bValue : (iValue ? iValue : 0)));
 
 		if(iValue || bValue)
 		{
-			logprintf("AAMP_ENABLE_WESTEROS_SINK present: Enabling westeros-sink.");
+			AAMPLOG_INFO("AAMP_ENABLE_WESTEROS_SINK present: Enabling westeros-sink.");
 			SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_UseWesterosSink,true);
 		}
 
@@ -1588,7 +1622,7 @@ void AampConfig::ReadOperatorConfiguration()
 	const char *env_enable_lld = getenv("LOW_LATENCY_DASH");
 	if(env_enable_lld)
 	{
-		logprintf("LOW_LATENCY_DASH present: Enabling LOW_LATENCY_DASH");
+		AAMPLOG_INFO("LOW_LATENCY_DASH present: Enabling LOW_LATENCY_DASH");
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_EnableLowLatencyDash,true);
 	}
 }
@@ -1653,9 +1687,9 @@ void AampConfig::ConfigureLogSettings()
  */
 void AampConfig::ShowOperatorSetConfiguration()
 {
-	logprintf("////////////////// AAMP Config (Operator Set) //////////");
+	//logprintf("////////////////// AAMP Config (Operator Set) //////////");
 	ShowConfiguration(AAMP_OPERATOR_SETTING);
-	logprintf("//////////////////////////////////////////////////");
+	//logprintf("//////////////////////////////////////////////////");
 }
 /**
  * @brief ShowAppSetConfiguration - List all Application configured settings
@@ -1664,9 +1698,9 @@ void AampConfig::ShowOperatorSetConfiguration()
  */
 void AampConfig::ShowAppSetConfiguration()
 {
-	logprintf("////////////////// AAMP Config (Application Set) //////////");
+	//logprintf("////////////////// AAMP Config (Application Set) //////////");
 	ShowConfiguration(AAMP_APPLICATION_SETTING);
-	logprintf("//////////////////////////////////////////////////");
+	//logprintf("//////////////////////////////////////////////////");
 }
 /**
  * @brief ShowStreamSetConfiguration - List all stream configured settings
@@ -1675,9 +1709,9 @@ void AampConfig::ShowAppSetConfiguration()
  */
 void AampConfig::ShowStreamSetConfiguration()
 {
-	logprintf("////////////////// AAMP Config (Stream Set) //////////");
+	//logprintf("////////////////// AAMP Config (Stream Set) //////////");
 	ShowConfiguration(AAMP_STREAM_SETTING);
-	logprintf("//////////////////////////////////////////////////");
+	//logprintf("//////////////////////////////////////////////////");
 
 }
 /**
@@ -1687,9 +1721,9 @@ void AampConfig::ShowStreamSetConfiguration()
  */
 void AampConfig::ShowDefaultAampConfiguration()
 {
-	logprintf("////////////////// AAMP Default Configuration  //////////");
+	//logprintf("////////////////// AAMP Default Configuration  //////////");
 	ShowConfiguration(AAMP_DEFAULT_SETTING);
-	logprintf("//////////////////////////////////////////////////");
+	//logprintf("//////////////////////////////////////////////////");
 }
 /**
  * @brief ShowDevCfgConfiguration - List all developer configured settings
@@ -1698,9 +1732,9 @@ void AampConfig::ShowDefaultAampConfiguration()
  */
 void AampConfig::ShowDevCfgConfiguration()
 {
-	logprintf("////////////////// AAMP Cfg Override Configuration  //////////");
+	//logprintf("////////////////// AAMP Cfg Override Configuration  //////////");
 	ShowConfiguration(AAMP_DEV_CFG_SETTING);
-	logprintf("//////////////////////////////////////////////////");
+	//logprintf("//////////////////////////////////////////////////");
 }
 /**
  * @brief ShowAAMPConfiguration - Show all settings for every owner
@@ -1709,9 +1743,9 @@ void AampConfig::ShowDevCfgConfiguration()
  */
 void AampConfig::ShowAAMPConfiguration()
 {
-	logprintf("////////////////// AAMP Configuration  //////////");
+	//logprintf("////////////////// AAMP Configuration  //////////");
 	ShowConfiguration(AAMP_MAX_SETTING);
-	logprintf("//////////////////////////////////////////////////");
+	//logprintf("//////////////////////////////////////////////////");
 }
 
 //////////////// Special Functions which involve conversion of configuration ///////////
@@ -1818,11 +1852,11 @@ void AampConfig::SetValue(J &setting, ConfigPriority newowner, const K &value, s
 		}
 		setting.value = value;
 		setting.owner = newowner;
-		logprintf("%s: %s New Owner[%d]",__FUNCTION__,cfgName.c_str(),newowner);
+		AAMPLOG_WARN("%s New Owner[%d]",cfgName.c_str(),newowner);
 	}
 	else
 	{
-		logprintf("%s: %s Owner[%d] not allowed to Set ,current Owner[%d]",__FUNCTION__,cfgName.c_str(),newowner,setting.owner);
+		AAMPLOG_WARN("%s Owner[%d] not allowed to Set ,current Owner[%d]",cfgName.c_str(),newowner,setting.owner);
 	}
 }
 
@@ -1981,7 +2015,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 	{
 		if(bAampCfgValue[i].owner == owner || owner == AAMP_MAX_SETTING)
 		{
-			logprintf("Cfg [%-3d][%-20s][%-5s][%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[bAampCfgValue[i].owner].ownerName,bAampCfgValue[i].value?"true":"false");
+			AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s][%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[bAampCfgValue[i].owner].ownerName,bAampCfgValue[i].value?"true":"false");
 		}
 	}
 
@@ -1991,7 +2025,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		// for int array
 		if(iAampCfgValue[i-eAAMPConfig_IntStartValue].owner == owner || owner == AAMP_MAX_SETTING)
 		{
-			logprintf("Cfg [%-3d][%-20s][%-5s][%d]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[iAampCfgValue[i-eAAMPConfig_IntStartValue].owner].ownerName,iAampCfgValue[i-eAAMPConfig_IntStartValue].value);
+			AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s][%d]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[iAampCfgValue[i-eAAMPConfig_IntStartValue].owner].ownerName,iAampCfgValue[i-eAAMPConfig_IntStartValue].value);
 		}
 	}
 
@@ -2001,7 +2035,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		// for long array
 		if(lAampCfgValue[i-eAAMPConfig_LongStartValue].owner == owner || owner == AAMP_MAX_SETTING)
 		{
-			logprintf("Cfg [%-3d][%-20s][%-5s][%ld]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[lAampCfgValue[i-eAAMPConfig_LongStartValue].owner].ownerName,lAampCfgValue[i-eAAMPConfig_LongStartValue].value);
+			AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s][%ld]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[lAampCfgValue[i-eAAMPConfig_LongStartValue].owner].ownerName,lAampCfgValue[i-eAAMPConfig_LongStartValue].value);
 		}
 	}
 
@@ -2011,7 +2045,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		// for double array
 		if(dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner == owner || owner == AAMP_MAX_SETTING)
                 {
-                        logprintf("Cfg [%-3d][%-20s][%-5s][%f]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner].ownerName,dAampCfgValue[i-eAAMPConfig_DoubleStartValue].value);
+                        AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s][%f]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner].ownerName,dAampCfgValue[i-eAAMPConfig_DoubleStartValue].value);
                 }
         }
 
@@ -2023,7 +2057,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		// for string array
 		if(sAampCfgValue[i-eAAMPConfig_StringStartValue].owner == owner || owner == AAMP_MAX_SETTING)
 		{
-			logprintf("Cfg [%-3d][%-20s][%-5s][%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[sAampCfgValue[i-eAAMPConfig_StringStartValue].owner].ownerName,sAampCfgValue[i-eAAMPConfig_StringStartValue].value.c_str());
+			AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s][%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[sAampCfgValue[i-eAAMPConfig_StringStartValue].owner].ownerName,sAampCfgValue[i-eAAMPConfig_StringStartValue].value.c_str());
 		}
 	}
 
@@ -2032,8 +2066,8 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		ChannelMapIter iter;
 		for (iter = mChannelOverrideMap.begin(); iter != mChannelOverrideMap.end(); ++iter)
 		{
-			logprintf("Cfg Channel[%s]-> [%s]",iter->name.c_str(),iter->uri.c_str());
-			logprintf("Cfg Channel[%s]-> License Uri: [%s]",iter->name.c_str(),iter->licenseUri.c_str());
+			AAMPLOG_INFO("Cfg Channel[%s]-> [%s]",iter->name.c_str(),iter->uri.c_str());
+			AAMPLOG_INFO("Cfg Channel[%s]-> License Uri: [%s]",iter->name.c_str(),iter->licenseUri.c_str());
 		}
 	}
 
@@ -2063,7 +2097,7 @@ bool AampConfig::ReadNumericHelper(std::string valStr, T& value)
 			value = std::stod(valStr);
 		else
 		{
-			logprintf("%s:ERROR Invalid Input \n",__FUNCTION__);
+			AAMPLOG_ERR("ERROR Invalid Input ");
 			ret = false;
 		}
 
@@ -2102,17 +2136,17 @@ char * AampConfig::GetTR181AAMPConfig(const char * paramName, size_t & iConfigLe
 				const char *src = (const char*)(param.paramValue);
 				strConfig = (char * ) base64_Decode(src,&iConfigLen);
 
-				logprintf("GetTR181AAMPConfig: Got:%s En-Len:%d Dec-len:%d",strforLog.c_str(),param.paramLen,iConfigLen);
+				AAMPLOG_INFO("GetTR181AAMPConfig: Got:%s En-Len:%d Dec-len:%d",strforLog.c_str(),param.paramLen,iConfigLen);
 			}
 			else
 			{
-				logprintf("GetTR181AAMPConfig: Not a string param type=%d or Invalid len:%d ",param.paramtype, param.paramLen);
+				AAMPLOG_ERR("GetTR181AAMPConfig: Not a string param type=%d or Invalid len:%d ",param.paramtype, param.paramLen);
 			}
 		}
 	}
 	else
 	{
-		logprintf("GetTR181AAMPConfig: Failed to retrieve value result=%d",result);
+		AAMPLOG_ERR("GetTR181AAMPConfig: Failed to retrieve value result=%d",result);
 	}
 	return strConfig;
 }
