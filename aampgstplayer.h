@@ -48,7 +48,7 @@ private:
 
 public:
 	class PrivateInstanceAAMP *aamp;
-	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux);
+	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation);
 	void SendCopy(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration);
 	void SendTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double duration);
 	void EndOfStreamReached(MediaType type);
@@ -77,8 +77,9 @@ public:
 	void ClearProtectionEvent();
 	
 	void StopBuffering(bool forceStop);
-	bool AdjustPlayBackRate(double position, double rate);
-	
+    bool AdjustPlayBackRate(double position, double rate);
+	bool PipelineSetToReady; //To indicate the pipeline is set to ready forcefully
+
 	struct AAMPGstPlayerPriv *privateContext;
 	AAMPGstPlayer(AampLogManager *logObj, PrivateInstanceAAMP *aamp
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
