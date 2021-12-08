@@ -294,7 +294,7 @@ AAMPGstPlayer::AAMPGstPlayer(AampLogManager *logObj, PrivateInstanceAAMP *aamp
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
         , std::function< void(uint8_t *, int, int, int) > exportFrames
 #endif
-	) : mLogObj(logObj), aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock()
+	) : mLogObj(logObj), aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock(), PipelineSetToReady(false)
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 	, cbExportYUVFrame(NULL)
 #endif
@@ -1320,6 +1320,25 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 			_this->aamp->ScheduleRetune(eGST_ERROR_OUTPUT_PROTECTION_ERROR,eMEDIATYPE_VIDEO);
 		}
 		break;
+	case GST_MESSAGE_NEED_CONTEXT:
+		AAMPLOG_WARN("Received GST_MESSAGE_NEED_CONTEXT (probably after a discontinuity between periods having different track_ids)");
+
+		const gchar* contextType;
+		gst_message_parse_context_type(msg, &contextType);
+		if (!g_strcmp0(contextType, "drm-preferred-decryption-system-id"))
+		{
+			AAMPLOG_WARN("Setting %s as preferred drm",GetDrmSystemName(_this->aamp->GetPreferredDRM()));
+			GstContext* context = gst_context_new("drm-preferred-decryption-system-id", FALSE);
+			GstStructure* contextStructure = gst_context_writable_structure(context);
+			gst_structure_set(contextStructure, "decryption-system-id", G_TYPE_STRING, GetDrmSystemID(_this->aamp->GetPreferredDRM()),  NULL);
+			gst_element_set_context(GST_ELEMENT(GST_MESSAGE_SRC(msg)), context);
+		}
+		else
+		{
+			AAMPLOG_ERR("unknown context type - %s ", contextType);
+		}
+		break;
+
 	default:
 		AAMPLOG_WARN("msg type: %s", gst_message_type_get_name(msg->type));
 		break;
@@ -1418,9 +1437,10 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 			}
 #endif
 		}
-
-		if (old_state == GST_STATE_NULL && new_state == GST_STATE_READY)
+		//_this->PipelineSetToReady is added here to make sure that this portion is called only when there is tansition from READY to PAUSED during a track_id mismatch
+		if ((old_state == GST_STATE_NULL && new_state == GST_STATE_READY) || (new_state == GST_STATE_READY && old_state == GST_STATE_PAUSED && _this->PipelineSetToReady))
 		{
+			_this->PipelineSetToReady = false;
 #ifndef INTELCE
 			if ((NULL != msg->src) && AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this))
 			{
@@ -2461,7 +2481,7 @@ void AAMPGstPlayer::Stream()
  * @param[in] bESChangeStatus
  * @param[in] forwardAudioToAux if audio buffers to be forwarded to aux pipeline
  */
-void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux)
+void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation)
 {
 	FN_TRACE( __FUNCTION__ );
 	AAMPLOG_WARN("videoFormat %d audioFormat %d auxFormat %d",format, audioFormat, auxFormat);
@@ -2500,6 +2520,19 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	if (privateContext->pipeline == NULL || privateContext->bus == NULL)
 	{
 		CreatePipeline();
+	}
+
+	if (setReadyAfterPipelineCreation)
+	{
+		if(gst_element_set_state(this->privateContext->pipeline, GST_STATE_READY) == GST_STATE_CHANGE_FAILURE)
+		{
+			AAMPLOG_ERR("AAMPGstPlayer_Configure GST_STATE_READY failed on forceful set");
+		}
+		else
+		{
+			AAMPLOG_INFO("Forcefully set pipeline to ready state due to track_id change");
+			PipelineSetToReady = true;
+		}
 	}
 
 	bool configureStream[AAMP_TRACK_COUNT];

@@ -91,6 +91,7 @@ public:
 	static constexpr const char *TFDT = "tfdt";
 	static constexpr const char *TRUN = "trun";
 	static constexpr const char *MDAT = "mdat";
+	static constexpr const char *TKHD = "tkhd";
 
 	static constexpr const char *STYP = "styp";
 	static constexpr const char *SIDX = "sidx";
@@ -229,7 +230,38 @@ public:
 	static GenericContainerBox* constructContainer(uint32_t sz, const char btype[4], uint8_t *ptr);
 };
 
-
+/**
+ * @brief Class for ISO BMFF TRAK container
+ */
+class TrakBox : public GenericContainerBox
+{
+private:
+	uint32_t track_id;
+public:
+	/**
+	 * @brief Trak constructor
+	 *
+	 * @param[in] sz - box size
+	 */
+	TrakBox(uint32_t sz) : GenericContainerBox(sz, TRAK), track_id(0)
+	{
+	}
+	/**
+	 * @brief Static function to construct a trak container object
+	 *
+	 * @param[in] sz - box size
+	 * @param[in] ptr - pointer to box
+	 * @return newly constructed trak object
+	 */
+	static TrakBox* constructTrakBox(uint32_t sz, uint8_t *ptr);
+	
+	/**
+	 * @brief track_id getter
+	 *
+	 * @return trak_id
+	 */
+	uint32_t getTrack_Id() { return track_id; }
+};
 /**
  * @brief Class for single ISO BMFF Box
  * Eg: FTYP, MDHD, MVHD, TFDT

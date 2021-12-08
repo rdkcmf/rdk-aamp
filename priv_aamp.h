@@ -817,6 +817,11 @@ public:
 	bool mPlayerPreBuffered;     // Player changed from BG to FG
 	int mPlayerId;
 	int mDrmDecryptFailCount;	/**< Sets retry count for DRM decryption failure */
+	
+	int mCurrentAudioTrackId;	//Current audio  track id read from trak box of init fragment
+	int mCurrentVideoTrackId;	//Current video track id read from trak box of init fragment
+	bool mIsTrackIdMismatch;	//Indicate track_id mismatch in the trak box between periods
+	
 #ifdef AAMP_HLS_DRM
 	std::vector <attrNameData> aesCtrAttrDataList; /**< Queue to hold the values of DRM data parsed from manifest */
 	pthread_mutex_t drmParserMutex; /**< Mutex to lock DRM parsing logic */

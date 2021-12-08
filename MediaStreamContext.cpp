@@ -81,6 +81,43 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
             }
             //CID:101284 - To resolve the deadcode
         }
+		else
+		{
+			if(actualType == eMEDIATYPE_INIT_VIDEO || actualType == eMEDIATYPE_INIT_AUDIO)
+			{
+				//To read track_id from the init fragments to check if there any mismatch.
+				//A mismatch in track_id is not handled in the gstreamer version 1.10.4
+				//But is handled in the latest version (1.18.5),
+				//so upon upgrade to it or introduced a patch in qtdemux,
+				//this portion can be reverted
+				IsoBmffBuffer buffer;
+				buffer.setBuffer((uint8_t *)cachedFragment->fragment.ptr, cachedFragment->fragment.len);
+				buffer.parseBuffer();
+				uint32_t track_id = 0;
+				buffer.getTrack_id(track_id);
+				
+				if(actualType == eMEDIATYPE_INIT_VIDEO)
+				{
+					AAMPLOG_INFO("Video track_id read from init config: %d ", track_id);
+					if(aamp->mCurrentVideoTrackId != -1 && track_id != aamp->mCurrentVideoTrackId)
+					{
+						aamp->mIsTrackIdMismatch = true;
+						AAMPLOG_WARN("TrackId mismatch detected for video, current track_id: %d, next period track_id: %d", aamp->mCurrentVideoTrackId, track_id);
+					}
+					aamp->mCurrentVideoTrackId = track_id;
+				}
+				else
+				{
+					AAMPLOG_INFO("Audio track_id read from init config: %d ", track_id);
+					if(aamp->mCurrentAudioTrackId != -1 && track_id != aamp->mCurrentAudioTrackId)
+					{
+						aamp->mIsTrackIdMismatch = true;
+						AAMPLOG_WARN("TrackId mismatch detected for audio, current track_id: %d, next period track_id: %d", aamp->mCurrentAudioTrackId, track_id);
+					}
+					aamp->mCurrentAudioTrackId = track_id;
+				}
+			}
+		}
 
         //update videoend info
         aamp->UpdateVideoEndMetrics( actualType,
