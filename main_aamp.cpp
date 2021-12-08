@@ -155,7 +155,7 @@ if(!iarmInitialized)
 	// Copy the default configuration to session configuration .
 	// App can modify the configuration set
 	mConfig = *gpGlobalConfig;
-
+  
 	sp_aamp = std::make_shared<PrivateInstanceAAMP>(&mConfig);
 	aamp = sp_aamp.get();
 	mLogObj = mConfig.GetLoggerInstance();

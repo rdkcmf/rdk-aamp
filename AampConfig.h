@@ -409,9 +409,12 @@ public:
 	// Had to define as public as globalConfig loggin var is used multiple files
 	// TODO when player level logging is done, need to remove this
 	AampLogManager logging;                 /**< Aamp log manager class*/
+	AampLogManager *mLogObj;
 public:
 	AampConfig();
 	~AampConfig(){};
+	AampConfig(const AampConfig&) = delete;
+	AampConfig& operator=(const AampConfig&);
 	void Initialize();
 	void ShowOperatorSetConfiguration();
 	void ShowAppSetConfiguration();
@@ -445,7 +448,6 @@ public:
 	void CustomArrayRead( cJSON *customArray,ConfigPriority owner );
 	bool CustomSearch( std::string url, int playerId , std::string appname);
 	AampLogManager *GetLoggerInstance() { return &logging;}
-
 	////////// Special Functions /////////////////////////
 	std::string GetUserAgentString();
 	//long GetManifestTimeoutMs();
