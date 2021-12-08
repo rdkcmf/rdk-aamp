@@ -318,8 +318,11 @@ void AampDRMSessionManager::setPlaybackSpeedState(int speed, double position)
 void AampDRMSessionManager::setContentAspectRatio(float aspectratio)
 {
 #ifdef USE_SECMANAGER
-	logprintf("In AampDRMSessionManager::%s aspectratio=%f mMaxDRMSessions=%d",__FUNCTION__,aspectratio,mMaxDRMSessions);
-	AampSecManager::GetInstance()->setContentAspectRatio(mSessionId, aspectratio);
+	if(AAMP_SECMGR_INVALID_SESSION_ID != mSessionId)
+	{
+		logprintf("In AampDRMSessionManager::%s aspectratio=%f mMaxDRMSessions=%d",__FUNCTION__,aspectratio,mMaxDRMSessions);
+		AampSecManager::GetInstance()->setContentAspectRatio(mSessionId, aspectratio);
+	}
 #endif
 }
 
@@ -1642,10 +1645,13 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 void AampDRMSessionManager::notifyCleanup()
 {
 #ifdef USE_SECMANAGER
-	// Set current session to inactive
-	AampSecManager::GetInstance()->UpdateSessionState(mSessionId, false);
-	// Reset the session ID, the session ID is preserved within AampDrmSession instances
-	mSessionId = AAMP_SECMGR_INVALID_SESSION_ID;
+	if(AAMP_SECMGR_INVALID_SESSION_ID != mSessionId)
+	{
+		// Set current session to inactive
+		AampSecManager::GetInstance()->UpdateSessionState(mSessionId, false);
+		// Reset the session ID, the session ID is preserved within AampDrmSession instances
+		mSessionId = AAMP_SECMGR_INVALID_SESSION_ID;
+	}
 #endif
 }
 
