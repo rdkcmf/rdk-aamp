@@ -2307,8 +2307,13 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 							mFirstPTS += skipTime;
 							AAMPLOG_TRACE("Type[%d] updateFirstPTS: %f SkipTime: %f",mFirstPTS, skipTime);
 						}
+					}
+					if(mMinUpdateDurationMs > MAX_DELAY_BETWEEN_MPD_UPDATE_MS)
+					{
+						AAMPLOG_INFO("Minimum Update Period is larger  than Max mpd update delay");
+						break;
 					}					
-					if (skipTime >= segmentDuration)
+					else if (skipTime >= segmentDuration)
 					{ // seeking past more than one segment
 						uint64_t number = skipTime / segmentDuration;
 						double fragmentTimeFromNumber = segmentDuration * number;
@@ -2734,7 +2739,7 @@ Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd)
 }
 
 //Multiply two ints without overflow
-inline double safeMultiply(const int first, const int second)
+inline double safeMultiply(const  unsigned int first, const unsigned int second)
 {
     return static_cast<double>(first * second);
 }
