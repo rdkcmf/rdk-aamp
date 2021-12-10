@@ -246,7 +246,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, -1,-1},
 	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}},
 	{"useSecManager",eAAMPConfig_UseSecManager, -1,-1,},
-	{"xreSupprotedTune",eAAMPConfig_XRESupportedTune,-1,-1}
+	{"xreSupportedTune",eAAMPConfig_XRESupportedTune,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////

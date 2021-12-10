@@ -2809,7 +2809,7 @@ static JSValueRef AAMPMediaPlayerJS_setAuxiliaryLanguage(JSContextRef ctx, JSObj
 
 
 /**
- * @brief API invoked from JS when executing AAMPMediaPlayer.xreSupprotedTune()
+ * @brief API invoked from JS when executing AAMPMediaPlayer.xreSupportedTune()
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
  * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
@@ -2818,26 +2818,26 @@ static JSValueRef AAMPMediaPlayerJS_setAuxiliaryLanguage(JSContextRef ctx, JSObj
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval JSValue that is the function's return value
  */
-JSValueRef AAMPMediaPlayerJS_xreSupprotedTune(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+JSValueRef AAMPMediaPlayerJS_xreSupportedTune(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
-		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call xreSupprotedTune() on instances of AAMPPlayer");
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call xreSupportedTune() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (argumentCount == 1)
 	{
 		bool xreSupported = JSValueToBoolean(ctx, arguments[0]);
-		privObj->_aamp->XRESupprotedTune(xreSupported);
+		privObj->_aamp->XRESupportedTune(xreSupported);
 	}
 	else
 	{
 		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
-		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute xreSupprotedTune() - 1 argument required");
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute xreSupportedTune() - 1 argument required");
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
@@ -2902,7 +2902,7 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "setPreferredAudioRendition", AAMPMediaPlayerJS_setPreferredAudioRendition, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setPreferredAudioCodec", AAMPMediaPlayerJS_setPreferredAudioCodec, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setAuxiliaryLanguage", AAMPMediaPlayerJS_setAuxiliaryLanguage, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
-	{ "xreSupprotedTune", AAMPMediaPlayerJS_xreSupprotedTune, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ "xreSupportedTune", AAMPMediaPlayerJS_xreSupportedTune, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ NULL, NULL, 0 }
 };
 

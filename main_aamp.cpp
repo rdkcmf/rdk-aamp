@@ -2556,7 +2556,7 @@ void PlayerInstanceAAMP::SetAuxiliaryLanguage(const std::string &language)
  *
  *   @param[in] bool On/Off
  */
-void PlayerInstanceAAMP::XRESupprotedTune(bool xreSupported)
+void PlayerInstanceAAMP::XRESupportedTune(bool xreSupported)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_XRESupportedTune,xreSupported);
 }

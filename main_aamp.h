@@ -1522,7 +1522,7 @@ public:
 	 *
 	 *   @param[in] bool On/Off
 	 */
-	void XRESupprotedTune(bool xreSupported);
+	void XRESupportedTune(bool xreSupported);
 
 	class PrivateInstanceAAMP *aamp;    /**< AAMP player's private instance */
 	std::shared_ptr<PrivateInstanceAAMP> sp_aamp; /* shared pointer for aamp resource */

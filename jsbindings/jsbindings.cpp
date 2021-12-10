@@ -3781,26 +3781,26 @@ static JSValueRef AAMP_setAuxiliaryLanguage(JSContextRef context, JSObjectRef fu
  * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
  * @retval JSValue that is the function's return value
  */
-static JSValueRef AAMP_xreSupprotedTune(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+static JSValueRef AAMP_xreSupportedTune(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
 	LOG("[AAMP_JS] %s()", __FUNCTION__);
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
 		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
-		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.xreSupprotedTune on instances of AAMP");
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.xreSupportedTune on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
 		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
-		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.xreSupprotedTune' - 1 argument required");
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.xreSupportedTune' - 1 argument required");
 	}
 	else
 	{
 		bool xreSupported = JSValueToBoolean(context, arguments[0]);
-		pAAMP->_aamp->XRESupprotedTune(xreSupported);
+		pAAMP->_aamp->XRESupportedTune(xreSupported);
 	}
 	return JSValueMakeUndefined(context);
 }
@@ -3855,7 +3855,7 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ "setLanguageFormat", AAMP_setLanguageFormat, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setLicenseCaching", AAMP_setLicenseCaching, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setAuxiliaryLanguage", AAMP_setAuxiliaryLanguage, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
-	{ "xreSupprotedTune", AAMP_xreSupprotedTune, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ "xreSupportedTune", AAMP_xreSupportedTune, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ NULL, NULL, 0 }
 };
 
