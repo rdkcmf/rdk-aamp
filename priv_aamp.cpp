@@ -7737,9 +7737,8 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
         mDRMSessionManager->setPlaybackSpeedState(rate,seek_pos_seconds);
 		int x,y,w,h;
 		sscanf(mStreamSink->GetVideoRectangle().c_str(),"%d,%d,%d,%d",&x,&y,&w,&h);
-        AAMPLOG_WARN("calling setContentAspectRatio  w:%d x h:%d h/w=%f 2.3",w,h,(float)w/(float)h);
+        AAMPLOG_WARN("calling setVideoWindowSize  w:%d x h:%d ",w,h);
         mDRMSessionManager->setVideoWindowSize(w,h);
-        mDRMSessionManager->setContentAspectRatio((float)w/(float)h);
 	}
 #endif
 	

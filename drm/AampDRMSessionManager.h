@@ -205,8 +205,6 @@ public:
 
 	void setPlaybackSpeedState(int speed, double position);
 
-	void setContentAspectRatio(float aspectratio);
-
 	void setSessionMgrState(SessionMgrState state);
 
 	SessionMgrState getSessionMgrState();

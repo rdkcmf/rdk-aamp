@@ -315,17 +315,6 @@ void AampDRMSessionManager::setPlaybackSpeedState(int speed, double position)
 #endif
 }
 
-void AampDRMSessionManager::setContentAspectRatio(float aspectratio)
-{
-#ifdef USE_SECMANAGER
-	if(AAMP_SECMGR_INVALID_SESSION_ID != mSessionId)
-	{
-		logprintf("In AampDRMSessionManager::%s aspectratio=%f mMaxDRMSessions=%d",__FUNCTION__,aspectratio,mMaxDRMSessions);
-		AampSecManager::GetInstance()->setContentAspectRatio(mSessionId, aspectratio);
-	}
-#endif
-}
-
 /**
  * @brief
  * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
