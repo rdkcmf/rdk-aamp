@@ -174,7 +174,7 @@ typedef enum
 	eAAMPConfig_Disable4K,							/** Enalbe/Disable 4K stream support*/
 	eAAMPConfig_EnableSharedSSLSession,                                             /** Enable/Disable config for shared ssl session reuse */
 	eAAMPConfig_InterruptHandling,							/**<Enables Config for network interrupt handling*/
-	eAAMPConfig_EnableSegmentTempateHandling,                   /** Enable/Disable SegmentTamplate Handling */
+	eAAMPConfig_EnablePTO,							/** Enable/Disable PTO Handling */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,

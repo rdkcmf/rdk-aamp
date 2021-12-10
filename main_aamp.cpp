@@ -864,7 +864,9 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 		{
 			SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_PlaybackOffset,secondsRelativeToTuneTime);
 			aamp->seek_pos_seconds = secondsRelativeToTuneTime;
-			if(ISCONFIGSET(eAAMPConfig_EnableSegmentTempateHandling) &&  aamp->mbEnableSegmentTemplateHandling)
+
+			//Set Condition for Seek position calculation when PTO handling is enabled
+			if(ISCONFIGSET(eAAMPConfig_EnablePTO) &&  aamp->mbEnableSegmentTemplateHandling)
 			{
 				aamp->mbEnableFirstPtsSeekPosOverride = true;
 			}

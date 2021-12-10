@@ -1545,28 +1545,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 			}
 		}
 
-#ifndef __APPLE__
-		if (old_state == GST_STATE_READY && new_state == GST_STATE_PAUSED &&
-		!_this->aamp->IsLive() && _this->aamp->mConfig->IsConfigSet(eAAMPConfig_EnableSegmentTempateHandling))
-		{
-			GstState current, pending;
-			GstStateChangeReturn ret;
-			ret = gst_element_get_state(_this->privateContext->pipeline, &current, &pending, 100 * GST_MSECOND);
-			if(GST_STATE_PAUSED == current && !_this->aamp->mbPipelineFlushed)
-			{
-				if (!gst_element_seek(_this->privateContext->pipeline, _this->aamp->rate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
-					_this->aamp->GetFirstPTS() * GST_SECOND,
-					GST_SEEK_TYPE_SET,
-					((_this->aamp->GetPeriodDurationTimeValue()/1000.0) * GST_SECOND +  _this->aamp->GetFirstPTS() * GST_SECOND)))
-				{
-					AAMPLOG_WARN("gst_element_seek failed");
-				}
-				AAMPLOG_WARN("gst_element_seek called position: %f", _this->aamp->GetFirstPTS());
-				_this->aamp->mbPipelineFlushed = true;
-			}
-		}
-#endif
-
 		break;
 #ifdef USE_GST1
 	case GST_MESSAGE_NEED_CONTEXT:
@@ -2102,14 +2080,12 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 	return 0;
 }
 
-
 /**
  * @brief Send any pending/cached events to pipeline
- * @param[in] privateContext pointer to AAMPGstPlayerPriv instance
  * @param[in] mediaType stream type
  * @param[in] pts PTS of next buffer
  */
-static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPlayerPriv *privateContext, MediaType mediaType, GstClockTime pts)
+void AAMPGstPlayer::SendGstEvents(MediaType mediaType, GstClockTime pts)
 {
 	media_stream* stream = &privateContext->stream[mediaType];
 	gboolean enableOverride = FALSE;
@@ -2168,30 +2144,6 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 		{
 			privateContext->segmentStart = 0;
 		}
-	}
-
-#ifdef USE_GST1
-	GstSegment segment;
-	gst_segment_init(&segment, GST_FORMAT_TIME);
-	segment.start = pts;
-	segment.position = 0;
-	segment.rate = AAMP_NORMAL_PLAY_RATE;
-	segment.applied_rate = AAMP_NORMAL_PLAY_RATE;
-
-#if defined(AMLOGIC)
-	//AMLOGIC-2143 notify westerossink of rate to run in Vmaster mode
-	if (mediaType == eMEDIATYPE_VIDEO)
-		segment.applied_rate = privateContext->rate;
-#endif
-
-	logprintf("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
-	GstEvent* event = gst_event_new_segment (&segment);
-#else
-	GstEvent* event = gst_event_new_new_segment (FALSE, 1.0, GST_FORMAT_TIME, pts, GST_CLOCK_TIME_NONE, 0);
-#endif
-	if (!gst_pad_push_event(sourceEleSrcPad, event))
-	{
-		logprintf("%s: gst_pad_push_event segment error", __FUNCTION__);
 	}
 
 	if (stream->format == FORMAT_ISO_BMFF)
@@ -2286,6 +2238,46 @@ uint32_t getId3TagSize(const uint8_t *data)
 }
 
 /**
+ * @brief Send new segment event to pipeline
+ * @param[in] mediaType stream type
+ * @param[in] startPos Start Position of first buffer
+ * @param[in] stopPos Stop position of last buffer
+ */
+void AAMPGstPlayer::SendNewSegmentEvent(MediaType mediaType, GstClockTime startPts ,GstClockTime stopPts)
+{
+        media_stream* stream = &privateContext->stream[mediaType];
+        GstPad* sourceEleSrcPad = gst_element_get_static_pad(GST_ELEMENT(stream->source), "src");
+
+        if (stream->format == FORMAT_ISO_BMFF)
+        {
+#ifdef USE_GST1
+                GstSegment segment;
+                gst_segment_init(&segment, GST_FORMAT_TIME);
+                segment.start = startPts;
+                segment.position = 0;
+                segment.rate = AAMP_NORMAL_PLAY_RATE;
+                segment.applied_rate = AAMP_NORMAL_PLAY_RATE;
+                if(stopPts) segment.stop = stopPts;
+
+#if defined(AMLOGIC)
+                //AMLOGIC-2143 notify westerossink of rate to run in Vmaster mode
+                if (mediaType == eMEDIATYPE_VIDEO)
+                        segment.applied_rate = privateContext->rate;
+#endif
+
+                AAMPLOG_TRACE("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
+                GstEvent* event = gst_event_new_segment (&segment);
+        #else
+                GstEvent* event = gst_event_new_new_segment (FALSE, 1.0, GST_FORMAT_TIME, pts, GST_CLOCK_TIME_NONE, 0);
+#endif
+                if (!gst_pad_push_event(sourceEleSrcPad, event))
+                {
+                        logprintf("%s: gst_pad_push_event segment error", __FUNCTION__);
+                }
+        }
+}
+
+/**
  * @brief Inject stream buffer to gstreamer pipeline
  * @param[in] mediaType stream type
  * @param[in] ptr buffer pointer
@@ -2300,11 +2292,13 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 	GstClockTime pts = (GstClockTime)(fpts * GST_SECOND);
 	GstClockTime dts = (GstClockTime)(fdts * GST_SECOND);
 	GstClockTime duration = (GstClockTime)(fDuration * 1000000000LL);
-	gboolean discontinuity = FALSE;
+
 	media_stream *stream = &privateContext->stream[mediaType];
 	bool isFirstBuffer = stream->resetPosition;
 
-	if(ptr && stream->format == FORMAT_ISO_BMFF && !aamp->IsLive() && ISCONFIGSET(eAAMPConfig_EnableSegmentTempateHandling))
+	// When PTO handling is enabled, Override pts with actual buffer PTS
+	// Allows decoder to be in sync and play buffer as sent
+	if(ptr && stream->format == FORMAT_ISO_BMFF && !aamp->IsLive() && ISCONFIGSET(eAAMPConfig_EnablePTO) && aamp->mbEnableSegmentTemplateHandling)
 	{
 		IsoBmffBuffer buffer;
 		buffer.setBuffer((uint8_t *)ptr ,len);
@@ -2364,21 +2358,37 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 			return false;
 		}
 	}
-
 	if (isFirstBuffer)
 	{
-		AAMPLOG_INFO("AAMPGstPlayer %s: Send Segment Event for for mediaType[%d] First Buffer pts: %" PRIu64 " stop_pts: %" PRIu64,__FUNCTION__, mediaType, pts);
-
-		AAMPGstPlayer_SendPendingEvents(aamp, privateContext, mediaType, pts);
+		//Send Gst Event when first init buffer received after new tune, seek or period change
+		SendGstEvents(mediaType, pts);
 
 		if (mediaType == eMEDIATYPE_AUDIO && ForwardAudioBuffersToAux())
 		{
-			AAMPGstPlayer_SendPendingEvents(aamp, privateContext, eMEDIATYPE_AUX_AUDIO, pts);
+			SendGstEvents(eMEDIATYPE_AUX_AUDIO, pts);
 		}
 
-		discontinuity = TRUE;
-		AAMPLOG_TRACE("AAMPGstPlayer %s: mediaType[%d] First Buffer Processed !!!", __FUNCTION__, mediaType);
+		AAMPLOG_TRACE("AAMPGstPlayer %s: mediaType[%d] Init Buffer Processed !!!", __FUNCTION__, mediaType);
 	}
+
+	// Send New Segment Event when first Data segment encountered after new tune
+	if(!aamp->IsLive() &&
+		ISCONFIGSET(eAAMPConfig_EnablePTO) &&
+		aamp->mbEnableSegmentTemplateHandling &&
+		!aamp->mbNewSegmentEvtSent[mediaType] &&
+		!initFragment)
+	{
+		double startPos = aamp->GetFirstPTS();
+		double stopPos = aamp->GetPeriodStartTimeValue() + (aamp->GetPeriodDurationTimeValue()/1000.0);
+		GstClockTime startPts = (GstClockTime)(startPos * GST_SECOND);
+		GstClockTime stopPts = (GstClockTime)(stopPos * GST_SECOND);
+
+		SendNewSegmentEvent(mediaType, startPts, stopPts);
+		aamp->mbNewSegmentEvtSent[mediaType] = true;
+
+		AAMPLOG_TRACE("AAMPGstPlayer %s: mediaType[%d] First Data Buffer Processed !!!", __FUNCTION__, mediaType);
+	}
+
 	if( aamp->DownloadsAreEnabled())
 	{
 		GstBuffer *buffer;
@@ -3520,7 +3530,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		}
 		/* Disabling the flush flag as part of DELIA-42607 to avoid */
 		/* flush call again (which may cause freeze sometimes)      */
-		/* from AAMPGstPlayer_SendPendingEvents() API.              */
+		/* from SendGstEvents() API.              */
 		for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 		{
 			privateContext->stream[i].resetPosition = true;
@@ -3535,7 +3545,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			playRate = rate;
 		}
 
-		if(aamp->IsLive() || !ISCONFIGSET(eAAMPConfig_EnableSegmentTempateHandling))
+		if(aamp->IsLive() || !ISCONFIGSET(eAAMPConfig_EnablePTO))
 		{
 			if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
 			position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
@@ -3545,10 +3555,12 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		}
 		else
 		{
-			if(ISCONFIGSET(eAAMPConfig_EnableSegmentTempateHandling) && aamp->mbEnableSegmentTemplateHandling && !aamp->mbIgnoreStopPosProcessing)
+			// In Non Live case, When PTO handling is enabled, Send GST seek request with START and STOP
+			if(ISCONFIGSET(eAAMPConfig_EnablePTO) && aamp->mbEnableSegmentTemplateHandling && !aamp->mbIgnoreStopPosProcessing)
 			{
 				double duration = aamp->GetPeriodDurationTimeValue()/1000.0;
-				double seekEnd = position + duration;
+				double seekEnd = aamp->GetPeriodStartTimeValue() + duration;
+				// Calculate seek start position
 				if(aamp->mbEnableFirstPtsSeekPosOverride)
 				{
 					position = (aamp->seek_pos_seconds - aamp->GetPeriodStartTimeValue()) + aamp->GetPeriodScaledPtoStartTime();

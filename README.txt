@@ -136,6 +136,7 @@ useAbsoluteTimeline		Enable Report Progress report position based on Availabilit
 id3				Enable/Disable ID3 tag.Default is false
 repairIframes		Enable/Disable iframe fragment repair (stripping and box adjustment) for HLS mp4 when whole file is received for ranged request. Default is false
 sharedSSL			Enabled/Disable curl shared SSL session. Default is true
+enablePTO			Enable/Disable PTO Handling
 
 // Integer inputs
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune

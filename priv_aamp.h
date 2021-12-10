@@ -717,7 +717,7 @@ public:
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
 	int rate; // most recent (non-zero) play rate for non-paused content
 	bool pipeline_paused; // true if pipeline is paused
-	bool mbPipelineFlushed;
+	bool mbNewSegmentEvtSent[AAMP_TRACK_COUNT];
 	
 	char mLanguageList[MAX_LANGUAGE_COUNT][MAX_LANGUAGE_TAG_LENGTH]; // list of languages in stream
 	int mCurrentLanguageIndex; // Index of current selected lang in mLanguageList, this is used for VideoStat event data collection
@@ -3154,7 +3154,7 @@ public:
 	 */
 	std::string GetAuxiliaryAudioLanguage() { return mAuxAudioLanguage; }
 
-    /**
+	/**
 	*     @brief GetPeriodDurationTimeValue
 	*     @return double
 	*/

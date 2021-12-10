@@ -1219,7 +1219,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mCurrentAudioTrackId(-1)
 	, mCurrentVideoTrackId(-1)
 	, mIsTrackIdMismatch(false)
-	, mbPipelineFlushed(false)
 	, mNextPeriodDuration(0)
 	, mNextPeriodStartTime(0)
 	, mNextPeriodScaledPtoStartTime(0)
@@ -4000,7 +3999,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 #endif
 		if (!forceStop && ((!newTune && ISCONFIGSET_PRIV(eAAMPConfig_DemuxVideoHLSTrack)) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline)))
 		{
-			if(ISCONFIGSET_PRIV(eAAMPConfig_EnableSegmentTempateHandling) && mbEnableSegmentTemplateHandling)
+			if(ISCONFIGSET_PRIV(eAAMPConfig_EnablePTO) && mbEnableSegmentTemplateHandling)
 			{
 				//Set condition for ignore in Flush
 				mbIgnoreStopPosProcessing = true;
@@ -4584,6 +4583,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	// reused 
 	mProgramDateTime = 0;
 	mMPDPeriodsInfo.clear();
+
+	for (int i = 0; i < AAMP_TRACK_COUNT; i++) mbNewSegmentEvtSent[i] = false;
 
 #ifdef AAMP_RFC_ENABLED
 	schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();

@@ -179,7 +179,7 @@ public:
 	const IAdaptationSet* GetAdaptationSetAtIndex(int idx);
 	struct ProfileInfo GetAdaptationSetAndRepresetationIndicesForProfile(int profileIndex);
 	int64_t GetMinUpdateDuration() { return mMinUpdateDurationMs;}
-	bool FetchFragment( class MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance, bool discontinuity = false, double pto = 0 , uint32_t scale = 0 );
+	bool FetchFragment( class MediaStreamContext *pMediaStreamContext, std::string media, double fragmentDuration, bool isInitializationSegment, unsigned int curlInstance, bool discontinuity = false, double pto = 0 , uint32_t scale = 0);
 	bool PushNextFragment( class MediaStreamContext *pMediaStreamContext, unsigned int curlInstance);
 	double GetFirstPeriodStartTime(void);
 	void StartSubtitleParser() override;

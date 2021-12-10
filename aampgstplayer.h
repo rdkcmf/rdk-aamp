@@ -45,6 +45,8 @@ class AAMPGstPlayer : public StreamSink
 {
 private:
 	bool SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration, bool copy, bool initFragment = 0);
+	void SendGstEvents(MediaType mediaType, GstClockTime pts);
+	void SendNewSegmentEvent(MediaType mediaType, GstClockTime startPts ,GstClockTime stopPts = 0);
 
 public:
 	class PrivateInstanceAAMP *aamp;
