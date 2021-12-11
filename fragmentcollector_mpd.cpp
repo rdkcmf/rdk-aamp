@@ -818,8 +818,11 @@ void StreamAbstractionAAMP_MPD::GetFragmentUrl( std::string& fragmentUrl, const 
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	std::string constructedUri = fragmentDescriptor->GetMatchingBaseUrl();
-	if( media.compare(0, 7, "http://")==0 || media.compare(0, 8, "https://")==0 )
-	{	// don't pre-pend baseurl if media starts with http:// or https://
+	if( media.empty() )
+	{
+	}
+	else if( aamp_IsAbsoluteURL(media) )
+	{ // don't pre-pend baseurl if media starts with http:// or https://
 		constructedUri.clear();
 	}
 	else if (!constructedUri.empty())
@@ -833,8 +836,8 @@ void StreamAbstractionAAMP_MPD::GetFragmentUrl( std::string& fragmentUrl, const 
 			}
 		}
 
-		//Add '/' to BaseURL if not already available.
-		if( constructedUri.compare(0, 7, "http://")==0 || constructedUri.compare(0, 8, "https://")==0 )
+		// append '/' suffix to BaseURL if not already present
+		if( aamp_IsAbsoluteURL(constructedUri) )
 		{
 			if( constructedUri.back() != '/' )
 			{
@@ -847,7 +850,6 @@ void StreamAbstractionAAMP_MPD::GetFragmentUrl( std::string& fragmentUrl, const 
 		AAMPLOG_TRACE("BaseURL not available");
 	}
 	constructedUri += media;
-
 	replace(constructedUri, "Bandwidth", fragmentDescriptor->Bandwidth);
 	replace(constructedUri, "RepresentationID", fragmentDescriptor->RepresentationID);
 	replace(constructedUri, "Number", fragmentDescriptor->Number);
@@ -1908,6 +1910,10 @@ void StreamAbstractionAAMP_MPD::SkipToEnd( MediaStreamContext *pMediaStreamConte
 double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStreamContext, double skipTime, bool updateFirstPTS)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
+	if( !pMediaStreamContext->representation )
+	{ // avoid crash with video-only content
+		return 0.0;
+	}
 	SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),
 					pMediaStreamContext->adaptationSet->GetSegmentTemplate() );
 	if( segmentTemplates.HasSegmentTemplate() )
@@ -3185,7 +3191,11 @@ double StreamAbstractionAAMP_MPD::GetPeriodStartTime(IMPD *mpd, int periodIndex)
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	double periodStart = 0;
 	double  periodStartMs = 0;
-	if(mpd != NULL)
+	if( periodIndex<0 )
+	{
+		AAMPLOG_WARN( "periodIndex<0" );
+	}
+	else if(mpd != NULL )
 	{
 		int periodCnt= mpd->GetPeriods().size();
 		if(periodIndex < periodCnt)
@@ -5670,7 +5680,7 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 				default:
 					break;
 			}
-			AAMPLOG_INFO( "track#%d score = %d\n", iAdaptationSet, score );
+			AAMPLOG_INFO( "track#%d score = %d", iAdaptationSet, score );
 			if( score > bestScore )
 			{
 				bestScore = score;
@@ -6046,7 +6056,11 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 			std::string mimeType = period->GetAdaptationSets().at(selAdaptationSetIndex)->GetMimeType();
 			if (mimeType.empty())
 			{
-				if (pMediaStreamContext->mSubtitleParser->init(0.0, 0))
+				if( !pMediaStreamContext->mSubtitleParser )
+				{
+					AAMPLOG_WARN("mSubtitleParser is NULL" );
+				}
+				else if (pMediaStreamContext->mSubtitleParser->init(0.0, 0))
 				{
 					pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
 				}
@@ -6626,24 +6640,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 			}
 			pMediaStreamContext->representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(pMediaStreamContext->representationIndex);
 
-			const std::vector<IBaseUrl *>*baseUrls  = &pMediaStreamContext->representation->GetBaseURLs();
-			if(!baseUrls)
-			{
-				AAMPLOG_WARN("baseUrls is null");  //CID:84531 - Null Returns
-			}
-			if (baseUrls->size() == 0)
-			{
-				baseUrls = &pMediaStreamContext->adaptationSet->GetBaseURLs();
-				if (baseUrls->size() == 0)
-				{
-					baseUrls = &mCurrentPeriod->GetBaseURLs();
-					if (baseUrls->size() == 0)
-					{
-						baseUrls = &mpd->GetBaseUrls();
-					}
-				}
-			}
-			pMediaStreamContext->fragmentDescriptor.SetBaseURLs(baseUrls);
+			pMediaStreamContext->fragmentDescriptor.ClearMatchingBaseUrl();
+			pMediaStreamContext->fragmentDescriptor.AppendMatchingBaseUrl( &mpd->GetBaseUrls() );
+			pMediaStreamContext->fragmentDescriptor.AppendMatchingBaseUrl( &period->GetBaseURLs() );
+			pMediaStreamContext->fragmentDescriptor.AppendMatchingBaseUrl( &pMediaStreamContext->adaptationSet->GetBaseURLs() );
+			pMediaStreamContext->fragmentDescriptor.AppendMatchingBaseUrl( &pMediaStreamContext->representation->GetBaseURLs() );
 
 			pMediaStreamContext->fragmentIndex = 0;
 
@@ -6699,6 +6700,16 @@ uint32_t StreamAbstractionAAMP_MPD::GetCurrPeriodTimeScale()
 	uint32_t timeScale = 0;
 	timeScale = GetPeriodSegmentTimeScale(currPeriod);
 	return timeScale;
+}
+
+dash::mpd::IMPD *StreamAbstractionAAMP_MPD::GetMPD( void )
+{
+	return mpd;
+}
+
+IPeriod *StreamAbstractionAAMP_MPD::GetPeriod( void )
+{
+	return mpd->GetPeriods().at(mCurrentPeriodIdx);
 }
 
 /**
@@ -7383,20 +7394,13 @@ void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 										fragmentDescriptor->manifestUrl = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentDescriptor.manifestUrl;
 										ProcessContentProtection(adaptationSet, (MediaType)i);
 										fragmentDescriptor->Bandwidth = representation->GetBandwidth();
-										const std::vector<IBaseUrl *>*baseUrls = &representation->GetBaseURLs();
-										if (baseUrls->size() == 0)
-										{
-											baseUrls = &adaptationSet->GetBaseURLs();
-											if (baseUrls->size() == 0)
-											{
-												baseUrls = &period->GetBaseURLs();
-												if (baseUrls->size() == 0)
-												{
-													baseUrls = &mpd->GetBaseUrls();
-												}
-											}
-										}
-										fragmentDescriptor->SetBaseURLs(baseUrls);
+
+										fragmentDescriptor->ClearMatchingBaseUrl();
+										fragmentDescriptor->AppendMatchingBaseUrl(&mpd->GetBaseUrls());
+										fragmentDescriptor->AppendMatchingBaseUrl(&period->GetBaseURLs());
+										fragmentDescriptor->AppendMatchingBaseUrl(&adaptationSet->GetBaseURLs());
+										fragmentDescriptor->AppendMatchingBaseUrl(&representation->GetBaseURLs());
+
 										fragmentDescriptor->RepresentationID.assign(representation->GetId());
 										GetFragmentUrl(fragmentUrl,fragmentDescriptor , initialization);
 										if (mMediaStreamContext[i]->WaitForFreeFragmentAvailable())
@@ -9783,7 +9787,7 @@ bool StreamAbstractionAAMP_MPD::IsMatchingLanguageAndMimeType(MediaType type, st
 			   if (ret != true)
 			   {
 					   //Even though language matched, mimeType is missing or not supported right now. Log for now
-					   AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Found matching track[%d] with language:%s but not supported mimeType and thus disabled!!\n",
+					   AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Found matching track[%d] with language:%s but not supported mimeType and thus disabled!!",
 											   type, lang.c_str());
 			   }
 	   }
@@ -9951,7 +9955,7 @@ double StreamAbstractionAAMP_MPD::GetEncoderDisplayLatency()
 
 							/* Convert the time back to a string. */
 							strftime( out_buffer, 80, "That's %D (a %A), at %T",localtime (&wTime) );
-							AAMPLOG_TRACE( "%s\n", out_buffer );
+							AAMPLOG_TRACE( "%s", out_buffer );
 							WCA = (double)wTime ;
 						}
 					}

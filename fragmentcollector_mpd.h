@@ -105,40 +105,53 @@ public :
 	{
 		return matchingBaseURL;
 	}
-	void SetBaseURLs(const std::vector<IBaseUrl *>* baseurls )
+	
+	void ClearMatchingBaseUrl()
 	{
-		if(baseurls)
+		matchingBaseURL.clear();
+	}
+	void AppendMatchingBaseUrl( const std::vector<IBaseUrl *>*baseUrls )
+	{
+		if( baseUrls && baseUrls->size()>0 )
 		{
-			this->baseUrls = baseurls;
-			if(this->baseUrls->size() > 0 )
+			const std::string &url = baseUrls->at(0)->GetUrl();
+			if( url.empty() )
 			{
-				// use baseurl which matches with host from manifest.
+			}
+			else if( aamp_IsAbsoluteURL(url) )
+			{
 				if(bUseMatchingBaseUrl)
 				{
 					std::string prefHost = aamp_getHostFromURL(manifestUrl);
 					for (auto & item : *this->baseUrls) {
-						std::string itemUrl =item->GetUrl();
+						std::string itemUrl = item->GetUrl();
 						std::string host  = aamp_getHostFromURL(itemUrl);
 						if(0 == prefHost.compare(host))
 						{
-							this->matchingBaseURL = item->GetUrl();
-							return; // return here, we are done
+							matchingBaseURL = item->GetUrl();
+							return;
 						}
 					}
 				}
-				//we are here means useMatchingBaseUrl not enabled or host did not match
-				// hence initialize default to first baseurl
-				this->matchingBaseURL = this->baseUrls->at(0)->GetUrl();
+				matchingBaseURL = url;
+			}
+			else if( url.rfind("/",0)==0 )
+			{
+				matchingBaseURL = aamp_getHostFromURL(matchingBaseURL);
+				matchingBaseURL += url;
+				AAMPLOG_WARN( "baseURL with leading /" );                     
 			}
 			else
 			{
-				this->matchingBaseURL.clear();
+				if( !matchingBaseURL.empty() )
+				{
+					matchingBaseURL += "/";
+				}
+				matchingBaseURL += url;
 			}
 		}
 	}
-
 };
-
 
 /**
  * @class StreamAbstractionAAMP_MPD
@@ -187,7 +200,9 @@ public:
 	void StartSubtitleParser() override;
 	void PauseSubtitleParser(bool pause) override;
 	uint32_t GetCurrPeriodTimeScale();
-
+	dash::mpd::IMPD *GetMPD( void );
+	IPeriod *GetPeriod( void );
+	
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
 	void FetcherLoop();
