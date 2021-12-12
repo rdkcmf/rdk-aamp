@@ -304,12 +304,16 @@ void MediaStreamContext::ABRProfileChanged(void)
             adaptationSetId = adaptationSet->GetId();
             representationIndex = reprIdxFromProfile;
             representation = pNewRepresentation;
-            const std::vector<IBaseUrl *>*baseUrls = &representation->GetBaseURLs();
-            if (baseUrls->size() != 0)
-            {
-                fragmentDescriptor.SetBaseURLs(baseUrls);
-            }
-            fragmentDescriptor.Bandwidth = representation->GetBandwidth();
+	
+			dash::mpd::IMPD *mpd = context->GetMPD();
+			IPeriod *period = context->GetPeriod();
+			fragmentDescriptor.ClearMatchingBaseUrl();
+			fragmentDescriptor.AppendMatchingBaseUrl( &mpd->GetBaseUrls() );
+			fragmentDescriptor.AppendMatchingBaseUrl( &period->GetBaseURLs() );
+			fragmentDescriptor.AppendMatchingBaseUrl( &adaptationSet->GetBaseURLs() );
+			fragmentDescriptor.AppendMatchingBaseUrl( &representation->GetBaseURLs() );
+
+			fragmentDescriptor.Bandwidth = representation->GetBandwidth();
             fragmentDescriptor.RepresentationID.assign(representation->GetId());
             profileChanged = true;
         }
