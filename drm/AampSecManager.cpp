@@ -414,48 +414,6 @@ bool AampSecManager::setPlaybackSpeedState(int64_t sessionId, int64_t playback_s
 }
 
 /**
- * @brief To set Content Aspect Ratio to SecManager
- *
- * @param[in] sessionId - session id
- * @param[in] - aspect_ratio aspect ratio
- */
-bool AampSecManager::setContentAspectRatio(int64_t sessionId, float aspect_ratio)
-{
-       bool rpcResult = false;
-       JsonObject result;
-       JsonObject param;
-
-       param["sessionId"] = sessionId;
-       param["aspectRatio"] = aspect_ratio;
-
-#if 0
-       AAMPLOG_INFO("SecManager call setContentAspectRatio for ID: ");
-
-       {
-               std::lock_guard<std::mutex> lock(mMutex);
-               rpcResult = mSecManagerObj.InvokeJSONRPC("setContentAspectRatio", param, result);
-       }
-
-       if (rpcResult)
-       {
-               if (!result["success"].Boolean())
-               {
-                       std::string responseStr;
-                       result.ToString(responseStr);
-                       AAMPLOG_ERR("SecManager setContentAspectRatio failed for ID:X and result: %s",  responseStr.c_str());
-                       rpcResult = false;
-               }
-       }
-       else
-       {
-               AAMPLOG_ERR("SecManager setContentAspectRatio failed for ID: ");
-       }
-       return rpcResult;
-#endif
-       return true;
-}
-
-/**
  * @brief To Load ClutWatermark
  *
  * @param[in] 

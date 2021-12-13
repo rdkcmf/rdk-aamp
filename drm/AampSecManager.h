@@ -96,8 +96,6 @@ public:
 
 	bool setPlaybackSpeedState(int64_t sessionId, int64_t playback_speed, int64_t playback_position);
 
-	bool setContentAspectRatio(int64_t sessionId, float aspect_ratio);
-
 	bool loadClutWatermark(int64_t sessionId, int64_t graphicId, int64_t watermarkClutBufferKey, int64_t watermarkImageBufferKey, int64_t clutPaletteSize, const char* clutPaletteFormat, int64_t watermarkWidth, int64_t watermarkHeight, float aspectRatio);
 
 private:
