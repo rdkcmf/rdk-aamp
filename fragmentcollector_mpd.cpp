@@ -7892,7 +7892,10 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 	{
 		PrivAAMPState state;
 		aamp->GetState(state);
-
+		if(ISCONFIGSET(eAAMPConfig_SuppressDecode))
+		{
+			state = eSTATE_PLAYING;
+		}
 		if(state == eSTATE_PLAYING)
 		{
 			*waitForFreeFrag = false;

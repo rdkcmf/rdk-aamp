@@ -186,6 +186,7 @@ typedef enum
 	eAAMPConfig_EnableAampConfigToFog,                                              /** Enable/Disable player config to Fog on every tune*/
 	eAAMPConfig_XRESupportedTune,						/**< Enable/Disable XRE supported tune*/
 	eAAMPConfig_AllowPageHeaders,						/**< Allow page http headers*/
+	eAAMPConfig_SuppressDecode,						/**< To Suppress Decode of segments for playback . Test only Downloader */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
