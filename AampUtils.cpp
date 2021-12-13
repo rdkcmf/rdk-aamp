@@ -859,22 +859,32 @@ bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaTyp
 		if( pos != std::string::npos )
 		{
 			fileName = fileName.substr(pos+3); // strip off leading http://
-			pos = fileName.rfind('/');
-			std::string dirpath = fileName.substr(0, pos);
-			fileName = fileName.substr(pos);
 			/* Avoid chance of overwriting , in case of manifest and playlist, name will be always same */
 			if(fileType == eMEDIATYPE_MANIFEST || fileType == eMEDIATYPE_PLAYLIST_AUDIO 
 			|| fileType == eMEDIATYPE_PLAYLIST_IFRAME || fileType == eMEDIATYPE_PLAYLIST_SUBTITLE || fileType == eMEDIATYPE_PLAYLIST_VIDEO )
-			{
+			{ // add suffix to give unique name for each downloaded manifest
 				fileName = fileName + "." + std::to_string(count);
 			}
-			/* Check prefix path exist or not , if not create it  */
-			createdir(prefix);
-			std::replace( dirpath.begin(), dirpath.end(), '/', '_');
-			dirpath = std::string(prefix)+"/"+dirpath;
-			/** Create directory within the prefix */
-			createdir(dirpath.c_str());
-			std::ofstream f(dirpath+fileName, std::ofstream::binary);
+			// create subdirectories lazily as needed, preserving CDN folder structure
+			std::string dirpath = std::string(prefix);
+			const char *subdir = fileName.c_str();
+			for(;;)
+			{
+				createdir(dirpath.c_str() );
+				dirpath += '/';
+				const char *delim = strchr(subdir,'/');
+				if( delim )
+				{
+					dirpath += std::string(subdir,delim-subdir);
+					subdir = delim+1;
+				}
+				else
+				{
+					dirpath += std::string(subdir);
+					break;
+				}
+			}
+			std::ofstream f(dirpath, std::ofstream::binary);
 			if (f.good())
 			{
 				f.write(data, len);
