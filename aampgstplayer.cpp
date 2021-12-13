@@ -2255,6 +2255,14 @@ uint32_t getId3TagSize(const uint8_t *data)
  */
 bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration, bool copy)
 {
+#ifdef SUPRESS_DECODE
+	if( privateContext->numberOfVideoBuffersSent == 0 )
+	{ // required in order for subtitle harvesting/processing to work
+		privateContext->numberOfVideoBuffersSent++;
+		aamp->UpdateSubtitleTimestamp();
+	}
+	return false;
+#endif
 	FN_TRACE( __FUNCTION__ );
 	GstClockTime pts = (GstClockTime)(fpts * GST_SECOND);
 	GstClockTime dts = (GstClockTime)(fdts * GST_SECOND);
@@ -3341,6 +3349,9 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
  */
 void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 {
+#ifdef SUPRESS_DECODE
+	return;
+#endif
 	FN_TRACE( __FUNCTION__ );
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_VIDEO];
 	privateContext->rate = rate;
