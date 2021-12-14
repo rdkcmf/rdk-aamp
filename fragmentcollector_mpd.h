@@ -143,8 +143,8 @@ public :
 			}
 			else
 			{
-				if( !matchingBaseURL.empty() )
-				{
+				if( !matchingBaseURL.empty() && matchingBaseURL.back() != '/' )
+				{ // add '/' delimiter only if parent baseUrl doesn't already end with one
 					matchingBaseURL += "/";
 				}
 				matchingBaseURL += url;
