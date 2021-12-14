@@ -509,13 +509,12 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
  */
 static int GetDesiredVideoCodecIndex(IAdaptationSet *adaptationSet)
 {
-        FN_TRACE_F_MPD( __FUNCTION__ );
+	FN_TRACE_F_MPD( __FUNCTION__ );
 	const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
 	int selectedRepIdx = -1;
 	for (int representationIndex = 0; representationIndex < representation.size(); representationIndex++)
 	{
 		const dash::mpd::IRepresentation *rep = representation.at(representationIndex);
-
 		const std::vector<string> adapCodecs = adaptationSet->GetCodecs();
 		const std::vector<string> codecs = rep->GetCodecs();
 		string codecValue="";
@@ -523,7 +522,6 @@ static int GetDesiredVideoCodecIndex(IAdaptationSet *adaptationSet)
 			codecValue=codecs.at(0);
 		else if(adapCodecs.size())
 			codecValue = adapCodecs.at(0);
-
 		//Ignore vp8 and vp9 codec video profiles(webm)
 		if(codecValue.find("vp") == std::string::npos)
 		{
@@ -666,7 +664,6 @@ static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentInd
 					 (type >> 24) % 0xff, (type >> 16) & 0xff, (type >> 8) & 0xff, type & 0xff, size);
 		if (firstOffset) *firstOffset = 0;
 		return false;
-
 	}
 
 	unsigned int version = Read32(f);
@@ -695,7 +692,6 @@ static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentInd
 
 	return false;
 }
-
 
 /**
  * @brief Replace matching token with given number
@@ -7082,7 +7078,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 					}
 					else
 					{
-						AAMPLOG_WARN("initialization  is null");  //CID:84853 ,86291- Null Retur
+						AAMPLOG_WARN("initialization  is null");  //CID:84853 ,86291- Null Return
 					}
 				}
 				else
@@ -7096,29 +7092,34 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 							g_free( pMediaStreamContext->index_ptr );
 							pMediaStreamContext->index_ptr = NULL;
 						}
+						std::string range;
 						const IURLType *urlType = segmentBase->GetInitialization();
 						if (urlType)
 						{
-							std::string range = urlType->GetRange();
-							int start, fin;
-							sscanf(range.c_str(), "%d-%d", &start, &fin);
-#ifdef DEBUG_TIMELINE
-							AAMPLOG_WARN("init %s %d..%d", getMediaTypeName(pMediaStreamContext->mediaType), start, fin);
-#endif
-							std::string fragmentUrl;
-							GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, "");
-							if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
+							range = urlType->GetRange();
+						}
+						else
+						{
+							range = segmentBase->GetIndexRange();
+							uint64_t s1,s2;
+							sscanf(range.c_str(), "%" PRIu64 "-%" PRIu64 "", &s1,&s2);
+							char temp[128];
+							sprintf( temp, "%lld", s1-1 );
+							range = "0-";
+							range += temp;
+						}
+						std::string fragmentUrl;
+						GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, "");
+						if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
+						{
+							pMediaStreamContext->profileChanged = false;
+							if(!pMediaStreamContext->CacheFragment(fragmentUrl,
+								getCurlInstanceByMediaType(pMediaStreamContext->mediaType),
+								pMediaStreamContext->fragmentTime,
+								0, // duration - zero for init fragment
+								range.c_str(), true ))
 							{
-								pMediaStreamContext->profileChanged = false;
-
-								if(!pMediaStreamContext->CacheFragment(fragmentUrl,
-									getCurlInstanceByMediaType(pMediaStreamContext->mediaType),
-									pMediaStreamContext->fragmentTime,
-									0, // duration - zero for init fragment
-									range.c_str(), true ))
-								{
-									AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: did not cache fragmentUrl %s fragmentTime %f", fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
-								}
+								AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: did not cache fragmentUrl %s fragmentTime %f", fragmentUrl.c_str(), pMediaStreamContext->fragmentTime);
 							}
 						}
 					}
