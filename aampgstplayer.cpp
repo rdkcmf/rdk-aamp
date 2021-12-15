@@ -3528,6 +3528,22 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			}
 		}
 #endif
+
+#if defined (AMLOGIC)
+	if(privateContext->video_sink && privateContext->using_westerossink)
+	{
+		if (privateContext->rate > 1 || privateContext->rate < 0)
+		{
+			AAMPLOG_INFO("%s:%d: Set avsync as video master mode", __FUNCTION__, __LINE__);
+			g_object_set(G_OBJECT(privateContext->video_sink), "avsync-mode", 0, NULL);
+		}
+		else
+		{
+			AAMPLOG_INFO("%s:%d: Set avsync as audio master mode", __FUNCTION__, __LINE__);
+			g_object_set(G_OBJECT(privateContext->video_sink), "avsync-mode", -1, NULL);
+		}
+	}
+#endif
 		//Check if pipeline is in playing/paused state. If not flush doesn't work
 		GstState current, pending;
 		bool bPauseNeeded = false;
