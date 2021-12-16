@@ -680,6 +680,11 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 				privateContext->firstFrameCallbackIdleTaskId = 0;
 			}
 		}
+		else if (PipelineSetToReady)
+		{
+			//If pipeline is set to ready forcefully due to change in track_id, then re-initialize CC 
+			aamp->InitializeCC();
+		}
 		if (privateContext->firstProgressCallbackIdleTaskId == 0)
 		{
 			privateContext->firstProgressCallbackIdleTaskPending = true;
@@ -698,7 +703,9 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 			privateContext->firstVideoFrameDisplayedCallbackIdleTaskId =
 					aamp->ScheduleAsyncTask(IdleCallbackFirstVideoFrameDisplayed, (void *)this);
 		}
+	    PipelineSetToReady = false;
 	}
+
 }
 
 /**
@@ -1431,9 +1438,8 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #endif
 		}
 
-		if ((old_state == GST_STATE_NULL && new_state == GST_STATE_READY) || (new_state == GST_STATE_READY && old_state == GST_STATE_PAUSED && _this->PipelineSetToReady))
+		if (old_state == GST_STATE_NULL && new_state == GST_STATE_READY)
 		{
-			_this->PipelineSetToReady = false;
 #ifndef INTELCE
 			if ((NULL != msg->src) && AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this))
 			{

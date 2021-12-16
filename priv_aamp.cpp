@@ -6463,6 +6463,42 @@ void PrivateInstanceAAMP::ReportContentGap(long long timeMilliseconds, std::stri
 	}
 }
 
+/**
+ * @brief Sends CC handle event to listeners when first frame receives or video_dec handle rests
+ */
+void PrivateInstanceAAMP::InitializeCC()
+{
+#ifdef AAMP_STOP_SINK_ON_SEEK
+        /*Do not send event on trickplay as CC is not enabled*/
+        if (AAMP_NORMAL_PLAY_RATE != rate)
+        {
+                logprintf("PrivateInstanceAAMP::%s:%d : not sending cc handle as rate = %f", __FUNCTION__, __LINE__, rate);
+                return;
+        }
+#endif
+        if (mStreamSink != NULL)
+        {
+#ifdef AAMP_CC_ENABLED
+                if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
+                {
+                        AampCCManager::GetInstance()->Init((void *)mStreamSink->getCCDecoderHandle());
+                }
+                else
+#endif
+                {
+                        CCHandleEventPtr event = std::make_shared<CCHandleEvent>(mStreamSink->getCCDecoderHandle());
+                        if (mAsyncTuneEnabled)
+                        {
+                                SendEventAsync(event);
+                        }
+                        else
+                        {
+                                SendEventSync(event);
+                        }
+                }
+        }
+}
+
 
 /**
  * @brief Notify first frame is displayed. Sends CC handle event to listeners.
@@ -6486,35 +6522,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 			logprintf("aamp: - sent tune event on Tune Completion.");
 		}
 	}
-#ifdef AAMP_STOP_SINK_ON_SEEK
-	/*Do not send event on trickplay as CC is not enabled*/
-	if (AAMP_NORMAL_PLAY_RATE != rate)
-	{
-		logprintf("PrivateInstanceAAMP::%s:%d : not sending cc handle as rate = %f", __FUNCTION__, __LINE__, rate);
-		return;
-	}
-#endif
-	if (mStreamSink != NULL)
-	{
-#ifdef AAMP_CC_ENABLED
-		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
-		{
-			AampCCManager::GetInstance()->Init((void *)mStreamSink->getCCDecoderHandle());
-		}
-		else
-#endif
-		{
-			CCHandleEventPtr event = std::make_shared<CCHandleEvent>(mStreamSink->getCCDecoderHandle());
-			if (mAsyncTuneEnabled)
-			{
-				SendEventAsync(event);				
-			}
-			else
-			{
-				SendEventSync(event);
-			}
-		}
-	}
+	InitializeCC();
 }
 
 /**
