@@ -1632,6 +1632,12 @@ public:
 	void NotifyFirstFrameReceived(void);
 
 	/**
+	 *   @brief Initialize CC after first frame received
+	 *
+	 *   @return void
+	 */
+	void InitializeCC(void);
+	/**
 	 *   @brief GStreamer operation start
 	 *
 	 *   @return void

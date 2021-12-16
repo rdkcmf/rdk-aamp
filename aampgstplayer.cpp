@@ -681,6 +681,11 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 				privateContext->firstFrameCallbackIdleTaskId = 0;
 			}
 		}
+		else if (PipelineSetToReady)
+		{
+			//If pipeline is set to ready forcefully due to change in track_id, then re-initialize CC 
+			aamp->InitializeCC();
+		}
 		if (privateContext->firstProgressCallbackIdleTaskId == 0)
 		{
 			privateContext->firstProgressCallbackIdleTaskPending = true;
@@ -699,7 +704,9 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 			privateContext->firstVideoFrameDisplayedCallbackIdleTaskId =
 					aamp->ScheduleAsyncTask(IdleCallbackFirstVideoFrameDisplayed, (void *)this);
 		}
+		PipelineSetToReady = false;
 	}
+
 }
 
 /**
