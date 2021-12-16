@@ -3565,7 +3565,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			if(ISCONFIGSET(eAAMPConfig_EnablePTO) && aamp->mbEnableSegmentTemplateHandling && !aamp->mbIgnoreStopPosProcessing)
 			{
 				double duration = aamp->GetPeriodDurationTimeValue()/1000.0;
-				double seekEnd = aamp->GetPeriodStartTimeValue() + duration;
+				double seekEnd = position + duration;
 				// Calculate seek start position
 				if(aamp->mbEnableFirstPtsSeekPosOverride)
 				{
