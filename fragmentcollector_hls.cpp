@@ -418,6 +418,7 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 		assert((srcPtr[1] == 'x') || (srcPtr[1] == 'X'));
 		srcPtr += 2;
 		ts->UpdateDrmIV(srcPtr);
+		ts->mDrmInfo.bUseMediaSequenceIV = false;
 	}
 	else if (AttributeNameMatch(attrName, "CMSha1Hash"))
 	{ // 20 bytes; Metadata Hash.
@@ -1937,6 +1938,32 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 				// DrmDecrypt resets mKeyTagChanged , take a back up here to give back to caller
 				bKeyChanged = mKeyTagChanged;
 				{	
+					/* XRE-18526 
+					 * From RFC8216 - Section 5.2,
+					 * An EXT-X-KEY tag with a KEYFORMAT of "identity" that does not have an
+					 * IV attribute indicates that the Media Sequence Number is to be used
+					 * as the IV when decrypting a Media Segment, by putting its big-endian
+					 * binary representation into a 16-octet (128-bit) buffer and padding
+					 * (on the left) with zeros.
+					 * Eg:
+					 * When manifest has no IV attribute as below, client has to create IV data.
+					 * #EXT-X-KEY:METHOD=AES-128,URI="https://someserver.com/hls.key" 
+					 * When manifest has IV attribute as below, client will use this IV, no need to create IV data.
+					 * #EXT-X-KEY:METHOD=AES-128,URI="https://someserver.com/hls.key",IV=0xABCDABCD
+					 */
+					if ( eMETHOD_AES_128 == mDrmInfo.method && true == mDrmInfo.bUseMediaSequenceIV )
+					{
+						if ( true == CreateInitVectorByMediaSeqNo(nextMediaSequenceNumber-1) )
+						{
+							// Set this flag to seed the newly created IV to corresponding DRM instance
+							mKeyTagChanged = true;
+						}
+						else
+						{
+							AAMPLOG_WARN ( "FetchFragmentHelper : Create Init Vector failed");
+						}
+					}
+
 					traceprintf("%s:%d [%s] uri %s - calling  DrmDecrypt()", __FUNCTION__, __LINE__, name, fragmentURI);
 					DrmReturn drmReturn = DrmDecrypt(cachedFragment, mediaTrackDecryptBucketTypes[type]);
 
@@ -6353,6 +6380,51 @@ DrmReturn TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucke
 			aamp->profiler.ProfileError(bucketTypeFragmentDecrypt, drmReturn);
 		}
 		return drmReturn;
+}
+
+/***************************************************************************
+* @fn CreateInitVectorByMediaSeqNo
+* @brief Function to create init vector using current media sequence number
+*
+* @param ui32Seqno[in] Current fragment's sequence number
+* @return bool true if successfully created, false otherwise.
+***************************************************************************/
+bool TrackState::CreateInitVectorByMediaSeqNo ( unsigned int ui32Seqno )
+{
+	unsigned char *pui8IV=NULL;
+	int i32loop=0;
+
+	if (mDrmInfo.iv)
+	{
+		// Re-using memory if allocated from earlier call, instead of multiple malloc & free for every fragments.
+		pui8IV = mDrmInfo.iv;
+	}
+	else
+	{
+		pui8IV = (unsigned char*)malloc(DRM_IV_LEN);
+		if ( NULL == pui8IV )
+		{
+			AAMPLOG_WARN("IV MemAlloc error, Size:%d",DRM_IV_LEN);
+			return false;
+		}
+	
+		mDrmInfo.iv = pui8IV;
+	}
+	memset(pui8IV, 0x00, DRM_IV_LEN);
+
+	/* From RFC8216 - Section 5.2,
+	 * Keeping the Media Sequence Number's big-endian binary
+	 * representation into a 16-octet (128-bit) buffer and padding
+	 * (on the left) with zeros.
+	 * Eg: Assume Media Seq No is 0x00045d23, then IV data will hold
+	 * value : 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00, 0x00,0x04,0x5d,0x23.
+     */
+	for(i32loop=12; i32loop< 16; ++i32loop)
+	{
+		pui8IV[i32loop]=((ui32Seqno)>> (8*(15-i32loop)))&0xff;
+	}
+
+	return true;
 }
 
 /***************************************************************************

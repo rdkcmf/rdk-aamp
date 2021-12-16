@@ -45,14 +45,16 @@ typedef enum
 struct DrmInfo
 {
 	DrmInfo() : method(eMETHOD_NONE), mediaFormat(eMEDIAFORMAT_HLS), useFirst16BytesAsIV(false), iv(nullptr),
-				masterManifestURL(), manifestURL(), keyURI(), keyFormat(), systemUUID(), initData(), bPropagateUriParams(true)
+				masterManifestURL(), manifestURL(), keyURI(), keyFormat(), systemUUID(), initData(), bPropagateUriParams(true),
+				bUseMediaSequenceIV(true)
 	{};
 	~DrmInfo() {};
 	// copy constructor
 	DrmInfo(const DrmInfo& other) : method(other.method), mediaFormat(other.mediaFormat),
 					useFirst16BytesAsIV(other.useFirst16BytesAsIV), masterManifestURL(other.masterManifestURL),
 					manifestURL(other.manifestURL), keyURI(other.keyURI), keyFormat(other.keyFormat),
-					systemUUID(other.systemUUID), initData(other.initData), iv(), bPropagateUriParams(other.bPropagateUriParams)
+					systemUUID(other.systemUUID), initData(other.initData), iv(), bPropagateUriParams(other.bPropagateUriParams),
+					bUseMediaSequenceIV(other.bUseMediaSequenceIV)
 	{
 		// copying same iv, releases memory allocated after deleting any of these objects.
 		iv = other.iv;
@@ -76,6 +78,7 @@ struct DrmInfo
 	MediaFormat mediaFormat;		// Format of the media being played e.g. DASH, HLS
 	bool useFirst16BytesAsIV;
 	bool bPropagateUriParams;		// Propagagate Manifest uri params in DRM
+	bool bUseMediaSequenceIV;		// To create IV using media sequence number
 	unsigned char *iv;				// [16] Initialisation vector
 	std::string masterManifestURL;	// URL of the master manifest
 	std::string manifestURL;		// URL of playlist the DRM info was taken from. May be the same as the masterManifestURL
