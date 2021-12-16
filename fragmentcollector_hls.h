@@ -202,6 +202,8 @@ public:
 	void UpdateDrmCMSha1Hash(const char *ptr);
 	/// Function to decrypt the fragment data 
 	DrmReturn DrmDecrypt(CachedFragment* cachedFragment, ProfilerBucketType bucketType);
+	/// Function to create the Initial vector from Current Media Sequence Number
+	bool CreateInitVectorByMediaSeqNo( unsigned int ui32Seqno );
 	/// Function to fetch the Playlist file
 	void FetchPlaylist();
 	/**
