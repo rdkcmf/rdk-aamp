@@ -1478,6 +1478,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mEventManager (NULL)
 	, mbDetached(false)
 	, mIsFakeTune(false)
+	, mCurrentAudioTrackId(-1)
+	, mCurrentVideoTrackId(-1)
+	, mIsTrackIdMismatch(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -2523,10 +2526,17 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 			mStreamSink->Stop(true);
 #endif
 			mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat, mAuxFormat);
-			mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mpStreamAbstractionAAMP->GetESChangeStatus(), mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
+			mStreamSink->Configure(
+				mVideoFormat,
+				mAudioFormat,
+				mAuxFormat,
+				mpStreamAbstractionAAMP->GetESChangeStatus(),
+				mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus(),
+				mIsTrackIdMismatch /*setReadyAfterPipelineCreation*/);
 			mpStreamAbstractionAAMP->ResetESChangeStatus();
 			mpStreamAbstractionAAMP->StartInjection();
 			mStreamSink->Stream();
+			mIsTrackIdMismatch = false;			
 		}
 		else
 		{
@@ -5071,6 +5081,9 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mPersistedProfileIndex	=	-1;
 	mServiceZone.clear(); //clear the value if present
 	mIsIframeTrackPresent = false;
+	mIsTrackIdMismatch = false;
+	mCurrentAudioTrackId = -1;
+	mCurrentVideoTrackId = -1;
 	mCurrentDrm = nullptr;
 	SETCONFIGVALUE_PRIV(AAMP_STREAM_SETTING, eAAMPConfig_InterruptHandling, (mTSBEnabled && strcasestr(mainManifestUrl, "networkInterruption=true")));
 	if(!ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling))
@@ -6783,6 +6796,35 @@ void PrivateInstanceAAMP::ReportContentGap(long long timeMilliseconds, std::stri
 	}
 }
 
+/**
+ * @brief Sends CC handle event to listeners when first frame receives or video_dec handle rests
+ */
+void PrivateInstanceAAMP::InitializeCC()
+{
+#ifdef AAMP_STOP_SINK_ON_SEEK
+	/*Do not send event on trickplay as CC is not enabled*/
+	if (AAMP_NORMAL_PLAY_RATE != rate)
+	{
+		AAMPLOG_WARN("PrivateInstanceAAMP: not sending cc handle as rate = %f", rate);
+		return;
+	}
+#endif
+	if (mStreamSink != NULL)
+	{
+#ifdef AAMP_CC_ENABLED
+		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
+		{
+			AampCCManager::GetInstance()->Init((void *)mStreamSink->getCCDecoderHandle());
+		}
+		else
+#endif
+		{
+			CCHandleEventPtr event = std::make_shared<CCHandleEvent>(mStreamSink->getCCDecoderHandle());
+			mEventManager->SendEvent(event);
+		}
+	}
+}
+
 
 /**
  * @brief Notify first frame is displayed. Sends CC handle event to listeners.
@@ -6815,28 +6857,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 			AAMPLOG_WARN("aamp: - sent tune event on Tune Completion.");
 		}
 	}
-#ifdef AAMP_STOP_SINK_ON_SEEK
-	/*Do not send event on trickplay as CC is not enabled*/
-	if (AAMP_NORMAL_PLAY_RATE != rate)
-	{
-		AAMPLOG_WARN("PrivateInstanceAAMP: not sending cc handle as rate = %f", rate);
-		return;
-	}
-#endif
-	if (mStreamSink != NULL)
-	{
-#ifdef AAMP_CC_ENABLED
-		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
-		{
-			AampCCManager::GetInstance()->Init((void *)mStreamSink->getCCDecoderHandle());
-		}
-		else
-#endif
-		{
-			CCHandleEventPtr event = std::make_shared<CCHandleEvent>(mStreamSink->getCCDecoderHandle());
-			mEventManager->SendEvent(event);
-		}
-	}
+	InitializeCC();
 }
 
 /**
