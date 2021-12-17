@@ -66,7 +66,6 @@ struct ProfileInfo
 struct FragmentDescriptor
 {
 private :
-	const std::vector<IBaseUrl *>*baseUrls;
 	std::string matchingBaseURL;
 public :
 	std::string manifestUrl;
@@ -76,18 +75,17 @@ public :
 	double Time;
 	bool bUseMatchingBaseUrl;
 
-	FragmentDescriptor() : manifestUrl(""), baseUrls (NULL), Bandwidth(0), Number(0), Time(0), RepresentationID(""),matchingBaseURL(""),bUseMatchingBaseUrl(false)
+	FragmentDescriptor() : manifestUrl(""), Bandwidth(0), Number(0), Time(0), RepresentationID(""),matchingBaseURL(""),bUseMatchingBaseUrl(false)
 	{
 	}
 	
-	FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), baseUrls(p.baseUrls), Bandwidth(p.Bandwidth), RepresentationID(p.RepresentationID), Number(p.Number), Time(p.Time),matchingBaseURL(p.matchingBaseURL),bUseMatchingBaseUrl(p.bUseMatchingBaseUrl)
+	FragmentDescriptor(const FragmentDescriptor& p) : manifestUrl(p.manifestUrl), Bandwidth(p.Bandwidth), RepresentationID(p.RepresentationID), Number(p.Number), Time(p.Time),matchingBaseURL(p.matchingBaseURL),bUseMatchingBaseUrl(p.bUseMatchingBaseUrl)
 	{
 	}
 
 	FragmentDescriptor& operator=(const FragmentDescriptor &p)
 	{
 		manifestUrl = p.manifestUrl;
-		baseUrls = p.baseUrls;
 		RepresentationID.assign(p.RepresentationID);
 		Bandwidth = p.Bandwidth;
 		Number = p.Number;
@@ -95,17 +93,11 @@ public :
 		matchingBaseURL = p.matchingBaseURL;
 		return *this;
 	}
-
-	const std::vector<IBaseUrl *>*  GetBaseURLs() const
-	{
-		return baseUrls;
-	}
-
 	std::string GetMatchingBaseUrl() const
 	{
 		return matchingBaseURL;
 	}
-	
+
 	void ClearMatchingBaseUrl()
 	{
 		matchingBaseURL.clear();
@@ -123,7 +115,7 @@ public :
 				if(bUseMatchingBaseUrl)
 				{
 					std::string prefHost = aamp_getHostFromURL(manifestUrl);
-					for (auto & item : *this->baseUrls) {
+					for (auto & item : *baseUrls) {
 						std::string itemUrl = item->GetUrl();
 						std::string host  = aamp_getHostFromURL(itemUrl);
 						if(0 == prefHost.compare(host))
