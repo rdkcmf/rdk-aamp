@@ -720,12 +720,12 @@ int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 	}
 	else
 	{
-		AAMPLOG_ERR("AampCCManagerBase::Invalid track number or format, ignoring it!");
+		AAMPLOG_WARN("AampCCManagerBase::Invalid track number or format, ignoring it!");
 	}
 
 	if(0 != ret)
 	{
-		AAMPLOG_ERR("AampCCManagerBase::Failed to set trackNum(%d) and format(%d) with ret - %d", trackNum, finalFormat, ret);
+		AAMPLOG_WARN("AampCCManagerBase::Failed to set trackNum(%d) and format(%d) with ret - %d", trackNum, finalFormat, ret);
 	}
 	return ret;
 }
