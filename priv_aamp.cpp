@@ -1450,7 +1450,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mDisplayHeight(0)
 	, preferredRenditionString(""), preferredRenditionList(), preferredTypeString(""), preferredCodecString(""), preferredCodecList(), mAudioTuple()
 	, mProgressReportOffset(-1)
-	, mAutoResumeTaskId(0), mAutoResumeTaskPending(false), mScheduler(NULL), mEventLock(), mEventPriority(G_PRIORITY_DEFAULT_IDLE)
+	, mAutoResumeTaskId(AAMP_TASK_ID_INVALID), mAutoResumeTaskPending(false), mScheduler(NULL), mEventLock(), mEventPriority(G_PRIORITY_DEFAULT_IDLE)
 	, mStreamLock()
 	, mConfig (config),mSubLanguage(), mHarvestCountLimit(0), mHarvestConfig(0)
 	, mIsWVKIDWorkaround(false)
@@ -1943,7 +1943,7 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 				if (!mAutoResumeTaskPending)
 				{
 					mAutoResumeTaskPending = true;
-					mAutoResumeTaskId = ScheduleAsyncTask(PrivateInstanceAAMP_Resume, (void *)this);
+					mAutoResumeTaskId = ScheduleAsyncTask(PrivateInstanceAAMP_Resume, (void *)this, "PrivateInstanceAAMP_Resume");
 				}
 				else
 				{
@@ -1981,7 +1981,7 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 					if (!mAutoResumeTaskPending)
 					{
 						mAutoResumeTaskPending = true;
-						mAutoResumeTaskId = ScheduleAsyncTask(PrivateInstanceAAMP_Resume, (void *)this);
+						mAutoResumeTaskId = ScheduleAsyncTask(PrivateInstanceAAMP_Resume, (void *)this, "PrivateInstanceAAMP_Resume");
 					}
 					else
 					{
@@ -6455,7 +6455,7 @@ void PrivateInstanceAAMP::Stop()
 	if (mAutoResumeTaskPending)
 	{
 		RemoveAsyncTask(mAutoResumeTaskId);
-		mAutoResumeTaskId = 0;
+		mAutoResumeTaskId = AAMP_TASK_ID_INVALID;
 		mAutoResumeTaskPending = false;
 	}
 
@@ -6949,7 +6949,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 				pthread_mutex_unlock(&mLock);
 				return;
 			}
-			mDiscontinuityTuneOperationId = ScheduleAsyncTask(PrivateInstanceAAMP_ProcessDiscontinuity, (void *)this);
+			mDiscontinuityTuneOperationId = ScheduleAsyncTask(PrivateInstanceAAMP_ProcessDiscontinuity, (void *)this, "PrivateInstanceAAMP_ProcessDiscontinuity");
 			pthread_mutex_unlock(&mLock);
 
 			AAMPLOG_WARN("PrivateInstanceAAMP: Underflow due to discontinuity handled");
@@ -7042,7 +7042,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 									AAMPLOG_WARN("PrivateInstanceAAMP: Schedule Retune. diffMs %lld < threshold %lld",
 										diffMs, GetLLDashServiceData()->lowLatencyMode?
 										AAMP_MAX_TIME_LL_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS:AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS);
-									ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this);
+									ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this, "PrivateInstanceAAMP_Retune");
 								}
 							}
 							else
@@ -7065,7 +7065,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 					{
 						AAMPLOG_WARN("PrivateInstanceAAMP: Schedule Retune errorType %d error %s", errorType, errorString);
 						gAAMPInstance->reTune = true;
-						ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this);
+						ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this, "PrivateInstanceAAMP_Retune");
 					}
 				}
 				activeAAMPFound = true;
@@ -7105,6 +7105,7 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 	mState = state;
 	pthread_mutex_unlock(&mLock);
 
+	mScheduler->SetState(mState);
 	if (mEventManager->IsEventListenerAvailable(AAMP_EVENT_STATE_CHANGED))
 	{
 		if (mState == eSTATE_PREPARING)
@@ -9603,22 +9604,15 @@ void PrivateInstanceAAMP::EnableContentRestrictions()
  *   @param[in] arg - Data
  *   @return int - task id
  */
-int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg)
+int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg, std::string taskName)
 {
-	int taskId = 0;
-	if (GetAsyncTuneConfig())
+	int taskId = AAMP_TASK_ID_INVALID;
+	if (mScheduler)
 	{
-		if (mScheduler)
+		taskId = mScheduler->ScheduleTask(AsyncTaskObj(task, arg, taskName));
+		if (taskId == AAMP_TASK_ID_INVALID)
 		{
-			taskId = mScheduler->ScheduleTask(AsyncTaskObj(task, arg));
-			if (taskId == AAMP_SCHEDULER_ID_INVALID)
-			{
-				AAMPLOG_ERR("mScheduler returned invalid ID, dropping the schedule request!");
-			}
-		}
-		else
-		{
-			AAMPLOG_ERR("mScheduler is NULL, this is a potential issue, dropping the schedule request for now");
+			AAMPLOG_ERR("mScheduler returned invalid ID, dropping the schedule request!");
 		}
 	}
 	else
@@ -9637,7 +9631,7 @@ int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg)
 bool PrivateInstanceAAMP::RemoveAsyncTask(int taskId)
 {
 	bool ret = false;
-	if (GetAsyncTuneConfig())
+	if (mScheduler)
 	{
 		ret = mScheduler->RemoveTask(taskId);
 	}

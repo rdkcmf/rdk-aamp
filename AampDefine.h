@@ -131,6 +131,7 @@
 #define FOG_MAX_CONCURRENT_DOWNLOADS			1					/**< Max concurrent downloads in Fog*/
 
 #define AAMP_MAX_EVENT_PRIORITY (-70) /** Maximum allowed priority value for events */
+#define AAMP_TASK_ID_INVALID 0
 /**
  * @brief Enumeration for TUNED Event Configuration
  */

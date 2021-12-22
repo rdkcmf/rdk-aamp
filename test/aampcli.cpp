@@ -861,17 +861,6 @@ static void TuneToChannel( VirtualChannelInfo &channel )
 	const char *name = channel.name.c_str();
 	const char *locator = channel.uri.c_str();
 	printf( "TUNING to '%s' %s\n", name, locator );
-	if (mSingleton->GetAsyncTuneConfig())
-	{
-		std::string &uri = channel.uri;
-		mSingleton->ScheduleTask(AsyncTaskObj([uri](void *data)
-					{
-						PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-						logprintf("Calling tune via async tune, uri:%s!!", uri.c_str());
-						instance->Tune(uri.c_str());
-					}, (void *)mSingleton));
-	}
-	else
 	{
 		mSingleton->Tune(locator);
 	}
@@ -937,17 +926,6 @@ static void ProcessCliCommand( char *cmd )
 	}
 	else if (IsTuneScheme(cmd))
 	{
-		if (mSingleton->GetAsyncTuneConfig())
-		{
-			std::string uri = cmd;
-			mSingleton->ScheduleTask(AsyncTaskObj([uri](void *data)
-						{
-							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							logprintf("Calling tune via async tune, uri:%s!!", uri.c_str());
-							instance->Tune(uri.c_str());
-						}, (void *)mSingleton));
-		}
-		else
 		{
 			if (memcmp(cmd, "live", 4) == 0)
 			{
@@ -1042,16 +1020,6 @@ static void ProcessCliCommand( char *cmd )
 	else if (sscanf(cmd, "seek %lf %d", &seconds, &keepPaused) >= 1)
 	{
 		bool seekWhilePaused = (keepPaused==1);
-		if (mSingleton->GetAsyncTuneConfig())
-		{
-			mSingleton->ScheduleTask(AsyncTaskObj([seconds, seekWhilePaused](void *data)
-							{
-								PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-								logprintf("Calling seek via async tune, seconds:%lf!!", seconds);
-								instance->Seek(seconds, seekWhilePaused);
-							}, (void *)mSingleton));
-		}
-		else
 		{
 			mSingleton->Seek(seconds, (keepPaused==1) );
 		}

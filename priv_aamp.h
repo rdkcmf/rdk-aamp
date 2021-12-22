@@ -3215,7 +3215,7 @@ public:
 	 *   @param[in] arg - Arguments
 	 *   @return int - task id
 	 */
-	int ScheduleAsyncTask(IdleTask task, void *arg);
+	int ScheduleAsyncTask(IdleTask task, void *arg, std::string taskName="");
 
 	/**
 	 *   @brief Remove async task scheduled earlier
