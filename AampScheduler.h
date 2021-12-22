@@ -25,17 +25,28 @@
 #ifndef __AAMP_SCHEDULER_H__
 #define __AAMP_SCHEDULER_H__
 
+//#define __UNIT_TESTING__
+
 #include <functional>
 #include <mutex>
 #include <condition_variable>
 #include <deque>
 #include <thread>
 #include <utility>
+#include "AampDefine.h"
+#include "AampEvent.h"
+#ifndef __UNIT_TESTING__
+#include "AampConfig.h"
 #include "AampLogManager.h"
-
-#define AAMP_SCHEDULER_ID_MAX_VALUE 10000
+#else
+#include <unistd.h>
+#define AAMPLOG_WARN(FORMAT, ...) { printf(FORMAT,##__VA_ARGS__);printf("\n");}
+#define AAMPLOG_INFO(FORMAT, ...) { printf(FORMAT,##__VA_ARGS__);printf("\n");}
+#define AAMPLOG_ERR(FORMAT, ...)  { printf(FORMAT,##__VA_ARGS__);printf("\n");}
+#endif
+#define AAMP_SCHEDULER_ID_MAX_VALUE INT_MAX  // 10000
 #define AAMP_SCHEDULER_ID_DEFAULT 1		//ID ranges from DEFAULT to MAX
-#define AAMP_SCHEDULER_ID_INVALID -1
+
 
 typedef std::function<void (void *)> AsyncTask;
 
@@ -44,13 +55,14 @@ struct AsyncTaskObj
 	AsyncTask mTask;
 	void * mData;
 	int mId;
+	std::string mTaskName;
 
-	AsyncTaskObj(AsyncTask task, void *data, int id = AAMP_SCHEDULER_ID_INVALID) :
-				mTask(task), mData(data), mId(id)
+	AsyncTaskObj(AsyncTask task, void *data, std::string tskName="", int id = AAMP_TASK_ID_INVALID) :
+				mTask(task), mData(data), mId(id),mTaskName(tskName)
 	{
 	}
 
-	AsyncTaskObj(const AsyncTaskObj &other) : mTask(other.mTask), mData(other.mData), mId(other.mId)
+	AsyncTaskObj(const AsyncTaskObj &other) : mTask(other.mTask), mData(other.mData), mId(other.mId),mTaskName(other.mTaskName)
 	{
 	}
 
@@ -59,6 +71,7 @@ struct AsyncTaskObj
 		mTask = other.mTask;
 		mData = other.mData;
 		mId = other.mId;
+		mTaskName = other.mTaskName;
 		return *this;
 	}
 };
@@ -104,7 +117,6 @@ public:
 	 */
 	bool RemoveTask(int id);
 
-protected:
 	/**
 	 * @brief To start scheduler thread
 	 *
@@ -124,14 +136,14 @@ protected:
 	 *
 	 * @return void
 	 */
-	void AcquireExLock();
+	void SuspendScheduler();
 
 	/**
 	 * @brief To release execution lock
 	 *
 	 * @return void
 	 */
-	void ReleaseExLock();
+	void ResumeScheduler();
 
 	/**
 	 * @brief To enable scheduler to queue new tasks
@@ -139,8 +151,25 @@ protected:
 	 * @return void
 	 */
 	void EnableScheduleTask();
+	/**
+	 * @brief To player state to Scheduler
+	 *
+	 * @return void
+	 */
+	void SetState(PrivAAMPState sstate);
+	/**
+	 *  @brief Set the logger instance for the Scheduler
+	 *
+	 *   @return void
+	 */   
+	void SetLogger(AampLogManager *logObj) { mLogObj = logObj;}
+protected:
+#ifndef __UNIT_TESTING__
 	AampLogManager *mLogObj;
-private:
+#else
+    void *mLogObj;
+#endif
+
 	/**
 	 * @brief Executes scheduled tasks - invoked by thread
 	 *
@@ -154,10 +183,11 @@ private:
 	bool mSchedulerRunning;			// Flag denotes if scheduler thread is running
 	std::thread mSchedulerThread;		// Scheduler thread
 	std::mutex mExMutex;			// Execution mutex for synchronization
-	std::unique_lock<std::mutex> mExLock;	// Lock to be used by AcquireExLock and ReleaseExLock
+	std::unique_lock<std::mutex> mExLock;	// Lock to be used by SuspendScheduler and ResumeScheduler
 	int mNextTaskId;			// counter that holds ID value of next task to be scheduled
 	int mCurrentTaskId;			// ID of current executed task
 	bool mLockOut;				// flag indicates if the queue is locked out or not
+	PrivAAMPState mState;		// Player State
 };
 
 #endif /* __AAMP_SCHEDULER_H__ */
