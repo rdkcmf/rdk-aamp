@@ -55,11 +55,11 @@
 /**
  * @brief Macro for Triage Level Logging Support
  */
-#define AAMP_LOG_NETWORK_LATENCY	gpGlobalConfig->logging.LogNetworkLatency
-#define AAMP_LOG_NETWORK_ERROR		gpGlobalConfig->logging.LogNetworkError
-#define AAMP_LOG_DRM_ERROR			gpGlobalConfig->logging.LogDRMError
-#define AAMP_LOG_ABR_INFO			gpGlobalConfig->logging.LogABRInfo
-#define AAMP_IS_LOG_WORTHY_ERROR	gpGlobalConfig->logging.isLogworthyErrorCode
+#define AAMP_LOG_NETWORK_LATENCY	mLogObj->LogNetworkLatency
+#define AAMP_LOG_NETWORK_ERROR		mLogObj->LogNetworkError
+#define AAMP_LOG_DRM_ERROR		gpGlobalConfig->logging.LogDRMError
+#define AAMP_LOG_ABR_INFO		mLogObj->LogABRInfo
+#define AAMP_IS_LOG_WORTHY_ERROR	mLogObj->isLogworthyErrorCode
 
 #define AAMPLOG_FAILOVER(FORMAT, ...) \
 		if (mLogObj && mLogObj->failover) { \

@@ -116,7 +116,7 @@ void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int do
 
 	ParseContentUrl(url, contentType, location, symptom, type);
 
-	logprintf ("AAMPLogNetworkLatency downloadTime=%d downloadThreshold=%d type='%s' location='%s' symptom='%s' url='%s'",
+	AAMPLOG(this, eLOGLEVEL_WARN, "WARN", "AAMPLogNetworkLatency downloadTime=%d downloadThreshold=%d type='%s' location='%s' symptom='%s' url='%s'",
 		downloadTime, downloadThresholdTimeoutMs, contentType.c_str(), location.c_str(), symptom.c_str(), url);
 }
 
@@ -142,7 +142,7 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
 		{
 			if(errorCode >= 400)
 			{
-				logprintf("AAMPLogNetworkError error='http error %d' type='%s' location='%s' symptom='%s' url='%s'",
+				AAMPLOG(this, eLOGLEVEL_ERROR, "ERROR", "AAMPLogNetworkError error='http error %d' type='%s' location='%s' symptom='%s' url='%s'",
 					errorCode, contentType.c_str(), location.c_str(), symptom.c_str(), url );
 			}
 		}
@@ -152,7 +152,7 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
 		{
 			if(errorCode > 0)
 			{
-				logprintf("AAMPLogNetworkError error='timeout %d' type='%s' location='%s' symptom='%s' url='%s'",
+				AAMPLOG(this, eLOGLEVEL_ERROR, "ERROR", "AAMPLogNetworkError error='timeout %d' type='%s' location='%s' symptom='%s' url='%s'",
 					errorCode, contentType.c_str(), location.c_str(), symptom.c_str(), url );
 			}
 		}
@@ -162,7 +162,7 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
 		{
 			if(errorCode > 0)
 			{
-				logprintf("AAMPLogNetworkError error='curl error %d' type='%s' location='%s' symptom='%s' url='%s'",
+				AAMPLOG(this, eLOGLEVEL_ERROR, "ERROR", "AAMPLogNetworkError error='curl error %d' type='%s' location='%s' symptom='%s' url='%s'",
 					errorCode, contentType.c_str(), location.c_str(), symptom.c_str(), url );
 			}
 		}
@@ -365,7 +365,7 @@ void AampLogManager::LogDRMError(int major, int minor)
 		description = "Unrecognized error. Please report this to the STB IP-Video team.";
 	}
 
-	logprintf("AAMPLogDRMError error=%d.%d description='%s'", major, minor, description.c_str());
+	AAMPLOG(this, eLOGLEVEL_ERROR, "ERROR", "AAMPLogDRMError error=%d.%d description='%s'", major, minor, description.c_str());
 }
 
 /**
@@ -426,7 +426,7 @@ void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
 			symptom += " (or) freeze/buffering";
 		}
 
-		logprintf("AAMPLogABRInfo : switching to '%s' profile '%d -> %d' currentBandwidth[%ld]->desiredBandwidth[%ld] nwBandwidth[%ld] reason='%s' symptom='%s'",
+		AAMPLOG(this, eLOGLEVEL_WARN, "WARN", "AAMPLogABRInfo : switching to '%s' profile '%d -> %d' currentBandwidth[%ld]->desiredBandwidth[%ld] nwBandwidth[%ld] reason='%s' symptom='%s'",
 			profile.c_str(), pstAbrInfo->currentProfileIndex, pstAbrInfo->desiredProfileIndex, pstAbrInfo->currentBandwidth,
 			pstAbrInfo->desiredBandwidth, pstAbrInfo->networkBandwidth, reason.c_str(), symptom.c_str());
 	}
