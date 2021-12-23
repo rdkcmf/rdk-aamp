@@ -6883,15 +6883,6 @@ void PrivateInstanceAAMP::InitializeCC()
  */
 void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 {
-	// In the middle of stop processing we can receive state changing callback (xione-7331)
-	PrivAAMPState state;
-	GetState(state);
-	if (state == eSTATE_RELEASED)
-	{
-		AAMPLOG_WARN("%s:%d skipped as in eRELEASED state");
-		return;
-	}
-	
 	// If mFirstVideoFrameDisplayedEnabled, state will be changed in NotifyFirstVideoDisplayed()
 	if(!mFirstVideoFrameDisplayedEnabled)
 	{
@@ -7812,14 +7803,6 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	// If mFirstVideoFrameDisplayedEnabled, state will be changed in NotifyFirstVideoDisplayed()
 	PrivAAMPState state;
 	GetState(state);
-	
-	// In the middle of stop processing we can receive state changing callback (xione-7331)
-	if (state == eSTATE_RELEASED)
-	{
-		AAMPLOG_WARN("%s:%d skipped as in eRELEASED state");
-		return;
-	}
-	
 	if (!mFirstVideoFrameDisplayedEnabled
 			&& state == eSTATE_SEEKING)
 	{
@@ -9022,15 +9005,6 @@ void PrivateInstanceAAMP::NotifyFirstVideoFrameDisplayed()
 	}
 
 	mFirstVideoFrameDisplayedEnabled = false;
-	
-	// In the middle of stop processing we can receive state changing callback (xione-7331)
-	PrivAAMPState state;
-	GetState(state);
-	if (state == eSTATE_RELEASED)
-	{
-		AAMPLOG_WARN("%s:%d skipped as in eRELEASED state");
-		return;
-	}
 
 	// Seek While Paused - pause on first Video frame displayed
 	if(mPauseOnFirstVideoFrameDisp)
