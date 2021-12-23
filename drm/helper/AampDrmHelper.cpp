@@ -34,8 +34,22 @@ bool AampDrmHelper::compare(std::shared_ptr<AampDrmHelper> other)
 
 	std::vector<uint8_t> otherKeyId;
 	other->getKey(otherKeyId);
+	std::map<int, std::vector<uint8_t>> otherKeyIds;
+	other->getKeys(otherKeyIds);
+	std::vector<std::vector<uint8_t>> keyIdVector;
+	if(otherKeyIds.empty())
+	{
+		keyIdVector.push_back(otherKeyId);
+	}
+	else
+	{
+		for(auto& keyId : otherKeyIds)
+		{
+			keyIdVector.push_back(keyId.second);
+		}
+	}
 
-	if (thisKeyId != otherKeyId) return false;
+	if (!keyIdVector.empty() && (keyIdVector.end() == std::find(keyIdVector.begin(), keyIdVector.end(), thisKeyId))) return false;
 
 	return true;
 }
