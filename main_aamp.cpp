@@ -1021,6 +1021,8 @@ void PlayerInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 void PlayerInstanceAAMP::SetVideoMute(bool muted)
 {
 	ERROR_STATE_CHECK_VOID();
+	
+	AAMPLOG_WARN(" mute == %s", muted?"true":"false");
 	aamp->video_muted = muted;
 	aamp->AcquireStreamLock();
 	if (aamp->mpStreamAbstractionAAMP)
@@ -1042,6 +1044,8 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
 void PlayerInstanceAAMP::SetAudioVolume(int volume)
 {
 	ERROR_STATE_CHECK_VOID();
+	
+	AAMPLOG_WARN(" volume == %d");
 	if (volume < AAMP_MINIMUM_AUDIO_LEVEL || volume > AAMP_MAXIMUM_AUDIO_LEVEL)
 	{
 		AAMPLOG_WARN("Audio level (%d) is outside the range supported.. discarding it..",
