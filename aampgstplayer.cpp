@@ -3207,8 +3207,11 @@ void AAMPGstPlayer::SetVideoZoom(VideoZoomMode zoom)
 void AAMPGstPlayer::SetVideoMute(bool muted)
 {
 	FN_TRACE( __FUNCTION__ );
+	
+	//AAMPLOG_WARN(" mute == %s", muted?"true":"false");
+	
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_VIDEO];
-	AAMPLOG_INFO("muted %d, using_playersinkbin = %d, video_sink =%p", muted, stream->using_playersinkbin, privateContext->video_sink);
+	AAMPLOG_INFO("using_playersinkbin = %d, video_sink =%p", stream->using_playersinkbin, privateContext->video_sink);
 
 	privateContext->videoMuted = muted;
 	if (stream->using_playersinkbin && stream->sinkbin)
@@ -3250,8 +3253,11 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 	GstElement *gSource = NULL;
 	char *propertyName = NULL;
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_AUDIO];
+	
+	AAMPLOG_WARN(" volume == %lf muted == %s", privateContext->audioVolume, privateContext->audioMuted?"true":"false");
 
-	AAMPLOG_INFO("AAMPGstPlayer: volume = %f, using_playersinkbin = %d, audio_sink = %p", privateContext->audioVolume, stream->using_playersinkbin, privateContext->audio_sink);
+	AAMPLOG_INFO("AAMPGstPlayer: using_playersinkbin = %d, audio_sink = %p",
+				 stream->using_playersinkbin, privateContext->audio_sink);
 
 	if (stream->using_playersinkbin && stream->sinkbin)
 	{
