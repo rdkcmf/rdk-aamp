@@ -60,6 +60,8 @@
 #define MAX_SEQ_NUMBER_DIFF_FOR_SEQ_NUM_BASED_SYNC 2 /*!< Maximum difference in sequence number to sync tracks using sequence number.*/
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT 5 /*!< Maximum playlist refresh count for discontinuity check for TSB/cDvr*/
 #define MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE 3 /*!< Maximum playlist refresh count for discontinuity check for live without TSB*/
+#define MAX_PDT_DISCONTINUITIY_DELTA_LIMIT 1.0f  /*!< maximum audio/video track PDT delta to determine discontiuity using PDT
+
 
 
 /**
