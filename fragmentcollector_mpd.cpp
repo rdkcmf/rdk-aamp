@@ -92,7 +92,6 @@ static double ComputeFragmentDuration( uint32_t duration, uint32_t timeScale )
 	if( duration && timeScale )
 	{
 		newduration =  (double)duration / (double)timeScale;
-		newduration = ceil(newduration * 1000.0) / 1000.0;
 		return newduration;
 	}
 	AAMPLOG_WARN( "bad fragment duration");
@@ -1024,7 +1023,6 @@ bool StreamAbstractionAAMP_MPD::FetchFragment(MediaStreamContext *pMediaStreamCo
 			{
 				pMediaStreamContext->fragmentTime += fragmentDuration;
 				if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO) mBasePeriodOffset += fragmentDuration;
-				pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 			}
 		}
 		else
@@ -1035,7 +1033,6 @@ bool StreamAbstractionAAMP_MPD::FetchFragment(MediaStreamContext *pMediaStreamCo
 			{
 				pMediaStreamContext->fragmentTime = 0;
 			}
-			pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 		}
 	}
 	return retval;
@@ -1732,7 +1729,6 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					{
 						pMediaStreamContext->fragmentTime += fragmentDuration;
 						pMediaStreamContext->fragmentOffset += referenced_size;
-						//pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						retval = true;
 					}
 				}
@@ -2049,7 +2045,6 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					{
 						skipTime -= fragmentDuration;
 						pMediaStreamContext->fragmentTime += fragmentDuration;
-						pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						pMediaStreamContext->fragmentDescriptor.Time += duration;
 						pMediaStreamContext->fragmentDescriptor.Number++;
 						pMediaStreamContext->fragmentRepeatCount++;
@@ -2064,7 +2059,6 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					{
 						skipTime += fragmentDuration;
 						pMediaStreamContext->fragmentTime -= fragmentDuration;
-						pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						pMediaStreamContext->fragmentDescriptor.Time -= duration;
 						pMediaStreamContext->fragmentDescriptor.Number--;
 						pMediaStreamContext->fragmentRepeatCount--;
@@ -2156,7 +2150,7 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					if (skipTime >= segmentDuration)
 					{
 						uint64_t number = (skipTime / segmentDuration) + 1; // Number is 1-based index
-						double fragmentTimeFromNumber = ceil((segmentDuration * (number - 1)) * 1000.0) / 1000.0;
+						double fragmentTimeFromNumber = segmentDuration * (number - 1);
 						pMediaStreamContext->fragmentDescriptor.Number += (number - 1);
 
 						pMediaStreamContext->fragmentDescriptor.Time += fragmentTimeFromNumber;
@@ -2178,7 +2172,6 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					{
 						pMediaStreamContext->fragmentDescriptor.Number--;
 						pMediaStreamContext->fragmentTime -= segmentDuration;
-						pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						pMediaStreamContext->fragmentDescriptor.Time -= segmentDuration;
 						pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
 						skipTime += segmentDuration;
@@ -2234,7 +2227,6 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, fragmentIndex++, &referenced_size, &fragmentDuration, NULL))
 					{
 						fragmentTime += fragmentDuration;
-						//fragmentTime = ceil(fragmentTime * 1000.0) / 1000.0;
 						pMediaStreamContext->fragmentOffset += referenced_size;
 					}
 					else
@@ -2332,14 +2324,12 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 							pMediaStreamContext->fragmentIndex++;
 							skipTime -= segmentDuration;
 							pMediaStreamContext->fragmentTime += segmentDuration;
-							pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						}
 						else if (-(skipTime) >= segmentDuration)
 						{
 							pMediaStreamContext->fragmentIndex--;
 							skipTime += segmentDuration;
 							pMediaStreamContext->fragmentTime -= segmentDuration;
-							pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
 						}
 						else
 						{
