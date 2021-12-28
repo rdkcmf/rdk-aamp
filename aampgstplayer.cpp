@@ -3358,7 +3358,7 @@ void AAMPGstPlayer::SetVideoMute(bool muted)
 {
 	FN_TRACE( __FUNCTION__ );
 	
-	AAMPLOG_WARN(" mute == %s", muted?"true":"false");
+	//AAMPLOG_WARN(" mute == %s", muted?"true":"false");
 	
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_VIDEO];
 	AAMPLOG_INFO("using_playersinkbin = %d, video_sink =%p", stream->using_playersinkbin, privateContext->video_sink);
