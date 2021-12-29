@@ -2388,8 +2388,8 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 		double stopPos = aamp->GetPeriodStartTimeValue() + (aamp->GetPeriodDurationTimeValue()/1000.0);
 		GstClockTime startPts = (GstClockTime)(startPos * GST_SECOND);
 		GstClockTime stopPts = (GstClockTime)(stopPos * GST_SECOND);
-
-		SendNewSegmentEvent(mediaType, startPts, stopPts);
+		//Here when resuming (i.e when tunetype is seek) there is getting pto delta would be difficult, so setting start position as 0.0, with a tradeoff of reported position off by -PTO  ('minus PTO') seconds for the current period (DELIA-53824)
+		SendNewSegmentEvent(mediaType, eTUNETYPE_NEW_NORMAL == aamp->GetTuneType() ? startPts : 0.0 , stopPts);
 		aamp->mbNewSegmentEvtSent[mediaType] = true;
 
 		AAMPLOG_TRACE("AAMPGstPlayer %s: mediaType[%d] First Data Buffer Processed !!!", __FUNCTION__, mediaType);
