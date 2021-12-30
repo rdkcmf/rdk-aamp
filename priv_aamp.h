@@ -863,7 +863,8 @@ public:
 	bool mIsPeriodChangeMarked; // Mark if a period change occurred.
         
         bool mbDetached;
-
+	double mOffsetFromTunetimeForSAPWorkaround; /** current playback position in epoch**/
+	bool mLanguageChangeInProgress;
 
 	/**
 	 * @brief Check if segment starts with an ID3 section
