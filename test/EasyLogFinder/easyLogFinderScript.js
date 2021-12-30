@@ -139,8 +139,8 @@ window.onload = function()
             
 			for( lineNumber=0; lineNumber<lines.length; lineNumber++ )
             {
-                var line = lines[lineNumber];
-                timestamp = ParseReceiverLogTimestamp(line);
+				var line = lines[lineNumber];
+				timestamp = ParseReceiverLogTimestamp(line);
 				
 				var offs = line.indexOf("AAMPMediaPlayerJS_initConfig(): ");
 				if( offs>=0 )
@@ -275,7 +275,8 @@ window.onload = function()
 						if( type!==undefined ) type = mediaTypes[type]; else type = "";
                         
 						var special = null;
-						if( err!="HTTP200(OK)" )
+						// for codes other than 2xx success
+						if( !err.match("^HTTP2[0-9]+.*") )
 						{
 							special = "red";
 						}
