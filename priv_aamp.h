@@ -877,6 +877,8 @@ public:
 	bool mbEnableSegmentTemplateHandling;/**< Enable SegmentTemplate Handling  */
 	bool mbIgnoreStopPosProcessing; /**< Ignore Stop Position Processing in Segment Template handling case */
 	double mSkipTime;
+	double mOffsetFromTunetimeForSAPWorkaround; /** current playback position in epoch**/
+	bool mLanguageChangeInProgress;
 
 	/**
 	 * @brief Check if segment starts with an ID3 section
