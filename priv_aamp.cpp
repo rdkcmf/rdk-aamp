@@ -1495,6 +1495,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mbIgnoreStopPosProcessing(false)
 	, mIsFakeTune(false)
 	, mSkipTime(0)
+	, mOffsetFromTunetimeForSAPWorkaround(0)
+	, mLanguageChangeInProgress(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -9762,7 +9764,8 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 					discardEnteringLiveEvt = true;
 
 					seek_pos_seconds = GetPositionMilliseconds()/1000.0;
-
+					mOffsetFromTunetimeForSAPWorkaround = (double)(aamp_GetCurrentTimeMS() / 1000) - mLiveOffset;
+					mLanguageChangeInProgress = true;
 					AcquireStreamLock();
 					TeardownStream(false);
 					TuneHelper(eTUNETYPE_SEEK);

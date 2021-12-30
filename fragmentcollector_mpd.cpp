@@ -1929,7 +1929,50 @@ void StreamAbstractionAAMP_MPD::SeekInPeriod( double seekPositionSeconds)
 	}
 }
 
-
+/**
+ * @brief Find the fragment based on the system clock after the SAP.
+ * @param seekPositionSeconds seek positon in seconds.
+ **/
+void StreamAbstractionAAMP_MPD::ApplyLiveOffsetWorkaroundForSAP( double seekPositionSeconds)
+{
+	for(int i = 0; i < mNumberOfTracks; i++)
+	{
+		SegmentTemplates segmentTemplates(mMediaStreamContext[i]->representation->GetSegmentTemplate(),
+		mMediaStreamContext[i]->adaptationSet->GetSegmentTemplate() );
+		if( segmentTemplates.HasSegmentTemplate() )
+		{
+			const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
+			if(segmentTimeline)
+			{
+				SeekInPeriod(seekPositionSeconds);
+				break;
+			}
+			else
+			{
+				double currentplaybacktime = aamp->mOffsetFromTunetimeForSAPWorkaround;
+				long startNumber = segmentTemplates.GetStartNumber();
+				uint32_t duration = segmentTemplates.GetDuration();
+				uint32_t timeScale = segmentTemplates.GetTimescale();
+				double fragmentDuration =  ComputeFragmentDuration(duration,timeScale);
+				if(currentplaybacktime < mPeriodStartTime)
+				{
+					currentplaybacktime = mPeriodStartTime;
+				}
+				mMediaStreamContext[i]->fragmentDescriptor.Number = (long long)((currentplaybacktime - mPeriodStartTime) / fragmentDuration) + startNumber - 1;
+				mMediaStreamContext[i]->fragmentDescriptor.Time = currentplaybacktime - fragmentDuration;
+				mMediaStreamContext[i]->fragmentTime = seekPositionSeconds/fragmentDuration - fragmentDuration;
+				mMediaStreamContext[i]->lastSegmentNumber= mMediaStreamContext[i]->fragmentDescriptor.Number;
+				AAMPLOG_INFO("moffsetFromStart:%f startNumber:%ld mPeriodStartTime:%f fragmentDescriptor.Number:%lld >fragmentDescriptor.Time:%f  mLiveOffset:%f seekPositionSeconds:%f"
+				,aamp->mOffsetFromTunetimeForSAPWorkaround,startNumber,mPeriodStartTime, mMediaStreamContext[i]->fragmentDescriptor.Number,mMediaStreamContext[i]->fragmentDescriptor.Time,aamp->mLiveOffset,seekPositionSeconds);
+			}
+		}
+		else
+		{
+			SeekInPeriod(seekPositionSeconds);
+			break;
+		}
+	}
+}
 
 /**
  * @brief Skip to end of track
@@ -4349,7 +4392,15 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			{
 				aamp->NotifyOnEnteringLive();
 			}
-			SeekInPeriod( offsetFromStart);
+			if(mIsLiveStream && aamp->mLanguageChangeInProgress)
+			{
+				aamp->mLanguageChangeInProgress = false;
+				ApplyLiveOffsetWorkaroundForSAP(offsetFromStart);
+			}
+			else
+			{
+				SeekInPeriod( offsetFromStart);
+			}
 			if(!ISCONFIGSET(eAAMPConfig_MidFragmentSeek))
 			{
 				seekPosition = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime;
