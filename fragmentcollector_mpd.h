@@ -224,6 +224,7 @@ private:
 	void SkipToEnd( class MediaStreamContext *pMediaStreamContext); //Added to support rewind in multiperiod assets
 	void ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType, std::shared_ptr<AampDrmHelper> drmHelper = nullptr);
 	void SeekInPeriod( double seekPositionSeconds);
+	void ApplyLiveOffsetWorkaroundForSAP(double seekPositionSeconds);
 	double GetCulledSeconds();
 	void UpdateCulledAndDurationFromPeriodInfo();
 	void UpdateLanguageList();
