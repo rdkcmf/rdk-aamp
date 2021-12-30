@@ -10,28 +10,34 @@ function ParseReceiverLogTimestamp( line )
 {
 	try
 	{
+		// if log is in unix timestamp format from osx simulator
 		// "<sec>:<ms> : " format used in simulator
-        // var utc = parseInt(part[0])*1000+parseInt(part[1]);
-        // return utc;
-
-		// format used on settop (GMT time)
-		part = line.split(" ");
-		var idx = 0;
-		var year = parseInt(part[idx++]);
-		if( isNaN(year) )
-		{ // year missing (fog logs)
-		year = new Date().getFullYear();
-			idx--;
+		let unixTime = String(line.match("^[0-9 ]+:[0-9 ]+"));
+		if(unixTime != "null") {
+			let uList = unixTime.split(':');
+			// add milliseconds to unix time
+			parsedUTCTime = parseInt(uList[0]) * 1000 + parseInt(uList[1]);
+			return parsedUTCTime;
+		} else {
+			// format used on settop (GMT time)
+			part = line.split(" ");
+			var idx = 0;
+			var year = parseInt(part[idx++]);
+			if( isNaN(year) )
+			{ // year missing (fog logs)
+			year = new Date().getFullYear();
+				idx--;
+			}
+			var month = months.indexOf(part[idx++]);
+			var day = parseInt(part[idx++]);
+			var time = part[idx++].split(":");
+			var hour = parseInt(time[0]);
+			var minute = parseInt(time[1]);
+			var seconds = parseFloat(time[2]);
+			var s = Math.floor(seconds);
+			var ms = Math.floor((seconds - s)*1000);
+			return Date.UTC(year, month, day, hour, minute, s, ms );
 		}
-		var month = months.indexOf(part[idx++]);
-		var day = parseInt(part[idx++]);
-		var time = part[idx++].split(":");
-		var hour = parseInt(time[0]);
-		var minute = parseInt(time[1]);
-		var seconds = parseFloat(time[2]);
-		var s = Math.floor(seconds);
-		var ms = Math.floor((seconds - s)*1000);
-		return Date.UTC(year, month, day, hour, minute, s, ms );
 	}
 	catch( e )
 	{
@@ -119,10 +125,19 @@ var httpCurlErrMap =
     28:"Operation Timed Out",
     42:"Aborted by callback",
     56:"Failure with receiving network data",
-    200:"OK",
+	200:"OK",
+	201:"Created",
+	202:"Accepted",
+	203:"Non-Authoritative Information",
+	204:"No Content",
+	205:"Reset Content",
+	206:"Partial Content",
+	207:"Multi-Status",
+	208:"Already Reported",
+	226:"IM Used",
+	250:"Low On Storage Space",
     302:"Temporary Redirect",
     304:"Not Modified",
-    204:"No Content",
     400:"Bad Request",
     401:"Unauthorized",
     403:"Forbidden",
