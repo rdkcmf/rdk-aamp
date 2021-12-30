@@ -819,6 +819,10 @@ public:
 	bool mbEnableFirstPtsSeekPosOverride; /**< Enable   FirstPtsSeekPosOverride */
 	bool mbEnableSegmentTemplateHandling;/**< Enable SegmentTemplate Handling  */
 	bool mbIgnoreStopPosProcessing; /**< Ignore Stop Position Processing in Segment Template handling case */
+
+	double moffsetFromStart; /** current playback position in epoch**/
+	bool mSetlanguage;
+
 	/**
 	 * @brief Check if segment starts with an ID3 section
 	 *

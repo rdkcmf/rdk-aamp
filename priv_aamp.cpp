@@ -1225,6 +1225,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mbEnableFirstPtsSeekPosOverride(false)
 	, mbEnableSegmentTemplateHandling(false)
 	, mbIgnoreStopPosProcessing(false)
+	, moffsetFromStart(0)
+	, mSetlanguage(false)
 {
 	//LazilyLoadConfigIfNeeded();
 	SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_UserAgent, (std::string )AAMP_USERAGENT_BASE_STRING);
@@ -9324,7 +9326,8 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 					discardEnteringLiveEvt = true;
 
 					seek_pos_seconds = GetPositionMilliseconds()/1000.0;
-
+					moffsetFromStart = (double)(aamp_GetCurrentTimeMS() / 1000) - mLiveOffset;
+					mSetlanguage = true;
 					AcquireStreamLock();
 					TeardownStream(false);
 					TuneHelper(eTUNETYPE_SEEK);

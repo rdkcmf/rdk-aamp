@@ -2300,7 +2300,37 @@ void StreamAbstractionAAMP_MPD::SeekInPeriod( double seekPositionSeconds)
 	}
 }
 
-
+/**
+ * @brief Find the fragment based on the system clock after the SAP.
+ * @param seekPositionSeconds seek positon in seconds.
+ **/
+void StreamAbstractionAAMP_MPD::FindFragmentAfterSap( class MediaStreamContext *pMediaStreamContext, double seekPositionSeconds)
+{
+	SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),
+	pMediaStreamContext->adaptationSet->GetSegmentTemplate() );
+	if( segmentTemplates.HasSegmentTemplate() )
+	{
+		const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
+		if(NULL == segmentTimeline)
+		{
+			double currentplaybacktime = aamp->moffsetFromStart;
+			long startNumber = segmentTemplates.GetStartNumber();
+			uint32_t duration = segmentTemplates.GetDuration();
+			uint32_t timeScale = segmentTemplates.GetTimescale();
+			double fragmentDuration =  ComputeFragmentDuration(duration,timeScale);
+			if(currentplaybacktime < mPeriodStartTime)
+			{
+				currentplaybacktime = mPeriodStartTime;
+			}
+			pMediaStreamContext->fragmentDescriptor.Number = (long long)((currentplaybacktime - mPeriodStartTime) / fragmentDuration) + startNumber - 1;
+			pMediaStreamContext->fragmentDescriptor.Time = currentplaybacktime - fragmentDuration;
+			pMediaStreamContext->fragmentTime = seekPositionSeconds/fragmentDuration - fragmentDuration;
+			pMediaStreamContext->lastSegmentNumber= pMediaStreamContext->fragmentDescriptor.Number;
+			AAMPLOG_INFO("moffsetFromStart:%f startNumber:%ld mPeriodStartTime:%f fragmentDescriptor.Number:%lld >fragmentDescriptor.Time:%f  mLiveOffset:%f seekPositionSeconds:%f"
+			,aamp->moffsetFromStart,startNumber,mPeriodStartTime, pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentDescriptor.Time,aamp->mLiveOffset,seekPositionSeconds);
+		}
+	}
+}
 
 /**
  * @brief Skip to end of track
@@ -4605,7 +4635,29 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			{
 				aamp->NotifyOnEnteringLive();
 			}
-			SeekInPeriod( offsetFromStart);
+			if(mIsLiveStream && aamp->mSetlanguage)
+			{
+				aamp->mSetlanguage = false;
+				for (int i = 0; i < mNumberOfTracks; i++)
+				{
+					SegmentTemplates segmentTemplates(mMediaStreamContext[i]->representation->GetSegmentTemplate(),
+					mMediaStreamContext[i]->adaptationSet->GetSegmentTemplate() );
+					const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
+					if( segmentTemplates.HasSegmentTemplate() && NULL == segmentTimeline)
+					{
+						FindFragmentAfterSap(mMediaStreamContext[i], offsetFromStart);
+					}
+					else
+					{
+						SeekInPeriod( offsetFromStart);
+						break;
+					}
+				}
+			}
+			else
+			{
+				SeekInPeriod( offsetFromStart);
+			}
 			if(!ISCONFIGSET(eAAMPConfig_MidFragmentSeek))
 			{
 				seekPosition = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime;
