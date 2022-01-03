@@ -246,7 +246,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}},
 	{"syncAudioFragments",eAAMPConfig_SyncAudioFragments,-1,-1},
 	{"useSecManager",eAAMPConfig_UseSecManager, -1,-1},
-	{"enablePTO", eAAMPConfig_EnablePTO, -1, -1}
+	{"enablePTO", eAAMPConfig_EnablePTO, -1, -1},
+	{"maxInitFragCachePerTrack",eAAMPConfig_MaxInitFragCachePerTrack,{.iMinValue=1},{.iMaxValue=5}}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -465,6 +466,7 @@ void AampConfig::Initialize()
 	iAampCfgValue[eAAMPConfig_MaxFragmentChunkCached-eAAMPConfig_IntStartValue].value       =       DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK;
 	iAampCfgValue[eAAMPConfig_ABRChunkThresholdSize-eAAMPConfig_IntStartValue].value        = 	DEFAULT_AAMP_ABR_CHUNK_THRESHOLD_SIZE;
 	iAampCfgValue[eAAMPConfig_FragmentDownloadFailThreshold-eAAMPConfig_IntStartValue].value=	MAX_SEG_DOWNLOAD_FAIL_COUNT;
+	iAampCfgValue[eAAMPConfig_MaxInitFragCachePerTrack-eAAMPConfig_IntStartValue].value	=       MAX_INIT_FRAGMENT_CACHE_PER_TRACK;
 
 	///////////////// Following for long data types /////////////////////////////
 	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value	=	DEFAULT_DISCONTINUITY_TIMEOUT;

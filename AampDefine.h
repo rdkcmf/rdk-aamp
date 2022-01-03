@@ -102,6 +102,7 @@
 #define MAX_ERROR_DESCRIPTION_LENGTH 128
 #define MAX_ANOMALY_BUFF_SIZE   256
 #define MAX_WAIT_TIMEOUT_MS	200		/**< Max Timeout furation for wait until cache is available to inject next*/
+#define MAX_INIT_FRAGMENT_CACHE_PER_TRACK  5       /**< Max No Of cached Init fragements per track */
 
 // Player supported play/trick-play rates.
 #define AAMP_RATE_TRICKPLAY_MAX		64

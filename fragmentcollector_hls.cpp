@@ -7274,13 +7274,36 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 			{
 				actualType = eMEDIATYPE_INIT_AUX_AUDIO;
 			}
-			double downloadTime;
-			bool fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, &downloadTime, range,
-			        type, false,  actualType);
 
-			long main_error = getOriginalCurlError(http_code);
-			aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), main_error, mEffectiveUrl, downloadTime);
+#ifdef CHECK_PERFORMANCE
+			long long ts_start, ts_end;
+			ts_start = aamp_GetCurrentTimeMS();
+#endif /* CHECK_PERFORMANCE */
+			bool fetched = aamp->getAampCacheHandler()->RetrieveFromInitFragCache(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl);
 
+#ifdef CHECK_PERFORMANCE
+			ts_end = aamp_GetCurrentTimeMS();
+			if(fetched)
+			AAMPLOG_TRACE("---------------CacheRead Time diff:%llu---------------\n" , ts_end-ts_start);
+#endif /* CHECK_PERFORMANCE */
+
+			if ( !fetched )
+			{
+				double downloadTime;
+				fetched = aamp->GetFile(fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, &http_code, &downloadTime, range,
+						type, false,  actualType);
+
+#ifdef CHECK_PERFORMANCE
+				if(fetched)
+				AAMPLOG_TRACE("---------------CurlReq Time diff:%llu---------------\n" , downloadTime);
+#endif /* CHECK_PERFORMANCE */
+	
+				long main_error = getOriginalCurlError(http_code);
+				aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), main_error, mEffectiveUrl, downloadTime);
+
+				if ( fetched )
+				aamp->getAampCacheHandler()->InsertToInitFragCache ( fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, actualType);
+			}
 			if (!fetched)
 			{
 				AAMPLOG_ERR("TrackState::aamp_GetFile failed");

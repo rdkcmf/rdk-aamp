@@ -1,6 +1,7 @@
 #include "MediaStreamContext.h"
 #include "AampMemoryUtils.h"
 #include "isobmff/isobmffbuffer.h"
+#include "AampCacheHandler.h"
 
 /**
  * @brief Receives cached fragment and injects to sink.
@@ -72,8 +73,20 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
         std::string effectiveUrl;
         int iFogError = -1;
         int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
-        ret = aamp->LoadFragment(bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
+        bool bReadfromcache = false;
+        if(initSegment)
+        {
+            ret = bReadfromcache = aamp->getAampCacheHandler()->RetrieveFromInitFragCache(fragmentUrl,&cachedFragment->fragment,effectiveUrl);
+        }
+
+        if(!bReadfromcache)
+        {
+            ret = aamp->LoadFragment(bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
                     range, actualType, &http_code, &downloadTime, &bitrate, &iFogError, fragmentDurationSeconds );
+
+            if ( initSegment && ret )
+            aamp->getAampCacheHandler()->InsertToInitFragCache ( fragmentUrl, &cachedFragment->fragment, effectiveUrl, actualType);
+        }
 
         if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)
         {
@@ -125,10 +138,13 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
 			}
 		}
 
-        //update videoend info
-        aamp->UpdateVideoEndMetrics( actualType,
-                                bitrate? bitrate : fragmentDescriptor.Bandwidth,
-                                (iFogError > 0 ? iFogError : http_code),effectiveUrl,duration, downloadTime);
+        if(!bReadfromcache)
+        {
+            //update videoend info
+            aamp->UpdateVideoEndMetrics( actualType,
+                                    bitrate? bitrate : fragmentDescriptor.Bandwidth,
+                                    (iFogError > 0 ? iFogError : http_code),effectiveUrl,duration, downloadTime);
+        }
     }
 
 //Enable for debugging actual fragment size
