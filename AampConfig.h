@@ -183,6 +183,7 @@ typedef enum
 	eAAMPConfig_EnableIgnoreEosSmallFragment,                                       /** Enable/Disable Small fragment ignore based on minimum duration Threshold at period End*/
 	eAAMPConfig_UseSecManager,                                             /** Enable/Disable secmanager instead of secclient for license acquisition */
 	eAAMPConfig_EnablePTO,								/** Enable/Disable PTO Handling */
+	eAAMPConfig_EnableAampConfigToFog,                                              /** Enable/Disable player config to Fog on every tune*/
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
@@ -233,7 +234,7 @@ typedef enum
 	eAAMPConfig_ABRChunkThresholdSize,                         				/**< AAMP ABR Chunk threshold size*/
 	eAAMPConfig_FragmentDownloadFailThreshold, 						/**<Retry attempts for non-init fragment curl timeout failures*/
 	eAAMPConfig_MaxInitFragCachePerTrack,							/** Max no of Init fragment cache per track */
-
+	eAAMPConfig_FogMaxConcurrentDownloads,                                                  /**< Concurrent download posted to fog from player*/
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,

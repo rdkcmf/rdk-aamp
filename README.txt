@@ -140,6 +140,7 @@ disableLowLatencyMonitor	Enable/Disable Low Latency Monitor. Default is true
 disableLowLatencyABR		Enable/Disable Low Latency ABR. Default is true
 disableLowLatencyCorrection	Enable/Disable Low Latency Correction. Default is true
 enablePTO			Enable/Disable PTO Handling
+enableFogConfig			Enable/Disable setting player configurations to Fog. Default is true
 
 // Integer inputs
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune
@@ -201,6 +202,7 @@ latencyMonitorDelay		Low Latency Monitor delay.Default is 5(DEFAULT_LATENCY_MONI
 latencyMonitorInterval		Low Latency Monitor Interval.Default is 2(DEFAULT_LATENCY_MONITOR_INTERVAL)
 downloadBufferChunks		Low Latency Fragment chunk cache length (defaults 20 chunks)
 fragmentDownloadFailThreshold	Max retry attempts for non-init fragment curl timeout failures, range 1-10, default is 10.
+fogMaxConcurrentDownloads	Max concurrent download configured to Fog, default is 5
 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets
@@ -398,6 +400,8 @@ in version 2.0
 u = URL of most recent (last) failed download
 n = normal fragment statistics
 i = "init" fragment statistics (used in case of DASH and fragmented mp4)
+pc = Video profile capped status due to resolution constraints or bitrate filtering
+st = subtitle track
 
 =================================================================================================================
 

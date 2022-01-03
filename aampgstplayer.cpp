@@ -196,7 +196,9 @@ struct AAMPGstPlayerPriv
 	bool progressiveBufferingStatus;
 	bool forwardAudioBuffers; // flag denotes if audio buffers to be forwarded to aux pipeline
 	bool enableSEITimeCode;
-
+	bool firstVideoFrameReceived; //flag that denotes if first video frame was notified.
+	bool firstAudioFrameReceived; //flag that denotes if first audio frame was notified
+	int  NumberOfTracks;	      //Indicates the number of tracks
 	AAMPGstPlayerPriv() : pipeline(NULL), bus(NULL), current_rate(0),
 			total_bytes(0), n_audio(0), current_audio(0), firstProgressCallbackIdleTaskId(0),
 			firstProgressCallbackIdleTaskPending(false), periodicProgressCallbackIdleTaskId(0),
@@ -225,7 +227,7 @@ struct AAMPGstPlayerPriv
 #endif
 			decodeErrorMsgTimeMS(0), decodeErrorCBCount(0),
 			progressiveBufferingEnabled(false), progressiveBufferingStatus(false)
-			, forwardAudioBuffers (false), enableSEITimeCode(true)
+			, forwardAudioBuffers (false), enableSEITimeCode(true),firstVideoFrameReceived(false),firstAudioFrameReceived(false),NumberOfTracks(0)
 	{
 		memset(videoRectangle, '\0', VIDEO_COORDINATES_SIZE);
 #ifdef INTELCE
@@ -656,7 +658,9 @@ static gboolean IdleCallbackFirstVideoFrameDisplayed(gpointer user_data)
 void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 {
 	FN_TRACE( __FUNCTION__ );
-	if(!privateContext->firstFrameReceived)
+	// RDK-34481 :LogTuneComplete will be noticed after getting both audio & video first frame .
+	//incase of audio or video only playback NumberofTracks =1 ,so in that case also LogTuneCompleted needs to captured when either audio/video frame received
+	if(!privateContext->firstFrameReceived && ((privateContext->firstVideoFrameReceived && privateContext->firstAudioFrameReceived)||(1 == privateContext->NumberOfTracks && (privateContext->firstAudioFrameReceived || privateContext->firstVideoFrameReceived))))
 	{
 		privateContext->firstFrameReceived = true;
 		aamp->LogFirstFrame();
@@ -722,6 +726,7 @@ static void AAMPGstPlayer_OnFirstVideoFrameCallback(GstElement* object, guint ar
 
 {
 	AAMPLOG_WARN("AAMPGstPlayer_OnFirstVideoFrameCallback. got First Video Frame");
+	_this->privateContext->firstVideoFrameReceived = true;
 	_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
 
 }
@@ -752,10 +757,11 @@ static void AAMPGstPlayer_redButtonCallback(GstElement* object, guint hours, gui
  * @param[in] arg1 array of arguments
  * @param[in] _this pointer to AAMPGstPlayer instance
  */
-static void AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder(GstElement* object, guint arg0, gpointer arg1,
+static void AAMPGstPlayer_OnAudioFirstFrameAudDecoder(GstElement* object, guint arg0, gpointer arg1,
         AAMPGstPlayer * _this)
 {
-	AAMPLOG_WARN("AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder. got First Audio Frame");
+	AAMPLOG_WARN("AAMPGstPlayer_OnAudioFirstFrameAudDecoder. got First Audio Frame");
+	_this->privateContext->firstAudioFrameReceived = true;
 	_this->NotifyFirstFrame(eMEDIATYPE_AUDIO);
 }
 
@@ -1186,6 +1192,8 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				if(_this->privateContext->firstTuneWithWesterosSinkOff)
 				{
 					_this->privateContext->firstTuneWithWesterosSinkOff = false;
+					_this->privateContext->firstVideoFrameReceived = true;
+					_this->privateContext->firstAudioFrameReceived = true;
 					_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
 				}
 #endif
@@ -1411,11 +1419,11 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					// this reduces amount of data in the fifo, which is flushed/lost when transition from expert to normal modes
 					g_object_set(msg->src, "limit_buffering_ms", 1500, NULL);   /* default 500ms was a bit low.. try 1500ms */
 					g_object_set(msg->src, "limit_buffering", 1, NULL);
-					AAMPLOG_WARN("Found brcmaudiodecoder, limiting audio decoder buffering");
+					AAMPLOG_WARN("Found audiodecoder, limiting audio decoder buffering");
 
 					/* if aamp->mAudioDecoderStreamSync==false, tell decoder not to look for 2nd/next frame sync, decode if it finds a single frame sync */
 					g_object_set(msg->src, "stream_sync_mode", (_this->aamp->mAudioDecoderStreamSync)? 1 : 0, NULL);
-					AAMPLOG_WARN("For brcmaudiodecoder set 'stream_sync_mode': %d", _this->aamp->mAudioDecoderStreamSync);
+					AAMPLOG_WARN("For audiodecoder set 'stream_sync_mode': %d", _this->aamp->mAudioDecoderStreamSync);
 				}
 #if defined (REALTEKCE)
 				else if ( aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink")
@@ -1456,7 +1464,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 					type_check_instance("bus_sync_handle: audio_dec ", _this->privateContext->audio_dec);
 #if !defined(REALTEKCE)
 					g_signal_connect(msg->src, "first-audio-frame-callback",
-									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
+									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameAudDecoder), _this);
 #endif
 				}
 			}
@@ -1479,7 +1487,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 
 			if ((NULL != msg->src) && aamp_StartsWith(GST_OBJECT_NAME(msg->src), "rtkaudiosink"))
 				g_signal_connect(msg->src, "first-audio-frame",
-					G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameBrcmAudDecoder), _this);
+					G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameAudDecoder), _this);
 #endif
 #else
 			if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "ismdgstaudiosink") == true)
@@ -2594,6 +2602,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 				AAMPLOG_WARN("Closing stream %d old format = %d, new format = %d",
 								i, stream->format, newFormat[i]);
 				configureStream[i] = true;
+				privateContext->NumberOfTracks++;
 			}
 		}
 
@@ -2746,6 +2755,8 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	if(!keepLastFrame)
 	{
 		privateContext->firstFrameReceived = false;
+		privateContext->firstVideoFrameReceived = false;
+		privateContext->firstAudioFrameReceived = false ;
 	}
 	if (privateContext->firstProgressCallbackIdleTaskPending)
 	{

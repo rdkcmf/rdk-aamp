@@ -148,31 +148,35 @@ window.onload = function()
 					Output( line.substr(offs+32), "blue" );
 					continue;
 				}
-					
-				if( (httpRequestEnd=ParseFogDownload(line)) )
+		    		var aampLogOffset = line.indexOf( "fogcli" );
+                		if( aampLogOffset >=0 )
 				{
-					err = mapError(httpRequestEnd.responseCode);
-					var ms = 1000*httpRequestEnd.curlTime;
-					url = httpRequestEnd.url;
-					type = httpRequestEnd.type;
-					//if( type!==undefined ) type = mediaTypes[type]; else type = "";
-					var special = null;
-					if( err!="HTTP200(OK)" )
+					
+					if( (httpRequestEnd=ParseFogDownload(line)) )
 					{
-						special = "red";
-					}
-					else if( ms>=2000 )
-					{
-						special = "orange";
-					}
-					Output( "curl" +
+						err = mapError(httpRequestEnd.responseCode);
+						var ms = 1000*httpRequestEnd.curlTime;
+						url = httpRequestEnd.url;
+						type = httpRequestEnd.type;
+						//if( type!==undefined ) type = mediaTypes[type]; else type = "";
+						var special = null;
+						if( err!="HTTP200(OK)" )
+						{
+							special = "red";
+						}
+						else if( ms>=2000 )
+						{
+							special = "orange";
+						}
+						Output( "curl" +
 							Pad(ms) + "ms, ulSz=" +
 							Pad(httpRequestEnd.ulSz) + ", dlSz=" +
 							Pad(httpRequestEnd.dlSz) + ", " +
 							err + ", " + type + ", " + url,
 							special );
-					UpdateDownloadStats( err, type, url, ms );
-					continue;
+						UpdateDownloadStats( err, type, url, ms );
+						continue;
+					}
 				}
 				
 				var aampLogOffset = line.indexOf( "[AAMP-PLAYER]" );

@@ -127,6 +127,9 @@
 #define DEFAULT_ABR_BYTES_TRANSFERRED_FOR_ESTIMATE	(512 * 1024)				/**< 512K */
 #define MAX_MDAT_NOT_FOUND_COUNT			200					/**< Max MDAT not found count*/
 
+// Player configuration for Fog download
+#define FOG_MAX_CONCURRENT_DOWNLOADS			5					/**< Max concurrent downloads in Fog*/
+
 #define AAMP_MAX_EVENT_PRIORITY (-70) /** Maximum allowed priority value for events */
 /**
  * @brief Enumeration for TUNED Event Configuration
