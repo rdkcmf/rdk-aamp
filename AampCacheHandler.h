@@ -58,10 +58,48 @@ typedef struct playlistcacheddata{
 
 }PlayListCachedData;
 
+/**
+ * @brief InitFragCacheStruct to store Init Fragment data
+ * Init fragment cache mechanism
+ * All types (VID/AUD/SUB/AUX) of Init Fragment maintained in a single Cache Table,
+ * and these fragment's url are stored in a Track Queue corrsponding to file type.
+ * This queue will be used to count fragments inserted, to remove entry in FIFO order
+ * upon exceeding limit with respect to file type.
+ * Eg:
+ * TrackQ[VID]={"http://sample_domain/vid_qual1.init"}	   umCacheTable={{"http://sample_domain/vid_qual1.init"}, VidUrlData1}
+ *             {"http://sample_domain/vid_qual2.init"}					{{"http://sample_domain/vid_qual1.init_redirect"}, VidUrlData1}
+ * 			   {"http://sample_domain/vid_qual3.init"}					{{"http://sample_domain/aud_qual1.init"}, AudUrlData1}
+ * TrackQ[AUD]={"http://sample_domain/aud_qual1.init"}					{{"http://sample_domain/vid_qual2.init"}, VidUrlData2}
+ *             {"http://sample_domain/aud_qual2.init"}					{{"http://sample_domain/aud_qual1.init_redirect"}, AudUrlData1}
+ * 			   {"http://sample_domain/aud_qual3.init"}					{{"http://sample_domain/aud_qual3.init"}, AudUrlData3}
+ * 																		{{"http://sample_domain/aud_qual2.init"}, AudUrlData2}
+ * 																		{{"http://sample_domain/vid_qual2.init_redirect"}, VidUrlData2}
+ * 																		{{"http://sample_domain/vid_qual3.init"}, VidUrlData3}
+ * 																		{{"http://sample_domain/aud_qual2.init_redirect"}, AudUrlData2}
+ * Track queue will not maintain duplicate entry of cache table, so we can have maximum of different init fragments in cache table.
+ * As per above eg, TrackQ[VID] size is 3, but cache table has 5 including effective url entry. If we maintain effective url entry
+ * in cache queue, we will have only 3 init fragments in diff quality.
+ * If cache table reaches max no of cache per track, we remove both main entry and dup entry if present, in FIFO order.
+ * 
+ * Fragment cache & track queue will be cleared upon exiting from aamp player or from async clear thread.
+ */
+typedef struct playlistcacheddata InitFragCacheStruct;
+
+/**
+ * @brief initfragtrackstruct to store init fragment url per media track in FIFO Queue.
+ */
+typedef struct initfragtrackstruct
+{
+	std::queue<std::string> Trackqueue;
+
+	initfragtrackstruct() : Trackqueue()
+	{
+	}
+}InitFragTrackStruct;
+
 
 class AampCacheHandler
 {
-
 private:
 	typedef std::unordered_map<std::string, PlayListCachedData *> PlaylistCache ;
 	typedef std::unordered_map<std::string, PlayListCachedData *>::iterator PlaylistCacheIter;
@@ -77,6 +115,17 @@ private:
 	pthread_cond_t mCondVar ;
 	pthread_t mAsyncCleanUpTaskThreadId;
 	AampLogManager *mLogObj;
+
+	typedef std::unordered_map <std::string, InitFragCacheStruct*> InitFragCache ;
+	typedef std::unordered_map <std::string, InitFragCacheStruct*>::iterator InitFragCacheIter;
+	typedef std::unordered_map <MediaType, InitFragTrackStruct*> CacheTrackQueue;
+	typedef std::unordered_map <MediaType, InitFragTrackStruct*>::iterator CacheTrackQueueIter;
+	InitFragCache umInitFragCache;
+	CacheTrackQueue umCacheTrackQ;
+	pthread_mutex_t mInitFragMutex;
+	bool bInitFragCache;
+	int MaxInitCacheSlot;						/* Max no of init fragment per track*/
+
 private:
 
 	/**
@@ -115,6 +164,23 @@ private:
 	 *   @return bool Success or Failure
 	 */
 	bool AllocatePlaylistCacheSlot(MediaType fileType,size_t newLen);
+
+	/**
+	 *	 @brief Clear init fragment cache & track queue table
+	 *
+	 *	 @return void
+	 */
+	void ClearInitFragCache();
+
+	/**
+	 *   @brief Removes very first inserted entry ( and duplicate entry, if present)  of given filetype
+	 *   from fragment cache table in FIFO order, also removes the corresponding url from track queue.
+	 * 
+	 *   @param fileType type of file format to be removed from cache table
+	 * 
+	 *   @return void
+	 */
+	void RemoveInitFragCacheEntry ( MediaType fileType );
 
 public:
 
@@ -185,6 +251,45 @@ public:
 	*   @return bool - true if file found, else false
 	*/
 	bool IsUrlCached(std::string);
+
+	/**
+	 *   @brief Insert init fragment into cache table
+	 *
+	 *   @param[in] url - URL
+	 *   @param[in] buffer - Pointer to growable buffer
+	 *   @param[in] effectiveUrl - Final URL
+	 *   @param[in] fileType - Type of the file inserted
+     *
+	 *   @return void
+	 */
+	void InsertToInitFragCache(const std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,MediaType fileType);
+
+	/**
+	 *   @brief Retrieve init fragment from cache
+	 *
+	 *   @param[in] url - URL
+	 *   @param[out] buffer - Pointer to growable buffer
+	 *   @param[out] effectiveUrl - Final URL
+	 * 
+	 *   @return true: found, false: not found
+	 */
+	bool RetrieveFromInitFragCache(const std::string url, GrowableBuffer* buffer, std::string& effectiveUrl);
+
+	/**
+	*   @brief SetMaxInitFragCacheSize - Set Max Cache Size
+	*
+	*   @param[in] cacheSz- CacheSize
+	*
+	*   @return None
+	*/
+	void SetMaxInitFragCacheSize( int );
+
+	/**
+	*   @brief GetMaxPlaylistCacheSize - Get present CacheSize
+	*
+	*   @return int - maxCacheSize
+	*/
+	int  GetMaxInitFragCacheSize() { return MaxInitCacheSlot; }
 
 	// Copy constructor and Copy assignment disabled 
 	AampCacheHandler(const AampCacheHandler&) = delete;

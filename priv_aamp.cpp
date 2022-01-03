@@ -5003,6 +5003,14 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		// support download of all the playlist files
 		getAampCacheHandler()->SetMaxPlaylistCacheSize(PLAYLIST_CACHE_SIZE_UNLIMITED);
 	}
+
+	// Set max no of init fragment to be maintained in cache table, ByDefault 5.
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxInitFragCachePerTrack,iCacheMaxSize);
+	if(iCacheMaxSize != MAX_INIT_FRAGMENT_CACHE_PER_TRACK)
+	{
+		getAampCacheHandler()->SetMaxInitFragCacheSize(iCacheMaxSize);
+	}
+
 	mAudioDecoderStreamSync = audioDecoderStreamSync;
 
 

@@ -267,6 +267,9 @@ void AampCacheHandler::ClearCacheHandler()
 		}
 	}
 	ClearPlaylistCache();
+
+	//Clear init fragment & track queue
+	ClearInitFragCache();
 	mInitialized = false;
 }
 AampCacheHandler::AampCacheHandler(AampLogManager *logObj):
@@ -274,10 +277,14 @@ AampCacheHandler::AampCacheHandler(AampLogManager *logObj):
 	mAsyncCacheCleanUpThread(false),mMutex(),mCondVarMutex(),mCondVar(),mPlaylistCache()
 	,mMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE*1024),mInitialized(false)
 	,mLogObj(logObj)
+	,umInitFragCache(),umCacheTrackQ(),bInitFragCache(false),mInitFragMutex()
+	,MaxInitCacheSlot(MAX_INIT_FRAGMENT_CACHE_PER_TRACK)
 {
 	pthread_mutex_init(&mMutex, NULL);
 	pthread_mutex_init(&mCondVarMutex, NULL);
 	pthread_cond_init(&mCondVar, NULL);
+
+	pthread_mutex_init(&mInitFragMutex, NULL);
 }
 
 /**
@@ -290,6 +297,8 @@ AampCacheHandler::~AampCacheHandler()
 	pthread_mutex_destroy(&mMutex);
 	pthread_mutex_destroy(&mCondVarMutex);
 	pthread_cond_destroy(&mCondVar);
+
+	pthread_mutex_destroy(&mInitFragMutex);
 }
 
 /**
@@ -337,6 +346,9 @@ void AampCacheHandler::AsyncCacheCleanUpTask()
 			{
 				AAMPLOG_INFO("[%p] Cacheflush timed out", this);
 				ClearPlaylistCache();
+
+				//Clear init fragment & track queue
+				ClearInitFragCache();
 			}
 		}
 	}
@@ -372,4 +384,222 @@ bool AampCacheHandler::IsUrlCached(std::string url)
 
 	pthread_mutex_unlock(&mMutex);
 	return retval;
+}
+
+/**
+ * @brief Insert init fragment to cache table
+ * @param url URL for init fragment
+ * @param buffer Contains the init fragment data
+ * @param effectiveUrl Effective URL of init fragment
+ * @param fileType file format of init fragment
+ */
+void AampCacheHandler::InsertToInitFragCache(const std::string url, const GrowableBuffer* buffer,
+						std::string effectiveUrl, MediaType fileType)
+{
+	InitFragCacheStruct *NewInitData;
+	InitFragTrackStruct *NewTrackQueueCache;
+
+	pthread_mutex_lock(&mInitFragMutex);
+
+	InitFragCacheIter Iter = umInitFragCache.find(url);
+	if ( Iter != umInitFragCache.end() )
+	{
+		AAMPLOG_INFO("playlist %s already present in cache", url.c_str());
+	}
+	else
+	{
+		NewInitData = new playlistcacheddata();
+		NewInitData->mCachedBuffer = new GrowableBuffer();
+		memset (NewInitData->mCachedBuffer, 0, sizeof(GrowableBuffer));
+		aamp_AppendBytes(NewInitData->mCachedBuffer, buffer->ptr, buffer->len );
+
+		NewInitData->mEffectiveUrl = effectiveUrl;
+		NewInitData->mFileType = fileType;
+		NewInitData->mDuplicateEntry = (effectiveUrl.length() && (effectiveUrl!=url));
+
+		/* 
+		 * Check if queue created for given track type, if not create a queue
+		 * and add a corresponding url into a track queue.
+		 */
+		CacheTrackQueueIter IterCq = umCacheTrackQ.find(fileType);
+		if(IterCq == umCacheTrackQ.end())
+		{
+			NewTrackQueueCache = new initfragtrackstruct();
+			NewTrackQueueCache->Trackqueue.push(url);
+
+			umCacheTrackQ[fileType]=NewTrackQueueCache;
+		}
+		else
+		{
+			NewTrackQueueCache = IterCq->second;
+			NewTrackQueueCache->Trackqueue.push(url);
+		}
+
+
+		/* 
+		 * If track queue of given filetype reached maximum limit, remove the very first
+		 * inserted entry & its duplicate entry from cache table.
+		 */
+		if ( NewTrackQueueCache->Trackqueue.size() > MaxInitCacheSlot )
+		{
+			RemoveInitFragCacheEntry ( fileType );
+		}
+
+		umInitFragCache[url] = NewInitData;
+		AAMPLOG_INFO("Inserted init url %s", url.c_str());
+
+
+		/* 
+		 * If current init fragment has any redirected url which is different, that must be
+		 * inserted in cache table with same init fragment data of url and which will not inserted in track queue.
+		 */
+		if ( NewInitData->mDuplicateEntry )
+		{
+			InitFragCacheStruct *DupInitData;
+			DupInitData = new playlistcacheddata();
+			DupInitData->mCachedBuffer = NewInitData->mCachedBuffer;
+			DupInitData->mEffectiveUrl = effectiveUrl;
+			DupInitData->mFileType = fileType;
+			umInitFragCache[effectiveUrl] = DupInitData;
+	
+			AAMPLOG_INFO("Inserted effective init url %s", url.c_str());
+		}
+
+		AAMPLOG_INFO("Size [CacheTable:%d,TrackQ:%d,CurrentTrack:%d,MaxLimit:%d]\n", umInitFragCache.size(),umCacheTrackQ.size(),
+						NewTrackQueueCache->Trackqueue.size(),
+						MaxInitCacheSlot );
+	}
+
+	pthread_mutex_unlock(&mInitFragMutex);
+}
+
+/**
+ * @brief Retrieve init fragment from fragment cache table
+ * @param url URL corresponding to init fragment
+ * @param[out] buffer Output buffer containing init fragment
+ * @param[out] effectiveUrl effective URL of retrieved init fragment
+ * @retval true if init fragment is successfully retrieved.
+ */
+bool AampCacheHandler::RetrieveFromInitFragCache(const std::string url, GrowableBuffer* buffer,
+													std::string& effectiveUrl)
+{
+	GrowableBuffer* buf = NULL;
+	bool ret;
+	std::string eUrl;
+	pthread_mutex_lock(&mInitFragMutex);
+	InitFragCacheIter it = umInitFragCache.find(url);
+	if (it != umInitFragCache.end())
+	{
+		InitFragCacheStruct *findFragData = it->second;
+		buf = findFragData->mCachedBuffer;
+		eUrl = findFragData->mEffectiveUrl;
+		buffer->len = 0;
+		aamp_AppendBytes(buffer, buf->ptr, buf->len );
+		effectiveUrl = eUrl;
+		AAMPLOG_INFO("url %s found", url.c_str());
+		ret = true;
+	}
+	else
+	{
+		AAMPLOG_INFO("url %s not found", url.c_str());
+		ret = false;
+	}
+	pthread_mutex_unlock(&mInitFragMutex);
+	return ret;
+}
+
+/**
+ * @brief Removes very first inserted entry ( and duplicate entry, if present)  of given filetype
+ * from fragment cache table in FIFO order, also removes the corresponding url from track queue.
+ * @param fileType type of file format to be removed from cache table
+ */
+ void AampCacheHandler::RemoveInitFragCacheEntry ( MediaType fileType )
+{
+	CacheTrackQueueIter IterCq = umCacheTrackQ.find(fileType);
+	if(IterCq == umCacheTrackQ.end())
+	{
+		return;
+	}
+
+	InitFragTrackStruct *QueperTrack = IterCq->second;
+
+	/* Delete data in FIFO order
+	 * Get url from Track Queue, which is used to
+	 * remove fragment entry from cache table in FIFO order.
+	 */
+	InitFragCacheIter Iter = umInitFragCache.find(QueperTrack->Trackqueue.front());
+	if (Iter != umInitFragCache.end())
+	{
+		InitFragCacheStruct *removeCacheData = Iter->second;
+
+		/* Remove duplicate entry
+		 * Check if the first inserted data has any duplicate entry, If so
+		 * then delete the duplicat entry as well.
+		 */
+		if ( removeCacheData->mDuplicateEntry )
+		{
+			InitFragCacheStruct *dupData;
+			InitFragCacheIter IterDup = umInitFragCache.find(removeCacheData->mEffectiveUrl);
+			if(IterDup != umInitFragCache.end())
+			{
+				dupData = IterDup->second;
+				SAFE_DELETE(dupData);
+				umInitFragCache.erase(IterDup);
+				AAMPLOG_INFO("Removed dup url:%s",removeCacheData->mEffectiveUrl.c_str());
+			}
+		}
+		aamp_Free(removeCacheData->mCachedBuffer);
+		SAFE_DELETE(removeCacheData->mCachedBuffer);
+		SAFE_DELETE(removeCacheData);
+		umInitFragCache.erase(Iter);
+		AAMPLOG_INFO("Removed main url:%s",QueperTrack->Trackqueue.front().c_str());
+
+		// Remove the url entry from corresponding track queue.
+		QueperTrack->Trackqueue.pop();
+	}
+}
+
+/**
+ * @brief Clear init fragment cache table & track queue table
+ */
+void AampCacheHandler::ClearInitFragCache()
+{
+	AAMPLOG_INFO("Fragment cache size %d", (int)umInitFragCache.size());
+	InitFragCacheIter it = umInitFragCache.begin();
+	for (;it != umInitFragCache.end(); it++)
+	{
+		InitFragCacheStruct *delData = it->second;
+		if(!delData->mDuplicateEntry)
+		{
+			aamp_Free(delData->mCachedBuffer);
+			SAFE_DELETE(delData->mCachedBuffer);
+		}
+		SAFE_DELETE(delData);
+	}
+	umInitFragCache.clear();
+
+	AAMPLOG_INFO("Track queue size %d", (int)umCacheTrackQ.size());
+	CacheTrackQueueIter IterCq = umCacheTrackQ.begin();
+	for (;IterCq != umCacheTrackQ.end(); IterCq++)
+	{
+		InitFragTrackStruct *delTrack = IterCq->second;
+
+		std::queue<std::string>().swap(delTrack->Trackqueue);
+		SAFE_DELETE(delTrack);
+	}
+	umCacheTrackQ.clear();
+}
+
+/**
+*   @brief SetMaxInitFragCacheSize - Set Max no of init fragment to Cache per track
+*
+*   @param[in] maxInitFragCacheSz- Max no of Cache
+*   @return None
+*/
+void AampCacheHandler::SetMaxInitFragCacheSize(int maxInitFragCacheSz)
+{
+	pthread_mutex_lock(&mInitFragMutex);
+	MaxInitCacheSlot = maxInitFragCacheSz;
+	AAMPLOG_WARN("Setting mMaxPlaylistCacheSize to :%d",maxInitFragCacheSz);
+	pthread_mutex_unlock(&mInitFragMutex);	
 }
