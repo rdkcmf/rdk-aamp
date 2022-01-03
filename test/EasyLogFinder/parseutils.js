@@ -304,74 +304,27 @@ function ParseHttpRequestEnd( line )
 function ParseFogDownload( line )
 {
 	var prefix, offs;
-	
-	prefix = "abrs_fragment#";
-	offs = line.indexOf(prefix);
+	var prefix = "HttpRequestEnd: ";
+	var offs = line.indexOf(prefix);
 	if( offs>=0 )
 	{
 		var payload = line.substr(offs+prefix.length);
-		var temp = sscanf( payload, "t:%%,s:%%,d:%%,sz:%%,r:%%,cerr:%%,hcode:%%,n:%%,estr:%%,url:%%");
+		var temp = sscanf( payload, "Type: %%, TotalTime: %%, ConnectTime: %% APPConnectTime: %%, PreTransferTime: %%, StartTransferTime: %%, RedirectTime: %%, DownloadSize: %%, RequestedSize: %%, cerr: %%, hcode: %%, Url: %%" );
 		var httpRequestEnd = {};
+		httpRequestEnd.responseCode = parseInt(temp[9])||parseInt(temp[10]);
+		httpRequestEnd.curlTime = parseFloat(temp[1]);
+		httpRequestEnd.url = temp[11];
 		httpRequestEnd.type = temp[0];
-		httpRequestEnd.curlTime = parseFloat(temp[2])/1000.0;
-		httpRequestEnd.dlSz = parseInt(temp[3]);
-		httpRequestEnd.responseCode = parseInt(temp[5])||parseInt(temp[6]);
-		httpRequestEnd.url = temp[9];
-		httpRequestEnd.ulSz = 0;
-		return httpRequestEnd;
-	}
-	
-	prefix = "On-demand download of ";
-	offs = line.indexOf(prefix);
-	if( offs>=0 )
-	{
-		var payload = line.substr(offs+prefix.length);
-		var temp = sscanf( payload, ":%% state:%% r:%% from:%%");
-		var httpRequestEnd = {};
-		httpRequestEnd.curlTime = 1.0; // hack
-		httpRequestEnd.dlSz = 1; // hack
-		httpRequestEnd.responseCode = 200; // hack
-		httpRequestEnd.url = temp[3];
-		httpRequestEnd.ulSz = 0;
-		if( httpRequestEnd.url.indexOf("video")>=0 )
-		{
-			httpRequestEnd.type = "VIDEO";
-		}
-		else if( httpRequestEnd.url.indexOf("audio")>=0 )
-		{
-			httpRequestEnd.type = "AUDIO";
-		}
-		else
-		{
-			httpRequestEnd.type = "?";
-		}
-		if( httpRequestEnd.url.indexOf("-init")>=0 )
+		httpRequestEnd.ulSz = temp[8];
+		httpRequestEnd.dlSz = temp[7];
+		if( httpRequestEnd.url.indexOf("-header")>=0 )
 		{
 			httpRequestEnd.type = "INIT_" + httpRequestEnd.type;
 		}
 		return httpRequestEnd;
 	}
-	
-	//2021 Sep 27 20:07:36.279702 fogcli[6915]: Requesting GET /manifests/eba75a7c-5ade-4c05-b5da-f94a79dfc35a/abr/815558146-2/Bandwidth-6052400-init.seg
-	
 	return null;
 	
-	var prefix = "[startFragmentDownloadInternal]: ";
-	var offs = line.indexOf(prefix);
-	if( offs>=0 )
-	{
-		var payload = line.substr(offs+prefix.length);
-		var temp = sscanf( payload, "TotalTime: %%, ConnectTime: %%, APPConnectTime:%%, PreTransferTime: %%, StartTransferTime: %%, RedirectTime: %%, URL: %%" );
-		var httpRequestEnd = {};
-		httpRequestEnd.responseCode = 200;
-		httpRequestEnd.curlTime = parseFloat(temp[0]);
-		httpRequestEnd.url = temp[6];
-		httpRequestEnd.type = 0;
-		httpRequestEnd.ulSz = 0;
-		httpRequestEnd.dlSz = 0;
-		return httpRequestEnd;
-	}
-	return null;
 }
 
 var trackNames = [ "video", "audio", "subtitle" ];

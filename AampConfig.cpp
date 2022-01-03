@@ -248,7 +248,9 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"enableEosSmallFragment", eAAMPConfig_EnableIgnoreEosSmallFragment, -1, -1},
 	{"useSecManager",eAAMPConfig_UseSecManager, -1,-1},
 	{"maxInitFragCachePerTrack",eAAMPConfig_MaxInitFragCachePerTrack,{.iMinValue=1},{.iMaxValue=5}},
-	{"supportTLS",eAAMPConfig_TLSVersion,{.lMinValue=CURL_SSLVERSION_DEFAULT},{.lMaxValue=CURL_SSLVERSION_TLSv1_3}}
+	{"supportTLS",eAAMPConfig_TLSVersion,{.lMinValue=CURL_SSLVERSION_DEFAULT},{.lMaxValue=CURL_SSLVERSION_TLSv1_3}},
+	{"fogMaxConcurrentDownloads",eAAMPConfig_FogMaxConcurrentDownloads, -1, -1},
+        {"enableFogConfig", eAAMPConfig_EnableAampConfigToFog, -1, -1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -413,6 +415,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyOffsetMin].value      	=	true;
 	bAampCfgValue[eAAMPConfig_EnablePTO].value				=       false;
 	bAampCfgValue[eAAMPConfig_EnableIgnoreEosSmallFragment].value		=       false;
+	bAampCfgValue[eAAMPConfig_EnableAampConfigToFog].value                  =       true;
 
 	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	true;
 	///////////////// Following for Integer Data type configs ////////////////////////////
@@ -464,6 +467,7 @@ void AampConfig::Initialize()
 	iAampCfgValue[eAAMPConfig_ABRChunkThresholdSize-eAAMPConfig_IntStartValue].value        = 	DEFAULT_AAMP_ABR_CHUNK_THRESHOLD_SIZE;
 	iAampCfgValue[eAAMPConfig_FragmentDownloadFailThreshold-eAAMPConfig_IntStartValue].value=	MAX_SEG_DOWNLOAD_FAIL_COUNT;
 	iAampCfgValue[eAAMPConfig_MaxInitFragCachePerTrack-eAAMPConfig_IntStartValue].value	=       MAX_INIT_FRAGMENT_CACHE_PER_TRACK;
+	iAampCfgValue[eAAMPConfig_FogMaxConcurrentDownloads-eAAMPConfig_IntStartValue].value	=	FOG_MAX_CONCURRENT_DOWNLOADS;
 
 	///////////////// Following for long data types /////////////////////////////
 	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value	=	DEFAULT_DISCONTINUITY_TIMEOUT;

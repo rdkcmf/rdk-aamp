@@ -1032,9 +1032,10 @@ public:
 	 * @param[out] buffer - Pointer to the output buffer
 	 * @param[out] http_error - HTTP error code
 	 * @param[in] CurlRequest - request type
+	 * @param[in] pData - string contains post data
 	 * @return bool status
 	 */
-	bool ProcessCustomCurlRequest(std::string& remoteUrl, struct GrowableBuffer* buffer, long *http_error, CurlRequest request = eCURL_GET);
+	bool ProcessCustomCurlRequest(std::string& remoteUrl, struct GrowableBuffer* buffer, long *http_error, CurlRequest request = eCURL_GET, std::string pData = "");
 
 	/**
 	 * @brief get Media Type in string
@@ -3445,6 +3446,12 @@ public:
 	*     @return double
 	*/
 	double GetPeriodScaledPtoStartTime(void);
+
+	/**
+	 *    @brief LoadFogConfig
+	 *    return none
+	 */
+	void LoadFogConfig(void);
 
 private:
 

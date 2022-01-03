@@ -47,6 +47,7 @@
 #ifdef USE_OPENCDM // AampOutputProtection is compiled when this  flag is enabled 
 #include "aampoutputprotection.h"
 #endif
+#include "AampJsonObject.h"
 
 #ifdef IARM_MGR
 #include "host.hpp"
@@ -4197,7 +4198,7 @@ char * PrivateInstanceAAMP::GetOnVideoEndSessionStatData()
  * @param[in] CurlRequest - request type
  * @return bool status
  */
-bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, GrowableBuffer* buffer, long *http_error, CurlRequest request)
+bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, GrowableBuffer* buffer, long *http_error, CurlRequest request, std::string pData)
 {
 	bool ret = false;
 	CURLcode res;
@@ -4224,6 +4225,12 @@ bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, Growa
 		{
 			curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
 		}
+		else if(eCURL_POST == request)
+		{
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, pData.size());
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDS,(uint8_t * )pData.c_str());
+		}
+
 		curl_easy_setopt(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
 		curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
@@ -5227,6 +5234,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	if(bFirstAttempt)
 	{ // TODO: make mFirstTuneFormat of type MediaFormat
 		mfirstTuneFmt = (int)mMediaFormat;
+		// To post player configurations to fog on 1st time tune
+		if(mTSBEnabled && ISCONFIGSET_PRIV(eAAMPConfig_EnableAampConfigToFog))
+		{
+			LoadFogConfig();
+		}
 	}
 	mCdaiObject = NULL;
 	AcquireStreamLock();
@@ -7508,6 +7520,14 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 					audioIndex += mCurrentLanguageIndex;
 				}
 					break;
+
+				case eMEDIATYPE_SUBTITLE:
+				{
+					dataType = VideoStatDataType::VE_DATA_FRAGMENT;
+					trackType = VideoStatTrackType::STAT_SUBTITLE;
+				}
+				break;
+
 				default:
 					break;
 			}
@@ -10154,4 +10174,43 @@ double PrivateInstanceAAMP::GetPeriodStartTimeValue(void)
 double PrivateInstanceAAMP::GetPeriodScaledPtoStartTime(void)
 {
        return mNextPeriodScaledPtoStartTime;
+}
+
+/**
+* @brief LoadFogConfig - Load needed player Config to Fog
+*/
+void PrivateInstanceAAMP::LoadFogConfig(void)
+{
+	std::string jsonStr;
+	AampJsonObject jsondata;
+	double tmpVar = 0;
+	int maxdownload = 0;
+
+	// networkTimeout value in sec and convert into MS
+	GETCONFIGVALUE_PRIV(eAAMPConfig_NetworkTimeout,tmpVar);
+	jsondata.add("downloadTimeoutMS", (long)CONVERT_SEC_TO_MS(tmpVar));
+	
+	tmpVar = 0;
+	// manifestTimeout value in sec and convert into MS
+        GETCONFIGVALUE_PRIV(eAAMPConfig_ManifestTimeout,tmpVar);
+        jsondata.add("manifestTimeoutMS", (long)CONVERT_SEC_TO_MS(tmpVar));
+
+	tmpVar = 0;
+	//downloadStallTimeout in sec
+	GETCONFIGVALUE_PRIV(eAAMPConfig_CurlStallTimeout,tmpVar);
+	jsondata.add("downloadStallTimeout", (long)(tmpVar));
+
+	tmpVar = 0;
+	//downloadStartTimeout sec
+	GETCONFIGVALUE_PRIV(eAAMPConfig_CurlDownloadStartTimeout,tmpVar);
+	jsondata.add("downloadStartTimeout", (long)(tmpVar));
+
+	//maxConcurrentDownloads
+	GETCONFIGVALUE_PRIV(eAAMPConfig_FogMaxConcurrentDownloads, maxdownload);
+	jsondata.add("maxConcurrentDownloads", (long)(maxdownload));
+
+	jsonStr = jsondata.print_UnFormatted();
+	std::string remoteUrl = "127.0.0.1:9080/playerconfig";
+	long http_error = -1;
+	ProcessCustomCurlRequest(remoteUrl, NULL, &http_error, eCURL_POST, jsonStr);
 }
