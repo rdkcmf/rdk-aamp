@@ -2371,6 +2371,12 @@ public:
 	 *   @brief  set virtual stream ID, extracted from manifest
 	 */
 	void SetVssVirtualStreamID(std::string streamID) { mVssVirtualStreamId = streamID;}
+	
+	/**
+	*   @brief getTuneType Function to check what is the tuneType
+	*  @return Bool TuneType
+	*/
+	TuneType GetTuneType()  { return mTuneType; }
 
 	/**
 	 *   @brief IsNewTune Function to check if tune is New tune or retune
