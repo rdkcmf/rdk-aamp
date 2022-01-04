@@ -7661,6 +7661,10 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 							iProfileCapped = true;
 							AAMPLOG_INFO("Video Profile ignored Bw=%ld res=%d:%d display=%d:%d", streamInfo->bandwidthBitsPerSecond, streamInfo->resolution.width, streamInfo->resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight);
 						}
+						else if(ISCONFIGSET(eAAMPConfig_Disable4K) && (streamInfo->resolution.height > 1080 || streamInfo->resolution.width > 1920))
+						{
+							AAMPLOG_INFO("Video Profile ignored for disabled 4k content");
+						}
 						else
 						{
 							resolutionMatchedCount++;
