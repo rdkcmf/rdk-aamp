@@ -53,6 +53,7 @@ using namespace WPEFramework;
 AAMPStatusType StreamAbstractionAAMP_VIDEOIN::Init(TuneType tuneType)
 {
 	AAMPLOG_WARN("%s Function not implemented",mName.c_str());
+	return eAAMPSTATUS_OK;
 }
 
 AAMPStatusType StreamAbstractionAAMP_VIDEOIN::InitHelper(TuneType tuneType)
