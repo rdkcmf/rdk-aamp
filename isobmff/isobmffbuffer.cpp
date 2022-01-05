@@ -675,6 +675,7 @@ void IsoBmffBuffer::getSampleDuration(Box *box, uint64_t &fduration)
  */
 uint64_t IsoBmffBuffer::getPtsInternal(const std::vector<Box*> *boxes)
 {
+    uint64_t retValue = 0;
     for (size_t i = 0; i < boxes->size(); i++)
     {
         Box *box = boxes->at(i);
@@ -682,14 +683,17 @@ uint64_t IsoBmffBuffer::getPtsInternal(const std::vector<Box*> *boxes)
         if (IS_TYPE(box->getType(), Box::TFDT))
         {
             AAMPLOG_WARN("****Base Media Decode Time: %lld", dynamic_cast<TfdtBox *>(box)->getBaseMDT());
-            return dynamic_cast<TfdtBox *>(box)->getBaseMDT();
+            retValue = dynamic_cast<TfdtBox *>(box)->getBaseMDT();
+            break;
         }
 
         if (box->hasChildren())
         {
-            return getPtsInternal(box->getChildren());
+            retValue = getPtsInternal(box->getChildren());
+            break;
         }
     }
+    return retValue;
 }
 
 /**

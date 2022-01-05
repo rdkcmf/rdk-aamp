@@ -248,44 +248,44 @@ static int getFontStyle(std::string input, gsw_CcFontStyle *fontStyleOut)
 		const char *inputStr = input.c_str();
 		if (0 == strncasecmp(inputStr, "default", strlen("default")))
 		{
-			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_DEFAULT, sizeof(gsw_CcFontStyle));
+			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_DEFAULT, sizeof(GSW_CC_FONT_STYLE_DEFAULT));
 		}
 		else if ((0 == strncasecmp(inputStr, "monospaced_serif", strlen("monospaced_serif"))) ||
 			(0 == strncasecmp(inputStr, "Monospaced serif", strlen("Monospaced serif"))))
 		{
-			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_MONOSPACED_SERIF, sizeof(gsw_CcFontStyle));
+			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_MONOSPACED_SERIF, sizeof(GSW_CC_FONT_STYLE_MONOSPACED_SERIF));
 		}
 		else if ((0 == strncasecmp(inputStr, "proportional_serif", strlen("proportional_serif"))) ||
 			(0 == strncasecmp(inputStr, "Proportional serif", strlen("Proportional serif"))))
 		{
-			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_PROPORTIONAL_SERIF, sizeof(gsw_CcFontStyle));
+			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_PROPORTIONAL_SERIF, sizeof(GSW_CC_FONT_STYLE_PROPORTIONAL_SERIF));
 		}
 		else if ((0 == strncasecmp(inputStr, "monospaced_sanserif", strlen("monospaced_sanserif"))) ||
 			(0 == strncasecmp(inputStr, "Monospaced sans serif", strlen("Monospaced sans serif"))))
 		{
-			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_MONOSPACED_SANSSERIF, sizeof(gsw_CcFontStyle));
+			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_MONOSPACED_SANSSERIF, sizeof(GSW_CC_FONT_STYLE_MONOSPACED_SANSSERIF));
 		}
 		else if ((0 == strncasecmp(inputStr, "proportional_sanserif", strlen("proportional_sanserif"))) ||
 			(0 == strncasecmp(inputStr, "Proportional sans serif", strlen("Proportional sans serif"))))
 		{
-			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_PROPORTIONAL_SANSSERIF, sizeof(gsw_CcFontStyle));
+			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_PROPORTIONAL_SANSSERIF, sizeof(GSW_CC_FONT_STYLE_PROPORTIONAL_SANSSERIF));
 		}
 		else if (0 == strncasecmp(inputStr, "casual", strlen("casual")))
 		{
-			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_CASUAL, sizeof(gsw_CcFontStyle));
+			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_CASUAL, sizeof(GSW_CC_FONT_STYLE_CASUAL));
 		}
 		else if (0 == strncasecmp(inputStr, "cursive", strlen("cursive")))
 		{
-			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_CURSIVE, sizeof(gsw_CcFontStyle));
+			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_CURSIVE, sizeof(GSW_CC_FONT_STYLE_CURSIVE));
 		}
 		else if ((0 == strncasecmp(inputStr, "smallcaps", strlen("smallcaps"))) ||
 			(0 == strncasecmp(inputStr, "small capital", strlen("small capital"))))
 		{
-			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_SMALL_CAPITALS, sizeof(gsw_CcFontStyle));
+			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_SMALL_CAPITALS, sizeof(GSW_CC_FONT_STYLE_SMALL_CAPITALS));
 		}
 		else if (0 == strncasecmp(inputStr, "auto", strlen("auto")))
 		{
-			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_EMBEDDED, sizeof(gsw_CcFontStyle));
+			memcpy(fontStyleOut, GSW_CC_FONT_STYLE_EMBEDDED, sizeof(GSW_CC_FONT_STYLE_EMBEDDED));
 		}
 		else
 		{
