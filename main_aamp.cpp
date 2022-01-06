@@ -869,18 +869,24 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 		// which might mess up future SetRate call for BG->FG
 		if (aamp->mbPlayEnabled && aamp->pipeline_paused)
 		{
-			// resume downloads and clear paused flag. state change will be done
-			// on streamSink configuration.
-			AAMPLOG_WARN("paused state, so resume downloads");
-			aamp->pipeline_paused = false;
-			aamp->ResumeDownloads();
-			sentSpeedChangedEv = true;
 
 			if(keepPaused && aamp->mMediaFormat != eMEDIAFORMAT_PROGRESSIVE)
 			{
 				// Enable seek while paused if not Progressive stream
 				seekWhilePause = true;
 			}
+
+			// Clear paused flag. state change will be done
+			// on streamSink configuration.
+			if (!seekWhilePause)
+			{
+				AAMPLOG_WARN("Clearing paused flag");
+				aamp->pipeline_paused = false;
+				sentSpeedChangedEv = true;
+			}
+			// Resume downloads
+			AAMPLOG_INFO("Resuming downloads");
+			aamp->ResumeDownloads();
 		}
 
 		if (tuneType == eTUNETYPE_SEEK)
