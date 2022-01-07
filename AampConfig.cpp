@@ -417,7 +417,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_Disable4K].value                              =       true;
 #endif
 	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	true;
-	bAampCfgValue[eAAMPConfig_EnablePTO].value				=       true;
+	bAampCfgValue[eAAMPConfig_EnablePTO].value				=       false;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;

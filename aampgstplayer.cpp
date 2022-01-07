@@ -2407,6 +2407,9 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 		AAMPLOG_TRACE("mediaType[%d] SendGstEvents - first buffer received !!! initFragment: %d", mediaType, initFragment);
 	}
 
+//FIX-ME: Stop Position processing isnt triggering EOS properly in Video Sink
+//Avoid Sling playback failure at the tune time itself - DELIA-53912
+#if 0
 	// Send New Segment Event when first Data segment encountered after new tune
 	if(!aamp->IsLive() &&
 		ISCONFIGSET(eAAMPConfig_EnablePTO) &&
@@ -2414,16 +2417,19 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 		!aamp->mbNewSegmentEvtSent[mediaType] &&
 		!initFragment)
 	{
+		double durtion = aamp->GetPeriodDurationTimeValue()/1000.0;
 		double startPos = aamp->GetFirstPTS();
-		double stopPos = aamp->GetPeriodStartTimeValue() + (aamp->GetPeriodDurationTimeValue()/1000.0);
+		double stopPos = aamp->GetFirstPTS() + duration;
+		AAMPLOG_INFO("START: %f END: %f duration: %f", startPos, stopPos, duration);
 		GstClockTime startPts = (GstClockTime)(startPos * GST_SECOND);
 		GstClockTime stopPts = (GstClockTime)(stopPos * GST_SECOND);
 
-		SendNewSegmentEvent(mediaType, startPts, stopPts);
+		SendNewSegmentEvent(mediaType, eTUNETYPE_NEW_NORMAL == aamp->GetTuneType() ? startPts : 0.0, stopPts);
 		aamp->mbNewSegmentEvtSent[mediaType] = true;
 
 		AAMPLOG_TRACE("mediaType[%d] SendNewSegmentEvent - first data buffer received !!!", mediaType);
 	}
+#endif
 
 	if( aamp->DownloadsAreEnabled())
 	{
