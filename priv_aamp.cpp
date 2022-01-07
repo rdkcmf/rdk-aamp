@@ -5390,9 +5390,9 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 					rc = eMEDIAFORMAT_PROGRESSIVE;
 				}
 			}
-			else if(extensionLength == 2)
+			else if((extensionLength == 2) || (urlStr.rfind("srt:",0)==0)) 
 			{
-				if(urlStr.compare(extensionStart,extensionLength,"ts") == 0)
+				if((urlStr.compare(extensionStart,extensionLength,"ts") == 0) || (urlStr.rfind("srt:",0)==0))
 				{
 					rc = eMEDIAFORMAT_PROGRESSIVE;
 				}
