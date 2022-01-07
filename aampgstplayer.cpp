@@ -1561,7 +1561,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 			}
 		}
 		break;
-#ifdef USE_GST1
 	case GST_MESSAGE_NEED_CONTEXT:
 		
 		/*
@@ -1582,7 +1581,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 		}
 
 		break;
-#endif
 #ifdef __APPLE__
     case GST_MESSAGE_ELEMENT:
                 if (
@@ -1634,11 +1632,7 @@ bool AAMPGstPlayer::CreatePipeline()
 		if (privateContext->bus)
 		{
 			privateContext->busWatchId = gst_bus_add_watch(privateContext->bus, (GstBusFunc) bus_message, this);
-#ifdef USE_GST1
 			gst_bus_set_sync_handler(privateContext->bus, (GstBusSyncHandler) bus_sync_handler, this, NULL);
-#else
-			gst_bus_set_sync_handler(privateContext->bus, (GstBusSyncHandler) bus_sync_handler, this);
-#endif
 			privateContext->buffering_enabled = ISCONFIGSET(eAAMPConfig_GStreamerBufferingBeforePlay);
 			privateContext->buffering_in_progress = false;
 			privateContext->buffering_timeout_cnt = DEFAULT_BUFFERING_MAX_CNT;
@@ -1957,7 +1951,6 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 
 	if (!stream->using_playersinkbin)
 	{
-#ifdef USE_GST1
 		AAMPLOG_WARN("AAMPGstPlayer_SetupStream - using playbin");
 		stream->sinkbin = gst_element_factory_make("playbin", NULL);
 		if (_this->privateContext->using_westerossink && eMEDIATYPE_VIDEO == streamId)
@@ -2005,10 +1998,6 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 			g_object_set(stream->sinkbin, "audio-sink", audiosink, NULL);
 			AAMPLOG_WARN("AAMPGstPlayer_SetupStream - using audsrvsink");
 		}
-#else
-		AAMPLOG_WARN("AAMPGstPlayer_SetupStream - using playbin2");
-		stream->sinkbin = gst_element_factory_make("playbin2", NULL);
-#endif
 #if defined(INTELCE) && !defined(INTELCE_USE_VIDRENDSINK)
 		if (eMEDIATYPE_VIDEO == streamId)
 		{
@@ -2116,11 +2105,7 @@ void AAMPGstPlayer::SendGstEvents(MediaType mediaType, GstClockTime pts)
 		AAMPLOG_WARN("flush pipeline");
 		gboolean ret = gst_pad_push_event(sourceEleSrcPad, gst_event_new_flush_start());
 		if (!ret) AAMPLOG_WARN("flush start error");
-#ifdef USE_GST1
 		GstEvent* event = gst_event_new_flush_stop(FALSE);
-#else
-		GstEvent* event = gst_event_new_flush_stop();
-#endif
 		ret = gst_pad_push_event(sourceEleSrcPad, event);
 		if (!ret) AAMPLOG_WARN("flush stop error");
 		stream->flush = false;
@@ -2272,7 +2257,6 @@ void AAMPGstPlayer::SendNewSegmentEvent(MediaType mediaType, GstClockTime startP
 
         if (stream->format == FORMAT_ISO_BMFF)
         {
-#ifdef USE_GST1
                 GstSegment segment;
                 gst_segment_init(&segment, GST_FORMAT_TIME);
                 segment.start = startPts;
@@ -2289,9 +2273,6 @@ void AAMPGstPlayer::SendNewSegmentEvent(MediaType mediaType, GstClockTime startP
 
                 AAMPLOG_TRACE("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
                 GstEvent* event = gst_event_new_segment (&segment);
-        #else
-                GstEvent* event = gst_event_new_new_segment (FALSE, 1.0, GST_FORMAT_TIME, pts, GST_CLOCK_TIME_NONE, 0);
-#endif
                 if (!gst_pad_push_event(sourceEleSrcPad, event))
                 {
                         AAMPLOG_ERR("gst_pad_push_event segment error");
@@ -2928,13 +2909,8 @@ void AAMPGstPlayer::DumpStatus(void)
 
 	gint64 pos, len;
 	GstFormat format = GST_FORMAT_TIME;
-#ifdef USE_GST1
 	if (gst_element_query_position(privateContext->pipeline, format, &pos) &&
 		gst_element_query_duration(privateContext->pipeline, format, &len))
-#else
-	if (gst_element_query_position(privateContext->pipeline, &format, &pos) &&
-		gst_element_query_duration(privateContext->pipeline, &format, &len))
-#endif
 	{
 		AAMPLOG_WARN("Position: %" GST_TIME_FORMAT " / %" GST_TIME_FORMAT "\r",
 			GST_TIME_ARGS(pos), GST_TIME_ARGS(len));
@@ -3018,28 +2994,10 @@ void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 	{
 		AAMPLOG_WARN("AAMPGstPlayer_Flush - gst_element_set_state - FAILED rc %d", rc);
 	}
-#ifdef USE_GST1
 	gboolean ret = gst_element_send_event( GST_ELEMENT(privateContext->pipeline), gst_event_new_flush_start());
 	if (!ret) AAMPLOG_WARN("AAMPGstPlayer_Flush: flush start error");
 	ret = gst_element_send_event(GST_ELEMENT(privateContext->pipeline), gst_event_new_flush_stop(TRUE));
 	if (!ret) AAMPLOG_WARN("AAMPGstPlayer_Flush: flush stop error");
-#else
-	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
-	{
-		media_stream *stream = &this->privateContext->stream[iTrack];
-		if (stream->source)
-		{
-			GstPad* sourceEleSrcPad = gst_element_get_static_pad(stream->source, "src");
-			gboolean ret = gst_pad_push_event(sourceEleSrcPad, gst_event_new_flush_start());
-			if (!ret) AAMPLOG_WARN("AAMPGstPlayer_Flush: flush start error");
-
-			ret = gst_pad_push_event(sourceEleSrcPad, gst_event_new_flush_stop());
-			if (!ret) AAMPLOG_WARN("AAMPGstPlayer_Flush: flush stop error");
-
-			gst_object_unref(sourceEleSrcPad);
-		}
-	}
-#endif
 	if (playAfterFlush)
 	{
 		rc = gst_element_set_state(this->privateContext->pipeline, GST_STATE_PLAYING);
@@ -3822,7 +3780,6 @@ bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 
 	if (current != GST_STATE_READY && pending != GST_STATE_PAUSED)
 	{
-#ifdef USE_GST1
 		media_stream *stream = &privateContext->stream[mediaType];
 		if (stream->source)
 		{
@@ -3862,7 +3819,6 @@ bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 #endif
 			}
 		}
-#endif
 	}
 
 	return ret;
@@ -4259,17 +4215,12 @@ void AAMPGstPlayer::ForwardBuffersToAuxPipeline(GstBuffer *buffer)
 	GstBuffer *fwdBuffer = gst_buffer_new();
 	if (fwdBuffer != NULL)
 	{
-#ifdef USE_GST1
 		if (FALSE == gst_buffer_copy_into(fwdBuffer, buffer, GST_BUFFER_COPY_ALL, 0, -1))
 		{
 			AAMPLOG_ERR("Error while copying audio buffer to auxiliary buffer!!");
 			gst_buffer_unref(fwdBuffer);
 			return;
 		}
-#else
-		memcpy(GST_BUFFER_DATA(fwdBuffer), GST_BUFFER_DATA(buffer), GST_BUFFER_SIZE(buffer));
-		gst_buffer_copy_metadata(fwdBuffer, buffer, GST_BUFFER_COPY_ALL);
-#endif
 		//AAMPLOG_TRACE("Forward audio buffer to auxiliary pipeline!!");
 		GstFlowReturn ret = gst_app_src_push_buffer(GST_APP_SRC(stream->source), fwdBuffer);
 		if (ret != GST_FLOW_OK)
