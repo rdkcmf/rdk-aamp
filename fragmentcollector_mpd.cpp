@@ -2111,6 +2111,20 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 				}
 				else
 				{
+					uint32_t timeScale = segmentTemplates.GetTimescale();					
+					if(pMediaStreamContext->type == eTRACK_VIDEO)
+					{
+						mFirstPTS = 0;
+						if( timeScale )
+						{
+							mFirstPTS = (double)segmentTemplates.GetPresentationTimeOffset() / (double)timeScale;
+						}
+						if( updateFirstPTS )
+						{
+							mFirstPTS += skipTime;
+						}
+					}
+
 					double segmentDuration = ComputeFragmentDuration( segmentTemplates.GetDuration(), segmentTemplates.GetTimescale() );
 					if (skipTime >= segmentDuration)
 					{
