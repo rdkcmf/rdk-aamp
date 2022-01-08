@@ -2273,14 +2273,14 @@ void AAMPGstPlayer::SendNewSegmentEvent(MediaType mediaType, GstClockTime startP
         FN_TRACE( __FUNCTION__ );
         media_stream* stream = &privateContext->stream[mediaType];
         GstPad* sourceEleSrcPad = gst_element_get_static_pad(GST_ELEMENT(stream->source), "src");
-
         if (stream->format == FORMAT_ISO_BMFF)
         {
 #ifdef USE_GST1
                 GstSegment segment;
                 gst_segment_init(&segment, GST_FORMAT_TIME);
+
                 segment.start = startPts;
-                segment.position = 0;
+		segment.position = 0;
                 segment.rate = AAMP_NORMAL_PLAY_RATE;
                 segment.applied_rate = AAMP_NORMAL_PLAY_RATE;
                 if(stopPts) segment.stop = stopPts;
@@ -2293,7 +2293,7 @@ void AAMPGstPlayer::SendNewSegmentEvent(MediaType mediaType, GstClockTime startP
 
                 AAMPLOG_TRACE("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
                 GstEvent* event = gst_event_new_segment (&segment);
-        #else
+#else
                 GstEvent* event = gst_event_new_new_segment (FALSE, 1.0, GST_FORMAT_TIME, pts, GST_CLOCK_TIME_NONE, 0);
 #endif
                 if (!gst_pad_push_event(sourceEleSrcPad, event))
@@ -3660,13 +3660,13 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			if(ISCONFIGSET(eAAMPConfig_EnablePTO) && aamp->mbEnableSegmentTemplateHandling && !aamp->mbIgnoreStopPosProcessing)
 			{
 				double duration = aamp->GetPeriodDurationTimeValue()/1000.0;
-				double seekEnd = aamp->GetPeriodStartTimeValue() + duration;
-				// Calculate seek start position
-				if(aamp->mbEnableFirstPtsSeekPosOverride)
-				{
-					position = (aamp->seek_pos_seconds - aamp->GetPeriodStartTimeValue()) + aamp->GetPeriodScaledPtoStartTime();
-				}
-				AAMPLOG_INFO("FLUSH START: %f END: %f duration: %f", position, seekEnd, duration);
+				double seekEnd = (position - aamp->mSkipTime) + duration;
+
+				AAMPLOG_INFO("FLUSH START: %f END: %f duration: %f aamp->mSkipTime: %f", position, seekEnd, duration, aamp->mSkipTime);
+
+				//Reset Skip Time
+				aamp->mSkipTime = 0;
+
 				if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
 				position * GST_SECOND,
 				GST_SEEK_TYPE_SET,

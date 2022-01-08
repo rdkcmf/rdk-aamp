@@ -123,6 +123,8 @@ static size_t full_playlist_video_len = 0; // Size (bytes) of initial full vod v
 static char *full_playlist_audio_ptr = NULL; // Cache of initial full vod audio playlist
 static size_t full_playlist_audio_len = 0; // Size (bytes) of initial full vod audio playlist
 
+static char test[35] = "Test-11";
+
 /**
  * @struct gActivePrivAAMP_t
  * @brief Used for storing active PrivateInstanceAAMPs
@@ -1492,6 +1494,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mbEnableSegmentTemplateHandling(false)
 	, mbIgnoreStopPosProcessing(false)
 	, mIsFakeTune(false)
+	, mSkipTime(0)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -3626,8 +3629,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					{
 						res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
 
-						if(GetLLDashServiceData()->lowLatencyMode &&
-						(simType == eMEDIATYPE_INIT_VIDEO || simType ==  eMEDIATYPE_INIT_AUDIO))
+						if(simType == eMEDIATYPE_INIT_VIDEO || simType ==  eMEDIATYPE_INIT_AUDIO)
 						{
 							IsoBmffBuffer isobuf(mLogObj);
 							isobuf.setBuffer(reinterpret_cast<uint8_t *>(context.buffer->ptr), context.buffer->len);

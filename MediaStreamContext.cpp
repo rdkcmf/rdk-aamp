@@ -131,6 +131,48 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
                                 (iFogError > 0 ? iFogError : http_code),effectiveUrl,duration, downloadTime);
     }
 
+//Enable for debugging actual fragment size
+#if 1
+    if(!initSegment)
+    {
+            IsoBmffBuffer buffer(NULL);
+            double scaledSampleDuration = 0.0;
+            uint64_t unscaledSampleDuration = 0;
+            std::vector<Box*> *pBoxes;
+            buffer.setBuffer((uint8_t *)cachedFragment->fragment.ptr, cachedFragment->fragment.len);
+            buffer.parseBuffer();
+            pBoxes = buffer.getParsedBoxes();
+            uint32_t timeScale = 0;
+            if(type == eTRACK_VIDEO)
+            {
+                        timeScale = aamp->GetLLDashVidTimeScale();
+            }
+            else if(type == eTRACK_AUDIO)
+            {
+                        timeScale = aamp->GetLLDashAudTimeScale();
+            }
+
+            if(!timeScale)
+            {
+                        //If not available then Use MPD provided INSTEAD
+                        timeScale = scale;
+            }
+	    uint64_t pts = 0;
+	    buffer.getFirstPTS(pts);
+            for(int i=0;i<pBoxes->size();i++)
+            {
+                Box *box = pBoxes->at(i);
+                if (IS_TYPE(box->getType(), Box::MOOF))
+                {
+                        buffer.getSampleDuration(box, unscaledSampleDuration);
+			AAMPLOG_TRACE("[%d] Unscaled Sample Duration = %lld Scaled Sample Duration = %f Buffer pts = %lld", type, unscaledSampleDuration, unscaledSampleDuration/timeScale, pts);
+                        break;
+                }
+            }
+            buffer.destroyBoxes();
+    }
+#endif
+
     //Calculate PTO delta from first buffer PTS
     //If needed, based on PTO delta, Skip unwanted fragments for download in AdvanceTrack()
     //If PTO delta is not enough to skip then process fragment AS-IS
@@ -148,9 +190,24 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
                 uint64_t pts = 0;
                 buffer.getFirstPTS(pts);
                 buffer.destroyBoxes();
-                context->mtempDelta[type] = double((double)(pto - pts)/(double)scale);
-                context->mFirstBufferScaledPts[type] = double((double)(pts)/(double)scale);
-                AAMPLOG_INFO("Type[%d] PTO delta, delta:%f pos:%f FirstBuffer scaled pos: %f", type,context->mtempDelta[type],position, context->mFirstBufferScaledPts[type]);
+		uint32_t timeScale = 0;
+		if(type == eTRACK_VIDEO)
+		{
+			timeScale = aamp->GetLLDashVidTimeScale();
+		}
+		else if(type == eTRACK_AUDIO)
+		{
+			timeScale = aamp->GetLLDashAudTimeScale();
+		}
+
+		if(!timeScale)
+		{
+			//If not available then Use MPD provided INSTEAD
+			timeScale = scale;
+		}
+		context->mtempDelta[type] = double((double)pto/(double)scale) - double((double)pts/(double)timeScale);
+		context->mFirstBufferScaledPts[type] = double((double)pts/(double)timeScale);
+                AAMPLOG_INFO("Type[%d] PTO delta, delta:%f pos:%f FirstBuffer scaled pos: %f timeScale: %d", type,context->mtempDelta[type],position, context->mFirstBufferScaledPts[type], timeScale);
                 context->mperiodChanged[type] = false;
                 context->mpendingPtoProcessing[type] = true;
             }

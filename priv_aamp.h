@@ -880,6 +880,7 @@ public:
 	bool mbEnableSegmentTemplateHandling;/**< Enable SegmentTemplate Handling  */
 	bool mbIgnoreStopPosProcessing; /**< Ignore Stop Position Processing in Segment Template handling case */
 	bool mIsFakeTune;
+	double mSkipTime;
 
 	/**
 	 * @brief Check if segment starts with an ID3 section
