@@ -20,9 +20,8 @@
 #pragma once
 
 #include <memory>
-
-#include "SubtecPacket.hpp"
-#include "PacketSender.hpp"
+#include <vector>
+#include <mutex>
 
 class SubtecChannelManager
 {
@@ -33,7 +32,6 @@ public:
         return &instance;
     }
     int getNextChannelId() { return m_nextChannelId++; }
-    PacketPtr generateResetAllPacket() { return make_unique<ResetAllPacket>(); }
 protected:
     SubtecChannelManager() :  m_nextChannelId(0) {}
 private:
@@ -45,42 +43,38 @@ class SubtecChannel
 
 protected:
     template<typename PacketType, typename ...Args>
-    void sendPacket(Args && ...args)
-    {
-        std::unique_lock<std::mutex> lock(mChannelMtx);
-        PacketSender::Instance()->SendPacket(make_unique<PacketType>(m_channelId, m_counter++, std::forward<Args>(args)...));
-    }
+    void sendPacket(Args && ...args);
 public:
+    enum class ChannelType
+    {
+        TTML,
+        WEBVTT,
+        CC
+    };
+
     SubtecChannel() : m_counter(0), m_channelId(0), mChannelMtx()
     {
         m_channelId = SubtecChannelManager::getInstance()->getNextChannelId();
     }
 
-    void SendResetAllPacket()
-    {
-        std::unique_lock<std::mutex> lock(mChannelMtx);
-        m_counter = 1;
-        PacketSender::Instance()->SendPacket(SubtecChannelManager::getInstance()->generateResetAllPacket());
-    }
-    void SendResetChannelPacket() {
-        sendPacket<ResetChannelPacket>();
-    }
-    void SendPausePacket() {
-        sendPacket<PausePacket>();
-    }
-    void SendResumePacket() {
-        sendPacket<ResumePacket>();
-    }
-    void SendMutePacket() {
-        sendPacket<MutePacket>();
-    }
-    void SendUnmutePacket() {
-        sendPacket<UnmutePacket>();
-    }
-    void SendCCSetAttributePacket(std::uint32_t ccType, std::uint32_t attribType, const std::array<uint32_t, 14>& attributesValues) {
-        sendPacket<CCSetAttributePacket>(ccType, attribType, attributesValues);
-    }
+    static std::unique_ptr<SubtecChannel> SubtecChannelFactory(ChannelType type);
 
+    static bool InitComms();
+    static bool InitComms(const char* socket_path);
+    void SendResetAllPacket();
+    void SendResetChannelPacket();
+    void SendPausePacket();
+    void SendResumePacket();
+    void SendMutePacket();
+    void SendUnmutePacket();
+    void SendCCSetAttributePacket(std::uint32_t ccType, std::uint32_t attribType, const std::array<uint32_t, 14>& attributesValues);
+
+    virtual void SendSelectionPacket(uint32_t width, uint32_t height) = 0;
+    virtual void SendDataPacket(std::vector<uint8_t> &&data, std::int64_t time_offset_ms = 0) = 0;
+    virtual void SendTimestampPacket(uint64_t timestampMs) = 0;
+    
+    virtual ~SubtecChannel() = 0;
+    
 protected:
     uint32_t m_channelId;
     uint32_t m_counter;

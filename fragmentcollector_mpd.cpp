@@ -6695,32 +6695,39 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 		
 		if (eMEDIATYPE_SUBTITLE == i && selAdaptationSetIndex != -1)
 		{
-			const IAdaptationSet *pAdaptationSet = period->GetAdaptationSets().at(selAdaptationSetIndex);
-			PeriodElement periodElement(pAdaptationSet, pAdaptationSet->GetRepresentation().at(selRepresentationIndex));
-			std::string mimeType = periodElement.GetMimeType();
-			if (mimeType.empty())
+			AAMPLOG_WARN("SDW config set %d", ISCONFIGSET(eAAMPConfig_GstSubtecEnabled));
+			if(!ISCONFIGSET(eAAMPConfig_GstSubtecEnabled))
 			{
-				if( !pMediaStreamContext->mSubtitleParser )
+				const IAdaptationSet *pAdaptationSet = period->GetAdaptationSets().at(selAdaptationSetIndex);
+				PeriodElement periodElement(pAdaptationSet, pAdaptationSet->GetRepresentation().at(selRepresentationIndex));
+				std::string mimeType = periodElement.GetMimeType();
+				if (mimeType.empty())
 				{
-					AAMPLOG_WARN("mSubtitleParser is NULL" );
+					if( !pMediaStreamContext->mSubtitleParser )
+					{
+						AAMPLOG_WARN("mSubtitleParser is NULL" );
+					}
+					else if (pMediaStreamContext->mSubtitleParser->init(0.0, 0))
+					{
+						pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
+					}
+					else
+					{
+						pMediaStreamContext->mSubtitleParser.reset(nullptr);
+						pMediaStreamContext->mSubtitleParser = NULL;
+					}
 				}
-				else if (pMediaStreamContext->mSubtitleParser->init(0.0, 0))
+				pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(mLogObj, aamp, mimeType);
+				if (!pMediaStreamContext->mSubtitleParser)
 				{
-					pMediaStreamContext->mSubtitleParser->mute(aamp->subtitles_muted);
-				}
-				else
-				{
-					pMediaStreamContext->mSubtitleParser.reset(nullptr);
-					pMediaStreamContext->mSubtitleParser = NULL;
+					pMediaStreamContext->enabled = false;
+					selAdaptationSetIndex = -1;
 				}
 			}
-			tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
-			pMediaStreamContext->mSubtitleParser = SubtecFactory::createSubtitleParser(mLogObj, aamp, mimeType);
-			if (!pMediaStreamContext->mSubtitleParser)
-			{
-				pMediaStreamContext->enabled = false;
-				selAdaptationSetIndex = -1;
-			}
+
+			if (-1 != selAdaptationSetIndex)
+				tTrackIdx = std::to_string(selAdaptationSetIndex) + "-" + std::to_string(selRepresentationIndex);
+
 			aamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE);
 		}
 
@@ -6889,6 +6896,19 @@ int StreamAbstractionAAMP_MPD::GetProfileIdxForBandwidthNotification(uint32_t ba
 	}
 
 	return profileIndex;
+}
+
+std::string StreamAbstractionAAMP_MPD::GetCurrentMimeType(MediaType mediaType)
+{
+	if (mediaType >= mNumberOfTracks) return std::string{};
+
+	class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[mediaType];
+	auto adaptationSet = pMediaStreamContext->adaptationSet;
+
+	std::string mimeType = adaptationSet->GetMimeType();
+	AAMPLOG_TRACE("mimeType is %s", mimeType.c_str());
+
+	return mimeType;
 }
 
 /**
@@ -9247,9 +9267,12 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 		if(track && track->Enabled())
 		{
 			track->StopInjectLoop();
-			if (iTrack == eMEDIATYPE_SUBTITLE && track->mSubtitleParser)
+			if(!ISCONFIGSET(eAAMPConfig_GstSubtecEnabled))
 			{
-				track->mSubtitleParser->reset();
+				if (iTrack == eMEDIATYPE_SUBTITLE && track->mSubtitleParser)
+				{
+					track->mSubtitleParser->reset();
+				}
 			}
 
 			if(aamp->GetLLDashServiceData()->lowLatencyMode)
@@ -9305,13 +9328,31 @@ void StreamAbstractionAAMP_MPD::DumpProfiles(void)
 { // STUB
 }
 
+StreamOutputFormat GetSubtitleFormat(std::string mimeType)
+{
+	StreamOutputFormat format = FORMAT_SUBTITLE_MP4; // Should I default to INVALID?
+
+	if (!mimeType.compare("application/mp4"))
+		format = FORMAT_SUBTITLE_MP4;
+	else if (!mimeType.compare("application/ttml+xml"))
+		format = FORMAT_SUBTITLE_TTML;
+	else if (!mimeType.compare("text/vtt"))
+		format = FORMAT_SUBTITLE_WEBVTT;
+	else
+		AAMPLOG_INFO("Not found mimeType %s", mimeType.c_str());
+
+	AAMPLOG_TRACE("Returning format %d for mimeType %s", format, mimeType.c_str());
+
+	return format;
+}
+
 /**
  * @brief Get output format of stream.
  *
  * @param[out]  primaryOutputFormat - format of primary track
  * @param[out]  audioOutputFormat - format of audio track
  */
-void StreamAbstractionAAMP_MPD::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat)
+void StreamAbstractionAAMP_MPD::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat, StreamOutputFormat &subtitleOutputFormat)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	if(mMediaStreamContext[eMEDIATYPE_VIDEO] && mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled )
@@ -9339,6 +9380,24 @@ void StreamAbstractionAAMP_MPD::GetStreamFormat(StreamOutputFormat &primaryOutpu
 	else
 	{
 		auxOutputFormat = FORMAT_INVALID;
+	}
+
+	//Bleurgh - check whether the ugly hack above is in operation
+	if (mMediaStreamContext[eMEDIATYPE_SUBTITLE] && mMediaStreamContext[eMEDIATYPE_SUBTITLE]->enabled && mMediaStreamContext[eMEDIATYPE_SUBTITLE]->type != eTRACK_AUX_AUDIO)
+	{
+		AAMPLOG_WARN("Entering GetCurrentMimeType");
+		auto mimeType = GetCurrentMimeType(eMEDIATYPE_SUBTITLE);
+		if (!mimeType.empty())
+			subtitleOutputFormat = GetSubtitleFormat(mimeType);
+		else
+		{
+			AAMPLOG_INFO("mimeType empty");
+			subtitleOutputFormat = FORMAT_SUBTITLE_MP4;
+		}
+	}
+	else
+	{
+		subtitleOutputFormat = FORMAT_INVALID;
 	}
 }
 

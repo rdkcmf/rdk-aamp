@@ -18,19 +18,17 @@
 */
 
 #include "TtmlSubtecParser.hpp"
-#include "PacketSender.hpp"
-
 #include <regex>
 
 
 TtmlSubtecParser::TtmlSubtecParser(AampLogManager *logObj, PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(logObj, aamp, type), m_channel(nullptr)
 {
-	if (!PacketSender::Instance()->Init())
+	m_channel = SubtecChannel::SubtecChannelFactory(SubtecChannel::ChannelType::TTML);
+	if (!m_channel->InitComms())
 	{
 		AAMPLOG_INFO("Init failed - subtitle parsing disabled");
 		throw std::runtime_error("PacketSender init failed");
 	}
-	m_channel = make_unique<TtmlChannel>();
 	m_channel->SendResetAllPacket();
 
 	int width = 1920, height = 1080;

@@ -410,7 +410,7 @@ public:
 	/// Function to initialize member variables,download main manifest and parse
 	AAMPStatusType Init(TuneType tuneType);
 	/// Function to get stream format 
-	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat) override;
+	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat, StreamOutputFormat &subOutputFormat) override;
 	/// Function to return current playing position of stream 
 	double GetStreamPosition() { return seekPosition; }
 	/// Function to return first PTS 

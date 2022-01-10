@@ -20,9 +20,8 @@
 #pragma once
 
 #include "subtitleParser.h"
-#include "PacketSender.hpp"
 #include "isobmffbuffer.h"
-#include "TtmlPacket.hpp"
+#include "SubtecChannel.hpp"
 
 class TtmlSubtecParser : public SubtitleParser
 {
@@ -45,7 +44,7 @@ public:
 	void isLinear(bool isLinear) override { m_isLinear = isLinear; }
 
 protected:
-	std::unique_ptr<TtmlChannel> m_channel;
+	std::unique_ptr<SubtecChannel> m_channel;
 	bool m_isLinear = false;
 	bool m_parsedFirstPacket = false;
 	bool m_sentOffset = false;
