@@ -556,6 +556,11 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	string contentMetaData = drmHelper->getDrmMetaData();
 	char *encodedData = base64_Encode(reinterpret_cast<const unsigned char*>(contentMetaData.c_str()), contentMetaData.length());
 	char *encodedChallengeData = base64_Encode(challengeInfo.data->getData(), challengeInfo.data->getDataLength());
+	
+	//Calculate the lengths using the logic in base64_Encode
+	size_t encodedDataLen = ((contentMetaData.length() + 2) /3) * 4;
+	size_t encodedChallengeDataLen = ((challengeInfo.data->getDataLength() + 2) /3) * 4;
+	
 	const char *keySystem = drmHelper->ocdmSystemId().c_str();
 	const char *secclientSessionToken = challengeInfo.accessToken.empty() ? NULL : challengeInfo.accessToken.c_str();
 
@@ -608,12 +613,11 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 		bool res = AampSecManager::GetInstance()->AcquireLicense(aampInstance, licenseRequest.url.c_str(),
 																 requestMetadata,
 																 ((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
-																 encodedData,
-																 encodedChallengeData,
+																 encodedData, encodedDataLen,
+																 encodedChallengeData, encodedChallengeDataLen,
 																 keySystem,
 																 mediaUsage,
-																 secclientSessionToken,
-																 challengeInfo.accessToken.length(),
+																 secclientSessionToken, challengeInfo.accessToken.length(),
 																 &mSessionId,
 																 &licenseResponseStr, &licenseResponseLength,
 																 &statusCode, &reasonCode);

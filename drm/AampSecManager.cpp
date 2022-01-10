@@ -111,9 +111,9 @@ AampSecManager::~AampSecManager()
  * @return bool - true if license fetch successful, false otherwise
  */
 bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licenseUrl, const char* moneyTraceMetdata[][2],
-					const char* accessAttributes[][2], const char* contentMetdata,
-					const char* licenseRequest, const char* keySystemId,
-					const char* mediaUsage, const char* accessToken, size_t accessTokenLen,
+					const char* accessAttributes[][2], const char* contentMetdata, size_t contMetaLen,
+					const char* licenseRequest, size_t licReqLen, const char* keySystemId,
+					const char* mediaUsage, const char* accessToken, size_t accTokenLen
 					int64_t* sessionId,
 					char** licenseResponse, size_t* licenseResponseLength,
 					int64_t* statusCode, int64_t* reasonCode)
@@ -123,9 +123,17 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 
 	bool ret = false;
 	bool rpcResult = false;
-	void * sharedMemPt = NULL;
-	key_t sharedMemKey = 0;
 	
+	//Shared memory pointer, key declared here,
+	//Access token, content metadata and licnese request will be passed to
+	//secmanager via shared memory
+	void * shmPt_accToken = NULL;
+	key_t shmKey_accToken = 0;
+	void * shmPt_contMeta = NULL;
+	key_t shmKey_contMeta = 0;
+	void * shmPt_licReq = NULL;
+	key_t shmKey_licReq = 0;
+		
 	const char* apiName = "openPlaybackSession";
 	JsonObject param;
 	JsonObject response;
@@ -148,8 +156,6 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 	param["contentAspectDimensions"] = aspectDimensions;
 
 	param["keySystem"] = keySystemId;
-	param["licenseRequest"] = licenseRequest;
-	param["contentMetadata"] = contentMetdata;
 	param["mediaUsage"] = mediaUsage;
 	
 	// If sessionId is present, we are trying to acquire a new license within the same session
@@ -167,31 +173,46 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 	
 	{
 		std::lock_guard<std::mutex> lock(mMutex);
-		
-		sharedMemPt = aamp_CreateSharedMem(accessTokenLen, sharedMemKey);
-		if(NULL != sharedMemPt)
+		if(accTokenLen > 0 && contMetaLen > 0 && licReqLen > 0)
 		{
-			//Set shared memory with the buffer
-			if (NULL != accessToken && accessTokenLen > 0)
-			{
-				//copy buffer to shm
-				memcpy(sharedMemPt, accessToken, accessTokenLen);
-				AAMPLOG_WARN("%s:%d Access token is copied to the shared memory successfully. sharing details with SecManager Key = %d, length = %zu", __FUNCTION__, __LINE__, sharedMemKey, accessTokenLen);
-				
-				//Set json params to be used by sec manager
-				param["accessTokenBufferKey"] = sharedMemKey;
-				param["accessTokenLength"] = accessTokenLen;
-				//invoke "openPlaybackSession"
-				rpcResult = mSecManagerObj.InvokeJSONRPC(apiName, param, response, 10000);
-				//Cleanup the shared memory after sharing it with sec manager
-				aamp_CleanUpSharedMem( sharedMemPt, sharedMemKey, accessTokenLen);
-				
-				
-			}
-			else
-			{
-				AAMPLOG_WARN("%s:%d Failed to copy access token to the shared memory, open playback session is aborted", __FUNCTION__, __LINE__);
-			}
+			shmPt_accToken = aamp_CreateSharedMem(accTokenLen, shmKey_accToken);
+			shmPt_contMeta = aamp_CreateSharedMem(contMetaLen, shmKey_contMeta);
+			shmPt_licReq = aamp_CreateSharedMem(licReqLen, shmKey_licReq);
+		}
+		
+		//Set shared memory with the buffer
+		if(NULL != shmPt_accToken && NULL != accessToken &&
+		   NULL != shmPt_contMeta && NULL != contentMetdata &&
+		   NULL != shmPt_licReq && NULL != licenseRequest)
+		{
+			//copy buffer to shm
+			memcpy(shmPt_accToken, accessToken, accTokenLen);
+			memcpy(shmPt_contMeta, contentMetdata, contMetaLen);
+			memcpy(shmPt_licReq, licenseRequest, licReqLen);
+			
+			AAMPLOG_INFO("Access token, Content metadata and license request are copied to the shared memory successfully, passing details with SecManager");
+			
+			//Set json params to be used by sec manager
+			param["accessTokenBufferKey"] = shmKey_accToken;
+			param["accessTokenLength"] = accTokenLen;
+			
+			param["contentMetadataBufferKey"] = shmKey_contMeta;
+			param["contentMetadataLength"] = contMetaLen;
+			
+			param["licenseRequestBufferKey"] = shmKey_licReq;
+			param["licenseRequestLength"] = licReqLen;
+			
+			//invoke "openPlaybackSession"
+			rpcResult = mSecManagerObj.InvokeJSONRPC(apiName, param, response, 10000);
+			
+			//Cleanup the shared memory after sharing it with secmanager
+			aamp_CleanUpSharedMem( shmPt_accToken, shmKey_accToken, accTokenLen);
+			aamp_CleanUpSharedMem( shmPt_contMeta, shmKey_contMeta, contMetaLen);
+			aamp_CleanUpSharedMem( shmPt_licReq, shmKey_licReq, licReqLen);
+		}
+		else
+		{
+			AAMPLOG_WARN("%s:%d Failed to copy access token to the shared memory, open playback session is aborted", __FUNCTION__, __LINE__);
 		}
 	}
 
