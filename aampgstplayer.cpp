@@ -476,11 +476,7 @@ static void InitializeSource(AAMPGstPlayer *_this, GObject *source, MediaType me
 		AAMPLOG_INFO("Setting gst Audio buffer max bytes to %d", MaxGstAudioBufBytes);
 		g_object_set(source, "max-bytes", MaxGstAudioBufBytes, NULL);
 	}
-#ifdef XIONE_UK
-	g_object_set(source, "min-percent", 70, NULL);	//Per Realtek's Recommendation
-#else
 	g_object_set(source, "min-percent", 50, NULL);
-#endif
 	g_object_set(source, "format", GST_FORMAT_TIME, NULL);
 
 	caps = GetGstCaps(stream->format);
@@ -2370,8 +2366,6 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 			{
 				stream->bufferUnderrun = false;
 			}
-			else
-				AAMPLOG_TRACE("Pushed %s buffer with PTS %f", (mediaType == eMEDIATYPE_VIDEO ? "Video" : (mediaType == eMEDIATYPE_AUDIO ? "Audio" : "CC")), pts ? pts : dts);
 		}
 	}
 
@@ -2395,10 +2389,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 		}
 
 		privateContext->numberOfVideoBuffersSent++;
-#ifdef XIONE_UK
-	if (privateContext->numberOfVideoBuffersSent>1)
-		sleep(1);
-#endif
+
 		StopBuffering(false);
 	}
 
