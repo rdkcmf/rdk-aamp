@@ -21,6 +21,7 @@
 
 #include "SubtecPacket.hpp"
 #include "SubtecChannel.hpp"
+#include "PacketSender.hpp"
 
 
 class ClosedCaptionsPacket : public Packet
@@ -91,23 +92,26 @@ private:
     static constexpr std::uint8_t CC_USERDATA_SUBTITLE_TYPE = 3;
 };
 
-
 class ClosedCaptionsChannel : public SubtecChannel
 {
 public:
-    ClosedCaptionsChannel() = default;
+    ClosedCaptionsChannel() {}
+    
     void SendDataPacketWithPTS(uint32_t ptsValue, uint8_t* data, size_t dataLen)
     {
-        sendPacket<ClosedCaptionsPacket>(ptsValue, data, dataLen);
+        std::unique_lock<std::mutex> lock(mChannelMtx);
+        PacketSender::Instance()->SendPacket(std::unique_ptr<ClosedCaptionsPacket>(new ClosedCaptionsPacket(m_channelId, m_counter++, ptsValue, data, dataLen)));
     }
 
     void SendDataPacketNoPTS(uint8_t* data, size_t dataLen)
     {
-        sendPacket<ClosedCaptionsPacket>(data, dataLen);
+        std::unique_lock<std::mutex> lock(mChannelMtx);
+        PacketSender::Instance()->SendPacket(std::unique_ptr<ClosedCaptionsPacket>(new ClosedCaptionsPacket(m_channelId, m_counter++, data, dataLen)));
     }
 
     void SendActiveTypePacket(ClosedCaptionsActiveTypePacket::CEA type, unsigned int channel)
     {
-        sendPacket<ClosedCaptionsActiveTypePacket>(type, channel);
+        std::unique_lock<std::mutex> lock(mChannelMtx);
+        PacketSender::Instance()->SendPacket(std::unique_ptr<ClosedCaptionsActiveTypePacket>(new ClosedCaptionsActiveTypePacket(m_channelId, m_counter++, type, channel)));
     }
 };

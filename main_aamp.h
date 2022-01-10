@@ -117,6 +117,8 @@ enum StreamOutputFormat
 	FORMAT_VIDEO_ES_HEVC,   /**< HEVC video elementary stream */
 	FORMAT_VIDEO_ES_MPEG2,  /**< MPEG-2 Video Elementary Stream */
 	FORMAT_SUBTITLE_WEBVTT, /**< WebVTT subtitle Stream */
+	FORMAT_SUBTITLE_TTML, 	/**< WebVTT subtitle Stream */
+	FORMAT_SUBTITLE_MP4, 	/**< Generic MP4 stream */
 	FORMAT_UNKNOWN          /**< Unknown Format */
 };
 
@@ -511,7 +513,7 @@ public:
          *   @param[in]  setReadyAfterPipelineCreation - Flag denotes if pipeline has to be reset to ready or not
 	 *   @return void
 	 */
-	virtual void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation=false)=0;
+	virtual void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, StreamOutputFormat subFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation=false){}
 
 	/**
 	 *   @brief  API to send audio/video buffer into the sink.
@@ -651,6 +653,14 @@ public:
 	 *   @return void
 	 */
 	virtual void SetVideoMute(bool muted){};
+
+	/**
+	 *   @brief Set subtitle mute state
+	 *
+	 *   @param[in] muted - true: subtitle muted, false: subtitle unmuted
+	 *   @return void
+	 */
+	virtual void SetSubtitleMute(bool muted){};
 
 	/**
 	 *   @brief Set volume level
@@ -932,7 +942,15 @@ public:
 	void SetVideoMute(bool muted);
 
 	/**
-	 *   @fn SetAudioVolume
+	 *   @brief Enable/ Disable Subtitle.
+	 *
+	 *   @param[in]  muted - true to disable subtitle, false to enable subtitle.
+	 *   @return void
+	 */
+	void SetSubtitleMute(bool muted);
+
+	/**
+	 *   @brief Set Audio Volume.
 	 *
 	 *   @param[in]  volume - Minimum 0, maximum 100.
 	 *   @return void

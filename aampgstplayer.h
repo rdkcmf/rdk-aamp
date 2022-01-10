@@ -97,11 +97,12 @@ public:
          * @param[in] format video format
          * @param[in] audioFormat audio format
          * @param[in] auxFormat aux audio format
+         * @param[in] subFormat subtitle format
          * @param[in] bESChangeStatus
          * @param[in] forwardAudioToAux if audio buffers to be forwarded to aux pipeline
          * @param[in] setReadyAfterPipelineCreation True/False for pipeline is created
          */
-	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation);
+	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, StreamOutputFormat subFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation=false);
 	/**
          * @fn SendCopy
          * @param[in] mediaType stream type
@@ -203,6 +204,11 @@ public:
          * @param[in] volume audio volume value (0-100)
          */
 	void SetAudioVolume(int volume);
+	/**
+         * @fn SetSubtitleMute
+         * @param[in] muted true to mute subtitle otherwise false
+         */
+	void SetSubtitleMute(bool mute);
 	/**
          * @fn setVolumeOrMuteUnMute
          * @note set privateContext->audioVolume before calling this function

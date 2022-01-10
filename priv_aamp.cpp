@@ -2571,11 +2571,12 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 #else
 			mStreamSink->Stop(true);
 #endif
-			mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat, mAuxFormat);
+			mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat, mAuxFormat, mSubtitleFormat);
 			mStreamSink->Configure(
 				mVideoFormat,
 				mAudioFormat,
 				mAuxFormat,
+				mSubtitleFormat,
 				mpStreamAbstractionAAMP->GetESChangeStatus(),
 				mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus(),
 				mIsTrackIdMismatch /*setReadyAfterPipelineCreation*/);
@@ -4976,7 +4977,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 #ifndef AAMP_STOP_SINK_ON_SEEK
 		AAMPLOG_WARN("Updated seek_pos_seconds %f culledSeconds :%f", seek_pos_seconds,culledSeconds);
 #endif
-		mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat, mAuxFormat);
+		mpStreamAbstractionAAMP->GetStreamFormat(mVideoFormat, mAudioFormat, mAuxFormat, mSubtitleFormat);
 		AAMPLOG_INFO("TuneHelper : mVideoFormat %d, mAudioFormat %d mAuxFormat %d", mVideoFormat, mAudioFormat, mAuxFormat);
 
 		//Identify if HLS with mp4 fragments, to change media format
@@ -5048,7 +5049,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			mStreamSink->SetAudioVolume(volume);
 			if (mbPlayEnabled)
 			{
-				mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mpStreamAbstractionAAMP->GetESChangeStatus(), mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
+				mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mSubtitleFormat, mpStreamAbstractionAAMP->GetESChangeStatus(), mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
 			}
 		}
 		mpStreamAbstractionAAMP->ResetESChangeStatus();
@@ -6445,6 +6446,16 @@ void PrivateInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 void PrivateInstanceAAMP::SetVideoMute(bool muted)
 {
 	mStreamSink->SetVideoMute(muted);
+}
+
+/**
+ *   @brief Enable/ Disable Subtitles.
+ *
+ *   @param  muted - true to disable subtitles, false to enable subtitles.
+ */
+void PrivateInstanceAAMP::SetSubtitleMute(bool muted)
+{
+	mStreamSink->SetSubtitleMute(muted);
 }
 
 /**
@@ -9753,12 +9764,13 @@ void PrivateInstanceAAMP::SetCCStatus(bool enabled)
 	AampCCManager::GetInstance()->SetStatus(enabled);
 #endif
 	AcquireStreamLock();
+	subtitles_muted = !enabled;
 	if (mpStreamAbstractionAAMP)
 	{
-		mpStreamAbstractionAAMP->MuteSubtitles(!enabled);
+		mpStreamAbstractionAAMP->MuteSubtitles(subtitles_muted);
 	}
+	SetSubtitleMute(subtitles_muted);
 	ReleaseStreamLock();
-	subtitles_muted = !enabled;
 }
 
 /**
@@ -9889,7 +9901,7 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 	{
 		// Configure pipeline as TSProcessor might have detected the actual stream type
 		// or even presence of audio
-		mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, false, mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
+		mStreamSink->Configure(mVideoFormat, mAudioFormat, mAuxFormat, mSubtitleFormat, false, mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
 	}
 	pthread_mutex_unlock(&mLock);
 }

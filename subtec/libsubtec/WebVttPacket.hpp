@@ -119,13 +119,13 @@ class WebVttChannel : public SubtecChannel
 public:
     WebVttChannel() : SubtecChannel() {}
 
-    void SendSelectionPacket(uint32_t width, uint32_t height) {
+    virtual void SendSelectionPacket(uint32_t width, uint32_t height) override {
         sendPacket<WebVttSelectionPacket>(width, height);
     }
-    void SendDataPacket(std::vector<uint8_t> &&data, std::uint64_t time_offset_ms = 0) {
+    virtual void SendDataPacket(std::vector<uint8_t> &&data, std::int64_t time_offset_ms = 0) override {
         sendPacket<WebVttDataPacket>(time_offset_ms, std::move(data));
     }
-    void SendTimestampPacket(uint64_t timestampMs) {
+    virtual void SendTimestampPacket(uint64_t timestampMs) override {
         sendPacket<WebVttTimestampPacket>(timestampMs);
     }
 };

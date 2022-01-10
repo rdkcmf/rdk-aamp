@@ -759,6 +759,7 @@ public:
 	StreamOutputFormat mAudioFormat;
 	StreamOutputFormat mPreviousAudioType; 		/**< Used to maintain previous audio type of HLS playback */
 	StreamOutputFormat mAuxFormat;
+	StreamOutputFormat mSubtitleFormat{FORMAT_UNKNOWN};
 	pthread_cond_t mDownloadsDisabled;
 	bool mDownloadsEnabled;
 	StreamSink* mStreamSink;
@@ -1883,7 +1884,15 @@ public:
 	void SetVideoMute(bool muted);
 
 	/**
-	 *   @fn SetAudioVolume
+	 *   @brief Set subtitle mute state
+	 *
+	 *   @param[in] muted - muted or unmuted
+	 *   @return void
+	 */
+	void SetSubtitleMute(bool muted);
+
+	/**
+	 *   @brief Set audio volume
 	 *
 	 *   @param[in] volume - Volume level Minimum 0, maximum 100
 	 *   @return void

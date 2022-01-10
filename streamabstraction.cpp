@@ -939,13 +939,10 @@ bool MediaTrack::InjectFragment()
 			if (type == eTRACK_SUBTITLE && cachedFragment->discontinuity)
 			{
 				AAMPLOG_WARN("[%s] notifying discontinuity to parser!", name);
-				if (mSubtitleParser)
-				{
-					mSubtitleParser->reset();
-					stopInjection = true;
-					discontinuityProcessed = true;
-					ret = false;
-				}
+				if (mSubtitleParser) mSubtitleParser->reset();
+				stopInjection = true;
+				discontinuityProcessed = true;
+				ret = false;
 				cachedFragment->discontinuity = false;
 			}
 			else if ((cachedFragment->discontinuity || ptsError) && (AAMP_NORMAL_PLAY_RATE == context->aamp->rate))
@@ -1015,14 +1012,12 @@ bool MediaTrack::InjectFragment()
 					AAMPLOG_WARN("[%s] Inject uri %s", name, cachedFragment->uri);
 				}
 #endif
-				if (type == eTRACK_SUBTITLE)
+				if (mSubtitleParser && type == eTRACK_SUBTITLE)
 				{
-					if (mSubtitleParser)
-					{
-						mSubtitleParser->processData(cachedFragment->fragment.ptr, cachedFragment->fragment.len, cachedFragment->position, cachedFragment->duration);
-					}
+					mSubtitleParser->processData(cachedFragment->fragment.ptr, cachedFragment->fragment.len, cachedFragment->position, cachedFragment->duration);
 				}
-				else
+
+				if (type != eTRACK_SUBTITLE || ISCONFIGSET(eAAMPConfig_GstSubtecEnabled))
 				{
 					InjectFragmentInternal(cachedFragment, fragmentDiscarded);
 				}

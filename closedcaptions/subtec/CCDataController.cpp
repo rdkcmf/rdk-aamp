@@ -24,10 +24,12 @@
  *
  */
 
+#include <cstring>
+#include <unordered_map>
 
 #include <closedcaptions/subtec/CCDataController.h>
 
-#include <PacketSender.hpp>
+#include "priv_aamp.h"
 
 
 namespace subtecConnector

@@ -4640,12 +4640,26 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					{
 						ts->streamOutputFormat = format;
 						SubtitleMimeType type = (format == FORMAT_SUBTITLE_WEBVTT) ? eSUB_TYPE_WEBVTT : eSUB_TYPE_UNKNOWN;
-						ts->mSubtitleParser = SubtecFactory::createSubtitleParser(mLogObj, aamp, type);
+						if(!ISCONFIGSET(eAAMPConfig_GstSubtecEnabled))
+						{
+							AAMPLOG_WARN("Legacy subtec");
+							ts->mSubtitleParser = SubtecFactory::createSubtitleParser(mLogObj, aamp, type);
+						}
+						else
+						{
+							AAMPLOG_WARN("GST subtec");
+							if (aamp->WebVTTCueListenersRegistered())
+								ts->mSubtitleParser = make_unique<WebVTTParser>(mLogObj, aamp, type);
+						}
 						if (!ts->mSubtitleParser) 
 						{
-							ts->streamOutputFormat = FORMAT_INVALID;
-							ts->fragmentURI = NULL;
-							ts->enabled = false;
+							if(!ISCONFIGSET(eAAMPConfig_GstSubtecEnabled))
+							{
+								AAMPLOG_WARN("No subtec, no sub parser");
+								ts->streamOutputFormat = FORMAT_INVALID;
+								ts->fragmentURI = NULL;
+								ts->enabled = false;								
+							}
 						}
 						aamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE);
 					}
@@ -6009,11 +6023,12 @@ void StreamAbstractionAAMP_HLS::DumpProfiles(void)
 /***************************************************************************
 * @brief Function to get stream format
 ***************************************************************************/
-void StreamAbstractionAAMP_HLS::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat)
+void StreamAbstractionAAMP_HLS::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat, StreamOutputFormat &subOutputFormat)
 {
 	primaryOutputFormat = trackState[eMEDIATYPE_VIDEO]->streamOutputFormat;
 	audioOutputFormat = trackState[eMEDIATYPE_AUDIO]->streamOutputFormat;
 	auxOutputFormat = trackState[eMEDIATYPE_AUX_AUDIO]->streamOutputFormat;
+	subOutputFormat = trackState[eMEDIATYPE_SUBTITLE]->streamOutputFormat;
 }
 /***************************************************************************
 * @brief Function to get available video bitrates

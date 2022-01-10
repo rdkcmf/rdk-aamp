@@ -142,6 +142,7 @@ disableLowLatencyCorrection	Enable/Disable Low Latency Correction. Default is tr
 enableFogConfig			Enable/Disable setting player configurations to Fog. Default is true
 suppressDecode			Enable/Disable setting to suppress decode of content for playback , only Downloader test. Default is false
 persistProfileAcrossTune        Enable/Disable persist bandwidth across tunes .Default is false
+gstSubtecEnabled		Enable/Disable subtec via gstreamer plugins (plugins in gst-plugins-rdk-aamp repo)
 
 // Integer inputs
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune

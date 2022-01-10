@@ -27,7 +27,6 @@
 #include <closedcaptions/subtec/SubtecConnector.h>
 #include <closedcaptions/subtec/CCDataController.h>
 
-#include <PacketSender.hpp>
 #include "ccDataReader.h"
 
 
@@ -62,8 +61,8 @@ namespace subtecConnector
 
     mrcc_Error initPacketSender()
     {
-        const auto packetSenderStartResult = PacketSender::Instance()->Init();
-        logprintf("PacketSender::Init() return value = %d\n", (int)packetSenderStartResult);
+        const auto packetSenderStartResult = ClosedCaptionsChannel::InitComms();
+        logprintf("CCDataController::Instance()->InitComms() return value = %d\n", (int)packetSenderStartResult);
 
         if(!packetSenderStartResult)
             return CC_VL_OS_API_RESULT_FAILED;

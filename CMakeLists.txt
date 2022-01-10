@@ -239,25 +239,7 @@ set(AAMP_CLI_SOURCES test/aampcli/Aampcli.cpp
 		     test/aampcli/AampcliShader.cpp
 		     ${AAMP_OS_SOURCES})
 
-set(AAMP_SUBTEC_SOURCES subtec/PacketSender.cpp)
 
-if(CMAKE_BUILD_SUBTEC_TEST)
-    if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-        # avoid cmake failure on OSX
-            set(CMAKE_MACOSX_RPATH 1)
-    else()
-        set(AAMP_SUBTEC_TEST_DEFINES "${AAMP_SUBTEC_TEST_DEFINES} -DSUBTEC_PACKET_DEBUG")
-        add_executable(subtectest ${AAMP_SUBTEC_SOURCES} subtec/test/subtec_test.cpp)
-        set_target_properties(subtectest PROPERTIES COMPILE_FLAGS "${AAMP_SUBTEC_TEST_DEFINES}")
-        target_link_libraries(subtectest "-lpthread")
-        install(TARGETS subtectest DESTINATION bin)
-        message("CMAKE_BUILD_SUBTEC_TEST set")
-    endif()
-endif()
-
-set(AAMP_SUBTEC_CLASS_SOURCES subtec/WebVttSubtecParser.cpp subtec/TtmlSubtecParser.cpp subtec/WebvttSubtecDevParser.cpp)
-set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ${AAMP_SUBTEC_SOURCES} ${AAMP_SUBTEC_CLASS_SOURCES})
-include_directories(subtec)
 
 #To enable session based stats for latency histogram
 set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DSESSION_STATS")
@@ -459,13 +441,32 @@ if (CMAKE_RDK_CC_ENABLED)
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lrdkCCReader -lrdkCCManager -lrdkCCGfx -l${DIRECTFB_LIBRARIES}")
 endif()
 
+set(AAMP_SUBTEC_CLASS_SOURCES subtec/subtecparser/WebVttSubtecParser.cpp subtec/subtecparser/TtmlSubtecParser.cpp subtec/subtecparser/WebvttSubtecDevParser.cpp)
+set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ${AAMP_SUBTEC_CLASS_SOURCES})
+include_directories(subtec/subtecparser)
+
+message("CMAKE_GST_SUBTEC_ENABLED set")
+add_library(subtec SHARED subtec/libsubtec/PacketSender.cpp subtec/libsubtec/SubtecChannel.cpp)
+set_target_properties(subtec PROPERTIES PUBLIC_HEADER "subtec/libsubtec/SubtecChannel.hpp")
+set_target_properties(subtec PROPERTIES COMPILE_FLAGS "${CMAKE_CXX_FLAGS} -DSUBTEC_PACKET_DEBUG=1")
+include_directories(subtec/libsubtec)
+install (TARGETS subtec
+        DESTINATION lib
+        PUBLIC_HEADER DESTINATION include 
+)
+
+if (CMAKE_GST_SUBTEC_ENABLED)
+    message("CMAKE_GST_SUBTEC_ENABLED set")
+    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DGST_SUBTEC_ENABLED")
+endif()
+
 if (CMAKE_SUBTEC_CC_ENABLED)
     message("CMAKE_SUBTEC_CC_ENABLED set")
 
     set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_SUBTEC_CC_ENABLED")
 
     set(LIBSUBTECCONNECTOR_DEFINES "${LIBAAMP_DEFINES}")
-    set(LIBSUBTECCONNECTOR_DEPENDS pthread rdkCCReader)
+    set(LIBSUBTECCONNECTOR_DEPENDS pthread rdkCCReader subtec)
     set(LIBSUBTECCONNECTOR_SOURCES  ${AAMP_SUBTEC_SOURCES}
         closedcaptions/subtec/SubtecConnector.cpp
         closedcaptions/subtec/CCDataController.cpp
@@ -563,6 +564,9 @@ set_target_properties(aamp PROPERTIES COMPILE_FLAGS "${LIBAAMP_DEFINES} ${OS_CXX
 set_target_properties(aamp-cli PROPERTIES COMPILE_FLAGS "${LIBAAMP_DEFINES} ${AAMP_CLI_EXTRA_DEFINES} ${OS_CXX_FLAGS}")
 set_target_properties(aamp PROPERTIES PUBLIC_HEADER "main_aamp.h")
 set_target_properties(aamp PROPERTIES PRIVATE_HEADER "priv_aamp.h")
+
+target_link_libraries(aamp-cli subtec)
+target_link_libraries(aamp subtec)
 
 install(TARGETS aamp-cli DESTINATION bin)
 install(TARGETS playbintest DESTINATION bin)

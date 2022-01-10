@@ -89,14 +89,14 @@ public:
      *   @retval eAAMPSTATUS_OK
      */
     AAMPStatusType Init(TuneType tuneType) override;
-   /**
-     * @fn GetStreamFormat
-     *
-     * @param[out]  primaryOutputFormat - format of primary track
-     * @param[out]  audioOutputFormat - format of audio track
-     * @param[out]  auxAudioOutputFormat - format of aux track
-     */
-    void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat) override;
+	/**
+	 * @fn GetStreamFormat
+	 * @param[out]  primaryOutputFormat - format of primary track
+	 * @param[out]  audioOutputFormat - format of audio track
+	 * @param[out]  auxOutputFormat - format of aux audio track
+	 * @param[out]  subtitleOutputFormat - format of sutbtile track
+	 */
+	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat, StreamOutputFormat &subtitleOutputFormat) override;
     /**
      * @fn GetStreamPosition
      *

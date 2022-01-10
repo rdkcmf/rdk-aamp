@@ -191,6 +191,7 @@ typedef enum
 	eAAMPConfig_EnablePTO,								/**< Enable/Disable PTO Handling */
 	eAAMPConfig_EnableAampConfigToFog,                                      /**< Enable/Disable player config to Fog on every tune*/
  	eAAMPConfig_XRESupportedTune,						/**< Enable/Disable XRE supported tune*/
+	eAAMPConfig_GstSubtecEnabled,								/**< Force Gstreamer subtec */
 	eAAMPConfig_AllowPageHeaders,						/**< Allow page http headers*/
 	eAAMPConfig_SuppressDecode,						/**< To Suppress Decode of segments for playback . Test only Downloader */
 	 eAAMPConfig_PersistHighNetworkBandwidth,                                /** Flag to enable Persist High Network Bandwidth across Tunes */
