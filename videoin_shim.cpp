@@ -213,7 +213,7 @@ void StreamAbstractionAAMP_VIDEOIN::DumpProfiles(void)
  * @brief Get output format of stream.
  *
  */
-void StreamAbstractionAAMP_VIDEOIN::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat)
+void StreamAbstractionAAMP_VIDEOIN::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat, StreamOutputFormat &subtitleOutputFormat)
 { // STUB
 	AAMPLOG_WARN("%s ",mName.c_str());
     primaryOutputFormat = FORMAT_INVALID;

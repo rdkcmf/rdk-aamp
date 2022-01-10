@@ -679,9 +679,10 @@ public:
          * @param[out] primaryOutputFormat video format
          * @param[out] audioOutputFormat audio format
          * @param[out] auxOutputFormat auxiliary audio format
+         * @param[out] subFormat subtitle format
          * @return void
          ***************************************************************************/
-	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat) override;
+	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat, StreamOutputFormat &subOutputFormat) override;
 	/***************************************************************************
          * @fn GetStreamPosition
          * @brief Function to return current playing position of stream

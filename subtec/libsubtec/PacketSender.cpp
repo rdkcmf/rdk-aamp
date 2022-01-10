@@ -151,7 +151,7 @@ static void *SubtecSimulatorThread( void *param )
 		for(;;)
 		{
 			int numBytes = recvfrom( state->sockfd, (void *)buffer, maxBuf, MSG_WAITALL, (struct sockaddr *) &cliaddr, &sockLen);
-			logprintf( "***SubtecSimulatorThread:\n" );
+			AAMPLOG_INFO( "***SubtecSimulatorThread:\n" );
             DumpPacket( buffer, numBytes );
 		}
 		free( buffer );
@@ -193,6 +193,9 @@ bool PacketSender::Init(const char *socket_path)
 {
     bool ret = true;
     std::unique_lock<std::mutex> lock(mStartMutex);
+
+    AAMPLOG_INFO("PacketSender::Init with %s", socket_path);
+
 
 #ifdef AAMP_SIMULATOR_BUILD
 	ret = PrepareSubtecSimulator(socket_path);

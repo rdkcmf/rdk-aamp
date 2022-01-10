@@ -1016,11 +1016,12 @@ void StreamAbstractionAAMP_OTA::DumpProfiles(void)
 /**
  * @brief Get output format of stream.
  */
-void StreamAbstractionAAMP_OTA::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat)
+void StreamAbstractionAAMP_OTA::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat, StreamOutputFormat &subtitleOutputFormat)
 {
     primaryOutputFormat = FORMAT_INVALID;
     audioOutputFormat = FORMAT_INVALID;
 	auxAudioOutputFormat = FORMAT_INVALID;
+	subtitleOutputFormat = FORMAT_INVALID;
 }
 
 /**
