@@ -70,7 +70,7 @@ private:
 
 public:
 	class PrivateInstanceAAMP *aamp;
-	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation);
+	void Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, StreamOutputFormat subFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation=false);
 	void SendCopy(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration);
 	void SendTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double duration, bool initFragment);
 	void EndOfStreamReached(MediaType type);
@@ -87,6 +87,7 @@ public:
 	bool Discontinuity( MediaType mediaType);
 	void SetVideoZoom(VideoZoomMode zoom);
 	void SetVideoMute(bool muted);
+	void SetSubtitleMute(bool mute);
 	void SetAudioVolume(int volume);
 	void setVolumeOrMuteUnMute(void);
 	bool IsCacheEmpty(MediaType mediaType);

@@ -194,6 +194,9 @@ bool PacketSender::Init(const char *socket_path)
     bool ret = true;
     std::unique_lock<std::mutex> lock(mStartMutex);
 
+    logprintf("PacketSender::Init with %s", socket_path);
+
+
 #ifdef AAMP_SIMULATOR_BUILD
 	ret = PrepareSubtecSimulator(socket_path);
 #endif
