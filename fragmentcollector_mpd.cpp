@@ -1566,26 +1566,21 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						 *  mPeriodStartTime and currentTime
 			 */
 			double fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration;
-			
-#if 0
-			double periodDuration = aamp->GetPeriodDurationTimeValue()/1000.0;
-			double periodEndTime = 0;
-			if(aamp->GetPeriodScaledPtoStartTime())
-				periodEndTime = aamp->GetPeriodScaledPtoStartTime() + periodDuration;
-			else
-				periodEndTime = mPeriodEndTime;
-#endif
-            
+			double fractionDuration = 1.0;
+			bool bProcessFrgment = true;
 
-			AAMPLOG_INFO("Type[%d] ====> pMediaStreamContext->lastSegmentNumber %" PRIu64 " fragmentDescriptor.Time=%f periodEndTime=%f mPeriodStartTime %f  currentTimeSeconds %f FTime=%f mFirstPTS=%f", pMediaStreamContext->type, pMediaStreamContext->lastSegmentNumber, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime, mFirstPTS);
+			if(fragmentRequestTime >= mPeriodEndTime)
+			{
+				double fractionDuration = (mPeriodEndTime-pMediaStreamContext->fragmentDescriptor.Time)/fragmentDuration;
+				bProcessFrgment = (fractionDuration < 0.25)? false:true;
+				AAMPLOG_TRACE("Type[%d] DIFF=%f Process Fragment=%d", pMediaStreamContext->type, fractionDuration, bProcessFrgment);
+			}
 
-			//if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time >= periodEndTime))
-			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime))
-			|| (rate < 0 )))
+			if ((!mIsLiveStream && ((!bProcessFrgment) || (rate < 0 )))
 			|| (mIsLiveStream && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
 			|| (pMediaStreamContext->fragmentDescriptor.Time < mPeriodStartTime))))  //CID:93022 - No effect
 			{
-				AAMPLOG_INFO("Type[%d] ====> EOS. pMediaStreamContext->lastSegmentNumber %" PRIu64 " fragmentDescriptor.Time=%f mPeriodEndTime=%f mPeriodStartTime %f  currentTimeSeconds %f FTime=%f", pMediaStreamContext->type, pMediaStreamContext->lastSegmentNumber, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
+				AAMPLOG_INFO("Type[%d] EOS. pMediaStreamContext->lastSegmentNumber %" PRIu64 " fragmentDescriptor.Time=%f mPeriodEndTime=%f mPeriodStartTime %f  currentTimeSeconds %f FTime=%f", pMediaStreamContext->type, pMediaStreamContext->lastSegmentNumber, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
 				pMediaStreamContext->lastSegmentNumber =0; // looks like change in period may happen now. hence reset lastSegmentNumber
 				pMediaStreamContext->eos = true;
 			}

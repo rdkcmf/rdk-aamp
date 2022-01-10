@@ -132,7 +132,8 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
     }
 
 //Enable for debugging actual fragment size
-	if(!initSegment && ISCONFIGSET(eAAMPConfig_EnablePTO))
+#if 0
+    if(!initSegment && ISCONFIGSET(eAAMPConfig_EnablePTO))
     {
             IsoBmffBuffer buffer(NULL);
             double scaledSampleDuration = 0.0;
@@ -163,13 +164,14 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
                 Box *box = pBoxes->at(i);
                 if (IS_TYPE(box->getType(), Box::MOOF))
                 {
-                        buffer.getSampleDuration(box, unscaledSampleDuration);
+			buffer.getSampleDuration(box, unscaledSampleDuration);
 			AAMPLOG_TRACE("[%d] Unscaled Sample Duration = %lld Scaled Sample Duration = %f Buffer pts = %lld", type, unscaledSampleDuration, unscaledSampleDuration/timeScale, pts);
-                        break;
+			break;
                 }
             }
             buffer.destroyBoxes();
     }
+#endif
 
     //Calculate PTO delta from first buffer PTS
     //If needed, based on PTO delta, Skip unwanted fragments for download in AdvanceTrack()
