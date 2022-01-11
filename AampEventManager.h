@@ -93,8 +93,8 @@ private:
 	{
 		guint callbackId =	g_source_get_id(g_main_current_source());
 		AampEventManager *evtMgr = (AampEventManager *)This;
-		evtMgr->AsyncEvent();
 		evtMgr->SetCallbackAsDispatched(callbackId);
+		evtMgr->AsyncEvent();
 		return G_SOURCE_REMOVE ;
 	}
 	/**
