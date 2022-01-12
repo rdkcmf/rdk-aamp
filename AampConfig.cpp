@@ -357,11 +357,7 @@ void AampConfig::Initialize()
 #endif
 	bAampCfgValue[eAAMPConfig_MidFragmentSeek].value                        =       false;
 	bAampCfgValue[eAAMPConfig_PropogateURIParam].value			=	true;
-#if defined(REALTEKCE) || defined(AMLOGIC)	// Temporary till westerossink disable is rollbacked
 	bAampCfgValue[eAAMPConfig_UseWesterosSink].value			=	true;
-#else
-	bAampCfgValue[eAAMPConfig_UseWesterosSink].value			=	false;
-#endif
 	bAampCfgValue[eAAMPConfig_RetuneForGSTError].value			=	true;
 	bAampCfgValue[eAAMPConfig_MatchBaseUrl].value				=	false;
 #ifdef IARM_MGR
