@@ -288,7 +288,7 @@ int AAMPOCDMGSTSessionAdapter::decrypt(GstBuffer *keyIDBuffer, GstBuffer *ivBuff
 		pthread_mutex_lock(&decryptMutex);
 		start_decrypt_time = GetCurrentTimeStampInMSec();
 
-#if defined(AMLOGIC)
+#if (defined(AMLOGIC) || defined(REALTEKCE))
 		if (AAMPOCDMGSTSessionDecrypt && !gst_caps_is_empty(caps))
 		{
 			AAMPLOG_TRACE("Caps is %s", gst_caps_to_string(caps));

@@ -10,15 +10,15 @@ class AAMPOCDMGSTSessionAdapter : public AAMPOCDMSessionAdapter
 #endif
 public:
 	AAMPOCDMGSTSessionAdapter(AampLogManager *logObj, std::shared_ptr<AampDrmHelper> drmHelper) : AAMPOCDMSessionAdapter(logObj, drmHelper)
-#if defined(AMLOGIC)
+#if (defined(AMLOGIC) || defined(REALTEKCE))
 , AAMPOCDMGSTSessionDecrypt(nullptr)
 	{
                 const char* ocdmgstsessiondecrypt = "opencdm_gstreamer_session_decrypt_ex";
                 AAMPOCDMGSTSessionDecrypt = (OpenCDMError(*)(struct OpenCDMSession*, GstBuffer*, GstBuffer*, const uint32_t, GstBuffer*, GstBuffer*, uint32_t, GstCaps*))dlsym(RTLD_DEFAULT, ocdmgstsessiondecrypt);
                 if (AAMPOCDMGSTSessionDecrypt)
-                        logprintf("Has opencdm_gstreamer_session_decrypt_ex");
+                        AAMPLOG_INFO("Has opencdm_gstreamer_session_decrypt_ex");
                 else
-                        logprintf("No opencdm_gstreamer_session_decrypt_ex found");
+                        AAMPLOG_WARN("No opencdm_gstreamer_session_decrypt_ex found");
 #else
 	{
 #endif
@@ -27,7 +27,7 @@ public:
 
 	int decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer, GstCaps* caps);
 private:
-#if defined(AMLOGIC)
+#if (defined(AMLOGIC) || defined(REALTEKCE))
         OpenCDMError(*AAMPOCDMGSTSessionDecrypt)(struct OpenCDMSession*, GstBuffer*, GstBuffer*, const uint32_t, GstBuffer*, GstBuffer*, uint32_t, GstCaps*);
 #endif
 };
