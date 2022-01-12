@@ -2571,6 +2571,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 
 	if (!ISCONFIGSET(eAAMPConfig_UseWesterosSink))
 	{
+		AAMPLOG_WARN("Disabling Westeros Sink");
 		privateContext->using_westerossink = false;
 #if defined(REALTEKCE)
 		privateContext->firstTuneWithWesterosSinkOff = true;
@@ -2578,6 +2579,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	}
 	else
 	{
+		AAMPLOG_WARN("Enabling Westeros Sink");
 		privateContext->using_westerossink = true;
 	}
 
