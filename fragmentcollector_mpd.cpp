@@ -1121,29 +1121,10 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						int index = 0;
 						uint64_t startTime = 0;
 						ITimeline *timeline = timelines.at(index);
-						// Some timeline may not have attribute for timeline , check it .
-						map<string, string> attributeMap = timeline->GetRawAttributes();
-						if(attributeMap.find("t") != attributeMap.end())
-						{
-							startTime = timeline->GetStartTime();
-						}
-						else
-						{
-							startTime = presentationTimeOffset;
-						}
 
-						// This logic comes into picture if startTime is different from
-						// presentation Offset
-						if(startTime != presentationTimeOffset)
+						//go to the right index and segment number
+						//based on presentationTimeOffset
 						{
-							// if startTime is 0 or if no timeline attribute "t"
-							if(startTime == 0)
-							{
-								AAMPLOG_INFO("Type[%d] Setting start time with PTSOffset:%" PRIu64 "",pMediaStreamContext->type,presentationTimeOffset);
-								startTime = presentationTimeOffset;
-							}
-							else
-							{
 								// Non zero startTime , need to traverse and find the right
 								// line index and repeat number
 								uint32_t duration =0;
@@ -1155,6 +1136,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 								pMediaStreamContext->fragmentRepeatCount = 0;
 								while(index<timelines.size())
 								{
+									bool bRepeat = false;
 									timeline = timelines.at(index);
 									map<string, string> attributeMap = timeline->GetRawAttributes();
 									if(attributeMap.find("t") != attributeMap.end())
@@ -1172,26 +1154,31 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 										startTime = nextStartTime;
 									}
 									repeatCount = timeline->GetRepeatCount();
+
+									//Handle @r=-1 (should be last <s> element))
+									if(repeatCount == (uint32_t)-1)
+									{
+										repeatCount = 0;
+										bRepeat = true;
+										if((index+1) != timelines.size())
+										{
+											AAMPLOG_WARN("@r=-1 should be used at the end. Malformed MPD!!!");
+										}
+									}
 									nextStartTime = startTime+((uint64_t)(repeatCount+1)*duration);
 									// found the right index
-									if(nextStartTime > (presentationTimeOffset+1))
+									if(bRepeat || nextStartTime > presentationTimeOffset)
 									{
 										// if timeline has repeat value ,go to correct offset
-										if (repeatCount != 0)
+										uint64_t segmentStartTime = startTime;
+
+										while((segmentStartTime + duration) <= presentationTimeOffset)
 										{
-											uint64_t segmentStartTime = startTime;
-											for(int i=0; i<repeatCount; i++)
-											{
-												segmentStartTime += duration;
-												if(segmentStartTime > (presentationTimeOffset+1))
-												{       // found the right offset
-													break;
-												}
-												startTime = segmentStartTime;
-												offsetNumber++;
-												pMediaStreamContext->fragmentRepeatCount++;
-											}
+											segmentStartTime += duration;
+											offsetNumber++;
+											pMediaStreamContext->fragmentRepeatCount++;
 										}
+										startTime = segmentStartTime;
 										break; // break the while loop
 									}
 									// Add all the repeat count before going to next timeline
@@ -1205,7 +1192,6 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 									pMediaStreamContext->timeLineIndex = index;
 									AAMPLOG_INFO("Type[%d] skipping fragments[%d] to Index:%d FNum=%d Repeat:%d", pMediaStreamContext->type,offsetNumber,index,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentRepeatCount);
 								}
-							}
 						}
 						// Modify the descriptor time to start download
 						pMediaStreamContext->fragmentDescriptor.Time = startTime;
