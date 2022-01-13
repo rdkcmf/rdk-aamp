@@ -3253,6 +3253,13 @@ bool PrivateInstanceAAMP::GetNetworkTime(enum UtcTiming timingType, const std::s
         if(!ISCONFIGSET_PRIV(eAAMPConfig_SslVerifyPeer)){
             curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
         }
+	else {
+	    long SupportedTLSVersion;
+	    GETCONFIGVALUE_PRIV(eAAMPConfig_TLSVersion,SupportedTLSVersion);
+     	    curl_easy_setopt(curl, CURLOPT_SSLVERSION,SupportedTLSVersion);
+	    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+
+	}
         curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
 
         res = curl_easy_perform(curl);
@@ -3406,6 +3413,9 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			}
 			else
 			{
+				long SupportedTLSVersion;
+				GETCONFIGVALUE_PRIV(eAAMPConfig_TLSVersion,SupportedTLSVersion);
+				curl_easy_setopt(curl, CURLOPT_SSLVERSION,SupportedTLSVersion);
 				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 			}
 
@@ -4247,6 +4257,12 @@ bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, Growa
 		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 		if(!ISCONFIGSET_PRIV(eAAMPConfig_SslVerifyPeer)){
 			curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+		}
+		else {
+	    		long SupportedTLSVersion;
+	    		GETCONFIGVALUE_PRIV(eAAMPConfig_TLSVersion,SupportedTLSVersion);
+     	    		curl_easy_setopt(curl, CURLOPT_SSLVERSION,SupportedTLSVersion);
+	    		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 		}
 		curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
 
