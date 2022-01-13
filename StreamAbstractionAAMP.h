@@ -1080,7 +1080,7 @@ public:
 	 *
 	 *   @return std::vector<AudioTrackInfo> list of audio tracks
 	 */
-	virtual std::vector<AudioTrackInfo> &GetAvailableAudioTracks() { return mAudioTracks; };
+	virtual std::vector<AudioTrackInfo> &GetAvailableAudioTracks(bool allTrack = false) { return mAudioTracks; };
 
 	/**
 	 *   @brief Get available text tracks.
@@ -1143,6 +1143,14 @@ public:
 	 *   @return int - index of current audio track
 	 */
 	virtual int GetAudioTrack();
+
+	/**
+	 *   @brief Get current audio track information
+	 *
+	 *   @param [out] AudioTrack - current audio track
+	 *   @return found or not 
+	 */
+	virtual bool GetCurrentAudioTrack(AudioTrackInfo &audioTrack);
 
 	/**
 	 *   @brief Get current text track
@@ -1337,6 +1345,7 @@ private:
 protected:
 	ABRManager mAbrManager;             /**< Pointer to abr manager*/
 	std::vector<AudioTrackInfo> mAudioTracks; /**< Available audio tracks */
+	std::vector<AudioTrackInfo> mAudioTracksAll; /**< Alternative variable to store audio track information from all period */
 	std::vector<TextTrackInfo> mTextTracks; /**< Available text tracks */
 	MediaTrackDiscontinuityState mTrackState; /**< stores the discontinuity status of tracks*/
 	std::string mAudioTrackIndex; /**< Current audio track index in track list */

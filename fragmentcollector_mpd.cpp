@@ -48,6 +48,7 @@
 #include "AampCacheHandler.h"
 #include "AampUtils.h"
 #include "AampRfc.h"
+#include <chrono>
 //#define DEBUG_TIMELINE
 
 #ifdef AAMP_CC_ENABLED
@@ -294,6 +295,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	,mDeltaTime(0)
 	,mHasServerUtcTime(0)
 	,latencyMonitorThreadStarted(false),prevLatencyStatus(LATENCY_STATUS_UNKNOWN),latencyStatus(LATENCY_STATUS_UNKNOWN),latencyMonitorThreadID(0)
+	,mStreamLock()
 {
         FN_TRACE_F_MPD( __FUNCTION__ );
 	this->aamp = aamp;
@@ -453,6 +455,116 @@ static bool IsAtmosAudio(const IMPDElement *nodePtr)
 
 	return isAtmos;
 }
+
+/**
+ * @brief Get codec value from representation level
+ * @param [out] codecValue - string value of codec as per manifest
+ * @param [in] rep - representation node for atmos audio check
+ * @retval audio type as per aamp code from string value
+ */
+static AudioType getCodecType(string & codecValue, const IMPDElement *rep)
+{
+	AudioType audioType = eAUDIO_UNSUPPORTED;
+	if (codecValue == "ec+3")
+	{
+#ifndef __APPLE__
+		audioType = eAUDIO_ATMOS;
+#endif
+	}
+	else if (codecValue == "ec-3")
+	{
+		audioType = eAUDIO_DDPLUS;
+		/*
+		* check whether ATMOS Flag is set as per ETSI TS 103 420
+		*/
+		if (IsAtmosAudio(rep))
+		{
+			AAMPLOG_INFO("Setting audio codec as eAUDIO_ATMOS as per ETSI TS 103 420");
+			audioType = eAUDIO_ATMOS;
+		}
+	}
+	else if( codecValue == "opus" || codecValue.find("vorbis") != std::string::npos )
+	{
+		audioType = eAUDIO_UNSUPPORTED;
+	}
+	else if( codecValue == "aac" || codecValue.find("mp4") != std::string::npos )
+	{
+		audioType = eAUDIO_AAC;
+	}
+
+	return audioType;
+}
+
+/**
+ * @brief Get representation index from preferred codec list
+ * @param adaptationSet Adaptation set object
+ * @param [out] selectedRepIdx - Selected representation index
+ * @param[out] selectedCodecType type of desired representation
+ * @param [out] selectedRepBandwidth - selected audio track bandwidth
+ * @param [optional] disableEC3 whether EC3 deabled by config
+ * @param [optional] disableATMOS whether ATMOS audio deabled by config 
+ * @retval whether track selected or not
+ */
+bool StreamAbstractionAAMP_MPD::GetPreferredCodecIndex(IAdaptationSet *adaptationSet, int &selectedRepIdx, AudioType &selectedCodecType, 
+	uint32_t &selectedRepBandwidth, uint32_t &bestScore, bool disableEC3, bool disableATMOS)
+{
+    FN_TRACE_F_MPD( __FUNCTION__ );
+	bool isTrackSelected = false;
+	if( aamp->preferredCodecList.size() > 0 )
+	{
+		selectedRepIdx = -1;
+		if(adaptationSet != NULL)
+		{
+			const std::vector<IRepresentation *> representation = adaptationSet->GetRepresentation();
+			/* check for codec defined in Adaptation Set */
+			const std::vector<string> adapCodecs = adaptationSet->GetCodecs();
+			for (int representationIndex = 0; representationIndex < representation.size(); representationIndex++)
+			{
+				uint32_t score = 0;
+				const dash::mpd::IRepresentation *rep = representation.at(representationIndex);
+				uint32_t bandwidth = rep->GetBandwidth();
+				const std::vector<string> codecs = rep->GetCodecs();
+				AudioType audioType = eAUDIO_UNKNOWN;
+				string codecValue="";
+
+				/* check if Representation includec codec */
+				if(codecs.size())
+				{
+					codecValue=codecs.at(0);
+				}
+				else if(adapCodecs.size()) /* else check if Adaptation has codec defined */
+				{
+					codecValue = adapCodecs.at(0);
+				}
+				auto iter = std::find(aamp->preferredCodecList.begin(), aamp->preferredCodecList.end(), codecValue);
+				if(iter != aamp->preferredCodecList.end())
+				{  /* track is in preferred codec list */
+					int distance = std::distance(aamp->preferredCodecList.begin(),iter);
+					score = ((aamp->preferredCodecList.size()-distance)+1)*100; /* bonus for codec match */
+				}
+				AudioType codecType = getCodecType(codecValue, rep);
+				if (((codecType == eAUDIO_ATMOS) && (disableATMOS || disableEC3)) || /*ATMOS audio desable by config */
+					((codecType == eAUDIO_DDPLUS) && disableEC3)) /* EC3 disable neglact it that case */
+				{
+					//Reduce score to 0 since ATMOS and/or DDPLUS is disabled;
+					score = 0; 
+				}
+
+				if(( score > bestScore ) || /* better matching codec */
+				((score == bestScore ) && (bandwidth > selectedRepBandwidth) && isTrackSelected )) /* Same codec as selected track but better quality */
+				{
+					bestScore = score;
+					selectedRepIdx = representationIndex;
+					selectedRepBandwidth = bandwidth;
+					selectedCodecType = codecType;
+					isTrackSelected = true;
+				}
+			} //representation Loop
+		} //If valid adaptation
+	} // If preferred Codec Set
+	return isTrackSelected;
+}
+
 /**
  * @brief Get representation index of desired codec
  * @param adaptationSet Adaptation set object
@@ -483,32 +595,8 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 				codecValue = adapCodecs.at(0);
 			// else no codec defined , go with unknown
 
-			if (codecValue == "ec+3")
-			{
-	#ifndef __APPLE__
-				audioType = eAUDIO_ATMOS;
-	#endif
-			}
-			else if (codecValue == "ec-3")
-			{
-				audioType = eAUDIO_DDPLUS;
-				/*
-				* check whether ATMOS Flag is set as per ETSI TS 103 420
-				*/
-				if (IsAtmosAudio(rep)){
-					AAMPLOG_INFO("Setting audio codec as eAUDIO_ATMOS as per ETSI TS 103 420"
-						 );
-					audioType = eAUDIO_ATMOS;
-				}
-			}
-			else if( codecValue == "opus" || codecValue.find("vorbis") != std::string::npos )
-			{
-				audioType = eAUDIO_UNSUPPORTED;
-			}
-			else if( codecValue == "aac" || codecValue.find("mp4") != std::string::npos )
-			{
-				audioType = eAUDIO_AAC;
-			}
+			audioType = getCodecType(codecValue, rep);
+
 			/*
 			* By default the audio profile selection priority is set as ATMOS then DD+ then AAC
 			* Note that this check comes after the check of selected language.
@@ -4031,6 +4119,15 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				}
 			}
 		}
+		auto start = std::chrono::high_resolution_clock::now();
+		if(!mIsLiveStream)
+		{
+			/** Populate Audio Track for static content TBD **/
+			GetAvailableAudioTracks(true);
+		}
+		auto end = std::chrono::high_resolution_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		AAMPLOG_INFO("DEBUG: Time taken to populate Audio Track %lld", static_cast<long long int>(duration.count()));
 
 		for (unsigned iPeriod = 0; iPeriod < numPeriods; iPeriod++)
 		{//TODO -  test with streams having multiple periods.
@@ -5802,14 +5899,13 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 		{
 			int score = 0;
 			std::string trackLanguage = GetLanguageForAdaptationSet(adaptationSet);
-
 			if( aamp->preferredLanguagesList.size() > 0 )
 			{
 				auto iter = std::find(aamp->preferredLanguagesList.begin(), aamp->preferredLanguagesList.end(), trackLanguage);
 				if(iter != aamp->preferredLanguagesList.end())
 				{ // track is in preferred language list
 					int distance = std::distance(aamp->preferredLanguagesList.begin(),iter);
-					score += (aamp->preferredLanguagesList.size()-distance)*10000; // big bonus for language match
+					score += ((aamp->preferredLanguagesList.size()-distance)+1)*1000000; // big bonus for language match
 				}
 			}
 			
@@ -5823,7 +5919,7 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 						std::string trackRendition = rendition.at(iRendition)->GetValue();
 						if( aamp->preferredRenditionString.compare(trackRendition)==0 )
 						{
-							score += 100;
+							score += 100000;
 						}
 					}
 				}
@@ -5838,7 +5934,7 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 						std::string trackType = iter->GetValue();
 						if (aamp->preferredTypeString.compare(trackType)==0 )
 						{
-							score += 10;
+							score += 10000;
 						}
 					}
 				}
@@ -5848,35 +5944,46 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 			uint32_t selRepBandwidth = 0;
 			bool disableATMOS = ISCONFIGSET(eAAMPConfig_DisableATMOS);
 			bool disableEC3 = ISCONFIGSET(eAAMPConfig_DisableEC3);
-			int audioRepresentationIndex = GetDesiredCodecIndex(adaptationSet, selectedCodecType, selRepBandwidth,disableEC3 , disableATMOS);
-			switch( selectedCodecType )
+			int audioRepresentationIndex = -1;
+			bool audioCodecSelected = false;
+			uint32_t codecScore = 0;
+			if(!GetPreferredCodecIndex(adaptationSet, audioRepresentationIndex, selectedCodecType, selRepBandwidth, codecScore, disableEC3 , disableATMOS))
 			{
-				case eAUDIO_ATMOS:
-					if( !disableATMOS )
-					{
-						score += 6;
-					}
-					break;
-					
-				case eAUDIO_DDPLUS:
-					if( !disableEC3 )
-					{
-						score += 4;
-					}
-					break;
-					
-				case eAUDIO_AAC:
-					score += 2;
-					break;
-					
-				case eAUDIO_UNKNOWN:
-					score += 1;
-					break;
-					
-				default:
-					break;
+				audioRepresentationIndex = GetDesiredCodecIndex(adaptationSet, selectedCodecType, selRepBandwidth, disableEC3 , disableATMOS);
+				switch( selectedCodecType )
+				{
+					case eAUDIO_ATMOS:
+						if( !disableATMOS )
+						{
+							score += 6;
+						}
+						break;
+						
+					case eAUDIO_DDPLUS:
+						if( !disableEC3 )
+						{
+							score += 4;
+						}
+						break;
+						
+					case eAUDIO_AAC:
+						score += 2;
+						break;
+						
+					case eAUDIO_UNKNOWN:
+						score += 1;
+						break;
+						
+					default:
+						break;
+				}
 			}
-			AAMPLOG_INFO( "track#%d score = %d", iAdaptationSet, score );
+			else
+			{
+				score += codecScore;
+			}
+
+			AAMPLOG_INFO( "track#%d::%d -  score = %d", iAdaptationSet, audioRepresentationIndex,  score );
 			if( score > bestScore )
 			{
 				bestScore = score;
@@ -9954,6 +10061,126 @@ void StreamAbstractionAAMP_MPD::SetAudioTrackInfo(const std::vector<AudioTrackIn
 	{
 		aamp->NotifyAudioTracksChanged();
 	}
+}
+
+/**
+ * @brief Get the audio track information from all period
+ * updated member variable mAudioTracksAll
+ * @return void
+ */
+void StreamAbstractionAAMP_MPD::PopulateAudioTracks(void)
+{
+	std::lock_guard<std::mutex> lock(mStreamLock);
+	//Clear the current track info , if any
+	mAudioTracksAll.clear();
+	std::vector<dash::mpd::IPeriod*>  ptrPeriods =  mpd->GetPeriods();
+	for (auto &period : ptrPeriods)
+	{
+		AAMPLOG_INFO("Traversing Period [%s] ", period->GetId().c_str());
+
+		std::vector<dash::mpd::IAdaptationSet*> adaptationSets = period->GetAdaptationSets();
+		uint32_t adaptationIndex = 0;
+		for (auto &adaptationSet : adaptationSets)
+		{
+			AAMPLOG_INFO("Adaptation Set Content type [%s] ", adaptationSet->GetContentType().c_str());
+			if (IsContentType(adaptationSet, eMEDIATYPE_AUDIO))
+			{
+				//Populate audio track info
+				std::string lang = GetLanguageForAdaptationSet(adaptationSet);
+				const std::vector<dash::mpd::IRepresentation *> representations = adaptationSet->GetRepresentation();
+				std::string codec;
+				std::string group; // value of <Role>, empty if <Role> not present
+				std::string type; // value of <Accessibility>
+				std::string empty;
+				{
+					std::vector<IDescriptor *> roles = adaptationSet->GetRole();
+					for (auto &role : roles)
+					{
+						if (role->GetSchemeIdUri().find("urn:mpeg:dash:role:2011") != string::npos)
+						{
+							if (!group.empty())
+							{
+								group += ",";
+							}
+							group += role->GetValue();
+						}
+					}
+				}
+
+				for( auto iter : adaptationSet->GetAccessibility() )
+				{
+					if (iter->GetSchemeIdUri().find("urn:mpeg:dash:role:2011") != string::npos)
+					{
+						if (!type.empty())
+						{
+							type += ",";
+						}
+						type += iter->GetValue();
+					}
+				}
+
+				// check for codec defined in Adaptation Set
+				const std::vector<string> adapCodecs = adaptationSet->GetCodecs();
+				uint32_t representationIndex = 0;
+				for (auto &representation : representations)
+				{
+					std::string index = std::to_string(adaptationIndex) + "-" + std::to_string(representationIndex);
+					std::string name = representation->GetId();
+					uint32_t bandwidth = representation->GetBandwidth();
+					const std::vector<std::string> repCodecs = representation->GetCodecs();
+					// check if Representation includes codec
+					if (repCodecs.size())
+					{
+						codec = repCodecs.at(0);
+					}
+					else if (adapCodecs.size()) // else check if Adaptation has codec
+					{
+						codec = adapCodecs.at(0);
+					}
+					else
+					{
+						AAMPLOG_WARN("No codec information present at %s", index.c_str());
+						codec = "";
+					}
+					
+					AAMPLOG_INFO("Audio Track - lang:%s, group:%s, name:%s, codec:%s, bandwidth:%d, type:%s",
+						lang.c_str(), group.c_str(), name.c_str(), codec.c_str(), bandwidth, type.c_str());
+					mAudioTracksAll.push_back(AudioTrackInfo(index, lang, group, name, codec, bandwidth, type));
+					representationIndex++;
+				} // Representation Loop
+			} // Audio Adaptation
+			adaptationIndex++;
+		} // Adaptation Loop
+	}//Period loop
+
+	std::sort(mAudioTracksAll.begin(), mAudioTracksAll.end());
+  	auto last = std::unique(mAudioTracksAll.begin(), mAudioTracksAll.end());
+	// Resizing the vector so as to remove the undefined terms
+    mAudioTracksAll.resize(std::distance(mAudioTracksAll.begin(), last));
+}
+
+/**
+ * @brief To set the audio tracks of current period
+ *
+ * @param[in] tracks - available audio tracks in period
+ * @param[in] trackIndex - index of current audio track
+ * @return void
+ */
+std::vector<AudioTrackInfo>& StreamAbstractionAAMP_MPD::GetAvailableAudioTracks(bool allTrack)
+{
+	if (!allTrack)
+	{
+		return mAudioTracks;
+	}
+	else
+	{
+		if (aamp->IsLive() || (mAudioTracksAll.size() == 0))
+		{
+			/** Audio Track not populated yet**/ 
+			PopulateAudioTracks();
+		}
+		return mAudioTracksAll;
+	} 
 }
 
 /**

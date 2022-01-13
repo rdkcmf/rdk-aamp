@@ -87,8 +87,11 @@ typedef enum {
 	eAAMP_GET_AudioBitrates,
 	eAAMP_GET_CurrentPreferredLanguages,
 	eAAMP_GET_AvailableAudioTracks,
+	eAAMP_GET_AllAvailableAudioTracks,
 	eAAMP_GET_AvailableTextTracks,
 	eAAMP_GET_AudioTrack,
+	eAAMP_GET_AudioTrackInfo,
+	eAAMP_GET_PreferredAudioProperties,
 	eAAMP_GET_TextTrack,
 	eAAMP_GET_ThumbnailConfig,
 	eAAMP_GET_ThumbnailData,
@@ -503,8 +506,11 @@ static void InitGetHelpText()
 	mGetHelpText[eAAMP_GET_AudioBitrates] = "Get Audio bitrates supported";
 	mGetHelpText[eAAMP_GET_CurrentPreferredLanguages] = "Get Current preferred languages";
 	mGetHelpText[eAAMP_GET_AvailableAudioTracks] = "Get Available Audio Tracks";
+	mGetHelpText[eAAMP_GET_AllAvailableAudioTracks] = "Get All Available Audio Tracks information from manifest";
 	mGetHelpText[eAAMP_GET_AvailableTextTracks] = "Get Available Text Tracks";
 	mGetHelpText[eAAMP_GET_AudioTrack] = "Get Audio Track";
+	mGetHelpText[eAAMP_GET_AudioTrackInfo] = "Get current Audio Track information in json format";
+	mGetHelpText[eAAMP_GET_PreferredAudioProperties] = "Get current Preferred Audio properties in json format";
 	mGetHelpText[eAAMP_GET_TextTrack] = "Get Text Track";
 	mGetHelpText[eAAMP_GET_ThumbnailConfig] = "Get Available ThumbnailTracks";
 	mGetHelpText[eAAMP_GET_ThumbnailData] = "Get Thumbnail timerange data(int startpos, int endpos)";
@@ -545,7 +551,7 @@ static void InitSetHelpText()
 	mSetHelpText[eAAMP_SET_DownloadStartTimeout] =               "<x>             // Set Download Start timeout (long x=timeout)";
 	mSetHelpText[eAAMP_SET_PreferredSubtitleLang] =              "<x>             // Set Preferred Subtitle language (string x = lang)";
 	mSetHelpText[eAAMP_SET_ParallelPlaylistDL] =                 "<x>             // Set Parallel Playlist download (x=0/1)";
-	mSetHelpText[eAAMP_SET_PreferredLanguages] =                 "<x>             // Set Preferred languages (string lang1,lang2,... )";
+	mSetHelpText[eAAMP_SET_PreferredLanguages] =                 "<x>             // Set Preferred languages (string lang1,lang2,... rendition type codec1,codec2.. ) , use null keyword to discard any argument";
 	mSetHelpText[eAAMP_SET_RampDownLimit] =                      "<x>             // Set number of Ramp Down limit during the playback (x = number)";
 	mSetHelpText[eAAMP_SET_InitRampdownLimit] =                  "<x>             // Set number of Initial Ramp Down limit prior to the playback (x = number)";
 	mSetHelpText[eAAMP_SET_MinimumBitrate] =                     "<x>             // Set Minimum bitrate (x = bitrate)";
@@ -555,7 +561,7 @@ static void InitSetHelpText()
 	mSetHelpText[eAAMP_SET_RegisterForID3MetadataEvents] =       "<x>             // Set Listen for ID3_METADATA events (x = 1 - add listener, x = 0 - remove)";
 	mSetHelpText[eAAMP_SET_LanguageFormat] =                     "<y> <y>         // Set Language Format (x = preferredFormat(0-3), y = useRole(0/1))";
 	mSetHelpText[eAAMP_SET_InitialBufferDuration] =              "<x>             // Set Initial Buffer Duration (int x = Duration in sec)";
-	mSetHelpText[eAAMP_SET_AudioTrack] =                         "<x>             // Set Audio track ( x = track index , track language)";
+	mSetHelpText[eAAMP_SET_AudioTrack] =                         "<x>             // Set Audio track ( x = track by index (number) OR track by language properties lan,rendition,type,codec )";
 	mSetHelpText[eAAMP_SET_TextTrack] =                          "<x>             // Set Text track (int x = track index)";
 	mSetHelpText[eAAMP_SET_CCStatus] =                           "<x>             // Set CC status (x = 0/1)";
 	mSetHelpText[eAAMP_SET_CCStyle] =                            "<x>             // Set a predefined CC style option (x = 1/2/3)";
@@ -1647,29 +1653,101 @@ static void ProcessCliCommand( char *cmd )
 				}
 				
 				case eAAMP_SET_PreferredLanguages:
-                                {
-                                        char preferredLanguages[128];
-                                        char rendition[32];
-                                        memset(preferredLanguages, 0, sizeof(preferredLanguages));
-                                        memset(rendition, 0, sizeof(rendition));
-                                        printf("[AAMPCLI] Matched Command eAAMP_SET_PreferredLanguages - %s \n", cmd);
-                                        
-                                        if (sscanf(cmd, "set %d %s %s", &opt, preferredLanguages, rendition) == 3){
-                                                printf("[AAMPCLI] setting PreferredLanguages (%s) with rendition (%s) \n" ,
-                                                                preferredLanguages, rendition);  
-                                                mSingleton->SetPreferredLanguages(preferredLanguages, rendition);
-                                        }
-                                        else if (sscanf(cmd, "set %d %s", &opt, preferredLanguages) == 2)
-                                        {
-                                                printf("[AAMPCLI] setting PreferredLanguages (%s) \n",preferredLanguages );  
-                                                mSingleton->SetPreferredLanguages(preferredLanguages);
-                                        }
-                                        else
-                                        {
-						printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
-                                                printf("[AAMPCLI] set preferred languages must be run with atleast 1 argument\n");
-                                        }
-                                        break;
+				{
+					char preferredLanguages[128];
+					char rendition[32];
+					char type[16];
+					char preferredCodec[128];
+					memset(preferredLanguages, 0, sizeof(preferredLanguages));
+					memset(rendition, 0, sizeof(rendition));
+					memset(type, 0, sizeof(type));
+					memset(preferredCodec, 0, sizeof(preferredCodec));
+					bool prefLanPresent = false;
+					bool prefRendPresent = false;
+					bool prefTypePresent = false;
+					bool prefCodecPresent = false;
+					printf("[AAMPCLI] Matched Command eAAMP_SET_PreferredLanguages - %s \n", cmd);
+					if (sscanf(cmd, "set %d %s %s %s %s", &opt, preferredLanguages, rendition, type, preferredCodec) == 5)
+					{
+						printf("[AAMPCLI] setting Preferred Languages (%s), rendition (%s), type (%s) and codec (%s)\n" ,
+										preferredLanguages, rendition, type, preferredCodec);
+						if (0 != strcasecmp(preferredLanguages, "null"))
+						{
+							prefLanPresent = true;
+						}
+						if (0 != strcasecmp(preferredCodec, "null"))
+						{
+							prefCodecPresent = true;
+						}
+						if (0 != strcasecmp(rendition, "null"))
+						{
+							prefRendPresent = true;
+						}
+						if (0 != strcasecmp(type, "null"))
+						{
+							prefTypePresent = true;
+						}
+
+						mSingleton->SetPreferredLanguages(prefLanPresent?preferredLanguages:NULL, 
+														  prefRendPresent?rendition:NULL, 
+														  prefTypePresent?type:NULL, 
+														  prefCodecPresent?preferredCodec:NULL);
+					}
+					else if (sscanf(cmd, "set %d %s %s", &opt, preferredLanguages, rendition, type) == 4)
+					{
+						printf("[AAMPCLI] setting PreferredLanguages (%s) with rendition (%s) and type (%s) \n" ,
+										preferredLanguages, rendition, type);  
+						if (0 != strcasecmp(preferredLanguages, "null"))
+						{
+							prefLanPresent = true;
+						}
+						if (0 != strcasecmp(rendition, "null"))
+						{
+							prefRendPresent = true;
+						}
+						if (0 != strcasecmp(type, "null"))
+						{
+							prefTypePresent = true;
+						}
+						mSingleton->SetPreferredLanguages(prefLanPresent?preferredLanguages:NULL, 
+														  prefRendPresent?rendition:NULL, 
+														  prefTypePresent?type:NULL);
+					}
+					else if (sscanf(cmd, "set %d %s %s", &opt, preferredLanguages, rendition) == 3)
+					{
+						printf("[AAMPCLI] setting PreferredLanguages (%s) with rendition (%s) \n" ,
+										preferredLanguages, rendition); 
+						if (0 != strcasecmp(preferredLanguages, "null"))
+						{
+							prefLanPresent = true;
+						}
+						if (0 != strcasecmp(rendition, "null"))
+						{
+							prefRendPresent = true;
+						}
+						mSingleton->SetPreferredLanguages(prefLanPresent?preferredLanguages:NULL, 
+														  prefRendPresent?rendition:NULL);
+					}
+					else if (sscanf(cmd, "set %d %s", &opt, preferredLanguages) == 2)
+					{
+						printf("[AAMPCLI] setting PreferredLanguages (%s) \n",preferredLanguages );
+						if (0 != strcasecmp(preferredLanguages, "null"))
+						{
+							mSingleton->SetPreferredLanguages(preferredLanguages);
+						}
+						else
+						{
+							printf("[AAMPCLI] ERROR: Invalid arguments- %s\n", cmd);
+							printf("[AAMPCLI] set preferred languages must be set at least a language\n");
+						}
+						
+					}
+					else
+					{
+						printf("[AAMPCLI] ERROR: Mismatch in arguments- %s\n", cmd);
+						printf("[AAMPCLI] set preferred languages must be run with atleast 2 argument\n");
+					}
+					break;
 				}
 				
 				case eAAMP_SET_InitRampdownLimit:
@@ -1872,6 +1950,7 @@ static void ProcessCliCommand( char *cmd )
 						std::string language = "";
 						std::string rendition = "";
 						std::string codec = "";
+						std::string type = "";
 						int channel = 0;
                                                 std::stringstream ss(strTrackInfo);
 						/** "language,rendition,codec,channel" **/
@@ -1883,15 +1962,22 @@ static void ProcessCliCommand( char *cmd )
 						} 
 
 						/*rendition */
-                                                if (std::getline(ss, substr, ',')){
+                        if (std::getline(ss, substr, ',')){
 							if(!substr.empty()){
 								rendition = substr;
 							}
+						}
+
+						/*type */
+                        if (std::getline(ss, substr, ',')){
+							if(!substr.empty()){
+								type = substr;
+							}
 						} 
 
-						/*codec TODO:not supported now */
+						/*codec */
 						if (std::getline(ss, substr, ',')){
-                                                        if(!substr.empty()){
+                            if(!substr.empty()){
 								codec = substr;
 							}
 						} 
@@ -1902,9 +1988,9 @@ static void ProcessCliCommand( char *cmd )
 								channel = std::stoi(substr);
 							}
 						} 
-						printf("[AAMPCLI] Selecting audio track based on language  - %s rendition - %s codec = %s channel = %d\n", 
-						language.c_str(), rendition.c_str(), codec.c_str(), channel);
-						mSingleton->SetAudioTrack(language, rendition, codec, channel);
+						printf("[AAMPCLI] Selecting audio track based on language  - %s rendition - %s type = %s codec = %s channel = %d\n", 
+						language.c_str(), rendition.c_str(), type.c_str(), codec.c_str(), channel);
+						mSingleton->SetAudioTrack(language, rendition, type, codec, channel);
 
 					}
 					break;
@@ -2077,13 +2163,25 @@ static void ProcessCliCommand( char *cmd )
 					printf("[AAMPCLI] GETTING THUMBNAIL TIME RANGE DATA for duration(%d,%d): %s\n",value1,value2,mSingleton->GetThumbnails(value1, value2).c_str());
 					break;
 				case eAAMP_GET_AudioTrack:
-					printf("[AAMPCLI] CURRENT AUDIO TRACK: %d\n", mSingleton->GetAudioTrack() );
+					printf("[AAMPCLI] CURRENT AUDIO TRACK NUMBER: %d\n", mSingleton->GetAudioTrack() );
 					break;
+
+				case eAAMP_GET_AudioTrackInfo:
+					printf("[AAMPCLI] CURRENT AUDIO TRACK INFO: %s\n", mSingleton->GetAudioTrackInfo().c_str() );
+					break;
+
+				case eAAMP_GET_PreferredAudioProperties:
+					printf("[AAMPCLI] CURRENT PREPRRED AUDIO PROPERTIES: %s\n", mSingleton->GetPreferredAudioProperties().c_str() );
+					break;
+
 				case eAAMP_GET_TextTrack:
 					printf("[AAMPCLI] CURRENT TEXT TRACK: %d\n", mSingleton->GetTextTrack() );
 					break;
 				case eAAMP_GET_AvailableAudioTracks:
-					printf("[AAMPCLI] AVAILABLE AUDIO TRACKS: %s\n", mSingleton->GetAvailableAudioTracks().c_str() );
+					printf("[AAMPCLI] AVAILABLE AUDIO TRACKS: %s\n", mSingleton->GetAvailableAudioTracks(false).c_str() );
+					break;
+				case eAAMP_GET_AllAvailableAudioTracks:
+					printf("[AAMPCLI] AVAILABLE AUDIO TRACKS: %s\n", mSingleton->GetAvailableAudioTracks(true).c_str() );
 					break;
 				case eAAMP_GET_AvailableTextTracks:
 					printf("[AAMPCLI] AVAILABLE TEXT TRACKS: %s\n", mSingleton->GetAvailableTextTracks().c_str() );

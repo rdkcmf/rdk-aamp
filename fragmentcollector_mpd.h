@@ -174,6 +174,7 @@ public:
 	double GetBufferedDuration();
 	void SeekPosUpdate(double secondsRelativeToTuneTime) {seekPosition = secondsRelativeToTuneTime; }
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
+	virtual std::vector<AudioTrackInfo> & GetAvailableAudioTracks(bool allTrack=false) override;
 	int GetProfileCount();
 	int GetProfileIndexForBandwidth(long mTsbBandwidth);
 
@@ -247,6 +248,9 @@ private:
 	void StartLatencyMonitorThread();
 	LatencyStatus GetLatencyStatus() { return latencyStatus; }
 	vector<IDescriptor*> GetContentProtection(const IAdaptationSet *adaptationSet, MediaType mediaType);
+	bool GetPreferredCodecIndex(IAdaptationSet*, int &, AudioType &, uint32_t &, uint32_t &, bool , bool);
+	void PopulateAudioTracks(void);
+	std::mutex mStreamLock;
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
 	double seekPosition;

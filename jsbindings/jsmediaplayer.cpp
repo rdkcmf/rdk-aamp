@@ -863,6 +863,66 @@ JSValueRef AAMPMediaPlayerJS_getAvailableThumbnailTracks (JSContextRef ctx, JSOb
 }
 
 /**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.getAudioTrackInfo()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_getAudioTrackInfo (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAudioTrackInfo() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+	std::string value = privObj->_aamp->GetAudioTrackInfo();
+	if (!value.empty())
+	{
+		ERROR("Exit %s()", __FUNCTION__);
+		return aamp_CStringToJSValue(ctx, value.c_str());
+	}
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
+
+
+/**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.getPreferredAudioProperties()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_getPreferredAudioProperties (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getPreferredAudioProperties() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+	std::string value = privObj->_aamp->GetPreferredAudioProperties();
+	if (!value.empty())
+	{
+		ERROR("Exit %s()", __FUNCTION__);
+		return aamp_CStringToJSValue(ctx, value.c_str());
+	}
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
+/**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setThumbnailTrack()
  * @param[in] ctx JS execution context
  * @param[in] function JSObject that is the function being called
@@ -1313,6 +1373,7 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 		int channel = 0;
 		char *rendition = NULL;
 		char *codec = NULL;
+		char *type = NULL;
 		//Parse the ad object
 		JSObjectRef audioProperty = JSValueToObject(ctx, arguments[0], NULL);
 		if (audioProperty == NULL)
@@ -1344,6 +1405,14 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 		}
 		JSStringRelease(propName);
 
+		propName = JSStringCreateWithUTF8CString("type");
+		propValue = JSObjectGetProperty(ctx, audioProperty, propName, NULL);
+		if (JSValueIsString(ctx, propValue))
+		{
+			type = aamp_JSValueToCString(ctx, propValue, NULL);
+		}
+		JSStringRelease(propName);
+
 		propName = JSStringCreateWithUTF8CString("channel");
 		propValue = JSObjectGetProperty(ctx, audioProperty, propName, NULL);
 		if (JSValueIsNumber(ctx, propValue))
@@ -1358,9 +1427,12 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 		SAFE_DELETE_ARRAY(rendition);
 		std::string strCodec = codec?std::string(codec):"";
 		SAFE_DELETE_ARRAY(codec);
+		std::string strType = type?std::string(type):"";
+		SAFE_DELETE_ARRAY(type);
 
-		INFO("%s() Calling SetAudioTrack ", __FUNCTION__);
-		privObj->_aamp->SetAudioTrack(strLanguage, strRendition, strCodec, channel);
+		INFO("%s() Calling SetAudioTrack language=%s renditio=%s type=%s codec=%s channel=%d", 
+			strLanguage.c_str(), strRendition.c_str(), strType.c_str(), strCodec.c_str(), channel,	__FUNCTION__);
+		privObj->_aamp->SetAudioTrack(strLanguage, strRendition, strType, strCodec, channel);
 		
 	}
 	else
@@ -2226,8 +2298,12 @@ static JSValueRef AAMPMediaPlayerJS_getAvailableAudioTracks(JSContextRef ctx, JS
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAvailableAudioTracks() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-
-	std::string tracks = privObj->_aamp->GetAvailableAudioTracks();
+	bool allTrack = false;
+	if (argumentCount == 1)
+	{
+		allTrack = JSValueToBoolean(ctx, arguments[0]);
+	}
+	std::string tracks = privObj->_aamp->GetAvailableAudioTracks(allTrack);
 	if (!tracks.empty())
 	{
 		TRACELOG("Exit %s()", __FUNCTION__);
@@ -2446,69 +2522,37 @@ JSValueRef AAMPMediaPlayerJS_setPreferredAudioLanguage(JSContextRef ctx, JSObjec
 		return JSValueMakeUndefined(ctx);
 	}
 
-	if( argumentCount>=1 && argumentCount<=3)
+	if( argumentCount>=1 && argumentCount<=4)
 	{
 		char* lanList = aamp_JSValueToCString(ctx,arguments[0], NULL);
-		if( lanList )
-		{
-			char *rendition = NULL;
-			char *type = NULL;
-			if(argumentCount >= 2) {
-				rendition = aamp_JSValueToCString(ctx,arguments[1], NULL);
-			}
-			if(argumentCount == 3) {
-				type = aamp_JSValueToCString(ctx,arguments[2], NULL);
-			}
-			privObj->_aamp->SetPreferredLanguages(lanList, rendition, type);
-			SAFE_DELETE_ARRAY(type);
-			SAFE_DELETE_ARRAY(rendition);
-			SAFE_DELETE_ARRAY(lanList);
+		char *rendition = NULL;
+		char *type = NULL;
+		char *codecList = NULL;
+		if(argumentCount >= 2) {
+			rendition = aamp_JSValueToCString(ctx,arguments[1], NULL);
 		}
+		if(argumentCount >= 3) {
+			type = aamp_JSValueToCString(ctx,arguments[2], NULL);
+		}
+		if(argumentCount >= 4) {
+			codecList = aamp_JSValueToCString(ctx,arguments[3], NULL);
+		}
+		privObj->_aamp->SetPreferredLanguages(lanList, rendition, type, codecList);
+		SAFE_DELETE_ARRAY(type);
+		SAFE_DELETE_ARRAY(rendition);
+		SAFE_DELETE_ARRAY(lanList);
+		SAFE_DELETE_ARRAY(codecList);
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1, 2 or 3", __FUNCTION__, argumentCount);
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1, 2 , 3 or 4", __FUNCTION__, argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setPreferredAudioLanguage() - 1, 2 or 3 arguments required");
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
-/**
- * @brief API invoked from JS when executing AAMPMediaPlayer.setPreferredAudioRendition()
- * @param[in] ctx JS execution context
- * @param[in] function JSObject that is the function being called
- * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
- * @param[in] argumentCount number of args
- * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
- * @retval JSValue that is the function's return value
- */
-JSValueRef AAMPMediaPlayerJS_setPreferredAudioRendition(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
-{ // placeholder - not ready for use/publishing
-	TRACELOG("Enter %s()", __FUNCTION__);
-	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
-	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
-		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setPreferredAudioRendition() on instances of AAMPPlayer");
-		return JSValueMakeUndefined(ctx);
-	}
 
-	if (argumentCount != 1)
-	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
-		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setPreferredAudioRendition() - 1 argument required");
-	}
-	else
-	{
-		char* renditionList = aamp_JSValueToCString(ctx,arguments[0], NULL);
-		privObj->_aamp->SetPreferredRenditions(renditionList);
-		SAFE_DELETE_ARRAY(renditionList);
-	}
-	TRACELOG("Exit %s()", __FUNCTION__);
-	return JSValueMakeUndefined(ctx);
-}
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.setPreferredAudioCodec()
@@ -2539,7 +2583,7 @@ JSValueRef AAMPMediaPlayerJS_setPreferredAudioCodec(JSContextRef ctx, JSObjectRe
 	else
 	{
 		char *codecList = aamp_JSValueToCString(ctx,arguments[0], NULL);
-		privObj->_aamp->SetPreferredCodec(codecList);
+		privObj->_aamp->SetPreferredLanguages(NULL, NULL, NULL, codecList);
 		SAFE_DELETE_ARRAY(codecList);
 	}
 
@@ -2885,6 +2929,8 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "getCurrentAudioBitrate", AAMPMediaPlayerJS_getCurrentAudioBitrate, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setAudioBitrate", AAMPMediaPlayerJS_setAudioBitrate, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "getAudioTrack", AAMPMediaPlayerJS_getAudioTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ "getAudioTrackInfo", AAMPMediaPlayerJS_getAudioTrackInfo, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ "getPreferredAudioProperties", AAMPMediaPlayerJS_getPreferredAudioProperties, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setAudioTrack", AAMPMediaPlayerJS_setAudioTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "getTextTrack", AAMPMediaPlayerJS_getTextTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setTextTrack", AAMPMediaPlayerJS_setTextTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
@@ -2920,7 +2966,6 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "getAvailableThumbnailTracks", AAMPMediaPlayerJS_getAvailableThumbnailTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setThumbnailTrack", AAMPMediaPlayerJS_setThumbnailTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setPreferredAudioLanguage", AAMPMediaPlayerJS_setPreferredAudioLanguage, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
-	{ "setPreferredAudioRendition", AAMPMediaPlayerJS_setPreferredAudioRendition, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setPreferredAudioCodec", AAMPMediaPlayerJS_setPreferredAudioCodec, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "setAuxiliaryLanguage", AAMPMediaPlayerJS_setAuxiliaryLanguage, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, 0 }

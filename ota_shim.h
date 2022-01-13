@@ -81,8 +81,9 @@ public:
     void SetVideoRectangle(int x, int y, int w, int h) override;
     void SetAudioTrack(int index) override;
     void SetAudioTrackByLanguage(const char* lang) override;
-    std::vector<AudioTrackInfo> &GetAvailableAudioTracks() override;
+    std::vector<AudioTrackInfo> &GetAvailableAudioTracks(bool allTrack=false) override;
     int GetAudioTrack() override;
+    bool GetCurrentAudioTrack(AudioTrackInfo &audioTrack) override;
     std::vector<TextTrackInfo> &GetAvailableTextTracks() override;
     void SetPreferredAudioLanguages() override;
     void DisableContentRestrictions(long grace, long time, bool eventChange) override;

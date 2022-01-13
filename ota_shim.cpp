@@ -587,7 +587,7 @@ void StreamAbstractionAAMP_OTA::NotifyAudioTrackChange(const std::vector<AudioTr
  *
  *   @return std::vector<AudioTrackInfo> List of available audio tracks
  */
-std::vector<AudioTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableAudioTracks()
+std::vector<AudioTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableAudioTracks(bool allTrack)
 {
     if (mAudioTrackIndex.empty())
         GetAudioTracks();
@@ -617,6 +617,32 @@ int StreamAbstractionAAMP_OTA::GetAudioTrack()
         }
     }
     return index;
+}
+
+/**
+ *   @brief Get current audio track
+ *
+ *   @return int - index of current audio track
+ */
+bool StreamAbstractionAAMP_OTA::GetCurrentAudioTrack(AudioTrackInfo &audioTrack)
+{
+	int index = -1;
+	bool bFound = false;
+	if (mAudioTrackIndex.empty())
+        GetAudioTracks();
+
+	if (!mAudioTrackIndex.empty())
+	{
+		for (auto it = mAudioTracks.begin(); it != mAudioTracks.end(); it++)
+		{
+			if (it->index == mAudioTrackIndex)
+			{
+				audioTrack = *it;
+				bFound = true;
+			}
+		}
+	}
+	return bFound;
 }
 
 /**

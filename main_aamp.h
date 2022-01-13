@@ -198,6 +198,26 @@ struct AudioTrackInfo
 		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ)
 	{
 	}
+
+	bool operator == (const AudioTrackInfo& track) const
+	{
+		return ((language == track.language) &&	
+			(rendition == track.rendition) &&	
+			(contentType == track.contentType) &&	
+			(codec == track.codec) &&
+			(channels == track.channels) &&
+			(bandwidth == track.bandwidth));
+	}
+
+	bool operator < (const AudioTrackInfo& track) const
+	{
+		return (bandwidth < track.bandwidth);
+	}
+
+	bool operator > (const AudioTrackInfo& track) const
+	{
+		return (bandwidth > track.bandwidth);
+	}
 };
 
 /**
@@ -1191,7 +1211,7 @@ public:
 	 *
 	 *   @return std::string JSON formatted list of audio tracks
 	 */
-	std::string GetAvailableAudioTracks();
+	std::string GetAvailableAudioTracks(bool allTrack=false);
 
 	/**
 	 *   @brief Get available text tracks.
@@ -1222,7 +1242,7 @@ public:
          *   @param[in] preferredType -  preferred accessibility type
 	 *   @return void
 	 */
-	 void SetPreferredLanguages(const char* languageList, const char *preferredRendition = NULL, const char *preferredType = NULL ); 
+	 void SetPreferredLanguages(const char* languageList, const char *preferredRendition = NULL, const char *preferredType = NULL, const char* codecList = NULL ); 
 
 	/**
 	 *   @brief Set audio track by audio parameters like language , rendition, codec etc..
@@ -1230,8 +1250,7 @@ public:
 	 *
 	 *   @return void
 	 */
-	void SetAudioTrack(std::string language="", std::string rendition="", std::string codec="", unsigned int channel=0);
-
+	void SetAudioTrack(std::string language="", std::string rendition="", std::string type="", std::string codec="", unsigned int channel=0);
 	/**
 	 *   @brief Set optional preferred codec list
 	 *   @param[in] codecList[] - string with array with codec list
@@ -1335,6 +1354,20 @@ public:
 	 *   @return int - index of current audio track in available track list
 	 */
 	int GetAudioTrack();
+
+	/**
+	 *   @brief Get current audio track index
+	 *
+	 *   @return int - index of current audio track in available track list
+	 */
+	std::string GetAudioTrackInfo();
+
+	/**
+	 *   @brief Get preferred audio properties
+	 *
+	 *   @return json string
+	 */
+	std::string GetPreferredAudioProperties();
 
 	/**
 	 *   @brief Set text track

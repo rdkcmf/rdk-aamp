@@ -1684,6 +1684,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(AampLogManager *logObj, PrivateInst
 		mBitrateReason(eAAMP_BITRATE_CHANGE_BY_TUNE),
 		mAudioTrackIndex(), mTextTrackIndex(),
 		mAuxCond(), mFwdAudioToAux(false), mLogObj(logObj)
+		, mAudioTracksAll()
 {
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
 	traceprintf("StreamAbstractionAAMP::%s", __FUNCTION__);
@@ -3053,6 +3054,30 @@ double StreamAbstractionAAMP::GetBufferedVideoDurationSec()
 
 	return GetBufferedDuration();
 }
+
+/**
+ *   @brief Get current audio track
+ *
+ *   @return int - index of current audio track
+ */
+bool StreamAbstractionAAMP::GetCurrentAudioTrack(AudioTrackInfo &audioTrack)
+{
+	int index = -1;
+	bool bFound = false;
+	if (!mAudioTrackIndex.empty())
+	{
+		for (auto it = mAudioTracks.begin(); it != mAudioTracks.end(); it++)
+		{
+			if (it->index == mAudioTrackIndex)
+			{
+				audioTrack = *it;
+				bFound = true;
+			}
+		}
+	}
+	return bFound;
+}
+
 
 /**
  *   @brief Get current audio track

@@ -1513,6 +1513,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	int maxDrmSession;
 	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxDASHDRMSessions,maxDrmSession);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioLanguage,preferredLanguagesString);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioRendition,preferredRenditionString);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioCodec,preferredCodecString);
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	mDRMSessionManager = new AampDRMSessionManager(mLogObj, maxDrmSession);
 #endif
@@ -6090,7 +6092,7 @@ void PrivateInstanceAAMP::UpdatePreferredAudioList()
         	std::string codec;
         	while(std::getline(ss, codec, ','))
         	{
-                	preferredLanguagesList.push_back(codec);
+                	preferredCodecList.push_back(codec);
                 	AAMPLOG_INFO("Parsed preferred codec: %s",codec.c_str());
         	}
 		AAMPLOG_INFO("Number of preferred codec: %d",
@@ -8747,18 +8749,55 @@ void PrivateInstanceAAMP::SetPreCacheDownloadList(PreCacheUrlList &dnldListInput
 }
 
 /**
+ *   @brief get the current audio preference set by user
+ *
+ *   @return json string with preference data
+ */
+std::string PrivateInstanceAAMP::GetPreferredAudioProperties()
+{
+	//Convert to JSON format
+	std::string preferrence;
+	cJSON *item;
+	item = cJSON_CreateObject();
+	if(!preferredLanguagesString.empty())
+	{
+		cJSON_AddStringToObject(item, "preferred-languages", preferredLanguagesString.c_str());
+	}
+	if(!preferredCodecString.empty())
+	{
+		cJSON_AddStringToObject(item, "preferred-codecs", preferredCodecString.c_str());
+	}
+	if(!preferredRenditionString.empty())
+	{
+		cJSON_AddStringToObject(item, "preferred-rendition", preferredRenditionString.c_str());
+	}
+	if(!preferredTypeString.empty())
+	{
+		cJSON_AddStringToObject(item, "preferred-type", preferredTypeString.c_str());
+	}
+	char *jsonStr = cJSON_Print(item);
+	if (jsonStr)
+	{
+		preferrence.assign(jsonStr);
+		free(jsonStr);
+	}
+	cJSON_Delete(item);
+	return preferrence;
+}
+
+/**
  *   @brief Get available audio tracks.
  *
  *   @return std::string JSON formatted string of available audio tracks
  */
-std::string PrivateInstanceAAMP::GetAvailableAudioTracks()
+std::string PrivateInstanceAAMP::GetAvailableAudioTracks(bool allTrack)
 {
 	std::string tracks;
 
 	pthread_mutex_lock(&mStreamLock);
 	if (mpStreamAbstractionAAMP)
 	{
-		std::vector<AudioTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableAudioTracks();
+		std::vector<AudioTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableAudioTracks(allTrack);
 		if (!trackInfo.empty())
 		{
 			//Convert to JSON format
@@ -9150,6 +9189,91 @@ int PrivateInstanceAAMP::GetAudioTrack()
 	}
 	ReleaseStreamLock();
 	return idx;
+}
+
+/**
+ *   @brief Get available audio tracks.
+ *
+ *   @return std::string JSON formatted string of available audio tracks
+ */
+std::string PrivateInstanceAAMP::GetAudioTrackInfo()
+{
+	std::string track;
+	
+
+	pthread_mutex_lock(&mStreamLock);
+	if (mpStreamAbstractionAAMP)
+	{
+		AudioTrackInfo trackInfo;
+		if (mpStreamAbstractionAAMP->GetCurrentAudioTrack(trackInfo))
+		{
+			//Convert to JSON format
+			cJSON *root;
+			cJSON *item;
+			root = cJSON_CreateArray();
+			if(root)
+			{
+				cJSON_AddItemToArray(root, item = cJSON_CreateObject());
+				if (!trackInfo.name.empty())
+				{
+					cJSON_AddStringToObject(item, "name", trackInfo.name.c_str());
+				}
+				if (!trackInfo.language.empty())
+				{
+					cJSON_AddStringToObject(item, "language", trackInfo.language.c_str());
+				}
+				if (!trackInfo.codec.empty())
+				{
+					cJSON_AddStringToObject(item, "codec", trackInfo.codec.c_str());
+				}
+				if (!trackInfo.rendition.empty())
+				{
+					cJSON_AddStringToObject(item, "rendition", trackInfo.rendition.c_str());
+				}
+				if (!trackInfo.accessibilityType.empty())
+				{
+					cJSON_AddStringToObject(item, "accessibilityType", trackInfo.accessibilityType.c_str());
+				}
+				if (!trackInfo.characteristics.empty())
+				{
+					cJSON_AddStringToObject(item, "characteristics", trackInfo.characteristics.c_str());
+				}
+				if (trackInfo.channels != 0)
+				{
+					cJSON_AddNumberToObject(item, "channels", trackInfo.channels);
+				}
+				if (trackInfo.bandwidth != -1)
+				{
+					cJSON_AddNumberToObject(item, "bandwidth", trackInfo.bandwidth);
+				}
+				if (!trackInfo.contentType.empty())
+				{
+					cJSON_AddStringToObject(item, "contentType", trackInfo.contentType.c_str());
+				}
+				if (!trackInfo.mixType.empty())
+				{
+					cJSON_AddStringToObject(item, "mixType", trackInfo.mixType.c_str());
+				}
+				char *jsonStr = cJSON_Print(root);
+				if (jsonStr)
+				{
+					track.assign(jsonStr);
+					free(jsonStr);
+				}
+				cJSON_Delete(root);
+			}
+		}
+		else
+		{
+			AAMPLOG_ERR("PrivateInstanceAAMP: No available audio track information!");
+		}
+	}
+	else
+	{
+		AAMPLOG_ERR("PrivateInstanceAAMP: Not in playing state!");
+	}
+	pthread_mutex_unlock(&mStreamLock);
+	return track;
 }
 
 #define MUTE_SUBTITLES_TRACKID (-1)
@@ -9617,36 +9741,44 @@ void PrivateInstanceAAMP::ResetDiscontinuityInTracks()
 	mProcessingDiscontinuity[eMEDIATYPE_AUX_AUDIO] = false;
 }
 
-void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition, const char *preferredType )
+/**
+ *   @brief set preferred Audio Language properties like language, rendition, type and codec
+ *   @param - languageList
+ *   @param - preferredRendition
+ *   @param - preferredType
+ *   @param - codecList
+ *   @return void
+ */
+void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition, const char *preferredType, const char *codecList )
 {
 	if((languageList && preferredLanguagesString != languageList) ||
 	(preferredRendition && preferredRenditionString != preferredRendition) ||
-	(preferredType && preferredTypeString != preferredType))
+	(preferredType && preferredTypeString != preferredType) ||
+	(codecList && preferredCodecString != codecList))
 	{
-		preferredLanguagesString.clear();
-		preferredLanguagesList.clear();
 		if(languageList != NULL)
 		{
+			preferredLanguagesString.clear();
+			preferredLanguagesList.clear();
 			preferredLanguagesString = std::string(languageList);
 			std::istringstream ss(preferredLanguagesString);
 			std::string lng;
 			while(std::getline(ss, lng, ','))
 			{
 				preferredLanguagesList.push_back(lng);
-				AAMPLOG_INFO("Parsed preferred lang: %s",
-						lng.c_str());
+				AAMPLOG_INFO("Parsed preferred lang: %s", lng.c_str());
 			}
 
 			preferredLanguagesString = std::string(languageList);
 			SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioLanguage,preferredLanguagesString);
 		}
 
-		AAMPLOG_INFO("Number of preferred languages: %d",
-			preferredLanguagesList.size());
+		AAMPLOG_INFO("Number of preferred languages: %d", preferredLanguagesList.size());
 		if( preferredRendition )
 		{
 			AAMPLOG_INFO("Setting rendition %s", preferredRendition);
 			preferredRenditionString = std::string(preferredRendition);
+			SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioRendition,preferredRenditionString);
 		}
 		else
 		{
@@ -9663,6 +9795,24 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			preferredTypeString.clear();
 		}
 
+		if(codecList != NULL)
+		{
+			preferredCodecString.clear();
+			preferredCodecList.clear();
+			preferredCodecString = std::string(codecList);
+			std::istringstream ss(preferredCodecString);
+			std::string codec;
+			while(std::getline(ss, codec, ','))
+			{
+				preferredCodecList.push_back(codec);
+				AAMPLOG_INFO("Parsed preferred codec: %s", codec.c_str());
+			}
+
+			preferredCodecString = std::string(codecList);
+			SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioCodec,preferredCodecString);
+		}
+
+		AAMPLOG_INFO("Number of preferred codecs: %d", preferredCodecList.size());
 		PrivAAMPState state;
 		GetState(state);
 		if (state != eSTATE_IDLE && state != eSTATE_RELEASED && state != eSTATE_ERROR )
@@ -9672,15 +9822,16 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				bool languagePresent = false;
 				bool renditionPresent = false;
 				bool accessibilityPresent = false;
-
+				bool codecPresent = false;
 				int trackIndex = GetAudioTrack();
 
 				if (trackIndex >= 0)
-                                {
+                {
 					std::vector<AudioTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableAudioTracks();
 					char *currentPrefLanguage = const_cast<char*>(trackInfo[trackIndex].language.c_str());
 					char *currentPrefRendition = const_cast<char*>(trackInfo[trackIndex].rendition.c_str());
 					char *currentPrefAccessibility = const_cast<char*>(trackInfo[trackIndex].accessibilityType.c_str());
+					char *currentPrefCodec = const_cast<char*>(trackInfo[trackIndex].codec.c_str());
 
 					// Logic to check whether the given language is present in the available tracks,
 					// if available, it should not match with current preferredLanguagesString, then call tune to reflect the language change.
@@ -9690,7 +9841,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 						auto language = std::find_if(trackInfo.begin(), trackInfo.end(),
 									[languageList, currentPrefLanguage](AudioTrackInfo& temp)
 									{ return ((temp.language == languageList) && (temp.language != currentPrefLanguage)); });
-						languagePresent = (language != end(trackInfo));
+						languagePresent = (language != end(trackInfo) || (preferredLanguagesList.size() > 1)); /* If multiple value of language is present then retune */
 					}
 
 					// Logic to check whether the given rendition is present in the available tracks,
@@ -9714,7 +9865,18 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 									{ return ((temp.accessibilityType == preferredType) && (temp.accessibilityType != currentPrefAccessibility)); });
 						accessibilityPresent = (accessType != end(trackInfo));
 					}
-                                }
+
+					// Logic to check whether the given codec is present in the available tracks,
+					// if available, it should not match with current preferred codec, then call tune to reflect the codec change.
+					// if not available, then avoid calling tune.
+					if(codecList)
+					{
+						auto codec = std::find_if(trackInfo.begin(), trackInfo.end(),
+									[codecList, currentPrefCodec](AudioTrackInfo& temp)
+									{ return ((temp.codec == codecList) && (temp.codec != currentPrefCodec)); });
+						codecPresent = (codec != end(trackInfo) || (preferredCodecList.size() > 1) ); /* If multiple value of codec is present then retune */
+					}
+                }
 
 				if(mMediaFormat == eMEDIAFORMAT_OTA)
 				{
@@ -9724,7 +9886,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				{
 					/*Avoid retuning in case of HEMIIN and COMPOSITE IN*/
 				}
-				else if (languagePresent || renditionPresent || accessibilityPresent) // call the tune only if there is a change in the language, rendition or accessibility.
+				else if (languagePresent || renditionPresent || accessibilityPresent || codecPresent) // call the tune only if there is a change in the language, rendition or accessibility.
 				{
 					discardEnteringLiveEvt = true;
 
