@@ -41,6 +41,7 @@
 #include <algorithm>
 #include <ctype.h>
 #include <sstream>
+#include <curl/curl.h>
 #include "AampDefine.h"
 #include "AampLogManager.h"
 #include <cjson/cJSON.h>
@@ -244,6 +245,7 @@ typedef enum
 	eAAMPConfig_DiscontinuityTimeout,							/**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
 	eAAMPConfig_MinBitrate, 									/**<minimum bitrate filter for playback profiles */
 	eAAMPConfig_MaxBitrate, 									/**<maximum bitrate filter for playback profiles*/
+	eAAMPConfig_TLSVersion,									/**Default TLS version is TLSv1_2 */
 
 	eAAMPConfig_LongMaxValue,
 	////////////////////////////////////

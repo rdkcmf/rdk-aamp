@@ -247,7 +247,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}},
 	{"useSecManager",eAAMPConfig_UseSecManager, -1,-1,},
 	{"xreSupportedTune",eAAMPConfig_XRESupportedTune,-1,-1},
-	{"enablePTO", eAAMPConfig_EnablePTO, -1, -1}
+	{"enablePTO", eAAMPConfig_EnablePTO, -1, -1},
+	{"supportTLS",eAAMPConfig_TLSVersion,{.lMinValue=CURL_SSLVERSION_DEFAULT},{.lMaxValue=CURL_SSLVERSION_TLSv1_3}}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -330,7 +331,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableMicroEvents].value			=	false;
 	bAampCfgValue[eAAMPConfig_EnablePROutputProtection].value		=	false;
 	bAampCfgValue[eAAMPConfig_ReTuneOnBufferingTimeout].value		=	true;
-	bAampCfgValue[eAAMPConfig_SslVerifyPeer].value				=	false;
+	bAampCfgValue[eAAMPConfig_SslVerifyPeer].value				=	true;
 	bAampCfgValue[eAAMPConfig_EnableClientDai].value			=	false;
 	bAampCfgValue[eAAMPConfig_PlayAdFromCDN].value				=	false;
 	bAampCfgValue[eAAMPConfig_EnableVideoEndEvent].value			=	true;
@@ -476,6 +477,7 @@ void AampConfig::Initialize()
 	lAampCfgValue[eAAMPConfig_DefaultBitrate4K-eAAMPConfig_LongStartValue].value		=       DEFAULT_INIT_BITRATE_4K;
 	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate-eAAMPConfig_LongStartValue].value	=       0;
 	lAampCfgValue[eAAMPConfig_IFrameDefaultBitrate4K-eAAMPConfig_LongStartValue].value	=       0;
+	 lAampCfgValue[eAAMPConfig_TLSVersion-eAAMPConfig_LongStartValue].value                 =       CURL_SSLVERSION_TLSv1_2;
 
 	///////////////// Following for double data types /////////////////////////////
 	dAampCfgValue[eAAMPConfig_NetworkTimeout-eAAMPConfig_DoubleStartValue].value      	=       CURL_FRAGMENT_DL_TIMEOUT;
