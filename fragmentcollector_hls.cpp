@@ -3270,16 +3270,27 @@ int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 					if(iter != aamp->preferredLanguagesList.end())
 					{ // track is in preferred language list
 						int distance = std::distance(aamp->preferredLanguagesList.begin(),iter);
-						score += (aamp->preferredLanguagesList.size()-distance)*10000; // big bonus for language match
+						score += (aamp->preferredLanguagesList.size()-distance)*100000; // big bonus for language match
 					}
 				}
 				if( !aamp->preferredRenditionString.empty() &&
 				   aamp->preferredRenditionString.compare(this->mediaInfo[i].group_id)==0 )
 				{
-					score += 100; // medium bonus for rendition match
+					score += 1000; // medium bonus for rendition match
 				}
-				score += this->mediaInfo[i].audioFormat; // small bonus for better codecs like ATMOS
-				
+				if( aamp->preferredCodecList.size() > 0 )
+				{
+					auto iter = std::find(aamp->preferredCodecList.begin(), aamp->preferredCodecList.end(), GetAudioFormatStringForCodec(this->mediaInfo[i].audioFormat) );
+					if(iter != aamp->preferredCodecList.end())
+					{ // track is in preferred codec list
+						int distance = std::distance(aamp->preferredCodecList.begin(),iter);
+						score += (aamp->preferredCodecList.size()-distance)*100; //  bonus for codec match
+					}
+				}
+				else
+				{
+					score += this->mediaInfo[i].audioFormat; // small bonus for better codecs like ATMOS
+				}
 				if( this->mediaInfo[i].isDefault || this->mediaInfo[i].autoselect )
 				{ // bonus for designated "default"
 					score += 10;

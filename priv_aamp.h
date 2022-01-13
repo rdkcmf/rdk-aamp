@@ -2167,6 +2167,13 @@ public:
 	std::shared_ptr<AampDrmHelper>  GetCurrentDRM();
 
 	/**
+	 *   @brief Get preferred audio properties
+	 *
+	 *   @return json string
+	 */
+	std::string GetPreferredAudioProperties();
+
+	/**
 	 *   @brief Set DRM type
 	 *
 	 *   @param[in] drm - New DRM type
@@ -2756,7 +2763,7 @@ public:
 	 *
 	 *   @return std::string JSON formatted list of audio tracks
 	 */
-	std::string GetAvailableAudioTracks();
+	std::string GetAvailableAudioTracks(bool allTrack=false);
 
 	/**
 	 *   @brief Get available text tracks.
@@ -3000,6 +3007,13 @@ public:
 	int GetAudioTrack();
 
 	/**
+	 *   @brief Get current audio track index
+	 *
+	 *   @return int - index of current audio track in available track list
+	 */
+	std::string GetAudioTrackInfo();
+
+	/**
 	 *   @brief Set text track
 	 *
 	 *   @param[in] trackId - index of text track in available track list
@@ -3189,7 +3203,7 @@ public:
          *   @param[in] preferredType -  preferred accessibility type
 	 *   @return void
 	 */
-	void SetPreferredLanguages(const char *languageList, const char *preferredRendition = NULL, const char *preferredType = NULL );
+	void SetPreferredLanguages(const char *languageList, const char *preferredRendition, const char *preferredType, const char *codecList );
 
 	/**
 	 *   @brief Set the scheduler instance to schedule tasks
