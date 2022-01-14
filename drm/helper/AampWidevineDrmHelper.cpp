@@ -85,13 +85,13 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 		i = header;
 		while (i < initDataLen)
 		{
-			if (0x12 == psshData[i])
+			if (KEYID_MARKER == psshData[i])
 			{
 				keyIdSize = psshData[i +1];
-				i +=2; // Skip key Id size indicator (1byte) + key Id size (1byte)
+				i += DATA_LENGTH_FIELD_SIZE; // Skip key Id size indicator (1byte) + key Id size (1byte)
 
 				keyIdBegin = reinterpret_cast<const char*>(psshData + i);
-				if (keyIdSize != 0u)
+				if (keyIdSize >0)
 				{
 					std::vector<uint8_t> keyId;
 					keyId.assign(keyIdBegin, keyIdBegin + keyIdSize);
@@ -106,19 +106,31 @@ bool AampWidevineDrmHelper::parsePssh(const uint8_t* initData, uint32_t initData
 
 				i += keyIdSize;
 			}
-			else if (0x22 == psshData[i])
+			else if (CONTENTID_MARKER == psshData[i])
 			{
-				contentIdSize = psshData[i +1];
-				i += 2; //Content key Id size indicator (1byte) + Content Id size (1byte)
-				i += contentIdSize; // move forward to next id tag
-				AAMPLOG_INFO("WV Skipping content-id size : %d", contentIdSize);
+                          	/*Some streams might don't have Keyid but they may have content id.
+				So parsing the content id from the pssh and assigning it into keyid.*/
 
+				const char* ContentIdBegin;
+				uint8_t ContentIDSize = psshData[i +1];
+				i += DATA_LENGTH_FIELD_SIZE; // Skip Content Id size indicator (1byte) + content Id size (1byte)
+				ContentIdBegin = reinterpret_cast<const char*>(psshData + i);
+				if (ContentIDSize > 0)
+				{
+					std::vector<uint8_t> ContentId;
+					ContentId.assign(ContentIdBegin, ContentIdBegin + ContentIDSize);
+					mKeyIDs[keyIdCount]=ContentId;
+					keyIdCount++;
+					ret = true;
+				}
+
+				i += ContentIDSize;
 			}
 			else
 			{
 				keyIdSize = psshData[i +1];
 				AAMPLOG_INFO("WV Invalid type : %d size:%d", psshData[i], keyIdSize);
-                                i +=2; // Skip key Id size indicator (1byte) + key Id size (1byte)
+				i += DATA_LENGTH_FIELD_SIZE; // Skip key Id size indicator (1byte) + key Id size (1byte)
                                 i += keyIdSize;
 			}
 		}
