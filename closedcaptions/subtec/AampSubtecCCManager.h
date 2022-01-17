@@ -54,7 +54,7 @@ public:
 	/**
 	 * @brief Constructor
 	 */
-	AampSubtecCCManager() = default;
+	AampSubtecCCManager();
 
 	/**
 	 * @brief Destructor
