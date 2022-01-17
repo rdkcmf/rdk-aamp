@@ -185,3 +185,15 @@ void AampSubtecCCManager::EnsureRendererStateConsistency()
 	}
 	SetStyle(mOptions);
 }
+
+/**
+ * @brief Constructor
+*/
+AampSubtecCCManager::AampSubtecCCManager()
+{
+ 	// Some of the apps don’t call set track  and as default CC is not set, CC doesn’t work. 
+	// In this case app expect to render default cc as CC1.
+	// Hence Set default CC track to CC1
+	AAMPLOG_WARN("AampSubtecCCManager::AampSubtecCCManager setting default to cc1");
+	SetTrack("CC1");
+}
