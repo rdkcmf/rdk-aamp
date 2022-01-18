@@ -49,7 +49,6 @@
 #include "aampoutputprotection.h"
 #endif
 
-
 /**
  * @enum GstPlayFlags 
  * @brief Enum of configuration flags used by playbin
@@ -116,10 +115,12 @@ struct media_stream
 	bool eosReached;
 	bool sourceConfigured;
 	pthread_mutex_t sourceLock;
+	uint32_t timeScale;
 
 	media_stream() : sinkbin(NULL), source(NULL), format(FORMAT_INVALID),
 			 using_playersinkbin(FALSE), flush(false), resetPosition(false),
 			 bufferUnderrun(false), eosReached(false), sourceConfigured(false), sourceLock(PTHREAD_MUTEX_INITIALIZER)
+			, timeScale(1)
 	{
 
 	}
@@ -1040,6 +1041,7 @@ static gboolean buffering_timeout (gpointer data)
 			if (_this->privateContext->video_dec)
 			{
 				g_object_get(_this->privateContext->video_dec,"queued_frames",(uint*)&frames,NULL);				
+				AAMPLOG_TRACE("queued_frames: %i", frames);
 			}
 			MediaFormat mediaFormatRet;
 			mediaFormatRet = _this->aamp->GetMediaFormatTypeEnum();
@@ -2085,14 +2087,12 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 	return 0;
 }
 
-
 /**
  * @brief Send any pending/cached events to pipeline
- * @param[in] privateContext pointer to AAMPGstPlayerPriv instance
  * @param[in] mediaType stream type
  * @param[in] pts PTS of next buffer
  */
-static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPlayerPriv *privateContext, MediaType mediaType, GstClockTime pts)
+void AAMPGstPlayer::SendGstEvents(MediaType mediaType, GstClockTime pts)
 {
 	media_stream* stream = &privateContext->stream[mediaType];
 	gboolean enableOverride = FALSE;
@@ -2152,33 +2152,7 @@ static void AAMPGstPlayer_SendPendingEvents(PrivateInstanceAAMP *aamp, AAMPGstPl
 			privateContext->segmentStart = 0;
 		}
 	}
-#if 0
-// Sending segment event is handled by app source in brcm, so avoiding it.
-// This can be emited to limit the playback at a particular start and/or stop position.
-#ifdef USE_GST1
-	GstSegment segment;
-	gst_segment_init(&segment, GST_FORMAT_TIME);
-	segment.start = pts;
-	segment.position = 0;
-	segment.rate = AAMP_NORMAL_PLAY_RATE;
-	segment.applied_rate = AAMP_NORMAL_PLAY_RATE;
 
-#if defined(AMLOGIC)
-	//AMLOGIC-2143 notify westerossink of rate to run in Vmaster mode
-	if (mediaType == eMEDIATYPE_VIDEO)
-		segment.applied_rate = privateContext->rate;
-#endif
-
-	AAMPLOG_WARN("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
-	GstEvent* event = gst_event_new_segment (&segment);
-#else
-	GstEvent* event = gst_event_new_new_segment (FALSE, 1.0, GST_FORMAT_TIME, pts, GST_CLOCK_TIME_NONE, 0);
-#endif
-	if (!gst_pad_push_event(sourceEleSrcPad, event))
-	{
-		AAMPLOG_WARN("gst_pad_push_event segment error");
-	}
-#endif
 	if (stream->format == FORMAT_ISO_BMFF)
 	{
 		// There is a possibility that only single protection event is queued for multiple type
@@ -2271,6 +2245,47 @@ uint32_t getId3TagSize(const uint8_t *data)
 }
 
 /**
+ * @brief Send new segment event to pipeline
+ * @param[in] mediaType stream type
+ * @param[in] startPos Start Position of first buffer
+ * @param[in] stopPos Stop position of last buffer
+ */
+void AAMPGstPlayer::SendNewSegmentEvent(MediaType mediaType, GstClockTime startPts ,GstClockTime stopPts)
+{
+        FN_TRACE( __FUNCTION__ );
+        media_stream* stream = &privateContext->stream[mediaType];
+        GstPad* sourceEleSrcPad = gst_element_get_static_pad(GST_ELEMENT(stream->source), "src");
+        if (stream->format == FORMAT_ISO_BMFF)
+        {
+#ifdef USE_GST1
+                GstSegment segment;
+                gst_segment_init(&segment, GST_FORMAT_TIME);
+
+                segment.start = startPts;
+                segment.position = 0;
+                segment.rate = AAMP_NORMAL_PLAY_RATE;
+                segment.applied_rate = AAMP_NORMAL_PLAY_RATE;
+                if(stopPts) segment.stop = stopPts;
+
+#if defined(AMLOGIC)
+                //AMLOGIC-2143 notify westerossink of rate to run in Vmaster mode
+                if (mediaType == eMEDIATYPE_VIDEO)
+                        segment.applied_rate = privateContext->rate;
+#endif
+
+                AAMPLOG_TRACE("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
+                GstEvent* event = gst_event_new_segment (&segment);
+#else
+                GstEvent* event = gst_event_new_new_segment (FALSE, 1.0, GST_FORMAT_TIME, pts, GST_CLOCK_TIME_NONE, 0);
+#endif
+                if (!gst_pad_push_event(sourceEleSrcPad, event))
+                {
+                        AAMPLOG_ERR("gst_pad_push_event segment error");
+                }
+        }
+}
+
+/**
  * @brief Inject stream buffer to gstreamer pipeline
  * @param[in] mediaType stream type
  * @param[in] ptr buffer pointer
@@ -2279,16 +2294,46 @@ uint32_t getId3TagSize(const uint8_t *data)
  * @param[in] fdts DTS of buffer (in sec)
  * @param[in] fDuration duration of buffer (in sec)
  * @param[in] copy to map or transfer the buffer
+ * @param[in] initFragment flag for buffer type (init, data)
  */
-bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration, bool copy)
+bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration, bool copy, bool initFragment)
 {
 	FN_TRACE( __FUNCTION__ );
 	GstClockTime pts = (GstClockTime)(fpts * GST_SECOND);
 	GstClockTime dts = (GstClockTime)(fdts * GST_SECOND);
 	GstClockTime duration = (GstClockTime)(fDuration * 1000000000LL);
-	gboolean discontinuity = FALSE;
+
 	media_stream *stream = &privateContext->stream[mediaType];
 	bool isFirstBuffer = stream->resetPosition;
+
+	// When PTO handling is enabled, Override pts with actual buffer PTS
+	// Allows decoder to be in sync and play buffer as sent
+	if(ptr && stream->format == FORMAT_ISO_BMFF && !aamp->IsLive() && ISCONFIGSET(eAAMPConfig_EnablePTO) && aamp->mbEnableSegmentTemplateHandling)
+	{
+		IsoBmffBuffer buffer;
+		buffer.setBuffer((uint8_t *)ptr ,len);
+		buffer.parseBuffer();
+		uint64_t first_pts = 0;
+		buffer.getFirstPTS(first_pts);
+		if(initFragment)
+		{
+			buffer.getTimeScale(stream->timeScale);
+		}
+
+		AAMPLOG_TRACE("Type[%d] initFragment[%d] first_pts: %" PRIu64 " timeScale: %" PRIu32, (int)mediaType, initFragment, (uint64_t)pts, stream->timeScale);
+		if(stream->timeScale)
+		{
+			double scaled_pts = (double) first_pts/stream->timeScale;
+			pts =  (GstClockTime)(scaled_pts* GST_SECOND);
+			dts =  (GstClockTime)(scaled_pts* GST_SECOND);
+		}
+		else
+		{
+			pts =  first_pts;
+			dts = first_pts;
+		}
+		buffer.destroyBoxes();
+	}
 
 	if (aamp->IsEventListenerAvailable(AAMP_EVENT_ID3_METADATA) &&
 		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
@@ -2323,18 +2368,43 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 			return false;
 		}
 	}
-
 	if (isFirstBuffer)
 	{
-		AAMPGstPlayer_SendPendingEvents(aamp, privateContext, mediaType, pts);
+		//Send Gst Event when first buffer received after new tune, seek or period change
+		SendGstEvents(mediaType, pts);
 
 		if (mediaType == eMEDIATYPE_AUDIO && ForwardAudioBuffersToAux())
 		{
-			AAMPGstPlayer_SendPendingEvents(aamp, privateContext, eMEDIATYPE_AUX_AUDIO, pts);
+			SendGstEvents(eMEDIATYPE_AUX_AUDIO, pts);
 		}
 
-		discontinuity = TRUE;
+		AAMPLOG_TRACE("mediaType[%d] SendGstEvents - first buffer received !!! initFragment: %d", mediaType, initFragment);
 	}
+
+//FIX-ME: Stop Position processing isnt triggering EOS properly in Video Sink
+//Avoid Sling playback failure at the tune time itself - DELIA-53912
+#if 0
+	// Send New Segment Event when first Data segment encountered after new tune
+	if(!aamp->IsLive() &&
+		ISCONFIGSET(eAAMPConfig_EnablePTO) &&
+		aamp->mbEnableSegmentTemplateHandling &&
+		!aamp->mbNewSegmentEvtSent[mediaType] &&
+		!initFragment)
+	{
+		double durtion = aamp->GetPeriodDurationTimeValue()/1000.0;
+		double startPos = aamp->GetFirstPTS();
+		double stopPos = aamp->GetFirstPTS() + duration;
+		AAMPLOG_INFO("START: %f END: %f duration: %f", startPos, stopPos, duration);
+		GstClockTime startPts = (GstClockTime)(startPos * GST_SECOND);
+		GstClockTime stopPts = (GstClockTime)(stopPos * GST_SECOND);
+
+		SendNewSegmentEvent(mediaType, eTUNETYPE_NEW_NORMAL == aamp->GetTuneType() ? startPts : 0.0, stopPts);
+		aamp->mbNewSegmentEvtSent[mediaType] = true;
+
+		AAMPLOG_TRACE("mediaType[%d] SendNewSegmentEvent - first data buffer received !!!", mediaType);
+	}
+#endif
+
 	if( aamp->DownloadsAreEnabled())
 	{
 		GstBuffer *buffer;
@@ -2353,6 +2423,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 				GST_BUFFER_PTS(buffer) = pts;
 				GST_BUFFER_DTS(buffer) = dts;
 				GST_BUFFER_DURATION(buffer) = duration;
+				AAMPLOG_TRACE("Sending segment for mediaType[%d]. pts %" G_GUINT64_FORMAT " dts %" G_GUINT64_FORMAT" ", mediaType, pts, dts);
 			}
 			else
 			{
@@ -2368,6 +2439,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 				GST_BUFFER_PTS(buffer) = pts;
 				GST_BUFFER_DTS(buffer) = dts;
 				GST_BUFFER_DURATION(buffer) = duration;
+				AAMPLOG_TRACE("Sending segment for mediaType[%d]. pts %" G_GUINT64_FORMAT " dts %" G_GUINT64_FORMAT" ", mediaType, pts, dts);
 			}
 			else
 			{
@@ -2445,11 +2517,12 @@ void AAMPGstPlayer::SendCopy(MediaType mediaType, const void *ptr, size_t len0, 
  * @param[in] fpts PTS of buffer (in sec)
  * @param[in] fdts DTS of buffer (in sec)
  * @param[in] fDuration duration of buffer (in sec)
+ * @param[in] initFragment flag for buffer type (init, data)
  */
-void AAMPGstPlayer::SendTransfer(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration)
+void AAMPGstPlayer::SendTransfer(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration, bool initFragment)
 {
 	FN_TRACE( __FUNCTION__ );
-	if( !SendHelper( mediaType, pBuffer->ptr, pBuffer->len, fpts, fdts, fDuration, false /*transfer*/ ) )
+	if( !SendHelper( mediaType, pBuffer->ptr, pBuffer->len, fpts, fdts, fDuration, false /*transfer*/, initFragment) )
 	{ // unable to transfer - free up the buffer we were passed.
 		aamp_Free(pBuffer);
 	}
@@ -3512,7 +3585,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		}
 		/* Disabling the flush flag as part of DELIA-42607 to avoid */
 		/* flush call again (which may cause freeze sometimes)      */
-		/* from AAMPGstPlayer_SendPendingEvents() API.              */
+		/* from SendGstEvents() API.              */
 		for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 		{
 			privateContext->stream[i].resetPosition = true;
@@ -3526,10 +3599,46 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		{
 			playRate = rate;
 		}
-		if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
-				position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
+
+		if(aamp->IsLive() || !ISCONFIGSET(eAAMPConfig_EnablePTO))
 		{
-			AAMPLOG_WARN("Seek failed");
+			if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
+			position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
+			{
+				AAMPLOG_WARN("Seek failed");
+			}
+		}
+		else
+		{
+			// In Non Live case, When PTO handling is enabled, Send GST seek request with START and STOP
+			if(ISCONFIGSET(eAAMPConfig_EnablePTO) && aamp->mbEnableSegmentTemplateHandling && !aamp->mbIgnoreStopPosProcessing)
+			{
+				double duration = aamp->GetPeriodDurationTimeValue()/1000.0;
+				double seekEnd = (position - aamp->mSkipTime) + duration;
+
+				AAMPLOG_INFO("FLUSH START: %f END: %f duration: %f aamp->mSkipTime: %f", position, seekEnd, duration, aamp->mSkipTime);
+
+				//Reset Skip Time
+				aamp->mSkipTime = 0;
+
+				if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
+				position * GST_SECOND,
+				GST_SEEK_TYPE_SET,
+				seekEnd * GST_SECOND))
+				{
+					AAMPLOG_WARN("Seek failed");
+				}
+			}
+			else
+			{
+				if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
+				position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
+				{
+					AAMPLOG_WARN("Seek failed");
+				}
+				//Cleanup
+				if(aamp->mbIgnoreStopPosProcessing) aamp->mbIgnoreStopPosProcessing = false;
+			}
 		}
 
 		if (bPauseNeeded)

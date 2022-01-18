@@ -244,7 +244,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"abrChunkThresholdSize",eAAMPConfig_ABRChunkThresholdSize,-1,-1},
 	{"enableLowLatencyOffsetMin",eAAMPConfig_EnableLowLatencyOffsetMin,-1,-1},
 	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}},
-	{"syncAudioFragments",eAAMPConfig_SyncAudioFragments,-1,-1}
+	{"syncAudioFragments",eAAMPConfig_SyncAudioFragments,-1,-1},
+	{"enablePTO", eAAMPConfig_EnablePTO, -1, -1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -412,6 +413,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyMonitor].value		=	false;
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyCorrection].value		=	true;
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyOffsetMin].value      	=	true;
+	bAampCfgValue[eAAMPConfig_EnablePTO].value				=       false;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;

@@ -765,6 +765,7 @@ public:
 	double seek_pos_seconds; // indicates the playback position at which most recent playback activity began
 	int rate; // most recent (non-zero) play rate for non-paused content
 	bool pipeline_paused; // true if pipeline is paused
+	bool mbNewSegmentEvtSent[AAMP_TRACK_COUNT];
 	
 	char mLanguageList[MAX_LANGUAGE_COUNT][MAX_LANGUAGE_TAG_LENGTH]; // list of languages in stream
 	int mCurrentLanguageIndex; // Index of current selected lang in mLanguageList, this is used for VideoStat event data collection
@@ -861,12 +862,22 @@ public:
 	int32_t lastId3DataLen[eMEDIATYPE_DEFAULT]; // last sent ID3 data length
 	uint8_t *lastId3Data[eMEDIATYPE_DEFAULT]; // ptr with last sent ID3 data
 
+	double mNextPeriodDuration; /**< Keep Next Period duration  */
+	double mNextPeriodStartTime; /**< Keep Next Period Start Time  */
+	double mNextPeriodScaledPtoStartTime; /**< Keep Next Period Start Time as per PTO  */
+
 	pthread_mutex_t  mDiscoCompleteLock; // Lock the period jump if discontinuity already in progress
 	pthread_cond_t mWaitForDiscoToComplete; // Conditional wait for period jump
 	bool mIsPeriodChangeMarked; // Mark if a period change occurred.
         
         bool mbDetached;
 	bool mIsFakeTune;
+
+	bool mbEnableFirstPtsSeekPosOverride; /**< Enable   FirstPtsSeekPosOverride */
+	bool mbEnableSegmentTemplateHandling;/**< Enable SegmentTemplate Handling  */
+	bool mbIgnoreStopPosProcessing; /**< Ignore Stop Position Processing in Segment Template handling case */
+	double mSkipTime;
+
 	/**
 	 * @brief Check if segment starts with an ID3 section
 	 *
@@ -1358,9 +1369,10 @@ public:
 	 *   @param[in]  fpts - Presentation Time Stamp.
 	 *   @param[in]  fdts - Decode Time Stamp
 	 *   @param[in]  fDuration - Buffer duration.
+         *   @param[in]  initFragment - flag for buffer type (init, data)
 	 *   @return void
 	 */
-	void SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration);
+	void SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration, bool initFragment = 0);
 
 	/**
 	 * @brief Setting the stream sink
@@ -3264,14 +3276,14 @@ public:
 	*   @param[in]  uint32_t - vidTimeScale
 	*   @return void
 	*/
-	void SetLLDashVidTimeScale(uint32_t vidTimeScale);
+	void SetVidTimeScale(uint32_t vidTimeScale);
 
 	/**
 	*   @brief Gets  Video TimeScale
 	*
 	*   @return uint32_t
 	*/
-	uint32_t  GetLLDashVidTimeScale(void);
+	uint32_t  GetVidTimeScale(void);
 
 	/**
 	*   @brief Sets  Low Audio TimeScale
@@ -3279,14 +3291,14 @@ public:
 	*   @param[in]  uint32_t - audTimeScale
 	*   @return void
 	*/
-	void SetLLDashAudTimeScale(uint32_t audTimeScale);
+	void SetAudTimeScale(uint32_t audTimeScale);
 
 	/**
 	*   @brief Gets  Audio TimeScale
 	*
 	*   @return uint32_t
 	*/
-	uint32_t  GetLLDashAudTimeScale(void);
+	uint32_t  GetAudTimeScale(void);
 
 	/**
 	*   @brief Sets  Speed Cache
@@ -3409,6 +3421,24 @@ public:
 	 * @brief unblock wait for Discontinuity handling complete
 	 */
 	void UnblockWaitForDiscontinuityProcessToComplete(void);
+
+	/**
+	*     @brief GetPeriodDurationTimeValue
+	*     @return double
+	*/
+	double GetPeriodDurationTimeValue(void);
+
+	/**
+	*     @brief GetPeriodStartTimeValue
+	*     @return double
+	*/
+	double GetPeriodStartTimeValue(void);
+
+	/**
+	*     @brief GetPeriodScaledPtoStartTime
+	*     @return double
+	*/
+	double GetPeriodScaledPtoStartTime(void);
 
 private:
 

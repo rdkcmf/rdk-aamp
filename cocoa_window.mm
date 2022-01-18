@@ -98,3 +98,14 @@ int createAndRunCocoaWindow()
     [application run];
     return 0;
 }
+
+void setSimulatorWindowTitle( const char *title )
+{
+	if( gCocoaWindow )
+	{
+		NSString *nsTitle = [NSString stringWithUTF8String:title];
+		dispatch_async(dispatch_get_main_queue(), ^{
+			[gCocoaWindow setTitle:nsTitle];
+		});
+	}
+}

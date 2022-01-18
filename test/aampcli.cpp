@@ -753,9 +753,14 @@ public:
 		case AAMP_EVENT_PROGRESS:
 			{
 				ProgressEventPtr ev = std::dynamic_pointer_cast<ProgressEvent>(e);
-				printf("[AAMPCLI] AAMP_EVENT_PROGRESS\n\tDuration=%lf\n\tposition=%lf\n\tstart=%lf\n\tend=%lf\n\tcurrRate=%f\n\tBufferedDuration=%lf\n\tPTS=%lld\n\ttimecode=%s\n",ev->getDuration(),ev->getPosition(),ev->getStart(),ev->getEnd(),ev->getSpeed(),ev->getBufferedDuration(),ev->getPTS(),ev->getSEITimeCode());
-				break;
+#ifdef __APPLE__
+				char string[128];
+				snprintf( string, sizeof(string), "%f", ev->getPosition()/1000.0 );
+				setSimulatorWindowTitle(string);
+#endif
+				//printf("[AAMPCLI] AAMP_EVENT_PROGRESS\n\tDuration=%lf\n\tposition=%lf\n\tstart=%lf\n\tend=%lf\n\tcurrRate=%f\n\tBufferedDuration=%lf\n\tPTS=%lld\n\ttimecode=%s\n",ev->getDuration(),ev->getPosition(),ev->getStart(),ev->getEnd(),ev->getSpeed(),ev->getBufferedDuration(),ev->getPTS(),ev->getSEITimeCode());
 			}
+				break;
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
 			{
 				CCHandleEventPtr ev = std::dynamic_pointer_cast<CCHandleEvent>(e);
@@ -856,7 +861,7 @@ static void TuneToChannel( VirtualChannelInfo &channel )
 	}
 	else
 	{
-		mSingleton->Tune(channel.uri.c_str());
+		mSingleton->Tune(locator);
 	}
 }
 

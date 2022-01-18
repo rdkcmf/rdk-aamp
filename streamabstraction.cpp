@@ -824,11 +824,11 @@ bool MediaTrack::ProcessFragmentChunk()
 		uint32_t timeScale = 0;
 		if(type == eTRACK_VIDEO)
 		{
-			timeScale = aamp->GetLLDashVidTimeScale();
+			timeScale = aamp->GetVidTimeScale();
 		}
 		else if(type == eTRACK_AUDIO)
 		{
-			timeScale = aamp->GetLLDashAudTimeScale();
+			timeScale = aamp->GetAudTimeScale();
 		}
 
 		if(!timeScale)
