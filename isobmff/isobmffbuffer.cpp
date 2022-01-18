@@ -626,7 +626,7 @@ uint64_t IsoBmffBuffer::getSampleDurationInernal(const std::vector<Box*> *boxes)
 {
     if(!boxes) return 0;
 
-    for (size_t i = boxes->size()-1; i >= 0; i--)
+    for (int i = boxes->size()-1; i >= 0; i--)
     {
         Box *box = boxes->at(i);
         uint64_t duration = 0;
@@ -650,6 +650,7 @@ uint64_t IsoBmffBuffer::getSampleDurationInernal(const std::vector<Box*> *boxes)
             return getSampleDurationInernal(box->getChildren());
         }
     }
+    return 0;
 }
 
 /**

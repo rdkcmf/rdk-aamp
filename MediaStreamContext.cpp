@@ -1,6 +1,7 @@
 #include "MediaStreamContext.h"
 #include "AampMemoryUtils.h"
 #include "isobmff/isobmffbuffer.h"
+
 /**
  * @brief Receives cached fragment and injects to sink.
  *
@@ -14,8 +15,9 @@ void MediaStreamContext::InjectFragmentInternal(CachedFragment* cachedFragment, 
                                                            cachedFragment->type == eMEDIATYPE_VIDEO)))
     {
 	aamp->ProcessID3Metadata(cachedFragment->fragment.ptr, cachedFragment->fragment.len, (MediaType) type);
-	aamp->SendStreamTransfer((MediaType)type, &cachedFragment->fragment,
-        cachedFragment->position, cachedFragment->position, cachedFragment->duration);
+	AAMPLOG_TRACE("Type[%d] cachedFragment->position: %f cachedFragment->duration: %f cachedFragment->initFragment: %d", type, cachedFragment->position,cachedFragment->duration,cachedFragment->initFragment);
+        aamp->SendStreamTransfer((MediaType)type, &cachedFragment->fragment,
+        cachedFragment->position, cachedFragment->position, cachedFragment->duration, cachedFragment->initFragment);
     }
     else
     {
@@ -33,14 +35,18 @@ void MediaStreamContext::InjectFragmentInternal(CachedFragment* cachedFragment, 
  * @param range byte range
  * @param initSegment true if fragment is init fragment
  * @param discontinuity true if fragment is discontinuous
- * * @param  cache fragment Media type
+ * @param playingAd flag if playing Ad
+ * @param pto unscaled pto value from mpd
+ * @param scale timeScale value from mpd
  * @retval true on success
  */
 bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range, bool initSegment, bool discontinuity
-    , bool playingAd)
+    , bool playingAd, double pto, uint32_t scale)
 {
     // FN_TRACE_F_MPD( __FUNCTION__ );
     bool ret = false;
+
+    AAMPLOG_TRACE("Type[%d] fragmentUrl %s fragmentTime %f discontinuity %d pto %f  scale %lu duration %f", type, fragmentUrl.c_str(), position, discontinuity, pto, scale, duration);
 
     fragmentDurationSeconds = duration;
     ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(mediaType, initSegment);
@@ -51,6 +57,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
     MediaType actualType = (MediaType)(initSegment?(eMEDIATYPE_INIT_VIDEO+mediaType):mediaType); //Need to revisit the logic
 
     cachedFragment->type = actualType;
+    cachedFragment->initFragment = initSegment;
 
     if(!initSegment && mDownloadedFragment.ptr)
     {
@@ -122,6 +129,102 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
         aamp->UpdateVideoEndMetrics( actualType,
                                 bitrate? bitrate : fragmentDescriptor.Bandwidth,
                                 (iFogError > 0 ? iFogError : http_code),effectiveUrl,duration, downloadTime);
+    }
+
+//Enable for debugging actual fragment size
+#if 0
+    if(!initSegment && ISCONFIGSET(eAAMPConfig_EnablePTO))
+    {
+            IsoBmffBuffer buffer(NULL);
+            double scaledSampleDuration = 0.0;
+            uint64_t unscaledSampleDuration = 0;
+            std::vector<Box*> *pBoxes;
+            buffer.setBuffer((uint8_t *)cachedFragment->fragment.ptr, cachedFragment->fragment.len);
+            buffer.parseBuffer();
+            pBoxes = buffer.getParsedBoxes();
+            uint32_t timeScale = 0;
+            if(type == eTRACK_VIDEO)
+            {
+                        timeScale = aamp->GetVidTimeScale();
+            }
+            else if(type == eTRACK_AUDIO)
+            {
+                        timeScale = aamp->GetAudTimeScale();
+            }
+
+            if(!timeScale)
+            {
+                        //If not available then Use MPD provided INSTEAD
+                        timeScale = scale;
+            }
+	    uint64_t pts = 0;
+	    buffer.getFirstPTS(pts);
+            for(int i=0;i<pBoxes->size();i++)
+            {
+                Box *box = pBoxes->at(i);
+                if (IS_TYPE(box->getType(), Box::MOOF))
+                {
+			buffer.getSampleDuration(box, unscaledSampleDuration);
+			AAMPLOG_TRACE("[%d] Unscaled Sample Duration = %lld Scaled Sample Duration = %f Buffer pts = %lld", type, unscaledSampleDuration, unscaledSampleDuration/timeScale, pts);
+			break;
+                }
+            }
+            buffer.destroyBoxes();
+    }
+#endif
+
+    //Calculate PTO delta from first buffer PTS
+    //If needed, based on PTO delta, Skip unwanted fragments for download in AdvanceTrack()
+    //If PTO delta is not enough to skip then process fragment AS-IS
+    if(!initSegment &&
+	pto > 0.0 && scale > 0 &&
+	ISCONFIGSET(eAAMPConfig_EnablePTO) &&
+	aamp->mbEnableSegmentTemplateHandling &&
+	!aamp->IsLiveStream())
+    {
+            if(context->mperiodChanged[type])
+            {
+                IsoBmffBuffer buffer(NULL);
+                buffer.setBuffer((uint8_t *)cachedFragment->fragment.ptr, cachedFragment->fragment.len);
+                buffer.parseBuffer();
+                uint64_t pts = 0;
+                buffer.getFirstPTS(pts);
+                buffer.destroyBoxes();
+		uint32_t timeScale = 0;
+		if(type == eTRACK_VIDEO)
+		{
+			timeScale = aamp->GetVidTimeScale();
+		}
+		else if(type == eTRACK_AUDIO)
+		{
+			timeScale = aamp->GetAudTimeScale();
+		}
+
+		if(!timeScale)
+		{
+			//If not available then Use MPD provided INSTEAD
+			timeScale = scale;
+		}
+		context->mtempDelta[type] = double((double)pto/(double)scale) - double((double)pts/(double)timeScale);
+		context->mFirstBufferScaledPts[type] = double((double)pts/(double)timeScale);
+                AAMPLOG_INFO("Type[%d] PTO delta, delta:%f pos:%f FirstBuffer scaled pos: %f timeScale: %d", type,context->mtempDelta[type],position, context->mFirstBufferScaledPts[type], timeScale);
+                context->mperiodChanged[type] = false;
+                context->mpendingPtoProcessing[type] = true;
+            }
+
+            if(context->mpendingPtoProcessing[type])
+            {
+                //skip unwanted fragment caching
+                if (context->mtempDelta[type] >  duration)
+                {
+                    AAMPLOG_INFO("Type[%d] Ignore Fragment !!!", type);
+                    aamp_Free(&cachedFragment->fragment);
+                    return ret;
+                }
+                AAMPLOG_INFO("Type[%d] PTO Processed - Position: %f Duration: %f", type, position, duration);
+                context->mpendingPtoProcessing[type] = false;
+                context->mtempDelta[type] = 0.0;
+            }
     }
 
     context->mCheckForRampdown = false;
