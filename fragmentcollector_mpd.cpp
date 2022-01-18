@@ -1564,10 +1564,25 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			 */
 			double fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration;
 
-			AAMPLOG_INFO("Type[%d] ====> pMediaStreamContext->lastSegmentNumber %" PRIu64 " fragmentDescriptor.Time=%f periodEndTime=%f mPeriodStartTime %f  currentTimeSeconds %f FTime=%f mFirstPTS=%f", pMediaStreamContext->type, pMediaStreamContext->lastSegmentNumber, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime, mFirstPTS);
-
-			if ((!mIsLiveStream && ((mPeriodEndTime && (pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime))
-			|| (rate < 0 )))
+			bool bProcessFrgment = true;
+			if(!mIsLiveStream)
+			{
+				if(ISCONFIGSET(eAAMPConfig_EnableIgnoreEosSmallFragment))
+				{
+					double fractionDuration = 1.0;
+					if(fragmentRequestTime >= mPeriodEndTime)
+					{
+						double fractionDuration = (mPeriodEndTime-pMediaStreamContext->fragmentDescriptor.Time)/fragmentDuration;
+						bProcessFrgment = (fractionDuration < MIN_SEG_DURTION_THREASHOLD)? false:true;
+						AAMPLOG_TRACE("Type[%d] DIFF=%f Process Fragment=%d", pMediaStreamContext->type, fractionDuration, bProcessFrgment);
+					}
+				}
+				else
+				{
+					bProcessFrgment = (pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)? false: true;
+				}
+			}
+			if ((!mIsLiveStream && ((!bProcessFrgment) || (rate < 0 )))
 			|| (mIsLiveStream && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
 			|| (pMediaStreamContext->fragmentDescriptor.Time < mPeriodStartTime))))  //CID:93022 - No effect
 			{
