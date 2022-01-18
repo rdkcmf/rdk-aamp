@@ -181,6 +181,7 @@ typedef enum
 	eAAMPConfig_EnableLowLatencyOffsetMin,                                /** Enables Low Latency Offset Min handling */
 	eAAMPConfig_SyncAudioFragments,							/** Flag to enable Audio Video Fragment Sync */
 	eAAMPConfig_EnablePTO,								/** Enable/Disable PTO Handling */
+	eAAMPConfig_EnableIgnoreEosSmallFragment,                                       /** Enable/Disable Small fragment ignore based on minimum duration Threshold at period End*/
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
