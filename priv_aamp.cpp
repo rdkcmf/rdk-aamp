@@ -1481,6 +1481,13 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mCurrentAudioTrackId(-1)
 	, mCurrentVideoTrackId(-1)
 	, mIsTrackIdMismatch(false)
+	, mNextPeriodDuration(0)
+	, mNextPeriodStartTime(0)
+	, mNextPeriodScaledPtoStartTime(0)
+	, mbEnableFirstPtsSeekPosOverride(false)
+	, mbEnableSegmentTemplateHandling(false)
+	, mbIgnoreStopPosProcessing(false)
+	, mSkipTime(0)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -3606,7 +3613,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					{
 						res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
 
-						if(GetLLDashServiceData()->lowLatencyMode &&
+						if((GetLLDashServiceData()->lowLatencyMode || ISCONFIGSET_PRIV(eAAMPConfig_EnablePTO)) &&
 						(simType == eMEDIATYPE_INIT_VIDEO || simType ==  eMEDIATYPE_INIT_AUDIO))
 						{
 							IsoBmffBuffer isobuf(mLogObj);
@@ -3647,12 +3654,12 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 									if(simType == eMEDIATYPE_INIT_VIDEO)
 									{
 										AAMPLOG_INFO("Video TimeScale  [%d]", timeScale);
-										SetLLDashVidTimeScale(timeScale);
+										SetVidTimeScale(timeScale);
 									}
 									else
 									{
 										AAMPLOG_INFO("Audio TimeScale  [%d]", timeScale);
-										SetLLDashAudTimeScale(timeScale);
+										SetAudTimeScale(timeScale);
 									}
 								}
 								isobuf.destroyBoxes();
@@ -4353,6 +4360,12 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 #endif
 		if (!forceStop && ((!newTune && ISCONFIGSET_PRIV(eAAMPConfig_DemuxVideoHLSTrack)) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline)))
 		{
+			if(ISCONFIGSET_PRIV(eAAMPConfig_EnablePTO) && mbEnableSegmentTemplateHandling)
+			{
+				//Set condition for ignore in Flush
+				mbIgnoreStopPosProcessing = true;
+			}
+
 			mStreamSink->Flush(0, rate);
 		}
 		else
@@ -4802,7 +4815,15 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 				mStreamSink->Flush(0, rate);
 			}
 			*/
-			mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+			if(mbEnableFirstPtsSeekPosOverride)
+			{
+				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate, false);
+				mbEnableFirstPtsSeekPosOverride = false;
+			}
+			else
+			{
+				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+			}
 		}
 		else if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
 		{
@@ -4932,6 +4953,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	// reused 
 	mProgramDateTime = 0;
 	mMPDPeriodsInfo.clear();
+
+	for (int i = 0; i < AAMP_TRACK_COUNT; i++) mbNewSegmentEvtSent[i] = false;
 
 #ifdef AAMP_RFC_ENABLED
 	schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
@@ -6369,11 +6392,12 @@ void PrivateInstanceAAMP::SendStreamCopy(MediaType mediaType, const void *ptr, s
  * @param fpts pts in seconds
  * @param fdts dts in seconds
  * @param fDuration duration of buffer
+ * @param[in] initFragment flag for buffer type (init, data)
  */
-void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration)
+void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration, bool initFragment)
 {
 	profiler.ProfilePerformed(PROFILE_BUCKET_FIRST_BUFFER);
-	mStreamSink->SendTransfer(mediaType, buffer, fpts, fdts, fDuration);
+	mStreamSink->SendTransfer(mediaType, buffer, fpts, fdts, fDuration, initFragment);
 }
 
 /**
@@ -9941,7 +9965,7 @@ AampLLDashServiceData*  PrivateInstanceAAMP::GetLLDashServiceData(void)
  *   @param[in]  uint32_t - vidTimeScale
  *   @return void
  */
-void PrivateInstanceAAMP::SetLLDashVidTimeScale(uint32_t vidTimeScale)
+void PrivateInstanceAAMP::SetVidTimeScale(uint32_t vidTimeScale)
 {
     this->vidTimeScale = vidTimeScale;
 }
@@ -9951,7 +9975,7 @@ void PrivateInstanceAAMP::SetLLDashVidTimeScale(uint32_t vidTimeScale)
  *
  *   @return uint32_t
  */
-uint32_t  PrivateInstanceAAMP::GetLLDashVidTimeScale(void)
+uint32_t  PrivateInstanceAAMP::GetVidTimeScale(void)
 {
     return vidTimeScale;
 }
@@ -9962,7 +9986,7 @@ uint32_t  PrivateInstanceAAMP::GetLLDashVidTimeScale(void)
  *   @param[in]  uint32_t - vidTimeScale
  *   @return void
  */
-void PrivateInstanceAAMP::SetLLDashAudTimeScale(uint32_t audTimeScale)
+void PrivateInstanceAAMP::SetAudTimeScale(uint32_t audTimeScale)
 {
     this->audTimeScale = audTimeScale;
 }
@@ -9972,7 +9996,7 @@ void PrivateInstanceAAMP::SetLLDashAudTimeScale(uint32_t audTimeScale)
  *
  *   @return uint32_t
  */
-uint32_t  PrivateInstanceAAMP::GetLLDashAudTimeScale(void)
+uint32_t  PrivateInstanceAAMP::GetAudTimeScale(void)
 {
     return audTimeScale;
 }
@@ -10113,4 +10137,31 @@ MediaStreamContext* PrivateInstanceAAMP::GetMediaStreamContext(MediaType type)
         return context;
     }
     return NULL;
+}
+
+/**
+ *     @brief GetPeriodDurationTimeValue
+ *     @return double
+ */
+double PrivateInstanceAAMP::GetPeriodDurationTimeValue(void)
+{
+        return mNextPeriodDuration;
+}
+
+/**
+ *     @brief GetPeriodStartTimeValue
+ *     @return double
+ */
+double PrivateInstanceAAMP::GetPeriodStartTimeValue(void)
+{
+        return mNextPeriodStartTime;
+}
+
+/**
+ *     @brief GetPeriodScaledPtoStartTime
+ *     @return double
+ */
+double PrivateInstanceAAMP::GetPeriodScaledPtoStartTime(void)
+{
+       return mNextPeriodScaledPtoStartTime;
 }

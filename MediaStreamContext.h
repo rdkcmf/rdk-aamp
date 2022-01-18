@@ -27,6 +27,8 @@ public:
             adaptationSetId(0), fragmentDescriptor(), context(ctx), initialization(""),
             mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true),
             downloadedDuration(0)
+	   , scaledPTO(0)
+	   , startNumberOffset(0)
     {
         memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
         fragmentDescriptor.bUseMatchingBaseUrl = ISCONFIGSET(eAAMPConfig_MatchBaseUrl);
@@ -77,10 +79,12 @@ public:
      * @param range byte range
      * @param initSegment true if fragment is init fragment
      * @param discontinuity true if fragment is discontinuous
-     * * @param  cache fragment Media type
+     * @param  playingAd flag if playing Ad
+     * @param pto unscaled pto value from mpd
+     * @param scale timeScale value from mpd
      * @retval true on success
      */
-    bool CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false, bool playingAd = false);
+    bool CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false, bool playingAd = false, double pto = 0, uint32_t scale = 0);
 
     /**
      * @brief Cache Fragment Chunk
@@ -129,6 +133,7 @@ public:
     size_t index_len;
     uint64_t lastSegmentTime;
     uint64_t lastSegmentNumber;
+    uint64_t startNumberOffset;
     uint64_t lastSegmentDuration;
     int adaptationSetIdx;
     int representationIndex;
@@ -136,6 +141,7 @@ public:
     std::string initialization;
     uint32_t adaptationSetId;
     bool mSkipSegmentOnError;
+    double scaledPTO;
 }; // MediaStreamContext
 
 #endif /* MEDIASTREAMCONTEXT_H */

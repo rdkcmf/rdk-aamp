@@ -28,5 +28,6 @@
 
 guintptr getWindowContentView();
 int createAndRunCocoaWindow();
+void setSimulatorWindowTitle( const char *title );
 
 #endif //__AAMP_COCOA_WINDOW_H
