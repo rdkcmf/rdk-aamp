@@ -764,6 +764,14 @@ public:
 	 *   @return true if the given profile index is lowest.
 	 */
 	bool IsLowestProfile(int currentProfileIndex);
+	
+	/**
+	* @brief Convert custom curl errors to original
+	*
+	* @param[in] http_error - Error code
+	* @return error code
+	*/
+	long getOriginalCurlError(long http_error);
 
     /**
 	 *   @brief Check for ramdown profile.

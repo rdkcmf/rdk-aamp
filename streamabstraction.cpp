@@ -2212,6 +2212,33 @@ bool StreamAbstractionAAMP::IsLowestProfile(int currentProfileIndex)
 }
 
 /**
+ * @brief Convert custom curl errors to original
+ *
+ * @param[in] http_error - Error code
+ * @return error code
+ */
+long StreamAbstractionAAMP::getOriginalCurlError(long http_error)
+{
+	long ret = http_error;
+
+	if (http_error >= PARTIAL_FILE_CONNECTIVITY_AAMP && http_error <= PARTIAL_FILE_START_STALL_TIMEOUT_AAMP)
+	{
+		if (http_error == OPERATION_TIMEOUT_CONNECTIVITY_AAMP)
+		{
+			ret = CURLE_OPERATION_TIMEDOUT;
+		}
+		else
+		{
+			ret = CURLE_PARTIAL_FILE;
+		}
+	}
+
+	// return original error code
+	return ret;
+}
+
+
+/**
  *   @brief Check for ramdown profile.
  *
  *   @param http_error
@@ -2228,6 +2255,8 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 
 	if (!aamp->IsTSBSupported())
 	{
+		http_error = getOriginalCurlError(http_error);
+
 		if (http_error == 404 || http_error == 502 || http_error == 500 || http_error == 503 || http_error == CURLE_PARTIAL_FILE)
 		{
 			if (RampDownProfile(http_error))
