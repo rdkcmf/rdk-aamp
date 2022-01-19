@@ -6863,28 +6863,42 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 				// In SegmentTemplate case, configure mFirstPTS as per PTO
 				// mFirstPTS is used during Flush() for configuring gst_element_seek start position
 				const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
+				long int startNumber = segmentTemplates.GetStartNumber();
 				if((NULL == segmentTimeline) ) //&& ISCONFIGSET(eAAMPConfig_EnablePTO))
 				{
-					if(i == eMEDIATYPE_VIDEO && !aamp->IsLive())
+                                        uint32_t timeScale = segmentTemplates.GetTimescale();
+                                        uint32_t duration = segmentTemplates.GetDuration();
+                                        double fragmentDuration =  ComputeFragmentDuration(duration,timeScale);
+
+                                        if( timeScale )
+                                        {
+                                                pMediaStreamContext->scaledPTO = (double)segmentTemplates.GetPresentationTimeOffset() / (double)timeScale;
+                                        }
+					if(!aamp->IsLive())
 					{
-						uint32_t timeScale = segmentTemplates.GetTimescale();
-						if( timeScale )
+						if(segmentTemplates.GetPresentationTimeOffset())
 						{
-							pMediaStreamContext->scaledPTO = (double)segmentTemplates.GetPresentationTimeOffset() / (double)timeScale;
+							uint64_t ptoFragmenNumber = 0;
+							ptoFragmenNumber = (pMediaStreamContext->scaledPTO / fragmentDuration) + 1;
+							AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: Track %d PTO specific fragment Number : %lld", i, ptoFragmenNumber);
+							startNumber = ptoFragmenNumber;
 						}
 
-						mFirstPTS = pMediaStreamContext->scaledPTO;
-
-						if(periodChanged)
+						if(i == eMEDIATYPE_VIDEO)
 						{
-							aamp->mNextPeriodScaledPtoStartTime = pMediaStreamContext->scaledPTO;
-							AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: Track %d Set mNextPeriodScaledPtoStartTime:%lf",i,aamp->mNextPeriodScaledPtoStartTime);
+							mFirstPTS = pMediaStreamContext->scaledPTO;
+
+							if(periodChanged)
+							{
+								aamp->mNextPeriodScaledPtoStartTime = pMediaStreamContext->scaledPTO;
+								AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: Track %d Set mNextPeriodScaledPtoStartTime:%lf",i,aamp->mNextPeriodScaledPtoStartTime);
+							}
+							AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: Track %d Set mFirstPTS:%lf",i,mFirstPTS);
+							AAMPLOG_TRACE("PTO= %lld tScale= %ld", segmentTemplates.GetPresentationTimeOffset(), timeScale );
 						}
-						AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: Track %d Set mFirstPTS:%lf",i,mFirstPTS);
-						AAMPLOG_TRACE("PTO= %lld tScale= %ld", segmentTemplates.GetPresentationTimeOffset(), timeScale );
 					}
 				}
-				pMediaStreamContext->fragmentDescriptor.Number = segmentTemplates.GetStartNumber();
+				pMediaStreamContext->fragmentDescriptor.Number = startNumber;
 				AAMPLOG_INFO("StreamAbstractionAAMP_MPD: Track %d timeLineIndex %d fragmentDescriptor.Number %lld mFirstPTS:%lf", i, pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentDescriptor.Number, mFirstPTS);
 			}
 		}
