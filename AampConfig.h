@@ -113,7 +113,6 @@ typedef enum
 	eAAMPConfig_InternalReTune, 							/**< Internal re-tune on underflows/ pts errors*/
 	eAAMPConfig_AudioOnlyPlayback,							/**< AAMP Audio Only Playback*/
 	eAAMPConfig_GStreamerBufferingBeforePlay,				/**< Enable pre buffering logic which ensures minimum buffering is done before pipeline play*/
-	eAAMPConfig_EnableMicroEvents,							/**< Enabling the tunetime micro events*/
 	eAAMPConfig_EnablePROutputProtection,					/**< Playready output protection config */
 	eAAMPConfig_ReTuneOnBufferingTimeout,					/**< Re-tune on buffering timeout */
 	eAAMPConfig_SslVerifyPeer,						/**< Enable curl ssl certificate verification. */

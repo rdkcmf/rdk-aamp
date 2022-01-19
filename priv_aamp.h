@@ -664,14 +664,6 @@ public:
 	void SendMessage2Receiver(AAMP2ReceiverMsgType type, const char *data);
 
 	/**
-	 * @brief Send tune events to receiver
-	 *
-	 * @param[in] success - Tune status
-	 * @return void
-	 */
-	void sendTuneMetrics(bool success);
-
-	/**
 	 * @brief To pause/play the gstreamer pipeline
 	 *
 	 * @param[in] success - true for pause and false for play

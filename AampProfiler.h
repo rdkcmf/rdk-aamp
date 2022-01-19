@@ -183,7 +183,6 @@ private:
 	long bandwidthBitsPerSecondAudio;       /**< Audio bandwidth in bps */
 	int drmErrorCode;                       /**< DRM error code */
 	bool enabled;                           /**< Profiler started or not */
-	bool bEnableMicroEvent;			/**< Flag to indicate if tune profiling required */
 	std::list<TuneEvent> tuneEventList;     /**< List of events happened during tuning */
 	std::mutex tuneEventListMtx;            /**< Mutex protecting tuneEventList */
 
@@ -254,16 +253,6 @@ public:
 		drmErrorCode = errCode;
 	}
 
-	/**
-	 * @brief Record a new tune time event.
-	 *
-	 * @param[in] pbt - Profiler bucket type
-	 * @param[in] start - Start time
-	 * @param[in] dur - Duration
-	 * @param[in] res - Event result
-	 * @return void
-	 */
-	void addtuneEvent(ProfilerBucketType pbt, unsigned int start, unsigned int dur, int res);
 
 	/**
 	 * @brief Get tune time events in JSON format
@@ -392,14 +381,7 @@ public:
 	 * @return void
 	 */
 	void SetTuneFailCode(int tuneFailCode, ProfilerBucketType failBucketType);
-	/**
-	 * @brief Method to set the MicroEvent On/Off Flag 
-	 *
-	 * @param[in] Flag status
-	 * @return void
-	 */
-	void SetMicroEventFlag(bool bValue) { bEnableMicroEvent = bValue;}
-
+	
 	void SetLogger(AampLogManager *logObj) { mLogObj = logObj;}
 };
 
