@@ -822,30 +822,6 @@ void static setupStreamInfo(struct HlsStreamInfo * streamInfo, int streamNo)
 	streamInfo->resolution.framerate = DEFAULT_STREAM_FRAMERATE;
 }
 
-/**
- * @brief Convert custom curl errors to original
- *
- * @param[in] http_error - Error code
- * @return error code
- */
-static long getOriginalCurlError(long http_error)
-{
-	long ret = http_error;
-	if (http_error >= PARTIAL_FILE_CONNECTIVITY_AAMP && http_error <= PARTIAL_FILE_START_STALL_TIMEOUT_AAMP)
-	{
-			if (http_error == OPERATION_TIMEOUT_CONNECTIVITY_AAMP)
-			{
-				ret = CURLE_OPERATION_TIMEDOUT;
-			}
-			else
-			{
-				ret = CURLE_PARTIAL_FILE;
-			}
-	}
-	// return original error code
-	return ret;
-}
-
 /***************************************************************************
 * @fn ParseMainManifest
 * @brief Function to parse main manifest
@@ -6644,7 +6620,7 @@ void TrackState::FetchPlaylist()
 
 		(void) aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, mType);
 		//update videoend info
-		main_error = getOriginalCurlError(http_error);
+		main_error = context->getOriginalCurlError(http_error);
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),this->GetCurrentBandWidth(),
 									main_error,mEffectiveUrl, downloadTime);
 		if(playlist.len)
@@ -7134,12 +7110,11 @@ void TrackState::FetchInitFragment()
 		{
 			// Attempt rampdown for init fragment to get playable profiles.
 			// TODO: Remove profile if init fragment is not available from ABR.
-			long http_error = getOriginalCurlError(http_code);
 
 			mFirstEncInitFragmentInfo = NULL; // need to reset the previous profile's first encrypted init fragment in case of init fragment rampdown.
 			AAMPLOG_WARN("Reset mFirstEncInitFragmentInfo since rampdown for another profile");
 
-			if (context->CheckForRampDownProfile(http_error))
+			if (context->CheckForRampDownProfile(http_code))
 			{
 				AAMPLOG_INFO("Init fragment fetch failed, Successfully ramped down to lower profile");
 				context->mCheckForRampdown = true;
@@ -7150,7 +7125,7 @@ void TrackState::FetchInitFragment()
 				if (aamp->DownloadsAreEnabled())
 				{
 					AAMPLOG_ERR("TrackState::Init fragment fetch failed");
-					aamp->profiler.ProfileError(bucketType, http_error);
+					aamp->profiler.ProfileError(bucketType, http_code);
 					aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
 				}
 				context->mRampDownCount = 0;
@@ -7159,7 +7134,7 @@ void TrackState::FetchInitFragment()
 		}
 		else if (aamp->DownloadsAreEnabled())
 		{
-			long http_error = getOriginalCurlError(http_code);
+			long http_error = context->getOriginalCurlError(http_code);
 			AAMPLOG_ERR("TrackState::Init fragment fetch failed");
 			aamp->profiler.ProfileError(bucketType, http_error);
 			aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
@@ -7303,7 +7278,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 				AAMPLOG_TRACE("---------------CurlReq Time diff:%llu---------------\n" , downloadTime);
 #endif /* CHECK_PERFORMANCE */
 	
-				long main_error = getOriginalCurlError(http_code);
+				long main_error = context->getOriginalCurlError(http_code);
 				aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), main_error, mEffectiveUrl, downloadTime);
 
 				if ( fetched )

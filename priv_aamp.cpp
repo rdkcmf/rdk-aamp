@@ -3978,30 +3978,26 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			*bitrate = context.bitrate;
 		}
 
-		if(simType == eMEDIATYPE_PLAYLIST_VIDEO || simType == eMEDIATYPE_PLAYLIST_AUDIO || simType == eMEDIATYPE_INIT_AUDIO || simType == eMEDIATYPE_INIT_VIDEO )
+		if(abortReason != eCURL_ABORT_REASON_NONE)
+                {
+			http_code = PARTIAL_FILE_START_STALL_TIMEOUT_AAMP;
+                }
+		else if (connectTime == 0.0)
 		{
-			// send customized error code for curl 28 and 18 playlist/init fragment download failures
-			if (connectTime == 0.0)
+			//curl connection is failure
+			if(CURLE_PARTIAL_FILE == http_code)
 			{
-				//curl connection is failure
-				if(CURLE_PARTIAL_FILE == http_code)
-				{
-					http_code = PARTIAL_FILE_CONNECTIVITY_AAMP;
-				}
-				else if(CURLE_OPERATION_TIMEDOUT == http_code)
-				{
-					http_code = OPERATION_TIMEOUT_CONNECTIVITY_AAMP;
-				}
+				http_code = PARTIAL_FILE_CONNECTIVITY_AAMP;
 			}
-			else if(abortReason != eCURL_ABORT_REASON_NONE)
+			else if(CURLE_OPERATION_TIMEDOUT == http_code)
 			{
-				http_code = PARTIAL_FILE_START_STALL_TIMEOUT_AAMP;
+				http_code = OPERATION_TIMEOUT_CONNECTIVITY_AAMP;
 			}
-			else if (CURLE_PARTIAL_FILE == http_code)
-			{
-				// download time expired with partial file for playlists/init fragments
-				http_code = PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP;
-			}
+		}
+		else if (CURLE_PARTIAL_FILE == http_code)
+		{
+			// download time expired with partial file for playlists/init fragments
+			http_code = PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP;
 		}
 		pthread_mutex_lock(&mLock);
 	}
