@@ -2764,7 +2764,7 @@ std::string StreamAbstractionAAMP_MPD::GetPreferredDrmUUID()
 std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdaptationSet * adaptationSet,MediaType mediaType)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
-	const vector<IDescriptor*> contentProt = GetContentProtection(adaptationSet, mediaType); 
+	const vector<IDescriptor*> contentProt = adaptationSet->GetContentProtection();
 	unsigned char* data = NULL;
 	unsigned char *outData = NULL;
 	size_t outDataLen  = 0;
@@ -6164,7 +6164,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 						pMediaStreamContext->adaptationSetIdx = iAdaptationSet;
 						mNumberOfTracks = 1;
 						isIframeAdaptationAvailable = true;
-						if(!GetContentProtection(adaptationSet,(MediaType)i).empty())
+						if(!adaptationSet->GetContentProtection().empty())
 						{
 							encryptedIframeTrackPresent = true;
 							AAMPLOG_WARN("PrivateStreamAbstractionMPD: Detected encrypted iframe track");
@@ -7431,9 +7431,10 @@ bool StreamAbstractionAAMP_MPD::CheckForInitalClearPeriod()
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	bool ret = true;
+	vector<IDescriptor*> contentProt;
 	for(int i = 0; i < mNumberOfTracks; i++)
 	{
-		vector<IDescriptor*> contentProt = GetContentProtection(mMediaStreamContext[i]->adaptationSet, (MediaType)i );
+		contentProt = mMediaStreamContext[i]->adaptationSet->GetContentProtection();
 		if(0 != contentProt.size())
 		{
 			ret = false;
@@ -7472,7 +7473,8 @@ void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 					{
 						if (IsContentType(adaptationSet, (MediaType)i ))
 						{
-							vector<IDescriptor*> contentProt = GetContentProtection(adaptationSet, (MediaType)i );
+							vector<IDescriptor*> contentProt;
+							contentProt = adaptationSet->GetContentProtection();
 							if(0 == contentProt.size())
 							{
 								continue;
@@ -10668,30 +10670,3 @@ bool StreamAbstractionAAMP_MPD::ParseMPDLLData(MPD* mpd, AampLLDashServiceData &
 
     return true;
 }
-
-/**
- * @brief Get content protection from represetation/adaptation field
- * @param[In] adaptation set and media type
- * @retval content protections if present. Else NULL.
- */
-
-vector<IDescriptor*> StreamAbstractionAAMP_MPD::GetContentProtection(const IAdaptationSet *adaptationSet,MediaType mediaType )
-	{
-		//Priority for adaptation set. If the content protection not available in the representation, go with adaptation set
-		if(adaptationSet->GetRepresentation().size() > 0)
-		{
-			int index = 0;
-			if(mMediaStreamContext[mediaType]->representationIndex > 0)
-			{
-				//Each representation might have individual content protection.
-				//So reading the content protection based on the  current playback profile
-				index = mMediaStreamContext[mediaType]->representationIndex;
-			}
-			IRepresentation* representation = adaptationSet->GetRepresentation().at(index);
-			if( representation->GetContentProtection().size() > 0 )
-			{
-				return( representation->GetContentProtection() );
-			}
-		}
-		return (adaptationSet->GetContentProtection());
-	}

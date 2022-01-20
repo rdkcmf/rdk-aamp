@@ -23,10 +23,6 @@
 
 #include "AampDrmHelper.h"
 
-#define KEYID_MARKER 0x12
-#define CONTENTID_MARKER 0x22
-#define DATA_LENGTH_FIELD_SIZE 2
-
 class AampWidevineDrmHelper: public AampDrmHelper
 {
 public:
