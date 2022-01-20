@@ -246,6 +246,7 @@ private:
 	double GetEncoderDisplayLatency();
 	void StartLatencyMonitorThread();
 	LatencyStatus GetLatencyStatus() { return latencyStatus; }
+	vector<IDescriptor*> GetContentProtection(const IAdaptationSet *adaptationSet, MediaType mediaType);
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
 	double seekPosition;
