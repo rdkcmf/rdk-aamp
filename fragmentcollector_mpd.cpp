@@ -4372,6 +4372,10 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 					seekPosition += currentPeriodStart;
 				}
 			}
+			else if (!seekPosition)
+			{
+				seekPosition = offsetFromStart;
+			}
 			for (int i = 0; i < mNumberOfTracks; i++)
 			{
 				if(0 != mCurrentPeriodIdx)
