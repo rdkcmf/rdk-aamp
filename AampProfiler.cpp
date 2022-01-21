@@ -37,34 +37,9 @@
 ProfileEventAAMP::ProfileEventAAMP():
 	tuneStartMonotonicBase(0), tuneStartBaseUTCMS(0), bandwidthBitsPerSecondVideo(0),
         bandwidthBitsPerSecondAudio(0), drmErrorCode(0), enabled(false), xreTimeBuckets(), tuneEventList(),
-	tuneEventListMtx(), mTuneFailBucketType(PROFILE_BUCKET_MANIFEST), mTuneFailErrorCode(0),bEnableMicroEvent(false),mLogObj(NULL)
+	tuneEventListMtx(), mTuneFailBucketType(PROFILE_BUCKET_MANIFEST), mTuneFailErrorCode(0),mLogObj(NULL)
 {
 
-}
-
-/**
- * @brief Record a new tune time event.
- *
- * @param[in] pbt - Profiler bucket type
- * @param[in] start - Start time
- * @param[in] dur - Duration
- * @param[in] res - Event result
- * @return void
- */
-void ProfileEventAAMP::addtuneEvent(ProfilerBucketType pbt, unsigned int start, unsigned int dur, int res)
-{
-	if (pbt >= PROFILE_BUCKET_TYPE_COUNT)
-	{
-		AAMPLOG_WARN("bucketId=%d > PROFILE_BUCKET_TYPE_COUNT. How did it happen?", pbt);
-		return;
-	}
-
-	// DELIA-41285: don't exclude any pre-tune download activity
-	if (!buckets[PROFILE_BUCKET_FIRST_FRAME].complete)
-	{
-		std::lock_guard<std::mutex> lock(tuneEventListMtx);
-		tuneEventList.emplace_back(pbt,(start - tuneStartMonotonicBase),dur,res);
-	}
 }
 
 /**
@@ -353,12 +328,7 @@ void ProfileEventAAMP::ProfileError(ProfilerBucketType type, int result)
 	{
 		SetTuneFailCode(result, type);
 		bucket->errorCount++;
-		if (bEnableMicroEvent && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
-					 || type == PROFILE_BUCKET_LA_TOTAL || type == PROFILE_BUCKET_LA_NETWORK))
-		{
-			long long start = bucket->tStart + tuneStartMonotonicBase;
-			addtuneEvent(type, start, (unsigned int)(NOW_STEADY_TS_MS - start), result);
-		}
+
 	}
 }
 
@@ -374,12 +344,6 @@ void ProfileEventAAMP::ProfileEnd(ProfilerBucketType type)
 	if (!bucket->complete && !(0==bucket->tStart))
 	{
 		bucket->tFinish = NOW_STEADY_TS_MS - tuneStartMonotonicBase;
-		if(bEnableMicroEvent && (type == PROFILE_BUCKET_DECRYPT_VIDEO || type == PROFILE_BUCKET_DECRYPT_AUDIO
-					 || type == PROFILE_BUCKET_LA_TOTAL || type == PROFILE_BUCKET_LA_NETWORK))
-		{
-			long long start = bucket->tStart + tuneStartMonotonicBase;
-				addtuneEvent(type, start, (unsigned int)(bucket->tFinish - bucket->tStart), 200);
-		}
 		/*
 		static const char *bucketName[PROFILE_BUCKET_TYPE_COUNT] =
 		{
@@ -413,7 +377,7 @@ void ProfileEventAAMP::ProfilePerformed(ProfilerBucketType type)
 }
 
 /**
- * @brief Method to set Failure code and Bucket Type used for microevents
+ * @brief Method to set Failure code and Bucket Type used
  *
  * @param[in] type - tune Fail Code
  * @param[in] type - Bucket type

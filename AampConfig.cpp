@@ -179,7 +179,6 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"thresholdSizeABR",eAAMPConfig_ABRThresholdSize,{.iMinValue=-1},{.iMaxValue=-1}},
 	{"preferredSubtitleLanguage",eAAMPConfig_SubTitleLanguage,-1,-1},
 	{"reportBufferEvent",eAAMPConfig_ReportBufferEvent,-1,-1},
-	{"enableTuneProfiling",eAAMPConfig_EnableMicroEvents,-1,-1},
 	{"gstPositionQueryEnable",eAAMPConfig_EnableGstPositionQuery,-1,-1},
 	{"useMatchingBaseUrl",eAAMPConfig_MatchBaseUrl,-1,-1},
 	{"removeAVEDRMPersistent",eAAMPConfig_RemovePersistent,-1,-1},
@@ -328,7 +327,6 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_InternalReTune].value				=	true;
 	bAampCfgValue[eAAMPConfig_AudioOnlyPlayback].value			=	false;
 	bAampCfgValue[eAAMPConfig_GStreamerBufferingBeforePlay].value		=	true;
-	bAampCfgValue[eAAMPConfig_EnableMicroEvents].value			=	false;
 	bAampCfgValue[eAAMPConfig_EnablePROutputProtection].value		=	false;
 	bAampCfgValue[eAAMPConfig_ReTuneOnBufferingTimeout].value		=	true;
 	bAampCfgValue[eAAMPConfig_SslVerifyPeer].value				=	false;
@@ -1589,13 +1587,6 @@ void AampConfig::ReadOperatorConfiguration()
 		}
 	}
 
-
-	const char *env_enable_micro_events = getenv("TUNE_MICRO_EVENTS");
-	if(env_enable_micro_events)
-	{
-		AAMPLOG_INFO("TUNE_MICRO_EVENTS present: Enabling TUNE_MICRO_EVENTS.");
-		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_EnableMicroEvents,true);
-	}
 
 	const char *env_enable_cdai = getenv("CLIENT_SIDE_DAI");
 	if(env_enable_cdai)

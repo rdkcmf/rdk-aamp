@@ -1580,8 +1580,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestCountLimit,mHarvestCountLimit);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
 	mAsyncTuneEnabled = ISCONFIGSET_PRIV(eAAMPConfig_AsyncTune);
-	profiler.SetMicroEventFlag(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents));
-}
+	}
 
 /**
  * @brief PrivateInstanceAAMP Destructor
@@ -2639,27 +2638,6 @@ void PrivateInstanceAAMP::NotifyOnEnteringLive()
 	}
 	SendEvent(std::make_shared<AAMPEventObject>(AAMP_EVENT_ENTERING_LIVE),AAMP_EVENT_ASYNC_MODE);
 }
-/**
- * @brief Send tune events to receiver
- *
- * @param[in] success - Tune status
- * @return void
- */
-void PrivateInstanceAAMP::sendTuneMetrics(bool success)
-{
-	std::string eventsJSON;
-	profiler.getTuneEventsJSON(eventsJSON, getStreamTypeString(),GetTunedManifestUrl(),success);
-	SendMessage2Receiver(E_AAMP2Receiver_EVENTS,eventsJSON.c_str());
-
-	//for now, avoid use of AAMPLOG_WARN, to avoid potential truncation when URI in tune profiling or
-	//extra events push us over limit
-	AAMPLOG_WARN("tune-profiling: %s", eventsJSON.c_str());
-	if(mEventManager->IsEventListenerAvailable(AAMP_EVENT_TUNE_PROFILING))
-	{
-		TuneProfilingEventPtr e = std::make_shared<TuneProfilingEvent>(eventsJSON);
-		SendEvent(e,AAMP_EVENT_ASYNC_MODE);
-	}
-}
 
 /**
  * @brief Notify tune end for profiling/logging
@@ -2684,10 +2662,6 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 			mLogTune = false;
 			profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
 			SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
-			if(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents))
-			{
-				sendTuneMetrics(success);
-			}
 			mTuneCompleted = true;
 			mFirstTune = false;
 		}
@@ -3800,11 +3774,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					}
 					#endif
 				}
-
-				if(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents) && fileType != eMEDIATYPE_DEFAULT) //Unknown filetype
-				{
-					profiler.addtuneEvent(mediaType2Bucket(fileType),tStartTime,downloadTimeMS,(int)(http_code));
-				}
+				
 
 				double total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize;
 				long reqSize;
@@ -4940,7 +4910,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mAsyncTuneEnabled = ISCONFIGSET_PRIV(eAAMPConfig_AsyncTune);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_LivePauseBehavior,intTmpVar);
 	mPausedBehavior = (PausedBehavior)intTmpVar;
-	profiler.SetMicroEventFlag(ISCONFIGSET_PRIV(eAAMPConfig_EnableMicroEvents));
 	GETCONFIGVALUE_PRIV(eAAMPConfig_NetworkTimeout,tmpVar);
 	mNetworkTimeoutMs = (long)CONVERT_SEC_TO_MS(tmpVar);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_ManifestTimeout,tmpVar);

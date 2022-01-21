@@ -2445,13 +2445,7 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 {
 	PrivAAMPState state;
 	aamp->GetState(state);
-
-	if(ISCONFIGSET(eAAMPConfig_EnableMicroEvents) && (eSTATE_ERROR == state) && !(aamp->IsTuneCompleted()))
-	{
-		/*Sending metrics on tune Error; excluding mid-stream failure cases & aborted tunes*/
-		aamp->sendTuneMetrics(false);
-	}
-
+	
 	AAMPLOG_WARN("aamp_stop PlayerState=%d",state);
 
 	if (sendStateChangeEvent)

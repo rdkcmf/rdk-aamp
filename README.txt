@@ -8,8 +8,7 @@ Index
 3. Channel Override Settings
 4. Westeros Settings
 5. AAMP Tunetime 
-6. AAMP MicroEvents 
-7. VideoEnd (Session Statistics) Event 
+6. VideoEnd (Session Statistics) Event 
 ----------------------------
 
 
@@ -336,47 +335,6 @@ version#4
 version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune,Prebuffered,PreBufferedTime
 
 =================================================================================================================
-
-6. AAMP MicroEvents 
-=====================
-Common:
-ct = Content Type
-it = Initiation Time of Playback in epoch format (on Receiver side)
-tt = Total Tune Time/latency
-pi = Playback Index
-ts = Tune Status
-va = Vector of tune Attempts
-
-Individual Tune Attempts:
-s = Start Time in epoch format
-td = Tune Duration
-st = Stream Type
-u = URL
-r = Result (1:Success, 0:Failure)
-v = Vector of Events happened
-
-Events:
-i = Id
-	0: main manifest download
-	1: video playlist download
-	2: audio playlist download
-	3: subtitle playlist download
-	4: video initialization fragment download
-	5: audio initialization fragment download
-	6: subtitle initialization fragment download
-	7: video fragment download
-	8: audio fragment download
-	9: subtitle fragment download
-	10: video decryption
-	11: audio decryption
-	12: subtitle decryption
-	13: license acquisition total
-	14: license acquisition pre-processing
-	15: license acquisition network
-	16: license acquisition post-processing
-b = Beginning time of the event, relative to 's'
-d = Duration till the completion of event
-o = Output of Event (200:Success, Non 200:Error Code)
 
 =================================================================================================================
 7. VideoEnd (Session Statistics) Event 
