@@ -15,6 +15,7 @@ void MediaStreamContext::InjectFragmentInternal(CachedFragment* cachedFragment, 
     if(!(aamp->GetLLDashServiceData()->lowLatencyMode  && (cachedFragment->type == eMEDIATYPE_AUDIO ||
                                                            cachedFragment->type == eMEDIATYPE_VIDEO)))
     {
+	aamp->ProcessID3Metadata(cachedFragment->fragment.ptr, cachedFragment->fragment.len, (MediaType) type);
 	AAMPLOG_TRACE("Type[%d] cachedFragment->position: %f cachedFragment->duration: %f cachedFragment->initFragment: %d", type, cachedFragment->position,cachedFragment->duration,cachedFragment->initFragment);
         aamp->SendStreamTransfer((MediaType)type, &cachedFragment->fragment,
         cachedFragment->position, cachedFragment->position, cachedFragment->duration, cachedFragment->initFragment);
