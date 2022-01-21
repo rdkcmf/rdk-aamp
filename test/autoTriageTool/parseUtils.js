@@ -217,7 +217,7 @@ function ParseHttpRequestEnd( line )
 		}
 		catch( err )
 		{
-			var fields = "mediaType,type,responseCode,curlTime,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSz,ulSz,url";
+			var fields = "mediaType,type,responseCode,curlTime,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSz,ulSz,bps,url";
 			var param = json.split(",");
 			if( param[0] != parseInt(param[0]) )
 			{
