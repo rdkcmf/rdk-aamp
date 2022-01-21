@@ -94,14 +94,14 @@ function strip(firstValue)
 			value[0] = strip(value[0]);
 			var indexAdjust = 0;
 			// Add appName to the list if it is present as an extra parameter
-			if(value.length === 15 ) {
+			if(value.length === 16 ) {
 				fields = "appName,";
 				indexAdjust = 1;
-			} else if(value.length === 14 ) {
+			} else if(value.length === 15 ) {
 				// don't add appName field if it is empty
 				fields = "";
 			}
-			fields = fields + "mediaType,simType,http_code,totalPerformRequest,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSize,reqSize,url";
+			fields = fields + "mediaType,simType,http_code,totalPerformRequest,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSize,reqSize,bps,url";
 			value[ indexAdjust ] = "("+value[indexAdjust]+")"+MapMediaType(value[indexAdjust]); // mediaType
 		}
 		else if( value[0].indexOf("IP_TUNETIME")>=0 )

@@ -3780,6 +3780,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				double total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize;
 				long reqSize;
 				AAMP_LogLevel reqEndLogLevel = eLOGLEVEL_INFO;
+				long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
 
 				curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME , &total);
 				curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &connect);
@@ -3812,8 +3813,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						// example 18(0) if connection failure with PARTIAL_FILE code
 						timeoutClass = "(" + to_string(reqSize > 0) + ")";
 					}
-					AAMPLOG(mLogObj, reqEndLogLevel, "WARN", "HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%.500s",
-						appName.c_str(), mediaType, simType, http_code, timeoutClass.c_str(), totalPerformRequest, total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize,
+					AAMPLOG(mLogObj, reqEndLogLevel, "WARN", "HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%ld,%.500s",
+						appName.c_str(), mediaType, simType, http_code, timeoutClass.c_str(), totalPerformRequest, total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize,downloadbps,
 						((res == CURLE_OK) ? effectiveUrl.c_str() : remoteUrl.c_str())); // Effective URL could be different than remoteURL and it is updated only for CURLE_OK case
 				}
 				

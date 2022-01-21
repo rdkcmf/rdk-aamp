@@ -150,7 +150,7 @@ window.onload = function() {
 
                     var indexAdjust = 0;
                     // if the object has extra appName parameter at the start adjust the index calculation
-                    if(httpRequestEnd.length === 15) {
+                    if(httpRequestEnd.length === 16) {
                         indexAdjust = 1;
                     }
 
@@ -161,7 +161,7 @@ window.onload = function() {
                     obj.durationms = 1000*httpRequestEnd[3 + indexAdjust];
                     obj.type = type;
                     obj.bytes = httpRequestEnd[11 + indexAdjust];
-                    obj.url = httpRequestEnd[13 + indexAdjust];
+                    obj.url = httpRequestEnd[14 + indexAdjust];
 
                     var doneUtc = ParseReceiverLogTimestamp(line);
                     obj.utcstart = doneUtc-obj.durationms;

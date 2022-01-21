@@ -287,7 +287,8 @@ window.onload = function()
 						Output( "curl" +
 								Pad(ms) + "ms, ulSz=" +
 								Pad(httpRequestEnd.ulSz) + ", dlSz=" +
-								Pad(httpRequestEnd.dlSz) + ", " +
+								Pad(httpRequestEnd.dlSz) + ", bps" +
+								Pad(httpRequestEnd.bps) + ", " +
 								err + ", " + type + ", " + url,
 							   special );
                         UpdateDownloadStats( err, type, url, ms );
