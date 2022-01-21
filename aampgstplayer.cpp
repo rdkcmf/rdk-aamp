@@ -3372,7 +3372,6 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 #endif
 		//Check if pipeline is in playing/paused state. If not flush doesn't work
 		GstState current, pending;
-		bool bPauseNeeded = false;
 		GstStateChangeReturn ret;
 		ret = gst_element_get_state(privateContext->pipeline, &current, &pending, 100 * GST_MSECOND);
 		if ((current != GST_STATE_PLAYING && current != GST_STATE_PAUSED) || ret == GST_STATE_CHANGE_FAILURE)
@@ -3403,28 +3402,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 					}
 				}
 			}
-			logprintf("AAMPGstPlayer::%s:%d Pipeline is in %s state position %f ret %d\n", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position, ret);
-			MediaFormat mediaFormatRet;
-			mediaFormatRet = aamp->GetMediaFormatTypeEnum();
-			if (((mediaFormatRet != eMEDIAFORMAT_DASH) && (mediaFormatRet != eMEDIAFORMAT_PROGRESSIVE) && (mediaFormatRet != eMEDIAFORMAT_HLS_MP4)) && (current == GST_STATE_PAUSED))
-			{
-				/*
-				 * Changing the Pipeline state to GST_STATE_PLAYING temporarily to keep Gstreamer continue sending data to Decoder during gst_element_seek().
-				 * Reason : Because if Pipeline is in GST_STATE_PAUSED state then the Gstreamer will stop sending data to the decoder during gst_element_seek() call.
-				 * In that case while doing PageUp/Down after Pause enter into video buffering logic; and querying video decoder status for queued 
-				 * frames result in 0 count; that results internal retune during Video Buffering.
-				 */
-				logprintf("AAMPGstPlayer::%s:%d Pipeline state change ( PAUSED -> PLAYING )", __FUNCTION__, __LINE__);
-
-				if (gst_element_set_state(privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
-				{
-					logprintf("AAMPGstPlayer::%s:%d Pipeline state change (PLAYING) failed", __FUNCTION__, __LINE__);
-				}
-				else
-				{
-					bPauseNeeded = true;
-				}
-			}
+			AAMPLOG_WARN("AAMPGstPlayer: Pipeline is in %s state position %f ret %d\n", gst_element_state_get_name(current), position, ret);
 		}
 		/* Disabling the flush flag as part of DELIA-42607 to avoid */
 		/* flush call again (which may cause freeze sometimes)      */
@@ -3448,16 +3426,6 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			logprintf("Seek failed");
 		}
 
-		if (bPauseNeeded)
-		{
-			/* Reseting Pipeline state to Paused from Playing */
-			logprintf("AAMPGstPlayer::%s:%d Pipeline state change ( PLAYING -> PAUSED )", __FUNCTION__, __LINE__, gst_element_state_get_name(current), position);
-
-			if (gst_element_set_state(privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
-			{
-				logprintf("AAMPGstPlayer::%s:%d Pipeline state change (PAUSED) failed", __FUNCTION__, __LINE__);
-			}
-		}
 #if defined (REALTEKCE)
 		if(bAsyncModify == TRUE)
 		{
