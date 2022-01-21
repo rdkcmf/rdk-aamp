@@ -118,8 +118,8 @@ private:
 
 	typedef std::unordered_map <std::string, InitFragCacheStruct*> InitFragCache ;
 	typedef std::unordered_map <std::string, InitFragCacheStruct*>::iterator InitFragCacheIter;
-	typedef std::unordered_map <MediaType, InitFragTrackStruct*> CacheTrackQueue;
-	typedef std::unordered_map <MediaType, InitFragTrackStruct*>::iterator CacheTrackQueueIter;
+	typedef std::unordered_map <MediaType, InitFragTrackStruct*, std::hash<int>> CacheTrackQueue;
+	typedef std::unordered_map <MediaType, InitFragTrackStruct*, std::hash<int>>::iterator CacheTrackQueueIter;
 	InitFragCache umInitFragCache;
 	CacheTrackQueue umCacheTrackQ;
 	pthread_mutex_t mInitFragMutex;
