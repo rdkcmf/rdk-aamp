@@ -1604,16 +1604,12 @@ void AampConfig::ReadOperatorConfiguration()
 	const char *env_enable_westoros_sink = getenv("AAMP_ENABLE_WESTEROS_SINK");
 	if(env_enable_westoros_sink)
 	{
-
-		int iValue = atoi(env_enable_westoros_sink);
-		bool bValue = (strcasecmp(env_enable_westoros_sink,"true") == 0);
-
-		AAMPLOG_INFO("AAMP_ENABLE_WESTEROS_SINK present, Value = %d", (bValue ? bValue : (iValue ? iValue : 0)));
-
-		if(iValue || bValue)
+		bool disable_westeros = 0;
+		disable_westeros = ((strcasecmp(env_enable_westoros_sink,"false") == 0)||(strcasecmp(env_enable_westoros_sink,"0") == 0));		
+		if(disable_westeros)
 		{
-			AAMPLOG_INFO("AAMP_ENABLE_WESTEROS_SINK present: Enabling westeros-sink.");
-			SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_UseWesterosSink,true);
+			logprintf("AAMP_ENABLE_WESTEROS_SINK present: Disabling westeros-sink.");		
+			SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_UseWesterosSink,false);
 		}
 
 	}
