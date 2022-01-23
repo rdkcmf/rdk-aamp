@@ -867,10 +867,6 @@ public:
         
 	bool mIsFakeTune;
 
-	bool mbEnableFirstPtsSeekPosOverride; /**< Enable   FirstPtsSeekPosOverride */
-	bool mbEnableSegmentTemplateHandling;/**< Enable SegmentTemplate Handling  */
-	bool mbIgnoreStopPosProcessing; /**< Ignore Stop Position Processing in Segment Template handling case */
-	double mSkipTime;
 	double mOffsetFromTunetimeForSAPWorkaround; /** current playback position in epoch**/
 	bool mLanguageChangeInProgress;
 	long mSupportedTLSVersion;    /*ssl/TLS default version */

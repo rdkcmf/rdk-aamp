@@ -417,7 +417,6 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyMonitor].value		=	false;
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyCorrection].value		=	true;
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyOffsetMin].value      	=	true;
-	bAampCfgValue[eAAMPConfig_EnablePTO].value				=       false;
 	bAampCfgValue[eAAMPConfig_EnableIgnoreEosSmallFragment].value		=       false;
 	bAampCfgValue[eAAMPConfig_EnableAampConfigToFog].value                  =       true;
 

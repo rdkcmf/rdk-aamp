@@ -139,7 +139,6 @@ enableLowLatencyDash		Enable/Disable Low Latency Dash. Default is false
 disableLowLatencyMonitor	Enable/Disable Low Latency Monitor. Default is true
 disableLowLatencyABR		Enable/Disable Low Latency ABR. Default is true
 disableLowLatencyCorrection	Enable/Disable Low Latency Correction. Default is true
-enablePTO			Enable/Disable PTO Handling
 enableFogConfig			Enable/Disable setting player configurations to Fog. Default is true
 
 // Integer inputs

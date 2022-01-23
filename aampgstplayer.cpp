@@ -2294,35 +2294,6 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 	media_stream *stream = &privateContext->stream[mediaType];
 	bool isFirstBuffer = stream->resetPosition;
 
-	// When PTO handling is enabled, Override pts with actual buffer PTS
-	// Allows decoder to be in sync and play buffer as sent
-	if(ptr && stream->format == FORMAT_ISO_BMFF && !aamp->IsLive() && ISCONFIGSET(eAAMPConfig_EnablePTO) && aamp->mbEnableSegmentTemplateHandling)
-	{
-		IsoBmffBuffer buffer;
-		buffer.setBuffer((uint8_t *)ptr ,len);
-		buffer.parseBuffer();
-		uint64_t first_pts = 0;
-		buffer.getFirstPTS(first_pts);
-		if(initFragment)
-		{
-			buffer.getTimeScale(stream->timeScale);
-		}
-
-		AAMPLOG_TRACE("Type[%d] initFragment[%d] first_pts: %" PRIu64 " timeScale: %" PRIu32, (int)mediaType, initFragment, (uint64_t)pts, stream->timeScale);
-		if(stream->timeScale)
-		{
-			double scaled_pts = (double) first_pts/stream->timeScale;
-			pts =  (GstClockTime)(scaled_pts* GST_SECOND);
-			dts =  (GstClockTime)(scaled_pts* GST_SECOND);
-		}
-		else
-		{
-			pts =  first_pts;
-			dts = first_pts;
-		}
-		buffer.destroyBoxes();
-	}
-
 	if (aamp->IsEventListenerAvailable(AAMP_EVENT_ID3_METADATA) &&
 		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
 	{
@@ -2368,30 +2339,6 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 
 		AAMPLOG_TRACE("mediaType[%d] SendGstEvents - first buffer received !!! initFragment: %d", mediaType, initFragment);
 	}
-
-//FIX-ME: Stop Position processing isnt triggering EOS properly in Video Sink
-//Avoid Sling playback failure at the tune time itself - DELIA-53912
-#if 0
-	// Send New Segment Event when first Data segment encountered after new tune
-	if(!aamp->IsLive() &&
-		ISCONFIGSET(eAAMPConfig_EnablePTO) &&
-		aamp->mbEnableSegmentTemplateHandling &&
-		!aamp->mbNewSegmentEvtSent[mediaType] &&
-		!initFragment)
-	{
-		double durtion = aamp->GetPeriodDurationTimeValue()/1000.0;
-		double startPos = aamp->GetFirstPTS();
-		double stopPos = aamp->GetFirstPTS() + duration;
-		AAMPLOG_INFO("START: %f END: %f duration: %f", startPos, stopPos, duration);
-		GstClockTime startPts = (GstClockTime)(startPos * GST_SECOND);
-		GstClockTime stopPts = (GstClockTime)(stopPos * GST_SECOND);
-
-		SendNewSegmentEvent(mediaType, eTUNETYPE_NEW_NORMAL == aamp->GetTuneType() ? startPts : 0.0, stopPts);
-		aamp->mbNewSegmentEvtSent[mediaType] = true;
-
-		AAMPLOG_TRACE("mediaType[%d] SendNewSegmentEvent - first data buffer received !!!", mediaType);
-	}
-#endif
 
 	if( aamp->DownloadsAreEnabled())
 	{
@@ -3546,45 +3493,10 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			playRate = rate;
 		}
 
-		if(aamp->IsLive() || !ISCONFIGSET(eAAMPConfig_EnablePTO))
-		{
-			if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
+		if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
 			position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
-			{
+        {
 				AAMPLOG_WARN("Seek failed");
-			}
-		}
-		else
-		{
-			// In Non Live case, When PTO handling is enabled, Send GST seek request with START and STOP
-			if(ISCONFIGSET(eAAMPConfig_EnablePTO) && aamp->mbEnableSegmentTemplateHandling && !aamp->mbIgnoreStopPosProcessing)
-			{
-				double duration = aamp->GetPeriodDurationTimeValue()/1000.0;
-				double seekEnd = (position - aamp->mSkipTime) + duration;
-
-				AAMPLOG_INFO("FLUSH START: %f END: %f duration: %f aamp->mSkipTime: %f", position, seekEnd, duration, aamp->mSkipTime);
-
-				//Reset Skip Time
-				aamp->mSkipTime = 0;
-
-				if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
-				position * GST_SECOND,
-				GST_SEEK_TYPE_SET,
-				seekEnd * GST_SECOND))
-				{
-					AAMPLOG_WARN("Seek failed");
-				}
-			}
-			else
-			{
-				if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
-				position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
-				{
-					AAMPLOG_WARN("Seek failed");
-				}
-				//Cleanup
-				if(aamp->mbIgnoreStopPosProcessing) aamp->mbIgnoreStopPosProcessing = false;
-			}
 		}
 
 #if defined (REALTEKCE)

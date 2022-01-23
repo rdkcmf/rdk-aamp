@@ -28,7 +28,6 @@ public:
             mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true),
             downloadedDuration(0)
 	   , scaledPTO(0)
-	   , startNumberOffset(0)
     {
         memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
         fragmentDescriptor.bUseMatchingBaseUrl = ISCONFIGSET(eAAMPConfig_MatchBaseUrl);
@@ -133,7 +132,6 @@ public:
     size_t index_len;
     uint64_t lastSegmentTime;
     uint64_t lastSegmentNumber;
-    uint64_t startNumberOffset;
     uint64_t lastSegmentDuration;
     int adaptationSetIdx;
     int representationIndex;
