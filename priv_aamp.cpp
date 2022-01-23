@@ -1486,10 +1486,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mNextPeriodDuration(0)
 	, mNextPeriodStartTime(0)
 	, mNextPeriodScaledPtoStartTime(0)
-	, mbEnableFirstPtsSeekPosOverride(false)
-	, mbEnableSegmentTemplateHandling(false)
-	, mbIgnoreStopPosProcessing(false)
-	, mSkipTime(0)
 	, mOffsetFromTunetimeForSAPWorkaround(0)
 	, mLanguageChangeInProgress(false)
 	, mSupportedTLSVersion(0)
@@ -3600,7 +3596,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					{
 						res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
 
-						if((GetLLDashServiceData()->lowLatencyMode || ISCONFIGSET_PRIV(eAAMPConfig_EnablePTO)) &&
+						if(GetLLDashServiceData()->lowLatencyMode &&
 						(simType == eMEDIATYPE_INIT_VIDEO || simType ==  eMEDIATYPE_INIT_AUDIO))
 						{
 							IsoBmffBuffer isobuf(mLogObj);
@@ -4351,12 +4347,6 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 #endif
 		if (!forceStop && ((!newTune && ISCONFIGSET_PRIV(eAAMPConfig_DemuxVideoHLSTrack)) || ISCONFIGSET_PRIV(eAAMPConfig_PreservePipeline)))
 		{
-			if(ISCONFIGSET_PRIV(eAAMPConfig_EnablePTO) && mbEnableSegmentTemplateHandling)
-			{
-				//Set condition for ignore in Flush
-				mbIgnoreStopPosProcessing = true;
-			}
-
 			mStreamSink->Flush(0, rate);
 		}
 		else
@@ -4806,16 +4796,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 				mStreamSink->Flush(0, rate);
 			}
 			*/
-			if(mbEnableFirstPtsSeekPosOverride)
-			{
-				//Gets here only when eAAMPConfig_EnablePTO is true
-				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate, false);
-				mbEnableFirstPtsSeekPosOverride = false;
-			}
-			else
-			{
-				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
-			}
+			mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
 		}
 		else if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
 		{

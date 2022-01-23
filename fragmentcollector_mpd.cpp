@@ -303,10 +303,6 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	for (int i=0; i<AAMP_TRACK_COUNT; i++)
 	{
 		mFirstFragPTS[i] = 0.0;
-		mperiodChanged[i] = true;
-		mtempDelta[i] = 0.0;
-		mpendingPtoProcessing[i] = false;
-		mFirstBufferScaledPts[i] = 0.0;
 	}
 	GetABRManager().clearProfiles();
 	mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
@@ -1104,13 +1100,8 @@ bool StreamAbstractionAAMP_MPD::FetchFragment(MediaStreamContext *pMediaStreamCo
 	{
 		if(rate > 0)
 		{
-			// When PTO Processing is Pending
-			// In Skip to specific segment case based on PTO. Do not change timeline
-			if(!mpendingPtoProcessing[pMediaStreamContext->type])
-			{
-				pMediaStreamContext->fragmentTime += fragmentDuration;
-				if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO) mBasePeriodOffset += fragmentDuration;
-			}
+            pMediaStreamContext->fragmentTime += fragmentDuration;
+            if(pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO) mBasePeriodOffset += fragmentDuration;
 		}
 		else
 		{
@@ -1153,13 +1144,6 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
 			if(!timelines.empty())
 			{
-				//Cleanup PTO handling state in SegmentTimeline case
-				//Required when user plays MPDs in SegmentTemplate<->SegmentTimeline order
-				if(ISCONFIGSET(eAAMPConfig_EnablePTO))
-				{
-					aamp->mbEnableSegmentTemplateHandling = false;
-				}
-
 #ifdef DEBUG_TIMELINE
 				AAMPLOG_WARN("Type[%d] timelineCnt=%d timeLineIndex:%d FDTime=%f L=%" PRIu64 " [fragmentTime = %f,  mLiveEndPosition = %f]",
 					pMediaStreamContext->type ,timelines.size(),pMediaStreamContext->timeLineIndex,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->lastSegmentTime
@@ -1568,23 +1552,11 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			AAMPLOG_WARN("segmentTimeline not available");
 #endif
 
-			// Configure PTO handling state in SegmentTemplate based MPDs
-			if(ISCONFIGSET(eAAMPConfig_EnablePTO))
-			{
-				aamp->mbEnableSegmentTemplateHandling = true;
-			}
-
 			double currentTimeSeconds = (double)aamp_GetCurrentTimeMS() / 1000;
 
 			uint32_t duration = segmentTemplates.GetDuration();
 			double fragmentDuration =  ComputeFragmentDuration(duration,timeScale);
 			long startNumber = segmentTemplates.GetStartNumber();
-			
-			if(!aamp->IsLive())
-			{
-				//Offset is Set on Skipping fragments due to PTO in Segment Template case
-				startNumber += pMediaStreamContext->startNumberOffset;
-			}
 			uint32_t scale = segmentTemplates.GetTimescale();
 			double pto =  (double) segmentTemplates.GetPresentationTimeOffset();
 			AAMPLOG_TRACE("Type[%d] currentTimeSeconds:%f duration:%d fragmentDuration:%f startNumber:%ld", pMediaStreamContext->type, currentTimeSeconds,duration,fragmentDuration,startNumber);
@@ -1727,13 +1699,8 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 
 				if (rate > 0)
 				{
-					// When PTO Processing is pending
-					// Do not change timeline or fragmentDescriptor.Number
-					if(!mpendingPtoProcessing[pMediaStreamContext->type])
-					{
-						pMediaStreamContext->fragmentDescriptor.Number++;
-						pMediaStreamContext->fragmentDescriptor.Time += fragmentDuration;
-					}
+					pMediaStreamContext->fragmentDescriptor.Number++;
+					pMediaStreamContext->fragmentDescriptor.Time += fragmentDuration;
 				}
 				else
 				{
@@ -2293,36 +2260,18 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 						}
 						if( updateFirstPTS )
 						{
-							aamp->mSkipTime = skipTime;
 							mFirstPTS += skipTime;
 							AAMPLOG_TRACE("Type[%d] updateFirstPTS: %f SkipTime: %f",mFirstPTS, skipTime);
 						}
 					}					
 					if (skipTime >= segmentDuration)
 					{ // seeking past more than one segment
-						uint64_t number = (skipTime / segmentDuration) + 1; // Number is 1-based index
-						double fragmentTimeFromNumber = segmentDuration * (number - 1);
+						uint64_t number = skipTime / segmentDuration;
+						double fragmentTimeFromNumber = segmentDuration * number;
 						
-						if(!aamp->IsLive())
-						{
-							pMediaStreamContext->fragmentDescriptor.Number += (number - 1);
-							//In Skip to specific segment case based on PTO. Do not change timeline
-							if(!mpendingPtoProcessing[pMediaStreamContext->type])
-							{
-								pMediaStreamContext->fragmentDescriptor.Time += fragmentTimeFromNumber;
-								pMediaStreamContext->fragmentTime = fragmentTimeFromNumber;
-							}
-							else
-							{
-								pMediaStreamContext->startNumberOffset = (number - 1);
-							}
-						}
-						else
-						{
-							pMediaStreamContext->fragmentDescriptor.Number += number;
-							pMediaStreamContext->fragmentTime = fragmentTimeFromNumber;
-							pMediaStreamContext->fragmentDescriptor.Time += fragmentTimeFromNumber;
-						}
+						pMediaStreamContext->fragmentDescriptor.Number += number;
+						pMediaStreamContext->fragmentDescriptor.Time += fragmentTimeFromNumber;
+						pMediaStreamContext->fragmentTime = fragmentTimeFromNumber;
 
 						pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
 						skipTime -= fragmentTimeFromNumber;
@@ -6971,7 +6920,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 				// mFirstPTS is used during Flush() for configuring gst_element_seek start position
 				const ISegmentTimeline *segmentTimeline = segmentTemplates.GetSegmentTimeline();
 				long int startNumber = segmentTemplates.GetStartNumber();
-				if((NULL == segmentTimeline) ) //&& ISCONFIGSET(eAAMPConfig_EnablePTO))
+				if(NULL == segmentTimeline)
 				{
                                         uint32_t timeScale = segmentTemplates.GetTimescale();
                                         uint32_t duration = segmentTemplates.GetDuration();
@@ -7798,24 +7747,6 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 						mBasePeriodOffset += (pMediaStreamContext->fragmentTime - currFragTime);
 					}
 
-					// Skip fragment download as per PTO delta identified in first buffer processing
-					if(!trickPlay && !aamp->IsLiveStream() &&
-					ISCONFIGSET(eAAMPConfig_EnablePTO) &&
-					aamp->mbEnableSegmentTemplateHandling &&
-					mpendingPtoProcessing[pMediaStreamContext->type] &&
-					mtempDelta[pMediaStreamContext->type])
-					{
-						// Adjust the lastSegmentNumber, StartNumberOffset and fragmentDescriptor Number
-						// no change in Fragment Presentation timeline
-						// PushNextFragment will consider startNumberOffset for position calculation in period
-						delta = SkipFragments(pMediaStreamContext, mtempDelta[pMediaStreamContext->type]);
-						AAMPLOG_INFO("Type[%d] PTO Processed - SkipFragments %f", pMediaStreamContext->type,mtempDelta[pMediaStreamContext->type]);
-
-						// Mark PTO Processing complete
-						mpendingPtoProcessing[pMediaStreamContext->type] = false;
-						mtempDelta[pMediaStreamContext->type] = 0.0;
-					}
-
 					if (PushNextFragment(pMediaStreamContext, getCurlInstanceByMediaType(static_cast<MediaType>(trackIdx))))
 					{
 						if (mIsLiveManifest)
@@ -8096,12 +8027,6 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 								aamp->mIsPeriodChangeMarked = true;
                                                         }
 							requireStreamSelection = true;
-
-							for (int i = 0; i < mNumberOfTracks; i++)
-							{
-								mperiodChanged[i] = true;
-								mtempDelta[i] = 0.0;
-							}
 
 							AAMPLOG_WARN("playing period %d/%d", iPeriod, (int)numPeriods);
 						}

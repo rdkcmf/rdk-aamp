@@ -195,10 +195,6 @@ public:
 	uint32_t GetCurrPeriodTimeScale();
 	dash::mpd::IMPD *GetMPD( void );
 	IPeriod *GetPeriod( void );
-	bool mperiodChanged[AAMP_TRACK_COUNT];
-	bool mpendingPtoProcessing[AAMP_TRACK_COUNT];
-	double mtempDelta[AAMP_TRACK_COUNT];
-	double mFirstBufferScaledPts[AAMP_TRACK_COUNT];
 private:
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
 	void FetcherLoop();
