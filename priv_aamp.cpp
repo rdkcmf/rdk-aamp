@@ -1490,6 +1490,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mSkipTime(0)
 	, mOffsetFromTunetimeForSAPWorkaround(0)
 	, mLanguageChangeInProgress(false)
+	, mSupportedTLSVersion(0)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -3234,6 +3235,11 @@ bool PrivateInstanceAAMP::GetNetworkTime(enum UtcTiming timingType, const std::s
         if(!ISCONFIGSET_PRIV(eAAMPConfig_SslVerifyPeer)){
             curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
         }
+	else {
+	    curl_easy_setopt(curl, CURLOPT_SSLVERSION, mSupportedTLSVersion);
+	    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+	}
+
         curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
 
         res = curl_easy_perform(curl);
@@ -3387,6 +3393,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			}
 			else
 			{
+				curl_easy_setopt(curl, CURLOPT_SSLVERSION, mSupportedTLSVersion);
 				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 			}
 
@@ -4226,6 +4233,10 @@ bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, Growa
 		if(!ISCONFIGSET_PRIV(eAAMPConfig_SslVerifyPeer)){
 			curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 		}
+		else {
+			curl_easy_setopt(curl, CURLOPT_SSLVERSION, mSupportedTLSVersion);
+		        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+		}
 		curl_easy_setopt(curl, CURLOPT_URL, remoteUrl.c_str());
 
 		res = curl_easy_perform(curl);
@@ -4909,6 +4920,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestConfig,mHarvestConfig);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_AuthToken,mSessionToken);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_SubTitleLanguage,mSubLanguage);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_TLSVersion,mSupportedTLSVersion);
 	mAsyncTuneEnabled = ISCONFIGSET_PRIV(eAAMPConfig_AsyncTune);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_LivePauseBehavior,intTmpVar);
 	mPausedBehavior = (PausedBehavior)intTmpVar;

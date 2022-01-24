@@ -871,6 +871,7 @@ public:
 	double mSkipTime;
 	double mOffsetFromTunetimeForSAPWorkaround; /** current playback position in epoch**/
 	bool mLanguageChangeInProgress;
+	long mSupportedTLSVersion;    /*ssl/TLS default version */
 
 	/**
 	 * @brief Check if segment starts with an ID3 section
