@@ -772,6 +772,11 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	if(!ISCONFIGSET(eAAMPConfig_SslVerifyPeer)){
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 	}
+	else {
+		curl_easy_setopt(curl, CURLOPT_SSLVERSION, aamp->mSupportedTLSVersion);
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+	}
+
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
 	if(licenseRequest.method == AampLicenseRequest::POST)
