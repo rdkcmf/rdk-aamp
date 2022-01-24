@@ -1,0 +1,77 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"cmake.configureEnvironment": {
+			"PKG_CONFIG_PATH": "${workspaceFolder}/Linux/lib/pkgconfig"
+		},
+		"cmake.configureArgs": [
+			"-DCMAKE_INSTALL_PREFIX=${workspaceFolder}/Linux",
+			"-DCMAKE_PLATFORM_UBUNTU=1",
+			"-DCMAKE_LIBRARY_PATH=${workspaceFolder}/Linux/lib"
+		],
+	},
+	"launch": {
+		"configurations": [
+			{
+				"name": "aamp-cli simulator",
+				"type": "cppdbg",
+				"request": "launch",
+				"program": "${workspaceFolder}/build/aamp-cli",
+				"args": [],
+				"stopAtEntry": false,
+				"cwd": "${fileDirname}",
+				"environment": [
+					{
+						"name": "LD_PRELOAD",
+						"value": "${workspaceFolder}/Linux/lib/libdash.so"
+					},
+					{
+						"name": "LD_LIBRARY_PATH",
+						"value": "${workspaceFolder}/Linux/lib"
+					}
+				],
+				"externalConsole": false,
+				"MIMode": "gdb",
+				"setupCommands": [
+					{
+						"description": "Enable pretty-printing for gdb",
+						"text": "-enable-pretty-printing",
+						"ignoreFailures": true
+					}
+				]
+			}
+		],
+		"compounds": []
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "aamp-cli",
+				"type": "shell",
+				"command": "make",
+				"args": [
+					"--directory=${workspaceFolder}/build",
+					"aamp-cli",
+					"-j4"
+				],
+				"group": "build",
+				"presentation": {
+					// Reveal the output only if unrecognized errors occur.
+					"reveal": "silent"
+				},
+				// Use the standard MS compiler pattern to detect errors, warnings and infos
+				"problemMatcher": "$msCompile"
+			}
+		]
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-vscode.cmake-tools"
+		]
+	}
+}

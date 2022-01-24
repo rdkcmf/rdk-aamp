@@ -220,6 +220,12 @@ if(CMAKE_IARM_MGR)
 	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DIARM_MGR=1")
 endif()
 
+if(CMAKE_PLATFORM_UBUNTU)
+    message("AAMP_SIMULATOR_BUILD set")
+    link_directories(${CMAKE_LIBRARY_PATH})
+    STRING(REPLACE " -Werror=effc++" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+endif()
+
 set(AAMP_CLI_SOURCES test/aampcli.cpp ${AAMP_OS_SOURCES})
 
 set(AAMP_SUBTEC_SOURCES subtec/PacketSender.cpp)
