@@ -330,7 +330,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_GStreamerBufferingBeforePlay].value		=	true;
 	bAampCfgValue[eAAMPConfig_EnablePROutputProtection].value		=	false;
 	bAampCfgValue[eAAMPConfig_ReTuneOnBufferingTimeout].value		=	true;
-	bAampCfgValue[eAAMPConfig_SslVerifyPeer].value				=	false;
+	bAampCfgValue[eAAMPConfig_SslVerifyPeer].value				=	true;
 	bAampCfgValue[eAAMPConfig_EnableClientDai].value			=	false;
 	bAampCfgValue[eAAMPConfig_PlayAdFromCDN].value				=	false;
 	bAampCfgValue[eAAMPConfig_EnableVideoEndEvent].value			=	true;
