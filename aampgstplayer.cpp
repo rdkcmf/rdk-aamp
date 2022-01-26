@@ -990,14 +990,14 @@ static void InitializeSource(AAMPGstPlayer *_this, GObject *source, MediaType me
 		int MaxGstVideoBufBytes = 0;
 		_this->aamp->mConfig->GetConfigValue(eAAMPConfig_GstVideoBufBytes,MaxGstVideoBufBytes);
 		AAMPLOG_INFO("Setting gst Video buffer max bytes to %d", MaxGstVideoBufBytes);
-		g_object_set(source, "max-bytes", MaxGstVideoBufBytes, NULL);			/* Sets the maximum video buffer bytes as per configuration*/
+		g_object_set(source, "max-bytes", (guint64)MaxGstVideoBufBytes, NULL);			/* Sets the maximum video buffer bytes as per configuration*/
 	}
 	else if (eMEDIATYPE_AUDIO == mediaType || eMEDIATYPE_AUX_AUDIO == mediaType)
 	{
 		int MaxGstAudioBufBytes = 0;
                 _this->aamp->mConfig->GetConfigValue(eAAMPConfig_GstAudioBufBytes,MaxGstAudioBufBytes);
 		AAMPLOG_INFO("Setting gst Audio buffer max bytes to %d", MaxGstAudioBufBytes);
-		g_object_set(source, "max-bytes", MaxGstAudioBufBytes, NULL);			/* Sets the maximum audio buffer bytes as per configuration*/
+		g_object_set(source, "max-bytes", (guint64)MaxGstAudioBufBytes, NULL);			/* Sets the maximum audio buffer bytes as per configuration*/
 	}
 	g_object_set(source, "min-percent", 50, NULL);								/* Trigger the need data event when the queued bytes fall below 50% */
 	g_object_set(source, "format", GST_FORMAT_TIME, NULL);						/* "format" can be used to perform seek or query/conversion operation*/
