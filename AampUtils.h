@@ -51,6 +51,8 @@
  */
 long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_TS_MS instead
 
+bool replace(std::string &str, const char *existingSubStringToReplace, const char *replacementString);
+
 bool aamp_IsAbsoluteURL( const std::string &url );
 
 /**

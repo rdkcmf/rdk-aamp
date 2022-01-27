@@ -592,38 +592,6 @@ static void DeFog(std::string& url)
 	}
 }
 
-/**
- * @brief replace all occurrences of existingSubStringToReplace in str with replacementString
- * @param str string to be scanned/modified
- * @param existingSubStringToReplace substring to be replaced
- * @param replacementString string to be substituted
- * @retval true iff str was modified
- */
-static bool replace(std::string &str, const char *existingSubStringToReplace, const char *replacementString)
-{
-	bool rc = false;
-	std::size_t fromPos = 0;
-	size_t existingSubStringToReplaceLen = 0;
-	size_t replacementStringLen = 0;
-	for(;;)
-	{
-		std::size_t pos = str.find(existingSubStringToReplace,fromPos);
-		if( pos == std::string::npos )
-		{ // done - pattern not found
-			break;
-		}
-		if( !rc )
-		{ // lazily meaasure input strings - no need to measure unless match found
-			rc = true;
-			existingSubStringToReplaceLen = strlen(existingSubStringToReplace);
-			replacementStringLen = strlen(replacementString);
-		}
-		str.replace( pos, existingSubStringToReplaceLen, replacementString );
-		fromPos  = pos + replacementStringLen;
-	}
-	return rc;
-}
-
 // Helper functions for loading configuration (from file/TR181)
 
 #ifdef IARM_MGR
@@ -5303,7 +5271,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			replace(mManifestUrl, "-eac3.mpd", ".mpd");
 		} // mpd
 	} // !remap_url
- 
+
+ 	mConfig->GetsubstrUrlOverride(mManifestUrl);
 	mIsFirstRequestToFOG = (mTSBEnabled == true);
 
 	{

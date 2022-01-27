@@ -259,7 +259,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
  *
  * @return None
  */
-AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAampDevCmdTable(),vCustom(),vCustomIt(),customFound(false),mLogObj(NULL)
+AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),mUrlOverrideMap(),logging(),mAampDevCmdTable(),vCustom(),vCustomIt(),customFound(false),mLogObj(NULL)
 {
 	for(int i=0; i<sizeof(ConfigLookUpTable) / sizeof(AampConfigLookupEntry); ++i)
 	{
@@ -282,6 +282,7 @@ AampConfig& AampConfig::operator=(const AampConfig& rhs)
 	}
 	logging  = rhs.logging;
 	mChannelOverrideMap = rhs.mChannelOverrideMap;
+	mUrlOverrideMap = rhs.mUrlOverrideMap;
 	mAampDevCmdTable = rhs.mAampDevCmdTable;
 	vCustom = rhs.vCustom;
 	customFound = rhs.customFound;		
@@ -686,6 +687,20 @@ const char * AampConfig::GetChannelOverride(const std::string manifestUrl)
 		}
 	}
 	return NULL;
+}
+
+void AampConfig::GetsubstrUrlOverride(std::string &remoteUrl)
+{
+	std::string key,value;
+	for(auto it = mUrlOverrideMap.begin(); it != mUrlOverrideMap.end(); ++it)
+	{
+		key=it->first;
+		value=it->second;
+		if(remoteUrl.find(key)!=std::string::npos)
+		{
+			replace(remoteUrl,key.c_str(),value.c_str());
+		}
+	}
 }
 
 /**
@@ -1308,6 +1323,17 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 			}
 
 		}
+		if(cfg[0] == '&')
+                {
+                        std::string key,value;
+                        std::size_t delimiterPos = cfg.find("=");
+                        if(delimiterPos != std::string::npos)
+                        {
+                            	key = cfg.substr(1, delimiterPos-1);
+                		value = cfg.substr(delimiterPos + 1);
+                                mUrlOverrideMap.insert(std::pair<std::string, std::string> (key.c_str(),value.c_str()));
+                        }
+                }
 		else
 		{
 

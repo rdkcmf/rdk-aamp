@@ -444,6 +444,7 @@ public:
 	bool GetConfigValue(AAMPConfigSettings cfg , int &value);
 	ConfigPriority GetConfigOwner(AAMPConfigSettings cfg);
 	const char * GetChannelOverride(const std::string chName);
+	void GetsubstrUrlOverride(std::string &chUrl);
 	const char * GetChannelLicenseOverride(const std::string chName);
 	bool ProcessConfigJson(const char *, ConfigPriority owner );
 	bool ProcessConfigText(std::string &cfg, ConfigPriority owner );
@@ -490,6 +491,9 @@ private:
 	typedef std::list<ConfigChannelInfo> ChannelMap ;
 	typedef std::list<ConfigChannelInfo>::iterator ChannelMapIter ;
 	ChannelMap mChannelOverrideMap;
+	typedef std::map<std::string, std::string> UrlMap;
+   	typedef std::map<std::string, std::string>::iterator UrlMapIter;
+	UrlMap mUrlOverrideMap;
 };
 
 extern AampConfig  *gpGlobalConfig;

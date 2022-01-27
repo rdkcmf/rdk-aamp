@@ -190,6 +190,39 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri , bool 
 		}
 	}
 }
+/**
+* @brief replace all occurrences of existingSubStringToReplace in str with replacementString
+* @param str string to be scanned/modified
+* @param existingSubStringToReplace substring to be replaced
+* @param replacementString string to be substituted
+* @retval true iff str was modified
+*/
+
+
+bool replace(std::string &str, const char *existingSubStringToReplace, const char *replacementString)
+{
+        bool rc = false;
+        std::size_t fromPos = 0;
+        size_t existingSubStringToReplaceLen = 0;
+        size_t replacementStringLen = 0;
+        for(;;)
+        {
+                std::size_t pos = str.find(existingSubStringToReplace,fromPos);
+                if( pos == std::string::npos )
+                { // done - pattern not found
+                        break;
+                }
+                if( !rc )
+                { // lazily meaasure input strings - no need to measure unless match found
+                        rc = true;
+                        existingSubStringToReplaceLen = strlen(existingSubStringToReplace);
+                        replacementStringLen = strlen(replacementString);
+                }
+                str.replace( pos, existingSubStringToReplaceLen, replacementString );
+                fromPos  = pos + replacementStringLen;
+        }
+        return rc;
+}
 
 /**
  * @brief distinguish between absolute and relative urls
