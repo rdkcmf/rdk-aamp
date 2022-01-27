@@ -1505,6 +1505,13 @@ JSValueRef AAMPMediaPlayerJS_setVolume (JSContextRef ctx, JSObjectRef function, 
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVolume() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
+	
+	if(!privObj->_aamp)
+	{
+		ERROR("%s(): Error - PlayerInstanceAAMP returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVolume() on valid instance of PlayerInstanceAAMP");
+		return JSValueMakeUndefined(ctx);
+	}
 
 	if (argumentCount == 1)
 	{
