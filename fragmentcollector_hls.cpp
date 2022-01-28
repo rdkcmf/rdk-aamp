@@ -1215,23 +1215,7 @@ char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 		{
 			if (!memcmp(fragmentInfo, "#EXT-X-BYTERANGE:", 17))
 			{
-				char temp[1024];
-				const char * end = fragmentInfo;
-				while (end[0] != CHAR_LF)
-				{
-					end++;
-				}
-				int len = end - fragmentInfo;
-				assert(len < 1024);
-				strncpy(temp, fragmentInfo + 17, len);
-				temp[1023] = 0x00;
-				char * offsetDelim = strchr(temp, '@'); // optional
-				if (offsetDelim)
-				{
-					*offsetDelim++ = 0x00;
-					sscanf(offsetDelim, "%zu", &byteRangeOffset);
-				}
-				sscanf(temp, "%zu", &byteRangeLength);
+				sscanf( fragmentInfo+17, "%zu@%zu", & byteRangeLength, &byteRangeOffset );
 			}
 			/*Skip to next line*/
 			while (fragmentInfo[0] != CHAR_LF)
