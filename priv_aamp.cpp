@@ -6794,7 +6794,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 	GetState(state);
 	if (state == eSTATE_IDLE)
 	{
-		AAMPLOG_WARN("%s:%d skipped as in IDLE state");
+		AAMPLOG_WARN( "skipped as in IDLE state" );
 		return;
 	}
 	
@@ -7721,7 +7721,7 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 	// In the middle of stop processing we can receive state changing callback (xione-7331)
 	if (state == eSTATE_IDLE)
 	{
-		AAMPLOG_WARN("%s:%d skipped as in IDLE state");
+		AAMPLOG_WARN( "skipped as in IDLE state" );
 		return;
 	}
 	
@@ -8909,7 +8909,7 @@ void PrivateInstanceAAMP::NotifyFirstVideoFrameDisplayed()
 	GetState(state);
 	if (state == eSTATE_IDLE)
 	{
-		AAMPLOG_WARN("%s:%d skipped as in IDLE state");
+		AAMPLOG_WARN( "skipped as in IDLE state" );
 		return;
 	}
 	
