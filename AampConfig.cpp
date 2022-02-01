@@ -1014,15 +1014,15 @@ void AampConfig::CustomArrayRead( cJSON *customArray,ConfigPriority owner )
 		for(int i = 0; i < length ; i++)
 		{
 			customVal = cJSON_GetArrayItem(customArray,i);
-			if((searchVal = cJSON_GetObjectItem(customVal,"url")))
+			if((searchVal = cJSON_GetObjectItem(customVal,"url")) != NULL)
 			{
 				keyname = "url";
 			}
-			else if((searchVal = cJSON_GetObjectItem(customVal,"playerId")))
+			else if((searchVal = cJSON_GetObjectItem(customVal,"playerId")) != NULL)
 			{
 				keyname = "playerId";
 			}
-			else if((searchVal = cJSON_GetObjectItem(customVal,"appName")))
+			else if((searchVal = cJSON_GetObjectItem(customVal,"appName")) != NULL)
 			{
 				keyname = "appName";
 			}
