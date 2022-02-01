@@ -6867,7 +6867,7 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 	GetState(state);
 	if (state == eSTATE_IDLE)
 	{
-		AAMPLOG_WARN("skipped as in IDLE state");
+		AAMPLOG_WARN("%s:%d skipped as in IDLE state");
 		return;
 	}
 	
