@@ -3787,9 +3787,10 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				
 
 				double total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize;
-				long reqSize;
+				long reqSize, downloadbps = 0;
 				AAMP_LogLevel reqEndLogLevel = eLOGLEVEL_INFO;
-				long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
+				if(downloadTimeMS != 0 && buffer->len != 0)
+					downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
 
 				curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME , &total);
 				curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME, &connect);
