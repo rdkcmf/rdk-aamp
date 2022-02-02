@@ -83,7 +83,7 @@ typedef enum
 	AAMP_EVENT_BLOCKED,         	        /**< 38, ATSC AV BLOCKED Event*/
 	AAMP_EVENT_CONTENT_GAP,			/**< 39, Content gap event for progress gap reporting*/
 	AAMP_EVENT_HTTP_RESPONSE_HEADER,        /**< 40, Http response header data */
-	AAMP_EVENT_WATERMARK_SESSION_UPDATE,    /**< 40, Update on Watermark Session*/
+	AAMP_EVENT_WATERMARK_SESSION_UPDATE,    /**< 41, Update on Watermark Session*/
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
