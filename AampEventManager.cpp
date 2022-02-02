@@ -360,6 +360,7 @@ void AampEventManager::SendEventAsync(const AAMPEventPtr &eventData)
 		{
 			SetCallbackAsPending(callbackID);
 		}
+		return;
 	}
 	pthread_mutex_unlock(&mMutexVar);
 	return;
