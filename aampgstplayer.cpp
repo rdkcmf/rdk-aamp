@@ -658,9 +658,10 @@ static gboolean IdleCallbackFirstVideoFrameDisplayed(gpointer user_data)
 void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 {
 	FN_TRACE( __FUNCTION__ );
-	// RDK-34481 :LogTuneComplete will be noticed after getting both audio & video first frame .
-	//incase of audio or video only playback NumberofTracks =1 ,so in that case also LogTuneCompleted needs to captured when either audio/video frame received
-	if(!privateContext->firstFrameReceived && ((privateContext->firstVideoFrameReceived && privateContext->firstAudioFrameReceived)||(1 == privateContext->NumberOfTracks && (privateContext->firstAudioFrameReceived || privateContext->firstVideoFrameReceived))))
+	// RDK-34481 :LogTuneComplete will be noticed after getting video first frame.
+	// incase of audio or video only playback NumberofTracks =1, so in that case also LogTuneCompleted needs to captured when either audio/video frame received.
+	if (!privateContext->firstFrameReceived && (privateContext->firstVideoFrameReceived
+			|| (1 == privateContext->NumberOfTracks && (privateContext->firstAudioFrameReceived || privateContext->firstVideoFrameReceived))))
 	{
 		privateContext->firstFrameReceived = true;
 		aamp->LogFirstFrame();
