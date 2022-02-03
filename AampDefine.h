@@ -128,7 +128,7 @@
 #define MAX_MDAT_NOT_FOUND_COUNT			200					/**< Max MDAT not found count*/
 
 // Player configuration for Fog download
-#define FOG_MAX_CONCURRENT_DOWNLOADS			5					/**< Max concurrent downloads in Fog*/
+#define FOG_MAX_CONCURRENT_DOWNLOADS			1					/**< Max concurrent downloads in Fog*/
 
 #define AAMP_MAX_EVENT_PRIORITY (-70) /** Maximum allowed priority value for events */
 /**
