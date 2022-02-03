@@ -296,6 +296,8 @@ bool ParseJSPropAsBoolean(JSContextRef ctx, JSObjectRef jsObject, const char *pr
 
 /**
  * @brief API to release internal resources of an AAMPMediaPlayerJS object
+ *  NOTE that this function does NOT free AAMPMediaPlayer_JS
+ *  It is done in AAMPMediaPlayerJS_release ( APP initiated )  or AAMPMediaPlayer_JS_finalize ( GC initiated)
  * @param[in] object AAMPMediaPlayerJS object being released
  */
 static void releaseNativeResources(AAMPMediaPlayer_JS *privObj)
@@ -303,6 +305,7 @@ static void releaseNativeResources(AAMPMediaPlayer_JS *privObj)
 	if (privObj != NULL)
 	{
 		ERROR("[%s] Deleting AAMPMediaPlayer_JS instance:%p ", __FUNCTION__, privObj);
+		// clean all members of AAMPMediaPlayer_JS(privObj)
 		if (privObj->_aamp != NULL)
 		{
 			//when finalizing JS object, don't generate state change events
@@ -315,7 +318,6 @@ static void releaseNativeResources(AAMPMediaPlayer_JS *privObj)
 			ERROR("[%s] Deleting PlayerInstanceAAMP instance:%p", __FUNCTION__, privObj->_aamp);
 			SAFE_DELETE(privObj->_aamp);
 		}
-		SAFE_DELETE(privObj);
 	}
 }
 
@@ -442,7 +444,7 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call load() on instances of AAMPPlayer");
@@ -551,7 +553,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call initConfig() on instances of AAMPPlayer");
@@ -615,7 +617,7 @@ JSValueRef AAMPMediaPlayerJS_play (JSContextRef ctx, JSObjectRef function, JSObj
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call play() on instances of AAMPPlayer");
@@ -652,7 +654,7 @@ JSValueRef AAMPMediaPlayerJS_detach (JSContextRef ctx, JSObjectRef function, JSO
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call play() on instances of AAMPPlayer");
@@ -679,7 +681,7 @@ JSValueRef AAMPMediaPlayerJS_pause (JSContextRef ctx, JSObjectRef function, JSOb
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call pause() on instances of AAMPPlayer");
@@ -792,7 +794,7 @@ JSValueRef AAMPMediaPlayerJS_getThumbnails (JSContextRef ctx, JSObjectRef functi
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call seek() on instances of AAMPPlayer");
@@ -845,7 +847,7 @@ JSValueRef AAMPMediaPlayerJS_getAvailableThumbnailTracks (JSContextRef ctx, JSOb
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getVideoBitrates() on instances of AAMPPlayer");
@@ -935,7 +937,7 @@ JSValueRef AAMPMediaPlayerJS_setThumbnailTrack (JSContextRef ctx, JSObjectRef fu
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call SetThumbnailTrack() on instances of AAMPPlayer");
@@ -978,7 +980,7 @@ JSValueRef AAMPMediaPlayerJS_getCurrentState (JSContextRef ctx, JSObjectRef func
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getCurrentState() on instances of AAMPPlayer");
@@ -1004,7 +1006,7 @@ JSValueRef AAMPMediaPlayerJS_getDurationSec (JSContextRef ctx, JSObjectRef funct
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	double duration = 0;
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getDurationSec() on instances of AAMPPlayer");
@@ -1038,7 +1040,7 @@ JSValueRef AAMPMediaPlayerJS_getCurrentPosition (JSContextRef ctx, JSObjectRef f
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	double currPosition = 0;
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getCurrentPosition() on instances of AAMPPlayer");
@@ -1071,7 +1073,7 @@ JSValueRef AAMPMediaPlayerJS_getVideoBitrates (JSContextRef ctx, JSObjectRef fun
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getVideoBitrates() on instances of AAMPPlayer");
@@ -1109,7 +1111,7 @@ JSValueRef AAMPMediaPlayerJS_getManifest (JSContextRef ctx, JSObjectRef function
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getManifest() on instances of AAMPPlayer");
@@ -1142,7 +1144,7 @@ JSValueRef AAMPMediaPlayerJS_getAudioBitrates (JSContextRef ctx, JSObjectRef fun
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAudioBitrates() on instances of AAMPPlayer");
@@ -1181,7 +1183,7 @@ JSValueRef AAMPMediaPlayerJS_getCurrentVideoBitrate (JSContextRef ctx, JSObjectR
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getCurrentVideoBitrate() on instances of AAMPPlayer");
@@ -1206,7 +1208,7 @@ JSValueRef AAMPMediaPlayerJS_setVideoBitrate (JSContextRef ctx, JSObjectRef func
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVideoBitrate() on instances of AAMPPlayer");
@@ -1251,7 +1253,7 @@ JSValueRef AAMPMediaPlayerJS_getCurrentAudioBitrate (JSContextRef ctx, JSObjectR
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getCurrentAudioBitrate() on instances of AAMPPlayer");
@@ -1276,7 +1278,7 @@ JSValueRef AAMPMediaPlayerJS_setAudioBitrate (JSContextRef ctx, JSObjectRef func
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setAudioBitrate() on instances of AAMPPlayer");
@@ -1320,7 +1322,7 @@ JSValueRef AAMPMediaPlayerJS_getAudioTrack (JSContextRef ctx, JSObjectRef functi
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAudioTrack() on instances of AAMPPlayer");
@@ -1345,7 +1347,7 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setAudioTrack() on instances of AAMPPlayer");
@@ -1478,7 +1480,7 @@ JSValueRef AAMPMediaPlayerJS_getTextTrack (JSContextRef ctx, JSObjectRef functio
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getTextTrack() on instances of AAMPPlayer");
@@ -1503,7 +1505,7 @@ JSValueRef AAMPMediaPlayerJS_setTextTrack (JSContextRef ctx, JSObjectRef functio
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setTextTrack() on instances of AAMPPlayer");
@@ -1547,7 +1549,7 @@ JSValueRef AAMPMediaPlayerJS_getVolume (JSContextRef ctx, JSObjectRef function, 
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getVolume() on instances of AAMPPlayer");
@@ -1572,7 +1574,7 @@ JSValueRef AAMPMediaPlayerJS_setVolume (JSContextRef ctx, JSObjectRef function, 
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVolume() on instances of AAMPPlayer");
@@ -1622,7 +1624,7 @@ JSValueRef AAMPMediaPlayerJS_setAudioLanguage (JSContextRef ctx, JSObjectRef fun
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setAudioLanguage() on instances of AAMPPlayer");
@@ -1671,7 +1673,7 @@ JSValueRef AAMPMediaPlayerJS_getPlaybackRate (JSContextRef ctx, JSObjectRef func
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getPlaybackRate() on instances of AAMPPlayer");
@@ -1696,7 +1698,7 @@ JSValueRef AAMPMediaPlayerJS_setPlaybackRate (JSContextRef ctx, JSObjectRef func
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setPlaybackRate() on instances of AAMPPlayer");
@@ -1749,7 +1751,7 @@ JSValueRef AAMPMediaPlayerJS_getSupportedKeySystems (JSContextRef ctx, JSObjectR
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getSupportedKeySystems() on instances of AAMPPlayer");
@@ -1775,7 +1777,7 @@ JSValueRef AAMPMediaPlayerJS_setVideoMute (JSContextRef ctx, JSObjectRef functio
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVideoMute() on instances of AAMPPlayer");
@@ -1812,7 +1814,7 @@ JSValueRef AAMPMediaPlayerJS_setSubscribedTags (JSContextRef ctx, JSObjectRef fu
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setSubscribedTags() on instances of AAMPPlayer");
@@ -1854,7 +1856,7 @@ JSValueRef AAMPMediaPlayerJS_subscribeResponseHeaders (JSContextRef ctx, JSObjec
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call subscribeResponseHeaders() on instances of AAMPPlayer");
@@ -1896,7 +1898,7 @@ JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef fun
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call addEventListener() on instances of AAMPPlayer");
@@ -1952,7 +1954,7 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call removeEventListener() on instances of AAMPPlayer");
@@ -2008,7 +2010,7 @@ JSValueRef AAMPMediaPlayerJS_setDRMConfig (JSContextRef ctx, JSObjectRef functio
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setDrmConfig() on instances of AAMPPlayer");
@@ -2046,7 +2048,7 @@ JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef 
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call addCustomHTTPHeader() on instances of AAMPPlayer");
@@ -2113,7 +2115,7 @@ JSValueRef AAMPMediaPlayerJS_removeCustomHTTPHeader (JSContextRef ctx, JSObjectR
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call removeCustomHTTPHeader() on instances of AAMPPlayer");
@@ -2151,7 +2153,7 @@ JSValueRef AAMPMediaPlayerJS_setVideoRect (JSContextRef ctx, JSObjectRef functio
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVideoRect() on instances of AAMPPlayer");
@@ -2202,7 +2204,7 @@ JSValueRef AAMPMediaPlayerJS_setVideoZoom (JSContextRef ctx, JSObjectRef functio
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVideoZoom() on instances of AAMPPlayer");
@@ -2258,15 +2260,19 @@ JSValueRef AAMPMediaPlayerJS_release (JSContextRef ctx, JSObjectRef function, JS
 
 	if (false == findInGlobalCacheAndRelease(privObj))
 	{
-		ERROR("%s:%d [WARN] Invoked release of a AAMPMediaPlayer_JS object(%p) which was already/being released!!", __FUNCTION__, __LINE__, privObj);
+		ERROR("%s:%d [WARN] Invoked release of a PlayerInstanceAAMP object(%p) which was already/being released!!", __FUNCTION__, __LINE__, privObj);
 	}
 	else
 	{
-		ERROR("%s:%d [WARN] Cleaned up native object for AAMPMediaPlayer_JS object(%p)!!", __FUNCTION__, __LINE__, privObj);
+		ERROR("%s:%d [WARN] Cleaned up native object for AAMPMediaPlayer_JS and PlayerInstanceAAMP object(%p)!!", __FUNCTION__, __LINE__, privObj);
 	}
 
-	// This prevents further release/clean up on the native object
+	// Un-link native object from JS object
 	JSObjectSetPrivate(thisObject, NULL);
+
+	// Delete native object
+	SAFE_DELETE(privObj);
+
 
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
@@ -2287,7 +2293,7 @@ static JSValueRef AAMPMediaPlayerJS_getAvailableAudioTracks(JSContextRef ctx, JS
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if(!privObj)
+	if(!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAvailableAudioTracks() on instances of AAMPPlayer");
@@ -2326,7 +2332,7 @@ static JSValueRef AAMPMediaPlayerJS_getAvailableTextTracks(JSContextRef ctx, JSO
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if(!privObj)
+	if(!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAvailableTextTracks() on instances of AAMPPlayer");
@@ -2361,7 +2367,7 @@ static JSValueRef AAMPMediaPlayerJS_getVideoRectangle(JSContextRef ctx, JSObject
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if(!privObj)
+	if(!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getVideoRectangle() on instances of AAMPPlayer");
@@ -2385,7 +2391,7 @@ static JSValueRef AAMPMediaPlayerJS_setAlternateContent(JSContextRef ctx, JSObje
 {
 	TRACELOG("Enter %s()", __FUNCTION__);	
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if(!privObj)
+	if(!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setAlternateContent() on instances of AAMPPlayer");
@@ -2510,7 +2516,7 @@ JSValueRef AAMPMediaPlayerJS_setPreferredAudioLanguage(JSContextRef ctx, JSObjec
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setPreferredAudioLanguage() on instances of AAMPPlayer");
@@ -2563,7 +2569,7 @@ JSValueRef AAMPMediaPlayerJS_setPreferredAudioCodec(JSContextRef ctx, JSObjectRe
 { // placeholder - not ready for use/publishing
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setPreferredAudioCodec() on instances of AAMPPlayer");
@@ -2600,7 +2606,7 @@ static JSValueRef AAMPMediaPlayerJS_notifyReservationCompletion(JSContextRef ctx
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if(!privObj)
+	if(!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call notifyReservationCompletion() on instances of AAMPPlayer");
@@ -2640,7 +2646,7 @@ JSValueRef AAMPMediaPlayerJS_setClosedCaptionStatus(JSContextRef ctx, JSObjectRe
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setClosedCaptionStatus() on instances of AAMPPlayer");
@@ -2676,7 +2682,7 @@ JSValueRef AAMPMediaPlayerJS_setTextStyleOptions(JSContextRef ctx, JSObjectRef f
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setTextStyleOptions() on instances of AAMPPlayer");
@@ -2721,7 +2727,7 @@ static JSValueRef AAMPMediaPlayerJS_getTextStyleOptions(JSContextRef ctx, JSObje
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if(!privObj)
+	if(!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getTextStyleOptions() on instances of AAMPPlayer");
@@ -2755,7 +2761,7 @@ JSValueRef AAMPMediaPlayerJS_disableContentRestrictions (JSContextRef ctx, JSObj
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call disableContentRestrictions() on instances of AAMPPlayer");
@@ -2852,7 +2858,7 @@ JSValueRef AAMPMediaPlayerJS_enableContentRestrictions (JSContextRef ctx, JSObje
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call enableContentRestrictions() on instances of AAMPPlayer");
@@ -2879,7 +2885,7 @@ static JSValueRef AAMPMediaPlayerJS_setAuxiliaryLanguage(JSContextRef ctx, JSObj
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
-	if(!privObj)
+	if(!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setAuxiliaryLanguage() on instances of AAMPPlayer");
@@ -2979,7 +2985,7 @@ JSValueRef AAMPMediaPlayerJS_getProperty_Version(JSContextRef ctx, JSObjectRef o
 {
 	TRACELOG("Enter %s()", __FUNCTION__);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(object);
-	if (!privObj)
+	if (!privObj || !privObj->_aamp)
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Get property version on instances of AAMPPlayer");
@@ -3011,13 +3017,16 @@ void AAMPMediaPlayer_JS_finalize(JSObjectRef object)
 	{
 		if (false == findInGlobalCacheAndRelease(privObj))
 		{
-			ERROR("%s:%d [WARN] Invoked finalize of a AAMPMediaPlayer_JS object(%p) which was already/being released!!", __FUNCTION__, __LINE__, privObj);
+			ERROR("%s:%d [WARN] Invoked finalize of a PlayerInstanceAAMP object(%p) which was already/being released!!", __FUNCTION__, __LINE__, privObj);
 		}
 		else
 		{
-			ERROR("%s:%d [WARN] Cleaned up native object for AAMPMediaPlayer_JS object(%p)!!", __FUNCTION__, __LINE__, privObj);
+			ERROR("%s:%d [WARN] Cleaned up native object for AAMPMediaPlayer_JS and PlayerInstanceAAMP object(%p)!!", __FUNCTION__, __LINE__, privObj);
 		}
+		//unlink native object from JS object
 		JSObjectSetPrivate(object, NULL);
+		// Delete native object
+		SAFE_DELETE(privObj);
 	}
 	else
 	{
@@ -3102,6 +3111,11 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 	}
 	privObj->_listeners.clear();
 
+
+	// NOTE : Association of JSObject and AAMPMediaPlayer_JS native object will be deleted only in
+	// AAMPMediaPlayerJS_release ( APP initiated )  or AAMPMediaPlayer_JS_finalize ( GC initiated)
+	// There is chance that aamp_UnloadJS is called then functions on aamp object is called from JS script.
+	// In this case AAMPMediaPlayer_JS should be available to access
 	JSObjectRef newObj = JSObjectMake(ctx, AAMPMediaPlayer_object_ref(), privObj);
 
 	pthread_mutex_lock(&jsMediaPlayerCacheMutex);
