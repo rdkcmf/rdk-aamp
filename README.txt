@@ -81,7 +81,7 @@ audioOnlyPlayback		Audio only Playback . Default false
 gstBufferAndPlay		Pre-buffering which ensures minimum buffering is done before pipeline play.Default true
 bulkTimedMetadata		Report timed Metadata as single bulk event.Default false
 asyncTune			Asynchronous API / Event handling for UI.Default false
-useWesterosSink			Enable/Disable westeros sink based video decoding.Default true
+useWesterosSink			Enable/Disable westeros sink based video decoding. 
 useNewABR			Enable/Disable New buffer based hybrid ABR . Default true (enables useNewAdBreaker & PDT based A/V sync)
 useNewAdBreaker			Enable/Disable New discontinuity processing based on PDT.Default false
 useAverageBandwidth		Enable/Disable use of average bandwidth in manifest for ABR instead of Bandwidth attribute . Default false
@@ -279,14 +279,14 @@ This can be done for n number of channels.
 To enable Westeros
 -------------------
 
-Currently, use of Westeros is default-enabled, and can be disabled via RFC.  To apply, Developers can add below
+Currently, use of Westeros is default-disabled, and can be enabled via RFC.  To apply, Developers can add below
 flag in SetEnv.sh under /opt, then restart the receiver process:
 
-	export AAMP_ENABLE_WESTEROS_SINK=false
+	export AAMP_ENABLE_WESTEROS_SINK=true
 
-Note: Above is now used as a common FLAG by AAMP and Receiver module to configure browser rendering
-instead of Westeros direct rendering.
-(Refer DELIA-38429/RDK-26261/RDK-35000)
+Note: Above is now used as a common FLAG by AAMP and Receiver module to configure Westeros direct rendering
+instead of going through browser rendering.  This allows for smoother video zoom animations
+(Refer DELIA-38429/RDK-26261)
 
 However, note that with this optimization applied, the AAMP Diagnostics overlays cannot be made visible.
 As a temporary workaround, the following flag can be used  by developers which will make diagnostic overlay
