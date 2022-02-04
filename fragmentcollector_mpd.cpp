@@ -1487,18 +1487,19 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			}
 
 			double currentTimeSeconds = (double)aamp_GetCurrentTimeMS() / 1000;
-			
+
 			uint32_t duration = segmentTemplates.GetDuration();
 			double fragmentDuration =  ComputeFragmentDuration(duration,timeScale);
 			long startNumber = segmentTemplates.GetStartNumber();
-			//Offset is Set on Skipping fragments due to PTO in Segment Template case
-			startNumber += pMediaStreamContext->startNumberOffset;
-
+			
+			if(!aamp->IsLive())
+			{
+				//Offset is Set on Skipping fragments due to PTO in Segment Template case
+				startNumber += pMediaStreamContext->startNumberOffset;
+			}
 			uint32_t scale = segmentTemplates.GetTimescale();
 			double pto =  (double) segmentTemplates.GetPresentationTimeOffset();
-
 			AAMPLOG_TRACE("Type[%d] currentTimeSeconds:%f duration:%d fragmentDuration:%f startNumber:%ld", pMediaStreamContext->type, currentTimeSeconds,duration,fragmentDuration,startNumber);
-
 			if (0 == pMediaStreamContext->lastSegmentNumber)
 			{
 				if (mIsLiveStream)
@@ -1528,7 +1529,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					{
 						pMediaStreamContext->fragmentDescriptor.Time = mPeriodStartTime;
 					}
-					pMediaStreamContext->lastSegmentNumber =  pMediaStreamContext->fragmentDescriptor.Number;
+					if(!aamp->IsLive()) pMediaStreamContext->lastSegmentNumber =  pMediaStreamContext->fragmentDescriptor.Number;
 				}
 			}
 
@@ -2194,32 +2195,45 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 				else
 				{
 					uint32_t timeScale = segmentTemplates.GetTimescale();
-					if( timeScale )
-					{
-						mFirstPTS = (double)segmentTemplates.GetPresentationTimeOffset() / (double)timeScale;
-					}
-					if( updateFirstPTS )
-					{
-						aamp->mSkipTime = skipTime;
-						mFirstPTS += skipTime;
-						AAMPLOG_TRACE("Type[%d] updateFirstPTS: %f SkipTime: %f",mFirstPTS, skipTime);
-					}
 					double segmentDuration = ComputeFragmentDuration( segmentTemplates.GetDuration(), timeScale );
+					
+					if(!aamp->IsLive())
+					{
+						if( timeScale )
+						{
+							mFirstPTS = (double)segmentTemplates.GetPresentationTimeOffset() / (double)timeScale;
+						}
+						if( updateFirstPTS )
+						{
+							aamp->mSkipTime = skipTime;
+							mFirstPTS += skipTime;
+							AAMPLOG_TRACE("Type[%d] updateFirstPTS: %f SkipTime: %f",mFirstPTS, skipTime);
+						}
+					}					
 					if (skipTime >= segmentDuration)
 					{ // seeking past more than one segment
 						uint64_t number = (skipTime / segmentDuration) + 1; // Number is 1-based index
 						double fragmentTimeFromNumber = segmentDuration * (number - 1);
-						pMediaStreamContext->fragmentDescriptor.Number += (number - 1);
-
-						//In Skip to specific segment case based on PTO. Do not change timeline
-						if(!mpendingPtoProcessing[pMediaStreamContext->type])
+						
+						if(!aamp->IsLive())
 						{
-							pMediaStreamContext->fragmentDescriptor.Time += fragmentTimeFromNumber;
-							pMediaStreamContext->fragmentTime = fragmentTimeFromNumber;
+							pMediaStreamContext->fragmentDescriptor.Number += (number - 1);
+							//In Skip to specific segment case based on PTO. Do not change timeline
+							if(!mpendingPtoProcessing[pMediaStreamContext->type])
+							{
+								pMediaStreamContext->fragmentDescriptor.Time += fragmentTimeFromNumber;
+								pMediaStreamContext->fragmentTime = fragmentTimeFromNumber;
+							}
+							else
+							{
+								pMediaStreamContext->startNumberOffset = (number - 1);
+							}
 						}
 						else
 						{
-							pMediaStreamContext->startNumberOffset = (number - 1);
+							pMediaStreamContext->fragmentDescriptor.Number += number;
+							pMediaStreamContext->fragmentTime = fragmentTimeFromNumber;
+							pMediaStreamContext->fragmentDescriptor.Time += fragmentTimeFromNumber;
 						}
 
 						pMediaStreamContext->lastSegmentNumber = pMediaStreamContext->fragmentDescriptor.Number;
