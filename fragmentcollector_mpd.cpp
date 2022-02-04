@@ -10744,20 +10744,17 @@ bool StreamAbstractionAAMP_MPD::ParseMPDLLData(MPD* mpd, AampLLDashServiceData &
 
 vector<IDescriptor*> StreamAbstractionAAMP_MPD::GetContentProtection(const IAdaptationSet *adaptationSet,MediaType mediaType )
 	{
-		//Priority for adaptation set. If the content protection not available in the representation, go with adaptation set
+		//Priority for representation.If the content protection not available in the representation, go with adaptation set
 		if(adaptationSet->GetRepresentation().size() > 0)
 		{
-			int index = 0;
-			if(mMediaStreamContext[mediaType]->representationIndex > 0)
+			int representaionSize = adaptationSet->GetRepresentation().size();
+			for(int index=0; index < representaionSize ; index++ )
 			{
-				//Each representation might have individual content protection.
-				//So reading the content protection based on the  current playback profile
-				index = mMediaStreamContext[mediaType]->representationIndex;
-			}
-			IRepresentation* representation = adaptationSet->GetRepresentation().at(index);
-			if( representation->GetContentProtection().size() > 0 )
-			{
-				return( representation->GetContentProtection() );
+				IRepresentation* representation = adaptationSet->GetRepresentation().at(index);
+				if( representation->GetContentProtection().size() > 0 )
+				{
+					return( representation->GetContentProtection() );
+				}
 			}
 		}
 		return (adaptationSet->GetContentProtection());
