@@ -4813,6 +4813,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			*/
 			if(mbEnableFirstPtsSeekPosOverride)
 			{
+				//Gets here only when eAAMPConfig_EnablePTO is true
 				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate, false);
 				mbEnableFirstPtsSeekPosOverride = false;
 			}
