@@ -290,7 +290,9 @@ int AAMPOCDMGSTSessionAdapter::decrypt(GstBuffer *keyIDBuffer, GstBuffer *ivBuff
 		start_decrypt_time = GetCurrentTimeStampInMSec();
 
 #if defined(AMLOGIC)
-		if (AAMPOCDMGSTSessionDecrypt && !gst_caps_is_empty(caps))
+		/* Added GST_IS_CAPS check also before passing gst caps to OCDM decrypt() as gst_caps_is_empty returns false when caps object is not of 
+		   type GST_TYPE_CAPS. This will avoid crash when caps is not of type GST_TYPE_CAPS. */
+		if (AAMPOCDMGSTSessionDecrypt && !gst_caps_is_empty(caps) && GST_IS_CAPS(caps))
 		{
 			AAMPLOG_TRACE("Caps is %s", gst_caps_to_string(caps));
 			retValue = AAMPOCDMGSTSessionDecrypt(m_pOpenCDMSession, buffer, subSamplesBuffer, subSampleCount, ivBuffer, keyIDBuffer, 0, caps);
