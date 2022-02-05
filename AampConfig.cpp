@@ -245,8 +245,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"enableLowLatencyOffsetMin",eAAMPConfig_EnableLowLatencyOffsetMin,-1,-1},
 	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}},
 	{"syncAudioFragments",eAAMPConfig_SyncAudioFragments,-1,-1},
-	{"enablePTO", eAAMPConfig_EnablePTO, -1, -1}
-	{"enableEosSmallFragment", eAAMPConfig_EnableIgnoreEosSmallFragment, -1, -1},
+	{"enablePTO", eAAMPConfig_EnablePTO, -1, -1},
+	{"enableEosSmallFragment", eAAMPConfig_EnableIgnoreEosSmallFragment, -1, -1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
