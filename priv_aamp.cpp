@@ -2626,6 +2626,7 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 				mStreamSink->Stop(false);
 			}
 			SendAnomalyEvent(ANOMALY_TRACE, "Generating EOS event");
+			trickStartUTCMS = -1;
 			return;
 		}
 
