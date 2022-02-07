@@ -215,7 +215,8 @@ private:
 	void ProcessStreamRestriction(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void ProcessStreamRestrictionExt(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
 	void ProcessTrickModeRestriction(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
-	void FetchAndInjectInitialization(bool discontinuity = false);
+	void FetchAndInjectInitFragments(bool discontinuity = false);
+	void FetchAndInjectInitialization(int trackIdx, bool discontinuity = false);
 	void StreamSelection(bool newTune = false, bool forceSpeedsChangedEvent = false);
 	bool CheckForInitalClearPeriod();
 	void PushEncryptedHeaders();
