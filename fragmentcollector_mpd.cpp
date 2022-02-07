@@ -1452,7 +1452,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						{
 							pMediaStreamContext->profileChanged = true;
 							profileIdxForBandwidthNotification = GetProfileIdxForBandwidthNotification(pMediaStreamContext->fragmentDescriptor.Bandwidth);
-							FetchAndInjectInitialization();
+							FetchAndInjectInitFragments();
 							UpdateRampdownProfileReason();
 							return false;
 						}
@@ -1487,7 +1487,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						{
 							pMediaStreamContext->profileChanged = true;
 							profileIdxForBandwidthNotification = GetProfileIdxForBandwidthNotification(pMediaStreamContext->fragmentDescriptor.Bandwidth);
-							FetchAndInjectInitialization();
+							FetchAndInjectInitFragments();
 							UpdateRampdownProfileReason();
 							return false;
 						}
@@ -1895,7 +1895,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 										pMediaStreamContext->fragmentDescriptor.Bandwidth = bitrate;
 										pMediaStreamContext->profileChanged = true;
 										profileIdxForBandwidthNotification = GetProfileIdxForBandwidthNotification(bitrate);
-										FetchAndInjectInitialization();
+										FetchAndInjectInitFragments();
 										UpdateRampdownProfileReason();
 										return false; //Since we need to check WaitForFreeFragmentCache
 									}
@@ -4564,7 +4564,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 #endif
 
 		AAMPLOG_WARN("StreamAbstractionAAMP_MPD: fetch initialization fragments");
-		FetchAndInjectInitialization();
+		FetchAndInjectInitFragments();
 	}
 
 	return retval;
@@ -7341,22 +7341,29 @@ void StreamAbstractionAAMP_MPD::UpdateCulledAndDurationFromPeriodInfo()
 	}
 }
 
-
+/**
+ * @brief Fetch and inject initialization fragment for all available tracks
+ * @param number of tracks and discontinuity true if discontinuous fragment
+ */
+void StreamAbstractionAAMP_MPD::FetchAndInjectInitFragments(bool discontinuity)
+{
+	for( int i = 0; i < mNumberOfTracks; i++)
+	{
+		FetchAndInjectInitialization(i,discontinuity);
+	}
+}
 
 /**
- * @brief Fetch and inject initialization fragment
- * @param discontinuity true if discontinuous fragment
+ * @brief Fetch and inject initialization fragment for media type
+ * @param number of tracks and discontinuity true if discontinuous fragment
  */
-void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
+void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(int trackIdx, bool discontinuity)
 {
-	FN_TRACE_F_MPD( __FUNCTION__ );
-	pthread_t trackDownloadThreadID;
-	HeaderFetchParams *fetchParams = NULL;
-	bool dlThreadCreated = false;
-	int numberOfTracks = mNumberOfTracks;
-	for (int i = 0; i < numberOfTracks; i++)
-	{
-		class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[i];
+		FN_TRACE_F_MPD( __FUNCTION__ );
+		pthread_t trackDownloadThreadID;
+		HeaderFetchParams *fetchParams = NULL;
+		bool dlThreadCreated = false;
+		class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[trackIdx];
 		if(discontinuity && pMediaStreamContext->enabled)
 		{
 			pMediaStreamContext->discontinuity = discontinuity;
@@ -7404,7 +7411,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 							{
 								pMediaStreamContext->profileChanged = false;
 
-								FetchFragment(pMediaStreamContext, initialization, fragmentDuration, true, getCurlInstanceByMediaType(static_cast<MediaType>(i)), pMediaStreamContext->discontinuity);
+								FetchFragment(pMediaStreamContext, initialization, fragmentDuration, true, getCurlInstanceByMediaType(static_cast<MediaType>(trackIdx)), pMediaStreamContext->discontinuity);
 								pMediaStreamContext->discontinuity = false;
 							}
 						}
@@ -7469,7 +7476,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 								if( !urlType )
 								{
 									AAMPLOG_WARN("initialization is null");
-									continue;
+									return;
 								}
 							}
 							std::string initialization = urlType->GetSourceURL();
@@ -7505,7 +7512,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 									if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 									{
 										pMediaStreamContext->profileChanged = false;
-										FetchFragment(pMediaStreamContext, initialization, fragmentDuration, true, getCurlInstanceByMediaType(static_cast<MediaType>(i)));
+										FetchFragment(pMediaStreamContext, initialization, fragmentDuration, true, getCurlInstanceByMediaType(static_cast<MediaType>(trackIdx)));
 									}
 								}
 							}
@@ -7587,7 +7594,6 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(bool discontinuity)
 				}
 			}
 		}
-	}
 
 	if(dlThreadCreated)
 	{
@@ -7845,7 +7851,7 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 			// DELIA-32017
 			else if(pMediaStreamContext->profileChanged)
 			{	// Profile changed case
-				FetchAndInjectInitialization();
+				FetchAndInjectInitialization(trackIdx);
 			}
 
 			if(pMediaStreamContext->numberOfFragmentsCached != maxCachedFragmentsPerTrack && bCacheFullState)
@@ -8280,8 +8286,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							}
 						}
 					}
-
-					FetchAndInjectInitialization(discontinuity);
+					FetchAndInjectInitFragments(discontinuity);
 					if(mCdaiObject->mAdFailed)
 					{
 						adStateChanged = onAdEvent(AdEvent::AD_FAILED);
