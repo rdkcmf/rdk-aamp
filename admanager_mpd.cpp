@@ -202,7 +202,7 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 
 				if(openPrdFound && -1 != mPlacementObj.curAdIdx)
 				{
-					uint64_t periodDelta = aamp_GetPeriodNewContentDuration(period, mPlacementObj.curEndNumber);
+					double periodDelta = aamp_GetPeriodNewContentDuration(mpd, period, mPlacementObj.curEndNumber);
 					Period2AdData& p2AdData = mPeriodMap[periodId];
 
 					if("" == p2AdData.adBreakId)
