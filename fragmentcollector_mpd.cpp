@@ -3229,11 +3229,35 @@ uint32_t GetPeriodSegmentTimeScale(IPeriod * period)
 	return timeScale;
 }
 
-uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumber)
+
+double aamp_GetPeriodNewContentDuration(dash::mpd::IMPD *mpd, IPeriod * period, uint64_t &curEndNumber)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
-	uint64_t durationMs = 0;
 
+	double durationMs = 0;
+	bool found = false;
+	std::string tempString = period->GetDuration();
+        if(!tempString.empty())
+        {
+                durationMs = ParseISO8601Duration( tempString.c_str());
+		found = true;
+        	AAMPLOG_INFO("periodDuration %f", durationMs);
+	}
+	size_t numPeriods = mpd->GetPeriods().size();
+        if(0 == durationMs && mpd->GetType() == "static" && numPeriods == 1)
+        {
+                std::string durationStr =  mpd->GetMediaPresentationDuration();
+                if(!durationStr.empty())
+                {
+                        durationMs = ParseISO8601Duration( durationStr.c_str());
+			found = true;
+			AAMPLOG_INFO("mediaPresentationDuration based periodDuration %f", durationMs);
+                }
+                else
+                {
+                        AAMPLOG_INFO("mediaPresentationDuration missing in period %s", period->GetId().c_str());
+                }
+        }
 	const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
 	const ISegmentTemplate *representation = NULL;
 	const ISegmentTemplate *adaptationSet = NULL;
@@ -3265,15 +3289,23 @@ uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumb
 				{
 					ITimeline *timeline = timelines.at(timeLineIndex);
 					uint32_t segmentCount = timeline->GetRepeatCount() + 1;
-					uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale) * 1000;
-					for(int i=0;i<segmentCount;i++)
+					double timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale) * 1000;
+					if(found)
 					{
-						if(startNumber > curEndNumber)
+						curEndNumber = startNumber + segmentCount - 1;
+						startNumber = curEndNumber++;
+					}
+					else
+					{
+						for(int i=0;i<segmentCount;i++)
 						{
-							durationMs += timelineDurationMs;
-							curEndNumber = startNumber;
+							if(startNumber > curEndNumber)
+							{
+								durationMs += timelineDurationMs;
+								curEndNumber = startNumber;
+							}
+							startNumber++;
 						}
-						startNumber++;
 					}
 					timeLineIndex++;
 				}
