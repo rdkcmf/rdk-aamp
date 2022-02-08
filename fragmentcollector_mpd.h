@@ -47,7 +47,7 @@ using namespace dash::helpers;
 #define MAX_MANIFEST_DOWNLOAD_RETRY_MPD 2
 
 /*Common MPD util functions (admanager_mpd.cpp and fragmentcollector_mpd.cpp */
-uint64_t aamp_GetPeriodNewContentDuration(IPeriod * period, uint64_t &curEndNumber);
+double aamp_GetPeriodNewContentDuration(dash::mpd::IMPD *mpd, IPeriod * period, uint64_t &curEndNumber);
 double aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(IPeriod * period);
 double aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t mpdDownloadTime = 0);
 Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd = false);
