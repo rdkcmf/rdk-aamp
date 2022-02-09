@@ -4962,15 +4962,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 	mEventManager->SetFakeTuneFlag(mIsFakeTune);
 
-	mTSBEnabled = (mManifestUrl.find("tsb?") != std::string::npos);
-	if (bFirstAttempt)
-	{
-		// To post player configurations to fog on 1st time tune
-		if(mTSBEnabled && ISCONFIGSET_PRIV(eAAMPConfig_EnableAampConfigToFog))
-		{
-			LoadFogConfig();
-		}
-	}
 	//temporary hack for peacock
 	if (STARTS_WITH_IGNORE_CASE(mAppName.c_str(), "peacock"))
 	{
@@ -5115,6 +5106,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	
 	mIsVSS = (strstr(mainManifestUrl, VSS_MARKER) || strstr(mainManifestUrl, VSS_MARKER_FOG));
 	mTuneCompleted 	=	false;
+	mTSBEnabled	= (mManifestUrl.find("tsb?") != std::string::npos);
 	mPersistedProfileIndex	=	-1;
 	mServiceZone.clear(); //clear the value if present
 	mIsIframeTrackPresent = false;
@@ -5246,6 +5238,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	if(bFirstAttempt)
 	{ // TODO: make mFirstTuneFormat of type MediaFormat
 		mfirstTuneFmt = (int)mMediaFormat;
+		// To post player configurations to fog on 1st time tune
+		if(mTSBEnabled && ISCONFIGSET_PRIV(eAAMPConfig_EnableAampConfigToFog))
+		{
+			LoadFogConfig();
+		}
 	}
 	mCdaiObject = NULL;
 	AcquireStreamLock();
@@ -10375,18 +10372,6 @@ void PrivateInstanceAAMP::LoadFogConfig(void)
 	//maxConcurrentDownloads
 	GETCONFIGVALUE_PRIV(eAAMPConfig_FogMaxConcurrentDownloads, maxdownload);
 	jsondata.add("maxConcurrentDownloads", (long)(maxdownload));
-
-	//disableEC3
-	if(ISCONFIGSET_PRIV(eAAMPConfig_DisableEC3))
-	{
-		jsondata.add("disableEC3", true);
-	}
-
-	//disableATMOS
-	if(ISCONFIGSET_PRIV(eAAMPConfig_DisableATMOS))
-	{
-		jsondata.add("disableATMOS", true);
-	}
 
 	jsonStr = jsondata.print_UnFormatted();
 	std::string remoteUrl = "127.0.0.1:9080/playerconfig";
