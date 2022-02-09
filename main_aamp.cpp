@@ -104,17 +104,17 @@ if(!iarmInitialized)
         IARM_Result_t result;
         sprintf (processName, "AAMP-PLAYER-%u", getpid());
         if (IARM_RESULT_SUCCESS == (result = IARM_Bus_Init((const char*) &processName))) {
-                AAMPLOG_WARN("IARM Interface Inited in AAMP");
+                logprintf("IARM Interface Inited in AAMP");
         }
         else {
-            AAMPLOG_WARN("IARM Interface Inited Externally : %d", result);
+            logprintf("IARM Interface Inited Externally : %d", result);
         }
 
         if (IARM_RESULT_SUCCESS == (result = IARM_Bus_Connect())) {
-                AAMPLOG_WARN("IARM Interface Connected  in AAMP");
+                logprintf("IARM Interface Connected  in AAMP");
         }
         else {
-            AAMPLOG_WARN ("IARM Interface Connected Externally :%d", result);
+            logprintf ("IARM Interface Connected Externally :%d", result);
         }
 	iarmInitialized = true;
 }
@@ -127,7 +127,7 @@ if(!iarmInitialized)
 	const char* szJSLib = "libaamp.so";
 #endif
 	mJSBinding_DL = dlopen(szJSLib, RTLD_GLOBAL | RTLD_LAZY);
-	AAMPLOG_WARN("[AAMP_JS] dlopen(\"%s\")=%p", szJSLib, mJSBinding_DL);
+	logprintf("[AAMP_JS] dlopen(\"%s\")=%p", szJSLib, mJSBinding_DL);
 #endif
 
 	// Create very first instance of Aamp Config to read the cfg & Operator file .This is needed for very first
@@ -136,7 +136,7 @@ if(!iarmInitialized)
 	{		
 #ifdef AAMP_BUILD_INFO
 		std::string tmpstr = MACRO_TO_STRING(AAMP_BUILD_INFO);
-		AAMPLOG_WARN(" AAMP_BUILD_INFO: %s",tmpstr.c_str());
+		logprintf(" AAMP_BUILD_INFO: %s",tmpstr.c_str());
 #endif
 		gpGlobalConfig =  new AampConfig();
 		// Init the default values
