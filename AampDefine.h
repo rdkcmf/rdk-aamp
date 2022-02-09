@@ -67,6 +67,7 @@
 #define DEFAULT_INIT_BITRATE     2500000            /**< Initial bitrate: 2.5 mb - for non-4k playback */
 #define DEFAULT_INIT_BITRATE_4K 13000000            /**< Initial bitrate for 4K playback: 13mb ie, 3/4 profile */
 #define AAMP_LIVE_OFFSET 15             /**< Live offset in seconds */
+#define AAMP_DEFAULT_PLAYBACK_OFFSET -99999             /**< default 'unknown' offset value */
 #define AAMP_CDVR_LIVE_OFFSET 30        /**< Live offset in seconds for CDVR hot recording */
 #define MIN_DASH_DRM_SESSIONS 3
 #ifdef XIONE_UK
