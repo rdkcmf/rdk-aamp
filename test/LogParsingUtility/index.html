@@ -101,8 +101,16 @@ function strip(firstValue)
 				// don't add appName field if it is empty
 				fields = "";
 			}
-			fields = fields + "mediaType,simType,http_code,totalPerformRequest,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSize,reqSize,bps,url";
-			value[ indexAdjust ] = "("+value[indexAdjust]+")"+MapMediaType(value[indexAdjust]); // mediaType
+			
+			if (value.length === 13 )// as per fog module format
+			{
+				fields = "mediaType,total,connect,appConnect,preTransfer,startTransfer,redirect,dlSize,reqSize,cerr,http_code,bps,url";
+			}
+			else
+			{
+				fields = fields + "mediaType,simType,http_code,totalPerformRequest,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSize,reqSize,bps,url";
+				value[ indexAdjust ] = "("+value[indexAdjust]+")"+MapMediaType(value[indexAdjust]); // mediaType
+			}
 		}
 		else if( value[0].indexOf("IP_TUNETIME")>=0 )
 		{
