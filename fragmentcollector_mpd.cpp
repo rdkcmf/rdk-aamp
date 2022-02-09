@@ -1971,7 +1971,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
  * @brief Seek current period by a given time
  * @param seekPositionSeconds seek positon in seconds
  */
-void StreamAbstractionAAMP_MPD::SeekInPeriod( double seekPositionSeconds)
+void StreamAbstractionAAMP_MPD::SeekInPeriod( double seekPositionSeconds, bool skipToEnd)
 {
 	for (int i = 0; i < mNumberOfTracks; i++)
 	{
@@ -1984,7 +1984,7 @@ void StreamAbstractionAAMP_MPD::SeekInPeriod( double seekPositionSeconds)
 		}
 		else
 		{
-			SkipFragments(mMediaStreamContext[i], seekPositionSeconds, true);
+			SkipFragments(mMediaStreamContext[i], seekPositionSeconds, true, skipToEnd);
 		}
 	}
 }
@@ -2102,7 +2102,7 @@ void StreamAbstractionAAMP_MPD::SkipToEnd( MediaStreamContext *pMediaStreamConte
  * @param updateFirstPTS true to update first pts state variable
  * @retval
  */
-double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStreamContext, double skipTime, bool updateFirstPTS)
+double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStreamContext, double skipTime, bool updateFirstPTS, bool skipToEnd)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	if( !pMediaStreamContext->representation )
@@ -2150,8 +2150,13 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					double nextPTS = (double)(pMediaStreamContext->fragmentDescriptor.Time + duration)/timeScale;
 					double firstPTS = (double)pMediaStreamContext->fragmentDescriptor.Time/timeScale;
 //					AAMPLOG_TRACE("[%s] firstPTS %f nextPTS %f duration %f skipTime %f", pMediaStreamContext->name, firstPTS, nextPTS, fragmentDuration, skipTime);
-					if (firstFrag && updateFirstPTS){
-						if (pMediaStreamContext->type == eTRACK_AUDIO && (mFirstFragPTS[eTRACK_VIDEO] || mFirstPTS || mVideoPosRemainder)){
+					if (firstFrag && updateFirstPTS)
+					{
+						if (skipToEnd)
+						{
+							AAMPLOG_INFO("Processing skipToEnd for track type %d", pMediaStreamContext->type);
+						}
+						else if (pMediaStreamContext->type == eTRACK_AUDIO && (mFirstFragPTS[eTRACK_VIDEO] || mFirstPTS || mVideoPosRemainder)){
 							/* need to adjust audio skipTime/seekPosition so 1st audio fragment sent matches start of 1st video fragment being sent */
 							double newSkipTime = skipTime + (mFirstFragPTS[eTRACK_VIDEO] - firstPTS); /* adjust for audio/video frag start PTS differences */
 							newSkipTime -= mVideoPosRemainder;   /* adjust for mVideoPosRemainder, which is (video seekposition/skipTime - mFirstPTS) */
@@ -2162,7 +2167,31 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 						firstFrag = false;
 						mFirstFragPTS[pMediaStreamContext->mediaType] = firstPTS;
 					}
-					if (skipTime >= fragmentDuration)
+
+					if (skipToEnd)
+					{
+						if ((pMediaStreamContext->fragmentRepeatCount == repeatCount) &&
+							(pMediaStreamContext->timeLineIndex + 1 == timelines.size()))
+						{
+							skipTime = 0; // We have reached the last fragment
+						}
+						else
+						{
+							pMediaStreamContext->fragmentTime += fragmentDuration;
+							pMediaStreamContext->fragmentTime = ceil(pMediaStreamContext->fragmentTime * 1000.0) / 1000.0;
+							pMediaStreamContext->fragmentDescriptor.Time += duration;
+							pMediaStreamContext->fragmentDescriptor.Number++;
+							pMediaStreamContext->fragmentRepeatCount++;
+							if( pMediaStreamContext->fragmentRepeatCount > repeatCount)
+							{
+								pMediaStreamContext->fragmentRepeatCount= 0;
+								pMediaStreamContext->timeLineIndex++;
+							}
+
+							continue;  /* continue to next fragment */
+						}
+					}
+					else if (skipTime >= fragmentDuration)
 					{
 						skipTime -= fragmentDuration;
 						pMediaStreamContext->fragmentTime += fragmentDuration;
@@ -2269,6 +2298,19 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 				{
 					uint32_t timeScale = segmentTemplates.GetTimescale();
 					double segmentDuration = ComputeFragmentDuration( segmentTemplates.GetDuration(), timeScale );
+
+					if (skipToEnd)
+					{
+						skipTime = mPeriodEndTime - pMediaStreamContext->fragmentDescriptor.Time;
+						if ( skipTime > segmentDuration )
+						{
+							skipTime -= segmentDuration;
+						}
+						else
+						{
+							skipTime = 0;
+						}
+					}
 					
 					if(!aamp->IsLive())
 					{
@@ -2349,12 +2391,26 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 				float fragmentDuration = 0.00;
 				float fragmentTime = 0.00;
 				int fragmentIndex =0;
-				while (fragmentTime < skipTime)
+
+				unsigned int lastReferencedSize = 0;
+				float lastFragmentDuration = 0.00;
+
+				while ((fragmentTime < skipTime) || skipToEnd)
 				{
 					if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, fragmentIndex++, &referenced_size, &fragmentDuration, NULL))
 					{
+						lastFragmentDuration = fragmentDuration;
+						lastReferencedSize = referenced_size;
+
 						fragmentTime += fragmentDuration;
 						pMediaStreamContext->fragmentOffset += referenced_size;
+					}
+					else if (skipToEnd)
+					{
+						fragmentTime -= lastFragmentDuration;
+						pMediaStreamContext->fragmentOffset -= lastReferencedSize;
+						fragmentIndex--;
+						break;
 					}
 					else
 					{
@@ -2428,9 +2484,8 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 					}
 				}
 
-				while (skipTime != 0)
+				while ((skipTime != 0) || skipToEnd)
 				{
-
 					if ((pMediaStreamContext->fragmentIndex >= segmentURLs.size()) || (pMediaStreamContext->fragmentIndex < 0))
 					{
 						pMediaStreamContext->eos = true;
@@ -2446,7 +2501,17 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 							long long duration = stoll(durationStr);
 							segmentDuration = ComputeFragmentDuration(duration,timescale);
 						}
-						if (skipTime >= segmentDuration)
+						if (skipToEnd)
+						{
+							if ((pMediaStreamContext->fragmentIndex + 1) >= segmentURLs.size())
+							{
+								break;
+							}
+
+							pMediaStreamContext->fragmentIndex++;
+							pMediaStreamContext->fragmentTime += segmentDuration;
+						}
+						else if (skipTime >= segmentDuration)
 						{
 							pMediaStreamContext->fragmentIndex++;
 							skipTime -= segmentDuration;
@@ -3924,6 +3989,17 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			mCdaiObject->mIsFogTSB = true;
 		}
 
+		// Validate tune type
+		// (need to find a better way to do this)
+		if (tuneType == eTUNETYPE_NEW_NORMAL)
+		{
+			if(!mIsLiveStream && !aamp->mIsDefaultOffset)
+			{
+				tuneType = eTUNETYPE_NEW_END;
+			}
+		}
+
+
 		if(mIsLiveStream)
 		{
 			/*LL DASH VERIFICATION START*/
@@ -3937,7 +4013,9 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				if( ( CheckLLProfileAvailable(mpd) ) &&
 					( aamp->mLLDashRetuneCount <= MAX_LOW_LATENCY_DASH_RETUNE_ALLOWED ) &&
 					( eTUNETYPE_SEEK != tuneType   ) &&
-					( eTUNETYPE_NEW_SEEK != tuneType ) )
+					( eTUNETYPE_NEW_SEEK != tuneType ) &&
+					( eTUNETYPE_NEW_END != tuneType ) &&
+                    ( eTUNETYPE_SEEKTOEND != tuneType ))
 				{
 					//Enable LowLatency Mode Handling
 					stAampLLDashServiceData.lowLatencyMode = true;
@@ -4417,7 +4495,8 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 
 		UpdateLanguageList();
 
-		if (eTUNETYPE_SEEK == tuneType)
+		if ((eTUNETYPE_SEEK == tuneType) ||
+		    (eTUNETYPE_SEEKTOEND == tuneType))
 		{
 			forceSpeedsChangedEvent = true; // Send speed change event if seek done from non-iframe period to iframe available period to inform XRE to allow trick operations.
 		}
@@ -4493,10 +4572,17 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				aamp->mLanguageChangeInProgress = false;
 				ApplyLiveOffsetWorkaroundForSAP(offsetFromStart);
 			}
+			else if ((tuneType == eTUNETYPE_SEEKTOEND) ||
+				 (tuneType == eTUNETYPE_NEW_END))
+			{
+				SeekInPeriod( 0, true );
+				seekPosition = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime;
+			}
 			else
 			{
 				SeekInPeriod( offsetFromStart);
 			}
+
 			if(!ISCONFIGSET(eAAMPConfig_MidFragmentSeek))
 			{
 				seekPosition = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentTime;
