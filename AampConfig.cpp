@@ -1938,7 +1938,7 @@ void AampConfig::RestoreConfiguration(ConfigPriority owner, AampLogManager *mLog
 	{
 		if(bAampCfgValue[i].owner == owner && bAampCfgValue[i].owner != bAampCfgValue[i].lastowner)
 		{
-			AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s]->[%-5s][%s]->[%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[bAampCfgValue[i].owner].ownerName,
+			AAMPLOG_WARN("Cfg [%-3d][%-20s][%-5s]->[%-5s][%s]->[%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[bAampCfgValue[i].owner].ownerName,
 				OwnerLookUpTable[bAampCfgValue[i].lastowner].ownerName,bAampCfgValue[i].value?"true":"false",bAampCfgValue[i].lastvalue?"true":"false");
 			bAampCfgValue[i].owner = bAampCfgValue[i].lastowner;
 			bAampCfgValue[i].value = bAampCfgValue[i].lastvalue;
@@ -1952,7 +1952,7 @@ void AampConfig::RestoreConfiguration(ConfigPriority owner, AampLogManager *mLog
 		// for int array
 		if(iAampCfgValue[i-eAAMPConfig_IntStartValue].owner == owner && iAampCfgValue[i-eAAMPConfig_IntStartValue].owner != iAampCfgValue[i-eAAMPConfig_IntStartValue].lastowner)
 		{
-			AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s]->[%-5s][%d]->[%d]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[iAampCfgValue[i-eAAMPConfig_IntStartValue].owner].ownerName,
+			AAMPLOG_WARN("Cfg [%-3d][%-20s][%-5s]->[%-5s][%d]->[%d]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[iAampCfgValue[i-eAAMPConfig_IntStartValue].owner].ownerName,
 				OwnerLookUpTable[iAampCfgValue[i-eAAMPConfig_IntStartValue].lastowner].ownerName,iAampCfgValue[i-eAAMPConfig_IntStartValue].value,iAampCfgValue[i-eAAMPConfig_IntStartValue].lastvalue);
 			iAampCfgValue[i-eAAMPConfig_IntStartValue].owner = iAampCfgValue[i-eAAMPConfig_IntStartValue].lastowner;
 			iAampCfgValue[i-eAAMPConfig_IntStartValue].value = iAampCfgValue[i-eAAMPConfig_IntStartValue].lastvalue;
@@ -1966,7 +1966,7 @@ void AampConfig::RestoreConfiguration(ConfigPriority owner, AampLogManager *mLog
 		// for long array
 		if(lAampCfgValue[i-eAAMPConfig_LongStartValue].owner == owner && lAampCfgValue[i-eAAMPConfig_LongStartValue].owner  != lAampCfgValue[i-eAAMPConfig_LongStartValue].lastowner)
 		{
-			AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s]->[%-5s][%ld]->[%ld]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[lAampCfgValue[i-eAAMPConfig_LongStartValue].owner].ownerName,
+			AAMPLOG_WARN("Cfg [%-3d][%-20s][%-5s]->[%-5s][%ld]->[%ld]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[lAampCfgValue[i-eAAMPConfig_LongStartValue].owner].ownerName,
 				OwnerLookUpTable[lAampCfgValue[i-eAAMPConfig_LongStartValue].lastowner].ownerName,lAampCfgValue[i-eAAMPConfig_LongStartValue].value,lAampCfgValue[i-eAAMPConfig_LongStartValue].lastvalue);
 			lAampCfgValue[i-eAAMPConfig_LongStartValue].owner = lAampCfgValue[i-eAAMPConfig_LongStartValue].lastowner;
 			lAampCfgValue[i-eAAMPConfig_LongStartValue].value = lAampCfgValue[i-eAAMPConfig_LongStartValue].lastvalue;
@@ -1979,7 +1979,7 @@ void AampConfig::RestoreConfiguration(ConfigPriority owner, AampLogManager *mLog
 		// for double array
 		if(dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner == owner && dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner != dAampCfgValue[i-eAAMPConfig_DoubleStartValue].lastowner)
                 {
-					AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s]->[%-5s][%f]->[%f]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner].ownerName,
+					AAMPLOG_WARN("Cfg [%-3d][%-20s][%-5s]->[%-5s][%f]->[%f]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner].ownerName,
 						OwnerLookUpTable[dAampCfgValue[i-eAAMPConfig_DoubleStartValue].lastowner].ownerName,dAampCfgValue[i-eAAMPConfig_DoubleStartValue].value,dAampCfgValue[i-eAAMPConfig_DoubleStartValue].lastvalue);
 					dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner = dAampCfgValue[i-eAAMPConfig_DoubleStartValue].lastowner;
 					dAampCfgValue[i-eAAMPConfig_DoubleStartValue].value = dAampCfgValue[i-eAAMPConfig_DoubleStartValue].lastvalue;
@@ -1993,7 +1993,7 @@ void AampConfig::RestoreConfiguration(ConfigPriority owner, AampLogManager *mLog
 		// for string array
 		if(sAampCfgValue[i-eAAMPConfig_StringStartValue].owner == owner && sAampCfgValue[i-eAAMPConfig_StringStartValue].owner != sAampCfgValue[i-eAAMPConfig_StringStartValue].lastowner)
 		{
-			AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s]->[%-5s][%s]->[%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[sAampCfgValue[i-eAAMPConfig_StringStartValue].owner].ownerName,
+			AAMPLOG_WARN("Cfg [%-3d][%-20s][%-5s]->[%-5s][%s]->[%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[sAampCfgValue[i-eAAMPConfig_StringStartValue].owner].ownerName,
 				OwnerLookUpTable[sAampCfgValue[i-eAAMPConfig_StringStartValue].lastowner].ownerName,sAampCfgValue[i-eAAMPConfig_StringStartValue].value.c_str(),sAampCfgValue[i-eAAMPConfig_StringStartValue].lastvalue.c_str());
 			sAampCfgValue[i-eAAMPConfig_StringStartValue].owner = sAampCfgValue[i-eAAMPConfig_StringStartValue].lastowner;
 			sAampCfgValue[i-eAAMPConfig_StringStartValue].value = sAampCfgValue[i-eAAMPConfig_StringStartValue].lastvalue;
@@ -2019,7 +2019,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 	{
 		if(bAampCfgValue[i].owner == owner || owner == AAMP_MAX_SETTING)
 		{
-			AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s][%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[bAampCfgValue[i].owner].ownerName,bAampCfgValue[i].value?"true":"false");
+			AAMPLOG_WARN("Cfg [%-3d][%-20s][%-5s][%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[bAampCfgValue[i].owner].ownerName,bAampCfgValue[i].value?"true":"false");
 		}
 	}
 
@@ -2029,7 +2029,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		// for int array
 		if(iAampCfgValue[i-eAAMPConfig_IntStartValue].owner == owner || owner == AAMP_MAX_SETTING)
 		{
-			AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s][%d]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[iAampCfgValue[i-eAAMPConfig_IntStartValue].owner].ownerName,iAampCfgValue[i-eAAMPConfig_IntStartValue].value);
+			AAMPLOG_WARN("Cfg [%-3d][%-20s][%-5s][%d]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[iAampCfgValue[i-eAAMPConfig_IntStartValue].owner].ownerName,iAampCfgValue[i-eAAMPConfig_IntStartValue].value);
 		}
 	}
 
@@ -2039,7 +2039,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		// for long array
 		if(lAampCfgValue[i-eAAMPConfig_LongStartValue].owner == owner || owner == AAMP_MAX_SETTING)
 		{
-			AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s][%ld]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[lAampCfgValue[i-eAAMPConfig_LongStartValue].owner].ownerName,lAampCfgValue[i-eAAMPConfig_LongStartValue].value);
+			AAMPLOG_WARN("Cfg [%-3d][%-20s][%-5s][%ld]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[lAampCfgValue[i-eAAMPConfig_LongStartValue].owner].ownerName,lAampCfgValue[i-eAAMPConfig_LongStartValue].value);
 		}
 	}
 
@@ -2049,7 +2049,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		// for double array
 		if(dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner == owner || owner == AAMP_MAX_SETTING)
                 {
-                        AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s][%f]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner].ownerName,dAampCfgValue[i-eAAMPConfig_DoubleStartValue].value);
+                        AAMPLOG_WARN("Cfg [%-3d][%-20s][%-5s][%f]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[dAampCfgValue[i-eAAMPConfig_DoubleStartValue].owner].ownerName,dAampCfgValue[i-eAAMPConfig_DoubleStartValue].value);
                 }
         }
 
@@ -2061,7 +2061,7 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 		// for string array
 		if(sAampCfgValue[i-eAAMPConfig_StringStartValue].owner == owner || owner == AAMP_MAX_SETTING)
 		{
-			AAMPLOG_INFO("Cfg [%-3d][%-20s][%-5s][%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[sAampCfgValue[i-eAAMPConfig_StringStartValue].owner].ownerName,sAampCfgValue[i-eAAMPConfig_StringStartValue].value.c_str());
+			AAMPLOG_WARN("Cfg [%-3d][%-20s][%-5s][%s]",i,GetConfigName((AAMPConfigSettings)i).c_str(),OwnerLookUpTable[sAampCfgValue[i-eAAMPConfig_StringStartValue].owner].ownerName,sAampCfgValue[i-eAAMPConfig_StringStartValue].value.c_str());
 		}
 	}
 
