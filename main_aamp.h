@@ -199,7 +199,7 @@ struct AudioTrackInfo
 	{
 	}
 
-	bool operator == (const AudioTrackInfo& track)
+	bool operator == (const AudioTrackInfo& track) const
 	{
 		return ((language == track.language) &&	
 			(rendition == track.rendition) &&	
@@ -209,12 +209,12 @@ struct AudioTrackInfo
 			(bandwidth == track.bandwidth));
 	}
 
-	bool operator < (const AudioTrackInfo& track)
+	bool operator < (const AudioTrackInfo& track) const
 	{
 		return (bandwidth < track.bandwidth);
 	}
 
-	bool operator > (const AudioTrackInfo& track)
+	bool operator > (const AudioTrackInfo& track) const
 	{
 		return (bandwidth > track.bandwidth);
 	}
