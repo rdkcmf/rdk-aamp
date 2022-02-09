@@ -193,7 +193,9 @@ enum TuneType
 	eTUNETYPE_SEEK,         /**< Seek to a position. Not a new channel, so resources can be reused*/
 	eTUNETYPE_SEEKTOLIVE,   /**< Seek to live point. Not a new channel, so resources can be reused*/
 	eTUNETYPE_RETUNE,       /**< Internal retune for error handling.*/
-	eTUNETYPE_LAST          /**< Use the tune mode used in last tune*/
+	eTUNETYPE_LAST,         /**< Use the tune mode used in last tune*/
+	eTUNETYPE_NEW_END,      /**< Start playback from the end of the asset*/
+	eTUNETYPE_SEEKTOEND     /**< Seek to live point. Not a new channel, so resources can be reused*/
 };
 
 /**
@@ -2495,7 +2497,7 @@ public:
 	 *
 	 *   @return Bool True on new tune
 	 */
-	bool IsNewTune()  { return ((eTUNETYPE_NEW_NORMAL == mTuneType) || (eTUNETYPE_NEW_SEEK == mTuneType)); }
+	bool IsNewTune()  { return ((eTUNETYPE_NEW_NORMAL == mTuneType) || (eTUNETYPE_NEW_SEEK == mTuneType) || (eTUNETYPE_NEW_END == mTuneType)); }
 
          /**
          *   @brief IsFirstRequestToFog Function to check first reqruest to fog
