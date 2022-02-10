@@ -590,7 +590,10 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 			else if(adapCodecs.size()) // else check if Adaptation has codec defn
 				codecValue = adapCodecs.at(0);
 			// else no codec defined , go with unknown
-
+#if defined(RPI)
+			if((codecValue == "ec+3") || (codecValue == "ec-3"))
+				continue;
+#endif
 			audioType = getCodecType(codecValue, rep);
 
 			/*
