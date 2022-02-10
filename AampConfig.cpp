@@ -1032,7 +1032,7 @@ void AampConfig::CustomArrayRead( cJSON *customArray,ConfigPriority owner )
 		}
 		for(int i = 0; i < vCustom.size(); i++)
 		{
-			AAMPLOG_INFO("Custom Values listed %s %s",vCustom[i].config.c_str(),vCustom[i].configValue.c_str());
+			AAMPLOG_WARN("Custom Values listed %s %s",vCustom[i].config.c_str(),vCustom[i].configValue.c_str());
 		}
 	}
 }
@@ -1461,7 +1461,7 @@ bool AampConfig::ReadAampCfgJsonFile()
 			std::ifstream f(cfgPath, std::ifstream::in | std::ifstream::binary);
 			if (f.good())
 			{
-				AAMPLOG_INFO("opened aampcfg.json");
+				AAMPLOG_WARN("opened aampcfg.json");
 				std::filebuf* pbuf = f.rdbuf();
 				std::size_t size = pbuf->pubseekoff (0,f.end,f.in);
 				pbuf->pubseekpos (0,f.in);
@@ -1514,7 +1514,7 @@ bool AampConfig::ReadAampCfgTxtFile()
 		std::ifstream f(cfgPath, std::ifstream::in | std::ifstream::binary);
 		if (f.good())
 		{
-			AAMPLOG_INFO("opened aamp.cfg");
+			AAMPLOG_WARN("opened aamp.cfg");
 			std::string buf;
 			while (f.good())
 			{
