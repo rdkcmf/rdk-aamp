@@ -198,7 +198,7 @@ bool PlaybackCommand::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 	}
 	else if (strcmp(cmd, "sf") == 0)
 	{
-		playerInstanceAamp->SetRate((int)0.5);
+		playerInstanceAamp->SetRate((float)0.5);
 	}
 	else if (sscanf(cmd, "ff%d", &rate) == 1)
 	{

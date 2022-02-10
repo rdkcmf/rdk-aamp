@@ -334,7 +334,14 @@ public:
          * @return true if playrate adjusted
          */
 	bool AdjustPlayBackRate(double position, double rate);
-	
+
+	/**
+	 * @fn SetPlayBackRate
+	 * @param[in] rate playback rate
+	 * @return true if playrate adjusted
+	 */
+	bool SetPlayBackRate ( double rate );
+
 	bool PipelineSetToReady; /**< To indicate the pipeline is set to ready forcefully */
 	bool trickTeardown;
 	struct AAMPGstPlayerPriv *privateContext;

@@ -35,7 +35,7 @@
 //(3+1+1) /* iso639-2 + optional 2..9 digit to disambiguate multiple same-language tracms, + nul terminator */
 
 #define MAX_BITRATE_COUNT 10
-#define MAX_SUPPORTED_SPEED_COUNT 11 /* [-64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64] */
+#define MAX_SUPPORTED_SPEED_COUNT 12 /* [-64, -32, -16, -4, -1, 0, 0.5, 1, 4, 16, 32, 64] */
 
 /**
  * @enum AAMPEventType 
@@ -253,7 +253,7 @@ struct AAMPEvent
 		 */
 		struct
 		{
-			int rate; /**< Playback rate */
+			float rate; /**< Playback rate */
 		} speedChanged;
 
 		/**
@@ -290,7 +290,7 @@ struct AAMPEvent
 			int height;                                                     /**< Maximum video height */
 			bool hasDrm;                                                    /**< Drm enabled */
 			int supportedSpeedCount;                                        /**< Supported playback speed count */
-			int supportedSpeeds[MAX_SUPPORTED_SPEED_COUNT];                 /**< Supported playback speeds */
+			float supportedSpeeds[MAX_SUPPORTED_SPEED_COUNT];                 /**< Supported playback speeds */
 			double programStartTime;                                        /**< Program/Availability start time */
 		} metadata;
 
@@ -377,7 +377,7 @@ struct AAMPEvent
 		struct
 		{
 			int supportedSpeedCount;                            /**< Supported playback speed count */
-			int supportedSpeeds[MAX_SUPPORTED_SPEED_COUNT];     /**< Supported playback speeds */
+			float supportedSpeeds[MAX_SUPPORTED_SPEED_COUNT];     /**< Supported playback speeds */
 		} speedsChanged;
 
 		/**
@@ -604,7 +604,7 @@ public:
  */
 class SpeedChangedEvent: public AAMPEventObject
 {
-	int mRate;		/**< Playback rate */
+	float mRate;		/**< Playback rate */
 
 public:
 	SpeedChangedEvent() = delete;
@@ -616,7 +616,7 @@ public:
 	 *
 	 * @param[in]  rate - New speed
 	 */
-	SpeedChangedEvent(int rate);
+	SpeedChangedEvent(float rate);
 
 	/**
 	 * @brief SpeedChangedEvent Destructor
@@ -626,7 +626,7 @@ public:
 	/**
 	 * @fn getRate
 	 */
-	int getRate() const;
+	float getRate() const;
 };
 
 /**
@@ -752,7 +752,7 @@ class MediaMetadataEvent: public AAMPEventObject
 	int mWidth;			    /**< Maximum video width */
 	int mHeight;		    	    /**< Maximum video height */
 	bool mHasDrm;			    /**< Drm enabled */
-	std::vector<int> mSupportedSpeeds;  /**< Supported playback speeds */
+	std::vector<float> mSupportedSpeeds;  /**< Supported playback speeds */
 	bool mIsLive;			    /**< Is Live */
 	std::string mDrmType;		    /**< DRM type */
 	double mProgramStartTime;	    /**< Program/Availability start time */
@@ -875,12 +875,12 @@ public:
 	 * @param[in] speed - Supported speed
 	 * @return void
 	 */
-	void addSupportedSpeed(int speed);
+	void addSupportedSpeed(float speed);
 
 	/**
 	 * @fn getSupportedSpeeds
 	 */
-	const std::vector<int> &getSupportedSpeeds() const;
+	const std::vector<float> &getSupportedSpeeds() const;
 
 	/**
 	 * @fn getSupportedSpeedCount
@@ -1256,7 +1256,7 @@ public:
  */
 class SupportedSpeedsChangedEvent: public AAMPEventObject
 {
-	std::vector<int> mSupportedSpeeds;     /**< Supported playback speeds */
+	std::vector<float> mSupportedSpeeds;     /**< Supported playback speeds */
 
 public:
 	/**
@@ -1286,12 +1286,12 @@ public:
 	 * @param[in] speed - Speed
 	 * @return void
 	 */
-	void addSupportedSpeed(int speed);
+	void addSupportedSpeed(float speed);
 
 	/**
 	 * @fn getSupportedSpeeds
 	 */
-	const std::vector<int> &getSupportedSpeeds() const;
+	const std::vector<float> &getSupportedSpeeds() const;
 
 	/**
 	 * @fn getSupportedSpeedCount

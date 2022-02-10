@@ -961,10 +961,10 @@ bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaTyp
 /**
  * @brief Get compatible trickplay for 6s cadense of iframe track from the given rates
  */
-int getWorkingTrickplayRate(int rate)
+float getWorkingTrickplayRate(float rate)
 {
-	int workingRate;
-	switch (rate){
+	float workingRate;
+	switch ((int)rate){
 		case 4:
 			workingRate = 25;
 			break;
@@ -992,10 +992,10 @@ int getWorkingTrickplayRate(int rate)
 /**
  * @brief Get reverse map the working rates to the rates given by platform player
  */
-int getPseudoTrickplayRate(int rate)
+float getPseudoTrickplayRate(float rate)
 {
-	int psudoRate;
-	switch (rate){
+	float psudoRate;
+	switch ((int)rate){
 		case 25:
 			psudoRate = 4;
 			break;

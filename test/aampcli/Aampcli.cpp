@@ -467,7 +467,7 @@ void MyAAMPEventListener::Event(const AAMPEventPtr& e)
 		case AAMP_EVENT_SPEED_CHANGED:
 			{
 				SpeedChangedEventPtr ev = std::dynamic_pointer_cast<SpeedChangedEvent>(e);
-				printf("[AAMPCLI] AAMP_EVENT_SPEED_CHANGED current rate=%d\n", ev->getRate());
+				printf("[AAMPCLI] AAMP_EVENT_SPEED_CHANGED current rate=%f\n", ev->getRate());
 				break;
 			}
 		case AAMP_EVENT_DRM_METADATA:

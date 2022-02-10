@@ -543,14 +543,14 @@ bool PlayerInstanceAAMP::IsValidRate(int rate)
 /**
  *  @brief Set playback rate.
  */
-void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
+void PlayerInstanceAAMP::SetRate(float rate,int overshootcorrection)
 {
-	AAMPLOG_INFO("PLAYER[%d] rate=%d.", aamp->mPlayerId, rate);
+	AAMPLOG_INFO("PLAYER[%d] rate=%f.", aamp->mPlayerId, rate);
 	if(aamp)
 	{
 		if (!IsValidRate(rate))
 		{
-			AAMPLOG_WARN("SetRate ignored!! Invalid rate (%d)", rate);
+			AAMPLOG_WARN("SetRate ignored!! Invalid rate (%f)", rate);
 			return;
 		}
 
@@ -573,27 +573,27 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 /**
  *  @brief Set playback rate - Internal function
  */
-void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
+void PlayerInstanceAAMP::SetRateInternal(float rate,int overshootcorrection)
 {
-	AAMPLOG_INFO("PLAYER[%d] rate=%d.", aamp->mPlayerId, rate);
+	AAMPLOG_INFO("PLAYER[%d] rate=%f.", aamp->mPlayerId, rate);
 
 	ERROR_STATE_CHECK_VOID();
 
 	if (!IsValidRate(rate))
 	{
-		AAMPLOG_WARN("SetRate ignored!! Invalid rate (%d)", rate);
+		AAMPLOG_WARN("SetRate ignored!! Invalid rate (%f)", rate);
 		return;
 	}
 	//Hack For DELIA-51318 convert the incoming rates into acceptable rates
 	if(ISCONFIGSET(eAAMPConfig_RepairIframes))
 	{
-		AAMPLOG_WARN("mRepairIframes is true, setting actual rate %d for the recieved rate %d", getWorkingTrickplayRate(rate), rate);
+		AAMPLOG_WARN("mRepairIframes is true, setting actual rate %d for the recieved rate %f", getWorkingTrickplayRate(rate), rate);
 		rate = getWorkingTrickplayRate(rate);
 	}
 
 	if (aamp->mpStreamAbstractionAAMP && !(aamp->mbUsingExternalPlayer))
 	{
-		if (!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0 && aamp->mMediaFormat != eMEDIAFORMAT_PROGRESSIVE)
+		if ( AAMP_SLOWMOTION_RATE != rate && !aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0 && aamp->mMediaFormat != eMEDIAFORMAT_PROGRESSIVE)
 		{
 			AAMPLOG_WARN("Ignoring trickplay. No iframe tracks in stream");
 			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
@@ -616,12 +616,12 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 			}
 			else if(AAMP_RATE_PAUSE != rate)
 			{
-				AAMPLOG_INFO("Player switched at trickplay %d", rate);
+				AAMPLOG_INFO("Player switched at trickplay %f", rate);
 				aamp->playerStartedWithTrickPlay = true; //to be used to show atleast one frame
 			}
 		}
 		bool retValue = true;
-		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE && !aamp->mbDetached)
+		if ( AAMP_SLOWMOTION_RATE != rate && rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE && !aamp->mbDetached)
 		{
 			AAMPLOG_WARN("Already at logical live point, hence skipping operation");
 			aamp->NotifyOnEnteringLive();
@@ -632,7 +632,7 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 		// Additional check for pipeline_paused is because of 0(PAUSED) -> 1(PLAYING), where aamp->rate == 1.0 in PAUSED state
 		if ((!aamp->pipeline_paused && rate == aamp->rate && !aamp->GetPauseOnFirstVideoFrameDisp()) || (rate == 0 && aamp->pipeline_paused))
 		{
-			AAMPLOG_WARN("Already running at playback rate(%d) pipeline_paused(%d), hence skipping set rate for (%d)", aamp->rate, aamp->pipeline_paused, rate);
+			AAMPLOG_WARN("Already running at playback rate(%f) pipeline_paused(%d), hence skipping set rate for (%f)", aamp->rate, aamp->pipeline_paused, rate);
 			return;
 		}
 
@@ -661,7 +661,7 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 		{
 			double newSeekPosInSec = -1;
 			// when switching from trick to play mode only
-			if(aamp->rate && rate == AAMP_NORMAL_PLAY_RATE && !aamp->pipeline_paused)
+			if(aamp->rate && ( AAMP_SLOWMOTION_RATE == rate || rate == AAMP_NORMAL_PLAY_RATE) && !aamp->pipeline_paused)
 			{
 				if (ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery))
 				{
@@ -717,8 +717,17 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 			}
 		}
 
-		AAMPLOG_WARN("aamp_SetRate (%d)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
-		AAMPLOG_WARN("aamp_SetRate rate(%d)->(%d) cur pipeline: %s. Adj position: %f Play/Pause Position:%lld", aamp->rate,rate,aamp->pipeline_paused ? "paused" : "playing",aamp->seek_pos_seconds,aamp->GetPositionMilliseconds()); // current position relative to tune time
+		if( AAMP_SLOWMOTION_RATE == rate )
+		{
+			/* Handling of fwd slowmotion playback */
+			SetSlowMotionPlayRate(rate);
+			aamp->NotifySpeedChanged(rate, false);
+
+			return;
+		}
+
+		AAMPLOG_WARN("aamp_SetRate (%f)overshoot(%d) ProgressReportDelta:(%d) ", rate,overshootcorrection,timeDeltaFromProgReport);
+		AAMPLOG_WARN("aamp_SetRate rate(%f)->(%f) cur pipeline: %s. Adj position: %f Play/Pause Position:%lld", aamp->rate,rate,aamp->pipeline_paused ? "paused" : "playing",aamp->seek_pos_seconds,aamp->GetPositionMilliseconds()); // current position relative to tune time
 
 		if (!aamp->mSeekFromPausedState && (rate == aamp->rate) && !aamp->mbDetached)
 		{ // no change in desired play rate
@@ -768,6 +777,8 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 			aamp->rate = rate;
 			aamp->pipeline_paused = false;
 			aamp->mSeekFromPausedState = false;
+			/* Clear setting playerrate flag */
+			aamp->mSetPlayerRateAfterFirstframe=false;
 			aamp->EnableDownloads();
 			aamp->ResumeDownloads();
 			aamp->AcquireStreamLock();
@@ -785,7 +796,7 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 	}
 	else
 	{
-		AAMPLOG_WARN("aamp_SetRate rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", aamp->rate, aamp->mpStreamAbstractionAAMP, state);
+		AAMPLOG_WARN("aamp_SetRate rate[%f] - mpStreamAbstractionAAMP[%p] state[%d]", aamp->rate, aamp->mpStreamAbstractionAAMP, state);
 	}
 }
 
@@ -854,6 +865,8 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 	if (aamp->mpStreamAbstractionAAMP)
 	{ // for seek while streaming
 		aamp->SetState(eSTATE_SEEKING);
+		/* Clear setting playerrate flag */
+		aamp->mSetPlayerRateAfterFirstframe=false;
 		aamp->AcquireStreamLock();
 		aamp->TuneHelper(tuneType);
 		aamp->ReleaseStreamLock();
@@ -1015,6 +1028,8 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 		if (aamp->mpStreamAbstractionAAMP)
 		{ // for seek while streaming
 			aamp->SetState(eSTATE_SEEKING);
+			/* Clear setting playerrate flag */
+			aamp->mSetPlayerRateAfterFirstframe=false;
 			aamp->AcquireStreamLock();
 			aamp->TuneHelper(tuneType, seekWhilePause);
 			aamp->ReleaseStreamLock();
@@ -1051,6 +1066,41 @@ void PlayerInstanceAAMP::SeekToLive(bool keepPaused)
 		{
 			SeekInternal(AAMP_SEEK_TO_LIVE_POSITION, keepPaused);
 		}
+	}
+}
+
+/**
+ *  @brief Set slow motion player speed.
+ */
+void PlayerInstanceAAMP::SetSlowMotionPlayRate( float rate )
+{
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
+	AAMPLOG_WARN("SetSlowMotionPlay(%f)", rate );
+
+	if (aamp->mpStreamAbstractionAAMP)
+	{
+		if (aamp->mbPlayEnabled && aamp->pipeline_paused)
+		{
+			//Clear pause state flag & resume download
+			aamp->pipeline_paused = false;
+			aamp->ResumeDownloads();
+		}
+
+		if(AAMP_SLOWMOTION_RATE == rate)
+		{
+			aamp->mSetPlayerRateAfterFirstframe=true;
+			aamp->playerrate=rate;
+		}
+		AAMPLOG_WARN("SetSlowMotionPlay(%f) %lf", rate, aamp->seek_pos_seconds );
+		aamp->AcquireStreamLock();
+		aamp->TeardownStream(false);
+		aamp->rate = AAMP_NORMAL_PLAY_RATE;
+		aamp->TuneHelper(eTUNETYPE_SEEK);
+		aamp->ReleaseStreamLock();
+	}
+	else
+	{
+		AAMPLOG_WARN("SetSlowMotionPlay rate[%f] - mpStreamAbstractionAAMP[%p] state[%d]", aamp->rate, aamp->mpStreamAbstractionAAMP, state);
 	}
 }
 
@@ -1096,6 +1146,8 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 			aamp->NotifySpeedChanged(AAMP_NORMAL_PLAY_RATE); // Send speed change event to XRE to reset the speed to normal play since the trickplay ignored at player level.
 			return;
 		}
+		/* Clear setting playerrate flag */
+		aamp->mSetPlayerRateAfterFirstframe=false;
 		aamp->AcquireStreamLock();
 		aamp->TeardownStream(false);
 		aamp->seek_pos_seconds = secondsRelativeToTuneTime;
@@ -1116,7 +1168,7 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 	}
 	else
 	{
-		AAMPLOG_WARN("aamp_SetRateAndSeek rate[%d] - mpStreamAbstractionAAMP[%p] state[%d]", aamp->rate, aamp->mpStreamAbstractionAAMP, state);
+		AAMPLOG_WARN("aamp_SetRateAndSeek rate[%f] - mpStreamAbstractionAAMP[%p] state[%d]", aamp->rate, aamp->mpStreamAbstractionAAMP, state);
 	}
 }
 

@@ -118,6 +118,7 @@
 // Player supported play/trick-play rates.
 #define AAMP_RATE_TRICKPLAY_MAX		64
 #define AAMP_NORMAL_PLAY_RATE		1
+#define AAMP_SLOWMOTION_RATE        0.5
 #define AAMP_RATE_PAUSE			0
 #define AAMP_RATE_INVALID		INT_MAX
 

@@ -327,7 +327,7 @@ public:
 		JSStringRelease(prop);
 
 		count = evt->getSupportedSpeedCount();
-		const std::vector<int> &speedVect = evt->getSupportedSpeeds();
+		const std::vector<float> &speedVect = evt->getSupportedSpeeds();
 		array = new JSValueRef[count];
 		for (int32_t i = 0; i < count; i++)
 		{
@@ -499,7 +499,7 @@ public:
 		SupportedSpeedsChangedEventPtr evt = std::dynamic_pointer_cast<SupportedSpeedsChangedEvent>(ev);
 
 		int count = evt->getSupportedSpeedCount();
-		const std::vector<int> &speedVect = evt->getSupportedSpeeds();
+		const std::vector<float> &speedVect = evt->getSupportedSpeeds();
 		JSValueRef* array = new JSValueRef[count];
 		for (int32_t i = 0; i < count; i++)
 		{

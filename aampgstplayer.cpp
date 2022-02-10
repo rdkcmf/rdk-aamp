@@ -1527,6 +1527,32 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 					_this->privateContext->firstVideoFrameDisplayedCallbackIdleTaskId =
 							_this->aamp->ScheduleAsyncTask(IdleCallbackFirstVideoFrameDisplayed, (void *)_this,"FirstVideoFrameDisplayedCallback");
 				}
+
+				if(_this->aamp->mSetPlayerRateAfterFirstframe
+#ifdef REALTEKCE
+				 || _this->aamp->rate != _this->aamp->playerrate
+#endif /*REALTEKCE*/
+				 )
+				{
+					if(_this->aamp->mSetPlayerRateAfterFirstframe)
+					{
+						_this->aamp->mSetPlayerRateAfterFirstframe=false;
+						if(false!=_this->aamp->mStreamSink->SetPlayBackRate(_this->aamp->playerrate))
+						{
+							_this->aamp->rate=_this->aamp->playerrate;
+							_this->aamp->SetAudioVolume(0);
+						}
+					}
+#ifdef REALTEKCE
+					else
+					{
+						if(false!=_this->aamp->mStreamSink->SetPlayBackRate(_this->aamp->rate))
+						{
+							_this->aamp->playerrate=_this->aamp->rate;
+						}
+					}
+#endif /*REALTEKCE*/
+				}
 			}
 		}
 		if ((NULL != msg->src) && AAMPGstPlayer_isVideoOrAudioDecoder(GST_OBJECT_NAME(msg->src), _this))
@@ -4908,6 +4934,117 @@ bool AAMPGstPlayer::ForwardAudioBuffersToAux()
 /**
  * @}
  */
+
+/**
+ * @brief  Set playback rate to audio/video sinks
+ */
+bool AAMPGstPlayer::SetPlayBackRate ( double rate )
+{
+	int ret=0;
+
+#if defined (REALTEKCE)
+	GstStructure* s = gst_structure_new("custom-instant-rate-change", "rate", G_TYPE_DOUBLE, rate, NULL);
+	ret = gst_element_send_event( privateContext->pipeline, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, s) );
+	if(!ret)
+	{
+		AAMPLOG_WARN("AAMPGstPlayer: Set custom rate change failed");
+		return false;
+	}
+	AAMPLOG_WARN ("Current rate: %g", rate);
+#elif defined (AMLOGIC)
+	AAMPLOG_WARN("Setting new segment with rate as:%f to audiosink", rate);
+	media_stream* audstream = &privateContext->stream[eMEDIATYPE_AUDIO];
+	GstElement *audsink=NULL;
+
+	GstSegment* segment = gst_segment_new();
+	gst_segment_init(segment, GST_FORMAT_TIME);
+	segment->rate = rate;
+	segment->start = GST_CLOCK_TIME_NONE;
+	segment->position = GST_CLOCK_TIME_NONE;
+
+	AAMPLOG_WARN("Sending new segment");
+	g_object_get (audstream->sinkbin, "audio-sink", &audsink, NULL);
+	if(NULL != audsink)
+	{
+		ret=gst_pad_send_event (GST_BASE_SINK_PAD(audsink), gst_event_new_segment(segment));
+		AAMPLOG_WARN("send new segment to audio ret:%d", ret);
+	}
+	else
+	{
+		AAMPLOG_WARN("audio-sink device not found");
+	}
+	AAMPLOG_WARN ("Current rate: %g", rate);
+#else //Broadcom
+	gint64 position;
+	GstEvent *seek_event=NULL, *vidseek=NULL;
+	media_stream* stream = &privateContext->stream[eMEDIATYPE_VIDEO];
+	media_stream* audstream = &privateContext->stream[eMEDIATYPE_AUDIO];
+	GstElement* vidsink = NULL, *audsink=NULL;
+
+	if (privateContext->pipeline == NULL)
+	{
+		AAMPLOG_WARN("AAMPGstPlayer: Pipeline is NULL");
+		return false;
+	}
+
+	/* Obtain the current position, needed for the seek event */
+	if (!gst_element_query_position (privateContext->pipeline, GST_FORMAT_TIME, &position))
+	{
+		AAMPLOG_WARN ("Unable to retrieve current position:%lld.", position);
+		position=0;
+	}
+
+	AAMPLOG_WARN ("pipeline current position:%lld.", position);
+
+	if ( 0 == position && privateContext->positionQuery )
+	{
+		if (gst_element_query(stream->sinkbin, privateContext->positionQuery) == TRUE)
+		{
+			gst_query_parse_position(privateContext->positionQuery, NULL, &position);
+			AAMPLOG_WARN ("video sink current position:%lld.", position);
+		}
+	}
+
+	/* Create the seek event */
+	if (rate > 0)
+	{
+		seek_event = gst_event_new_seek (rate, GST_FORMAT_TIME,
+		(GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE), GST_SEEK_TYPE_SET,
+		position, GST_SEEK_TYPE_END, 0);
+
+		vidseek = gst_event_new_seek (rate, GST_FORMAT_TIME,
+		(GstSeekFlags)(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE), GST_SEEK_TYPE_SET,
+		position, GST_SEEK_TYPE_END, 0);
+	}
+	else
+	{
+		AAMPLOG_WARN ( "Negative player rate for slow motion is not supported");
+		return false;
+	}
+
+	g_object_get (stream->sinkbin, "video-sink", &vidsink, NULL);
+	if(NULL != vidsink)
+	{
+		ret = gst_element_send_event (vidsink, vidseek);
+		AAMPLOG_WARN("send seek event for video ret:%d", ret);
+	}
+
+	g_object_get (audstream->sinkbin, "audio-sink", &audsink, NULL);
+	if(NULL != audsink)
+	{
+		// seek_event=gst_event_ref(seek_event);
+		ret=gst_element_send_event (audsink, seek_event);
+		AAMPLOG_WARN("send seek event for audio ret:%d", ret);
+	}
+
+	// g_object_unref(vidsink);
+	// g_object_unref(audsink);
+	// gst_event_unref(seek_event);
+	AAMPLOG_WARN ("Current rate: %g, position:%lld", rate, position);
+#endif /*REALTEKCE*/
+
+	return true;
+}
 
 /**
  * @brief  adjust playback rate
