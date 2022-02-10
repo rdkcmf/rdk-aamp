@@ -179,6 +179,10 @@ if(!iarmInitialized)
  */
 PlayerInstanceAAMP::~PlayerInstanceAAMP()
 {
+	mLogObj = gpGlobalConfig->GetLoggerInstance();
+#ifdef AAMP_CC_ENABLED
+	AampCCManager::GetInstance()->SetLogger(mLogObj);
+#endif
 	if (aamp)
 	{
 		PrivAAMPState state;
@@ -247,6 +251,12 @@ void PlayerInstanceAAMP::ResetConfiguration()
 	AAMPLOG_WARN("Resetting Configuration to default values ");
 	// Copy the default configuration to session configuration .App can modify the configuration set
 	mConfig = *gpGlobalConfig;
+
+	mLogObj = mConfig.GetLoggerInstance();
+#ifdef AAMP_CC_ENABLED
+	AampCCManager::GetInstance()->SetLogger(mLogObj);
+#endif
+
 	// Based on the default condition , reset the AsyncTune scheduler
 	AsyncStartStop();
 }
