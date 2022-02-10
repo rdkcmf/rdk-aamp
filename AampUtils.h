@@ -234,13 +234,13 @@ int getHarvestConfigForMedia(MediaType fileType);
  * @fn getWorkingTrickplayRate
  * @param rate input rate
  */
-int getWorkingTrickplayRate(int rate);
+float getWorkingTrickplayRate(float rate);
 
 /**
- * @fn getPseudoTrickplayRate 
+ * @fn getPseudoTrickplayRate
  * @param rate working rate
  */
-int getPseudoTrickplayRate(int rate);
+float getPseudoTrickplayRate(float rate);
 
 /**
  * @fn getDefaultHarvestPath

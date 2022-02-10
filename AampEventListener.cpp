@@ -100,7 +100,7 @@ static void GenerateLegacyAAMPEvent(const AAMPEventPtr &e, AAMPEvent &event)
 			{
 				event.data.metadata.bitrates[i] = bitrates[i];
 			}
-			std::vector<int> speeds = ev->getSupportedSpeeds();
+			std::vector<float> speeds = ev->getSupportedSpeeds();
 			for(int i = 0; i < event.data.metadata.supportedSpeedCount && i < MAX_SUPPORTED_SPEED_COUNT; i++)
 			{
 				event.data.metadata.supportedSpeeds[i] = speeds[i];
@@ -151,7 +151,7 @@ static void GenerateLegacyAAMPEvent(const AAMPEventPtr &e, AAMPEvent &event)
 		{
 			SupportedSpeedsChangedEventPtr ev = std::dynamic_pointer_cast<SupportedSpeedsChangedEvent>(e);
 			event.data.speedsChanged.supportedSpeedCount = ev->getSupportedSpeedCount();
-			std::vector<int> speeds = ev->getSupportedSpeeds();
+			std::vector<float> speeds = ev->getSupportedSpeeds();
 			for(int i = 0; i < event.data.speedsChanged.supportedSpeedCount && i < MAX_SUPPORTED_SPEED_COUNT; i++)
 			{
 				event.data.speedsChanged.supportedSpeeds[i] = speeds[i];

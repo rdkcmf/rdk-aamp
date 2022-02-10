@@ -1472,6 +1472,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mCurrentAudioTrackIndex(-1)
 	, mCurrentTextTrackIndex(-1)
 	, mMediaDownloadsEnabled()
+	, playerrate(1.0)
+	, mSetPlayerRateAfterFirstframe(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -2356,7 +2358,7 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeRea
 /**
  * @brief Notify speed change event to listeners
  */
-void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
+void PrivateInstanceAAMP::NotifySpeedChanged(float rate, bool changeState)
 {
 	if (changeState)
 	{
@@ -8384,9 +8386,9 @@ void PrivateInstanceAAMP::SendHTTPHeaderResponse()
  */
 void PrivateInstanceAAMP::SendMediaMetadataEvent(void)
 {
-	std::vector<int> supportedPlaybackSpeeds { -64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64 };
 	std::vector<long> bitrateList;
 	std::set<std::string> langList;
+	std::vector<float> supportedPlaybackSpeeds { -64, -32, -16, -4, -1, 0, 0.5, 1, 4, 16, 32, 64 };
 	int langCount = 0;
 	int bitrateCount = 0;
 	int supportedSpeedCount = 0;
@@ -8428,6 +8430,15 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(void)
 	//Iframe track present and hence playbackRate change is supported
 	if (mIsIframeTrackPresent)
 	{
+		if(!(ISCONFIGSET_PRIV(eAAMPConfig_EnableSlowMotion)))
+		{
+			auto position = std::find(supportedPlaybackSpeeds.begin(), supportedPlaybackSpeeds.end(), 0.5);
+			if(position != supportedPlaybackSpeeds.end())
+			{
+				supportedPlaybackSpeeds.erase(position); //remove 0.5 from supported speeds
+			}
+		}
+
 		for(int i = 0; i < supportedPlaybackSpeeds.size(); i++)
 		{
 			event->addSupportedSpeed(supportedPlaybackSpeeds[i]);
@@ -8437,6 +8448,10 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(void)
 	{
 		//Supports only pause and play
 		event->addSupportedSpeed(0);
+		if(ISCONFIGSET_PRIV(eAAMPConfig_EnableSlowMotion))
+		{
+			event->addSupportedSpeed(0.5);
+		}
 		event->addSupportedSpeed(1);
 	}
 
@@ -8451,12 +8466,21 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(void)
 void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent)
 {
 	SupportedSpeedsChangedEventPtr event = std::make_shared<SupportedSpeedsChangedEvent>();
-	std::vector<int> supportedPlaybackSpeeds { -64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64 };
+	std::vector<float> supportedPlaybackSpeeds { -64, -32, -16, -4, -1, 0, 0.5, 1, 4, 16, 32, 64 };
 	int supportedSpeedCount = 0;
 
 	//Iframe track present and hence playbackRate change is supported
 	if (isIframeTrackPresent)
 	{
+		if(!(ISCONFIGSET_PRIV(eAAMPConfig_EnableSlowMotion)))
+		{
+			auto position = std::find(supportedPlaybackSpeeds.begin(), supportedPlaybackSpeeds.end(), 0.5);
+			if(position != supportedPlaybackSpeeds.end())
+			{
+				supportedPlaybackSpeeds.erase(position); //remove 0.5 from supported speeds
+			}
+		}
+
 		for(int i = 0; i < supportedPlaybackSpeeds.size(); i++)
 		{
 			event->addSupportedSpeed(supportedPlaybackSpeeds[i]);;
@@ -8466,6 +8490,10 @@ void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPres
 	{
 		//Supports only pause and play
 		event->addSupportedSpeed(0);
+		if(ISCONFIGSET_PRIV(eAAMPConfig_EnableSlowMotion))
+		{
+			event->addSupportedSpeed(0.5);
+		}
 		event->addSupportedSpeed(1);
 	}
 

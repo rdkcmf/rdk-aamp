@@ -1724,7 +1724,7 @@ JSValueRef AAMPMediaPlayerJS_setPlaybackRate (JSContextRef ctx, JSObjectRef func
 	if (argumentCount == 1 || argumentCount == 2)
 	{
 		int overshootCorrection = 0;
-		int rate = (int) JSValueToNumber(ctx, arguments[0], exception);
+		float rate = (float) JSValueToNumber(ctx, arguments[0], exception);
 		if (argumentCount == 2)
 		{
 			overshootCorrection = (int) JSValueToNumber(ctx, arguments[1], exception);

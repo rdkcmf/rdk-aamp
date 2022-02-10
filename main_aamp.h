@@ -582,6 +582,13 @@ public:
 	virtual void Flush(double position = 0, int rate = AAMP_NORMAL_PLAY_RATE, bool shouldTearDown = true){}
 
 	/**
+	 *   @brief Set player rate to audio/video sink
+	 *
+	 *   @param[in]  rate - Speed
+	 *   @return true if player rate is set successfully
+	 */
+	virtual bool SetPlayBackRate ( double rate ){return true;}
+	/**
 	 *   @brief Adjust the pipeline
 	 *
 	 *   @param[in]  position - playback position
@@ -873,7 +880,7 @@ public:
 	 *   @param[in]  overshootcorrection - overshoot correction in milliseconds.
 	 *   @return void
 	 */
-	void SetRate(int rate, int overshootcorrection=0);
+	void SetRate(float rate, int overshootcorrection=0);
 
 	/**
 	 *   @fn Seek
@@ -901,6 +908,13 @@ public:
 	 *   @return void
 	 */
 	void SetRateAndSeek(int rate, double secondsRelativeToTuneTime);
+
+	/**
+	 *   @brief Set slow motion player speed.
+	 *
+	 *   @param[in]  rate - Rate of playback.
+	 */
+	void SetSlowMotionPlayRate (float rate );
 
 	/**
 	 * @fn detach
@@ -2030,7 +2044,7 @@ private:
          *   @param  rate - Rate of playback.
          *   @param  overshootcorrection - overshoot correction in milliseconds.
          */
-	void SetRateInternal(int rate,int overshootcorrection);
+	void SetRateInternal(float rate,int overshootcorrection);
 	/**
          *   @fn SeekInternal
          *
@@ -2038,10 +2052,11 @@ private:
          *           relative position from first tune command.
          *   @param  keepPaused - set true if want to keep paused state after seek
          */
+
 	void SeekInternal(double secondsRelativeToTuneTime, bool keepPaused);
 	/**
 	 *   @fn SetAudioTrackInternal
-	 *   @param[in] language, rendition, codec, channel 
+	 *   @param[in] language, rendition, codec, channel
 	 *   @return void
 	 */
 	void SetAudioTrackInternal(std::string language,  std::string rendition, std::string codec,  std::string type, unsigned int channel, std::string label);

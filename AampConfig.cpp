@@ -278,6 +278,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	,{"configRuntimeDRM", eAAMPConfig_RuntimeDRMConfig,-1,-1}
 	,{"enablePublishingMuxedAudio",eAAMPConfig_EnablePublishingMuxedAudio,-1,-1}
 	,{"enableCMCD", eAAMPConfig_EnableCMCD, -1, -1}
+	,{"SlowMotion", eAAMPConfig_EnableSlowMotion, -1, -1}
 };
 /////////////////// Public Functions /////////////////////////////////////
 /**
@@ -470,6 +471,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_RuntimeDRMConfig].value			=	false;
 	bAampCfgValue[eAAMPConfig_EnablePublishingMuxedAudio].value		=	false;
 	bAampCfgValue[eAAMPConfig_EnableCMCD].value			= false;
+	bAampCfgValue[eAAMPConfig_EnableSlowMotion].value			= true;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;

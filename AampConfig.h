@@ -202,6 +202,7 @@ typedef enum
 	eAAMPConfig_RuntimeDRMConfig,                                           /**< Enable/Disable Dynamic DRM config feature */
 	eAAMPConfig_EnablePublishingMuxedAudio,				/**< Enable/Disable publishing the audio track info from muxed contents */
 	eAAMPConfig_EnableCMCD,							/**< Enable/Disable CMCD config feature */
+	eAAMPConfig_EnableSlowMotion,					/**< Enable/Disable Slowmotion playback */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,

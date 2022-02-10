@@ -880,7 +880,9 @@ public:
 	long long prevPositionMiliseconds;
 	MediaFormat mMediaFormat;
 	double seek_pos_seconds; 				/**< indicates the playback position at which most recent playback activity began */
-	int rate; 						/**< most recent (non-zero) play rate for non-paused content */
+	float rate; 						/**< most recent (non-zero) play rate for non-paused content */
+	float playerrate;
+	bool mSetPlayerRateAfterFirstframe;
 	bool pipeline_paused; 					/**< true if pipeline is paused */
 	bool mbNewSegmentEvtSent[AAMP_TRACK_COUNT];
 	
@@ -1371,7 +1373,7 @@ public:
 	 * @param[in] changeState - true if state change to be done, false otherwise (default = true)
 	 * @return void
 	 */
-	void NotifySpeedChanged(int rate, bool changeState = true);
+	void NotifySpeedChanged(float rate, bool changeState = true);
 
 	/**
 	 * @fn NotifyBitRateChangeEvent

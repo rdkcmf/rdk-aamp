@@ -192,7 +192,7 @@ int32_t MediaErrorEvent::getBusinessStatus() const
 /**
  * @brief SpeedChangedEvent Constructor
  */
-SpeedChangedEvent::SpeedChangedEvent(int rate):
+SpeedChangedEvent::SpeedChangedEvent(float rate):
 		AAMPEventObject(AAMP_EVENT_SPEED_CHANGED), mRate(rate)
 {
 
@@ -203,7 +203,7 @@ SpeedChangedEvent::SpeedChangedEvent(int rate):
  *
  * @return New speed
  */
-int SpeedChangedEvent::getRate() const
+float SpeedChangedEvent::getRate() const
 {
 	return mRate;
 }
@@ -445,7 +445,7 @@ bool MediaMetadataEvent::hasDrm() const
 /**
  * @brief Add a supported speed
  */
-void MediaMetadataEvent::addSupportedSpeed(int speed)
+void MediaMetadataEvent::addSupportedSpeed(float speed)
 {
 	return mSupportedSpeeds.push_back(speed);
 }
@@ -455,7 +455,7 @@ void MediaMetadataEvent::addSupportedSpeed(int speed)
  *
  * @return Vector of supported speeds
  */
-const std::vector<int> &MediaMetadataEvent::getSupportedSpeeds() const
+const std::vector<float> &MediaMetadataEvent::getSupportedSpeeds() const
 {
 	return mSupportedSpeeds;
 }
@@ -771,7 +771,7 @@ SupportedSpeedsChangedEvent::SupportedSpeedsChangedEvent():
 /**
  * @brief Add a Supported Speed
  */
-void SupportedSpeedsChangedEvent::addSupportedSpeed(int speed)
+void SupportedSpeedsChangedEvent::addSupportedSpeed(float speed)
 {
 	return mSupportedSpeeds.push_back(speed);
 }
@@ -781,7 +781,7 @@ void SupportedSpeedsChangedEvent::addSupportedSpeed(int speed)
  *
  * @return Vector of supported speeds
  */
-const std::vector<int> &SupportedSpeedsChangedEvent::getSupportedSpeeds() const
+const std::vector<float> &SupportedSpeedsChangedEvent::getSupportedSpeeds() const
 {
 	return mSupportedSpeeds;
 }

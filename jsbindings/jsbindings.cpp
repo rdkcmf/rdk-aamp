@@ -1195,7 +1195,7 @@ public:
 		JSStringRelease(name);
 
 		count = evt->getSupportedSpeedCount();
-		const std::vector<int> &speedVect = evt->getSupportedSpeeds();
+		const std::vector<float> &speedVect = evt->getSupportedSpeeds();
 		array = new JSValueRef[count];
 		for (int32_t i = 0; i < count; i++)
 		{
@@ -1406,7 +1406,7 @@ public:
 		SupportedSpeedsChangedEventPtr evt = std::dynamic_pointer_cast<SupportedSpeedsChangedEvent>(e);
 
 		int count = evt->getSupportedSpeedCount();
-		const std::vector<int> &speedVect = evt->getSupportedSpeeds();
+		const std::vector<float> &speedVect = evt->getSupportedSpeeds();
 		JSValueRef* array = new JSValueRef[count];
 		for (int32_t i = 0; i < count; i++)
 		{
@@ -2383,13 +2383,13 @@ static JSValueRef AAMP_setRate(JSContextRef context, JSObjectRef function, JSObj
 	else
 	{
 		int overshoot = 0;
-		int rate = (int)JSValueToNumber(context, arguments[0], exception);
+		float rate = (float)JSValueToNumber(context, arguments[0], exception);
 		// present JS doesnt support overshoot , check for arguement count and store.
 		if(argumentCount > 1)
 		{
 			overshoot = (int)JSValueToNumber(context, arguments[1], exception);
 		}
-		LOG("[AAMP_JS] %s () rate=%d, overshoot=%d", __FUNCTION__, rate, overshoot);
+		LOG("[AAMP_JS] %s () rate=%f, overshoot=%d", __FUNCTION__, rate, overshoot);
 		{
 			pAAMP->_aamp->SetRate(rate, overshoot);
 		}
