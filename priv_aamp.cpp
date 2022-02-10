@@ -146,7 +146,7 @@ static const char* strAAMPPipeName = "/tmp/ipc_aamp";
 
 static bool activeInterfaceWifi = false;
 
-static char previousInterface[10] = "";
+static char previousInterface[20] = {'\0'};
 
 /**
  * @struct CurlCallbackContext
@@ -679,7 +679,8 @@ void getActiveInterfaceEventHandler (const char *owner, IARM_EventId_t eventId, 
 
 	if (NULL == strstr (param->activeIface, previousInterface) || (strlen(previousInterface) == 0))
 	{
-		strcpy(previousInterface, param->activeIface);
+		memset(previousInterface, 0, sizeof(previousInterface));
+		strncpy(previousInterface, param->activeIface, sizeof(previousInterface) - 1);
 		AAMPLOG_WARN("getActiveInterfaceEventHandler EventId %d activeinterface %s", eventId,  param->activeIface);
 	}
 
