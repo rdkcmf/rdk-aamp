@@ -608,17 +608,12 @@ void AampSecManager::addWatermarkHandler(const JsonObject& parameters)
  */
 void AampSecManager::updateWatermarkHandler(const JsonObject& parameters)
 {
-#ifdef DEBUG_SECMAMANER
-	std::string param;
-	parameters.ToString(param);
-	AAMPLOG_WARN("AampSecManager::%s:%d i/p params: %s", __FUNCTION__, __LINE__, param.c_str());
-#endif
 	if(mSchedulerStarted)
 	{
 		int graphicId = parameters["graphicId"].Number();
 		int clutKey = parameters["watermarkClutBufferKey"].Number();
 		int imageKey = parameters["watermarkImageBufferKey"].Number();
-		AAMPLOG_WARN("AampSecManager::%s:%d graphicId : %d ", __FUNCTION__, __LINE__, graphicId);
+		AAMPLOG_TRACE("graphicId : %d ",graphicId);
 		ScheduleTask(AsyncTaskObj([graphicId, clutKey, imageKey](void *data)
 								  {
 			AampSecManager *instance = static_cast<AampSecManager *>(data);
@@ -890,30 +885,28 @@ void AampSecManager::ModifyWatermarkPalette(int graphicId, int clutKey, int imag
 	JsonObject result;
 
 	bool rpcResult = false;
-
-	AAMPLOG_WARN("AampSecManager %s:%d Graphic id: %d", __FUNCTION__, __LINE__, graphicId);
-
-	std::lock_guard<std::mutex> lock(mMutex);
-
 	param["id"] = graphicId;
 	param["clutKey"] = clutKey;
 	param["imageKey"] = imageKey;
-	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("modifyPalettedWatermark", param, result);
+	{
+		std::lock_guard<std::mutex> lock(mMutex);
+		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("modifyPalettedWatermark", param, result);
+	}
 	if (rpcResult)
 	{
 		if (!result["success"].Boolean())
 		{
 			std::string responseStr;
 			result.ToString(responseStr);
-			AAMPLOG_ERR("AampSecManager::%s failed and result: %s", __FUNCTION__, responseStr.c_str());
+			AAMPLOG_ERR("modifyPalettedWatermark failed with result: %s, graphic id: %d", responseStr.c_str(), graphicId);
 		}
 		else
 		{
-			AAMPLOG_WARN("AampSecManager::%s setWatermarkPalette invoke success ", __FUNCTION__);
+			AAMPLOG_TRACE("AampSecManager::%s setWatermarkPalette invoke success, graphic id: %d", graphicId);
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("AampSecManager::%s thunder invocation failed!", __FUNCTION__);
+		AAMPLOG_ERR("AampSecManager::%s thunder invocation failed!, graphic id: %d", graphicId);
 	}
 }
