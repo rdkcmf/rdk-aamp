@@ -70,6 +70,7 @@ typedef enum gsw_CcFontSize {
     GSW_CC_FONT_SIZE_SMALL,
     GSW_CC_FONT_SIZE_STANDARD,
     GSW_CC_FONT_SIZE_LARGE,
+    GSW_CC_FONT_SIZE_EXTRALARGE,
     GSW_CC_FONT_SIZE_MAX
 } gsw_CcFontSize;
 

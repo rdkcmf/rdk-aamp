@@ -326,6 +326,10 @@ static int getFontSize(std::string input, gsw_CcFontSize *fontSizeOut)
 		{
 			*fontSizeOut = GSW_CC_FONT_SIZE_LARGE;
 		}
+		else if (0 == strncasecmp(inputStr, "extra_large", strlen("extra_large")))
+		{
+			*fontSizeOut = GSW_CC_FONT_SIZE_EXTRALARGE;
+		}
 		else if (0 == strncasecmp(inputStr, "auto", strlen("auto")))
 		{
 			*fontSizeOut = GSW_CC_FONT_SIZE_EMBEDDED;
