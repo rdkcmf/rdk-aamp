@@ -297,7 +297,7 @@ AAMPGstPlayer::AAMPGstPlayer(AampLogManager *logObj, PrivateInstanceAAMP *aamp
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
         , std::function< void(uint8_t *, int, int, int) > exportFrames
 #endif
-	) : mLogObj(logObj), aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock(), PipelineSetToReady(false)
+	) : mLogObj(logObj), aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock(), PipelineSetToReady(false), trickTeardown(false)
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 	, cbExportYUVFrame(NULL)
 #endif
@@ -2597,8 +2597,12 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
 		media_stream *stream = &privateContext->stream[i];
-		if (configureStream[i] && (newFormat[i] != FORMAT_INVALID))
+		
+		if ((configureStream[i] && (newFormat[i] != FORMAT_INVALID)) || 
+			/* Allow to create audio pipeline along with video pipeline if trickplay initiated before the pipeline going to play/paused state to fix unthrottled trickplay */
+			(trickTeardown && (eMEDIATYPE_AUDIO == i)))
 		{
+			trickTeardown = false;
 			TearDownStream((MediaType) i);
 			stream->format = newFormat[i];
 	#ifdef USE_PLAYERSINKBIN
@@ -3489,6 +3493,10 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			if (shouldTearDown)
 			{
 				AAMPLOG_WARN("AAMPGstPlayer: Pipeline is not in playing/paused state, hence resetting it");
+				if(rate > AAMP_NORMAL_PLAY_RATE)
+				{
+					trickTeardown = true;
+				}
 				Stop(true);
 			}
 			return;

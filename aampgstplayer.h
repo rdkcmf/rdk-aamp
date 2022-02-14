@@ -82,7 +82,7 @@ public:
 	bool AdjustPlayBackRate(double position, double rate);
 	
 	bool PipelineSetToReady; //To indicate the pipeline is set to ready forcefully
-
+	bool trickTeardown;
 	struct AAMPGstPlayerPriv *privateContext;
 	AAMPGstPlayer(AampLogManager *logObj, PrivateInstanceAAMP *aamp
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
