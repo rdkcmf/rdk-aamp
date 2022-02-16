@@ -1199,8 +1199,7 @@ const char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
 		std::vector<AudioTrackInfo> trackInfo = aamp->mpStreamAbstractionAAMP->GetAvailableAudioTracks();
 		if (!trackInfo.empty())
 		{
-			strncpy(lang, trackInfo[trackIndex].language.c_str(), sizeof(lang));
-			lang[sizeof(lang)-1] = '\0';  //CID:173324 - Buffer size warning
+			strncpy(lang, trackInfo[trackIndex].language.c_str(), sizeof(lang) );
 		}
 	}
 	return lang;

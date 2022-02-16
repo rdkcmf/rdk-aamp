@@ -801,9 +801,6 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp){
 					DrmSessionDataInfo* drmData = ProcessContentProtection(aamp, aamp->aesCtrAttrDataList.at(i).attrName);
 					if (NULL != drmData){
 /* This needs effort from MSO as to what they want to do viz-a-viz preferred DRM, */						
-	               					if (NULL != drmDataToUse) {
-		                                        free(drmDataToUse);//CID:178316 RESOURCE_LEAK
-                                                   	}
 							drmDataToUse = drmData;
 						}
 					}
@@ -813,9 +810,6 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp){
 				SpawnDRMLicenseAcquireThread(aamp, drmDataToUse);
 			}
 			pthread_mutex_unlock(&aamp->drmParserMutex);
-			if (NULL != drmDataToUse) {
-			    free(drmDataToUse);
-			}
 		}
 #endif
 }
@@ -4282,19 +4276,17 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		TrackState *aux = trackState[eMEDIATYPE_AUX_AUDIO];
 
 		//Store Bitrate info to Video Track
-		if(video) 
+		if(video)
 		{
-		    video->SetCurrentBandWidth(GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond);
-                }
+			video->SetCurrentBandWidth(GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond);
+		}
+
 		if(ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 		{
 			if(audio->enabled)
 			{
-				if(video)    //CID:136262 - Forward null
-				{	
-				   video->enabled = false;
-				   video->streamOutputFormat = FORMAT_INVALID;
-				}
+				video->enabled = false;
+				video->streamOutputFormat = FORMAT_INVALID;
 			}
 			else
 			{

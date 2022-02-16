@@ -1391,8 +1391,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						double endTime  = (mPeriodStartTime+(mPeriodDuration/1000));
 						ITimeline *firstTimeline = timelines.at(0);
 						double positionInPeriod = 0;
-						uint64_t ret = pMediaStreamContext->lastSegmentDuration;
-						if(((firstTimeline->GetRawAttributes().find("t")) != (firstTimeline->GetRawAttributes().end())) && (ret > 0))
+						if((firstTimeline->GetRawAttributes().find("t") != firstTimeline->GetRawAttributes().end()) && pMediaStreamContext->lastSegmentDuration > 0)
 						{
 							// 't' in first timeline is expected.
 							positionInPeriod = (pMediaStreamContext->lastSegmentDuration - firstTimeline->GetStartTime()) / timeScale;
@@ -2591,10 +2590,7 @@ Node* aamp_ProcessNode(xmlTextReaderPtr *reader, std::string url, bool isAd)
 	{
 		while (type == Comment || type == WhiteSpace)
 		{
-			if(!xmlTextReaderRead(*reader))
-			{
-				AAMPLOG_WARN("xmlTextReaderRead  failed");
-			}
+			xmlTextReaderRead(*reader);
 			type = xmlTextReaderNodeType(*reader);
 		}
 
@@ -2924,15 +2920,11 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 		// A special PSSH is used to signal data to append to the widevine challenge request
 		if (drmInfo.systemUUID == CONSEC_AGNOSTIC_UUID)
 		{
+			contentMetadata = aamp_ExtractWVContentMetadataFromPssh((const char*)data, dataLength);
 			if (data)
 			{
-				contentMetadata = aamp_ExtractWVContentMetadataFromPssh((const char*)data, dataLength);
 				free(data);
-                                data = NULL;
-			}
-			else
-			{
-				AAMPLOG_WARN("data is NULL");
+				data = NULL;
 			}
 			continue;
 		}
@@ -3852,7 +3844,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		else
 		{
 			AAMPLOG_WARN("mpd is null");  //CID:81139 , 81645 ,82315.83556- Null Returns
-			return ret;
 		}
 		if(!tempString.empty())
 		{
@@ -4539,10 +4530,6 @@ uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	uint64_t durationMs = 0;
-	if(mpd == NULL) {
-		AAMPLOG_WARN("mpd is null");  //CID:82158 - Null Returns
-		return durationMs;
-	}
 	size_t numPeriods = mpd->GetPeriods().size();
 
 	for (unsigned iPeriod = 0; iPeriod < numPeriods; iPeriod++)
@@ -4565,16 +4552,14 @@ uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd)
 				IAdaptationSet * firstAdaptation = adaptationSets.at(0);
 				ISegmentTemplate *AdapSegmentTemplate = NULL;
 				ISegmentTemplate *RepSegmentTemplate = NULL;
-				if (firstAdaptation == NULL)
+				if (firstAdaptation)
 				{
-					AAMPLOG_WARN("firstAdaptation is null");  //CID:82158 - Null Returns
-					return durationMs;
-				}
-				AdapSegmentTemplate = firstAdaptation->GetSegmentTemplate();
-				const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
-				if (representations.size() > 0)
-				{
-					RepSegmentTemplate  = representations.at(0)->GetSegmentTemplate();
+					AdapSegmentTemplate = firstAdaptation->GetSegmentTemplate();
+					const std::vector<IRepresentation *> representations = firstAdaptation->GetRepresentation();
+					if (representations.size() > 0)
+					{
+						RepSegmentTemplate  = representations.at(0)->GetSegmentTemplate();
+					}
 				}
 				SegmentTemplates segmentTemplates(RepSegmentTemplate,AdapSegmentTemplate);
 				if (segmentTemplates.HasSegmentTemplate())
@@ -4955,10 +4940,9 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 		int periodCnt = 0;
 		for (size_t i=0; i < subNodes.size(); i++) {
 			Node* node = subNodes.at(i);
-			if(node == NULL)  //CID:163928 - forward null
+			if(!node)
 			{
 				AAMPLOG_WARN("node is null");  //CID:80723 - Null Returns
-				return;
 			}
 			const std::string& name = node->GetName();
 			if (name == "Period") {
@@ -6531,7 +6515,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 		if(!pMediaStreamContext)
 		{
 			AAMPLOG_WARN("pMediaStreamContext  is null");  //CID:82464,84186 - Null Returns
-			return eAAMPSTATUS_MANIFEST_CONTENT_ERROR;
 		}
 		if(mCdaiObject->mAdState == AdState::IN_ADBREAK_AD_PLAYING)
 		{
@@ -7107,19 +7090,16 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 				if(firstSegTempate)
 				{
 					newStartSegment = (double)firstSegTempate->GetStartNumber();
-					if(segmentTemplates.GetTimescale() != 0)
+					double fragmentDuration = ((double)segmentTemplates.GetDuration()) / segmentTemplates.GetTimescale();
+					if (newStartSegment && mPrevStartTimeSeconds)
 					{
-						double fragmentDuration = ((double)segmentTemplates.GetDuration()) / segmentTemplates.GetTimescale();
-						if (newStartSegment && mPrevStartTimeSeconds)
-						{
-							culled = (newStartSegment - mPrevStartTimeSeconds) * fragmentDuration;
-							traceprintf("StreamAbstractionAAMP_MPD::%s:%d post-refresh %fs before %f (%f)", __FUNCTION__, __LINE__, newStartTimeSeconds, mPrevStartTimeSeconds, culled);
-						}
-						else
-						{
-							AAMPLOG_WARN("StreamAbstractionAAMP_MPD: newStartTimeSeconds %f mPrevStartTimeSeconds %F", newStartSegment, mPrevStartTimeSeconds);
-						}
-					}  //CID:163916 - divide by zero
+						culled = (newStartSegment - mPrevStartTimeSeconds) * fragmentDuration;
+						traceprintf("StreamAbstractionAAMP_MPD::%s:%d post-refresh %fs before %f (%f)", __FUNCTION__, __LINE__, newStartTimeSeconds, mPrevStartTimeSeconds, culled);
+					}
+					else
+					{
+						AAMPLOG_WARN("StreamAbstractionAAMP_MPD: newStartTimeSeconds %f mPrevStartTimeSeconds %F", newStartSegment, mPrevStartTimeSeconds);
+					}
 					mPrevStartTimeSeconds = newStartSegment;
 				}
 			}
@@ -7152,10 +7132,9 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 							continue;
 						}
 						IAdaptationSet * adaptationSet = adaptationSets.at(0);
-						if(adaptationSet == NULL)
+						if(!adaptationSet)
 						{
 							AAMPLOG_WARN("adaptationSet is null");  //CID:80968 - Null Returns
-							return culled;
 						}
 						vector<IRepresentation *> representations = adaptationSet->GetRepresentation();
 
@@ -7845,10 +7824,9 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 	bool adStateChanged = false;
 
 	IPeriod *currPeriod = mCurrentPeriod;
-	if(currPeriod == NULL)
+	if(!currPeriod)
 	{
 		AAMPLOG_WARN("currPeriod is null");  //CID:80891 - Null Returns
-		return;
 	}
 	std::string currentPeriodId = currPeriod->GetId();
 	mPrevAdaptationSetCount = currPeriod->GetAdaptationSets().size();
@@ -8190,10 +8168,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 								{
 									AAMPLOG_WARN("StreamAbstractionAAMP_MPD: discontinuity detected nextSegmentTime %" PRIu64 " FirstSegmentStartTime %" PRIu64 " ", nextSegmentTime, segmentStartTime);
 									discontinuity = true;
-									if(segmentTemplates.GetTimescale() != 0)
-									{
-										mFirstPTS = (double)segmentStartTime/(double)segmentTemplates.GetTimescale();
-									}  //CID:186900 - divide by zero
+									mFirstPTS = (double)segmentStartTime/(double)segmentTemplates.GetTimescale();
 									double startTime = (GetPeriodStartTime(mpd, mCurrentPeriodIdx) - mAvailabilityStartTime);
 									if((startTime != 0) && !aamp->IsUninterruptedTSB())
 									{
@@ -9235,34 +9210,31 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 												continue;
 											}
 											ITimeline *timeline = timelines.at(timeLineIndex);
-											if(timeScale != 0)
+											double startTime = timeline->GetStartTime() / timeScale;
+											int repeatCount = timeline->GetRepeatCount();
+											uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale);
+											while( repeatCount-- >= 0 )
 											{
-												double startTime = double(timeline->GetStartTime() / timeScale);  //CID:170361 - Unintended integer division
-												int repeatCount = timeline->GetRepeatCount();
-												uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale);
-												while( repeatCount-- >= 0 )
-												{
-													std::string tmedia = media;
-													TileInfo tileInfo;
-													memset( &tileInfo,0,sizeof(tileInfo) );
-													tileInfo.startTime = startTime + ( adDuration / timeScale) ;
-													traceprintf("In %s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "] startTime:%f adDuration:%f repeatCount:%d", __FUNCTION__, timeLineIndex, timelines.size(), durationMs, startTime, adDuration, repeatCount);
-													startTime += ( timelineDurationMs );
-													replace(tmedia, "Number", startNumber);
-													char *ptr = strndup(tmedia.c_str(), tmedia.size());
-													tileInfo.url = ptr;
-													traceprintf("tileInfo.url%s:%p",tileInfo.url, ptr);
-													tileInfo.posterDuration = ((double)segmentTemplates.GetDuration()) / (timeScale * w * h);
-													tileInfo.tileSetDuration = ComputeFragmentDuration(timeline->GetDuration(), timeScale);
-													tileInfo.numRows = h;
-													tileInfo.numCols = w;
-													traceprintf("TileInfo - StartTime:%f posterDuration:%d tileSetDuration:%f numRows:%d numCols:%d",tileInfo.startTime,tileInfo.posterDuration,tileInfo.tileSetDuration,tileInfo.numRows,tileInfo.numCols);
-													indexedTileInfo.push_back(tileInfo);
-													startNumber++;
-												}
-												timeLineIndex++;
+												std::string tmedia = media;
+												TileInfo tileInfo;
+												memset( &tileInfo,0,sizeof(tileInfo) );
+												tileInfo.startTime = startTime + ( adDuration / timeScale) ;
+												traceprintf("In %s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "] startTime:%f adDuration:%f repeatCount:%d", __FUNCTION__, timeLineIndex, timelines.size(), durationMs, startTime, adDuration, repeatCount);
+												startTime += ( timelineDurationMs );
+												replace(tmedia, "Number", startNumber);
+												char *ptr = strndup(tmedia.c_str(), tmedia.size());
+												tileInfo.url = ptr;
+												traceprintf("tileInfo.url%s:%p",tileInfo.url, ptr);
+												tileInfo.posterDuration = ((double)segmentTemplates.GetDuration()) / (timeScale * w * h);
+												tileInfo.tileSetDuration = ComputeFragmentDuration(timeline->GetDuration(), timeScale);
+												tileInfo.numRows = h;
+												tileInfo.numCols = w;
+												traceprintf("TileInfo - StartTime:%f posterDuration:%d tileSetDuration:%f numRows:%d numCols:%d",tileInfo.startTime,tileInfo.posterDuration,tileInfo.tileSetDuration,tileInfo.numRows,tileInfo.numCols);
+												indexedTileInfo.push_back(tileInfo);
+												startNumber++;
 											}
-										}		// emd of timeLine loop
+											timeLineIndex++;
+										}	// emd of timeLine loop
 										prevStartNumber = startNumber - 1;
 									}
 									else
@@ -10388,11 +10360,8 @@ double StreamAbstractionAAMP_MPD::GetEncoderDisplayLatency()
 						presentationTimeOffset = pos->second;
 						if(!presentationTimeOffset.empty())
 						{
-							if(timeScale != 0)
-							{
-								PTA = ((double) std::stoll(presentationTimeOffset))/timeScale;
-								AAMPLOG_TRACE("ProducerReferenceTime@presentationTime [%s] PTA [%lf]", presentationTimeOffset.c_str(), PTA);
-							}
+							PTA = ((double) std::stoll(presentationTimeOffset))/timeScale;
+							AAMPLOG_TRACE("ProducerReferenceTime@presentationTime [%s] PTA [%lf]", presentationTimeOffset.c_str(), PTA);
 						}
 					}
 					pos = attributeMap.find("inband");

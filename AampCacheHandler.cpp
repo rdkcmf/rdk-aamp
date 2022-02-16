@@ -241,10 +241,8 @@ void AampCacheHandler::Init()
 	}
 	else
 	{
-		pthread_mutex_lock(&mCondVarMutex);
 		mAsyncThreadStartedFlag = true;
 		mAsyncCacheCleanUpThread = true;
-		pthread_mutex_unlock(&mCondVarMutex);  //CID:168111 - Missing lock
 	}
 	mInitialized = true;
 }
