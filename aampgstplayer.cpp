@@ -2264,7 +2264,7 @@ void AAMPGstPlayer::SendNewSegmentEvent(MediaType mediaType, GstClockTime startP
                         segment.applied_rate = privateContext->rate;
 #endif
 
-                AAMPLOG_TRACE("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
+                AAMPLOG_INFO("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
                 GstEvent* event = gst_event_new_segment (&segment);
                 if (!gst_pad_push_event(sourceEleSrcPad, event))
                 {
@@ -2337,8 +2337,18 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 			SendGstEvents(eMEDIATYPE_AUX_AUDIO, pts);
 		}
 
+#if defined(AMLOGIC)
+		// AMLOGIC-3130: included to fix av sync / trickmode speed issues in LLAMA-4291
+		if(!aamp->mbNewSegmentEvtSent[mediaType])
+		{
+			SendNewSegmentEvent(mediaType, pts ,0);
+			aamp->mbNewSegmentEvtSent[mediaType]=true;
+		}
+#endif
+
 		AAMPLOG_TRACE("mediaType[%d] SendGstEvents - first buffer received !!! initFragment: %d", mediaType, initFragment);
 	}
+
 
 	if( aamp->DownloadsAreEnabled())
 	{
@@ -3427,21 +3437,6 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		}
 #endif
 
-#if defined (AMLOGIC)
-	if(privateContext->video_sink && privateContext->using_westerossink)
-	{
-		if (privateContext->rate > 1 || privateContext->rate < 0)
-		{
-			AAMPLOG_INFO("%s:%d: Set avsync as video master mode", __FUNCTION__, __LINE__);
-			g_object_set(G_OBJECT(privateContext->video_sink), "avsync-mode", 0, NULL);
-		}
-		else
-		{
-			AAMPLOG_INFO("%s:%d: Set avsync as audio master mode", __FUNCTION__, __LINE__);
-			g_object_set(G_OBJECT(privateContext->video_sink), "avsync-mode", -1, NULL);
-		}
-	}
-#endif
 		//Check if pipeline is in playing/paused state. If not flush doesn't work
 		GstState current, pending;
 		GstStateChangeReturn ret;
