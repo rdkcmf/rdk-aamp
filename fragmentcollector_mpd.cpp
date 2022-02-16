@@ -467,7 +467,7 @@ static AudioType getCodecType(string & codecValue, const IMPDElement *rep)
 		audioType = eAUDIO_ATMOS;
 #endif
 	}
-	else if (codecValue == "ec-3")
+	else if ((codecValue == "ec-3") || (codecValue == "ac-3"))
 	{
 		audioType = eAUDIO_DDPLUS;
 		/*
