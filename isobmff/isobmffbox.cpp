@@ -273,6 +273,10 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, AampLogManager *mLogObj, bo
 	{
 		return PrftBox::constructPrftBox(size,  hdr);
 	}
+	else if (IS_TYPE(type, SIDX))
+	{
+		return SidxBox::constructSidxBox(size,  hdr);
+	}
 
 	return new Box(size, (const char *)type);
 }
@@ -1210,3 +1214,173 @@ TrakBox* TrakBox::constructTrakBox(uint32_t sz, uint8_t *ptr)
 	}
 	return cbox;
 }
+
+
+/****
+ * aligned(8) class SegmentIndexBox extends FullBox("sidx", version, 0) 
+{
+	unsigned int(32) reference_ID;
+	unsigned int(32) timescale;
+	if (version==0)
+	{
+		unsigned int(32) earliest_presentation_time;
+		unsigned int(32) first_offset;
+	}
+	else
+	{
+		unsigned int(64) earliest_presentation_time;
+		unsigned int(64) first_offset;
+	}
+	unsigned int(16) reserved = 0;
+	unsigned int(16) reference_count;
+	for(i=1; i <= reference_count; i++)
+	{
+		bit (1) reference_type;
+		unsigned int(31) referenced_size;
+		unsigned int(32) subsegment_duration;
+		bit(1) starts_with_SAP;
+		unsigned int(3) SAP_type;
+		unsigned int(28) SAP_delta_time;
+	}
+} 
+*/
+
+
+/**
+ * @brief Static function to construct a Sidx object
+ *
+ * @param[in] sz - box size
+ * @param[in] ptr - pointer to box
+ * @return newly constructed Sidx box object
+ */
+SidxBox* SidxBox::constructSidxBox(uint32_t sz, uint8_t *ptr)
+{
+	uint8_t version = READ_VERSION(ptr); /** 1 byte version */
+	/** Reset flag and then read flag bytes 3bytes */
+	uint32_t flags  = 0x00;
+	flags = READ_FLAGS(ptr);
+	uint32_t referenceId = READ_U32(ptr);
+	uint32_t timeScale = READ_U32(ptr);
+	uint64_t earliestPresentationTime = 0x00;
+	uint64_t firstOffset = 0x00;
+
+	if ( version == 0x00 )
+	{
+		earliestPresentationTime = READ_U32(ptr);
+		firstOffset = READ_U32(ptr);
+	}
+	else
+	{
+		earliestPresentationTime = READ_64(ptr);
+		firstOffset = READ_64(ptr);
+	}
+
+	/**Reserved not using **/
+	READ_U16(ptr);
+	uint32_t referenceCount = 0x00;
+	std::vector<subSegmentSidx> subSegmentList;
+	/**Reference Count **/
+	referenceCount = (uint32_t) READ_U16(ptr);
+	for(int iLoop = 0; iLoop < referenceCount; iLoop++)
+ 	{
+		 uint32_t reference = READ_U32(ptr);
+		 uint32_t duration = READ_U32(ptr);
+		 subSegmentList.push_back(subSegmentSidx(reference, duration)); 
+	}
+
+	FullBox fbox(sz, Box::SIDX, version, flags);
+    return new SidxBox(fbox, referenceId, timeScale, earliestPresentationTime, firstOffset, referenceCount, subSegmentList);
+
+}
+
+/**
+ * @brief Sidx box constructor without fullbox and parameters
+ */
+SidxBox::SidxBox(uint32_t sz, uint8_t version, uint32_t flag, uint32_t referenceId, uint32_t timeScale, uint64_t earliestPresentationTime, 
+uint64_t firstOffset, uint32_t referenceCount, std::vector<subSegmentSidx> subSegmentList) : 
+FullBox(sz, Box::SIDX, version, flag), mReferenceId(referenceId), mTimescale(timeScale), mEarliestPresentationTime(earliestPresentationTime)
+, mFirstOffset(firstOffset), mReferenceCount (referenceCount), mSubSegmentList(subSegmentList)
+{
+
+}
+
+/**
+ * @brief Sidx box constructor with fullbox and parameters
+ */
+SidxBox::SidxBox(FullBox &fbox, uint32_t referenceId, uint32_t timeScale, uint64_t earliestPresentationTime, uint64_t firstOffset, 
+uint32_t referenceCount, std::vector<subSegmentSidx> subSegmentList) : 
+FullBox(fbox), mReferenceId(referenceId), mTimescale(timeScale), mEarliestPresentationTime(earliestPresentationTime)
+, mFirstOffset(firstOffset), mReferenceCount (referenceCount), mSubSegmentList(subSegmentList)
+{
+
+}
+
+/**
+ * @brief Sidx box default destructor
+ */
+SidxBox::~SidxBox()
+{
+	mSubSegmentList.clear();
+}
+
+/**
+ * @brief Get Track id value
+ * @param[in] index - index of the sub segment box
+ * @return track_id value
+ */
+uint32_t SidxBox::getReferencedSize(uint32_t index)
+{
+	uint32_t referencedSize = 0x00;
+	if (mReferenceCount <= index)
+	{
+		referencedSize = mSubSegmentList.at(index).referencedSize;
+	}
+	return referencedSize;
+}
+
+/**
+ * @brief Get ntp Timestamp value
+ * @param[in] index - index of the sub segment box
+ * @return ntp_ts value
+ */
+float SidxBox::getReferencedDuration(uint32_t index)
+{
+	float segmentDuration = 0.0;
+	if (mReferenceCount <= index)
+	{
+		segmentDuration = mSubSegmentList.at(index).subsegmentDuration/(float)mTimescale;
+	}
+	return segmentDuration;
+}
+
+/**
+ * @brief Get first offset of segment
+ *
+ * @return mFirstOffset value
+ */
+uint64_t SidxBox::getFirstOffset()
+{
+	return mFirstOffset;
+}
+
+/**
+ * @brief Get Segment count
+ *
+ * @return mReferenceCount value
+ */
+uint32_t SidxBox::getReferenceCount()
+{
+	return mReferenceCount;
+}
+
+/**
+ * @brief Get SampleDuration value
+ */
+void SidxBox::printBox(void)
+{
+	return;
+}
+
+/**
+ * EOF
+ */

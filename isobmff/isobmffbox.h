@@ -34,6 +34,9 @@
 #define READ_U32(buf) \
 	(buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3]; buf+=4;
 
+#define READ_U16(buf) \
+	(buf[0] << 8) | buf[1]; buf+=2;
+
 #define WRITE_U64(buf, val) \
 	buf[0]= val>>56; buf[1]= val>>48; buf[2]= val>>40; buf[3]= val>>32; buf[4]= val>>24; buf[5]= val>>16; buf[6]= val>>8; buf[7]= val;
 
@@ -822,6 +825,120 @@ public:
      * @return newly constructed PrftBox object
      */
     static PrftBox* constructPrftBox(uint32_t sz, uint8_t *ptr);
+};
+
+/** 
+ * @brief Subsegment List format 
+ **/
+typedef struct subSegmentSidx{
+	bool referenceType;
+	uint32_t referencedSize;
+	uint32_t subsegmentDuration;
+
+	subSegmentSidx(uint32_t reference, uint32_t duration):referenceType(0),referencedSize(0),subsegmentDuration(duration)
+	{
+		referenceType = 0x00000001 & reference;
+		referencedSize = 0xFFFFFFFE & reference;
+		subsegmentDuration = duration;
+	}
+
+	subSegmentSidx():referenceType(0),referencedSize(0),subsegmentDuration(0)
+	{
+	}
+}subSegmentSidx;
+
+/**
+ * @brief class for ISO BMFF SIDX box  
+ */
+class SidxBox : public FullBox
+{
+
+private:
+	uint32_t mReferenceId;
+	uint32_t mTimescale;
+	uint64_t mEarliestPresentationTime;
+	uint64_t mFirstOffset;
+	uint32_t mReferenceCount;
+	std::vector<subSegmentSidx> mSubSegmentList;
+
+public:
+
+    /**
+     * @brief SidxBox constructor
+     *
+     * @param[in] sz - box size
+     * @param[in] version - version
+     * @param[in] flag - flag flag to main to box
+	 * param[in] referenceId - reference Id
+	 * param[in] timeScale - time Scale for duration calculation
+	 * param[in] earliestPresentationTime - earliest Presentation Time
+     * @param[in] firstOffset - First offset
+	 * param[in] referenceCount - reference Count no of sub segments
+	 * param[in] subSegmentList - List of sub segments
+     */
+    SidxBox(uint32_t sz, uint8_t version, uint32_t flag, uint32_t referenceId, uint32_t timeScale, uint64_t earliestPresentationTime, 
+	uint64_t firstOffset, uint32_t referenceCount, std::vector<subSegmentSidx> subSegmentList);
+
+    /**
+     * @brief SidxBox constructor
+     *
+     * @param[in] fbox - box object
+	 * param[in] referenceId - reference Id
+	 * param[in] timeScale - time Scale for duration calculation
+	 * param[in] earliestPresentationTime - earliest Presentation Time
+     * @param[in] firstOffset - First offset
+	 * param[in] referenceCount - reference Count no of sub segments
+	 * param[in] subSegmentList - List of sub segments
+     */
+    SidxBox(FullBox &fbox, uint32_t referenceId, uint32_t timeScale, uint64_t earliestPresentationTime, 
+	uint64_t firstOffset, uint32_t referenceCount, std::vector<subSegmentSidx> subSegmentList);
+
+	/**
+     * @brief Default Destructor
+     */
+	~SidxBox();
+
+    /**
+     * @brief Get Track id value
+     * @param[in] index - index of the sub segment box
+     * @return track_id value
+     */
+    uint32_t getReferencedSize(uint32_t index);
+
+    /**
+     * @brief Get ntp Timestamp value
+     * @param[in] index - index of the sub segment box
+     * @return ntp_ts value
+     */
+    float getReferencedDuration(uint32_t index);
+
+    /**
+     * @brief Get SampleDuration value
+     *
+     * @return media_time value
+     */
+    uint64_t getFirstOffset();
+	
+	/**
+     * @brief Get SampleDuration value
+     *
+     * @return media_time value
+     */
+	uint32_t getReferenceCount();
+
+	/**
+     * @brief Get SampleDuration value
+     */
+    void printBox(void);
+
+    /**
+     * @brief Static function to construct a PrftBox object
+     *
+     * @param[in] sz - box size
+     * @param[in] ptr - pointer to box
+     * @return newly constructed PrftBox object
+     */
+    static SidxBox* constructSidxBox(uint32_t sz, uint8_t *ptr);
 };
 
 #endif /* __ISOBMFFBOX_H__ */

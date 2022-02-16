@@ -665,7 +665,7 @@ static unsigned int Read32( const char **pptr)
 	return rc;
 }
 
-
+#if 0 //REMOVE
 /**
  * @brief Parse segment index box
  * @note The SegmentBase indexRange attribute points to Segment Index Box location with segments and random access points.
@@ -731,6 +731,7 @@ static bool ParseSegmentIndexBox( const char *start, size_t size, int segmentInd
 
 	return false;
 }
+#endif
 
 /**
  * @brief Replace matching token with given number
@@ -1662,6 +1663,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 		if (segmentBase)
 		{ // single-segment
 			std::string fragmentUrl;
+			Box *segmentBox = NULL;
 			GetFragmentUrl(fragmentUrl, &pMediaStreamContext->fragmentDescriptor, "");
 			if (!pMediaStreamContext->index_ptr)
 			{ // lazily load index
@@ -1701,11 +1703,27 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				if (pMediaStreamContext->index_ptr)
 				{
 					unsigned int firstOffset;
-					ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, 0, NULL, NULL, &firstOffset);
-					pMediaStreamContext->fragmentOffset += firstOffset;
+					//ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, 0, NULL, NULL, &firstOffset);
+					segmentBox = Box::constructBox((uint8_t *)pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, mLogObj, true);
+					if (segmentBox && (IS_TYPE(segmentBox->getType(), Box::SIDX)))
+					{
+						firstOffset = dynamic_cast<SidxBox *>(segmentBox)->getFirstOffset();
+						pMediaStreamContext->fragmentOffset += firstOffset;
+					}
+					else
+					{
+						if (segmentBox)
+						{
+							AAMPLOG_ERR("Wrong type in segment type %s found, %s expected", segmentBox->getType(), Box::SIDX);
+						}
+						else
+						{
+							AAMPLOG_ERR("Failed to create segment box for %s", Box::SIDX);
+						}
+					}
 				}
 
-				if (pMediaStreamContext->fragmentIndex != 0 && pMediaStreamContext->index_ptr)
+				if (pMediaStreamContext->fragmentIndex != 0 && pMediaStreamContext->index_ptr && segmentBox)
 				{
 					unsigned int referenced_size;
 					float fragmentDuration;
@@ -1713,20 +1731,41 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					//Find the offset of previous fragment in new representation
 					for (int i = 0; i < pMediaStreamContext->fragmentIndex; i++)
 					{
-						if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, i, &referenced_size, &fragmentDuration, NULL))
+						//if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, i, &referenced_size, &fragmentDuration, NULL))
+						//{
+						if (i < dynamic_cast<SidxBox *>(segmentBox)->getReferenceCount())
 						{
-							pMediaStreamContext->fragmentOffset += referenced_size;
+							pMediaStreamContext->fragmentOffset += dynamic_cast<SidxBox *>(segmentBox)->getReferencedSize(i);
 						}
+						//}
 					}
 				}
 			}
 			if (pMediaStreamContext->index_ptr)
 			{
+				if (!segmentBox)
+				{
+					segmentBox = Box::constructBox((uint8_t *)pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, mLogObj, true);
+					if (!segmentBox || (!IS_TYPE(segmentBox->getType(), Box::SIDX)))
+					{
+						if (segmentBox)
+						{
+							AAMPLOG_ERR("Wrong type in segment type %s found, %s expected", segmentBox->getType(), Box::SIDX);
+						}
+						else
+						{
+							AAMPLOG_ERR("Failed to create segment box for %s", Box::SIDX);
+						}
+					}
+				}
 				unsigned int referenced_size;
 				float fragmentDuration;
-				if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, pMediaStreamContext->fragmentIndex++, &referenced_size, &fragmentDuration, NULL))
+				//if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, pMediaStreamContext->fragmentIndex++, &referenced_size, &fragmentDuration, NULL))
+				if (segmentBox && (pMediaStreamContext->fragmentIndex < dynamic_cast<SidxBox *>(segmentBox)->getReferenceCount()))
 				{
 					char range[128];
+					referenced_size = dynamic_cast<SidxBox *>(segmentBox)->getReferencedSize(pMediaStreamContext->fragmentIndex);
+					fragmentDuration = dynamic_cast<SidxBox *>(segmentBox)->getReferencedDuration(pMediaStreamContext->fragmentIndex);
 					sprintf(range, "%" PRIu64 "-%" PRIu64 "", pMediaStreamContext->fragmentOffset, pMediaStreamContext->fragmentOffset + referenced_size - 1);
 					AAMPLOG_INFO("%s [%s]",getMediaTypeName(pMediaStreamContext->mediaType), range);
 					if(pMediaStreamContext->CacheFragment(fragmentUrl, curlInstance, pMediaStreamContext->fragmentTime, fragmentDuration, range ))
@@ -1735,6 +1774,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						pMediaStreamContext->fragmentOffset += referenced_size;
 						retval = true;
 					}
+					pMediaStreamContext->fragmentIndex++;
 				}
 				else
 				{ // done with index
@@ -2276,16 +2316,28 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 			}
 			if (pMediaStreamContext->index_ptr)
 			{
-				unsigned int referenced_size = 0;
-				float fragmentDuration = 0.00;
 				float fragmentTime = 0.00;
 				int fragmentIndex =0;
+				Box *segmentBox = Box::constructBox((uint8_t *)pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, mLogObj, true);
+				if (!segmentBox || (!IS_TYPE(segmentBox->getType(), Box::SIDX)))
+				{
+					if (segmentBox)
+					{
+						AAMPLOG_ERR("Wrong type in segment type %s found, %s expected", segmentBox->getType(), Box::SIDX);
+					}
+					else
+					{
+						AAMPLOG_ERR("Failed to create segment box for %s", Box::SIDX);
+					}
+				}
 				while (fragmentTime < skipTime)
 				{
-					if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, fragmentIndex++, &referenced_size, &fragmentDuration, NULL))
+					//if (ParseSegmentIndexBox(pMediaStreamContext->index_ptr, pMediaStreamContext->index_len, fragmentIndex++, &referenced_size, &fragmentDuration, NULL))
+					if (fragmentIndex < dynamic_cast<SidxBox *>(segmentBox)->getReferenceCount())
 					{
-						fragmentTime += fragmentDuration;
-						pMediaStreamContext->fragmentOffset += referenced_size;
+						fragmentTime += dynamic_cast<SidxBox *>(segmentBox)->getReferencedDuration(fragmentIndex);
+						pMediaStreamContext->fragmentOffset += dynamic_cast<SidxBox *>(segmentBox)->getReferencedSize(fragmentIndex);
+						fragmentIndex++;
 					}
 					else
 					{
