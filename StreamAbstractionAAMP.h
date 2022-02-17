@@ -699,7 +699,7 @@ public:
 	 *   @param[in]  None
 	 *   @return void
 	 */
-	void SetESChangeStatus(void){ mESChangeStatus = true;}
+	void SetESChangeStatus(void){mAudiostateChangeCount++; mESChangeStatus = true;}
 
 	/**
 	 *   @brief Reset elementary stream type change status once the pipeline reconfigured.
@@ -707,7 +707,12 @@ public:
 	 *   @param[in]  None
 	 *   @return void
 	 */
-	void ResetESChangeStatus(void){ mESChangeStatus = false;}
+	void ResetESChangeStatus(void){
+		if( (mAudiostateChangeCount > 0) && !(--mAudiostateChangeCount) )
+		{
+			mESChangeStatus = false;
+		}
+	}
 
 	/**
 	 *   @brief Get elementary stream type change status for reconfigure the pipeline..
@@ -1333,6 +1338,7 @@ private:
 	int mABRMinBuffer;			/**< ABR ramp down buffer*/
 	int mABRNwConsistency;			/**< ABR Network consistency*/
 	bool mESChangeStatus;               /**< flag value which is used to call pipeline configuration if the audio type changed in mid stream */
+	unsigned int mAudiostateChangeCount;/**< variable to know how many times player need to reconfigure the pipeline for audio type change*/
 	double mLastVideoFragParsedTimeMS;  /**< timestamp when last video fragment was parsed */
 
 	bool mIsPaused;                     /**< paused state or not */
