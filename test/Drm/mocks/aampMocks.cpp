@@ -77,7 +77,7 @@ void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len
 	{
 		if(buffer->avail > (128*1024))
 		{
-			logprintf("%s:%d WARNING - realloc. buf %p avail %d required %d", __FUNCTION__, __LINE__, buffer, (int)buffer->avail, (int)required);
+			AAMPLOG_WARN("WARNING - realloc. buf %p avail %d required %d",buffer, (int)buffer->avail, (int)required);
 		}
 		buffer->avail = required * 2; // grow generously to minimize realloc overhead
 		char *ptr = (char *)g_realloc(buffer->ptr, buffer->avail);

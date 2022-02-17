@@ -339,7 +339,7 @@ void MediaStreamContext::ABRProfileChanged(void)
     }
     else
     {
-        traceprintf("StreamAbstractionAAMP_MPD::%s:%d - Not switching ABR %dx%d[%d] ", __FUNCTION__, __LINE__,
+        AAMPLOG_TRACE("StreamAbstractionAAMP_MPD:: Not switching ABR %dx%d[%d] ",
                 representation->GetWidth(), representation->GetHeight(), representation->GetBandwidth());
     }
 

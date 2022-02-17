@@ -124,12 +124,12 @@ bool AampCacheHandler::RetrieveFromPlaylistCache(const std::string url, Growable
 		buffer->len = 0;
 		aamp_AppendBytes(buffer, buf->ptr, buf->len );
 		effectiveUrl = eUrl;
-		traceprintf("%s:%d : url %s found", __FUNCTION__, __LINE__, url.c_str());
+		AAMPLOG_TRACE("url %s found", url.c_str());
 		ret = true;
 	}
 	else
 	{
-		traceprintf("%s:%d : url %s not found", __FUNCTION__, __LINE__, url.c_str());
+		AAMPLOG_TRACE("url %s not found", url.c_str());
 		ret = false;
 	}
 	pthread_mutex_unlock(&mMutex);

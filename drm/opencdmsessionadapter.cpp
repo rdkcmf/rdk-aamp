@@ -42,16 +42,16 @@ AAMPOCDMSessionAdapter::AAMPOCDMSessionAdapter(AampLogManager *logObj, std::shar
 		m_keyId(),
 		m_keyStored()
 {
-	logprintf("AAMPOCDMSessionAdapter :: enter ");
+	AAMPLOG_WARN("AAMPOCDMSessionAdapter :: enter ");
 	pthread_mutex_init(&decryptMutex, NULL);
 
-	logprintf("AAMPOCDMSessionAdapter :: key process timeout is %d", drmHelper->keyProcessTimeout());
+	AAMPLOG_WARN("AAMPOCDMSessionAdapter :: key process timeout is %d", drmHelper->keyProcessTimeout());
 
 	initAampDRMSystem();
 
 	// Get output protection pointer
 	m_pOutputProtection = AampOutputProtection::GetAampOutputProcectionInstance();
-	logprintf("AAMPOCDMSessionAdapter :: exit ");
+	AAMPLOG_WARN("AAMPOCDMSessionAdapter :: exit ");
 }
 
 void AAMPOCDMSessionAdapter::initAampDRMSystem()
@@ -65,16 +65,16 @@ void AAMPOCDMSessionAdapter::initAampDRMSystem()
 		m_pOpenCDMSystem = opencdm_create_system();
 #endif		
 		if (m_pOpenCDMSystem == nullptr) {
-			logprintf("opencdm_create_system() FAILED");
+			AAMPLOG_ERR("opencdm_create_system() FAILED");
 		}
 	}
 	pthread_mutex_unlock(&decryptMutex);
-	logprintf("initAampDRMSystem :: exit ");
+	AAMPLOG_WARN("initAampDRMSystem :: exit ");
 }
 
 AAMPOCDMSessionAdapter::~AAMPOCDMSessionAdapter()
 {
-	logprintf("[HHH]OCDMSessionAdapter destructor called! keySystem %s", m_keySystem.c_str());
+	AAMPLOG_WARN("[HHH]OCDMSessionAdapter destructor called! keySystem %s", m_keySystem.c_str());
 	clearDecryptContext();
 
 	pthread_mutex_destroy(&decryptMutex);
@@ -98,7 +98,7 @@ void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 
 	if (m_pOpenCDMSystem == nullptr)
 	{
-		logprintf("OpenCDM system not present, unable to generate DRM session");
+		AAMPLOG_WARN("OpenCDM system not present, unable to generate DRM session");
 		m_eKeyState = KEY_ERROR;
 	}
 	else
@@ -137,7 +137,7 @@ void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 				  &m_pOpenCDMSession);
 		if (ocdmRet != ERROR_NONE)
 		{
-			logprintf("Error constructing OCDM session. OCDM err=0x%x", ocdmRet);
+			AAMPLOG_ERR("Error constructing OCDM session. OCDM err=0x%x", ocdmRet);
 			m_eKeyState = KEY_ERROR;
 		}
 	}
@@ -159,7 +159,7 @@ void AAMPOCDMSessionAdapter::processOCDMChallenge(const char destUrl[], const ui
 	// Example message: individualization-request:Type:(payload)
 	if ((delimiterPos != std::string::npos) && (individualisationTypes.count(messageType) > 0))
 	{
-		logprintf("processOCDMChallenge received message with type=%s", messageType.c_str());
+		AAMPLOG_WARN("processOCDMChallenge received message with type=%s", messageType.c_str());
 
 		if (m_drmCallbacks)
 		{
@@ -170,10 +170,10 @@ void AAMPOCDMSessionAdapter::processOCDMChallenge(const char destUrl[], const ui
 	{
 		// Assuming this is a standard challenge callback
 		m_challenge = challengeData;
-		logprintf("processOCDMChallenge challenge = %s", m_challenge.c_str());
+		AAMPLOG_WARN("processOCDMChallenge challenge = %s", m_challenge.c_str());
 
 		m_destUrl.assign(destUrl);
-		logprintf("processOCDMChallenge destUrl = %s (default value used as drm server)", m_destUrl.c_str());
+		AAMPLOG_WARN("processOCDMChallenge destUrl = %s (default value used as drm server)", m_destUrl.c_str());
 
 		m_challengeReady.signal();
 	}
@@ -215,7 +215,7 @@ DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL,
 
 			result = new DrmData(reinterpret_cast<unsigned char*>(const_cast<char*>(m_challenge.c_str())), m_challenge.length());
 			destinationURL.assign((m_destUrl.c_str()));
-			logprintf("destinationURL is %s (default value used as drm server)", destinationURL.c_str());
+			AAMPLOG_WARN("destinationURL is %s (default value used as drm server)", destinationURL.c_str());
 			m_eKeyState = KEY_PENDING;
 		}
 		else {
@@ -254,20 +254,20 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 
 	if (status == OpenCDMError::ERROR_NONE) {
 		if (m_keyStatusReady.wait(timeout) == true) {
-			logprintf("Key Status updated");
+			AAMPLOG_WARN("Key Status updated");
 		}
 		// The key could be signalled ready before the session is even created, so we need to check we didn't miss it
 		if (m_keyStateIndeterminate) {
 			m_keyStatus = opencdm_session_status(m_pOpenCDMSession, m_keyStored.data(), m_keyStored.size());
 			m_keyStateIndeterminate = false;
-			logprintf("Key arrived early, new state is %d", m_keyStatus);
+			AAMPLOG_WARN("Key arrived early, new state is %d", m_keyStatus);
 		}
 #ifdef USE_THUNDER_OCDM_API_0_2
 		if (m_keyStatus == Usable) {
 #else
 		if (m_keyStatus == KeyStatus::Usable) {
 #endif
-			logprintf("processKey: Key Usable!");
+			AAMPLOG_WARN("processKey: Key Usable!");
 			m_eKeyState = KEY_READY;
 			retValue = 0;
 		}
@@ -363,7 +363,7 @@ KeyState AAMPOCDMSessionAdapter::getState()
 
 void AAMPOCDMSessionAdapter:: clearDecryptContext()
 {
-	logprintf("[HHH] clearDecryptContext.");
+	AAMPLOG_WARN("[HHH] clearDecryptContext.");
 
 	pthread_mutex_lock(&decryptMutex);
 

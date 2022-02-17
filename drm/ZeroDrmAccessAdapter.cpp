@@ -556,7 +556,7 @@ ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmDecrypt(const uint32_t contextId,void
 			if(metadata != NULL) {
 #ifdef PLAYBACK_ASYNC_SUPPORT 
 				pthread_mutex_lock(&mMutexJSCondVar);
-				//logprintf("zeroDrmDecrypt Ctx[%d] DrmState[%d]",contextId,metadata->mZeroDrmState);
+				//AAMPLOG_WARN("zeroDrmDecrypt Ctx[%d] DrmState[%d]",contextId,metadata->mZeroDrmState);
 				if ((metadata->mZeroDrmState == eZERO_DRM_STATE_ACQUIRING_RECEIPT) || (metadata->mZeroDrmState == eZERO_DRM_STATE_ACQUIRING_KEY)) 
 					{
 						logprintf("[%s]->waiting for key acquisition to complete Ctx[%d],wait time:%d->State[%d]",__FUNCTION__,contextId,timeInMs ,metadata->mZeroDrmState);
@@ -641,8 +641,8 @@ void ZeroDRMAccessAdapter::zeroDRMWorkerThreadTask()
 		pthread_cond_wait(&mJobPostingCondVar, &mMutexJPCondVar);
 		if((!mWorkerThreadEndFlag) && (!mZWorkerDataQue.empty()))
 		{
-			//logprintf("[%s]->Got a worker in Workerthread ",__FUNCTION__);
-			 // get worker data
+			//Got a worker in Workerthread
+			// get worker data
                         qptr = (ZeroDrmWorkerData *)mZWorkerDataQue.front();
                         mZWorkerDataQue.pop();
 		}
@@ -853,11 +853,9 @@ bool ZeroDRMAccessAdapter::zeroDrmParseKeyTag(ZeroDrmInfo	&keyTagInfo , const ch
 		
 		if (!token.empty()) 
 		{
-			//logprintf("posn[%d] prev[%d] inpLen[%d] tokenlen[%d] token[%s]",posn,prev,inpStr.length(),token.length(),token.c_str());
 			size_t subposn = token.find(keyValDelim,0);
 			std::string key = token.substr(0,subposn);
 			std::string value = token.substr(subposn+1);
-			//logprintf("subposn[%d] key[%s] valuelen[%d] value[%s]",subposn,key.c_str(),value.length(),value.c_str());
 			if(!key.compare("METHOD"))
 			{
 				if(!value.compare("AES-128"))

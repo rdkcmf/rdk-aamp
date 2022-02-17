@@ -209,7 +209,7 @@ namespace
             case GSW_CC_ATTRIB_EDGE_COLOR:
                 return getValue(attrib->edgeColor);
             default:
-                logprintf("%s: wrong attribute type used 0x%x",__func__,  type);
+                AAMPLOG_WARN("wrong attribute type used 0x%x",type);
                 return -1;
 
         }

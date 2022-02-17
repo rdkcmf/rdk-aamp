@@ -2081,7 +2081,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_AuxiliaryAudio:
                                 {
 					char lang[12];
-					logprintf("Matchde Command eAAMP_SET_AuxiliaryAudio - %s ", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_AuxiliaryAudio - %s\n", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, lang) == 2)
 					{
 						mSingleton->SetAuxiliaryLanguage(lang);

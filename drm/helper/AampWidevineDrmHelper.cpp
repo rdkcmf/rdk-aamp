@@ -180,7 +180,7 @@ void AampWidevineDrmHelper::setDefaultKeyID(const std::string& cencData)
 			if(defaultKeyID == it.second)
 			{
 				mDefaultKeySlot = it.first;
-				logprintf ("setDefaultKeyID : %s slot : %d", cencData.c_str(), mDefaultKeySlot);
+				AAMPLOG_WARN("setDefaultKeyID : %s slot : %d", cencData.c_str(), mDefaultKeySlot);
 			}
 		}
 	}
@@ -199,7 +199,7 @@ void AampWidevineDrmHelper::createInitData(std::vector<uint8_t>& initData) const
 
 void AampWidevineDrmHelper::getKey(std::vector<uint8_t>& keyID) const
 {
-	logprintf ("AampWidevineDrmHelper::getKey defaultkey: %d mKeyIDs.size:%d", mDefaultKeySlot, mKeyIDs.size());
+	AAMPLOG_WARN("AampWidevineDrmHelper::getKey defaultkey: %d mKeyIDs.size:%d", mDefaultKeySlot, mKeyIDs.size());
 	if(mDefaultKeySlot >= 0)
 	{
 		keyID = this->mKeyIDs.at(mDefaultKeySlot);

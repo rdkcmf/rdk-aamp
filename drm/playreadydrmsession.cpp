@@ -159,7 +159,7 @@ void PlayReadyDRMSession::initAampDRMSession()
 	pthread_mutex_unlock(&sessionMutex);
 
 #ifdef TRACE_LOG
-	logprintf("Printing initialization result : %08x ", drm_res);
+	AAMPLOG_WARN("Printing initialization result : %08x ", drm_res);
 #endif
 
 	ChkDR(drm_res);
@@ -186,12 +186,12 @@ void PlayReadyDRMSession::initAampDRMSession()
 			DRM_B64_EncodeA((DRM_BYTE *) &aampSessionId, SIZEOF(aampSessionId),
 					m_rgchSesnID, &cchEncSesID, 0));
 
-	logprintf("initAampDRMSession :: Playready initialized with session id : %s",m_rgchSesnID);
+	AAMPLOG_WARN("initAampDRMSession :: Playready initialized with session id : %s",m_rgchSesnID);
 	// The current state MUST be KEY_INIT otherwise error out.
 	ChkBOOL(m_eKeyState == KEY_INIT, DRM_E_INVALIDARG);
 	return;
 	ErrorExit:
-	logprintf("Playready initialization failed code : %08x ", drm_res);
+	AAMPLOG_ERR("Playready initialization failed code : %08x ", drm_res);
 	m_eKeyState = KEY_ERROR;
 }
 
@@ -220,7 +220,7 @@ void PlayReadyDRMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 	{
 		if (gpGlobalConfig->logging.debug)
 		{
-			logprintf("PRO found in initdata!");
+			AAMPLOG_WARN("PRO found in initdata!");
 		}
 		// If PRO is supplied (via init data) then it is used
 		// to create the content header inside of the app context.
@@ -230,14 +230,14 @@ void PlayReadyDRMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 	{
 		if (gpGlobalConfig->logging.debug)
 		{
-			logprintf("PRO not found in initdata!");
+			AAMPLOG_WARN("PRO not found in initdata!");
 		}
 		drm_res = Drm_Content_SetProperty(m_ptrAppContext, DRM_CSP_AUTODETECT_HEADER,
 				f_pbInitData, f_cbInitData);
 	}
 
 #ifdef TRACE_LOG
-	logprintf("initAampDRMSession :: Printing SetProperty result : %08x ", drm_res);
+	AAMPLOG_TRACE("initAampDRMSession :: Printing SetProperty result : %08x ", drm_res);
 #endif
 
 	ChkDR(drm_res);
@@ -247,7 +247,7 @@ void PlayReadyDRMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 	return;
 
 	ErrorExit:
-	logprintf("Playready init data binding failed : Error code : %08x ",drm_res);
+	AAMPLOG_ERR("Playready init data binding failed : Error code : %08x ",drm_res);
 	m_eKeyState = KEY_ERROR;
 }
 
@@ -542,7 +542,7 @@ DrmData * PlayReadyDRMSession::aampGenerateKeyRequest(string& destinationURL, ui
 					NULL,
 					NULL, m_pbChallenge, &m_cbChallenge));
 #ifdef TRACE_LOG
-	logprintf("aampGenerateKeyRequest :: Playready destination URL : %s ", m_ptrDestURL);
+	AAMPLOG_WARN("aampGenerateKeyRequest :: Playready destination URL : %s ", m_ptrDestURL);
 #endif
 	m_eKeyState = KEY_PENDING;
 
@@ -553,7 +553,7 @@ DrmData * PlayReadyDRMSession::aampGenerateKeyRequest(string& destinationURL, ui
 	ErrorExit:
 		if (DRM_FAILED(drm_res))
 		{
-			logprintf("aampGenerateKeyRequest :: Playread DRM key request generation failed error code : %08x ", drm_res);
+			AAMPLOG_WARN("aampGenerateKeyRequest :: Playread DRM key request generation failed error code : %08x ", drm_res);
 			m_eKeyState = KEY_ERROR;
 		}
 	return NULL;
@@ -604,18 +604,18 @@ int PlayReadyDRMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 					NO_OF(g_rgpdstrRights), m_pOutputProtection->PR_OP_Callback,
 					m_pOutputProtection->getPlayReadyLevels(), &m_oDecryptContext);
 #ifdef TRACE_LOG
-	logprintf("aampDRMProcessKey :: Printing bind result : %08x ", drm_res);
+	AAMPLOG_WARN("aampDRMProcessKey :: Printing bind result : %08x ", drm_res);
 #endif
     ChkDR(drm_res);
 	m_eKeyState = KEY_READY;
 
-	logprintf("aampDRMProcessKey :: Key processed, now ready for content decryption");
+	AAMPLOG_WARN("aampDRMProcessKey :: Key processed, now ready for content decryption");
 
 	return 1;
 
 	ErrorExit: if (DRM_FAILED(drm_res))
 	{
-		logprintf("aampDRMProcessKey :: Playready failed processing license response : error code : %08x ", drm_res);
+		AAMPLOG_ERR("aampDRMProcessKey :: Playready failed processing license response : error code : %08x ", drm_res);
 		m_eKeyState = KEY_ERROR;
 	}
 	return 0;
@@ -651,7 +651,7 @@ int PlayReadyDRMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
         // Source material is UHD
         if(!m_pOutputProtection->isHDCPConnection2_2()) {
             // UHD and not HDCP 2.2
-            logprintf("%s : UHD source but not HDCP 2.2. FAILING decrypt\n", __FUNCTION__);
+            AAMPLOG_WARN("UHD source but not HDCP 2.2. FAILING decrypt\n",);
             return HDCP_COMPLIANCE_CHECK_FAILURE;
         }
     }
@@ -673,7 +673,7 @@ int PlayReadyDRMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
     // Make this a run time decision.
 	{
 #ifdef TRACE_LOG
-	    printf("%s data len = %d\n", __FUNCTION__, payloadDataSize);
+	    AAMPLOG_TRACE("data len = %d\n", payloadDataSize);
 #endif
 	    OEM_OPAQUE_BUFFER_HANDLE hOpaqueBufferIn;
         OEM_OPAQUE_BUFFER_HANDLE hOpaqueBufferOut;
@@ -688,7 +688,7 @@ int PlayReadyDRMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
         // Assign the opaque pointer from the decryptor.
         DRM_RESULT errHandle = OEM_HAL_OpaqueBufferGetDataHandle(hOpaqueBufferOut, ppOpaqueData);
         if (DRM_FAILED(errHandle)) {
-            logprintf("AampDRMSession::decrypt --> OEM_HAL_OpaqueBufferGetDataHandle FAILED errHandle = %X, opaqueData = %p",
+            AAMPLOG_ERR("AampDRMSession::decrypt --> OEM_HAL_OpaqueBufferGetDataHandle FAILED errHandle = %X, opaqueData = %p",
                     errHandle, *ppOpaqueData);
         }
 
@@ -722,7 +722,7 @@ int PlayReadyDRMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 
 	ErrorExit:
 		pthread_mutex_unlock(&decryptMutex);
-		logprintf("PR decrypt :: Play ready session : Decrypt Error");
+		AAMPLOG_ERR("PR decrypt :: Play ready session : Decrypt Error");
 		return status;
 
 }

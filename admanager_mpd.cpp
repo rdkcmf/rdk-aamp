@@ -34,7 +34,7 @@ static void *AdFulfillThreadEntry(void *arg)
     PrivateCDAIObjectMPD *_this = (PrivateCDAIObjectMPD *)arg;
     if(aamp_pthread_setname(pthread_self(), "aampADFulfill"))
     {
-        logprintf("%s:%d: aamp_pthread_setname failed", __FUNCTION__, __LINE__);
+        AAMPLOG_ERR("aamp_pthread_setname failed");
     }
     _this->FulFillAdObject();
     return NULL;
@@ -74,7 +74,7 @@ PrivateCDAIObjectMPD::~PrivateCDAIObjectMPD()
 		int rc = pthread_join(mAdObjThreadID, NULL);
 		if (rc != 0)
 		{
-			logprintf("%s:%d ***pthread_join failed, returned %d", __FUNCTION__, __LINE__, rc);
+			AAMPLOG_ERR("***pthread_join failed, returned %d", rc);
 		}
 		mAdObjThreadID = 0;
 	}
@@ -598,30 +598,30 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 				}
 				else
 				{
-					logprintf("%s:%d - Could not create root node", __FUNCTION__, __LINE__);
+					AAMPLOG_WARN("Could not create root node");
 				}
 			}
 			else
 			{
-				logprintf("%s:%d - xmlTextReaderRead failed", __FUNCTION__, __LINE__);
+				AAMPLOG_ERR("xmlTextReaderRead failed");
 			}
 			xmlFreeTextReader(reader);
 		}
 		else
 		{
-			logprintf("%s:%d - xmlReaderForMemory failed", __FUNCTION__, __LINE__);
+			AAMPLOG_ERR("xmlReaderForMemory failed");
 		}
 
 		if (gpGlobalConfig->logging.trace)
 		{
 			aamp_AppendNulTerminator(&manifest); // make safe for cstring operations
-			logprintf("%s:%d - Ad manifest: %s", __FUNCTION__, __LINE__, manifest.ptr);
+			AAMPLOG_WARN("Ad manifest: %s", manifest.ptr);
 		}
 		aamp_Free(&manifest);
 	}
 	else
 	{
-		logprintf("%s:%d [CDAI]: Error on manifest fetch", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("[CDAI]: Error on manifest fetch");
 	}
 	return adMpd;
 }
@@ -682,13 +682,13 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 		}
 		else
 		{
-			logprintf("%s:%d: AdBreadkId[%s] not existing. Dropping the Ad.", __FUNCTION__, __LINE__, periodId.c_str());
+			AAMPLOG_WARN("AdBreadkId[%s] not existing. Dropping the Ad.", periodId.c_str());
 			SAFE_DELETE(ad);
 		}
 	}
 	else
 	{
-		logprintf("%s:%d: Failed to get Ad MPD[%s].", __FUNCTION__, __LINE__, mAdFulfillObj.url.c_str());
+		AAMPLOG_ERR("Failed to get Ad MPD[%s].", mAdFulfillObj.url.c_str());
 	}
 	mAamp->SendAdResolvedEvent(mAdFulfillObj.adId, adStatus, startMS, durationMs);
 }
@@ -715,7 +715,7 @@ void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, con
 			int rc = pthread_join(mAdObjThreadID, NULL);
 			if(rc != 0)  //CID:101068 - Resolving the local variable rc initialized but not used
 			{
-				logprintf("%s:%d pthread_join(mAdObjThreadID) failed , errno = %d, %s , Rejecting promise.", __FUNCTION__,__LINE__,errno,strerror(errno));
+				AAMPLOG_ERR("pthread_join(mAdObjThreadID) failed , errno = %d, %s , Rejecting promise.",errno,strerror(errno));
 			}
 			mAdObjThreadID = 0;
 		}
@@ -736,7 +736,7 @@ void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, con
 				int ret = pthread_create(&mAdObjThreadID, NULL, &AdFulfillThreadEntry, this);
 				if(ret != 0)
 				{
-					logprintf("%s:%d pthread_create(FulFillAdObject) failed, errno = %d, %s. Rejecting promise.", __FUNCTION__, __LINE__, errno, strerror(errno));
+					AAMPLOG_ERR(" pthread_create(FulFillAdObject) failed, errno = %d, %s. Rejecting promise.", errno, strerror(errno));
 				}
 			}
 			if(ret != 0)

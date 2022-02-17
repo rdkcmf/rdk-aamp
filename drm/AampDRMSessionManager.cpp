@@ -152,7 +152,7 @@ AampDRMSessionManager::~AampDRMSessionManager()
  */
 void AampDRMSessionManager::clearSessionData()
 {
-	logprintf("%s:%d AampDRMSessionManager:: Clearing session data", __FUNCTION__, __LINE__);
+	AAMPLOG_WARN(" AampDRMSessionManager:: Clearing session data");
 	for(int i = 0 ; i < mMaxDRMSessions; i++)
 	{
 		if (drmSessionContexts != NULL && drmSessionContexts[i].drmSession != NULL)
@@ -281,7 +281,7 @@ void AampDRMSessionManager::clearDrmSession(bool forceClearSession)
 			AampMutexHold sessionMutex(drmSessionContexts[i].sessionMutex);
 			if (drmSessionContexts[i].drmSession != NULL)
 			{
-				logprintf("%s:%d AampDRMSessionManager:: Clearing failed Session Data Slot : %d", __FUNCTION__, __LINE__, i);				
+				AAMPLOG_WARN("AampDRMSessionManager:: Clearing failed Session Data Slot : %d", i);				
 #ifdef USE_SECMANAGER
 				// Cached session is about to be destroyed, send release to SecManager
 				if (drmSessionContexts[i].drmSession->getSessionId() != AAMP_SECMGR_INVALID_SESSION_ID)
@@ -298,10 +298,10 @@ void AampDRMSessionManager::clearDrmSession(bool forceClearSession)
 void AampDRMSessionManager::setVideoWindowSize(int width, int height)
 {
 #ifdef USE_SECMANAGER
-	logprintf("In AampDRMSessionManager::%s setting video windor size w:%d x h:%d mMaxDRMSessions=%d mSessionId=[%" PRId64 "]",__FUNCTION__,width,height,mMaxDRMSessions,mSessionId);
+	AAMPLOG_WARN("In AampDRMSessionManager:: setting video windor size w:%d x h:%d mMaxDRMSessions=%d mSessionId=[%" PRId64 "]",width,height,mMaxDRMSessions,mSessionId);
 	if(mSessionId != AAMP_SECMGR_INVALID_SESSION_ID)
 	{
-		logprintf("In AampDRMSessionManager::%s valid session ID",__FUNCTION__);
+		AAMPLOG_WARN("In AampDRMSessionManager:: valid session ID");
 		AampSecManager::GetInstance()->setVideoWindowSize(mSessionId, width, height);
 	}
 #endif
@@ -310,10 +310,10 @@ void AampDRMSessionManager::setVideoWindowSize(int width, int height)
 void AampDRMSessionManager::setPlaybackSpeedState(int speed, double position)
 {
 #ifdef USE_SECMANAGER
-	logprintf("In AampDRMSessionManager::%s after calling setPlaybackSpeedState speed=%d position=%f mSessionId=[%" PRId64 "]",__FUNCTION__,speed, position, mSessionId);
+	AAMPLOG_WARN("In AampDRMSessionManager::after calling setPlaybackSpeedState speed=%d position=%f mSessionId=[%" PRId64 "]",speed, position, mSessionId);
 	if(mSessionId != AAMP_SECMGR_INVALID_SESSION_ID)
 	{
-		logprintf("In AampDRMSessionManager::%s valid session ID",__FUNCTION__);
+		AAMPLOG_WARN("In AampDRMSessionManager::valid session ID");
 		AampSecManager::GetInstance()->setPlaybackSpeedState(mSessionId, speed, position);
 	}
 #endif
@@ -382,7 +382,7 @@ size_t AampDRMSessionManager::write_callback(char *ptr, size_t size,
 	}
 	if (gpGlobalConfig->logging.trace)
 	{
-		logprintf("%s:%d wrote %zu number of blocks", __FUNCTION__, __LINE__, numBytesForBlock);
+		logprintf(" wrote %zu number of blocks", numBytesForBlock);
 	}
 	return numBytesForBlock;
 }
@@ -470,7 +470,7 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 							accessTokenLen = len;
 							memcpy( accessToken, token.c_str(), len );
 							accessToken[len] = 0x00;
-							logprintf("%s:%d Received session token from auth service ", __FUNCTION__, __LINE__);
+							AAMPLOG_WARN(" Received session token from auth service ");
 						}
 						else
 						{
@@ -479,25 +479,25 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 					}
 					else
 					{
-						logprintf("%s:%d Could not get access token from session token reply", __FUNCTION__, __LINE__);
+						AAMPLOG_WARN(" Could not get access token from session token reply");
 						error_code = (long)eAUTHTOKEN_TOKEN_PARSE_ERROR;
 					}
 				}
 				else
 				{
-					logprintf("%s:%d Missing or invalid status code in session token reply", __FUNCTION__, __LINE__);
+					AAMPLOG_ERR(" Missing or invalid status code in session token reply");
 					error_code = (long)eAUTHTOKEN_INVALID_STATUS_CODE;
 				}
 			}
 			else
 			{
-				logprintf("%s:%d Get Session token call failed with http error %d", __FUNCTION__, __LINE__, httpCode);
+				AAMPLOG_ERR(" Get Session token call failed with http error %d", httpCode);
 				error_code = httpCode;
 			}
 		}
 		else
 		{
-			logprintf("%s:%d Get Session token call failed with curl error %d", __FUNCTION__, __LINE__, res);
+			AAMPLOG_ERR(" Get Session token call failed with curl error %d", res);
 			error_code = res;
 		}
 		SAFE_DELETE(tokenReply);
@@ -585,14 +585,9 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	aampInstance->GetMoneyTraceString(moneytracestr);
 	requestMetadata[0][1] = moneytracestr.c_str();
 
-	logprintf("[HHH] Before calling SecClient_AcquireLicense-----------");
-	logprintf("destinationURL is %s (drm server now used)", licenseRequest.url.c_str());
-	logprintf("MoneyTrace[%s]", requestMetadata[0][1]);
-	//logprintf("encodedData is %s, length=%d", encodedData, strlen(encodedData));
-	//logprintf("licenseRequest is %s", licenseRequest);
-	//logprintf("keySystem is %s", keySystem);
-	//logprintf("mediaUsage is %s", mediaUsage);
-	//logprintf("sessionToken is %s", sessionToken);
+	AAMPLOG_WARN("[HHH] Before calling SecClient_AcquireLicense-----------");
+	AAMPLOG_WARN("destinationURL is %s (drm server now used)", licenseRequest.url.c_str());
+	AAMPLOG_WARN("MoneyTrace[%s]", requestMetadata[0][1]);
 #if USE_SECMANAGER
 	if(aampInstance->mConfig->IsConfigSet(eAAMPConfig_UseSecManager))
 	{
@@ -658,9 +653,9 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 				 (sec_client_result >= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_TLS  && sec_client_result <= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_GENERIC ))
 				&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
 			{
-				logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result);
+				AAMPLOG_ERR(" acquireLicense FAILED! license request attempt : %d; response code : sec_client %d", attemptCount, sec_client_result);
 				if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
-				logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__, sleepTime);
+				AAMPLOG_WARN(" acquireLicense : Sleeping %d milliseconds before next retry.", sleepTime);
 				mssleep(sleepTime);
 			}
 			else
@@ -668,23 +663,21 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 				break;
 			}
 		}
-		if (gpGlobalConfig->logging.debug)
-		{
-			logprintf("licenseResponse is %s", licenseResponseStr);
-			logprintf("licenseResponse len is %zd", licenseResponseLength);
-			logprintf("accessAttributesStatus is %d", statusInfo.accessAttributeStatus);
-			logprintf("refreshDuration is %d", refreshDuration);
-		}
+		
+			AAMPLOG_TRACE("licenseResponse is %s", licenseResponseStr);
+			AAMPLOG_TRACE("licenseResponse len is %zd", licenseResponseLength);
+			AAMPLOG_TRACE("accessAttributesStatus is %d", statusInfo.accessAttributeStatus);
+			AAMPLOG_TRACE("refreshDuration is %d", refreshDuration);
 		
 		if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
 		{
-			logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : sec_client %d extStatus %d", __FUNCTION__, __LINE__, attemptCount, sec_client_result, statusInfo.statusCode);
+			AAMPLOG_ERR(" acquireLicense FAILED! license request attempt : %d; response code : sec_client %d extStatus %d", attemptCount, sec_client_result, statusInfo.statusCode);
 			*httpCode = sec_client_result;
 			*httpExtStatusCode = statusInfo.statusCode;
 		}
 		else
 		{
-			logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : sec_client %d",__FUNCTION__, __LINE__, attemptCount, sec_client_result);
+			AAMPLOG_WARN(" acquireLicense SUCCESS! license request attempt %d; response code : sec_client %d", attemptCount, sec_client_result);
 			eventHandle->setAccessStatusValue(statusInfo.accessAttributeStatus);
 			licenseResponse = new DrmData((unsigned char *)licenseResponseStr, licenseResponseLength);
 		}
@@ -741,11 +734,11 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		headers = curl_slist_append(headers, customHeaderStr.c_str());
 		if (aamp->mConfig->IsConfigSet(eAAMPConfig_CurlLicenseLogging))
 		{
-			logprintf("%s:%d CustomHeader :%s",__FUNCTION__,__LINE__,customHeaderStr.c_str());
+			AAMPLOG_WARN(" CustomHeader :%s",customHeaderStr.c_str());
 		}
 	}
 
-	logprintf("%s:%d Sending license request to server : %s ", __FUNCTION__, __LINE__, licenseRequest.url.c_str());
+	AAMPLOG_WARN(" Sending license request to server : %s ", licenseRequest.url.c_str());
 	if (aamp->mConfig->IsConfigSet(eAAMPConfig_CurlLicenseLogging))
 	{
 		CURL_EASY_SETOPT(curl, CURLOPT_VERBOSE, 1L);
@@ -799,7 +792,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		/** Restrict further processing license if stop called in between  */
 		if(!aamp->DownloadsAreEnabled())
 		{
-			logprintf("%s:%d Aborting License acquisition", __FUNCTION__, __LINE__);
+			AAMPLOG_ERR(" Aborting License acquisition");
 			// Update httpCode as 42-curl abort, so that DRM error event will not be sent by upper layer
 			*httpCode = CURLE_ABORTED_BY_CALLBACK;
 			break;
@@ -822,8 +815,8 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	                                callbackData->mDRMSessionManager = this;
 	                                CURL_EASY_SETOPT(curl, CURLOPT_WRITEDATA, callbackData);
         	                }
-                	        logprintf("%s:%d curl_easy_perform() failed: %s", __FUNCTION__, __LINE__, curl_easy_strerror(res));
-                        	logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : curl %d", __FUNCTION__, __LINE__, attemptCount, res);
+                	        AAMPLOG_ERR(" curl_easy_perform() failed: %s", curl_easy_strerror(res));
+                        	AAMPLOG_ERR(" acquireLicense FAILED! license request attempt : %d; response code : curl %d", attemptCount, res);
 			}
 			*httpCode = res;
 		}
@@ -835,7 +828,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 			{
 				int  licenseRetryWaitTime;
 				aamp->mConfig->GetConfigValue(eAAMPConfig_LicenseRetryWaitTime,licenseRetryWaitTime) ;
-				logprintf("%s:%d acquireLicense FAILED! license request attempt : %d; response code : http %d", __FUNCTION__, __LINE__, attemptCount, *httpCode);
+				AAMPLOG_ERR(" acquireLicense FAILED! license request attempt : %d; response code : http %d", attemptCount, *httpCode);
 				if(*httpCode >= 500 && *httpCode < 600
 						&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && licenseRetryWaitTime > 0)
 				{
@@ -846,14 +839,14 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
                                         callbackData->data = keyInfo;
                                         callbackData->mDRMSessionManager = this;
 					CURL_EASY_SETOPT(curl, CURLOPT_WRITEDATA, callbackData);
-					logprintf("%s:%d acquireLicense : Sleeping %d milliseconds before next retry.", __FUNCTION__, __LINE__,licenseRetryWaitTime);
+					AAMPLOG_WARN("acquireLicense : Sleeping %d milliseconds before next retry.",licenseRetryWaitTime);
 					mssleep(licenseRetryWaitTime);
 				}
 			}
 			else
 			{
-				logprintf("%s:%d DRM Session Manager Received license data from server; Curl total time  = %.1f", __FUNCTION__, __LINE__, totalTime);
-				logprintf("%s:%d acquireLicense SUCCESS! license request attempt %d; response code : http %d",__FUNCTION__, __LINE__, attemptCount, *httpCode);
+				AAMPLOG_WARN(" DRM Session Manager Received license data from server; Curl total time  = %.1f", totalTime);
+				AAMPLOG_WARN(" acquireLicense SUCCESS! license request attempt %d; response code : http %d", attemptCount, *httpCode);
 				requestFailed = false;
 			}
 		}
@@ -884,7 +877,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 			// example 18(0) if connection failure with PARTIAL_FILE code
 			timeoutClass = "(" + to_string(reqSize > 0) + ")";
 		}
-		AAMPLOG(mLogObj, eLOGLEVEL_WARN, "WARN", "HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%.500s",
+		AAMPLOG_WARN("HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%.500s",
 						appName.c_str(), mediaType, streamType, *httpCode, timeoutClass.c_str(), totalPerformRequest, totalTime, connect, startTransfer, resolve, appConnect, 
 						preTransfer, redirect, dlSize, reqSize, licenseRequest.url.c_str());
 
@@ -894,7 +887,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 
 	if(*httpCode == -1)
 	{
-		logprintf("%s:%d Updating Curl Abort Response Code", __FUNCTION__, __LINE__);
+		AAMPLOG_WARN(" Updating Curl Abort Response Code");
 		// Update httpCode as 42-curl abort, so that DRM error event will not be sent by upper layer
 		*httpCode = CURLE_ABORTED_BY_CALLBACK;
 	}
@@ -948,7 +941,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 	if (!AampDrmHelperEngine::getInstance().hasDRM(drmInfo))
 	{
-		logprintf("%s:%d Failed to locate DRM helper", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR(" Failed to locate DRM helper");
 	}
 	else
 	{
@@ -962,7 +955,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 
 		if (!drmHelper->parsePssh(initDataPtr, initDataLen))
 		{
-			logprintf("%s:%d Failed to Parse PSSH from the DRM InitData", __FUNCTION__, __LINE__);
+			AAMPLOG_ERR(" Failed to Parse PSSH from the DRM InitData");
 			e->setFailure(AAMP_TUNE_CORRUPT_DRM_METADATA);
 		}
 		else
@@ -984,7 +977,7 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 	{
 		/* This should never happen, since the caller should have already
 		ensure the provided DRMInfo is supported using hasDRM */
-		logprintf("%s:%d Failed to create DRM Session invalid parameters ", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR(" Failed to create DRM Session invalid parameters ");
 		return nullptr;
 	}
 
@@ -996,7 +989,7 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 
 	if (SessionMgrState::eSESSIONMGR_INACTIVE == sessionMgrState)
 	{
-		logprintf("%s:%d SessionManager state inactive, aborting request", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR(" SessionManager state inactive, aborting request");
 		return nullptr;
 	}
 
@@ -1019,14 +1012,14 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 
 	if ((code != KEY_INIT) || (selectedSlot == INVALID_SESSION_SLOT))
 	{
-		logprintf("%s:%d Unable to get DrmSession : Key State %d ", __FUNCTION__, __LINE__, code);
+		AAMPLOG_WARN(" Unable to get DrmSession : Key State %d ", code);
 		return nullptr;
 	}
 
 	code = initializeDrmSession(drmHelper, selectedSlot, eventHandle);
 	if (code != KEY_INIT)
 	{
-		logprintf("%s:%d Unable to initialize DrmSession : Key State %d ", __FUNCTION__, __LINE__, code);
+		AAMPLOG_WARN(" Unable to initialize DrmSession : Key State %d ", code);
 		AampMutexHold keymutex(cachedKeyMutex);
  		cachedKeyIDs[selectedSlot].isFailedKeyId = true;
 		return nullptr;
@@ -1043,7 +1036,7 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 	code = acquireLicense(drmHelper, selectedSlot, cdmError, eventHandle, aampInstance, streamType);
 	if (code != KEY_READY)
 	{
-		logprintf("%s:%d Unable to get Ready Status DrmSession : Key State %d ", __FUNCTION__, __LINE__, code);
+		AAMPLOG_WARN(" Unable to get Ready Status DrmSession : Key State %d ", code);
 		AampMutexHold keymutex(cachedKeyMutex);
 		cachedKeyIDs[selectedSlot].isFailedKeyId = true;
 		return nullptr;
@@ -1053,7 +1046,7 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 	// License acquisition was done, so mSessionId will be populated now
 	if (mSessionId != AAMP_SECMGR_INVALID_SESSION_ID)
 	{
-		AAMPLOG_WARN("%s:%d Setting sessionId[%" PRId64 "] to current drmSession", __FUNCTION__, __LINE__, mSessionId);
+		AAMPLOG_WARN(" Setting sessionId[%" PRId64 "] to current drmSession", mSessionId);
 		drmSessionContexts[selectedSlot].drmSession->setSessionId(mSessionId);
 	}
 #endif
@@ -1134,7 +1127,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 
 			if (!keySlotFound)
 			{
-				logprintf("%s:%d  Unable to find keySlot for keyId %s ",__FUNCTION__, __LINE__, keyIdDebugStr.c_str());
+				AAMPLOG_WARN("  Unable to find keySlot for keyId %s ", keyIdDebugStr.c_str());
 				return KEY_ERROR;
 			}
 
@@ -1146,14 +1139,14 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 					sessionSlot = index;
 				}
 			}
-			logprintf("%s:%d  Selected slot %d for keyId %s",__FUNCTION__, __LINE__, sessionSlot, keyIdDebugStr.c_str());
+			AAMPLOG_WARN("  Selected slot %d for keyId %s", sessionSlot, keyIdDebugStr.c_str());
 		}
 		else
 		{
 			// Already same session Slot is marked failed , not to proceed again .
 			if(cachedKeyIDs[sessionSlot].isFailedKeyId)
 			{
-				logprintf("%s:%d Found FailedKeyId at sesssionSlot :%d, return key error",__FUNCTION__, __LINE__,sessionSlot);
+				AAMPLOG_WARN(" Found FailedKeyId at sesssionSlot :%d, return key error",sessionSlot);
 				return KEY_ERROR;
 			}
 		}
@@ -1605,7 +1598,7 @@ KeyState AampDRMSessionManager::processLicenseResponse(std::shared_ptr<AampDrmHe
 	}
 	else if (code == KEY_PENDING)
 	{
-		logprintf("%s:%d Failed to get DRM keys",__FUNCTION__, __LINE__ );
+		AAMPLOG_ERR(" Failed to get DRM keys");
 		if (AAMP_TUNE_FAILURE_UNKNOWN == eventHandle->getFailure())
 		{
 			eventHandle->setFailure(AAMP_TUNE_INVALID_DRM_KEY);

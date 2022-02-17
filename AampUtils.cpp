@@ -234,7 +234,7 @@ std::string aamp_getHostFromURL(std::string url)
 	}
 	catch(...)
     	{
-        	logprintf("Regex error Exception caught in %s\n", __FUNCTION__);  //CID:83946 - Uncaught exception
+        	AAMPLOG_ERR("Regex error Exception caught \n");  //CID:83946 - Uncaught exception
     	}
 	return host;
 }
@@ -407,7 +407,7 @@ std::string aamp_PostJsonRPC( std::string id, std::string method, std::string pa
 		curl_easy_setopt(curlhandle, CURLOPT_HTTPHEADER, headers);    // set HEADER with content type
 		
 		std::string data = "{\"jsonrpc\":\"2.0\",\"id\":"+id+",\"method\":\""+method+"\",\"params\":"+params+"}";
-		logprintf( "%s:%d JSONRPC data: %s\n", __FUNCTION__, __LINE__, data.c_str() );
+		AAMPLOG_WARN("JSONRPC data: %s\n", data.c_str() );
 		curl_easy_setopt(curlhandle, CURLOPT_POSTFIELDS, data.c_str() );    // set post data
 		
 		curl_easy_setopt(curlhandle, CURLOPT_WRITEFUNCTION, MyRpcWriteFunction);    // update callback function
@@ -418,12 +418,12 @@ std::string aamp_PostJsonRPC( std::string id, std::string method, std::string pa
 		{
 			long http_code = -1;
 			curl_easy_getinfo(curlhandle, CURLINFO_RESPONSE_CODE, &http_code);
-			logprintf( "%s:%d HTTP %ld \n", __FUNCTION__, __LINE__, http_code);
+			AAMPLOG_WARN("HTTP %ld \n", http_code);
 			rc = true;
 		}
 		else
 		{
-			logprintf( "%s:%d failed: %s", __FUNCTION__, __LINE__, curl_easy_strerror(res));
+			AAMPLOG_ERR("failed: %s", curl_easy_strerror(res));
 		}
 		curl_slist_free_all( headers );
 		curl_easy_cleanup(curlhandle);
@@ -446,7 +446,7 @@ static bool getEstbMac(char* mac)
 	FILE* fp = fopen("/etc/device.properties", "rb");
 	if (fp)
 	{
-		logprintf("%s:%d - opened /etc/device.properties", __FUNCTION__, __LINE__);
+		AAMPLOG_WARN("opened /etc/device.properties");
 		char buf[MAX_BUFF_LENGTH];
 		while (fgets(buf, sizeof(buf), fp))
 		{
@@ -474,14 +474,14 @@ static bool getEstbMac(char* mac)
 	}
 	else
 	{
-		logprintf("%s:%d - failed to open /etc/device.properties", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("failed to open /etc/device.properties");
 	}
 #endif
-	logprintf("%s:%d - use nwInterface %s", __FUNCTION__, __LINE__, nwInterface);
+	AAMPLOG_WARN("use nwInterface %s", nwInterface);
 	int sockFd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (sockFd == -1)
 	{
-		logprintf("%s:%d - Socket open failed", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("Socket open failed");
 	}
 	else
 	{
@@ -489,14 +489,14 @@ static bool getEstbMac(char* mac)
 		strcpy(ifr.ifr_name, nwInterface);
 		if (ioctl(sockFd, SIOCGIFHWADDR, &ifr) == -1)
 		{
-			logprintf("%s:%d - Socket ioctl failed", __FUNCTION__, __LINE__);
+			AAMPLOG_ERR("Socket ioctl failed");
 		}
 		else
 		{
 			char* macAddress = base16_Encode((unsigned char*) ifr.ifr_hwaddr.sa_data, 6);
 			strcpy(mac, macAddress);
 			free(macAddress);
-			logprintf("%s:%d - Mac %s", __FUNCTION__, __LINE__, mac);
+			AAMPLOG_WARN("Mac %s", mac);
 			ret = true;
 		}
 		close(sockFd);
@@ -519,11 +519,11 @@ int aamp_GetDeferTimeMs(long maxTimeSeconds)
 	static bool estbMacAvalable = getEstbMac(randString);
 	if (estbMacAvalable)
 	{
-		traceprintf ("%s:%d - estbMac %s", __FUNCTION__, __LINE__, randString);
+		AAMPLOG_TRACE ("estbMac %s", randString);
 		int randFD = open("/dev/urandom", O_RDONLY);
 		if (randFD < 0)
 		{
-			logprintf("%s:%d - ERROR - opening /dev/urandom  failed", __FUNCTION__, __LINE__);
+			AAMPLOG_ERR("ERROR - opening /dev/urandom  failed");
 		}
 		else
 		{
@@ -535,14 +535,14 @@ int aamp_GetDeferTimeMs(long maxTimeSeconds)
 				ssize_t bytes = read(randFD, &temp, 1);
 				if (bytes < 0)
 				{
-					logprintf("%s:%d - ERROR - reading /dev/urandom  failed", __FUNCTION__, __LINE__);
+					AAMPLOG_ERR("ERROR - reading /dev/urandom  failed");
 					break;
 				}
 				sprintf(uRandString + i * 2, "%02x", temp);
 			}
 			close(randFD);
 			randString[RAND_STRING_LEN] = '\0';
-			logprintf("%s:%d - randString %s", __FUNCTION__, __LINE__, randString);
+			AAMPLOG_WARN("randString %s", randString);
 			unsigned char hash[SHA_DIGEST_LENGTH];
 			SHA1((unsigned char*) randString, RAND_STRING_LEN, hash);
 			int divisor = maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND;
@@ -550,22 +550,22 @@ int aamp_GetDeferTimeMs(long maxTimeSeconds)
 			int mod = 0;
 			for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
 			{
-				traceprintf ("mod %d hash[%d] %x", mod, i, hash[i]);
+				AAMPLOG_TRACE ("mod %d hash[%d] %x", mod, i, hash[i]);
 				mod = (mod * 10 + hash[i]) % divisor;
 			}
-			traceprintf ("%s:%d - divisor %d mod %d ", __FUNCTION__, __LINE__, divisor, (int) mod);
+			AAMPLOG_TRACE ("divisor %d mod %d ", divisor, (int) mod);
 			ret = (mod + DEFER_DRM_LIC_OFFSET_FROM_START) * 1000;
 		}
 	}
 	else
 	{
-		logprintf("%s:%d - ERROR - estbMac not available", __FUNCTION__, __LINE__);
+		AAMPLOG_ERR("ERROR - estbMac not available");
 		ret = (DEFER_DRM_LIC_OFFSET_FROM_START + rand()%(maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND))*1000;
 	}
 #else
 	ret = (DEFER_DRM_LIC_OFFSET_FROM_START + rand()%(maxTimeSeconds - DEFER_DRM_LIC_OFFSET_FROM_START - DEFER_DRM_LIC_OFFSET_TO_UPPER_BOUND))*1000;
 #endif
-	logprintf("%s:%d - Added time for deferred license acquisition  %d ", __FUNCTION__, __LINE__, (int)ret);
+	AAMPLOG_WARN("Added time for deferred license acquisition  %d ", (int)ret);
 	return ret;
 }
 
@@ -892,7 +892,7 @@ bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaTyp
 			}
 			else
 			{
-				logprintf("File open failed. outfile = %s ", (dirpath + fileName).c_str());
+				AAMPLOG_ERR("File open failed. outfile = %s ", (dirpath + fileName).c_str());
 			}
 		}
 		retVal = true;

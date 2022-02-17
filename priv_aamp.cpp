@@ -1036,7 +1036,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		{
 			const char * strBitrate = ptr + startPos;
 			context->bitrate = atol(strBitrate);
-			traceprintf("Parsed HTTP %s: %ld\n", isBitrateHeader? "Bitrate": "False", context->bitrate);
+			AAMPLOG_TRACE("Parsed HTTP %s: %ld", isBitrateHeader? "Bitrate": "False", context->bitrate);
 		}
 		else if(isFogRecordingIdHeader)
 		{
@@ -1060,7 +1060,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 
 		if(gpGlobalConfig->logging.trace)
 		{
-			traceprintf("Parsed HTTP %s header: %s", httpHeader->type==eHTTPHEADERTYPE_COOKIE? "Cookie": "X-Reason", httpHeader->data.c_str());
+			AAMPLOG_TRACE("Parsed HTTP %s header: %s", httpHeader->type==eHTTPHEADERTYPE_COOKIE? "Cookie": "X-Reason", httpHeader->data.c_str());
 		}
 	}
 	return len;
@@ -2802,7 +2802,7 @@ void PrivateInstanceAAMP::LogDrmDecryptEnd(ProfilerBucketType bucketType)
  */
 void PrivateInstanceAAMP::StopDownloads()
 {
-	traceprintf ("PrivateInstanceAAMP::%s", __FUNCTION__);
+	AAMPLOG_TRACE ("PrivateInstanceAAMP");
 	if (!mbDownloadsBlocked)
 	{
 		pthread_mutex_lock(&mLock);
@@ -2817,7 +2817,7 @@ void PrivateInstanceAAMP::StopDownloads()
  */
 void PrivateInstanceAAMP::ResumeDownloads()
 {
-	traceprintf ("PrivateInstanceAAMP::%s", __FUNCTION__);
+	AAMPLOG_TRACE ("PrivateInstanceAAMP");
 	if (mbDownloadsBlocked)
 	{
 		pthread_mutex_lock(&mLock);
@@ -2848,7 +2848,7 @@ void PrivateInstanceAAMP::StopTrackDownloads(MediaType type)
 		pthread_mutex_unlock(&mLock);
 		NotifySinkBufferFull(type);
 	}
-	traceprintf ("PrivateInstanceAAMP::%s Enter. type = %d", __FUNCTION__, (int) type);
+	AAMPLOG_TRACE ("PrivateInstanceAAMP:: Enter. type = %d",  (int) type);
 }
 
 /**
@@ -2872,7 +2872,7 @@ void PrivateInstanceAAMP::ResumeTrackDownloads(MediaType type)
 		//log_current_time("gstreamer-needs-data");
 		pthread_mutex_unlock(&mLock);
 	}
-	traceprintf ("PrivateInstanceAAMP::%s Exit. type = %d", __FUNCTION__, (int) type);
+	AAMPLOG_TRACE ("PrivateInstanceAAMP::Exit. type = %d",  (int) type);
 }
 
 /**
@@ -2883,7 +2883,7 @@ void PrivateInstanceAAMP::ResumeTrackDownloads(MediaType type)
  */
 void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int periodMs, int track)
 { // called from FragmentCollector thread; blocks until gstreamer wants data
-	traceprintf("PrivateInstanceAAMP::%s Enter. type = %d and downloads:%d", __FUNCTION__, track, mbTrackDownloadsBlocked[track]);
+	AAMPLOG_TRACE("PrivateInstanceAAMP::Enter. type = %d and downloads:%d",  track, mbTrackDownloadsBlocked[track]);
 	int elapsedMs = 0;
 	while (mbDownloadsBlocked || mbTrackDownloadsBlocked[track])
 	{
@@ -2903,7 +2903,7 @@ void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int peri
 		}
 		InterruptableMsSleep(10);
 	}
-	traceprintf("PrivateInstanceAAMP::%s Exit. type = %d", __FUNCTION__, track);
+	AAMPLOG_TRACE("PrivateInstanceAAMP::Exit. type = %d",  track);
 }
 
 /**
@@ -3492,7 +3492,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 			if ((httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_COOKIE) && (httpRespHeaders[curlInstance].data.length() > 0))
 			{
-				traceprintf("Appending cookie headers to HTTP request");
+				AAMPLOG_TRACE("Appending cookie headers to HTTP request");
 				//curl_easy_setopt(curl, CURLOPT_COOKIE, cookieHeaders[curlInstance].c_str());
 				CURL_EASY_SETOPT(curl, CURLOPT_COOKIE, httpRespHeaders[curlInstance].data.c_str());
 			}
@@ -3593,7 +3593,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				CURL_EASY_SETOPT(curl, CURLOPT_PROGRESSDATA, &progressCtx);
 				if(buffer->ptr != NULL)
 				{
-					traceprintf("%s:%d reset length. buffer %p avail %d", __FUNCTION__, __LINE__, buffer, (int)buffer->avail);
+					AAMPLOG_TRACE(" reset length. buffer %p avail %d",  buffer, (int)buffer->avail);
 					buffer->len = 0;
 				}
 
@@ -4230,7 +4230,7 @@ char * PrivateInstanceAAMP::GetOnVideoEndSessionStatData()
 				const char *error_ptr = cJSON_GetErrorPtr();
 				if (error_ptr != NULL)
 				{
-					AAMPLOG_ERR("Invalid Json format: %s\n", error_ptr);
+					AAMPLOG_ERR("Invalid Json format: %s", error_ptr);
 				}
 			}
 			else
@@ -4660,7 +4660,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	if (mMediaFormat == eMEDIAFORMAT_DASH)
 	{
 		#if defined (INTELCE)
-		AAMPLOG_WARN("Error: Dash playback not available\n");
+		AAMPLOG_WARN("Error: Dash playback not available");
 		mInitSuccess = false;
 		SendErrorEvent(AAMP_TUNE_UNSUPPORTED_STREAM_TYPE);
 		return;
@@ -4935,7 +4935,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		{
 			if(!mStreamSink->Pause(true, false))
 			{
-				AAMPLOG_INFO("%s:%d - mStreamSink Pause failed\n",__FUNCTION__,__LINE__);
+				AAMPLOG_INFO("mStreamSink Pause failed");
 			}
 		}
 	}
@@ -4943,7 +4943,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 #ifdef AAMP_CC_ENABLED
 	if(!mIsFakeTune)
 	{
-		AAMPLOG_INFO("mCCId: %d\n",mCCId);
+		AAMPLOG_INFO("mCCId: %d",mCCId);
 		// if mCCId has non zero value means it is same instance and cc release was not calle then dont get id. if zero then call getid.
 		if(mCCId == 0 )
 		{
@@ -5122,7 +5122,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	if (!autoPlay)
 	{
 		pipeline_paused = true;
-		AAMPLOG_WARN("AutoPlay disabled; Just caching the stream now.\n");
+		AAMPLOG_WARN("AutoPlay disabled; Just caching the stream now.");
 	}
 
 	mIsDefaultOffset = (AAMP_DEFAULT_PLAYBACK_OFFSET == seek_pos_seconds);
@@ -5320,12 +5320,12 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 
 		if(mManifestUrl.length() < MAX_URL_LOG_SIZE)
 		{
-			AAMPLOG_WARN("%s aamp_tune: attempt: %d format: %s URL: %s\n", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
+			AAMPLOG_WARN("%s aamp_tune: attempt: %d format: %s URL: %s", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat], mManifestUrl.c_str());
 		}
 		else
 		{
-			AAMPLOG_WARN("%s aamp_tune: attempt: %d format: %s URL: (BIG)\n", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat]);
-			printf("URL: %s\n", mManifestUrl.c_str());
+			AAMPLOG_WARN("%s aamp_tune: attempt: %d format: %s URL: (BIG)", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat]);
+			AAMPLOG_INFO("URL: %s", mManifestUrl.c_str());
 		}
 	}
 
@@ -5544,7 +5544,7 @@ void PrivateInstanceAAMP::CheckForDiscontinuityStall(MediaType mediaType)
 		ResetTrackDiscontinuityIgnoredStatus();
 		ScheduleRetune(eSTALL_AFTER_DISCONTINUITY, mediaType);
 	}
-	AAMPLOG_TRACE("Exit mediaType %d\n", mediaType);
+	AAMPLOG_TRACE("Exit mediaType %d", mediaType);
 }
 
 /**
@@ -6059,7 +6059,7 @@ std::string PrivateInstanceAAMP::GetThumbnailTracks()
 	AcquireStreamLock();
 	if(mpStreamAbstractionAAMP)
 	{
-		traceprintf("Entering PrivateInstanceAAMP::%s.",__FUNCTION__);
+		AAMPLOG_TRACE("Entering PrivateInstanceAAMP");
 		std::vector<StreamInfo*> data = mpStreamAbstractionAAMP->GetAvailableThumbnailTracks();
 		cJSON *root;
 		cJSON *item;
@@ -6088,7 +6088,7 @@ std::string PrivateInstanceAAMP::GetThumbnailTracks()
 				cJSON_Delete(root);
 			}
 		}
-		traceprintf("In PrivateInstanceAAMP::%s, Json string:%s",__FUNCTION__,op.c_str());
+		AAMPLOG_TRACE("In PrivateInstanceAAMP::Json string:%s",op.c_str());
 	}
 	ReleaseStreamLock();
 	return op;
@@ -6753,7 +6753,7 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 				AAMPLOG_INFO("Sending bulkTimedData");
 				if (ISCONFIGSET_PRIV(eAAMPConfig_MetadataLogging))
 				{
-					printf("%s:%d:: bulkTimedData : %s\n", __FUNCTION__, __LINE__, bulkData);
+					AAMPLOG_INFO("bulkTimedData : %s", bulkData);
 				}
 				// Sending BulkTimedMetaData event as synchronous event.
 				// SCTE35 events are async events in TimedMetadata, and this event is sending only from HLS
@@ -7046,7 +7046,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		pthread_mutex_lock(&gMutex);
 		if (this->mIsRetuneInProgress)
 		{
-			logprintf("PrivateInstanceAAMP::%s:%d: Already Retune inprogress", __FUNCTION__, __LINE__);
+			AAMPLOG_WARN("PrivateInstanceAAMP:: Already Retune inprogress");
 			pthread_mutex_unlock(&gMutex);
 			return;
 		}
@@ -8042,7 +8042,7 @@ void PrivateInstanceAAMP::NotifyFirstFragmentDecrypted()
 			// For HLS - This is invoked by fetcher thread, so we have to sent asynchronously
 			if (SendTunedEvent(false))
 			{
-				AAMPLOG_WARN("aamp: %s - sent tune event after first fragment fetch and decrypt\n", mMediaFormatName[mMediaFormat]);
+				AAMPLOG_WARN("aamp: %s - sent tune event after first fragment fetch and decrypt", mMediaFormatName[mMediaFormat]);
 			}
 		}
 	}
@@ -8491,13 +8491,13 @@ ProfilerBucketType PrivateInstanceAAMP::mediaType2Bucket(MediaType fileType)
 void PrivateInstanceAAMP::SetTunedManifestUrl(bool isrecordedUrl)
 {
 	mTunedManifestUrl.assign(mManifestUrl);
-	traceprintf("%s::mManifestUrl: %s",__FUNCTION__,mManifestUrl.c_str());
+	AAMPLOG_TRACE("mManifestUrl: %s",mManifestUrl.c_str());
 	if(isrecordedUrl)
 	{
 		DeFog(mTunedManifestUrl);
 		mTunedManifestUrl.replace(0,4,"_fog");
 	}
-	traceprintf("PrivateInstanceAAMP::%s, tunedManifestUrl:%s ", __FUNCTION__, mTunedManifestUrl.c_str());
+	AAMPLOG_TRACE("PrivateInstanceAAMP::tunedManifestUrl:%s ", mTunedManifestUrl.c_str());
 }
 
 /**
@@ -8506,7 +8506,7 @@ void PrivateInstanceAAMP::SetTunedManifestUrl(bool isrecordedUrl)
  */
 const char* PrivateInstanceAAMP::GetTunedManifestUrl()
 {
-	traceprintf("PrivateInstanceAAMP::%s, tunedManifestUrl:%s ", __FUNCTION__, mTunedManifestUrl.c_str());
+	AAMPLOG_TRACE("PrivateInstanceAAMP::tunedManifestUrl:%s ", mTunedManifestUrl.c_str());
 	return mTunedManifestUrl.c_str();
 }
 
@@ -8585,7 +8585,7 @@ void PrivateInstanceAAMP::StopTrackInjection(MediaType type)
 		mTrackInjectionBlocked[type] = true;
 		pthread_mutex_unlock(&mLock);
 	}
-	traceprintf ("PrivateInstanceAAMP::%s Exit. type = %d", __FUNCTION__, (int) type);
+	AAMPLOG_TRACE ("PrivateInstanceAAMP::Exit. type = %d", (int) type);
 }
 
 /**
@@ -8610,7 +8610,7 @@ void PrivateInstanceAAMP::ResumeTrackInjection(MediaType type)
 		mTrackInjectionBlocked[type] = false;
 		pthread_mutex_unlock(&mLock);
 	}
-	traceprintf ("PrivateInstanceAAMP::%s Exit. type = %d", __FUNCTION__, (int) type);
+	AAMPLOG_TRACE ("PrivateInstanceAAMP::Exit. type = %d", (int) type);
 }
 
 /**
