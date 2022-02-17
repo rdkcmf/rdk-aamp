@@ -110,7 +110,7 @@ void AampEventManager::FlushPendingEvents()
 #ifdef EVENT_DEBUGGING
 	for (int i = 0; i < AAMP_MAX_NUM_EVENTS; i++)
 	{
-		logprintf("%s EventType[%d]->[%d]",__FUNCTION__,i,mEventStats[i]);
+		AAMPLOG_WARN("EventType[%d]->[%d]",i,mEventStats[i]);
 	}
 #endif
 
@@ -428,14 +428,13 @@ void AampEventManager::SendEventSync(const AAMPEventPtr &eventData)
 		ListenerData* pCurrent = pList;
 		if (pCurrent->eventListener != NULL)
 		{
-			//logprintf("[AAMP_JS] %s(type=%d) listener=%p", __FUNCTION__, eventType, pCurrent->eventListener);
 			pCurrent->eventListener->SendEvent(eventData);
 		}
 		pList = pCurrent->pNext;
 		SAFE_DELETE(pCurrent);
 	}
 #ifdef EVENT_DEBUGGING
-	logprintf("%s TimeTaken for Event %d SyncEvent [%d]",__FUNCTION__,eventType, (NOW_STEADY_TS_MS - startTime));
+	AAMPLOG_WARN("TimeTaken for Event %d SyncEvent [%d]",eventType, (NOW_STEADY_TS_MS - startTime));
 #endif
 
 }

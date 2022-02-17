@@ -121,7 +121,7 @@ bool AampOutputProtection::IsSourceUHD()
     g_object_get(m_gstElement, "video_width", &sourceWidth, NULL);
 
     if(sourceWidth != m_sourceWidth || sourceHeight != m_sourceHeight) {
-        logprintf("%s viddec (%p) --> says width %d, height %d", __FUNCTION__, m_gstElement, sourceWidth, sourceHeight);
+        AAMPLOG_WARN("viddec (%p) --> says width %d, height %d", m_gstElement, sourceWidth, sourceHeight);
         m_sourceWidth   = sourceWidth;
         m_sourceHeight  = sourceHeight;
     }
@@ -200,7 +200,7 @@ void AampOutputProtection::SetHDMIStatus()
                 width =  DISPLAY_WIDTH_UNKNOWN;
                 height = DISPLAY_HEIGHT_UNKNOWN;
                 std::string _res = vPort.getResolution().getName();
-                logprintf("%s:%d ERR parse failed for getResolution().getName():%s id:%d",__FUNCTION__,__LINE__,(_res.empty() ? "NULL" : _res.c_str()),iResID);
+                AAMPLOG_ERR(" ERR parse failed for getResolution().getName():%s id:%d",(_res.empty() ? "NULL" : _res.c_str()),iResID);
             }
 
             SetResolution(width, height);
@@ -214,7 +214,7 @@ void AampOutputProtection::SetHDMIStatus()
 	device::Manager::DeInitialize();
     }
     catch (const std::exception e) {
-        logprintf("DeviceSettings exception caught in %s", __FUNCTION__);
+        AAMPLOG_WARN("DeviceSettings exception caught in ");
     }
 
     m_isHDCPEnabled = isHDCPEnabled;
@@ -226,15 +226,15 @@ void AampOutputProtection::SetHDMIStatus()
         else {
             m_hdcpCurrentProtocol = dsHDCP_VERSION_1X;
         }
-        logprintf("%s : detected HDCP version %s", __FUNCTION__, m_hdcpCurrentProtocol == dsHDCP_VERSION_2X ? "2.x" : "1.4");
+        AAMPLOG_WARN(" detected HDCP version %s", m_hdcpCurrentProtocol == dsHDCP_VERSION_2X ? "2.x" : "1.4");
     }
     else {
-        logprintf("%s : DeviceSettings HDCP is not enabled", __FUNCTION__);
+        AAMPLOG_WARN("DeviceSettings HDCP is not enabled");
     }
 
     if(!isConnected) {
         m_hdcpCurrentProtocol = dsHDCP_VERSION_1X;
-        logprintf("%s : GetHDCPVersion: Did not detect HDCP version defaulting to 1.4 (%d)", __FUNCTION__, m_hdcpCurrentProtocol);
+        AAMPLOG_WARN(" GetHDCPVersion: Did not detect HDCP version defaulting to 1.4 (%d)", m_hdcpCurrentProtocol);
     }
 #else
     // No video output on device mark HDCP protection as valid
@@ -253,7 +253,7 @@ void AampOutputProtection::SetHDMIStatus()
 void AampOutputProtection::SetResolution(int width, int height)
 {
     DEBUG_FUNC;
-    logprintf("%s:%d Resolution : width %d height:%d",__FUNCTION__,__LINE__,width,height);
+    AAMPLOG_WARN(" Resolution : width %d height:%d",width,height);
     m_displayWidth   = width;
     m_displayHeight  = height;
 }
@@ -290,8 +290,8 @@ DRM_RESULT DRM_CALL AampOutputProtection::PR_OP_Callback(const DRM_VOID *f_pvOut
 
     DEBUG_FUNC;
 
-    logprintf("%s : outputLevelsCallback outputLevels=%p callbackType=%u data=%p",
-            __FUNCTION__, f_pvOutputLevelsData, static_cast<uint32_t>(f_dwCallbackType), data);
+    AAMPLOG_WARN("outputLevelsCallback outputLevels=%p callbackType=%u data=%p",
+            f_pvOutputLevelsData, static_cast<uint32_t>(f_dwCallbackType), data);
 
     AampOutputProtection *pInstance = AampOutputProtection::GetAampOutputProcectionInstance();
 
@@ -312,8 +312,7 @@ DRM_RESULT DRM_CALL AampOutputProtection::PR_OP_Callback(const DRM_VOID *f_pvOut
 
         // At actual device, enable/disable device output protection will be needed
         // upon receiving this protection information.
-        logprintf("%s : compressed digital %d, uncompressed digital %d, analog video %d",
-                  __FUNCTION__,
+        AAMPLOG_WARN(" compressed digital %d, uncompressed digital %d, analog video %d",
                   pm_Levels->compressedDigitalVideo,
                   pm_Levels->uncompressedDigitalVideo,
                   pm_Levels->analogVideo);
@@ -326,18 +325,18 @@ DRM_RESULT DRM_CALL AampOutputProtection::PR_OP_Callback(const DRM_VOID *f_pvOut
                 if(pInstance->m_hdcpCurrentProtocol == dsHDCP_VERSION_1X ||
                    pInstance->m_hdcpCurrentProtocol == dsHDCP_VERSION_2X) {
                     // We have an active HDCP connection
-                    logprintf("%s : HDCP is enabled version --> %d", __FUNCTION__, pInstance->m_hdcpCurrentProtocol);
+                    AAMPLOG_WARN(" HDCP is enabled version --> %d", pInstance->m_hdcpCurrentProtocol);
                     res = DRM_SUCCESS;
                 }
             }
             else {
-                logprintf("%s : HDCP --> is not connected", __FUNCTION__, pInstance->m_hdcpCurrentProtocol);
+                AAMPLOG_WARN(" HDCP --> is not connected", pInstance->m_hdcpCurrentProtocol);
                 res = DRM_E_FAIL;
             }
         }
         else {
-            logprintf("%s : HDCP --> is not required, current version %d,  uncompressedDigitalVideo = %d",
-                      __FUNCTION__, pInstance->m_hdcpCurrentProtocol, pm_Levels->uncompressedDigitalVideo);
+            AAMPLOG_WARN(" HDCP --> is not required, current version %d,  uncompressedDigitalVideo = %d",
+                     pInstance->m_hdcpCurrentProtocol, pm_Levels->uncompressedDigitalVideo);
             res = DRM_SUCCESS;
         }
     }
@@ -371,8 +370,8 @@ void AampOutputProtection::HDMIEventHandler(const char *owner, IARM_EventId_t ev
             int hdmi_hotplug_event = eventData->data.hdmi_hpd.event;
 
             const char *hdmihotplug = (hdmi_hotplug_event == dsDISPLAY_EVENT_CONNECTED) ? "connected" : "disconnected";
-            logprintf("%s : Received IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG  event data:%d status: %s",
-                      __FUNCTION__, hdmi_hotplug_event, hdmihotplug);
+            AAMPLOG_WARN(" Received IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG  event data:%d status: %s",
+                       hdmi_hotplug_event, hdmihotplug);
 
             pInstance->SetHDMIStatus();
 
@@ -383,14 +382,14 @@ void AampOutputProtection::HDMIEventHandler(const char *owner, IARM_EventId_t ev
             IARM_Bus_DSMgr_EventData_t *eventData = (IARM_Bus_DSMgr_EventData_t *)data;
             int hdcpStatus = eventData->data.hdmi_hdcp.hdcpStatus;
             const char *hdcpStatusStr = (hdcpStatus == dsHDCP_STATUS_AUTHENTICATED) ? "authenticated" : "authentication failure";
-            logprintf("%s : Received IARM_BUS_DSMGR_EVENT_HDCP_STATUS  event data:%d status:%s",
-                      __FUNCTION__, hdcpStatus, hdcpStatusStr);
+            AAMPLOG_WARN(" Received IARM_BUS_DSMGR_EVENT_HDCP_STATUS  event data:%d status:%s",
+                      hdcpStatus, hdcpStatusStr);
 
             pInstance->SetHDMIStatus();
             break;
         }
         default:
-            logprintf("%s : Received unknown IARM bus event:%d", __FUNCTION__, eventId);
+            AAMPLOG_WARN(" Received unknown IARM bus event:%d", eventId);
             break;
     }
 
@@ -412,7 +411,7 @@ void AampOutputProtection::ResolutionHandler(const char *owner, IARM_EventId_t e
 
     switch (eventId) {
         case IARM_BUS_DSMGR_EVENT_RES_PRECHANGE:
-            logprintf("%s : Received IARM_BUS_DSMGR_EVENT_RES_PRECHANGE ",__FUNCTION__);
+            AAMPLOG_WARN(" Received IARM_BUS_DSMGR_EVENT_RES_PRECHANGE ");
             break;
         case IARM_BUS_DSMGR_EVENT_RES_POSTCHANGE:
         {
@@ -423,14 +422,12 @@ void AampOutputProtection::ResolutionHandler(const char *owner, IARM_EventId_t e
             width   = eventData->data.resn.width ;
             height  = eventData->data.resn.height ;
 
-            logprintf("%s : Received IARM_BUS_DSMGR_EVENT_RES_POSTCHANGE event width : %d height : %d",
-                      __FUNCTION__, width, height);
-
+            AAMPLOG_WARN(" Received IARM_BUS_DSMGR_EVENT_RES_POSTCHANGE event width : %d height : %d", width, height);
             pInstance->SetResolution(width, height);
             break;
         }
         default:
-            logprintf("%s : Received unknown resolution event %d", __FUNCTION__, eventId);
+            AAMPLOG_WARN(" Received unknown resolution event %d", eventId);
             break;
     }
 

@@ -1107,7 +1107,7 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 				break;
 			}
 		}
-        	//logprintf("Not applicable values \n");
+        	//Not applicable values
 	}while (0);
 
 	if (found == true)
@@ -1321,7 +1321,6 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 			{
 				key = cfg.substr(0, delimiterPos);
 				value = cfg.substr(delimiterPos + 1);
-				//logprintf("%s:INFO Key:%s Value:%s\n",__FUNCTION__,key.c_str(),value.c_str());
 			}
 			else
 			{
@@ -1697,9 +1696,8 @@ void AampConfig::ConfigureLogSettings()
  */
 void AampConfig::ShowOperatorSetConfiguration()
 {
-	//logprintf("////////////////// AAMP Config (Operator Set) //////////");
+	////////////////// AAMP Config (Operator Set) //////////
 	ShowConfiguration(AAMP_OPERATOR_SETTING);
-	//logprintf("//////////////////////////////////////////////////");
 }
 /**
  * @brief ShowAppSetConfiguration - List all Application configured settings
@@ -1708,9 +1706,8 @@ void AampConfig::ShowOperatorSetConfiguration()
  */
 void AampConfig::ShowAppSetConfiguration()
 {
-	//logprintf("////////////////// AAMP Config (Application Set) //////////");
+	////////////////// AAMP Config (Application Set) //////////
 	ShowConfiguration(AAMP_APPLICATION_SETTING);
-	//logprintf("//////////////////////////////////////////////////");
 }
 /**
  * @brief ShowStreamSetConfiguration - List all stream configured settings
@@ -1719,9 +1716,8 @@ void AampConfig::ShowAppSetConfiguration()
  */
 void AampConfig::ShowStreamSetConfiguration()
 {
-	//logprintf("////////////////// AAMP Config (Stream Set) //////////");
+	////////////////// AAMP Config (Stream Set) //////////
 	ShowConfiguration(AAMP_STREAM_SETTING);
-	//logprintf("//////////////////////////////////////////////////");
 
 }
 /**
@@ -1731,9 +1727,8 @@ void AampConfig::ShowStreamSetConfiguration()
  */
 void AampConfig::ShowDefaultAampConfiguration()
 {
-	//logprintf("////////////////// AAMP Default Configuration  //////////");
+	///////////////// AAMP Default Configuration  /////////
 	ShowConfiguration(AAMP_DEFAULT_SETTING);
-	//logprintf("//////////////////////////////////////////////////");
 }
 /**
  * @brief ShowDevCfgConfiguration - List all developer configured settings
@@ -1742,9 +1737,8 @@ void AampConfig::ShowDefaultAampConfiguration()
  */
 void AampConfig::ShowDevCfgConfiguration()
 {
-	//logprintf("////////////////// AAMP Cfg Override Configuration  //////////");
+	////////////////// AAMP Cfg Override Configuration  //////////
 	ShowConfiguration(AAMP_DEV_CFG_SETTING);
-	//logprintf("//////////////////////////////////////////////////");
 }
 /**
  * @brief ShowAAMPConfiguration - Show all settings for every owner
@@ -1753,9 +1747,9 @@ void AampConfig::ShowDevCfgConfiguration()
  */
 void AampConfig::ShowAAMPConfiguration()
 {
-	//logprintf("////////////////// AAMP Configuration  //////////");
+	 ////////////////// AAMP Configuration  //////////
 	ShowConfiguration(AAMP_MAX_SETTING);
-	//logprintf("//////////////////////////////////////////////////");
+
 }
 
 //////////////// Special Functions which involve conversion of configuration ///////////

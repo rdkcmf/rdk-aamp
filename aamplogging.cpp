@@ -477,7 +477,7 @@ void logprintf(const char *format, ...)
 #endif
 	}
 	else
-	{
+	{	
 		struct timeval t;
 		gettimeofday(&t, NULL);
 		printf("%ld:%3ld : %s\n", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
@@ -595,7 +595,7 @@ void DumpBlob(const unsigned char *ptr, size_t len)
 		{
 			*dst++ = 0x00;
 
-			logprintf("%s", buf);
+			AAMPLOG_WARN("%s", buf);
 			dst = buf;
 			fit = FIT_CHARS;
 		}

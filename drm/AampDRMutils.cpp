@@ -310,7 +310,7 @@ unsigned char * aamp_ExtractDataFromPssh(const char* psshData, int dataLength,
 		int val = strncmp(verStr, psshVer,7);
 		if (val < 0)
 		{
-			logprintf ("%s:%d Unsupported PSSH version AAMP[%s] MPD[%c.%c.%c.%c]", __FUNCTION__, __LINE__, verStr, psshVer[0],psshVer[2],psshVer[4],psshVer[6]);
+			AAMPLOG_WARN ("Unsupported PSSH version AAMP[%s] MPD[%c.%c.%c.%c]", verStr, psshVer[0],psshVer[2],psshVer[4],psshVer[6]);
 		}
 		else
 		{
@@ -331,7 +331,6 @@ unsigned char * aamp_ExtractDataFromPssh(const char* psshData, int dataLength,
 				contentMetaData = (unsigned char*)malloc(*len + 1);
 				memset(contentMetaData, 0, *len + 1);
 				strncpy(reinterpret_cast<char*>(contentMetaData),reinterpret_cast<char*>(cleanedPssh + startPos + 1), *len);
-				//logprintf("%s:%d Content Meta data length  : %d", __FUNCTION__, __LINE__,*len);
 			}
 		}
 	}

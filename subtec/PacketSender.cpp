@@ -96,44 +96,44 @@ static void DumpPacket(const unsigned char *ptr, size_t len)
     std::uint32_t type;
     if (read32(ptr, len, type))
     {
-        logprintf("Type:%s:%d", Packet::getTypeString(type).c_str(), type);
+        AAMPLOG_INFO("Type:%s:%d", Packet::getTypeString(type).c_str(), type);
         ptr += 4;
         len -= 4;
     }
     else
     {
-        logprintf("Packet read failed on type - returning");
+        AAMPLOG_ERR("Packet read failed on type - returning");
         return;
     }
     //Get Packet counter
     std::uint32_t counter;
     if (read32(ptr, len, counter))
     {
-        logprintf("Counter:%d", counter);
+        AAMPLOG_INFO("Counter:%d", counter);
         ptr += 4;
         len -= 4;
     }
     else
     {
-        logprintf("Packet read failed on type - returning");
+        AAMPLOG_ERR("Packet read failed on type - returning");
         return;
     }
     //Get size
     std::uint32_t size;
     if (read32(ptr, len, size))
     {
-        logprintf("Packet size:%d", size);
+        AAMPLOG_INFO("Packet size:%d", size);
         ptr += 4;
         len -= 4;
     }
     else
     {
-        logprintf("Packet read failed on type - returning");
+        AAMPLOG_ERR("Packet read failed on type - returning");
         return;
     }
     if (len > 0)
     {
-        logprintf("Packet data:");
+        AAMPLOG_WARN("Packet data:");
         DumpBlob(ptr, len);
     }
 }
@@ -147,7 +147,7 @@ static void *SubtecSimulatorThread( void *param )
 	unsigned char *buffer = (unsigned char *)malloc(maxBuf);
 	if( buffer )
 	{
-		logprintf( "SubtecSimulatorThread - listening for packets" );
+		AAMPLOG_WARN( "SubtecSimulatorThread - listening for packets" );
 		for(;;)
 		{
 			int numBytes = recvfrom( state->sockfd, (void *)buffer, maxBuf, MSG_WAITALL, (struct sockaddr *) &cliaddr, &sockLen);
@@ -181,7 +181,7 @@ static bool PrepareSubtecSimulator( const char *name )
 			}
 			else
 			{
-				logprintf( "SubtecSimulatorThread bind() error: %d\n", errno );
+				AAMPLOG_ERR( "SubtecSimulatorThread bind() error: %d", errno );
 			}
 		}
 	}
@@ -294,7 +294,7 @@ bool PacketSender::initSocket(const char *socket_path)
     mSubtecSocketHandle = ::socket(AF_UNIX, SOCK_DGRAM, 0);
     if (mSubtecSocketHandle == -1)
     {
-        logprintf("PacketSender: %s: Unable to init socket", __FUNCTION__);
+        AAMPLOG_WARN("PacketSender: Unable to init socket");
         return false;
     }
     
@@ -308,7 +308,7 @@ bool PacketSender::initSocket(const char *socket_path)
     if (::connect(mSubtecSocketHandle, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) != 0)
     {
         ::close(mSubtecSocketHandle);
-        logprintf("PacketSender: %s - cannot connect to address \'%s\'", __func__, socket_path);
+        AAMPLOG_WARN("PacketSender: cannot connect to address \'%s\'", socket_path);
         return false;
     }
     AAMPLOG_INFO("PacketSender: Initialised with socket_path %s", socket_path);

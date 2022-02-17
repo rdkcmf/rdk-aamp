@@ -306,10 +306,10 @@ void StreamAbstractionAAMP_OTA::SendMediaMetadataEvent()
 AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 {
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
-    logprintf( "[OTA_SHIM]Inside %s CURL ACCESS", __FUNCTION__ );
+    AAMPLOG_WARN( "[OTA_SHIM]Inside CURL ACCESS" );
     AAMPStatusType retval = eAAMPSTATUS_OK;
 #else
-    AAMPLOG_INFO( "[OTA_SHIM]Inside" );
+    AAMPLOG_INFO("[OTA_SHIM]Inside" );
     prevState = "IDLE";
 	
     //initialize few veriables, it will invalidate mediametadata/Notifybitrate events
@@ -371,7 +371,7 @@ StreamAbstractionAAMP_OTA::~StreamAbstractionAAMP_OTA()
         */
         std::string id = "3";
         std:: string response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.release", "{\"id\":\"MainPlayer\",\"tag\" : \"MyApp\"}");
-        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+        AAMPLOG_WARN( "StreamAbstractionAAMP_OTA: response '%s'", response.c_str());
 #else
         JsonObject param;
         JsonObject result;
@@ -406,28 +406,28 @@ void StreamAbstractionAAMP_OTA::Start(void)
 	if( display )
 	{
 		waylandDisplay = display;
-		logprintf( "WAYLAND_DISPLAY: '%s'\n", display );
+		AAMPLOG_WARN( "WAYLAND_DISPLAY: '%s'", display );
 	}
 	else
 	{
-		logprintf( "WAYLAND_DISPLAY: NULL!\n" );
+		AAMPLOG_WARN( "WAYLAND_DISPLAY: NULL!" );
 	}
 	std::string url = aamp->GetManifestUrl();
 #ifndef USE_CPP_THUNDER_PLUGIN_ACCESS
-        logprintf( "[OTA_SHIM]Inside %s CURL ACCESS\n", __FUNCTION__ );
+        AAMPLOG_WARN( "[OTA_SHIM]Inside CURL ACCESS");
 	/*
 	Request : {"jsonrpc": "2.0","id": 4,"method": "Controller.1.activate", "params": { "callsign": "org.rdk.MediaPlayer" }}
 	Response : {"jsonrpc": "2.0","id": 4,"result": null}
 	*/
 	response = aamp_PostJsonRPC(id, "Controller.1.activate", "{\"callsign\":\"org.rdk.MediaPlayer\"}" );
-        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+        AAMPLOG_WARN( "StreamAbstractionAAMP_OTA: response '%s'", response.c_str());
         response.clear();
 	/*
 	Request : {"jsonrpc":"2.0", "id":3, "method":"org.rdk.MediaPlayer.1.create", "params":{ "id" : "MainPlayer", "tag" : "MyApp"} }
 	Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true } }
 	*/
 	response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.create", "{\"id\":\"MainPlayer\",\"tag\":\"MyApp\"}");
-        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+        AAMPLOG_WARN( "StreamAbstractionAAMP_OTA: response '%s'", response.c_str());
         response.clear();
 	// inform (MediaRite) player instance on which wayland display it should draw the video. This MUST be set before load/play is called.
 	/*
@@ -435,14 +435,14 @@ void StreamAbstractionAAMP_OTA::Start(void)
 	Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true} }
 	*/
 	response = aamp_PostJsonRPC( id, "org.rdk.MediaPlayer.1.setWaylandDisplay", "{\"id\":\"MainPlayer\",\"display\":\"" + waylandDisplay + "\"}" );
-        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+        AAMPLOG_WARN( "StreamAbstractionAAMP_OTA: response '%s'", response.c_str());
         response.clear();
 	/*
 	Request : {"jsonrpc":"2.0", "id":3, "method": "org.rdk.MediaPlayer.1.load", "params":{ "id":"MainPlayer", "url":"live://...", "autoplay": true} }
 	Response: { "jsonrpc":"2.0", "id":3, "result": { "success": true } }
 	*/
 	response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.load","{\"id\":\"MainPlayer\",\"url\":\""+url+"\",\"autoplay\":true}" );
-        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+        AAMPLOG_WARN( "StreamAbstractionAAMP_OTA: response '%s'", response.c_str());
         response.clear();
 	/*
 	Request : {"jsonrpc":"2.0", "id":3, "method": "org.rdk.MediaPlayer.1.play", "params":{ "id":"MainPlayer"} }
@@ -451,7 +451,7 @@ void StreamAbstractionAAMP_OTA::Start(void)
   
 	// below play request harmless, but not needed, given use of autoplay above
 	// response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.play", "{\"id\":\"MainPlayer\"}");
-        // logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+        // AAMPLOG_WARN( "StreamAbstractionAAMP_OTA: response '%s'", response.c_str());
 
 #else
 	AAMPLOG_INFO( "[OTA_SHIM] url : %s ", url.c_str());
@@ -501,7 +501,7 @@ void StreamAbstractionAAMP_OTA::Stop(bool clearChannelData)
         */
         std::string id = "3";
         std::string response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.stop", "{\"id\":\"MainPlayer\"}");
-        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+        AAMPLOG_WARN( "StreamAbstractionAAMP_OTA: response '%s'", response.c_str());
 #else
         JsonObject param;
         JsonObject result;
@@ -543,7 +543,7 @@ void StreamAbstractionAAMP_OTA::SetVideoRectangle(int x, int y, int w, int h)
         */
         std::string id = "3";
         std::string response = aamp_PostJsonRPC(id, "org.rdk.MediaPlayer.1.setVideoRectangle", "{\"id\":\"MainPlayer\", \"x\":" + to_string(x) + ", \"y\":" + to_string(y) + ", \"w\":" + to_string(w) + ", \"h\":" + std::to_string(h) + "}");
-        logprintf( "StreamAbstractionAAMP_OTA:%s:%d response '%s'\n", __FUNCTION__, __LINE__, response.c_str());
+        AAMPLOG_WARN( "StreamAbstractionAAMP_OTA: response '%s'", response.c_str());
 #else
         JsonObject param;
         JsonObject result;

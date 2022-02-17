@@ -597,7 +597,7 @@ static gboolean ProgressCallbackOnTimeout(gpointer user_data)
 	if (_this)
 	{
 		_this->aamp->ReportProgress();
-		traceprintf("%s:%d current %d, stored %d ", __FUNCTION__, __LINE__, g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
+		AAMPLOG_TRACE("current %d, stored %d ", g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
 	}
 	return G_SOURCE_CONTINUE;
 }
@@ -3524,7 +3524,7 @@ bool AAMPGstPlayer::Discontinuity(MediaType type)
 	}
 	else
 	{
-		traceprintf("%s(): stream->format %d, stream->resetPosition %d, stream->flush %d", __FUNCTION__,stream->format , stream->resetPosition, stream->flush);
+		AAMPLOG_TRACE("stream->format %d, stream->resetPosition %d, stream->flush %d", stream->format , stream->resetPosition, stream->flush);
 		AAMPGstPlayer_SignalEOS(stream->source);
 		// We are in buffering, but we received discontinuity, un-pause pipeline
 		StopBuffering(true);
@@ -3628,19 +3628,18 @@ bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 		guint64 cacheLevel = gst_app_src_get_current_level_bytes (GST_APP_SRC(stream->source));
 		if(0 != cacheLevel)
 		{
-			traceprintf("AAMPGstPlayer::%s():%d Cache level  %" G_GUINT64_FORMAT "", __FUNCTION__, __LINE__, cacheLevel);
+			AAMPLOG_TRACE("AAMPGstPlayer::Cache level  %" G_GUINT64_FORMAT "", cacheLevel);
 			ret = false;
 		}
 		else
 		{
-			// Changed from logprintf to traceprintf, to avoid log flooding (seen on xi3 and xid).
+			// Changed from logprintf to AAMPLOG_TRACE, to avoid log flooding (seen on xi3 and xid).
 			// We're seeing this logged frequently during live linear playback, despite no user-facing problem.
-			traceprintf("AAMPGstPlayer::%s():%d Cache level empty", __FUNCTION__, __LINE__);
+			AAMPLOG_TRACE("AAMPGstPlayer::Cache level empty");
 			if (privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun == true ||
 					privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun == true)
 			{
-				logprintf("AAMPGstPlayer::%s():%d Received buffer underrun signal for video(%d) or audio(%d) previously",
-					__FUNCTION__, __LINE__, privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun,
+				AAMPLOG_WARN("AAMPGstPlayer::Received buffer underrun signal for video(%d) or audio(%d) previously",privateContext->stream[eMEDIATYPE_VIDEO].bufferUnderrun,
 					privateContext->stream[eMEDIATYPE_AUDIO].bufferUnderrun);
 			}
 #ifndef INTELCE

@@ -1022,8 +1022,6 @@ static void deIndexTileInfo(std::vector<TileInfo> &indexedTileInfo)
 		}
 	}
 	indexedTileInfo.clear();
-	traceprintf("%s exiting",__FUNCTION__);
-
 }
 /**
  * @brief Fetch and cache a fragment
@@ -3451,7 +3449,7 @@ double aamp_GetPeriodStartTimeDeltaRelativeToPTSOffset(IPeriod * period)
 					}
 					duration = (double) deltaBwFirstSegmentAndOffset / timeScale;
 					if(duration != 0.0f)
-						AAMPLOG_INFO("%s() offset delta : %lf", __FUNCTION__, duration);
+						AAMPLOG_INFO("offset delta : %lf",  duration);
 
 				}
 			}
@@ -4736,7 +4734,7 @@ uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd)
 								uint32_t repeatCount = timeline->GetRepeatCount();
 								uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale) * 1000;
 								durationMs += ((repeatCount + 1) * timelineDurationMs);
-								traceprintf("%s period[%d] timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "]", __FUNCTION__, iPeriod, timeLineIndex, timelines.size(), durationMs);
+								AAMPLOG_TRACE("period[%d] timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "]", iPeriod, timeLineIndex, timelines.size(), durationMs);
 								timeLineIndex++;
 							}
 						}
@@ -5922,7 +5920,6 @@ void StreamAbstractionAAMP_MPD::ProcessEAPLicenseRequest()
 void StreamAbstractionAAMP_MPD::StartDeferredDRMRequestThread(MediaType mediaType)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
-	AAMPLOG_INFO("Enter");
 	int deferTime;
 	bool exitLoop = false;
 	// Start tread
@@ -5979,7 +5976,6 @@ void StreamAbstractionAAMP_MPD::StartDeferredDRMRequestThread(MediaType mediaTyp
 	}
 	while(!exitLoop);
 	deferredDRMRequestThreadStarted = false;
-	AAMPLOG_INFO("Exit");
 }
 #endif
 
@@ -7163,7 +7159,6 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	double newStartTimeSeconds = 0;
 	double culled = 0;
-	traceprintf("StreamAbstractionAAMP_MPD::%s:%d Enter", __FUNCTION__, __LINE__);
 	MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_VIDEO];
 	if (pMediaStreamContext->adaptationSet)
 	{
@@ -7258,7 +7253,7 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 						if (newStartSegment && mPrevStartTimeSeconds)
 						{
 							culled = (newStartSegment - mPrevStartTimeSeconds) * fragmentDuration;
-							traceprintf("StreamAbstractionAAMP_MPD::%s:%d post-refresh %fs before %f (%f)", __FUNCTION__, __LINE__, newStartTimeSeconds, mPrevStartTimeSeconds, culled);
+							AAMPLOG_TRACE("StreamAbstractionAAMP_MPD:: post-refresh %fs before %f (%f)",  newStartTimeSeconds, mPrevStartTimeSeconds, culled);
 						}
 						else
 						{
@@ -8384,7 +8379,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							}
 							else
 							{
-								traceprintf("StreamAbstractionAAMP_MPD::%s:%d Segment template not available", __FUNCTION__, __LINE__);
+								AAMPLOG_TRACE("StreamAbstractionAAMP_MPD:: Segment template not available");
 								aamp->mIsPeriodChangeMarked = false;
 							}
 						}
@@ -9280,7 +9275,6 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	bool ret = false;
-	AAMPLOG_WARN("Entering");
 	bool trackEmpty = thumbnailtrack.empty();
 	if(trackEmpty || indexedTileInfo.empty())
 	{
@@ -9316,7 +9310,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 											const std::string& schemeUri = xml->GetAttributeValue("schemeIdUri");
 											if (schemeUri == "http://dashif.org/guidelines/thumbnail_tile")
 											{
-												traceprintf("schemeuri = thumbnail_tile");
+												AAMPLOG_TRACE("schemeuri = thumbnail_tile");
 											}
 											else
 											{
@@ -9353,7 +9347,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 								tmp->resolution.width = rep->GetWidth()/w;
 								tmp->resolution.height = rep->GetHeight()/h;
 								thumbnailtrack.push_back(tmp);
-								traceprintf("In %s thumbnailtrack bandwidth=%d width=%d height=%d",__FUNCTION__, tmp->bandwidthBitsPerSecond, tmp->resolution.width, tmp->resolution.height);
+								AAMPLOG_TRACE("thumbnailtrack bandwidth=%d width=%d height=%d", tmp->bandwidthBitsPerSecond, tmp->resolution.width, tmp->resolution.height);
 							}
 							if((thumbnailtrack.size() > thumbIndexValue) && thumbnailtrack[thumbIndexValue]->bandwidthBitsPerSecond == (long)bandwidth)
 							{
@@ -9370,7 +9364,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 									std::string media = segmentTemplates.Getmedia();
 									if (segmentTimeline)
 									{
-										traceprintf("In %s - segment timeline",__FUNCTION__);
+										AAMPLOG_TRACE("segment timeline");
 										std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
 										int timeLineIndex = 0;
 										uint64_t durationMs = 0;
@@ -9396,17 +9390,18 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 													TileInfo tileInfo;
 													memset( &tileInfo,0,sizeof(tileInfo) );
 													tileInfo.startTime = startTime + ( adDuration / timeScale) ;
-													traceprintf("In %s timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "] startTime:%f adDuration:%f repeatCount:%d", __FUNCTION__, timeLineIndex, timelines.size(), durationMs, startTime, adDuration, repeatCount);
+													AAMPLOG_TRACE("timeLineIndex[%d] size [%lu] updated durationMs[%" PRIu64 "] startTime:%f adDuration:%f repeatCount:%d",  timeLineIndex, timelines.size(), durationMs, startTime, adDuration, repeatCount);
+
 													startTime += ( timelineDurationMs );
 													replace(tmedia, "Number", startNumber);
 													char *ptr = strndup(tmedia.c_str(), tmedia.size());
 													tileInfo.url = ptr;
-													traceprintf("tileInfo.url%s:%p",tileInfo.url, ptr);
+													AAMPLOG_TRACE("tileInfo.url%s:%p",tileInfo.url, ptr);
 													tileInfo.posterDuration = ((double)segmentTemplates.GetDuration()) / (timeScale * w * h);
 													tileInfo.tileSetDuration = ComputeFragmentDuration(timeline->GetDuration(), timeScale);
 													tileInfo.numRows = h;
 													tileInfo.numCols = w;
-													traceprintf("TileInfo - StartTime:%f posterDuration:%d tileSetDuration:%f numRows:%d numCols:%d",tileInfo.startTime,tileInfo.posterDuration,tileInfo.tileSetDuration,tileInfo.numRows,tileInfo.numCols);
+													AAMPLOG_TRACE("TileInfo - StartTime:%f posterDuration:%d tileSetDuration:%f numRows:%d numCols:%d",tileInfo.startTime,tileInfo.posterDuration,tileInfo.tileSetDuration,tileInfo.numRows,tileInfo.numCols);
 													indexedTileInfo.push_back(tileInfo);
 													startNumber++;
 												}

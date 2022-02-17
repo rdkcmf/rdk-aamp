@@ -42,10 +42,10 @@
 void print_nop(const char *format, ...){}
 
 #ifdef LOG_ENABLE_TRACE
-#define TRACE1 logprintf("PC: TRACE1 %s:%d:", __FUNCTION__, __LINE__ ); logprintf
-#define TRACE2 logprintf("PC: TRACE2 %s:%d:", __FUNCTION__, __LINE__ ); logprintf
-#define TRACE3 logprintf("PC: TRACE3 %s:%d:", __FUNCTION__, __LINE__ ); logprintf
-#define TRACE4 logprintf("PC: TRACE4 %s:%d:", __FUNCTION__, __LINE__ ); logprintf
+#define TRACE1 AAMPLOG_TRACE("PC: TRACE1 %s:%d:"); AAMPLOG_TRACE
+#define TRACE2 AAMPLOG_TRACE("PC: TRACE2 "); AAMPLOG_TRACE
+#define TRACE3 AAMPLOG_TRACE("PC: TRACE3 "); AAMPLOG_TRACE
+#define TRACE4 AAMPLOG_TRACE("PC: TRACE4 "); AAMPLOG_TRACE
 #else
 #define TRACE1  print_nop
 #define TRACE2  print_nop
@@ -57,8 +57,8 @@ void print_nop(const char *format, ...){}
 #define DEBUG print_nop
 #define INFO print_nop
 #else
-#define INFO logprintf("PC: INFO %s:%d:", __FUNCTION__, __LINE__ ); logprintf
-#define DEBUG logprintf("PC: DEBUG %s:%d:", __FUNCTION__, __LINE__ ); logprintf
+#define INFO AAMPLOG_INFO("PC: INFO " ); AAMPLOG_INFO
+#define DEBUG AAMPLOG_TRACE("PC: DEBUG " ); AAMPLOG_TRACE
 #endif
 
 #define LOG_WARNINGS_AND_ERRORS
@@ -134,7 +134,7 @@ void print_nop(const char *format, ...){}
 #define DEBUG_DEMUX(a...) { \
 	if (type == DEBUG_DEMUX_TRACK || DEBUG_DEMUX_TRACK == 0xff) \
 	{ \
-		logprintf("PC: DEBUG_DEMUX %s:%d:Track %d : ", __FUNCTION__, __LINE__, DEBUG_DEMUX_TRACK );\
+		AAMPLOG_WARN("PC: DEBUG_DEMUX Track %d : ", DEBUG_DEMUX_TRACK );\
 		logprintf(a); \
 	}\
 	else \
@@ -293,7 +293,7 @@ private:
 			sentESCount++;
 			if(0 == (sentESCount % 150 ))
 			{
-				logprintf("Demuxer::%s:%d: type %d sent %d packets", __FUNCTION__, __LINE__, (int)type, sentESCount);
+				AAMPLOG_WARN("Demuxer:: type %d sent %d packets", (int)type, sentESCount);
 			}
 		}
 		es.len = 0;
@@ -1477,11 +1477,11 @@ bool TSProcessor::msleep(long long throttleDiff)
 		int ret =  pthread_cond_timedwait(&m_throttleCond, &m_mutex, &ts);
 		if(0 == ret)
 		{
-			//logprintf("sleep interrupted!");  //CID:88893 - checked return
+			/*sleep interrupted!*/  //CID:88893 - checked return
 		}
 		else if (ETIMEDOUT != ret)
 		{
-			logprintf("sleep - condition wait failed %s", strerror(ret));
+			AAMPLOG_ERR("sleep - condition wait failed %s", strerror(ret));
 		}
 	}
 	else
@@ -1655,7 +1655,7 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 	if (!((packet[0] == 0x47) && ((size%m_packetSize) == 0)))
 	{
 		ERROR("Error: data buffer not TS packet aligned");
-		logprintf("packet=%p size=%d m_packetSize=%d", packet, size, m_packetSize);
+		AAMPLOG_WARN("packet=%p size=%d m_packetSize=%d", packet, size, m_packetSize);
 		dumpPacket(packet, m_packetSize);
 		assert(false);
 	}
@@ -1943,7 +1943,7 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 					{
 						TRACE3("RecordingContext: video pid %x transport_scrambling_control bits are non-zero (%02x)- is data still scrambled?", pid, packet[3]);
 						m_scrambledWarningIssued = true;
-						TRACE3("[%s:%d] found scrambled data, NOT writing idx,mpg files, returning(true)... ", __FUNCTION__, __LINE__);
+						TRACE3("[found scrambled data, NOT writing idx,mpg files, returning(true)... ");
 					}
 				}
 				m_scrambledWarningIssued = false;
@@ -2280,13 +2280,13 @@ void TSProcessor::reset()
 	pthread_mutex_lock(&m_mutex);
 	if (m_vidDemuxer)
 	{
-		logprintf("TSProcessor[%p]%s:%d - reset video demux %p", this, __FUNCTION__, __LINE__, m_vidDemuxer);
+		AAMPLOG_WARN("TSProcessor[%p] - reset video demux %p", this, m_vidDemuxer);
 		m_vidDemuxer->reset();
 	}
 
 	if (m_audDemuxer)
 	{
-		logprintf("TSProcessor[%p]%s:%d - reset audio demux %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
+		AAMPLOG_WARN("TSProcessor[%p] - reset audio demux %p", this, m_audDemuxer);
 		m_audDemuxer->reset();
 	}
 	m_enabled = true;
@@ -2308,19 +2308,19 @@ void TSProcessor::flush()
 	pthread_mutex_lock(&m_mutex);
 	if (m_vidDemuxer)
 	{
-		logprintf("TSProcessor[%p]%s:%d - flush video demux %p", this, __FUNCTION__, __LINE__, m_vidDemuxer);
+		AAMPLOG_WARN("TSProcessor[%p] flush video demux %p", this, m_vidDemuxer);
 		m_vidDemuxer->flush();
 	}
 
 	if (m_audDemuxer)
 	{
-		logprintf("TSProcessor[%p]%s:%d - flush audio demux %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
+		AAMPLOG_WARN("TSProcessor[%p] flush audio demux %p", this, m_audDemuxer);
 		m_audDemuxer->flush();
 	}
 
 	if (m_dsmccDemuxer)
 	{
-		logprintf("TSProcessor[%p]%s:%d - flush dsmcc demux %p", this, __FUNCTION__, __LINE__, m_dsmccDemuxer);
+		AAMPLOG_WARN("TSProcessor[%p]%s:%d flush dsmcc demux %p", this, m_dsmccDemuxer);
 		m_dsmccDemuxer->flush();
 	}
 	pthread_mutex_unlock(&m_mutex);
@@ -2340,7 +2340,7 @@ void TSProcessor::sendQueuedSegment(long long basepts, double updatedStartPosito
 	{
 		if (-1 != updatedStartPositon)
 		{
-			DEBUG("%s:%d Update position from %f to %f", __FUNCTION__, __LINE__, m_queuedSegmentPos, updatedStartPositon);
+			DEBUG("Update position from %f to %f", m_queuedSegmentPos, updatedStartPositon);
 			m_queuedSegmentPos = updatedStartPositon;
 		}
 		if (eStreamOp_QUEUE_AUDIO == m_streamOperation)
@@ -2497,7 +2497,7 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 					{
 						if (m_enabled)
 						{
-							logprintf("TSProcessor[%p]%s:%d - wait for base PTS. m_audDemuxer %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
+							AAMPLOG_WARN("TSProcessor[%p] wait for base PTS. m_audDemuxer %p", this, m_audDemuxer);
 							pthread_cond_wait(&m_basePTSCond, &m_mutex);
 						}
 
@@ -2509,7 +2509,7 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 							pthread_mutex_unlock(&m_mutex);
 							return false;
 						}
-						logprintf("TSProcessor[%p]%s:%d - got base PTS. m_audDemuxer %p", this, __FUNCTION__, __LINE__, m_audDemuxer);
+						AAMPLOG_WARN("TSProcessor[%p] got base PTS. m_audDemuxer %p", this, m_audDemuxer);
 					}
 					pthread_mutex_unlock(&m_mutex);
 				}
@@ -2766,7 +2766,7 @@ bool TSProcessor::processStartCode(unsigned char *buffer, bool& keepScanning, in
 					newBuff = (unsigned char *)malloc(newSize*sizeof(char));
 					if (!newBuff)
 					{
-						logprintf("Error: unable to allocate emulation prevention buffer");
+						AAMPLOG_ERR("Error: unable to allocate emulation prevention buffer");
 						break;
 					}
 					if (m_emulationPrevention)

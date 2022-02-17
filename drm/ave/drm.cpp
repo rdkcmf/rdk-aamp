@@ -64,7 +64,7 @@ static bool aveDrmIndividualized = false;
 #define AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS 8
 #define CURL_EASY_SETOPT(curl, CURLoption, option)\
     if (curl_easy_setopt(curl, CURLoption, option) != 0) {\
-          logprintf("Failed at curl_easy_setopt ");\
+          AAMPLOG_ERR("Failed at curl_easy_setopt ");\
     }  //CID:132698,135078 - checked return
 
 
@@ -126,7 +126,7 @@ public:
 	 */
 	TheDRMListener(PrivateInstanceAAMP *pAamp, AveDrm* aveDrm,int trackType, AampLogManager *logObj) : mpAamp(pAamp), mpAveDrm(aveDrm), mTrackType(trackType), mLogobj(logObj)
 	{
-		logprintf("TheDRMListener::%s:%d AveDrm[%p]Listner[%p]Track[%d]", __FUNCTION__, __LINE__, mpAveDrm,this,mTrackType);
+		AAMPLOG_WARN("TheDRMListener:: AveDrm[%p]Listner[%p]Track[%d]", mpAveDrm,this,mTrackType);
 	}
 
 	/**
@@ -151,7 +151,7 @@ public:
 	 */
 	void SignalKeyAcquired(gint callbackID)
 	{
-		logprintf("DRMListener::%s:%d[%p][%d]drmState:%d moving to KeyAcquired.callbackID[%d]", __FUNCTION__, __LINE__, mpAveDrm,mTrackType, mpAveDrm->mDrmState,callbackID);
+		AAMPLOG_WARN("DRMListener::[%p][%d]drmState:%d moving to KeyAcquired.callbackID[%d]", mpAveDrm,mTrackType, mpAveDrm->mDrmState,callbackID);
 		mpAamp->SetCallbackAsDispatched(callbackID);
 		mpAveDrm->SetState(eDRM_KEY_ACQUIRED);
 		mpAamp->LogDrmInitComplete();
@@ -163,7 +163,7 @@ public:
 	void NotifyInitSuccess()
 	{ // callback from successful pDrmAdapter->Initialize
 		//log_current_time("NotifyInitSuccess");
-		logprintf("Got the notification from AVE after license acquired successfully");
+		AAMPLOG_WARN("Got the notification from AVE after license acquired successfully");
 		pthread_mutex_lock(&aveDrmIndividualizationMutex);
 		if (!aveDrmIndividualized)
 		{
@@ -224,17 +224,17 @@ public:
 				sentinelFile = fopen(DRM_ERROR_SENTINEL_FILE,"w");
 				if(sentinelFile)
 				{
-					logprintf("DRMListener::%s:%d, Sentinel File created in AAMP\n",__FUNCTION__, __LINE__);
+					AAMPLOG_WARN("DRMListener::Sentinel File created in AAMP");
 					fclose(sentinelFile);
 				}
 				else
 				{
-					logprintf("DRMListener::%s:%d[%p] : *** /tmp/DRM_Error file creation for self heal failed. Error %d -> %s",__FUNCTION__, __LINE__, mpAveDrm, errno, strerror(errno));
+					AAMPLOG_ERR("DRMListener::[%p] : *** /tmp/DRM_Error file creation for self heal failed. Error %d -> %s",, mpAveDrm, errno, strerror(errno));
 				}
 			}
 			else
 			{
-				logprintf("DRMListener::%s:%d, Remove drm folder from AAMP\n",__FUNCTION__, __LINE__);
+				AAMPLOG_WARN("DRMListener::Remove drm folder from AAMP");
 				system("rm -fr /opt/persistent/adobe/drm/");
 			}
 
@@ -282,7 +282,7 @@ public:
 		{
 			SAFE_DELETE(drmerrordata);  //CID:90132 - Resource leak
 		}
-		logprintf("DRMListener::%s:%d[%p]Track[%d] majorError = %d, minorError = %d drmState:%d", __FUNCTION__, __LINE__, mpAveDrm,mTrackType, (int)majorError, (int)minorError, mpAveDrm->mDrmState );
+		AAMPLOG_ERR("DRMListener::[%p]Track[%d] majorError = %d, minorError = %d drmState:%d", mpAveDrm,mTrackType, (int)majorError, (int)minorError, mpAveDrm->mDrmState );
 		AAMP_LOG_DRM_ERROR ((int)majorError, (int)minorError);
 
 	}
@@ -307,7 +307,7 @@ public:
 	 */
 	void NotifyDRMStatus()//media::DRMMetadata* metadata, const DRMLicenseInfo* licenseInfo)
 	{ // license available
-		logprintf("DRMListener::%s:%d[%p]aamp:***drmState:%d", __FUNCTION__, __LINE__, mpAveDrm, mpAveDrm->mDrmState);
+		AAMPLOG_WARN("DRMListener::[%p]aamp:***drmState:%d", mpAveDrm, mpAveDrm->mDrmState);
 	}
 };
 
@@ -392,7 +392,7 @@ DrmReturn AveDrm::SetMetaData( class PrivateInstanceAAMP *aamp, void *metadata,i
 	mDrmState = eDRM_INITIALIZED;
 	mPrevDrmState = eDRM_INITIALIZED;
 	pthread_mutex_unlock(&mutex);
-	logprintf("AveDrm::%s:%d[%p]Track[%d] drmState:%d ", __FUNCTION__, __LINE__, this,trackType, mDrmState);
+	AAMPLOG_WARN("AveDrm::[%p]Track[%d] drmState:%d ", this,trackType, mDrmState);
 	return err;
 }
 
@@ -426,7 +426,7 @@ bool AveDrm::StoreDecryptInfoIfChanged( const DrmInfo *drmInfo)
 	}
 	else
 	{
-		logprintf("[%s][%d] Invalid DRMInfo provided for SetDecrypto !!! ",__FUNCTION__,__LINE__);
+		AAMPLOG_WARN("Invalid DRMInfo provided for SetDecrypto !!! ");
 	}
 	if(newInfo)
 	{
@@ -479,7 +479,7 @@ DrmReturn AveDrm::SetDecryptInfo( PrivateInstanceAAMP *aamp, const DrmInfo *drmI
 		}
 		else
 		{
-			logprintf("AveDrm::%s:%d[%p] ERROR -  NULL m_pDrmAdapter", __FUNCTION__, __LINE__, this);
+			AAMPLOG_ERR("AveDrm::[%p] ERROR -  NULL m_pDrmAdapter", this);
 		}
 	}
 	pthread_mutex_unlock(&mutex);
@@ -499,13 +499,13 @@ DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 	pthread_mutex_lock(&mutex);
 	if (mDrmState == eDRM_ACQUIRING_KEY )
 	{
-		logprintf( "AveDrm::%s:%d[%p] waiting for key acquisition to complete,wait time:%d", __FUNCTION__, __LINE__, this, timeInMs );
+		AAMPLOG_WARN( "AveDrm::[%p] waiting for key acquisition to complete,wait time:%d", this, timeInMs );
 		struct timespec ts;
 		ts = aamp_GetTimespec(timeInMs);
 
 		if(ETIMEDOUT == pthread_cond_timedwait(&cond, &mutex, &ts)) // block until drm ready
 		{
-			logprintf("AveDrm::%s:%d[%p] wait for key acquisition timed out", __FUNCTION__, __LINE__, this);
+			AAMPLOG_WARN("AveDrm::[%p] wait for key acquisition timed out", this);
 			err = eDRM_KEY_ACQUSITION_TIMEOUT;
 		}
 	}
@@ -537,7 +537,7 @@ DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 			}
 			catch(...)
 			{
-				logprintf("Stack  Exception caught in %s\n", __FUNCTION__);  //CID:86974 - Uncaught exception
+				AAMPLOG_WARN("Stack  Exception caught ");  //CID:86974 - Uncaught exception
 			}
 		}
 	}
@@ -569,7 +569,7 @@ void AveDrm::Release()
 		}
 		catch(...)
 		{
-			logprintf("Stack Exception caught in %s\n", __FUNCTION__);  //CID:81674 - Uncaught exception
+			AAMPLOG_WARN("Stack Exception caught ");  //CID:81674 - Uncaught exception
 		}
 	}
 	pthread_cond_broadcast(&cond);
@@ -636,7 +636,7 @@ AveDrm::~AveDrm()
 		}
 		catch(...)
 		{
-			logprintf("Stack Exception caught in %s\n", __FUNCTION__);  //CID:82348- Uncaught exception
+			AAMPLOG_WARN("Stack Exception caught ");  //CID:82348- Uncaught exception
 		}
 	}
 	SAFE_DELETE_ARRAY(mMetaData.metadataPtr);
@@ -661,7 +661,7 @@ void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int tra
 	mpAamp = aamp;
 	if( !m_pDrmAdapter )
 	{
-		logprintf("%s:%d:%d WARNING !!! KeyAcquisition cannot be done without SetMetadata !!!",__FUNCTION__,__LINE__,trackType);
+		AAMPLOG_WARN("%d WARNING !!! KeyAcquisition cannot be done without SetMetadata !!!",trackType);
 		pthread_mutex_unlock(&mutex);  //CID:136264 - lock
 		return;
 	}
@@ -673,7 +673,7 @@ void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int tra
 
 	mPrevDrmState = eDRM_INITIALIZED;
 	pthread_mutex_unlock(&mutex);
-	logprintf("AveDrm::%s:%d[%p] drmState:%d Track[%d]", __FUNCTION__, __LINE__, this, mDrmState,trackType);
+	AAMPLOG_WARN("AveDrm::[%p] drmState:%d Track[%d]", this, mDrmState,trackType);
 }
 
 #else  // for Non-AVE macro
@@ -781,9 +781,9 @@ AveDrmManager::AveDrmManager() :
 
 //#define ENABLE_AVE_DRM_MANGER_DEBUG
 #ifdef ENABLE_AVE_DRM_MANGER_DEBUG
-#define AVE_DRM_MANGER_DEBUG logprintf
+#define AVE_DRM_MANGER_DEBUG AAMPLOG_WARN
 #else
-#define AVE_DRM_MANGER_DEBUG traceprintf
+#define AVE_DRM_MANGER_DEBUG AAMPLOG_TRACE
 #endif
 
 /**
@@ -823,21 +823,20 @@ void AveDrmManager::FlushAfterIndexList(const char* trackname,int trackType)
 		{
 			if(aveDrmManager->mUserCount <= 0 )
 			{
-				logprintf("[%s][%s] Erased unused DRM Metadata.Size remaining=%d ",__FUNCTION__,trackname,sAveDrmManager.size()-1);
+				AAMPLOG_WARN("[%s] Erased unused DRM Metadata.Size remaining=%d ",trackname,sAveDrmManager.size()-1);
 				aveDrmManager->mDrm->Release();
 				aveDrmManager->Reset();
 				SAFE_DELETE(aveDrmManager);
 				iter = sAveDrmManager.erase(iter);
 			}
 			else
-			{ 	// still more users available.
-				// logprintf("[%s][%s] Not removing the hash [%s] with user count[%d]",__FUNCTION__,trackname,aveDrmManager->mSha1Hash,aveDrmManager->mUserCount);
+			{
 				iter++;
 			}
 		}
 		else
 		{
-			AVE_DRM_MANGER_DEBUG("[%s][%s] aveDrmManager found hash untouched , not removing",__FUNCTION__,trackname);
+			AVE_DRM_MANGER_DEBUG("[%s] aveDrmManager found hash untouched , not removing",trackname);
 			iter++;
 		}
 
@@ -880,7 +879,7 @@ void AveDrmManager::ReleaseAll()
 	// Only called from Stop of fragment collector of hls , mutex protection 
 	// added for calling 
 	
-	logprintf("[%s]Releasing AveDrmManager of size=%d ",__FUNCTION__,sAveDrmManager.size());
+	AAMPLOG_WARN("Releasing AveDrmManager of size=%d ",sAveDrmManager.size());
 	std::vector<AveDrmManager*>::iterator iter;
 	mSessionTokenWaitAbort = true;
 	pthread_mutex_lock(&aveDrmManagerMutex);
@@ -921,7 +920,7 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 {
 	AveDrmManager* aveDrmManager = NULL;
 	bool drmMetaDataAlreadyStored = false;
-	AVE_DRM_MANGER_DEBUG ("%s:%d: Enter sAveDrmManager.size = %d", __FUNCTION__, __LINE__, (int)sAveDrmManager.size());
+	AVE_DRM_MANGER_DEBUG ("Enter sAveDrmManager.size = %d", (int)sAveDrmManager.size());
 	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
@@ -930,14 +929,14 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 			drmMetaDataAlreadyStored = true;
 			if(sAveDrmManager[i]->mTrackType & (1<<trackType))
 			{
-				AVE_DRM_MANGER_DEBUG("[%s][%d] Meta hash[%s] already set for tracktype[%x]UserCount[%d]",__FUNCTION__, __LINE__,metaDataNode->sha1Hash,sAveDrmManager[i]->mTrackType,sAveDrmManager[i]->mUserCount);
+				AVE_DRM_MANGER_DEBUG(" Meta hash[%s] already set for tracktype[%x]UserCount[%d]",metaDataNode->sha1Hash,sAveDrmManager[i]->mTrackType,sAveDrmManager[i]->mUserCount);
 			}
 			else
 			{
 				sAveDrmManager[i]->mTrackType |= (1<<trackType);
 				sAveDrmManager[i]->mUserCount++;
 			}
-			AVE_DRM_MANGER_DEBUG("%s:%d: Found matching sha1Hash[%s]. Index[%d] UserCount[%d][%x]", __FUNCTION__, __LINE__,metaDataNode->sha1Hash, i,sAveDrmManager[i]->mUserCount,sAveDrmManager[i]->mTrackType);
+			AVE_DRM_MANGER_DEBUG("Found matching sha1Hash[%s]. Index[%d] UserCount[%d][%x]",metaDataNode->sha1Hash, i,sAveDrmManager[i]->mUserCount,sAveDrmManager[i]->mTrackType);
 		}
 	}
 	if (!drmMetaDataAlreadyStored)
@@ -950,10 +949,10 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 		memcpy(aveDrmManager->mSha1Hash, metaDataNode->sha1Hash, DRM_SHA1_HASH_LEN);
 		aveDrmManager->mDeferredTime = metaDataNode->drmKeyReqTime;
 		aveDrmManager->mDrm->SetMetaData(aamp, &metaDataNode->metaData,trackType, mLogObj);
-		logprintf("%s:%d: Created new AveDrmManager[%s] .Track[%d].Total Sz=%d", __FUNCTION__, __LINE__,metaDataNode->sha1Hash,trackType,sAveDrmManager.size());
+		AAMPLOG_WARN("Created new AveDrmManager[%s] .Track[%d].Total Sz=%d",metaDataNode->sha1Hash,trackType,sAveDrmManager.size());
 	}
 	pthread_mutex_unlock(&aveDrmManagerMutex);
-	AVE_DRM_MANGER_DEBUG ("%s:%d: Exit sAveDrmManager.size = %d", __FUNCTION__, __LINE__, sAveDrmManager.size());
+	AVE_DRM_MANGER_DEBUG ("Exit sAveDrmManager.size = %d", sAveDrmManager.size());
 }
 
 
@@ -974,7 +973,7 @@ bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaD
 	bool drmMetaDataKeyRequested = false;
 	// a buffer of 5 sec is considered.As next request will happen after playlist refresh
 	long long currTime = aamp_GetCurrentTimeMS() + 5000;
-	AVE_DRM_MANGER_DEBUG ("%s:%d: Enter sAveDrmManager.size = %d", __FUNCTION__, __LINE__, (int)sAveDrmManager.size());
+	AVE_DRM_MANGER_DEBUG ("Enter sAveDrmManager.size = %d", (int)sAveDrmManager.size());
 	//
 	pthread_mutex_lock(&aveDrmManagerMutex);
 	for (int idx = 0; idx < sAveDrmManager.size(); idx++)
@@ -1014,13 +1013,13 @@ bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaD
 			{
 				struct timespec ts;
 				struct timeval tv;
-				logprintf("Wait for ave notification on drm key aquired for first metadata");
+				AAMPLOG_WARN("Wait for ave notification on drm key aquired for first metadata");
 				gettimeofday(&tv, NULL);
 				ts.tv_sec = tv.tv_sec + AVE_DRM_INDIVIDUALIZATION_MAX_WAIT_TIME_SECONDS;
 				ts.tv_nsec = (long)(tv.tv_usec * 1000);
 				if(0 != pthread_cond_timedwait(&aveDrmIndividualizationCond, &aveDrmIndividualizationMutex, &ts))
 				{
-					logprintf("AesDec::%s:%d wait for individualization timed out, continue to acquire key", __FUNCTION__, __LINE__);
+					AAMPLOG_WARN("AesDec:: wait for individualization timed out, continue to acquire key");
 					aveDrmIndividualized = true;
 				}
 			}
@@ -1033,7 +1032,7 @@ bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaD
 		DRMState currState = sAveDrmManager[metaIdx]->mDrm->GetState();
 		if(currState != DRMState::eDRM_KEY_FLUSH)
 		{
-			logprintf("[%s][%d][%d] Request KeyIdx[%d] for hash[%s]",__FUNCTION__,__LINE__,trackType,metaIdx,metaDataNode->sha1Hash);
+			AAMPLOG_WARN("[%d] Request KeyIdx[%d] for hash[%s]",trackType,metaIdx,metaDataNode->sha1Hash);
 			sAveDrmManager[metaIdx]->mDrm->AcquireKey(aamp, &metaDataNode->metaData,trackType, mLogObj);
 		}
 	}
@@ -1042,7 +1041,7 @@ bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaD
 	{
 		// Something wrong . Key request is Made for the Meta which is not available.
 		retStatus = false;
-		logprintf("%s:%d:[%d] Key Request made for Meta which is not stored..Mismatched Hash data [%s] ?",__FUNCTION__, __LINE__, trackType,metaDataNode->sha1Hash);
+		AAMPLOG_WARN("[%d] Key Request made for Meta which is not stored..Mismatched Hash data [%s] ?", trackType,metaDataNode->sha1Hash);
 	}
 	pthread_mutex_unlock(&aveDrmManagerMutex);
 	return retStatus;
@@ -1068,10 +1067,10 @@ void AveDrmManager::PrintSha1Hash(char* sha1Hash)
 void AveDrmManager::DumpCachedLicenses()
 {
 	std::shared_ptr<AveDrm>  aveDrm = nullptr;
-	printf("%s:%d sAveDrmManager.size %d\n", __FUNCTION__, __LINE__, (int)sAveDrmManager.size());
+	AAMPLOG_WARN(" sAveDrmManager.size %d", (int)sAveDrmManager.size());
 	for (int i = 0; i < sAveDrmManager.size(); i++)
 	{
-		printf("%s:%d sAveDrmManager[%d] mDrmContexSet %s .mSha1Hash -  ", __FUNCTION__, __LINE__, i,
+		AAMPLOG_WARN(" sAveDrmManager[%d] mDrmContexSet %s .mSha1Hash -  ", i,
 				sAveDrmManager[i]->mDrmContexSet?"true":"false");
 		PrintSha1Hash(sAveDrmManager[i]->mSha1Hash);
 	}
@@ -1108,7 +1107,7 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType, A
                                 aveDrm = sAveDrmManager[i]->mDrm;
                                 // Found a user for the Meta data , update the flag so that it can be removed when no users for it
                                 sAveDrmManager[i]->mHasBeenUsed = true;
-                                AVE_DRM_MANGER_DEBUG ("%s:%d: Found matching sha1Hash[%s]. Index[%d] aveDrm[%p]", __FUNCTION__, __LINE__,sha1Hash, i, aveDrm.get());
+                                AVE_DRM_MANGER_DEBUG ("Found matching sha1Hash[%s]. Index[%d] aveDrm[%p]",sha1Hash, i, aveDrm.get());
                                 break;
                         }
                 }
@@ -1229,7 +1228,7 @@ int AveDrmManager::progress_callback(
 	int returnCode = 0 ;
 	if(AveDrmManager::mSessionTokenWaitAbort)
 	{
-		logprintf("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
+		AAMPLOG_WARN("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
 		returnCode = CURLE_ABORTED_BY_CALLBACK ;
 	}
 
@@ -1252,7 +1251,7 @@ size_t AveDrmManager::write_callback_session(char *ptr, size_t size,
 	size_t numBytesForBlock = size * nmemb;
 	if(AveDrmManager::mSessionTokenWaitAbort)
 	{
-		logprintf("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
+		AAMPLOG_WARN("Aborting DRM curl operation.. - CURLE_ABORTED_BY_CALLBACK");
 		//Reset the abort variable
 		numBytesForBlock = 0;		
 	}
@@ -1339,31 +1338,31 @@ long AveDrmManager::setSessionToken()
 				std::string token = extractSubstring(tokenReplyStr, "token\":\"", "\"");
 				if(token.length() != 0)
 				{
-					logprintf("%s:%d Received session token from auth service ", __FUNCTION__, __LINE__);
+					AAMPLOG_WARN(" Received session token from auth service ");
 					CustomToken = first + token + last;
 					setAccessSessionToken(CustomToken.c_str());
 				}
 				else
 				{
-					logprintf("%s:%d Could not get access token from session token reply", __FUNCTION__, __LINE__);
+					AAMPLOG_WARN(" Could not get access token from session token reply");
 					error_code = (long)eAUTHTOKEN_TOKEN_PARSE_ERROR;
 				}
 			}
 			else
 			{
-				logprintf("%s:%d Missing or invalid status code in session token reply", __FUNCTION__, __LINE__);
+				AAMPLOG_WARN(" Missing or invalid status code in session token reply");
 				error_code = (long)eAUTHTOKEN_INVALID_STATUS_CODE;
 			}
 		}
 		else
 		{
-			logprintf("%s:%d Get Session token call failed with http error %d", __FUNCTION__, __LINE__, httpCode);
+			AAMPLOG_ERR(" Get Session token call failed with http error %d", httpCode);
 			error_code = httpCode;
 		}
 	}
 	else
 	{
-		logprintf("%s:%d Get Session token call failed with curl error %d", __FUNCTION__, __LINE__, res);
+		AAMPLOG_ERR(" Get Session token call failed with curl error %d", res);
 		error_code = res;
 	}
 	SAFE_DELETE(tokenReply);

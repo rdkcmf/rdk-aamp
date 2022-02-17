@@ -135,7 +135,7 @@ void MediaTrack::MonitorBufferHealth()
 			}
 			else
 			{
-				traceprintf("%s:%d track[%s] No Change [%s]", __FUNCTION__, __LINE__, name,
+				AAMPLOG_TRACE(" track[%s] No Change [%s]",  name,
 						GetBufferHealthStatusString(bufferStatus));
 			}
 
@@ -420,7 +420,7 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 
 			if (0 != pthreadReturnValue)
 			{
-				AAMPLOG_WARN("[%s] pthread_cond_wait returned %s", __FUNCTION__, __LINE__, name, strerror(pthreadReturnValue));
+				AAMPLOG_WARN("[%s] pthread_cond_wait returned %s",  name, strerror(pthreadReturnValue));
 				ret = false;
 			}
 #ifdef AAMP_DEBUG_FETCH_INJECT
@@ -1691,7 +1691,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(AampLogManager *logObj, PrivateInst
 		, mAudioTracksAll()
 {
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
-	traceprintf("StreamAbstractionAAMP::%s", __FUNCTION__);
+	AAMPLOG_TRACE("StreamAbstractionAAMP");
 	pthread_mutex_init(&mLock, NULL);
 	pthread_cond_init(&mCond, NULL);
 	pthread_cond_init(&mSubCond, NULL);
@@ -1724,7 +1724,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(AampLogManager *logObj, PrivateInst
  */
 StreamAbstractionAAMP::~StreamAbstractionAAMP()
 {
-	traceprintf("StreamAbstractionAAMP::%s", __FUNCTION__);
+	AAMPLOG_TRACE("StreamAbstractionAAMP");
 	pthread_cond_destroy(&mCond);
 	pthread_cond_destroy(&mSubCond);
 	pthread_cond_destroy(&mAuxCond);
@@ -2170,7 +2170,7 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 
 			this->currentProfileIndex = desiredProfileIndex;
 			profileIdxForBandwidthNotification = desiredProfileIndex;
-			traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
+			AAMPLOG_TRACE(" profileIdxForBandwidthNotification updated to %d ",  profileIdxForBandwidthNotification);
 			ret = true;
 			long newBW = GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond;
 			video->SetCurrentBandWidth(newBW);
@@ -2460,7 +2460,7 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 
 		this->currentProfileIndex = desiredProfileIndex;
 		profileIdxForBandwidthNotification = desiredProfileIndex;
-		traceprintf("%s:%d profileIdxForBandwidthNotification updated to %d ", __FUNCTION__, __LINE__, profileIdxForBandwidthNotification);
+		AAMPLOG_TRACE(" profileIdxForBandwidthNotification updated to %d ",  profileIdxForBandwidthNotification);
 		video->ABRProfileChanged();
 		long newBW = GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond;
 		video->SetCurrentBandWidth(newBW);
@@ -2539,7 +2539,7 @@ double StreamAbstractionAAMP::GetElapsedTime()
 {
 	double elapsedTime;
 	pthread_mutex_lock(&mLock);
-	traceprintf("StreamAbstractionAAMP:%s() mStartTimeStamp %lld mTotalPausedDurationMS %lld mLastPausedTimeStamp %lld", __FUNCTION__, mStartTimeStamp, mTotalPausedDurationMS, mLastPausedTimeStamp);
+	AAMPLOG_TRACE("StreamAbstractionAAMP:mStartTimeStamp %lld mTotalPausedDurationMS %lld mLastPausedTimeStamp %lld", mStartTimeStamp, mTotalPausedDurationMS, mLastPausedTimeStamp);
 	if (!mIsPaused)
 	{
 		elapsedTime = (double)(aamp_GetCurrentTimeMS() - mStartTimeStamp - mTotalPausedDurationMS) / 1000;
@@ -2632,7 +2632,7 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 	//Allow subtitles to be ahead by 5 seconds compared to audio
 	while ((subtitleDuration > (audioDuration + audio->fragmentDurationSeconds + 15.0)) && aamp->DownloadsAreEnabled() && !subtitle->IsDiscontinuityProcessed() && !audio->IsInjectionAborted())
 	{
-		traceprintf("Blocked on Inside mSubCond with sub:%f and audio:%f", subtitleDuration, audioDuration);
+		AAMPLOG_TRACE("Blocked on Inside mSubCond with sub:%f and audio:%f", subtitleDuration, audioDuration);
 	#ifdef AAMP_DEBUG_FETCH_INJECT
 		AAMPLOG_WARN("waiting for mSubCond - subtitleDuration %f audioDuration %f",
 			subtitleDuration, audioDuration);
