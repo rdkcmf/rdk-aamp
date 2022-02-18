@@ -4940,7 +4940,9 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 				mStreamSink->Flush(0, rate);
 			}
 			*/
-			mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
+			// This Flush is not required for trickplay
+			if (rate == 1)
+				mStreamSink->Flush(mpStreamAbstractionAAMP->GetFirstPTS(), rate);
 		}
 		else if (mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
 		{

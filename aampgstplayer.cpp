@@ -283,6 +283,12 @@ static gboolean buffering_timeout (gpointer data);
  * @brief check if elemement is instance (BCOM-3563)
  */
 static void type_check_instance( const char * str, GstElement * elem);
+
+/**
+ * @brief SetPipelineState Sets state of gstreamer pipeline
+ */
+static bool SetPipelineState(AAMPGstPlayer *_this, GstState targetState);
+
 #define PLUGINS_TO_LOWER_RANK_MAX    2
 const char *plugins_to_lower_rank[PLUGINS_TO_LOWER_RANK_MAX] = {
 	"aacparse",
@@ -1593,7 +1599,10 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 		{
 			_this->privateContext->bufferingTimeoutTimerId = g_timeout_add_full(BUFFERING_TIMEOUT_PRIORITY, DEFAULT_BUFFERING_TO_MS, buffering_timeout, _this, NULL);
 		}
-
+		else
+		{
+			_this->aamp->UpdateSubtitleTimestamp();
+		}
 		break;
 
 	default:
@@ -2482,7 +2491,6 @@ void AAMPGstPlayer::Stream()
 	FN_TRACE( __FUNCTION__ );
 }
 
-
 /**
  * @brief Configure pipeline based on A/V formats
  * @param[in] format video format
@@ -2534,7 +2542,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 
 	if (setReadyAfterPipelineCreation)
 	{
-		if(gst_element_set_state(this->privateContext->pipeline, GST_STATE_READY) == GST_STATE_CHANGE_FAILURE)
+		if (SetPipelineState(this, GST_STATE_READY) != true)
 		{
 			AAMPLOG_ERR("AAMPGstPlayer_Configure GST_STATE_READY failed on forceful set");
 		}
@@ -2599,20 +2607,20 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		}
 	}
 
-	if (this->privateContext->buffering_enabled && format != FORMAT_INVALID && AAMP_NORMAL_PLAY_RATE == privateContext->rate)
+	if (this->privateContext->buffering_enabled && configureStream[eMEDIATYPE_VIDEO] && AAMP_NORMAL_PLAY_RATE == privateContext->rate)
 	{
 		this->privateContext->buffering_target_state = GST_STATE_PLAYING;
 		this->privateContext->buffering_in_progress = true;
 		this->privateContext->buffering_timeout_cnt = DEFAULT_BUFFERING_MAX_CNT;
-		if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
+		if (SetPipelineState(this, GST_STATE_PAUSED) != true)
 		{
-			AAMPLOG_WARN("AAMPGstPlayer_Configure GST_STATE_PLAUSED failed");
+			AAMPLOG_WARN("AAMPGstPlayer_Configure GST_STATE_PAUSED failed");
 		}
 		privateContext->pendingPlayState = false;
 	}
 	else
 	{
-		if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
+		if (SetPipelineState(this, GST_STATE_PLAYING) != true)
 		{
 			AAMPLOG_WARN("AAMPGstPlayer: GST_STATE_PLAYING failed");
 		}
@@ -2864,25 +2872,71 @@ static GstState validateStateWithMsTimeout( AAMPGstPlayer *_this, GstState state
 	GstState gst_pending;
 	float timeout = 100.0;
 	gint gstGetStateCnt = GST_ELEMENT_GET_STATE_RETRY_CNT_MAX;
+	GstStateChangeReturn rc;
 
 	do
 	{
-		if ((GST_STATE_CHANGE_SUCCESS
-				== gst_element_get_state(_this->privateContext->pipeline, &gst_current, &gst_pending, timeout * GST_MSECOND))
-				&& (gst_current == stateToValidate))
-		{
-			GST_WARNING(
-					"validateStateWithMsTimeout - PIPELINE gst_element_get_state - SUCCESS : State = %d, Pending = %d",
-					gst_current, gst_pending);
-			return gst_current;
-		}
+		rc = gst_element_get_state(_this->privateContext->pipeline, &gst_current, &gst_pending, timeout * GST_MSECOND);
+		// break this wait loop if SUCCESS / FAILURE
+		if (rc != GST_STATE_CHANGE_ASYNC)
+			break;
+
 		g_usleep (msTimeOut * 1000); // Let pipeline safely transition to required state
 	}
-	while ((gst_current != stateToValidate) && (gstGetStateCnt-- != 0));
+	while (gstGetStateCnt-- != 0);
 
-	AAMPLOG_WARN("validateStateWithMsTimeout - PIPELINE gst_element_get_state - FAILURE : State = %d, Pending = %d",
-			gst_current, gst_pending);
+	if ((gst_current != stateToValidate))
+		AAMPLOG_WARN("PIPELINE gst_element_get_state - FAILURE : State = %d, Pending = %d, ret %d",
+			gst_current, gst_pending, rc);
 	return gst_current;
+}
+
+/**
+ * @brief SetPipelineState Sets state of gstreamer pipeline
+ * @param[in] _this pointer to AAMPGstPlayer instance
+ * @param[in] targetState state to be set
+ * @retval true on Success, false on failure
+ */
+static bool SetPipelineState(AAMPGstPlayer *_this, GstState targetState)
+{
+	FN_TRACE( __FUNCTION__ );
+	bool ret = false;
+	GstState current, pending;
+
+	GstStateChangeReturn rc = gst_element_get_state(_this->privateContext->pipeline, &current, &pending, 0);
+	// Check the current state and pipeline state failure if any
+	if(GST_STATE_CHANGE_FAILURE == rc)
+	{
+		AAMPLOG_WARN("Pipeline is in FAILURE state : current %s  pending %s",gst_element_state_get_name(current), gst_element_state_get_name(pending));
+	}
+	else
+	{
+		if (current != targetState || GST_STATE_CHANGE_ASYNC == rc)
+		{
+			rc = gst_element_set_state(_this->privateContext->pipeline, targetState);
+			if (GST_STATE_CHANGE_ASYNC == rc)
+			{
+				/* wait a bit longer for the state change to conclude */
+				if (targetState != validateStateWithMsTimeout(_this, targetState, 100))
+					AAMPLOG_WARN("gst state transition to %s timed out", gst_element_state_get_name(targetState));
+				else
+					ret = true;
+			}
+			else if (GST_STATE_CHANGE_SUCCESS == rc)
+			{
+				AAMPLOG_TRACE("gst_element_set_state - SUCCESS");
+				ret = true;
+			}
+			else
+			{
+				AAMPLOG_WARN("gst_element_set_state - FAILED rc %d", rc);
+			}
+		}
+		else
+			AAMPLOG_INFO("Pipeline already in %s state", gst_element_state_get_name(current));
+	}
+	AAMPLOG_WARN("Setting pipeline state %s to %s is %s", gst_element_state_get_name(current), gst_element_state_get_name(targetState), ret ? "SUCCESS" : "FAILURE");
+	return ret;
 }
 
 
@@ -3109,25 +3163,11 @@ bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 			privateContext->buffering_in_progress = false;
 		}
 
-		GstStateChangeReturn rc = gst_element_set_state(this->privateContext->pipeline, nextState);
-		if (GST_STATE_CHANGE_ASYNC == rc)
-		{
-			/* wait a bit longer for the state change to conclude */
-			if (nextState != validateStateWithMsTimeout(this,nextState, 100))
-			{
-				AAMPLOG_WARN("AAMPGstPlayer_Pause - validateStateWithMsTimeout - FAILED GstState %d", nextState);
-			}
-		}
-		else if (GST_STATE_CHANGE_SUCCESS != rc)
-		{
-			AAMPLOG_WARN("AAMPGstPlayer_Pause - gst_element_set_state - FAILED rc %d", rc);
-		}
+		SetPipelineState(this, nextState);
 		privateContext->buffering_target_state = nextState;
 		privateContext->paused = pause;
 		privateContext->pendingPlayState = false;
-
 		aamp->PauseSubtitleParser(pause);
-
 	}
 	else
 	{
