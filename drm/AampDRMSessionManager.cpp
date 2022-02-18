@@ -1767,6 +1767,7 @@ void *CreateDRMSession(void *arg)
 		sessionParams->aamp->SendDrmErrorEvent(e, false);
 		sessionParams->aamp->profiler.SetDrmErrorCode((int)failure);
 		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)failure);
+		sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 	}
 	else
 	{
@@ -1793,7 +1794,9 @@ void *CreateDRMSession(void *arg)
 			}
 			sessionParams->aamp->profiler.SetDrmErrorCode((int) failure);
 			sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int) failure);
+			sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);	
 		}
+
 		else
 		{
 			if(e->getAccessStatusValue() != 3)

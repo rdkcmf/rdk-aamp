@@ -2648,6 +2648,11 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 {
 	PrivAAMPState state;
 	aamp->GetState(state);
+	if(!aamp->IsTuneCompleted())
+	{
+		aamp->TuneFail(true);
+
+	}
 	
 	AAMPLOG_WARN("aamp_stop PlayerState=%d",state);
 

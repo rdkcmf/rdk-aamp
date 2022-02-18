@@ -870,6 +870,9 @@ public:
 	double mOffsetFromTunetimeForSAPWorkaround; /** current playback position in epoch**/
 	bool mLanguageChangeInProgress;
 	long mSupportedTLSVersion;    /*ssl/TLS default version */
+	std::string mFailureReason;   		/** String to hold the tune failure reason  */
+	long long mTimedMetadataStartTime;	/** Start time to report TimedMetadata   */
+	long long mTimedMetadataDuration;
 
 	/**
 	 * @brief Check if segment starts with an ID3 section
@@ -1563,6 +1566,13 @@ public:
 	 *   @return void
 	 */
 	void LogTuneComplete(void);
+	
+	/**
+        *   @brief Profiler for failure tune
+        *
+        *   @return void
+        */
+       void TuneFail(bool fail);
 
 	/**
 	 *   @brief Profile first frame displayed

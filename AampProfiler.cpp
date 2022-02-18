@@ -157,6 +157,8 @@ void ProfileEventAAMP::TuneBegin(void)
  * firstTune		//First tune after reboot/crash<br>
  * Prebuffered		//If the Player was in preBuffer(BG) mode)<br>
  * PreBufferedTime		//Player spend Time in BG<br>
+ * mTimedMetadataStartTime    // Timedmetadata reporting offset time in milliseconds from tunestart 
+ * mTSBEnabled                // Flag to indicate TSB  enabled or not
  * @param[in] success - Tune status
  * @param[in] contentType - Content Type. Eg: LINEAR, VOD, etc
  * @param[in] streamType - Stream Type. Eg: HLS, DASH, etc
@@ -165,7 +167,7 @@ void ProfileEventAAMP::TuneBegin(void)
  * @param[in] interfaceWifi - Active connection is Wifi or Ethernet.
  * @return void
  */
-void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId, bool playerPreBuffered, unsigned int durationSeconds, bool interfaceWifi)
+void ProfileEventAAMP::TuneEnd(TuneEndMetrics &mTuneEndMetrics,std::string appName, std::string playerActiveMode, int playerId, bool playerPreBuffered, unsigned int durationSeconds, bool interfaceWifi,std::string failureReason)
 {
 	if(!enabled )
 	{
@@ -177,6 +179,7 @@ void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int stream
 
 	char tuneTimeStrPrefix[64];
 	memset(tuneTimeStrPrefix, '\0', sizeof(tuneTimeStrPrefix));
+ 	int mTimedMetadataStartTime = static_cast<int> (mTuneEndMetrics.mTimedMetadataStartTime - tuneStartMonotonicBase);
 	if (!appName.empty())
 	{
 		snprintf(tuneTimeStrPrefix, sizeof(tuneTimeStrPrefix), "%s PLAYER[%d] APP: %s IP_AAMP_TUNETIME", playerActiveMode.c_str(),playerId,appName.c_str());
@@ -204,7 +207,9 @@ void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int stream
 		"%d,%d,"		// gstPlayStartTime, gstFirstFrameTime
 		"%d,%d,%d,"		// contentType, streamType, firstTune
 		"%d,%d,"		// If Player was in prebufferd mode, time spent in prebufferd(BG) mode
-		"%d,%d",		// Asset duration in seconds, Connection is wifi or not - wifi(1) ethernet(0)
+		"%d,%d,"		// Asset duration in seconds, Connection is wifi or not - wifi(1) ethernet(0)
+		"%d,%d,%s,%s,"		// TuneAttempts ,Tunestatus -success(1) failure (0) ,Failure Reason, AppName
+		"%d,%d,%d,%d",           // TimedMetadata (count,start,total) ,TSBEnabled or not - enabled(1) not enabled(0)
 		// TODO: settop type, flags, isFOGEnabled, isDDPlus, isDemuxed, assetDurationMs
 
 		tuneTimeStrPrefix,
@@ -228,10 +233,12 @@ void ProfileEventAAMP::TuneEnd(bool success, ContentType contentType, int stream
 
 		buckets[PROFILE_BUCKET_FIRST_BUFFER].tStart, // gstPlaying: offset in ms from tunestart when pipeline first fed data
 		playerPreBuffered ? buckets[PROFILE_BUCKET_FIRST_FRAME].tStart - buckets[PROFILE_BUCKET_PLAYER_PRE_BUFFERED].tStart : buckets[PROFILE_BUCKET_FIRST_FRAME].tStart,  // gstFirstFrame: offset in ms from tunestart when first frame of video is decoded/presented
-		contentType, streamType, firstTune,
+		mTuneEndMetrics.contentType,mTuneEndMetrics.streamType,mTuneEndMetrics.mFirstTune,
 		playerPreBuffered,playerPreBuffered ? buckets[PROFILE_BUCKET_PLAYER_PRE_BUFFERED].tStart : 0,
-		durationSeconds,interfaceWifi
-		);
+		durationSeconds,interfaceWifi,
+		mTuneEndMetrics.mTuneAttempts, mTuneEndMetrics.success,failureReason.c_str(),appName.c_str(),
+		mTuneEndMetrics.mTimedMetadata,mTimedMetadataStartTime < 0 ? 0 : mTimedMetadataStartTime , mTuneEndMetrics.mTimedMetadataDuration,mTuneEndMetrics.mTSBEnabled
+		);	
 }
 
 /**

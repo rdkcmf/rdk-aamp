@@ -31,7 +31,7 @@
 
 
 #define AAMP_VERSION "4.2"
-#define AAMP_TUNETIME_VERSION 4
+#define AAMP_TUNETIME_VERSION 5
 
 //Stringification of Macro : use two levels of macros
 #define MACRO_TO_STRING(s) X_STR(s)

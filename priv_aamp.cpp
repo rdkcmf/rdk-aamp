@@ -134,6 +134,8 @@ struct gActivePrivAAMP_t
 	int numPtsErrors;
 };
 
+
+
 static std::list<gActivePrivAAMP_t> gActivePrivAAMPs = std::list<gActivePrivAAMP_t>();
 
 static pthread_mutex_t gMutex = PTHREAD_MUTEX_INITIALIZER;
@@ -1490,6 +1492,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mOffsetFromTunetimeForSAPWorkaround(0)
 	, mLanguageChangeInProgress(false)
 	, mSupportedTLSVersion(0)
+	, mFailureReason("")
+	, mTimedMetadataStartTime(0)
+	, mTimedMetadataDuration(0)
+
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -2300,6 +2306,7 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 		}
 
 		SendEvent(e,AAMP_EVENT_ASYNC_MODE);
+		mFailureReason=tuneFailureMap[tuneFailure].description;
 	}
 	else
 	{
@@ -2643,14 +2650,45 @@ void PrivateInstanceAAMP::NotifyOnEnteringLive()
 }
 
 /**
+* @brief Profiler for failure Tunes
+ *
+ * @param[in] Fail - Tune fail status
+ * @return void
+ */
+void PrivateInstanceAAMP::TuneFail(bool fail)
+{
+	TuneEndMetrics mTuneMetrics = {0, 0, 0,0,0,0,0,0,(ContentType)0};	
+	LogFirstFrame();                               //For Failure tunes:Total_Tune Time is time at which tune failure gets reported 
+	mTuneMetrics.success         	 	= !fail ;
+	int streamType 				= getStreamType();
+	mTuneMetrics.mFirstTune		= mFirstTune;
+	mTuneMetrics.mTimedMetadata 	 	= timedMetadata.size();
+	mTuneMetrics.mTimedMetadataStartTime 	= mTimedMetadataStartTime;
+	mTuneMetrics.mTimedMetadataDuration  	= mTimedMetadataDuration;
+	mTuneMetrics.mTuneAttempts 		= mTuneAttempts;
+	mTuneMetrics.contentType 		= mContentType;
+	mTuneMetrics.streamType 		= streamType;
+	mTuneMetrics.mTSBEnabled             	= mTSBEnabled;
+	profiler.TuneEnd(mTuneMetrics, mAppName,(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mPlayerPreBuffered, durationSeconds, activeInterfaceWifi,mFailureReason);		
+}
+
+/**
  * @brief Notify tune end for profiling/logging
  */
 void PrivateInstanceAAMP::LogTuneComplete(void)
 {
-	bool success = true; // TODO
-	int streamType = getStreamType();
-	profiler.TuneEnd(success, mContentType, streamType, mFirstTune, mAppName,(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mPlayerPreBuffered, durationSeconds, activeInterfaceWifi);
-
+	TuneEndMetrics mTuneMetrics = {0, 0, 0,0,0,0,0,0,(ContentType)0};
+	
+	mTuneMetrics.success 		 	 = true; 
+	int streamType 				 = getStreamType();
+	mTuneMetrics.contentType 		 = mContentType;
+	mTuneMetrics.mTimedMetadata 	 	 = timedMetadata.size();
+	mTuneMetrics.mTimedMetadataStartTime 	 = mTimedMetadataStartTime;
+	mTuneMetrics.mTimedMetadataDuration      = mTimedMetadataDuration;
+	mTuneMetrics.mTuneAttempts 		 = mTuneAttempts;
+	mTuneMetrics.streamType 		 = streamType;
+	mTuneMetrics.mTSBEnabled                 = mTSBEnabled;
+	profiler.TuneEnd(mTuneMetrics,mAppName,(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mPlayerPreBuffered, durationSeconds, activeInterfaceWifi,mFailureReason);
 	//update tunedManifestUrl if FOG was NOT used as manifestUrl might be updated with redirected url.
 	if(!IsTSBSupported())
 	{
@@ -2664,7 +2702,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 			char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
 			mLogTune = false;
 			if (ISCONFIGSET_PRIV(eAAMPConfig_XRESupportedTune)) { 
-				profiler.GetClassicTuneTimeInfo(success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
+				profiler.GetClassicTuneTimeInfo(mTuneMetrics.success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
 				SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
 			}
 			mTuneCompleted = true;
@@ -2691,8 +2729,9 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 
 		SendAnomalyEvent(eMsgType, "Tune attempt#%d. %s:%s URL:%s", mTuneAttempts,playbackType.c_str(),getStreamTypeString().c_str(),GetTunedManifestUrl());
 	}
+	
 	mConfig->logging.setLogLevel(eLOGLEVEL_WARN);
-	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_WARN);
+	gpGlobalConfig->logging.setLogLevel(eLOGLEVEL_WARN);	
 }
 
 /**
@@ -6511,7 +6550,7 @@ void PrivateInstanceAAMP::Stop()
 	{
 		timedMetadata.clear();
 	}
-
+	mFailureReason="";
 	seek_pos_seconds = -1;
 	prevPositionMiliseconds = -1;
 	culledSeconds = 0;
@@ -6601,11 +6640,14 @@ void PrivateInstanceAAMP::ReportTimedMetadata(bool init)
 	else
 	{
 		std::vector<TimedMetadata>::iterator iter;
-		for (iter = timedMetadataNew.begin(); iter != timedMetadataNew.end(); iter++){
+		mTimedMetadataStartTime = NOW_STEADY_TS_MS ;
+		for (iter = timedMetadataNew.begin(); iter != timedMetadataNew.end(); iter++)
+		{
 			ReportTimedMetadata(iter->_timeMS, iter->_name.c_str(), iter->_content.c_str(), iter->_content.size(), init, iter->_id.c_str(), iter->_durationMS);
 		}
 		timedMetadataNew.clear();
-	}
+		mTimedMetadataDuration = (NOW_STEADY_TS_MS - mTimedMetadataStartTime);
+	}	
 }
 /**
  * @brief ReportBulkTimedMetadata Function to send bulk timedMetadata in json format 
@@ -6613,6 +6655,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(bool init)
  */
 void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 {
+	mTimedMetadataStartTime = NOW_STEADY_TS_MS;
 	std::vector<TimedMetadata>::iterator iter;
 	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableSubscribedTags) && timedMetadata.size())
 	{
@@ -6649,6 +6692,7 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 			}
 			cJSON_Delete(root);
 		}
+		mTimedMetadataDuration = (NOW_STEADY_TS_MS - mTimedMetadataStartTime);
 	}
 }
 
