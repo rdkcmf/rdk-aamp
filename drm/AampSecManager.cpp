@@ -59,12 +59,16 @@ void AampSecManager::DestroyInstance()
 /**
  * @brief AampScheduler Constructor
  */
-AampSecManager::AampSecManager() : mSecManagerObj(SECMANAGER_CALL_SIGN), mMutex(),mSchedulerStarted(false),
-				   mRegisteredEvents(), mWatermarkPluginObj(WATERMARK_PLUGIN_CALLSIGN)
+AampSecManager::AampSecManager() : mSecManagerObj(SECMANAGER_CALL_SIGN), mSecMutex(), mSchedulerStarted(false),
+				   mRegisteredEvents(), mWatermarkPluginObj(WATERMARK_PLUGIN_CALLSIGN), mWatMutex()
 {
-	std::lock_guard<std::mutex> lock(mMutex);
-	mSecManagerObj.ActivatePlugin();
-	mWatermarkPluginObj.ActivatePlugin();
+	
+	std::lock_guard<std::mutex> lock(mSecMutex);
+	mSecManagerObj.ActivatePlugin();	
+	{
+		std::lock_guard<std::mutex> lock(mWatMutex);
+		mWatermarkPluginObj.ActivatePlugin();
+	}
 
 	/*Start Scheduler for handling RDKShell API invocation*/    
 	if(false == mSchedulerStarted)
@@ -81,7 +85,7 @@ AampSecManager::AampSecManager() : mSecManagerObj(SECMANAGER_CALL_SIGN), mMutex(
  */
 AampSecManager::~AampSecManager()
 {
-	std::lock_guard<std::mutex> lock(mMutex);
+	std::lock_guard<std::mutex> lock(mSecMutex);
 
 	/*Stop Scheduler used for handling RDKShell API invocation*/    
 	if(true == mSchedulerStarted)
@@ -173,7 +177,7 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 #endif
 	
 	{
-		std::lock_guard<std::mutex> lock(mMutex);
+		std::lock_guard<std::mutex> lock(mSecMutex);
 		if(accTokenLen > 0 && contMetaLen > 0 && licReqLen > 0)
 		{
 			shmPt_accToken = aamp_CreateSharedMem(accTokenLen, shmKey_accToken);
@@ -299,7 +303,7 @@ void AampSecManager::UpdateSessionState(int64_t sessionId, bool active)
 	}
 
 	{
-		std::lock_guard<std::mutex> lock(mMutex);
+		std::lock_guard<std::mutex> lock(mSecMutex);
 		rpcResult = mSecManagerObj.InvokeJSONRPC("setPlaybackSessionState", param, result);
 	}
 
@@ -333,7 +337,7 @@ void AampSecManager::ReleaseSession(int64_t sessionId)
 	AAMPLOG_INFO("%s:%d SecManager call closePlaybackSession for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
 
 	{
-		std::lock_guard<std::mutex> lock(mMutex);
+		std::lock_guard<std::mutex> lock(mSecMutex);
 		rpcResult = mSecManagerObj.InvokeJSONRPC("closePlaybackSession", param, result);
 	}
 
@@ -372,7 +376,7 @@ bool AampSecManager::setVideoWindowSize(int64_t sessionId, int64_t video_width, 
 
        AAMPLOG_INFO("%s:%d SecManager call setVideoWindowSize for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
        {
-               std::lock_guard<std::mutex> lock(mMutex);
+               std::lock_guard<std::mutex> lock(mSecMutex);
                rpcResult = mSecManagerObj.InvokeJSONRPC("setVideoWindowSize", param, result);
        }
 
@@ -414,7 +418,7 @@ bool AampSecManager::setPlaybackSpeedState(int64_t sessionId, int64_t playback_s
        AAMPLOG_INFO("%s:%d SecManager call setPlaybackSpeedState for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
 
        {
-               std::lock_guard<std::mutex> lock(mMutex);
+               std::lock_guard<std::mutex> lock(mSecMutex);
                rpcResult = mSecManagerObj.InvokeJSONRPC("setPlaybackSpeedState", param, result);
        }
 	   
@@ -459,7 +463,7 @@ bool AampSecManager::loadClutWatermark(int64_t sessionId, int64_t graphicId, int
        AAMPLOG_INFO("%s:%d SecManager call loadClutWatermark for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
 
        {
-               std::lock_guard<std::mutex> lock(mMutex);
+               std::lock_guard<std::mutex> lock(mSecMutex);
                rpcResult = mSecManagerObj.InvokeJSONRPC("loadClutWatermark", param, result);
        }
 
@@ -686,10 +690,11 @@ void AampSecManager::ShowWatermark(bool show)
 	bool rpcResult = false;
 
 	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
-	std::lock_guard<std::mutex> lock(mMutex);
-
 	param["show"] = show;
-	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("showWatermark", param, result);
+	{
+		std::lock_guard<std::mutex> lock(mWatMutex);
+		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("showWatermark", param, result);
+	}
 	if (rpcResult)
 	{
 		if (!result["success"].Boolean())
@@ -717,11 +722,12 @@ void AampSecManager::CreateWatermark(int graphicId, int zIndex )
 	bool rpcResult = false;
 
 	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
-	std::lock_guard<std::mutex> lock(mMutex);
-
 	param["id"] = graphicId;
 	param["zorder"] = zIndex;
-	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("createWatermark", param, result);
+	{
+		std::lock_guard<std::mutex> lock(mWatMutex);
+		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("createWatermark", param, result);
+	}
 	if (rpcResult)
 	{
 		if (!result["success"].Boolean())
@@ -748,10 +754,11 @@ void AampSecManager::DeleteWatermark(int graphicId)
 	bool rpcResult = false;
 
 	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
-	std::lock_guard<std::mutex> lock(mMutex);
-
 	param["id"] = graphicId;
-	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("deleteWatermark", param, result);
+	{
+		std::lock_guard<std::mutex> lock(mWatMutex);
+		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("deleteWatermark", param, result);
+	}
 	if (rpcResult)
 	{
 		if (!result["success"].Boolean())
@@ -779,12 +786,13 @@ void AampSecManager::UpdateWatermark(int graphicId, int smKey, int smSize )
 	bool rpcResult = false;
 
 	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
-	std::lock_guard<std::mutex> lock(mMutex);
-
 	param["id"] = graphicId;
 	param["key"] = smKey;
 	param["size"] = smSize;
-	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("updateWatermark", param, result);
+	{
+		std::lock_guard<std::mutex> lock(mWatMutex);
+		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("updateWatermark", param, result);
+	}
 	if (rpcResult)
 	{
 		if (!result["success"].Boolean())
@@ -812,10 +820,11 @@ void AampSecManager::AlwaysShowWatermarkOnTop(bool show)
 	bool rpcResult = false;
 
 	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
-	std::lock_guard<std::mutex> lock(mMutex);
-
 	param["show"] = show;
-	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("alwaysShowWatermarkOnTop", param, result);
+	{
+		std::lock_guard<std::mutex> lock(mWatMutex);
+		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("alwaysShowWatermarkOnTop", param, result);
+	}
 	if (rpcResult)
 	{
 		if (!result["success"].Boolean())
@@ -842,7 +851,7 @@ void AampSecManager::GetWaterMarkPalette(int sessionId, int graphicId)
 	param["id"] = graphicId;
 	AAMPLOG_WARN("AampSecManager %s:%d Graphic id: %d ", __FUNCTION__, __LINE__, graphicId);
 	{
-		std::lock_guard<std::mutex> lock(mMutex);
+		std::lock_guard<std::mutex> lock(mWatMutex);
 		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("getPalettedWatermark", param, result);
 	}
 
@@ -889,7 +898,7 @@ void AampSecManager::ModifyWatermarkPalette(int graphicId, int clutKey, int imag
 	param["clutKey"] = clutKey;
 	param["imageKey"] = imageKey;
 	{
-		std::lock_guard<std::mutex> lock(mMutex);
+		std::lock_guard<std::mutex> lock(mWatMutex);
 		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("modifyPalettedWatermark", param, result);
 	}
 	if (rpcResult)

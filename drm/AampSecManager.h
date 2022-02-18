@@ -136,7 +136,8 @@ private:
 	PrivateInstanceAAMP* mAamp;        /**< Pointer to the PrivateInstanceAAMP*/
 	ThunderAccessAAMP mSecManagerObj;  /**< ThunderAccessAAMP object for communicating with SecManager*/
 	ThunderAccessAAMP mWatermarkPluginObj;    /**< ThunderAccessAAMP object for communicating with Watermark Plugin Obj*/
-	std::mutex mMutex;		   /**<  Lock for accessing mSecManagerObj*/
+	std::mutex mSecMutex;		   /**<  Lock for accessing mSecManagerObj*/
+	std::mutex mWatMutex;		   /**<  Lock for accessing mWatermarkPluginObj*/
 	std::list<std::string> mRegisteredEvents;
 	bool mSchedulerStarted;
 };
