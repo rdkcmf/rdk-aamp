@@ -398,6 +398,9 @@ static void* AAMPGstPlayer_StreamThread(void *arg);
 static bool initialized = false;
 GThread *aampMainLoopThread = NULL;
 
+
+static bool enableProgressLog = false;
+
 /**
  * @brief check if the char array is having numbers only
  * @param s
@@ -480,7 +483,7 @@ void TermPlayerLoop()
 static void showList(void)
 {
 	printf("******************************************************************************************\n");
-	printf("*   Virtual Channel Map \n");
+	printf("*   Virtual Channel Map\n");
 	printf("******************************************************************************************\n");
 	mVirtualChannelMap.Print();
 }
@@ -614,6 +617,7 @@ static void ShowHelp(void)
 	printf("prev                  // Play previous virtual channel\n");
 	printf("exit                  // Exit from application\n");
 	printf("help                  // Show this list again\n");
+	printf("progress              // Enable/disable Progress event logging\n");
 	printf("******************************************************************************************\n");
 }
 
@@ -638,11 +642,11 @@ void ShowHelpGet(){
  */
 void ShowHelpSet(){
 	printf("******************************************************************************************\n");
-	printf("*   set <command> [<arguments>] \n");
+	printf("*   set <command> [<arguments>]\n");
 	printf("*   Usage of Commands with arguemnts expected in ()\n");
 	printf("******************************************************************************************\n");
 	for (int iLoop = 0; iLoop < eAAMP_SET_TYPE_COUNT; iLoop++){
-		printf("* set %2d %s \n", iLoop+1, mSetHelpText[iLoop]);
+		printf("* set %2d %s\n", iLoop+1, mSetHelpText[iLoop]);
 	}
 	printf("******************************************************************************************\n");
 }
@@ -741,7 +745,7 @@ public:
 		case AAMP_EVENT_SPEED_CHANGED:
 				{
 					SpeedChangedEventPtr ev = std::dynamic_pointer_cast<SpeedChangedEvent>(e);
-					printf("[AAMPCLI] AAMP_EVENT_SPEED_CHANGED current rae=%d\n", ev->getRate());
+					printf("[AAMPCLI] AAMP_EVENT_SPEED_CHANGED current rate=%d\n", ev->getRate());
 					break;
 				}
 		case AAMP_EVENT_DRM_METADATA:
@@ -764,7 +768,10 @@ public:
 				snprintf( string, sizeof(string), "%f", ev->getPosition()/1000.0 );
 				setSimulatorWindowTitle(string);
 #endif
-				printf("[AAMPCLI] AAMP_EVENT_PROGRESS\n\tDuration=%lf\n\tposition=%lf\n\tstart=%lf\n\tend=%lf\n\tcurrRate=%f\n\tBufferedDuration=%lf\n\tPTS=%lld\n\ttimecode=%s\n",ev->getDuration(),ev->getPosition(),ev->getStart(),ev->getEnd(),ev->getSpeed(),ev->getBufferedDuration(),ev->getPTS(),ev->getSEITimeCode());
+				if(enableProgressLog)
+				{
+					printf("[AAMPCLI] AAMP_EVENT_PROGRESS\n\tDuration=%lf\n\tposition=%lf\n\tstart=%lf\n\tend=%lf\n\tcurrRate=%f\n\tBufferedDuration=%lf\n\tPTS=%lld\n\ttimecode=%s\n",ev->getDuration(),ev->getPosition(),ev->getStart(),ev->getEnd(),ev->getSpeed(),ev->getBufferedDuration(),ev->getPTS(),ev->getSEITimeCode());
+				}
 			}
 				break;
 		case AAMP_EVENT_CC_HANDLE_RECEIVED:
@@ -1127,19 +1134,19 @@ static void ProcessCliCommand( char *cmd )
 	}
 	else if (memcmp(cmd, "islive", 6) == 0 )
 	{
-		printf("[AAMPCLI] VIDEO IS %s \n",
+		printf("[AAMPCLI] VIDEO IS %s\n",
 		(mSingleton->IsLive() == true )? "LIVE": "NOT LIVE");
 	}
 	else if (memcmp(cmd, "customheader", 12) == 0 )
 	{
 		//Dummy implimenations
 		std::vector<std::string> headerValue;
-		printf("[AAMPCLI] customheader Command is %s \n" , cmd);
+		printf("[AAMPCLI] customheader Command is %s\n" , cmd);
 		mSingleton->AddCustomHTTPHeader("", headerValue, false);
 	}
 	else if (memcmp(cmd, "reset", 5) == 0 )
 	{
-		printf("[AAMPCLI] Reset mSingleton instance %p \n", mSingleton);
+		printf("[AAMPCLI] Reset mSingleton instance %p\n", mSingleton);
 		mSingleton->Stop();
 
 		SAFE_DELETE(mSingleton);
@@ -1153,7 +1160,7 @@ static void ProcessCliCommand( char *cmd )
 
 		myEventListener = new myAAMPEventListener();
 		mSingleton->RegisterEvents(myEventListener);
-		printf("[AAMPCLI] New mSingleton instance %p \n", mSingleton);
+		printf("[AAMPCLI] New mSingleton instance %p\n", mSingleton);
 
 	}
 	else if (sscanf(cmd, "unlock %ld", &unlockSeconds) >= 1)
@@ -1175,6 +1182,10 @@ static void ProcessCliCommand( char *cmd )
 	{
 		mSingleton->EnableContentRestrictions();
 	}
+	else if (strcmp(cmd, "progress") == 0)
+	{
+		enableProgressLog = enableProgressLog ? false : true;
+	}
 	else if (memcmp(cmd, "set", 3) == 0 )
 	{
 		char help[8];
@@ -1185,7 +1196,7 @@ static void ProcessCliCommand( char *cmd )
 				{
 					int rate;
 					double ralatineTuneTime;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_RateAndSeek - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_RateAndSeek - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d %lf", &opt, &rate, &ralatineTuneTime ) == 3){
 						mSingleton->SetRateAndSeek(rate, ralatineTuneTime);
 					}
@@ -1200,7 +1211,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_VideoRectangle:
 				{
 					int x,y,w,h;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_VideoRectangle - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_VideoRectangle - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d %d %d %d", &opt, &x, &y, &w, &h) == 5){
 						mSingleton->SetVideoRectangle(x,y,w,h);
 					}
@@ -1215,7 +1226,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_VideoZoom:
 				{
 					int videoZoom;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_VideoZoom - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_VideoZoom - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &videoZoom) == 2){
 						mSingleton->SetVideoZoom((videoZoom > 0 )? VIDEO_ZOOM_FULL : VIDEO_ZOOM_NONE );
 					}
@@ -1230,7 +1241,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_VideoMute:
 				{
 					int videoMute;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_VideoMute - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_VideoMute - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &videoMute) == 2){
 						mSingleton->SetVideoMute((videoMute == 1 )? true : false );
 					}
@@ -1245,7 +1256,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_AudioVolume:
 				{
 					int vol;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_AudioVolume - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_AudioVolume - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &vol) == 2){
 						mSingleton->SetAudioVolume(vol);
 					}
@@ -1260,7 +1271,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_Language:
 				{
 					char lang[12];
-					printf("[AAMPCLI] Matched Command eAAMP_SET_Language - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_Language - %s\n", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, lang) == 2){
 						mSingleton->SetLanguage(lang);
 					}
@@ -1276,7 +1287,7 @@ static void ProcessCliCommand( char *cmd )
 				{
 					//Dummy implimentation
 					std::vector<std::string> subscribedTags;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_SubscribedTags - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_SubscribedTags - %s\n", cmd);
 					mSingleton->SetSubscribedTags(subscribedTags);
 					break;
 				}
@@ -1285,7 +1296,7 @@ static void ProcessCliCommand( char *cmd )
 				{
 					char lisenceUrl[1024];
 					int drmType;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_LicenseServerUrl - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_LicenseServerUrl - %s\n", cmd);
 					if (sscanf(cmd, "set %d %s %d", &opt, lisenceUrl, &drmType) == 3){
 						mSingleton->SetLicenseServerURL(lisenceUrl,
 						(drmType == eDRM_PlayReady)?eDRM_PlayReady:eDRM_WideVine);
@@ -1301,7 +1312,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_AnonymousRequest:
 				{
 					int isAnonym;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_AnonymousRequest - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_AnonymousRequest - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &isAnonym) == 2){
 						mSingleton->SetAnonymousRequest((isAnonym == 1)?true:false);
 					}
@@ -1316,7 +1327,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_VodTrickplayFps:
 				{
 					int vodTFps;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_VodTrickplayFps - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_VodTrickplayFps - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &vodTFps) == 2){
 						mSingleton->SetVODTrickplayFPS(vodTFps);
 					}
@@ -1331,7 +1342,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_LinearTrickplayFps:
 				{
 					int linearTFps;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_LinearTrickplayFps - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_LinearTrickplayFps - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &linearTFps) == 2){
 						mSingleton->SetLinearTrickplayFPS(linearTFps);
 					}
@@ -1346,7 +1357,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_LiveOffset:
 				{
 					int liveOffset;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_LiveOffset - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_LiveOffset - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &liveOffset) == 2){
 						mSingleton->SetLiveOffset(liveOffset);
 					}
@@ -1361,7 +1372,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_StallErrorCode:
 				{
 					int stallErrorCode;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_StallErrorCode - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_StallErrorCode - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &stallErrorCode) == 2){
 						mSingleton->SetStallErrorCode(stallErrorCode);
 					}
@@ -1376,7 +1387,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_StallTimeout:
 				{
 					int stallTimeout;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_StallTimeout - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_StallTimeout - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &stallTimeout) == 2){
 						mSingleton->SetStallTimeout(stallTimeout);
 					}
@@ -1386,7 +1397,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_ReportInterval:
 				{
 					int reportInterval;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_ReportInterval - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_ReportInterval - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &reportInterval) == 2){
 						mSingleton->SetReportInterval(reportInterval);
 					}
@@ -1401,7 +1412,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_VideoBitarate:
 				{
 					long videoBitarate;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_VideoBitarate - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_VideoBitarate - %s\n", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &videoBitarate) == 2){
 						mSingleton->SetVideoBitrate(videoBitarate);
 					}
@@ -1416,7 +1427,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_InitialBitrate:
 				{
 					long initialBitrate;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_InitialBitrate - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_InitialBitrate - %s\n", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &initialBitrate) == 2){
 						mSingleton->SetInitialBitrate(initialBitrate);
 					}
@@ -1431,7 +1442,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_InitialBitrate4k:
 				{
 					long initialBitrate4k;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_InitialBitrate4k - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_InitialBitrate4k - %s\n", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &initialBitrate4k) == 2){
 						mSingleton->SetInitialBitrate4K(initialBitrate4k);
 					}
@@ -1446,7 +1457,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_NetworkTimeout:
 				{
 					double networkTimeout;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_NetworkTimeout - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_NetworkTimeout - %s\n", cmd);
 					if (sscanf(cmd, "set %d %lf", &opt, &networkTimeout) == 2){
 						mSingleton->SetNetworkTimeout(networkTimeout);
 					}
@@ -1461,7 +1472,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_ManifestTimeout:
 				{
 					double manifestTimeout;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_ManifestTimeout - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_ManifestTimeout - %s\n", cmd);
 					if (sscanf(cmd, "set %d %lf", &opt, &manifestTimeout) == 2){
 						mSingleton->SetManifestTimeout(manifestTimeout);
 					}
@@ -1476,7 +1487,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_DownloadBufferSize:
 				{
 					int downloadBufferSize;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_DownloadBufferSize - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_DownloadBufferSize - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &downloadBufferSize) == 2){
 						mSingleton->SetDownloadBufferSize(downloadBufferSize);
 					}
@@ -1491,7 +1502,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_PreferredDrm:
 				{
 					int preferredDrm;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_PreferredDrm - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_PreferredDrm - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &preferredDrm) == 2){
 						mSingleton->SetPreferredDRM((DRMSystems)preferredDrm);
 					}
@@ -1506,7 +1517,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_StereoOnlyPlayback:
 				{
 					int stereoOnlyPlayback;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_StereoOnlyPlayback - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_StereoOnlyPlayback - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &stereoOnlyPlayback) == 2){
 						mSingleton->SetStereoOnlyPlayback(
 							(stereoOnlyPlayback == 1 )? true:false);
@@ -1525,7 +1536,7 @@ static void ProcessCliCommand( char *cmd )
 					std::string adBrkId = "";
 					std::string adId = "";
 					std::string url = "";
-					printf("[AAMPCLI] Matched Command eAAMP_SET_AlternateContent - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_AlternateContent - %s\n", cmd);
 					mSingleton->SetAlternateContents(adBrkId, adId, url);
 					break;
 				}
@@ -1533,7 +1544,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_NetworkProxy:
 				{
 					char networkProxy[128];
-					printf("[AAMPCLI] Matched Command eAAMP_SET_NetworkProxy - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_NetworkProxy - %s\n", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, networkProxy) == 2){
 						mSingleton->SetNetworkProxy(networkProxy);
 					}
@@ -1548,7 +1559,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_LicenseReqProxy:
 				{
 					char licenseReqProxy[128];
-					printf("[AAMPCLI] Matched Command eAAMP_SET_LicenseReqProxy - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_LicenseReqProxy - %s\n", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, licenseReqProxy) == 2){
 						mSingleton->SetLicenseReqProxy(licenseReqProxy);
 					}
@@ -1563,7 +1574,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_DownloadStallTimeout:
 				{
 					long downloadStallTimeout;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_DownloadStallTimeout - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_DownloadStallTimeout - %s\n", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &downloadStallTimeout) == 2){
 						mSingleton->SetDownloadStallTimeout(downloadStallTimeout);
 					}
@@ -1578,7 +1589,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_DownloadStartTimeout:
 				{
 					long downloadStartTimeout;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_DownloadStartTimeout - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_DownloadStartTimeout - %s\n", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &downloadStartTimeout) == 2){
 						mSingleton->SetDownloadStartTimeout(downloadStartTimeout);
 					}
@@ -1593,7 +1604,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_PreferredSubtitleLang:
 				{
 					char preferredSubtitleLang[12];
-					printf("[AAMPCLI] Matched Command eAAMP_SET_PreferredSubtitleLang - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_PreferredSubtitleLang - %s\n", cmd);
 					if (sscanf(cmd, "set %d %s", &opt, preferredSubtitleLang) == 2){
 						mSingleton->SetPreferredSubtitleLanguage(preferredSubtitleLang);
 					}
@@ -1608,7 +1619,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_ParallelPlaylistDL:
 				{
 					int parallelPlaylistDL;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_ParallelPlaylistDL - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_ParallelPlaylistDL - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &parallelPlaylistDL) == 2){
 						mSingleton->SetParallelPlaylistDL( (parallelPlaylistDL == 1)? true:false );
 					}
@@ -1634,7 +1645,7 @@ static void ProcessCliCommand( char *cmd )
 					bool prefRendPresent = false;
 					bool prefTypePresent = false;
 					bool prefCodecPresent = false;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_PreferredLanguages - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_PreferredLanguages - %s\n", cmd);
 					if (sscanf(cmd, "set %d %s %s %s %s", &opt, preferredLanguages, rendition, type, preferredCodec) == 5)
 					{
 						printf("[AAMPCLI] setting Preferred Languages (%s), rendition (%s), type (%s) and codec (%s)\n" ,
@@ -1663,7 +1674,7 @@ static void ProcessCliCommand( char *cmd )
 					}
 					else if (sscanf(cmd, "set %d %s %s", &opt, preferredLanguages, rendition, type) == 4)
 					{
-						printf("[AAMPCLI] setting PreferredLanguages (%s) with rendition (%s) and type (%s) \n" ,
+						printf("[AAMPCLI] setting PreferredLanguages (%s) with rendition (%s) and type (%s)\n" ,
 										preferredLanguages, rendition, type);  
 						if (0 != strcasecmp(preferredLanguages, "null"))
 						{
@@ -1683,7 +1694,7 @@ static void ProcessCliCommand( char *cmd )
 					}
 					else if (sscanf(cmd, "set %d %s %s", &opt, preferredLanguages, rendition) == 3)
 					{
-						printf("[AAMPCLI] setting PreferredLanguages (%s) with rendition (%s) \n" ,
+						printf("[AAMPCLI] setting PreferredLanguages (%s) with rendition (%s)\n" ,
 										preferredLanguages, rendition); 
 						if (0 != strcasecmp(preferredLanguages, "null"))
 						{
@@ -1698,7 +1709,7 @@ static void ProcessCliCommand( char *cmd )
 					}
 					else if (sscanf(cmd, "set %d %s", &opt, preferredLanguages) == 2)
 					{
-						printf("[AAMPCLI] setting PreferredLanguages (%s) \n",preferredLanguages );
+						printf("[AAMPCLI] setting PreferredLanguages (%s)\n",preferredLanguages );
 						if (0 != strcasecmp(preferredLanguages, "null"))
 						{
 							mSingleton->SetPreferredLanguages(preferredLanguages);
@@ -1721,7 +1732,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_InitRampdownLimit:
 				{
 					int rampDownLimit;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_InitRampdownLimit - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_InitRampdownLimit - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &rampDownLimit) == 2){
 						mSingleton->SetInitRampdownLimit(rampDownLimit);
 					}
@@ -1736,7 +1747,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_RampDownLimit:
 				{
 					int rampDownLimit;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_RampDownLimit - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_RampDownLimit - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &rampDownLimit) == 2){
 						mSingleton->SetRampDownLimit(rampDownLimit);
 					}
@@ -1751,7 +1762,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_MinimumBitrate:
 				{
 					long minBitrate;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_MinimumBitrate - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_MinimumBitrate - %s\n", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &minBitrate) == 2){
 						mSingleton->SetMinimumBitrate(minBitrate);
 					}
@@ -1766,7 +1777,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_MaximumBitrate:
 				{
 					long maxBitrate;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_MaximumBitrate - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_MaximumBitrate - %s\n", cmd);
 					if (sscanf(cmd, "set %d %ld", &opt, &maxBitrate) == 2){
 						mSingleton->SetMaximumBitrate(maxBitrate);
 					}
@@ -1781,7 +1792,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_MaximumSegmentInjFailCount:
 				{
 					int failCount;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_MaximumSegmentInjFailCount - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_MaximumSegmentInjFailCount - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &failCount) == 2){
 						mSingleton->SetSegmentInjectFailCount(failCount);
 					}
@@ -1796,7 +1807,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_SslVerifyPeer:
 				{
 					int value;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_SslVerifyPeer - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_SslVerifyPeer - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &value) == 2){
 						mSingleton->SetSslVerifyPeerConfig(value == 1);
 					}
@@ -1811,7 +1822,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_MaximumDrmDecryptFailCount:
 				{
 					int failCount;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_MaximumDrmDecryptFailCount - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_MaximumDrmDecryptFailCount - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &failCount) == 2){
 						mSingleton->SetSegmentDecryptFailCount(failCount);
 					}
@@ -1826,7 +1837,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_RegisterForID3MetadataEvents:
 				{
 					int id3MetadataEventsEnabled;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_RegisterForID3MetadataEvents - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_RegisterForID3MetadataEvents - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &id3MetadataEventsEnabled) == 2){
 						if (id3MetadataEventsEnabled)
 						{
@@ -1849,7 +1860,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_RegisterForMediaMetadata:
 				{
 					int mediaMetadataEventsEnabled;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_RegisterForMediaMetadata - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_RegisterForMediaMetadata - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &mediaMetadataEventsEnabled) == 2){
 						if (mediaMetadataEventsEnabled)
 						{
@@ -1889,7 +1900,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_InitialBufferDuration:
 				{
 					int duration;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_InitialBufferDuration - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_InitialBufferDuration - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &duration) == 2)
 					{
 						mSingleton->SetInitialBufferDuration(duration);
@@ -1907,7 +1918,7 @@ static void ProcessCliCommand( char *cmd )
 					int track;
 					char strTrackInfo[512];
 					memset(strTrackInfo, '\0', sizeof(strTrackInfo));
-					printf("[AAMPCLI] Matched Command eAAMP_SET_AudioTrack - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_AudioTrack - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &track) == 2)
 					{
 						mSingleton->SetAudioTrack(track);
@@ -1967,7 +1978,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_TextTrack:
 				{
 					int track;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_TextTrack - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_TextTrack - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &track) == 2)
 					{
 						mSingleton->SetTextTrack(track);
@@ -1983,7 +1994,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_CCStatus:
 				{
 					int status;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_CCStatus - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_CCStatus - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &status) == 2)
 					{
 						mSingleton->SetCCStatus(status == 1);
@@ -1999,7 +2010,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_CCStyle:
 				{
 					int value;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_CCStyle - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_CCStyle - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &value) == 2)
 					{
 						std::string options;
@@ -2034,7 +2045,7 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_SET_PropagateUriParam:
 				{
 					int propagateUriParam;
-					printf("[AAMPCLI] Matched Command eAAMP_SET_PropogateUriParam - %s \n", cmd);
+					printf("[AAMPCLI] Matched Command eAAMP_SET_PropogateUriParam - %s\n", cmd);
 					if (sscanf(cmd, "set %d %d", &opt, &propagateUriParam) == 2){
 						mSingleton->SetPropagateUriParameters((bool) propagateUriParam);
 					}
@@ -2055,7 +2066,7 @@ static void ProcessCliCommand( char *cmd )
 				}
 				case eAAMP_SET_DownloadDelayOnFetch:
 				{
-						logprintf("Matched Command eAAMP_SET_DownloadDelayOnFetch - %s",cmd);
+						printf("[AAMPCLI] Matched Command eAAMP_SET_DownloadDelayOnFetch - %s\n",cmd);
 						sscanf(cmd, "set %d %d", &opt, &DownloadDelayInMs);
 						mSingleton->ApplyArtificialDownloadDelay(DownloadDelayInMs);
 						break;
@@ -2156,42 +2167,42 @@ static void ProcessCliCommand( char *cmd )
 					break;
 
 				case eAAMP_GET_CurrentAudioLan:
-					printf("[AAMPCLI] CURRRENT AUDIO LANGUAGE = %s \n",
+					printf("[AAMPCLI] CURRRENT AUDIO LANGUAGE = %s\n",
 					mSingleton->GetCurrentAudioLanguage());
 					break;
 
 				case eAAMP_GET_CurrentDrm:
-					printf("[AAMPCLI] CURRRENT DRM  = %s \n",
+					printf("[AAMPCLI] CURRRENT DRM  = %s\n",
 					mSingleton->GetCurrentDRM());
 					break;
 
 				case eAAMP_GET_PlaybackPosition:
-					printf("[AAMPCLI] PLAYBACK POSITION = %lf \n",
+					printf("[AAMPCLI] PLAYBACK POSITION = %lf\n",
 					mSingleton->GetPlaybackPosition());
 					break;
 
 				case eAAMP_GET_PlaybackDuration:
-					printf("[AAMPCLI] PLAYBACK DURATION = %lf \n",
+					printf("[AAMPCLI] PLAYBACK DURATION = %lf\n",
 					mSingleton->GetPlaybackDuration());
 					break;
 
 				case eAAMP_GET_VideoBitrate:
-					printf("[AAMPCLI] VIDEO BITRATE = %ld \n",
+					printf("[AAMPCLI] VIDEO BITRATE = %ld\n",
 					mSingleton->GetVideoBitrate());
 					break;
 
 				case eAAMP_GET_AudioBitrate:
-					printf("[AAMPCLI] AUDIO BITRATE = %ld \n",
+					printf("[AAMPCLI] AUDIO BITRATE = %ld\n",
 					mSingleton->GetAudioBitrate());
 					break;
 
 				case eAAMP_GET_AudioVolume:
-					printf("[AAMPCLI] AUDIO VOLUME = %d \n",
+					printf("[AAMPCLI] AUDIO VOLUME = %d\n",
 					mSingleton->GetAudioVolume());
 					break;
 				
 				case eAAMP_GET_PlaybackRate:
-					printf("[AAMPCLI] PLAYBACK RATE = %d \n",
+					printf("[AAMPCLI] PLAYBACK RATE = %d\n",
 					mSingleton->GetPlaybackRate());
 					break;
 
@@ -2203,7 +2214,7 @@ static void ProcessCliCommand( char *cmd )
 					for(int i=0; i < videoBitrates.size(); i++){
 						printf("%ld, ", videoBitrates[i]);
 					}
-					printf(" ] \n");
+					printf(" ]\n");
 					break;
 				}
 
@@ -2215,13 +2226,13 @@ static void ProcessCliCommand( char *cmd )
 					for(int i=0; i < audioBitrates.size(); i++){
 						printf("%ld, ", audioBitrates[i]);
 					}
-					printf(" ] \n");
+					printf(" ]\n");
 					break;
 				}
 				case eAAMP_GET_CurrentPreferredLanguages:
 				{
 					const char *prefferedLanguages = mSingleton->GetPreferredLanguages();
-					printf("[AAMPCLI] PREFERRED LANGUAGES = \"%s\" \n", prefferedLanguages? prefferedLanguages : "<NULL>");
+					printf("[AAMPCLI] PREFERRED LANGUAGES = \"%s\"\n", prefferedLanguages? prefferedLanguages : "<NULL>");
 					break;
 				}
 
