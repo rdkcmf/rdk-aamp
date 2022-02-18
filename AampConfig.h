@@ -183,6 +183,7 @@ typedef enum
 	eAAMPConfig_EnableIgnoreEosSmallFragment,                                       /** Enable/Disable Small fragment ignore based on minimum duration Threshold at period End*/
 	eAAMPConfig_UseSecManager,                                             /** Enable/Disable secmanager instead of secclient for license acquisition */
 	eAAMPConfig_EnableAampConfigToFog,                                              /** Enable/Disable player config to Fog on every tune*/
+	eAAMPConfig_XRESupportedTune,						/**< Enable/Disable XRE supported tune*/
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,

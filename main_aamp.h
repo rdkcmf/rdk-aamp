@@ -1520,10 +1520,16 @@ public:
 
 	/**
          *   @brief To set UseAbsoluteTimeline for DASH
-         *
+	 *
          *   @param[in] bool enable/disable configuration
          */
 	void SetUseAbsoluteTimeline(bool configState);
+
+	/**
+  	 *  @brief To set whether the JS playback session is from XRE or not.
+   	 *   @param[in] bool On/Off
+         */
+	void XRESupportedTune(bool xreSupported);
 
 	/**
 	 *   @brief Enable async operation and initialize resources
