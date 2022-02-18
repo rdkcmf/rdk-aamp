@@ -125,6 +125,7 @@ class BitStreamState
 		{
 			ptr = L.ptr;
 			bit_offset = L.bit_offset;
+			return *this;
 		} // assignment
 		BitStreamState(const guint8 *ptr ):
 		ptr(ptr),
