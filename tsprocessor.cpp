@@ -1716,9 +1716,11 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 							{
 								int patTableIndex = payloadOffset + 9; 				// PAT table start
 								int patTableEndIndex = payloadOffset + length -1; 	// end of PAT table
+								pthread_mutex_lock(&m_mutex);
 
 								m_havePAT = true;
 								m_versionPAT = version;
+								pthread_mutex_unlock(&m_mutex);
 
 								do {
 									m_program = ((packet[patTableIndex + 0] << 8) + packet[patTableIndex + 1]);
@@ -1885,7 +1887,10 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 							int avail = m_packetSize - m_ttsSize - payloadOffset;
 							int sectionAvail = m_pmtCollectorSectionLength - m_pmtCollectorOffset;
 							int copylen = ((avail > sectionAvail) ? sectionAvail : avail);
-							rmf_osal_memcpy(&m_pmtCollector[m_pmtCollectorOffset], &packet[payloadOffset], copylen, (MAX_PMT_SECTION_SIZE - m_pmtCollectorOffset), (bufferEnd - &packet[payloadOffset]));
+							if(m_pmtCollector)
+							{    //CID:87880 - forward null
+								rmf_osal_memcpy(&m_pmtCollector[m_pmtCollectorOffset], &packet[payloadOffset], copylen, (MAX_PMT_SECTION_SIZE - m_pmtCollectorOffset), (bufferEnd - &packet[payloadOffset]));
+							}
 							m_pmtCollectorOffset += copylen;
 							if (m_pmtCollectorOffset == m_pmtCollectorSectionLength)
 							{

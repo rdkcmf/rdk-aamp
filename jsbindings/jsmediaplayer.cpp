@@ -506,9 +506,6 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 
 			}
 
-			SAFE_DELETE_ARRAY(url);
-			SAFE_DELETE_ARRAY(contentType);
-			SAFE_DELETE_ARRAY(strTraceId);
 		
 			break;
 		}
@@ -519,6 +516,10 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 	}
 
 	TRACELOG("Exit %s()", __FUNCTION__);
+        SAFE_DELETE_ARRAY(url);
+        SAFE_DELETE_ARRAY(contentType);
+        SAFE_DELETE_ARRAY(strTraceId);
+
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1833,7 +1834,7 @@ JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef fun
 		char* type = aamp_JSValueToCString(ctx, arguments[0], NULL);
 		JSObjectRef callbackObj = JSValueToObject(ctx, arguments[1], NULL);
 
-		if (callbackObj != NULL && JSObjectIsFunction(ctx, callbackObj))
+		if ((callbackObj != NULL) && JSObjectIsFunction(ctx, callbackObj))
 		{
 			AAMPEventType eventType = aampPlayer_getEventTypeFromName(type);
 			LOG("%s() eventType='%s', %d", __FUNCTION__, type, eventType);
@@ -1845,7 +1846,7 @@ JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef fun
 		}
 		else
 		{
-			ERROR("%s() callbackObj=%p, JSObjectIsFunction(context, callbackObj)=%d", __FUNCTION__, callbackObj, JSObjectIsFunction(ctx, callbackObj));
+			ERROR("%s() callbackObj=%p, JSObjectIsFunction(context, callbackObj) is NULL", __FUNCTION__, callbackObj);
 			char errMsg[512];
 			memset(errMsg, '\0', 512);
 			snprintf(errMsg, 511, "Failed to execute addEventListener() for event %s - parameter 2 is not a function", type);
@@ -1889,7 +1890,7 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
 		char* type = aamp_JSValueToCString(ctx, arguments[0], NULL);
 		JSObjectRef callbackObj = JSValueToObject(ctx, arguments[1], NULL);
 
-		if (callbackObj != NULL && JSObjectIsFunction(ctx, callbackObj))
+		if ((callbackObj != NULL) && JSObjectIsFunction(ctx, callbackObj))
 		{
 			AAMPEventType eventType = aampPlayer_getEventTypeFromName(type);
 			LOG("[AAMP_JS] %s() eventType='%s', %d", __FUNCTION__, type, eventType);
@@ -1901,7 +1902,7 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
 		}
 		else
 		{
-			ERROR("%s() InvalidArgument: callbackObj=%p, JSObjectIsFunction(context, callbackObj)=%d", __FUNCTION__, callbackObj, JSObjectIsFunction(ctx, callbackObj));
+			ERROR("%s() InvalidArgument: callbackObj=%p, JSObjectIsFunction(context, callbackObj) is NULL", __FUNCTION__, callbackObj);
 			char errMsg[512];
 			memset(errMsg, '\0', 512);
 			snprintf(errMsg, 511, "Failed to execute removeEventListener() for event %s - parameter 2 is not a function", type);
@@ -2387,7 +2388,7 @@ static JSValueRef AAMPMediaPlayerJS_setAlternateContent(JSContextRef ctx, JSObje
 		}
 	
 		JSObjectRef callbackObj = JSValueToObject(ctx, arguments[1], NULL);
-		if (callbackObj != NULL && JSObjectIsFunction(ctx, callbackObj) && adId && reservationId && adURL)
+		if ((callbackObj) && JSObjectIsFunction(ctx, callbackObj) && adId && reservationId && adURL)
 		{
 			std::string adIdStr(adId);  //CID:115002 - Resolve Forward null
 			std::string adBreakId(reservationId);  //CID:115001 - Resolve Forward null

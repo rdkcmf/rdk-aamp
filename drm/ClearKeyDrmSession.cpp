@@ -236,7 +236,7 @@ DrmData * ClearKeySession::aampGenerateKeyRequest(string& destinationURL, uint32
 					if(requestBody)
 					{
 						AAMPLOG_INFO("Generated license request : %s", requestBody);
-						licenseChallenge = new DrmData(reinterpret_cast<unsigned char*>(requestBody), strlen(requestBody));
+						licenseChallenge = new DrmData(reinterpret_cast<unsigned char*>(requestBody), strlen(requestBody)+1);  //CID:154682 - overrun
 						m_eKeyState = KEY_PENDING;
 						cJSON_free(requestBody);
 					}
