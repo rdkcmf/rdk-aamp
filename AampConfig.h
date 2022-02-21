@@ -184,6 +184,7 @@ typedef enum
 	eAAMPConfig_UseSecManager,                                             /** Enable/Disable secmanager instead of secclient for license acquisition */
 	eAAMPConfig_EnablePTO,								/** Enable/Disable PTO Handling */
 	eAAMPConfig_EnableAampConfigToFog,                                              /** Enable/Disable player config to Fog on every tune*/
+	eAAMPConfig_AllowPageHeaders,						/**< Allow page http headers*/
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,

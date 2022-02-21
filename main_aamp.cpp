@@ -1266,6 +1266,23 @@ const char* PlayerInstanceAAMP::GetCurrentDRM(void)
 }
 
 /**
+ * @brief Applies the custom http headers for page (Injector bundle) received from the js layer
+ * @param id customHttpHeaders map of custom http headers
+ */
+void PlayerInstanceAAMP::AddPageHeaders(std::map<std::string, std::string> pageHeaders)
+{
+	ERROR_STATE_CHECK_VOID();
+	if(aamp && ISCONFIGSET(eAAMPConfig_AllowPageHeaders))
+	{
+		for(auto &header : pageHeaders)
+		{
+			AAMPLOG_INFO("PrivateInstanceAAMP: applying the http header key: %s, value: %s", header.first.c_str(), header.second.c_str());
+			aamp->AddCustomHTTPHeader(header.first, std::vector<std::string>{header.second}, false);
+		}
+	}
+}
+
+/**
  *   @brief Add/Remove a custom HTTP header and value.
  *
  *   @param  headerName - Name of custom HTTP header
