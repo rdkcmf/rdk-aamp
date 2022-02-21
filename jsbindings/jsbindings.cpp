@@ -1860,7 +1860,7 @@ static JSValueRef AAMP_addEventListener(JSContextRef context, JSObjectRef functi
 		}
 		else
 		{
-			ERROR("[AAMP_JS] %s() callbackObj=%p, JSObjectIsFunction(context, callbackObj)=%d", __FUNCTION__, callbackObj, JSObjectIsFunction(context, callbackObj));
+			ERROR("[AAMP_JS] %s() callbackObj=%p, JSObjectIsFunction(context, callbackObj) is NULL", __FUNCTION__, callbackObj);
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.addEventListener' - parameter 2 is not a function");
 		}
 	}
@@ -2019,7 +2019,7 @@ static JSValueRef AAMP_removeEventListener(JSContextRef context, JSObjectRef fun
 	{
 		JSObjectRef callbackObj = JSValueToObject(context, arguments[1], NULL);
 
-		if (callbackObj != NULL && JSObjectIsFunction(context, callbackObj))
+		if ((callbackObj != NULL) && (JSObjectIsFunction(context, callbackObj)))
 		{
 			char* type = aamp_JSValueToCString(context, arguments[0], NULL);
 			AAMPEventType eventType = aamp_getEventTypeFromName(type);
@@ -2034,7 +2034,7 @@ static JSValueRef AAMP_removeEventListener(JSContextRef context, JSObjectRef fun
 		}
 		else
 		{
-			ERROR("[AAMP_JS] %s() InvalidArgument: callbackObj=%p, JSObjectIsFunction(context, callbackObj)=%d", __FUNCTION__, callbackObj, JSObjectIsFunction(context, callbackObj));
+			ERROR("[AAMP_JS] %s() InvalidArgument: callbackObj=%p, JSObjectIsFunction(context, callbackObj) is NULL", __FUNCTION__, callbackObj);
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.removeEventListener' - parameter 2 is not a function");
 		}
 	}
