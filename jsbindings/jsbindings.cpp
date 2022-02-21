@@ -54,6 +54,7 @@ extern "C"
 	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
 
 	JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context);
+	void aamp_ApplyPageHttpHeaders(PlayerInstanceAAMP *);
 }
 
 /**
@@ -2149,6 +2150,7 @@ static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObject
 		case 1:
 			{
 				char* url = aamp_JSValueToCString(context, arguments[0], exception);
+				aamp_ApplyPageHttpHeaders(pAAMP->_aamp);
 				{
 					pAAMP->_aamp->Tune(url, true, contentType, bFirstAttempt, bFinalAttempt);
 
@@ -2239,6 +2241,7 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 		}
 
 		char* url = aamp_JSValueToCString(context, arguments[0], exception);
+		aamp_ApplyPageHttpHeaders(pAAMP->_aamp);
 		if (strAuthToken != NULL){
 			LOG("[AAMP_JS] %s() - authToken provided by the App", __FUNCTION__);
 			pAAMP->_aamp->SetSessionToken(strAuthToken);

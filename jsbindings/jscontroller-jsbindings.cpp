@@ -43,8 +43,13 @@ extern "C"
 	void setAAMPPlayerInstance(PlayerInstanceAAMP *, int);
 
 	void unsetAAMPPlayerInstance(PlayerInstanceAAMP *);
-}
 
+	void aamp_SetPageHttpHeaders(const char* headers);
+
+	void aamp_ApplyPageHttpHeaders(PlayerInstanceAAMP *);
+}
+//global variable to hold the custom http headers
+static std::map<std::string, std::string> g_PageHttpHeaders;
 
 /**
  * @struct AAMP_JSController
@@ -450,6 +455,64 @@ static const JSClassDefinition AAMP_JSController_class_def =
 	NULL
 };
 
+/**
+ * @brief Sets the custom http headers from recieved json string
+ * @param[in] headerJson http headers json in string format
+ */
+void aamp_SetPageHttpHeaders(const char* headerJson)
+{
+	//headerJson is expected to be in the format "[{\"name\":\"X-PRIVACY-SETTINGS\",\"value\":\"lmt=1,us_privacy=1-Y-\"},    {\"name\":\"abc\",\"value\":\"xyz\"}]"
+	g_PageHttpHeaders.clear();
+	if(nullptr != headerJson || '\0' != headerJson[0])
+	{
+		INFO("[AAMP_JSController] aamp_SetPageHttpHeaders headerJson=%s", headerJson);
+		cJSON *parentJsonObj = cJSON_Parse(headerJson);
+		cJSON *jsonObj = nullptr;
+		if(nullptr != parentJsonObj)
+		{
+			jsonObj = parentJsonObj->child;
+		}
+		
+		while(nullptr != jsonObj)
+		{
+			cJSON *child = jsonObj->child;
+			std::string key = "";
+			std::string val = "";
+			while( nullptr != child )
+			{
+				if(strcmp (child->string,"name") == 0)
+				{
+					key = std::string(child->valuestring);
+				}
+				else if(strcmp (child->string,"value") == 0)
+				{
+					val = std::string(child->valuestring);
+				}
+				child = child->next;
+			}
+			if(!key.empty())
+			{
+				//insert key value pairs one by one
+				g_PageHttpHeaders.insert(std::make_pair(key, val));
+			}
+			jsonObj = jsonObj->next;
+		}
+		if(parentJsonObj)
+			cJSON_Delete(parentJsonObj);
+	}
+}
+/**
+ * @brief applies the parsed custom http headers into the aamp
+ * @param[in] aampObject main aamp object
+ */
+void aamp_ApplyPageHttpHeaders(PlayerInstanceAAMP * aampObject)
+{
+	INFO("[AAMP_JSController] aamp_ApplyPageHttpHeaders aampObject=%p", aampObject);
+	if(NULL != aampObject)
+	{
+		aampObject->AddPageHeaders(g_PageHttpHeaders);
+	}
+}
 
 /**
  * @brief Loads AAMP_JSController JS object into JS execution context

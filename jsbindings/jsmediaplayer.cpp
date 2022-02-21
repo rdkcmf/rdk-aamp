@@ -45,6 +45,7 @@
 extern "C"
 {
 	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
+	void aamp_ApplyPageHttpHeaders(PlayerInstanceAAMP *);
 }
 
 /**
@@ -499,7 +500,7 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 		case 1:
 		{
 			url = aamp_JSValueToCString(ctx, arguments[0], exception);
-
+			aamp_ApplyPageHttpHeaders(privObj->_aamp);
 			{
 				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
 				privObj->_aamp->Tune(url, autoPlay, contentType, bFirstAttempt, bFinalAttempt,strTraceId);

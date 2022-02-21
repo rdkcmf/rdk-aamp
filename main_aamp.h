@@ -789,6 +789,11 @@ public:
 	 *   @return char* - current drm
 	 */
 	const char* GetCurrentDRM();
+	/**
+	 * @brief Applies the custom http headers received from the js layer
+	 * @param id customHttpHeaders map of custom http headers
+	 */
+	void AddPageHeaders(std::map<std::string, std::string> customHttpHeaders);
 
 	/**
 	 *   @brief Add/Remove a custom HTTP header and value.

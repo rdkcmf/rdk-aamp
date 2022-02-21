@@ -250,7 +250,9 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"supportTLS",eAAMPConfig_TLSVersion,{.lMinValue=CURL_SSLVERSION_DEFAULT},{.lMaxValue=CURL_SSLVERSION_TLSv1_3}},
 	{"fogMaxConcurrentDownloads",eAAMPConfig_FogMaxConcurrentDownloads, -1, -1},
         {"enableFogConfig", eAAMPConfig_EnableAampConfigToFog, -1, -1},
-	{"xreSupportedTune",eAAMPConfig_XRESupportedTune,-1,-1}
+	{"xreSupportedTune",eAAMPConfig_XRESupportedTune,-1,-1},
+	{"allowPageHeaders",eAAMPConfig_AllowPageHeaders,-1,-1},
+	
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -356,6 +358,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_ID3Logging].value    				= 	false;
 	bAampCfgValue[eAAMPConfig_CurlHeader].value					=	false;
 	bAampCfgValue[eAAMPConfig_XRESupportedTune].value			=	true;
+	bAampCfgValue[eAAMPConfig_AllowPageHeaders].value			=	true;
 	//bAampCfgValue[eAAMPConfig_XREEventReporting].value			=	true;
 #ifdef INTELCE
 	bAampCfgValue[eAAMPConfig_EnableGstPositionQuery].value			=	false;
@@ -526,7 +529,6 @@ void AampConfig::Initialize()
 	sAampCfgValue[eAAMPConfig_PreferredAudioRendition-eAAMPConfig_StringStartValue].value	=	"";
 	sAampCfgValue[eAAMPConfig_PreferredAudioCodec-eAAMPConfig_StringStartValue].value	=	"";
 	sAampCfgValue[eAAMPConfig_PreferredAudioLanguage-eAAMPConfig_StringStartValue].value    =       "en";
-
 }
 
 #if 0
