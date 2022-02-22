@@ -3171,9 +3171,26 @@ bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 {
 	FN_TRACE( __FUNCTION__ );
+	int currentX = 0, currentY = 0, currentW = 0, currentH = 0;
+
+#ifdef INTELCE
+	if (strcmp(privateContext->videoRectangle, "0,0,0,0") != 0)
+#else
+	if (strcmp(privateContext->videoRectangle, "") != 0)
+#endif
+		sscanf(privateContext->videoRectangle,"%d,%d,%d,%d",&currentX,&currentY,&currentW,&currentH);
+
+	//check the existing VideoRectangle co-ordinates
+	if ((currentX == x) && (currentY == y) && (currentW == w) && (currentH == h))
+	{
+		AAMPLOG_TRACE("Ignoring new co-ordinates, same as current Rect (x:%d, y:%d, w:%d, h:%d)", currentX, currentY, currentW, currentH);
+		//ignore setting same rectangle co-ordinates and return
+		return;
+	}
+
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_VIDEO];
 	sprintf(privateContext->videoRectangle, "%d,%d,%d,%d", x,y,w,h);
-	AAMPLOG_WARN("SetVideoRectangle :: Rect %s, using_playersinkbin = %d, video_sink =%p",
+	AAMPLOG_WARN("Rect %s, using_playersinkbin = %d, video_sink =%p",
 			privateContext->videoRectangle, stream->using_playersinkbin, privateContext->video_sink);
 	if (ISCONFIGSET(eAAMPConfig_EnableRectPropertyCfg)) //As part of DELIA-37804
 	{
@@ -3206,7 +3223,7 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 	}
 	else
 	{
-		AAMPLOG_WARN("SetVideoRectangle ignored since westerossink is used");
+		AAMPLOG_WARN("New co-ordinates ignored since westerossink is used");
 	}
 }
 
