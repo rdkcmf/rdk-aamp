@@ -1,0 +1,94 @@
+<html>
+	<!-- canvas based rendering for huge log files, as alternative to html -->
+	<head>
+		<title>Log Viewer</title>
+		<script src="dragger.js"></script>
+		<script>
+			const FONT_SIZE = "16px Courier";
+			const LINE_HEIGHT = 20;
+			const DESCENDER_ADJUST = 5;
+			var log = [];
+			
+			function myclickhandler(e)
+			{
+				var row = Math.floor((e.offsetY+translateY)/LINE_HEIGHT);
+				console.log( "sending scrollTo " + row );
+				windowHandle.postMessage( { "command":"scrollTo", "line":row }, TARGET_ORIGIN );
+			}
+			
+			function paint()
+			{
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				ctx.font = FONT_SIZE;
+				ctx.textAlign = "left";
+				var y = LINE_HEIGHT-(translateY%LINE_HEIGHT);
+				var row = Math.floor(translateY/LINE_HEIGHT);
+				while( row<log.length )
+				{
+					var line = log[row];
+					var color = line[0];
+					if( color )
+					{
+						ctx.fillStyle = color;
+						ctx.fillRect( 0,y-LINE_HEIGHT,canvas.width,LINE_HEIGHT);
+					}
+					ctx.fillStyle = "#000000";
+					ctx.fillText( line[1], -translateX, y-DESCENDER_ADJUST );
+					
+					y += LINE_HEIGHT;
+					if( y>canvas.height+LINE_HEIGHT )
+					{ // reached bottom
+						break;
+					}
+					row++;
+				}
+			}
+			
+			function AdjustSizeAndRepaint()
+			{
+				canvas.width = window.innerWidth - 32;
+				canvas.height = window.innerHeight - 32;
+				paint();
+			}
+			
+			window.onload = function() {
+				canvas = document.getElementById("myCanvas");
+				ctx = canvas.getContext("2d");
+				
+				window.addEventListener( "message", (event) => {
+					windowHandle = event.source;
+					if( event.data.command == "scrollTo" )
+					{
+						var line = event.data.line;
+						console.log( "received scrollTo " + line );
+						dragTo(translateX,line*LINE_HEIGHT);
+						//translateY = line*LINE_HEIGHT;
+						paint();
+					}
+					else if( event.data.command == "initialize" )
+					{
+						console.log( "initializing text" );
+						translateY = 0;
+						log = event.data.text;
+						paint();
+					}
+				}, false);
+				
+				AdjustSizeAndRepaint();
+				
+				draggger_Init();
+				
+				window.addEventListener("keydown", function(e){
+					 if(e.which == 70 && (e.ctrlKey || e.metaKey))
+					 { // override control+F find feature
+						 e.preventDefault();
+						}
+				  });
+			}
+		</script>
+		<body>
+			<div style="width:100%;height:100%;overflow: scroll;">
+				<canvas id="myCanvas" style="border:1px solid #000000;overflow: scroll;"></canvas>
+	  		</div>
+		</body>
+</html>

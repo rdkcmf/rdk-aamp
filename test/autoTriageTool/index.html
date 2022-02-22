@@ -1,27 +1,102 @@
 <html>
-   <head>
-      <title>Auto Triage Tool</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1">
-      <link rel="stylesheet" href="autoTriageStyle.css">
-      <script src="parseUtils.js"></script>
-      <script src="autoTriageScript.js"></script>
-   </head>
-   <body>
-      <div id="navbar" class="triage-tool-bar">
-         <a id="triageTool"><b>AUTO TRIAGE TOOL</b></a>
-         <label id="fileUpload" for="files">1. Upload</label>
-         <input type="file" name="files" multiple id="files" />
-         <button id="indexButton">2. Index</button>
-         <nobr class="check-box-name">3. Session:</nobr> 
-         <select name="session" id="session" class="session-drop-down">
-         </select>
-         <input id="timeminus" type="button" value="←"/>
-         <input id="timeplus" type="button" value="→"/>
-         <nobr id="durationID" class="check-box-name"></nobr>
-         <input type="text" id="jumpPosition" name="jumpPosition" placeholder="time(MM:SS) or GMT">
-         <button id="jumpButton">JUMP </button>
-         <button id="jumpHelpButton">? </button> 
-      </div>
-	  <canvas id="myCanvas" style="overflow: scroll;"></canvas>
-   </body>
+	<head>
+		<title>Auto Triage Tool</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+			<link rel="stylesheet" href="autotriage.css">
+			<link rel="icon" href="favicon.ico">
+			<script src="dragger.js"></script>
+			<script src="parseutils.js"></script>
+			<script src="autotriage.js"></script>
+			<script src="exportStats.js"></script>
+				
+			<script src="markers/0_general.json"></script>
+			<script src="markers/1_aampgstplayer.json"></script>
+			<script src="markers/2_main.json"></script>
+			<script src="markers/3_priv_aamp.json"></script>
+			<script src="markers/4_hls.json"></script>
+			<script src="markers/5_dash.json"></script>
+			<script src="markers/8_tsprocessor.json"></script>
+	</head>
+	<body>
+		<div id="navbar" class="triage-tool-bar">
+			<a id="triageTool"><b>AUTO TRIAGE TOOL</b></a>
+			<label id="logUpload" for="files">Upload Log</label>
+			<input type="file" name="files" multiple id="files" />
+			<label id="markerUpload" for="userdefmarkers">Upload Markers</label>
+			<input type="file" name="userdefmarkers" multiple id="userdefmarkers" />
+
+			<button id="exportButton">Export Statistics</button>
+			
+			<nobr class="list-name">Session:</nobr> 
+			<select name="session" id="session" class="session-drop-down">
+			</select>
+		
+			<nobr class="list-name">Marker: </nobr> 
+			<select name="session" id="markers" class="markers-drop-down">
+			</select>
+
+
+			<!--
+			<input type="checkbox" class="check-box" checked id="filter-player"/>
+			<label class="check-box-label" for="filter-player" checked>Include Non-AAMP Logs</label>
+			<br/>
+			<input type="checkbox" class="check-box" id="filter-markers"/>
+			<label class="check-box-label" for="filter-markers">Show All Markers</label>
+			<hr/>
+			-->
+		</div>
+		<div id="fileUploadResponse">
+			<strong id="fileMsg"></strong>
+			<span id="hideButton" onclick="this.parentElement.style.display='none';">&times;</span> 
+		</div>
+		<div id="durationDiv">
+			<label id="durationLabel">Playback Duration: </label> 
+			<span id="durationID"></span>
+		</div>
+		<canvas id="myCanvas" style="border:none solid #000000; overflow: scroll;"></canvas>
+
+		<!-- fragment Details Modal -->
+		<div id="fragmentModal" class="fragmentModal">
+			<p id="fragmentContent"></p>
+		</div>
+
+		<!-- Fragment Details Table -->
+		<table id="fragTable">
+			<tr>
+				<th colspan="2">Fragment Details Table</th>
+			</tr>
+			<tr>
+			  <th>Field</th>
+			  <th>Value</th>
+			</tr>
+			<tr>
+			  <td>Line no.</td>
+			  <td id="line"></td>
+			</tr>
+			<tr>
+			  <td>Response</td>
+			  <td id="response"></td>
+			</tr>
+			<tr>
+			  <td>Type</td>
+			  <td id="type"></td>
+			</tr>
+			<tr>
+			  <td>ulSz</td>
+			  <td id="ulSz"></td>
+			</tr>
+			<tr>
+			  <td>Download Time</td>
+			  <td id="downloadTime"></td>
+			</tr>
+			<tr>
+			  <td>dlSz</td>
+			  <td id="dlSz"></td>
+			</tr>
+			<tr>
+				<td>URL</td>
+				<td id="url"></td>
+			  </tr>
+		  </table>
+	</body>
 </html>

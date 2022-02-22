@@ -1,0 +1,211 @@
+body{
+    margin:0;
+}
+
+.check-box-label {
+    padding-left: 0px;
+    color: white;
+}
+
+#myCanvas {
+  margin-top: 70px;
+  margin-left: 20px;
+}
+
+#exportButton {
+  cursor: pointer;
+  position: fixed;
+  background-color: #008fcc;
+  text-align: center;
+  right: 0;
+  height: 30px;
+  border: 2px solid #008fcc;
+  color: white;
+  transition: 0.8s;
+}
+
+#exportButton:hover {
+ background-color: #ffffff;
+ color: #008fcc;
+ border: 2px solid #ffffff;
+}
+
+.triage-tool-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: #084b81;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 15px;
+  height: 30px;
+}
+
+#triageTool {
+  padding-left: 30px;
+  padding-right: 40px;
+  color: rgb(231, 228, 229);
+}
+
+.triage-tool-bar a {
+  padding-left: 10px;
+  color: white;
+  text-align: center;
+  text-decoration: none;
+}
+
+.session-drop-down {
+  background-color: #084b81;
+  width: 180px;
+  height: 30px;
+  border: 2px solid #008fcc;
+  color: white;
+}
+
+.session-drop-down:hover {
+  background-color: #ffffff;
+  color: #008fcc;
+}
+
+.markers-drop-down {
+  background-color: #084b81;
+  width: 320px;
+  height: 30px;
+  border: 2px solid #008fcc;
+  color: white;
+}
+
+.markers-drop-down:hover {
+  background-color: #ffffff;
+  color: #008fcc;
+}
+
+input {
+  height: 30px;
+  background-color: #008791;
+  color: white;
+}
+
+#logUpload {
+  cursor: pointer;
+  color: white;
+  text-align: center;
+  padding: 5px;
+  background-color: #008fcc;
+  border: 2px solid #008fcc;
+  transition: 0.8s;
+}
+
+#markerUpload {
+  cursor: pointer;
+  color: white;
+  text-align: center;
+  padding: 5px;
+  background-color: #008fcc;
+  border: 2px solid #008fcc;
+  transition: 0.8s;
+}
+
+#files {
+  opacity: 0;
+  position: absolute;
+  z-index: -1;
+}
+
+#userdefmarkers {
+  opacity: 0;
+  position: absolute;
+  z-index: -1;
+}
+
+#logUpload:hover {
+  background-color: #ffffff;
+  color: #008fcc;
+  border: 2px solid #ffffff;
+}
+
+#markerUpload:hover {
+  background-color: #ffffff;
+  color: #008fcc;
+  border: 2px solid #ffffff;
+}
+
+.list-name {
+  padding-left: 20px;
+  color: white;
+}
+
+#durationDiv {
+  padding-top: 3%;
+  padding-left: 3%;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: bold;
+}
+
+#fileUploadResponse {
+  display: none;
+  padding: 3% 2% 10px 3%;
+  background-color: #08814f;
+  color: white;
+}
+
+#fileMsg {
+  color: white;
+}
+
+#hideButton:hover {
+  color: rgb(18, 19, 19);
+}
+
+#hideButton {
+  cursor: pointer;
+  color: #ffffff;
+  font-weight: bold;
+  float: right;
+  font-size: 19px;
+  line-height: 20px;
+  transition: 0.3s;
+}
+
+.fragmentModal {
+  display: none; 
+  position: absolute;
+  background-color: rgba(10, 25, 58, 0.671);
+  border: 1.2px solid lightgrey;
+  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
+  -webkit-animation-name: flydown;
+  -webkit-animation-duration: 0.10s;
+  animation-name: flydown;
+  animation-duration: 0.10s;
+  width: 22%;
+  margin: 0 auto;
+  font: 13px arial, sans-serif;
+  padding: 5px;
+  color: white;
+}
+
+#fragTable {
+  display: none;
+  font: 14px arial, sans-serif;
+  border-collapse: collapse;
+  width: 50%;
+  margin-left: 2%;
+  margin-bottom: 10%;
+}
+
+#fragTable th {
+  text-align: center;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  background-color: #084b81;
+  color: white;
+}
+
+#fragTable td, #fragTable th {
+  border: 1px solid rgb(219, 219, 219);
+  padding: 5px;
+}
+
+#fragTable tr:nth-child(even){background-color: #f0ebeb;}
+
+#fragTable tr:hover {background-color: rgb(219, 219, 219);}
