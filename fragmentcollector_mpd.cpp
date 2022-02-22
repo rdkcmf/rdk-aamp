@@ -4654,13 +4654,13 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 			{
 				//Skip this for first ever update mpd request
 				mNetworkDownDetected = true;
-				logprintf("StreamAbstractionAAMP_MPD::%s Ignore curl timeout", __FUNCTION__);
+				AAMPLOG_ERR("StreamAbstractionAAMP_MPD::%s Ignore curl timeout", __FUNCTION__);
 				ret = AAMPStatusType::eAAMPSTATUS_OK;
 			}
 			else
 			{
 				aamp->SendDownloadErrorEvent(AAMP_TUNE_MANIFEST_REQ_FAILED, http_error);
-				logprintf("StreamAbstractionAAMP_MPD::%s - manifest download failed", __FUNCTION__);
+				AAMPLOG_ERR("StreamAbstractionAAMP_MPD::%s - manifest download failed", __FUNCTION__);
 				ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
 			}
 		}
@@ -4723,7 +4723,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 	}
 	else if (AAMPStatusType::eAAMPSTATUS_OK != ret)
 	{
-		logprintf("aamp: error on manifest fetch");
+		AAMPLOG_ERR("aamp: error on manifest fetch");
 	}
 
 	if( ret == eAAMPSTATUS_MANIFEST_PARSE_ERROR || ret == eAAMPSTATUS_MANIFEST_CONTENT_ERROR)

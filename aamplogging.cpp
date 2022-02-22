@@ -116,7 +116,7 @@ void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int do
 
 	ParseContentUrl(url, contentType, location, symptom, type);
 
-	logprintf ("AAMPLogNetworkLatency downloadTime=%d downloadThreshold=%d type='%s' location='%s' symptom='%s' url='%s'",
+	 AAMPLOG_ERR("AAMPLogNetworkLatency downloadTime=%d downloadThreshold=%d type='%s' location='%s' symptom='%s' url='%s'",
 		downloadTime, downloadThresholdTimeoutMs, contentType.c_str(), location.c_str(), symptom.c_str(), url);
 }
 
@@ -142,7 +142,7 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
 		{
 			if(errorCode >= 400)
 			{
-				logprintf("AAMPLogNetworkError error='http error %d' type='%s' location='%s' symptom='%s' url='%s'",
+				AAMPLOG_ERR("AAMPLogNetworkError error='http error %d' type='%s' location='%s' symptom='%s' url='%s'",
 					errorCode, contentType.c_str(), location.c_str(), symptom.c_str(), url );
 			}
 		}
@@ -152,7 +152,7 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
 		{
 			if(errorCode > 0)
 			{
-				logprintf("AAMPLogNetworkError error='timeout %d' type='%s' location='%s' symptom='%s' url='%s'",
+				AAMPLOG_ERR("AAMPLogNetworkError error='timeout %d' type='%s' location='%s' symptom='%s' url='%s'",
 					errorCode, contentType.c_str(), location.c_str(), symptom.c_str(), url );
 			}
 		}
@@ -162,7 +162,7 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
 		{
 			if(errorCode > 0)
 			{
-				logprintf("AAMPLogNetworkError error='curl error %d' type='%s' location='%s' symptom='%s' url='%s'",
+				AAMPLOG_ERR("AAMPLogNetworkError error='curl error %d' type='%s' location='%s' symptom='%s' url='%s'",
 					errorCode, contentType.c_str(), location.c_str(), symptom.c_str(), url );
 			}
 		}
