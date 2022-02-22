@@ -119,7 +119,7 @@ enum ContentType
  */
 typedef struct 
 {
-	bool success;					/** Flag indicate whether the tune is success or not */
+	int  success;					/** Flag indicate whether the tune is success or not */
 	int streamType;
 	int mTimedMetadata;				/** Total no.of TimedMetaData(Ads) processed in the manifest*/
 	long long mTimedMetadataStartTime; 	    	/** Time at which timedmetadata event starts sending */

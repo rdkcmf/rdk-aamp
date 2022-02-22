@@ -2661,9 +2661,11 @@ void PrivateInstanceAAMP::NotifyOnEnteringLive()
  */
 void PrivateInstanceAAMP::TuneFail(bool fail)
 {
+	PrivAAMPState state;
+	GetState(state);
 	TuneEndMetrics mTuneMetrics = {0, 0, 0,0,0,0,0,0,(ContentType)0};	
 	LogFirstFrame();                               //For Failure tunes:Total_Tune Time is time at which tune failure gets reported 
-	mTuneMetrics.success         	 	= !fail ;
+	mTuneMetrics.success         	 	= ((state != eSTATE_ERROR) ? -1 : !fail);
 	int streamType 				= getStreamType();
 	mTuneMetrics.mFirstTune		= mFirstTune;
 	mTuneMetrics.mTimedMetadata 	 	= timedMetadata.size();

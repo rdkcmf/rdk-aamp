@@ -4100,6 +4100,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		}
 		else
 		{
+			aamp->UpdateDuration(0);
 			AAMPLOG_ERR("Manifest download failed : http response : %d", (int) http_error);
 			retval = eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
 		}

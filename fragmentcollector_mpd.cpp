@@ -4722,6 +4722,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 			}
 			else
 			{
+				aamp->UpdateDuration(0);
 				aamp->SendDownloadErrorEvent(AAMP_TUNE_MANIFEST_REQ_FAILED, http_error);
 				AAMPLOG_WARN("StreamAbstractionAAMP_MPD: manifest download failed");
 				ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
@@ -4729,6 +4730,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 		}
 		else // if downloads disabled
 		{
+			aamp->UpdateDuration(0);
 			AAMPLOG_ERR("StreamAbstractionAAMP_MPD: manifest download failed");
 			ret = AAMPStatusType::eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
 		}
