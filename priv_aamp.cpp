@@ -2663,11 +2663,11 @@ void PrivateInstanceAAMP::TuneFail(bool fail)
 {
 	PrivAAMPState state;
 	GetState(state);
-	TuneEndMetrics mTuneMetrics = {0, 0, 0,0,0,0,0,0,(ContentType)0};	
-	LogFirstFrame();                               //For Failure tunes:Total_Tune Time is time at which tune failure gets reported 
+	TuneEndMetrics mTuneMetrics = {0, 0, 0,0,0,0,0,0,0,(ContentType)0};	
+	mTuneMetrics.mTotalTime                 = NOW_STEADY_TS_MS ;
 	mTuneMetrics.success         	 	= ((state != eSTATE_ERROR) ? -1 : !fail);
 	int streamType 				= getStreamType();
-	mTuneMetrics.mFirstTune		= mFirstTune;
+	mTuneMetrics.mFirstTune			= mFirstTune;
 	mTuneMetrics.mTimedMetadata 	 	= timedMetadata.size();
 	mTuneMetrics.mTimedMetadataStartTime 	= mTimedMetadataStartTime;
 	mTuneMetrics.mTimedMetadataDuration  	= mTimedMetadataDuration;
@@ -2675,6 +2675,10 @@ void PrivateInstanceAAMP::TuneFail(bool fail)
 	mTuneMetrics.contentType 		= mContentType;
 	mTuneMetrics.streamType 		= streamType;
 	mTuneMetrics.mTSBEnabled             	= mTSBEnabled;
+	if(mTuneMetrics.success  == -1 && mPlayerPreBuffered)
+	{
+		LogPlayerPreBuffered();        //Need to calculate prebufferedtime when tune interruption happens with playerprebuffer
+	}
 	profiler.TuneEnd(mTuneMetrics, mAppName,(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mPlayerPreBuffered, durationSeconds, activeInterfaceWifi,mFailureReason);		
 }
 
@@ -2683,7 +2687,7 @@ void PrivateInstanceAAMP::TuneFail(bool fail)
  */
 void PrivateInstanceAAMP::LogTuneComplete(void)
 {
-	TuneEndMetrics mTuneMetrics = {0, 0, 0,0,0,0,0,0,(ContentType)0};
+	TuneEndMetrics mTuneMetrics = {0, 0, 0,0,0,0,0,0,0,(ContentType)0};
 	
 	mTuneMetrics.success 		 	 = true; 
 	int streamType 				 = getStreamType();

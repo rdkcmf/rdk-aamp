@@ -127,6 +127,7 @@ typedef struct
 	int mTuneAttempts;				/** No of tune attepts taken */
 	bool mFirstTune;                                /**To identify the first tune after load.*/
 	bool mTSBEnabled;                               /** Flag to indicate TSB is enabled or not */
+	int  mTotalTime;
 	ContentType contentType;
 }TuneEndMetrics;
 /**
