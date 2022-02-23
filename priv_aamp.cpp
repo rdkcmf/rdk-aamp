@@ -4903,6 +4903,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		{
 			/*For OTA this event will be generated from StreamAbstractionAAMP_OTA*/
 			SetState(eSTATE_PREPARED);
+			SendMediaMetadataEvent();
 		}
 	}
 }
@@ -8033,23 +8034,25 @@ void PrivateInstanceAAMP::SendHTTPHeaderResponse()
 }
 
 /**
- *   @brief  Generate media metadata event based on args passed.
+ *   @brief  Generate media metadata event based on processed attribute values.
  *
- *   @param[in] durationMs - duration of playlist in milliseconds
- *   @param[in] langList - list of audio language available in asset
- *   @param[in] bitrateList - list of video bitrates available in asset
- *   @param[in] hasDrm - indicates if asset is encrypted/clear
- *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
- *   @param[in] programStartTime - indicates the program or availability start time.
  */
-void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std::string>langList, std::vector<long> bitrateList, bool hasDrm, bool isIframeTrackPresent, double programStartTime)
+void PrivateInstanceAAMP::SendMediaMetadataEvent(void)
 {
 	std::vector<int> supportedPlaybackSpeeds { -64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64 };
+	std::vector<long> bitrateList;
+	std::set<std::string> langList;
 	int langCount = 0;
 	int bitrateCount = 0;
 	int supportedSpeedCount = 0;
 	int width  = 1280;
 	int height = 720;
+
+	bitrateList = mpStreamAbstractionAAMP->GetVideoBitrates();
+	for (int i = 0; i <mMaxLanguageCount; i++)
+	{
+		langList.insert(mLanguageList[i]);
+	}
 
 	GetPlayerVideoSize(width, height);
 
@@ -8060,7 +8063,7 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 		drmType = helper->friendlyName();
 	}
 
-	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(durationMs, width, height, hasDrm, IsLive(), drmType, programStartTime);
+	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(CONVERT_SEC_TO_MS(durationSeconds), width, height, mpStreamAbstractionAAMP->hasDrm, IsLive(), drmType, mpStreamAbstractionAAMP->mProgramStartTime);
 
 	for (auto iter = langList.begin(); iter != langList.end(); iter++)
 	{
@@ -8077,7 +8080,7 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 	}
 
 	//Iframe track present and hence playbackRate change is supported
-	if (isIframeTrackPresent)
+	if (mIsIframeTrackPresent)
 	{
 		for(int i = 0; i < supportedPlaybackSpeeds.size(); i++)
 		{

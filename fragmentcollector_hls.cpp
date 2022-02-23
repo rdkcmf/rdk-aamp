@@ -4854,22 +4854,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		if (newTune && needMetadata)
 		{
 			needMetadata = false;
-			std::vector<long> bitrateList = GetVideoBitrates();
 			aamp->mIsIframeTrackPresent = mIframeAvailable;
-			double duration = 0;
-			if (trackState[eTRACK_VIDEO]->enabled && trackState[eTRACK_VIDEO]->mDuration != 0)
-			{
-				duration = trackState[eTRACK_VIDEO]->mDuration;
-			}
-			else if (trackState[eTRACK_AUDIO]->enabled && trackState[eTRACK_AUDIO]->mDuration != 0)
-			{
-				duration = trackState[eTRACK_AUDIO]->mDuration;
-			}
-			else
-			{
-				AAMPLOG_WARN("StreamAbstractionAAMP_HLS::No valid duration found in audio and video, sending duration as 0");
-			}
-			aamp->SendMediaMetadataEvent((duration * 1000.0), mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent, programStartTime);
+			mProgramStartTime = programStartTime;
 			// Delay "preparing" state until all tracks have been processed.
 			// JS Player assumes all onTimedMetadata event fire before "preparing" state.
 			aamp->SetState(eSTATE_PREPARING);

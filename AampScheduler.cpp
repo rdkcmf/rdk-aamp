@@ -53,6 +53,7 @@ AampScheduler::~AampScheduler()
 void AampScheduler::StartScheduler()
 {
 	//Turn on thread for processing async operations
+	std::lock_guard<std::mutex>lock(mQMutex);
 	mSchedulerThread = std::thread(std::bind(&AampScheduler::ExecuteAsyncTask, this));
 	mSchedulerRunning = true;
 	AAMPLOG_WARN("Started Async Worker Thread");
