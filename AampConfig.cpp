@@ -421,7 +421,8 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableIgnoreEosSmallFragment].value		=       false;
 	bAampCfgValue[eAAMPConfig_EnableAampConfigToFog].value                  =       true;
 
-	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	true;
+	// LLAMA-5520 workaround, QS005 branch only
+	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	false;
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_ABRCacheLife-eAAMPConfig_IntStartValue].value			=	DEFAULT_ABR_CACHE_LIFE;
