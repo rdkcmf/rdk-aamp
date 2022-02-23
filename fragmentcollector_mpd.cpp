@@ -4596,29 +4596,17 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 
 			if (newTune )
 			{
-				std::vector<long> bitrateList;
-				bitrateList.reserve(GetProfileCount());
-
-				for (int i = 0; i < GetProfileCount(); i++)
-				{
-					if (!mStreamInfo[i].isIframeTrack)
-					{
-						bitrateList.push_back(mStreamInfo[i].bandwidthBitsPerSecond);
-					}
-				}
-
 				aamp->SetState(eSTATE_PREPARING);
 
 				// send the http response header values if available
 				if(!aamp->httpHeaderResponses.empty()) {
 					aamp->SendHTTPHeaderResponse();
 				}
-				//For DASH, presence of iframe track depends on current period.
-				aamp->SendMediaMetadataEvent(durationMs, mLangList, bitrateList, hasDrm, aamp->mIsIframeTrackPresent, mAvailabilityStartTime);
 
 				aamp->UpdateDuration(((double)durationMs)/1000);
 				GetCulledSeconds();
 				aamp->UpdateRefreshPlaylistInterval((float)mMinUpdateDurationMs / 1000);
+				mProgramStartTime = mAvailabilityStartTime;
 			}
 		}
 		else
