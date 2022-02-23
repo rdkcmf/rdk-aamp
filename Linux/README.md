@@ -43,6 +43,8 @@ NOTE: This step could be omitted. You can just click Yes on the popup which appe
 
 'Would you like to configure project 'aamp'?
 
+NOTE: At this stage you could be asked what compiler to pick. You should pick the newest version of GCC.
+
 ```
 
 **3. Build the code**
@@ -56,4 +58,7 @@ In VS Code run Terminal->Run Build Task (or press Ctrl+Shift+B) and select aamp-
 
 In VS Code Run -> Start debugging (or just press F5)
 Debug console will appear where you can enter link to the stream. Gdb is attached to aamp-cli so you can setup breakpoints
+
+To set a breakpoint, click on a number that corresponds with your line of code and a red dot should appear beside it. A breakpoint has been set and now when you rerun it will break here.
+To see more about VsCode debugging : https://code.visualstudio.com/docs/editor/debugging
 

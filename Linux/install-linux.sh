@@ -28,6 +28,16 @@ if [ -d "cJSON" ]; then
 else
     git clone https://github.com/DaveGamble/cJSON
 fi
+
+if [ -d "aampmetrics" ]; then
+    echo "Patching aampmetrics CMakeLists.txt"
+    pushd aampmetrics
+    	patch < ../patches/aampmetrics.patch
+    popd
+else
+    echo "aampmetrics not cloned properly"
+fi
+
 #### CLONE_PACKAGES
 
 #  TODO: check

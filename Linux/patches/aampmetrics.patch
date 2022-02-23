@@ -1,0 +1,7 @@
+--- CMakeLists.txt	2022-02-23 13:49:09.097311207 +0000
++++ test.txt	2022-02-23 13:53:11.183599919 +0000
+@@ -51,3 +51,4 @@
+ set_target_properties(metrics PROPERTIES PUBLIC_HEADER "IPVideoStat.h")
+ install(TARGETS metrics DESTINATION lib PUBLIC_HEADER DESTINATION include)
+ install(FILES IPHTTPStatistics.h IPFragmentStatistics.h IPLicnsStatistics.h IPProfileInfo.h IPSessionSummary.h IPLatencyReport.h DESTINATION include)
++target_link_directories(metrics PUBLIC ${LIBCJSON_LIBRARY_DIRS})
