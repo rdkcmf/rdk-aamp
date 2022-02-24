@@ -4576,7 +4576,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	}
 
 
-	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE || tuneType == eTUNETYPE_SEEKTOEND)
+	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
 	{
 		mSeekOperationInProgress = true;
 	}
@@ -4715,33 +4715,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	else
 	{
 		retVal = eAAMPSTATUS_GENERIC_ERROR;
-	}
-
-	// Validate tune type
-	// (need to find a better way to do this)
-	if (tuneType == eTUNETYPE_NEW_NORMAL)
-	{
-		if(!IsLive())
-		{
-			if (mMediaFormat == eMEDIAFORMAT_DASH)
-			{
-				tuneType = eTUNETYPE_NEW_END;
-			}
-			else
-			{
-				AAMPLOG_INFO("PrivateInstanceAAMP: tune to end not supported for format");
-			}
-		}
-	}
-
-	if ((tuneType == eTUNETYPE_NEW_END) ||
-	    (tuneType == eTUNETYPE_SEEKTOEND))
-	{
-		if (mMediaFormat != eMEDIAFORMAT_DASH)
-		{
-			AAMPLOG_WARN("PrivateInstanceAAMP: tune to end not supported for format");
-			retVal = eAAMPSTATUS_GENERIC_ERROR;
-		}
 	}
 
 	if (retVal != eAAMPSTATUS_OK)
@@ -4913,7 +4886,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		}
 	}
 
-	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE || tuneType == eTUNETYPE_SEEKTOEND)
+	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
 	{
 		mSeekOperationInProgress = false;
 		// Pipeline is not configured if mbPlayEnabled is false, so not required
@@ -5120,8 +5093,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 	else
 	{
-		// A seek of -1 could mean seek to live for live streams or seek to end (last fragment) for vod
-		// If we are playing a vod this will be corrected later (once we know it is vod)
 		seek_pos_seconds = 0;
 	}
 

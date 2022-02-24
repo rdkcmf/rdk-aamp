@@ -218,10 +218,10 @@ private:
 	void PushEncryptedHeaders();
 	int GetProfileIdxForBandwidthNotification(uint32_t bandwidth);
 	AAMPStatusType UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex=false);
-	double SkipFragments( class MediaStreamContext *pMediaStreamContext, double skipTime, bool updateFirstPTS = false, bool skipToEnd = false);	
+	double SkipFragments( class MediaStreamContext *pMediaStreamContext, double skipTime, bool updateFirstPTS = false);
 	void SkipToEnd( class MediaStreamContext *pMediaStreamContext); //Added to support rewind in multiperiod assets
 	void ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType, std::shared_ptr<AampDrmHelper> drmHelper = nullptr);
-	void SeekInPeriod( double seekPositionSeconds, bool skipToEnd = false);	
+	void SeekInPeriod( double seekPositionSeconds);
 	void ApplyLiveOffsetWorkaroundForSAP(double seekPositionSeconds);
 	double GetCulledSeconds();
 	void UpdateCulledAndDurationFromPeriodInfo();

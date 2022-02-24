@@ -789,7 +789,7 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 {
 	PrivateInstanceAAMP* aamp = (PrivateInstanceAAMP*) ptr;
 	bool sentSpeedChangedEv = false;
-	bool isSeekToLiveOrEnd = false;
+	bool isSeekToLive = false;
 	TuneType tuneType = eTUNETYPE_SEEK;
 	PrivAAMPState state;
         aamp->GetState(state);
@@ -800,29 +800,24 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 
 	if (AAMP_SEEK_TO_LIVE_POSITION == aamp->seek_pos_seconds )
 	{
-		isSeekToLiveOrEnd = true;
+		isSeekToLive = true;
+		tuneType = eTUNETYPE_SEEKTOLIVE;
 	}
 
-	AAMPLOG_WARN("aamp_Seek(%f) and seekToLiveOrEnd(%d)", aamp->seek_pos_seconds, isSeekToLiveOrEnd);
+	AAMPLOG_WARN("aamp_Seek(%f) and seekToLive(%d)", aamp->seek_pos_seconds, isSeekToLive);
 
-	if (isSeekToLiveOrEnd)
+	if (isSeekToLive && !aamp->IsLive())
 	{
-		if (aamp->IsLive())
-		{
-			tuneType = eTUNETYPE_SEEKTOLIVE;
-		}
-		else
-		{
-			tuneType = eTUNETYPE_SEEKTOEND;
-		}
+		AAMPLOG_WARN("Not live, skipping seekToLive");
+		return false;
 	}
 
 	if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
 	{
 		double currPositionSecs = aamp->GetPositionMilliseconds() / 1000.00;
-		if ((tuneType == eTUNETYPE_SEEKTOLIVE) || (aamp->seek_pos_seconds >= currPositionSecs))
+		if (isSeekToLive || aamp->seek_pos_seconds >= currPositionSecs)
 		{
-			AAMPLOG_WARN("Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", aamp->seek_pos_seconds, currPositionSecs, isSeekToLiveOrEnd);
+			AAMPLOG_WARN("Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", aamp->seek_pos_seconds, currPositionSecs, isSeekToLive);
 			aamp->NotifyOnEnteringLive();
 			return false;
 		}
@@ -898,7 +893,7 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool keepPaused)
 {
 	bool sentSpeedChangedEv = false;
-	bool isSeekToLiveOrEnd = false;
+	bool isSeekToLive = false;
 	TuneType tuneType = eTUNETYPE_SEEK;
 
 	ERROR_STATE_CHECK_VOID();
@@ -920,27 +915,19 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 	{
 		if (secondsRelativeToTuneTime == AAMP_SEEK_TO_LIVE_POSITION)
 		{
-			isSeekToLiveOrEnd = true;
+			isSeekToLive = true;
+			tuneType = eTUNETYPE_SEEKTOLIVE;
 		}
 
-		AAMPLOG_WARN("aamp_Seek(%f) and seekToLiveOrEnd(%d) state(%d)", secondsRelativeToTuneTime, isSeekToLiveOrEnd,state);
+		AAMPLOG_WARN("aamp_Seek(%f) and seekToLive(%d) state(%d)", secondsRelativeToTuneTime, isSeekToLive,state);
 
-		if (isSeekToLiveOrEnd)
+		if (isSeekToLive && !aamp->IsLive())
 		{
-			if (aamp->IsLive())
-			{
-				tuneType = eTUNETYPE_SEEKTOLIVE;
-			}
-			else
-			{
-				tuneType = eTUNETYPE_SEEKTOEND;
-			}
+			AAMPLOG_WARN("Not live, skipping seekToLive");
+			return;
 		}
 
-		if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && 
-		   ISCONFIGSET(eAAMPConfig_InterruptHandling) && 
-		   aamp->IsTSBSupported() &&
-		   !isSeekToLiveOrEnd)
+		if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET(eAAMPConfig_InterruptHandling) && aamp->IsTSBSupported())
 		{
 			secondsRelativeToTuneTime += aamp->mProgressReportOffset;
 			AAMPLOG_WARN("aamp_Seek position adjusted to absolute value for TSB : %lf", secondsRelativeToTuneTime);
@@ -950,9 +937,9 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 		{
 			double currPositionSecs = aamp->GetPositionMilliseconds() / 1000.00;
 
-			if ((tuneType == eTUNETYPE_SEEKTOLIVE) || secondsRelativeToTuneTime >= currPositionSecs)
+			if (isSeekToLive || secondsRelativeToTuneTime >= currPositionSecs)
 			{
-				AAMPLOG_WARN("Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", secondsRelativeToTuneTime, currPositionSecs, isSeekToLiveOrEnd);
+				AAMPLOG_WARN("Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", secondsRelativeToTuneTime, currPositionSecs, isSeekToLive);
 				aamp->NotifyOnEnteringLive();
 				return;
 			}
@@ -989,12 +976,6 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 			SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_PlaybackOffset,secondsRelativeToTuneTime);
 			aamp->seek_pos_seconds = secondsRelativeToTuneTime;
 		}
-		else if (tuneType == eTUNETYPE_SEEKTOEND)
-		{
-			SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_PlaybackOffset,-1);
-			aamp->seek_pos_seconds = -1;
-		}
-
 		if (aamp->rate != AAMP_NORMAL_PLAY_RATE)
 		{
 			aamp->rate = AAMP_NORMAL_PLAY_RATE;
@@ -1051,8 +1032,6 @@ void PlayerInstanceAAMP::SeekToLive(bool keepPaused)
  */
 void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTime)
 {
-	TuneType tuneType = eTUNETYPE_SEEK;
-
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	AAMPLOG_WARN("aamp_SetRateAndSeek(%d)(%f)", rate, secondsRelativeToTuneTime);
 	if (!IsValidRate(rate))
@@ -1068,18 +1047,6 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 		rate = getWorkingTrickplayRate(rate);
 	}
 
-	if (secondsRelativeToTuneTime == AAMP_SEEK_TO_LIVE_POSITION)
-	{
-		if (aamp->IsLive())
-		{
-			tuneType = eTUNETYPE_SEEKTOLIVE;
-		}
-		else
-		{
-			tuneType = eTUNETYPE_SEEKTOEND;
-		}
-	}
-
 	if (aamp->mpStreamAbstractionAAMP)
 	{
 		if ((!aamp->mIsIframeTrackPresent && rate != AAMP_NORMAL_PLAY_RATE && rate != 0))
@@ -1092,7 +1059,7 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 		aamp->TeardownStream(false);
 		aamp->seek_pos_seconds = secondsRelativeToTuneTime;
 		aamp->rate = rate;
-		aamp->TuneHelper(tuneType);
+		aamp->TuneHelper(eTUNETYPE_SEEK);
 		aamp->ReleaseStreamLock();
 		if(rate == 0)
 		{
