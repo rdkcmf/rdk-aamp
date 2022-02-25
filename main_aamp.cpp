@@ -2396,7 +2396,7 @@ void PlayerInstanceAAMP::SetTextTrack(int trackId)
 							{
 								PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
 								instance->SetTextTrackInternal(trackId);
-							}, (void *) aamp,__FUNCTION__));
+							}, (void *) this,__FUNCTION__));
 			}
 			else
 			{
@@ -2414,7 +2414,6 @@ void PlayerInstanceAAMP::SetTextTrack(int trackId)
  */
 void PlayerInstanceAAMP::SetTextTrackInternal(int trackId)
 {
-	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	if(aamp && aamp->mpStreamAbstractionAAMP)
 	{
 		aamp->SetTextTrack(trackId);
