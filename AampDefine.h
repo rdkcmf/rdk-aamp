@@ -132,6 +132,19 @@
 
 #define AAMP_MAX_EVENT_PRIORITY (-70) /** Maximum allowed priority value for events */
 #define AAMP_TASK_ID_INVALID 0
+
+//License acquistion related configuration
+#define MAX_LICENSE_REQUEST_ATTEMPTS 2
+//Secmanager error class codes
+#define SECMANGER_DRM_FAILURE 200
+#define SECMANGER_WM_FAILURE 300 //If secmanager couldn't initialize watermark service
+
+//Secmanager error reason codes
+#define SECMANGER_DRM_GEN_FAILURE 1// General or internal failure
+#define SECMANGER_SERVICE_TIMEOUT 3
+#define SECMANGER_SERVICE_CON_FAILURE 4
+#define SECMANGER_SERVICE_BUSY 5
+
 /**
  * @brief Enumeration for TUNED Event Configuration
  */

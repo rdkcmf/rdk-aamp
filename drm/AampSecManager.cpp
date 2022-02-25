@@ -26,7 +26,6 @@
 #include <string.h>
 #include "_base64.h"
 #include <inttypes.h> // For PRId64
-//TODO: Fix cyclic dependency btw GlobalConfig and AampLogManager
 
 AampSecManager* AampSecManager::mInstance = NULL;
 
@@ -120,14 +119,19 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 					const char* licenseRequest, size_t licReqLen, const char* keySystemId,
 					const char* mediaUsage, const char* accessToken, size_t accTokenLen,
 					int64_t* sessionId,
-					char** licenseResponse, size_t* licenseResponseLength,
-					int64_t* statusCode, int64_t* reasonCode)
+					char** licenseResponse, size_t* licenseResponseLength, int32_t* statusCode, int32_t* reasonCode)
 {
 	// licenseUrl un-used now
 	(void) licenseUrl;
 
 	bool ret = false;
 	bool rpcResult = false;
+	unsigned int retryCount = 0;
+	
+	//Initializing it with default error codes (which would be sent if there any jsonRPC
+	//call failures to thunder)
+	*statusCode = SECMANGER_DRM_FAILURE;
+	*reasonCode = SECMANGER_DRM_GEN_FAILURE;
 	
 	//Shared memory pointer, key declared here,
 	//Access token, content metadata and licnese request will be passed to
@@ -173,7 +177,7 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 #ifdef DEBUG_SECMAMANER
 	std::string params;
 	param.ToString(params);
-	AAMPLOG_WARN("%s:%d SecManager openPlaybackSession param: %s", __FUNCTION__, __LINE__, params.c_str());
+	AAMPLOG_WARN("SecManager openPlaybackSession param: %s", params.c_str());
 #endif
 	
 	{
@@ -207,8 +211,104 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 			param["licenseRequestBufferKey"] = shmKey_licReq;
 			param["licenseRequestLength"] = licReqLen;
 			
-			//invoke "openPlaybackSession"
-			rpcResult = mSecManagerObj.InvokeJSONRPC(apiName, param, response, 10000);
+			//Retry delay
+			int sleepTime ;
+			GETCONFIGVALUE(eAAMPConfig_LicenseRetryWaitTime,sleepTime) ;
+			if(sleepTime<=0) sleepTime = 100;
+			//invoke "openPlaybackSession" with retries for specific error cases
+			do
+			{
+				rpcResult = mSecManagerObj.InvokeJSONRPC(apiName, param, response, 10000);
+				if (rpcResult)
+				{
+				#ifdef DEBUG_SECMAMANER
+					std::string output;
+					response.ToString(output);
+					AAMPLOG_WARN("SecManager openPlaybackSession o/p: %s",output.c_str());
+				#endif
+					if (response["success"].Boolean())
+					{
+						std::string license = response["license"].String();
+						AAMPLOG_TRACE("SecManager obtained license with length: %d and data: %s",license.size(), license.c_str());
+						if (!license.empty())
+						{
+							// Here license is base64 encoded
+							unsigned char * licenseDecoded = NULL;
+							size_t licenseDecodedLen = 0;
+							licenseDecoded = base64_Decode(license.c_str(), &licenseDecodedLen);
+							AAMPLOG_TRACE("SecManager license decoded len: %d and data: %p", licenseDecodedLen, licenseDecoded);
+
+							if (licenseDecoded != NULL && licenseDecodedLen != 0)
+							{
+								AAMPLOG_INFO("SecManager license post base64 decode length: %d", *licenseResponseLength);
+								*licenseResponse = (char*) malloc(licenseDecodedLen);
+								if (*licenseResponse)
+								{
+									memcpy(*licenseResponse, licenseDecoded, licenseDecodedLen);
+									*licenseResponseLength = licenseDecodedLen;
+								}
+								else
+								{
+									AAMPLOG_ERR("SecManager failed to allocate memory for license!");
+								}
+								free(licenseDecoded);
+								ret = true;
+							}
+							else
+							{
+								AAMPLOG_ERR("SecManager license base64 decode failed!");
+							}
+						}
+					}
+					// Save session ID
+					if (*sessionId == -1)
+					{
+						*sessionId = response["sessionId"].Number();
+					}
+					
+				}
+				// TODO: Sort these values out for backward compatibility
+				if(response.HasLabel("secManagerResultContext"))
+				{
+					JsonObject resultContext = response["secManagerResultContext"].Object();
+					
+					if(resultContext.HasLabel("class"))
+						*statusCode = resultContext["class"].Number();
+					if(resultContext.HasLabel("reason"))
+						*reasonCode = resultContext["reason"].Number();
+				}
+				
+				if(!ret)
+				{
+					//As per Secmanager retry is meaningful only for
+					//Digital Rights Management Failure Class (200) or
+					//Watermarking Failure Class (300)
+					//having the reasons -
+					//DRM license service network timeout / Request/network time out (3).
+					//DRM license network connection failure/Watermark vendor-access service connection failure (4)
+					//DRM license server busy/Watermark service busy (5)
+					if((*statusCode == SECMANGER_DRM_FAILURE || *statusCode == SECMANGER_WM_FAILURE) &&
+					   (*reasonCode == SECMANGER_SERVICE_TIMEOUT ||
+						*reasonCode == SECMANGER_SERVICE_CON_FAILURE ||
+						*reasonCode == SECMANGER_SERVICE_BUSY ) && retryCount < MAX_LICENSE_REQUEST_ATTEMPTS)
+					{
+						++retryCount;
+						AAMPLOG_WARN("SecManager license request failed, response for %s : statusCode: %d, reasonCode: %d, so retrying with delay %d, retry count : %u", apiName, *statusCode, *reasonCode, sleepTime, retryCount );
+						mssleep(sleepTime);						
+					}
+					else
+					{
+						AAMPLOG_ERR("SecManager license request failed, response for %s : statusCode: %d, reasonCode: %d", apiName, *statusCode, *reasonCode);
+						break;
+					}
+				}
+				else
+				{
+					AAMPLOG_INFO("SecManager license request success, response for %s : statusCode: %d, reasonCode: %d", apiName, *statusCode, *reasonCode);
+					break;
+				}
+			}
+			while(retryCount < MAX_LICENSE_REQUEST_ATTEMPTS);
 			
 			//Cleanup the shared memory after sharing it with secmanager
 			aamp_CleanUpSharedMem( shmPt_accToken, shmKey_accToken, accTokenLen);
@@ -217,64 +317,8 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 		}
 		else
 		{
-			AAMPLOG_WARN("%s:%d Failed to copy access token to the shared memory, open playback session is aborted", __FUNCTION__, __LINE__);
+			AAMPLOG_ERR("SecManager Failed to copy access token to the shared memory, open playback session is aborted statusCode: %d, reasonCode: %d", *statusCode, *reasonCode);
 		}
-	}
-
-	if (rpcResult)
-	{
-#ifdef DEBUG_SECMAMANER
-		std::string output;
-		response.ToString(output);
-		AAMPLOG_WARN("%s:%d SecManager openPlaybackSession o/p: %s", __FUNCTION__, __LINE__, output.c_str());
-#endif
-		if (response["success"].Boolean())
-		{
-			std::string license = response["license"].String();
-			AAMPLOG_TRACE("%s:%d SecManager obtained license with length: %d and data: %s", __FUNCTION__, __LINE__, license.size(), license.c_str());
-			if (!license.empty())
-			{
-				// Here license is base64 encoded
-				unsigned char * licenseDecoded = NULL;
-				size_t licenseDecodedLen = 0;
-				licenseDecoded = base64_Decode(license.c_str(), &licenseDecodedLen);
-				AAMPLOG_TRACE("%s:%d SecManager license decoded len: %d and data: %p", __FUNCTION__, __LINE__, licenseDecodedLen, licenseDecoded);
-
-				if (licenseDecoded != NULL && licenseDecodedLen != 0)
-				{
-					AAMPLOG_INFO("%s:%d SecManager license post base64 decode length: %d", __FUNCTION__, __LINE__, *licenseResponseLength);
-					*licenseResponse = (char*) malloc(licenseDecodedLen);
-					if (*licenseResponse)
-					{
-						memcpy(*licenseResponse, licenseDecoded, licenseDecodedLen);
-						*licenseResponseLength = licenseDecodedLen;
-					}
-					else
-					{
-						AAMPLOG_ERR("%s:%d SecManager failed to allocate memory for license!", __FUNCTION__, __LINE__);
-					}
-					free(licenseDecoded);
-					ret = true;
-				}
-				else
-				{
-					AAMPLOG_ERR("%s:%d SecManager license base64 decode failed!", __FUNCTION__, __LINE__);
-				}
-			}
-		}
-		// Save session ID
-		if (*sessionId == -1)
-		{
-			*sessionId = response["sessionId"].Number();
-		}
-		// TODO: Sort these values out for backward compatibility
-		JsonObject resultContext = response["secManagerResultContext"].Object();
-		*statusCode = resultContext["class"].Number();
-		*reasonCode = resultContext["reason"].Number();
-	}
-	else
-	{
-		AAMPLOG_ERR("%s:%d SecManager openPlaybackSession failed", __FUNCTION__, __LINE__);
 	}
 	return ret;
 }

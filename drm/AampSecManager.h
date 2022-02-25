@@ -74,7 +74,7 @@ public:
 						const char* mediaUsage, const char* accessToken, size_t accessTokenLen,
 						int64_t* sessionId,
 						char** licenseResponse, size_t* licenseResponseLength,
-						int64_t* statusCode, int64_t* reasonCode);
+						int32_t* statusCode, int32_t* reasonCode);
 
 
 	/**

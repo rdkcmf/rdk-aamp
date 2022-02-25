@@ -47,7 +47,6 @@
 #define DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
 #define DRM_METADATA_TAG_END "</ckm:policy>"
 #define SESSION_TOKEN_URL "http://localhost:50050/authService/getSessionToken"
-#define MAX_LICENSE_REQUEST_ATTEMPTS 2
 
 #define INVALID_SESSION_SLOT -1
 #define DEFUALT_CDM_WAIT_TIMEOUT_MS 2000
@@ -511,22 +510,6 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 }
 
 /**
- * @brief Sleep for given milliseconds
- * @param milliseconds Time to sleep
- */
-static void mssleep(int milliseconds)
-{
-	struct timespec req, rem;
-	if (milliseconds > 0)
-	{
-		req.tv_sec = milliseconds / 1000;
-		req.tv_nsec = (milliseconds % 1000) * 1000000;
-		nanosleep(&req, &rem);
-	}
-}
-
-
-/**
  *  @brief		Get DRM license key from DRM server.
  *  @param[in]	keyIdArray - key Id extracted from pssh data
  *  @return		bool - true if key is not cached/cached with no failure,
@@ -613,8 +596,8 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 #if USE_SECMANAGER
 	if(aampInstance->mConfig->IsConfigSet(eAAMPConfig_UseSecManager))
 	{
-		int64_t statusCode;
-		int64_t reasonCode;
+		int32_t statusCode;
+		int32_t reasonCode;
 		bool res = AampSecManager::GetInstance()->AcquireLicense(aampInstance, licenseRequest.url.c_str(),
 																 requestMetadata,
 																 ((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
@@ -628,7 +611,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 																 &statusCode, &reasonCode);
 		if (res)
 		{
-			AAMPLOG_WARN("%s:%d acquireLicense via SecManager SUCCESS!",__FUNCTION__, __LINE__);
+			AAMPLOG_WARN("acquireLicense via SecManager SUCCESS!");
 			//TODO: Sort this out for backward compatibility
 			*httpCode = 200;
 			*httpExtStatusCode = 0;
@@ -640,10 +623,11 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 		}
 		else
 		{
-			logprintf("%s:%d acquireLicense via SecManager FAILED!",__FUNCTION__, __LINE__);
-			//TODO: Sort this out for backward compatibility
 			*httpCode = statusCode;
 			*httpExtStatusCode = reasonCode;
+
+			AAMPLOG_ERR("acquireLicense via SecManager FAILED!, httpCode %d, httpExtStatusCode %d", *httpCode, *httpExtStatusCode);
+			//TODO: Sort this out for backward compatibility
 		}
 	}
 #endif
