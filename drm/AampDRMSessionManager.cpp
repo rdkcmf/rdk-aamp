@@ -1423,8 +1423,10 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				{
 					eventHandle->setSecclientError(true);
 					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, &httpExtendedStatusCode, eventHandle));
+					
+					bool sec_accessTokenExpired = aampInstance->mConfig->IsConfigSet(eAAMPConfig_UseSecManager) && SECMANGER_DRM_FAILURE == httpResponseCode && SECMANGER_ACCTOKEN_EXPIRED == httpExtendedStatusCode;
 					// Reload Expired access token only on http error code 412 with status code 401
-					if (412 == httpResponseCode && 401 == httpExtendedStatusCode && !usingAppDefinedAuthToken)
+					if (((412 == httpResponseCode && 401 == httpExtendedStatusCode) || sec_accessTokenExpired) && !usingAppDefinedAuthToken)
 					{
 						AAMPLOG_INFO("License Req failure by Expired access token httpResCode %d statusCode %d", httpResponseCode, httpExtendedStatusCode);
 						if(accessToken)
@@ -1458,20 +1460,19 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 
 	if (code == KEY_PENDING)
 	{
-		code = handleLicenseResponse(drmHelper, sessionSlot, cdmError, httpResponseCode, licenseResponse, eventHandle, aampInstance);
+		code = handleLicenseResponse(drmHelper, sessionSlot, cdmError, httpResponseCode, httpExtendedStatusCode, licenseResponse, eventHandle, aampInstance);
 	}
 
 	return code;
 }
 
-KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
-		int32_t httpResponseCode, shared_ptr<DrmData> licenseResponse, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance)
+KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError, int32_t httpResponseCode, int32_t httpExtendedStatusCode, shared_ptr<DrmData> licenseResponse, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aamp)
 {
 	if (!drmHelper->isExternalLicense())
 	{
 		if ((licenseResponse != NULL) && (licenseResponse->getDataLength() != 0))
 		{
-			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_NETWORK);
+			aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_NETWORK);
 
 #if !defined(USE_SECCLIENT) && !defined(USE_SECMANAGER)
 			if (!drmHelper->getDrmMetaData().empty())
@@ -1508,11 +1509,38 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 		}
 		else
 		{
-			aampInstance->profiler.ProfileError(PROFILE_BUCKET_LA_NETWORK, httpResponseCode);
-			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_NETWORK);
+			aamp->profiler.ProfileError(PROFILE_BUCKET_LA_NETWORK, httpResponseCode);
+			aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_NETWORK);
 
 			AAMPLOG_ERR("Error!! Invalid License Response was provided by the Server");
-			if (412 == httpResponseCode)
+			
+			bool SecAuthFailure = false, SecTimeout = false;
+			
+			//Handle secmaanger specific error codes here
+			if(ISCONFIGSET(eAAMPConfig_UseSecManager))
+			{
+				//The documentation for secmanager error codes are here
+				//https://etwiki.sys.comcast.net/pages/viewpage.action?spaceKey=RDKV&title=AAMP+-+SecManagerApi
+				eventHandle->setResponseCode(httpResponseCode);
+				eventHandle->setSecManagerReasonCode(httpExtendedStatusCode);
+				if(SECMANGER_DRM_FAILURE == httpResponseCode && SECMANGER_ENTITLEMENT_FAILURE == httpExtendedStatusCode)
+				{
+					if (eventHandle->getFailure() != AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN)
+					{
+						eventHandle->setFailure(AAMP_TUNE_AUTHORISATION_FAILURE);
+					}
+					AAMPLOG_WARN("DRM session for %s, Authorisation failed", drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
+				}
+				else if(SECMANGER_DRM_FAILURE == httpResponseCode && SECMANGER_SERVICE_TIMEOUT == httpExtendedStatusCode)
+				{
+					eventHandle->setFailure(AAMP_TUNE_LICENCE_TIMEOUT);
+				}
+				else
+				{
+					eventHandle->setFailure(AAMP_TUNE_LICENCE_REQUEST_FAILED);
+				}
+			}
+			else if (412 == httpResponseCode)
 			{
 				if (eventHandle->getFailure() != AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN)
 				{
@@ -1541,7 +1569,7 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 		}
 	}
 
-	return processLicenseResponse(drmHelper, sessionSlot, cdmError, licenseResponse, eventHandle, aampInstance);
+	return processLicenseResponse(drmHelper, sessionSlot, cdmError, licenseResponse, eventHandle, aamp);
 }
 
 KeyState AampDRMSessionManager::processLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,

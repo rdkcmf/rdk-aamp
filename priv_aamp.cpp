@@ -2058,16 +2058,25 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRe
 		AAMPTuneFailure tuneFailure = event->getFailure();
 		long error_code = event->getResponseCode();
 		bool isSecClientError = event->getSecclientError();
-
+		long secManagerReasonCode = event->getSecManagerReasonCode();
+		 
 		if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure || AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure)
 		{
 			char description[128] = {};
-
-			if(AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure && error_code < 100)
+			//When using secmanager the erro_code would not be less than 100
+			if(AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure && (error_code < 100 || ISCONFIGSET_PRIV(eAAMPConfig_UseSecManager)))
 			{
+				
 				if (isSecClientError)
 				{
-					snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Secclient Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+					if(ISCONFIGSET_PRIV(eAAMPConfig_UseSecManager))
+					{
+						snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : SecManager Error Code %ld:%ld", tuneFailureMap[tuneFailure].description,error_code, secManagerReasonCode);
+					}
+					else
+					{
+						snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Secclient Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+					}
 				}
 				else
 				{
