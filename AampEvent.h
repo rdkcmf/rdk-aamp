@@ -1418,6 +1418,7 @@ class DrmMetaDataEvent: public AAMPEventObject
 	int mAccessStatusValue;		/**< Access status value */
 	long mResponseCode;		/**< Response code */
 	bool mSecclientError;		/**< Is secclient error */
+	long mSecManagerReasonCode; /**< Secmanager response code */
 
 public:
 	DrmMetaDataEvent() = delete;
@@ -1491,7 +1492,14 @@ public:
 	 * @return Response code
 	 */
 	long getResponseCode() const;
-
+	
+	/**
+	 * @brief Get Response Code
+	 *
+	 * @return Response code
+	 */
+	long getSecManagerReasonCode() const;
+	
 	/**
 	 * @brief Set Response Code
 	 *
@@ -1499,6 +1507,13 @@ public:
 	 * @return void
 	 */
 	void setResponseCode(long code);
+	
+	/**
+	 * @brief Get Secmanager response code
+	 * @param[string] code - secmanager reason code
+	 * @return Response code
+	 */
+	void setSecManagerReasonCode(long code);
 
 	/**
 	 * @brief Get secclient error status
