@@ -986,7 +986,22 @@ public:
 	 *   @param[in] preferred bitrate for audio profile
 	 */
 	void SetAudioBitrate(long bitrate);
+	
+	 /**
+         *   @brief To get video zoom mode
+         *
+         *   @ret video zoom mode
+         */
+	int GetVideoZoom(void);
 
+	 /**
+         *   @brief To get video mute status
+         *
+         *   @ret video mute status
+	 *
+         */
+        bool GetVideoMute(void);
+       	
 	/**
 	 *   @brief To get the current audio volume.
 	 *
