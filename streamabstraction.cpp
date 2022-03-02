@@ -980,6 +980,7 @@ bool MediaTrack::InjectFragment()
 					{
 						// reset the flag when both the paired discontinuities ignored; since no buffer pushed before.
 						aamp->ResetTrackDiscontinuityIgnoredStatus();
+						aamp->UnblockWaitForDiscontinuityProcessToComplete();
 					}
 
 					AAMPLOG_WARN("ignoring %s discontinuity since no buffer pushed before!", name);
@@ -991,6 +992,7 @@ bool MediaTrack::InjectFragment()
 
 					// reset the flag when both the paired discontinuities ignored.
 					aamp->ResetTrackDiscontinuityIgnoredStatus();
+					aamp->UnblockWaitForDiscontinuityProcessToComplete();
 				}
 				else
 				{
