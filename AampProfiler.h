@@ -115,6 +115,22 @@ enum ContentType
 };
 
 /**
+ * @brief TuneEndMetrics structure to store tunemetrics data
+ */
+typedef struct 
+{
+	int  success;					/** Flag indicate whether the tune is success or not */
+	int streamType;
+	int mTimedMetadata;				/** Total no.of TimedMetaData(Ads) processed in the manifest*/
+	long long mTimedMetadataStartTime; 	    	/** Time at which timedmetadata event starts sending */
+	int mTimedMetadataDuration;        		/** Time Taken to send TiedMetaData event*/
+	int mTuneAttempts;				/** No of tune attepts taken */
+	bool mFirstTune;                                /**To identify the first tune after load.*/
+	bool mTSBEnabled;                               /** Flag to indicate TSB is enabled or not */
+	int  mTotalTime;
+	ContentType contentType;
+}TuneEndMetrics;
+/**
  * @}
  */
 
@@ -160,6 +176,7 @@ private:
 		unsigned int tFinish;   /**< Relative end time of operation, based on tuneStartMonotonicBase */
 		int errorCount;         /**< non-zero if errors/retries occured during this operation */
 		bool complete;          /**< true if this step already accounted for, and further profiling should be ignored */
+		bool profileStarted;    /**< Flag that indicates,whether the profiler is started or not */
 	} buckets[PROFILE_BUCKET_TYPE_COUNT];
 
 	/**
@@ -315,7 +332,7 @@ public:
 	 * streamType, 	//Stream Type. Values: 10-HLS/Clear, 11-HLS/Consec, 12-HLS/Access, 13-HLS/Vanilla AES, 20-DASH/Clear, 21-DASH/WV, 22-DASH/PR<br>
 	 * firstTune		//First tune after reboot/crash<br>
  	 * Prebuffered		//If the Player was in preBuffer(BG) mode)<br>
-	 * PreBufferedTime		//Player spend Time in BG<br>
+	 * PreBufferedTime		//Player spend Time in BG<br> 
 	 * @param[in] success - Tune status
 	 * @param[in] contentType - Content Type. Eg: LINEAR, VOD, etc
 	 * @param[in] streamType - Stream Type. Eg: HLS, DASH, etc
@@ -324,8 +341,7 @@ public:
 	 * @param[in] interfaceWifi - Active connection is Wifi or Ethernet.
 	 * @return void
 	 */
-	void TuneEnd(bool success, ContentType contentType, int streamType, bool firstTune, std::string appName, std::string playerActiveMode, int playerId, bool playerPreBuffered, unsigned int durationSeconds, bool interfaceWifi);
-
+	void TuneEnd(TuneEndMetrics &mTuneendmetrics, std::string appName, std::string playerActiveMode, int playerId, bool playerPreBuffered, unsigned int durationSeconds, bool interfaceWifi, std::string failureReason);
 	/**
 	 * @brief Method converting the AAMP style tune performance data to IP_EX_TUNETIME style data
 	 *

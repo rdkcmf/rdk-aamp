@@ -1351,6 +1351,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 			AAMPLOG_ERR("Error in getting license challenge : Key State %d ", code);
 			aampInstance->profiler.ProfileError(PROFILE_BUCKET_LA_PREPROC, AAMP_TUNE_DRM_CHALLENGE_FAILED);
 			eventHandle->setFailure(AAMP_TUNE_DRM_CHALLENGE_FAILED);
+			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_PREPROC);
 		}
 		else
 		{
@@ -1519,6 +1520,7 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 		else
 		{
 			aampInstance->profiler.ProfileError(PROFILE_BUCKET_LA_NETWORK, httpResponseCode);
+			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_NETWORK);
 
 			AAMPLOG_ERR("Error!! Invalid License Response was provided by the Server");
 			if (412 == httpResponseCode)
@@ -1767,6 +1769,7 @@ void *CreateDRMSession(void *arg)
 		sessionParams->aamp->SendDrmErrorEvent(e, false);
 		sessionParams->aamp->profiler.SetDrmErrorCode((int)failure);
 		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)failure);
+		sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 	}
 	else
 	{
@@ -1793,7 +1796,9 @@ void *CreateDRMSession(void *arg)
 			}
 			sessionParams->aamp->profiler.SetDrmErrorCode((int) failure);
 			sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int) failure);
+			sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);	
 		}
+
 		else
 		{
 			if(e->getAccessStatusValue() != 3)
