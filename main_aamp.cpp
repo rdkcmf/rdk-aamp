@@ -1561,6 +1561,28 @@ void PlayerInstanceAAMP::SetAudioBitrate(long bitrate)
 }
 
 /**
+ *   @brief To get video zoom mode
+ *
+ *   @ret video zoom mode
+ */
+int PlayerInstanceAAMP::GetVideoZoom(void)
+{
+        ERROR_STATE_CHECK_VAL(0);
+        return aamp->zoom_mode;
+}
+
+/**
+ *   @brief To get video mute status
+ *
+ *   @ret video mute status
+ */
+bool PlayerInstanceAAMP::GetVideoMute(void)
+{
+        ERROR_STATE_CHECK_VAL(0);
+        return aamp->video_muted;
+}
+
+/**
  *   @brief To get the current audio volume.
  *
  *   @ret audio volume

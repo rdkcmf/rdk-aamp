@@ -81,6 +81,8 @@ typedef enum {
 	eAAMP_GET_PlaybackDuration,
 	eAAMP_GET_VideoBitrate,
 	eAAMP_GET_AudioBitrate,
+	eAAMP_GET_VideoZoom,
+	eAAMP_GET_VideoMute,
 	eAAMP_GET_AudioVolume,
 	eAAMP_GET_PlaybackRate,
 	eAAMP_GET_VideoBitrates,
@@ -503,6 +505,8 @@ static void InitGetHelpText()
 	mGetHelpText[eAAMP_GET_PlaybackDuration] = "Get Playback Duration";
 	mGetHelpText[eAAMP_GET_VideoBitrate] = "Get current video bitrate";
 	mGetHelpText[eAAMP_GET_AudioBitrate] = "Get current Audio bitrate";
+	mGetHelpText[eAAMP_GET_VideoZoom] = "Get Video Zoom mode";
+        mGetHelpText[eAAMP_GET_VideoMute] = "Get Video Mute status";
 	mGetHelpText[eAAMP_GET_AudioVolume] = "Get current Audio volume";
 	mGetHelpText[eAAMP_GET_PlaybackRate] = "Get Current Playback rate";
 	mGetHelpText[eAAMP_GET_VideoBitrates] = "Get Video bitrates supported";
@@ -2227,6 +2231,16 @@ static void ProcessCliCommand( char *cmd )
 					printf("[AAMPCLI] AUDIO BITRATE = %ld\n",
 					mSingleton->GetAudioBitrate());
 					break;
+                                
+                                case eAAMP_GET_VideoZoom:
+                                        printf("[AAMPCLI] Video Zoom mode: %s\n",
+				        (mSingleton->GetVideoZoom())?"None(Normal)":"Full(Enabled)");
+                                        break;
+
+                                case eAAMP_GET_VideoMute:
+                                        printf("[AAMPCLI] Video Mute status:%s\n",
+					(mSingleton->GetVideoMute())?"ON":"OFF");
+                                        break;
 
 				case eAAMP_GET_AudioVolume:
 					printf("[AAMPCLI] AUDIO VOLUME = %d\n",
