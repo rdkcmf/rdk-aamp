@@ -176,6 +176,7 @@ private:
 		unsigned int tFinish;   /**< Relative end time of operation, based on tuneStartMonotonicBase */
 		int errorCount;         /**< non-zero if errors/retries occured during this operation */
 		bool complete;          /**< true if this step already accounted for, and further profiling should be ignored */
+		bool profileStarted;    /**< Flag that indicates,whether the profiler is started or not */
 	} buckets[PROFILE_BUCKET_TYPE_COUNT];
 
 	/**

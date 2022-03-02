@@ -326,8 +326,9 @@ void ProfileEventAAMP::ProfileBegin(ProfilerBucketType type)
 	struct ProfilerBucket *bucket = &buckets[type];
 	if (!bucket->complete && (0==bucket->tStart))	//No other Begin should record before the End
 	{
-		bucket->tStart = NOW_STEADY_TS_MS - tuneStartMonotonicBase;
-		bucket->tFinish = bucket->tStart;
+		bucket->tStart 		= NOW_STEADY_TS_MS - tuneStartMonotonicBase;
+		bucket->tFinish 	= bucket->tStart;
+		bucket ->profileStarted = true;
 	}
 }
 
@@ -341,7 +342,7 @@ void ProfileEventAAMP::ProfileBegin(ProfilerBucketType type)
 void ProfileEventAAMP::ProfileError(ProfilerBucketType type, int result)
 {
 	struct ProfilerBucket *bucket = &buckets[type];
-	if (!bucket->complete && !(0==bucket->tStart))
+	if (!bucket->complete && bucket->profileStarted)
 	{
 		SetTuneFailCode(result, type);
 		bucket->errorCount++;
@@ -358,7 +359,7 @@ void ProfileEventAAMP::ProfileError(ProfilerBucketType type, int result)
 void ProfileEventAAMP::ProfileEnd(ProfilerBucketType type)
 {
 	struct ProfilerBucket *bucket = &buckets[type];
-	if (!bucket->complete && !(0==bucket->tStart))
+	if (!bucket->complete && bucket->profileStarted)
 	{
 		bucket->tFinish = NOW_STEADY_TS_MS - tuneStartMonotonicBase;
 		/*

@@ -5879,6 +5879,7 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::stri
 	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, http_code, downloadTime, range, curlInstance, true, fileType,NULL,fogError))
 	{
 		profiler.ProfileError(bucketType, *http_code);
+		profiler.ProfileEnd(bucketType);
 	}
 	else
 	{
@@ -5908,6 +5909,7 @@ bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::strin
 	{
 		ret = false;
 		profiler.ProfileError(bucketType, *http_code);
+		profiler.ProfileEnd(bucketType);
 	}
 	else
 	{

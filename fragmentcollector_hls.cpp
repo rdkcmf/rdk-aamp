@@ -1844,6 +1844,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 				//cleanup is done in aamp_GetFile itself
 
 				aamp->profiler.ProfileError(mediaTrackBucketTypes[type], http_error);
+				aamp->profiler.ProfileEnd(mediaTrackBucketTypes[type]);
 				if (mSkipSegmentOnError)
 				{
 					// Skipping segment on error, increase fail count
@@ -4108,6 +4109,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	if (!this->mainManifest.len && aamp->DownloadsAreEnabled()) //!aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl()))
 	{
 		aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST, http_error);
+		aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 		aamp->SendDownloadErrorEvent(AAMP_TUNE_MANIFEST_REQ_FAILED, http_error);
 	}
 	if (this->mainManifest.len)
@@ -6622,6 +6624,7 @@ void TrackState::FetchPlaylist()
 		AAMPLOG_WARN("Playlist download failed : %s  http response : %d", mPlaylistUrl.c_str(), (int)http_error);
 		aamp->mPlaylistFetchFailError = http_error;
 		aamp->profiler.ProfileError(bucketId, main_error);
+		aamp->profiler.ProfileEnd(bucketId);
 	}
 
 }
