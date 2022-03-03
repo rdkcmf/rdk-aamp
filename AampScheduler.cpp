@@ -112,18 +112,17 @@ void AampScheduler::ExecuteAsyncTask()
 	{
 		if (mTaskQueue.empty())
 		{
-			AAMPLOG_WARN("Waiting for any functions to be queued!!");
+			AAMPLOG_INFO("Waiting for any functions to be queued!!");
 			mQCond.wait(lock);
 		}
 		else
 		{
-			AAMPLOG_TRACE("Found entry in function queue!!");
 			AsyncTaskObj obj = mTaskQueue.front();
 			mTaskQueue.pop_front();
 			if (obj.mId != AAMP_TASK_ID_INVALID)
 			{
 				mCurrentTaskId = obj.mId;
-				AAMPLOG_WARN("Found entry in function queue!!, task:%s. State:%d",obj.mTaskName.c_str(),mState);
+				AAMPLOG_INFO("Found entry in function queue!!, task:%s. State:%d",obj.mTaskName.c_str(),mState);
 				if( mState == eSTATE_ERROR || mState == eSTATE_RELEASED)
 					continue;
 			}
