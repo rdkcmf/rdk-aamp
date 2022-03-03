@@ -6842,8 +6842,8 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 					if(useDiscontinuityDateTime && discdatetime)
 					{
 						// unfortunately date and time of calling track is passed in position arguement
-						AAMPLOG_INFO("Comparing two disc date&time input pdt:%f pdt:%f",position, discdatetime);
-						if(std::round(discdatetime) == std::round(position)) 
+						AAMPLOG_WARN("Comparing two disc date&time input pdt:%f pdt:%f diff:%f",position, discdatetime, fabs(discdatetime - position));
+						if( fabs( discdatetime - position ) <= targetDurationSeconds )
 						{
 							foundmatchingdisc = true;
 							diffBetweenDiscontinuities = discdatetime - position;
