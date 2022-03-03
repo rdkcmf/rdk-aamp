@@ -6815,13 +6815,8 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 					if(useDiscontinuityDateTime && discdatetime)
 					{
 						// unfortunately date and time of calling track is passed in position arguement
-						AAMPLOG_INFO("Comparing two disc date&time input pdt:%f pdt:%f",position, discdatetime);
-						//std::round api will roundoff to nearest value, for eg , if value is 2.03 and 2.53 
-						//then it will round off of 2 and 3 respectively. Because of these mismatch,
-						//the PDT discontinuity is missed leading to undefined behavior. 
-						//Changing the logic to allow delta of at least one second to determine PDT discontinuity, 
-						//so that no PDT discontinuity is missed because of fractional value differences
-						if( fabs( discdatetime - position ) <= MAX_PDT_DISCONTINUITIY_DELTA_LIMIT ) 
+						AAMPLOG_WARN("Comparing two disc date&time input pdt:%f pdt:%f diff:%f",position, discdatetime, fabs(discdatetime - position));
+						if( fabs( discdatetime - position ) <= targetDurationSeconds )
 						{
 							foundmatchingdisc = true;
 							diffBetweenDiscontinuities = discdatetime - position;
