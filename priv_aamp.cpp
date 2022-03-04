@@ -1490,6 +1490,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mCurrentAudioTrackId(-1)
 	, mCurrentVideoTrackId(-1)
 	, mIsTrackIdMismatch(false)
+	, mIsDefaultOffset(false)
 	, mNextPeriodDuration(0)
 	, mNextPeriodStartTime(0)
 	, mNextPeriodScaledPtoStartTime(0)
@@ -4585,7 +4586,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	}
 
 
-	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
+	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE || tuneType == eTUNETYPE_SEEKTOEND)
 	{
 		mSeekOperationInProgress = true;
 	}
@@ -4724,6 +4725,30 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	else
 	{
 		retVal = eAAMPSTATUS_GENERIC_ERROR;
+	}
+
+	// Validate tune type
+	// (need to find a better way to do this)
+	if (tuneType == eTUNETYPE_NEW_NORMAL) // either no offset (mIsDefaultOffset = true) or -1 was specified
+	{
+		if(!IsLive() && !mIsDefaultOffset)
+		{
+			if (mMediaFormat == eMEDIAFORMAT_DASH) //curently only supported for dash
+			{
+				tuneType = eTUNETYPE_NEW_END;
+			}
+		}
+	}
+	mIsDefaultOffset = false;
+
+	if ((tuneType == eTUNETYPE_NEW_END) ||
+	    (tuneType == eTUNETYPE_SEEKTOEND))
+	{
+		if (mMediaFormat != eMEDIAFORMAT_DASH)
+		{
+			AAMPLOG_WARN("PrivateInstanceAAMP: tune to end not supported for format");
+			retVal = eAAMPSTATUS_GENERIC_ERROR;
+		}
 	}
 
 	if (retVal != eAAMPSTATUS_OK)
@@ -4895,7 +4920,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		}
 	}
 
-	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE)
+	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE || tuneType == eTUNETYPE_SEEKTOEND)
 	{
 		mSeekOperationInProgress = false;
 		// Pipeline is not configured if mbPlayEnabled is false, so not required
@@ -5095,14 +5120,24 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		AAMPLOG_WARN("AutoPlay disabled; Just caching the stream now.\n");
 	}
 
-	if (-1 != seek_pos_seconds)
+	mIsDefaultOffset = (AAMP_DEFAULT_PLAYBACK_OFFSET == seek_pos_seconds);
+	if (mIsDefaultOffset)
 	{
-		AAMPLOG_WARN("PrivateInstanceAAMP: seek position already set, so eTUNETYPE_NEW_SEEK");
-		tuneType = eTUNETYPE_NEW_SEEK;
+		// eTUNETYPE_NEW_NORMAL
+		// default behaviour is play live streams from 'live' point and VOD streams from the start
+		seek_pos_seconds = 0;
+	}
+	else if (-1 == seek_pos_seconds)
+	{
+		// eTUNETYPE_NEW_NORMAL
+		// behaviour is play live streams from 'live' point and VOD streams skip to the end (this will
+		// be corrected later for vod)
+		seek_pos_seconds = 0;
 	}
 	else
 	{
-		seek_pos_seconds = 0;
+		AAMPLOG_WARN("PrivateInstanceAAMP: seek position already set, so eTUNETYPE_NEW_SEEK");
+		tuneType = eTUNETYPE_NEW_SEEK;
 	}
 
 	AAMPLOG_INFO("Paused behavior : %d", mPausedBehavior);
