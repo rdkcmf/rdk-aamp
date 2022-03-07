@@ -865,7 +865,6 @@ public:
 	pthread_cond_t mWaitForDiscoToComplete; // Conditional wait for period jump
 	bool mIsPeriodChangeMarked; // Mark if a period change occurred.
         
-        bool mbDetached;
 	bool mIsFakeTune;
 
 	bool mbEnableFirstPtsSeekPosOverride; /**< Enable   FirstPtsSeekPosOverride */
