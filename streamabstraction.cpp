@@ -1065,7 +1065,8 @@ bool MediaTrack::InjectFragment()
 		}
 		else
 		{
-			if (eosReached)
+			//EOS should not be triggerd when subtitle sets its "eosReached" in any circumstances
+			if (eosReached && (eTRACK_SUBTITLE != type))
 			{
 				//Save the playback rate prior to sending EOS
 				StreamAbstractionAAMP* pContext = GetContext();
@@ -1096,7 +1097,8 @@ bool MediaTrack::InjectFragment()
 	else
 	{
 		AAMPLOG_WARN("WaitForCachedFragmentAvailable %s aborted", name);
-		if (eosReached)
+		//EOS should not be triggerd when subtitle sets its "eosReached" in any circumstances
+		if (eosReached && (eTRACK_SUBTITLE != type))
 		{
 			//Save the playback rate prior to sending EOS
 			int rate = GetContext()->aamp->rate;
