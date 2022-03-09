@@ -393,7 +393,11 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_NativeCCRendering].value			=	false;
 	bAampCfgValue[eAAMPConfig_Subtec_subtitle].value			=	true;
 	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	true;
-	bAampCfgValue[eAAMPConfig_AsyncTune].value				=	true;
+#ifdef AMLOGIC
+	bAampCfgValue[eAAMPConfig_AsyncTune].value                              =       false;
+#else
+	bAampCfgValue[eAAMPConfig_AsyncTune].value                              =       true;
+#endif
 	bAampCfgValue[eAAMPConfig_EnableAccessAttributes].value			=	true;
 	bAampCfgValue[eAAMPConfig_DisableUnderflow].value                       =       false;
 	bAampCfgValue[eAAMPConfig_LimitResolution].value                        =       false;
