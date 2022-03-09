@@ -937,7 +937,7 @@ void AampSecManager::GetWaterMarkPalette(int sessionId, int graphicId)
 }
 
 /**
- *   @brief SetWatermarkPalette
+ *   @brief ModifyWatermarkPalette
 */
 void AampSecManager::ModifyWatermarkPalette(int graphicId, int clutKey, int imageKey)
 {
@@ -958,15 +958,15 @@ void AampSecManager::ModifyWatermarkPalette(int graphicId, int clutKey, int imag
 		{
 			std::string responseStr;
 			result.ToString(responseStr);
-			AAMPLOG_ERR("modifyPalettedWatermark failed with result: %s, graphic id: %d", responseStr.c_str(), graphicId);
+			AAMPLOG_ERR("AampSecManager modifyPalettedWatermark failed with result: %s, graphic id: %d", responseStr.c_str(), graphicId);
 		}
 		else
 		{
-			AAMPLOG_TRACE("AampSecManager::%s setWatermarkPalette invoke success, graphic id: %d", graphicId);
+			AAMPLOG_TRACE("AampSecManager modifyPalettedWatermark invoke success, graphic id: %d", graphicId);
 		}
 	}
 	else
 	{
-		AAMPLOG_ERR("AampSecManager::%s thunder invocation failed!, graphic id: %d", graphicId);
+		AAMPLOG_ERR("AampSecManager Thunder invocation for modifyPalettedWatermark failed!, graphic id: %d", graphicId);
 	}
 }
