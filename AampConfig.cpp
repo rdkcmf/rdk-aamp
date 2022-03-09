@@ -424,8 +424,11 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyOffsetMin].value      	=	true;
 	bAampCfgValue[eAAMPConfig_EnableIgnoreEosSmallFragment].value		=       false;
 	bAampCfgValue[eAAMPConfig_EnableAampConfigToFog].value                  =       true;
-
+#ifdef USE_SECMANAGER
 	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	true;
+#else
+	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	false;
+#endif
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_ABRCacheLife-eAAMPConfig_IntStartValue].value			=	DEFAULT_ABR_CACHE_LIFE;
