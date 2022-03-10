@@ -393,7 +393,8 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_NativeCCRendering].value			=	false;
 	bAampCfgValue[eAAMPConfig_Subtec_subtitle].value			=	true;
 	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	true;
-#ifdef AMLOGIC
+#if defined(AMLOGIC) && !defined(USE_SECMANAGER)
+// this isolates XClass build from having async tune default enabled as temporary workaround for RDKTV-15238 
 	bAampCfgValue[eAAMPConfig_AsyncTune].value                              =       false;
 #else
 	bAampCfgValue[eAAMPConfig_AsyncTune].value                              =       true;
