@@ -112,7 +112,6 @@ void AampScheduler::ExecuteAsyncTask()
 	{
 		if (mTaskQueue.empty())
 		{
-			AAMPLOG_INFO("Waiting for any functions to be queued!!");
 			mQCond.wait(lock);
 		}
 		else
@@ -147,7 +146,7 @@ void AampScheduler::ExecuteAsyncTask()
 			lock.lock();
 		}
 	}
-	AAMPLOG_WARN("Exited Async Worker Thread");
+	AAMPLOG_INFO("Exited Async Worker Thread");
 }
 
 /**
@@ -189,7 +188,6 @@ void AampScheduler::StopScheduler()
  */
 void AampScheduler::SuspendScheduler()
 {
-	AAMPLOG_WARN("Suspending Async Worker Thread");
 	mExLock.lock();
 	std::lock_guard<std::mutex>lock(mQMutex);
 	mLockOut = true;
@@ -202,7 +200,6 @@ void AampScheduler::SuspendScheduler()
  */
 void AampScheduler::ResumeScheduler()
 {
-	AAMPLOG_WARN("Resuming Async Worker Thread");
 	mExLock.unlock();
 	std::lock_guard<std::mutex>lock(mQMutex);
 	mLockOut = false;
