@@ -1291,7 +1291,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						if(mIsLiveStream)
 						{
 							// After mpd refresh , Time will be 0. Need to traverse to the right fragment for playback
-							if(0 == pMediaStreamContext->fragmentDescriptor.Time)
+							if((0 == pMediaStreamContext->fragmentDescriptor.Time) || rate > AAMP_NORMAL_PLAY_RATE)
 							{
 								uint32_t duration =0;
 								uint32_t repeatCount =0;
