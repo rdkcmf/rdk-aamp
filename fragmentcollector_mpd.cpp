@@ -3661,7 +3661,11 @@ double StreamAbstractionAAMP_MPD::GetPeriodEndTime(IMPD *mpd, int periodIndex, u
 	IPeriod *period = NULL;
 	if(mpd != NULL)
 	{
+		int periodCnt= mpd->GetPeriods().size();
+		if(periodIndex < periodCnt)
+		{
 			period = mpd->GetPeriods().at(periodIndex);
+		}
 	}
 	else
 	{
@@ -4482,7 +4486,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		mPeriodStartTime =  GetPeriodStartTime(mpd, mCurrentPeriodIdx);
 		mPeriodDuration =  GetPeriodDuration(mpd, mCurrentPeriodIdx);
 		mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
-		mCurrentPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
+		int periodCnt= mpd->GetPeriods().size();
+		if(mCurrentPeriodIdx < periodCnt)
+		{
+			mCurrentPeriod = mpd->GetPeriods().at(mCurrentPeriodIdx);
+		}
 		if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && !aamp->IsUninterruptedTSB() && mIsLiveStream)
 		{
 			// For live stream, take period start time
@@ -5986,6 +5994,11 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 	int bestScore = -1;
 	class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_AUDIO];
 	IPeriod *period = mCurrentPeriod;
+	if(!period)
+	{
+		AAMPLOG_WARN("period is null");
+		return bestTrack;
+	}
 	size_t numAdaptationSets = period->GetAdaptationSets().size();
 	for( int iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 	{
@@ -6138,6 +6151,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 	if(!period)
 	{
 		AAMPLOG_WARN("period is null");  //CID:84742 - Null Returns
+		return;
 	}
 	AAMPLOG_INFO("Selected Period index %d, id %s", mCurrentPeriodIdx, period->GetId().c_str());
 	for( int i = 0; i < mMaxTracks; i++ )
@@ -6320,7 +6334,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 					if (eMEDIATYPE_SUBTITLE == i && (selAdaptationSetIndex == -1 || isFrstAvailableTxtTrackSelected))
 					{
 						AAMPLOG_INFO("Checking subs - mime %s lang %s selAdaptationSetIndex %d",
-									 adaptationSet->GetMimeType().c_str(), GetLanguageForAdaptationSet(adaptationSet).c_str(), selAdaptationSetIndex);
+										adaptationSet->GetMimeType().c_str(), GetLanguageForAdaptationSet(adaptationSet).c_str(), selAdaptationSetIndex);
 						
 						TextTrackInfo *firstAvailTextTrack = nullptr;
 						if(aamp->GetPreferredTextTrack().index.empty() && !isFrstAvailableTxtTrackSelected)
@@ -6495,11 +6509,11 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 			pMediaStreamContext->profileChanged = true;
 			
 			/* To solve a no audio issue - Force configure gst audio pipeline/playbin in the case of multi period
-			 * multi audio codec available for current decoding language on stream. For example, first period has AAC no EC3,
-			 * so the player will choose AAC then start decoding, but in the forthcoming periods,
-			 * if the stream has AAC and EC3 for the current decoding language then as per the EC3(default priority)
-			 * the player will choose EC3 but the audio pipeline actually not configured in this case to affect this change.
-			 */
+				* multi audio codec available for current decoding language on stream. For example, first period has AAC no EC3,
+				* so the player will choose AAC then start decoding, but in the forthcoming periods,
+				* if the stream has AAC and EC3 for the current decoding language then as per the EC3(default priority)
+				* the player will choose EC3 but the audio pipeline actually not configured in this case to affect this change.
+				*/
 			if ( aamp->previousAudioType != selectedCodecType && eMEDIATYPE_AUDIO == i )
 			{
 				AAMPLOG_WARN("StreamAbstractionAAMP_MPD: AudioType Changed %d -> %d",
@@ -6568,7 +6582,6 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 	// Set audio/text track related structures
 	SetAudioTrackInfo(aTracks, aTrackIdx);
 	SetTextTrackInfo(tTracks, tTrackIdx);
-
 }
 
 /**
