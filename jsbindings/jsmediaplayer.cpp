@@ -73,16 +73,16 @@ struct AAMPMediaPlayer_JS : public PrivAAMPStruct_JS
 	 */
 	JSObjectRef getCallbackForAdId(std::string id) override
 	{
-		TRACELOG("Enter AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+		TRACELOG("Enter, id: %s", id);
 		std::map<std::string, JSObjectRef>::const_iterator it = _promiseCallbacks.find(id);
 		if (it != _promiseCallbacks.end())
 		{
-			TRACELOG("Exit AAMPMediaPlayer_JS::%s(), found cbObject", __FUNCTION__);
+			WARNING("found cbObject");
 			return it->second;
 		}
 		else
 		{
-			TRACELOG("Exit AAMPMediaPlayer_JS::%s(), didn't find cbObject", __FUNCTION__);
+			ERROR("didn't find cbObject for id: %s", id);
 			return NULL;
 		}
 	}
@@ -94,14 +94,14 @@ struct AAMPMediaPlayer_JS : public PrivAAMPStruct_JS
 	 */
 	void removeCallbackForAdId(std::string id) override
 	{
-		TRACELOG("Enter AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+		TRACELOG("Enter");
 		std::map<std::string, JSObjectRef>::const_iterator it = _promiseCallbacks.find(id);
 		if (it != _promiseCallbacks.end())
 		{
 			JSValueUnprotect(_ctx, it->second);
 			_promiseCallbacks.erase(it);
 		}
-		TRACELOG("Exit AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+		TRACELOG("Exit");
 	}
 
 
@@ -112,7 +112,7 @@ struct AAMPMediaPlayer_JS : public PrivAAMPStruct_JS
 	 */
 	void saveCallbackForAdId(std::string id, JSObjectRef cbObject)
 	{
-		TRACELOG("Enter AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+		TRACELOG("Enter");
 		JSObjectRef savedObject = getCallbackForAdId(id);
 		if (savedObject != NULL)
 		{
@@ -121,7 +121,7 @@ struct AAMPMediaPlayer_JS : public PrivAAMPStruct_JS
 
 		JSValueProtect(_ctx, cbObject);
 		_promiseCallbacks[id] = cbObject;
-		TRACELOG("Exit AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+		TRACELOG("Exit");
 	}
 
 
@@ -130,7 +130,7 @@ struct AAMPMediaPlayer_JS : public PrivAAMPStruct_JS
 	 */
 	void clearCallbackForAllAdIds()
 	{
-		TRACELOG("Enter AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+		TRACELOG("Enter");
 		if (!_promiseCallbacks.empty())
 		{
 			for (auto it = _promiseCallbacks.begin(); it != _promiseCallbacks.end(); )
@@ -139,7 +139,7 @@ struct AAMPMediaPlayer_JS : public PrivAAMPStruct_JS
 				_promiseCallbacks.erase(it);
 			}
 		}
-		TRACELOG("Exit AAMPMediaPlayer_JS::%s()", __FUNCTION__);
+		TRACELOG("Exit");
 	}
 };
 
@@ -197,12 +197,12 @@ bool ParseJSPropAsNumber(JSContextRef ctx, JSObjectRef jsObject, const char *pro
 	if (JSValueIsNumber(ctx, propValue))
 	{
 		value = JSValueToNumber(ctx, propValue, NULL);
-		INFO("[AAMP_JS]: Parsed value for property %s - %f", prop, value);
+		INFO("Parsed value for property %s - %f", prop, value);
 		ret = true;
 	}
 	else
 	{
-		TRACELOG("%s(): Invalid value for property %s passed", __FUNCTION__, prop);
+		WARNING("Invalid value for property %s passed", prop);
 	}
 
 	JSStringRelease(propName);
@@ -226,12 +226,12 @@ bool ParseJSPropAsString(JSContextRef ctx, JSObjectRef jsObject, const char *pro
 	if (JSValueIsString(ctx, propValue))
 	{
 		value = aamp_JSValueToCString(ctx, propValue, NULL);
-		INFO("[AAMP_JS]: Parsed value for property %s - %s", prop, value);
+		INFO("Parsed value for property %s - %s", prop, value);
 		ret = true;
 	}
 	else
 	{
-		TRACELOG("%s(): Invalid value for property - %s passed", __FUNCTION__, prop);
+		WARNING("Invalid value for property - %s passed", prop);
 	}
 
 	JSStringRelease(propName);
@@ -255,12 +255,12 @@ bool ParseJSPropAsObject(JSContextRef ctx, JSObjectRef jsObject, const char *pro
 	if (JSValueIsObject(ctx, propValue))
 	{
 		value = propValue;
-		INFO("[AAMP_JS]: Parsed object as value for property %s", prop);
+		INFO("Parsed object as value for property %s", prop);
 		ret = true;
 	}
 	else
 	{
-		TRACELOG("%s(): Invalid value for property - %s passed", __FUNCTION__, prop);
+		WARNING("Invalid value for property - %s passed", prop);
 	}
 
 	JSStringRelease(propName);
@@ -283,12 +283,12 @@ bool ParseJSPropAsBoolean(JSContextRef ctx, JSObjectRef jsObject, const char *pr
        if (JSValueIsBoolean(ctx, propValue))
        {
                value = JSValueToBoolean(ctx, propValue);
-               INFO("[AAMP_JS]: Parsed value for property %s - %d", prop, value);
+               INFO("Parsed value for property %s - %d", prop, value);
                ret = true;
        }
        else
        {
-               TRACELOG("%s(): Invalid value for property - %s passed", __FUNCTION__, prop);
+               WARNING("Invalid value for property - %s passed", prop);
        }
 
        JSStringRelease(propName);
@@ -305,18 +305,19 @@ static void releaseNativeResources(AAMPMediaPlayer_JS *privObj)
 {
 	if (privObj != NULL)
 	{
-		ERROR("[%s] Deleting AAMPMediaPlayer_JS instance:%p ", __FUNCTION__, privObj);
+		INFO("Deleting AAMPMediaPlayer_JS instance:%p ", privObj);
 		// clean all members of AAMPMediaPlayer_JS(privObj)
 		if (privObj->_aamp != NULL)
 		{
 			//when finalizing JS object, don't generate state change events
+			WARNING("Calling _aamp->Stop(false)");
 			privObj->_aamp->Stop(false);
 			privObj->clearCallbackForAllAdIds();
 			if (privObj->_listeners.size() > 0)
 			{
 				AAMP_JSEventListener::RemoveAllEventListener(privObj);
 			}
-			ERROR("[%s] Deleting PlayerInstanceAAMP instance:%p", __FUNCTION__, privObj->_aamp);
+			WARNING("Deleting PlayerInstanceAAMP instance:%p", privObj->_aamp);
 			SAFE_DELETE(privObj->_aamp);
 		}
 	}
@@ -380,7 +381,7 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 		ret = ParseJSPropAsString(ctx, drmConfigObj, "com.microsoft.playready", prLicenseServerURL);
 		if (ret)
 		{
-			ERROR("%s(): Playready License Server URL config param received - %s", __FUNCTION__, prLicenseServerURL);
+			WARNING("Playready License Server URL config param received - %s", prLicenseServerURL);
 			privObj->_aamp->SetLicenseServerURL(prLicenseServerURL, eDRM_PlayReady);
 
 			SAFE_DELETE_ARRAY(prLicenseServerURL);
@@ -389,7 +390,7 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 		ret = ParseJSPropAsString(ctx, drmConfigObj, "com.widevine.alpha", wvLicenseServerURL);
 		if (ret)
 		{
-			ERROR("%s(): Widevine License Server URL config param received - %s", __FUNCTION__, wvLicenseServerURL);
+			WARNING("Widevine License Server URL config param received - %s", wvLicenseServerURL);
 			privObj->_aamp->SetLicenseServerURL(wvLicenseServerURL, eDRM_WideVine);
 
 			SAFE_DELETE_ARRAY(wvLicenseServerURL);
@@ -398,7 +399,7 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 		ret = ParseJSPropAsString(ctx, drmConfigObj, "org.w3.clearkey", ckLicenseServerURL);
 		if (ret)
 		{
-			ERROR("%s(): ClearKey License Server URL config param received - %s", __FUNCTION__, ckLicenseServerURL);
+			WARNING("ClearKey License Server URL config param received - %s", ckLicenseServerURL);
 			privObj->_aamp->SetLicenseServerURL(ckLicenseServerURL, eDRM_ClearKey);
 
 			SAFE_DELETE_ARRAY(ckLicenseServerURL);
@@ -409,24 +410,24 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
 		{
 			if (strncmp(keySystem, "com.microsoft.playready", 23) == 0)
 			{
-				ERROR("%s(): Preferred key system config received - playready", __FUNCTION__);
+				WARNING("Preferred key system config received - playready");
 				privObj->_aamp->SetPreferredDRM(eDRM_PlayReady);
 			}
 			else if (strncmp(keySystem, "com.widevine.alpha", 18) == 0)
 			{
-				ERROR("%s(): Preferred key system config received - widevine", __FUNCTION__);
+				WARNING("Preferred key system config received - widevine");
 				privObj->_aamp->SetPreferredDRM(eDRM_WideVine);
 			}
 			else
 			{
-				LOG("%s(): Value passed preferredKeySystem(%s) not supported", __FUNCTION__, keySystem);
+				ERROR("Value passed preferredKeySystem(%s) not supported", keySystem);
 			}
 			SAFE_DELETE_ARRAY(keySystem);
 		}
 	}
 	else
 	{
-		ERROR("%s(): InvalidProperty - drmConfigParam is NULL", __FUNCTION__);
+		ERROR("InvalidProperty - drmConfigParam is NULL");
 	}
 }
 
@@ -443,11 +444,11 @@ void parseDRMConfiguration (JSContextRef ctx, AAMPMediaPlayer_JS* privObj, JSVal
  */
 JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call load() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -503,23 +504,23 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 			aamp_ApplyPageHttpHeaders(privObj->_aamp);
 			{
 				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
+				WARNING("Calling _aamp->Tune(%s, %d, %s, %d, %d, %s)", 
+					url, autoPlay, contentType, bFirstAttempt, bFinalAttempt,strTraceId);
 				privObj->_aamp->Tune(url, autoPlay, contentType, bFirstAttempt, bFinalAttempt,strTraceId);
 
 			}
 
-		
 			break;
 		}
 
 		default:
-			ERROR("%s(): InvalidArgument - argumentCount=%d, expected atmost 3 arguments", __FUNCTION__, argumentCount);
+			ERROR("InvalidArgument - argumentCount=%d, expected atmost 3 arguments", argumentCount);
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute load() <= 3 arguments required");
 	}
 
-	TRACELOG("Exit %s()", __FUNCTION__);
-        SAFE_DELETE_ARRAY(url);
-        SAFE_DELETE_ARRAY(contentType);
-        SAFE_DELETE_ARRAY(strTraceId);
+	SAFE_DELETE_ARRAY(url);
+	SAFE_DELETE_ARRAY(contentType);
+	SAFE_DELETE_ARRAY(strTraceId);
 
 	return JSValueMakeUndefined(ctx);
 }
@@ -537,11 +538,11 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
  */
 JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call initConfig() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -563,7 +564,7 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		char *jsonStr = aamp_JSValueToJSONCString(ctx,arguments[0], exception);
 		if (jsonStr != NULL)
 		{
-			ERROR("%s(): InitConfig input from App : %s", __FUNCTION__, jsonStr);
+			WARNING("Calling _aaamp->InitConfig: %s", jsonStr);
 			if(privObj->_aamp->InitAAMPConfig(jsonStr))
 			{
 				jsonparsingdone=true;
@@ -572,19 +573,18 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
 		}
 		else
 		{
-			ERROR("%s(): InitConfig Failed to create JSON String", __FUNCTION__);
+			ERROR("InitConfig Failed to create JSON String");
 		}
 		if(!jsonparsingdone)
 		{
-			ERROR("%s(): InitConfig Failed to parse JSON String", __FUNCTION__);
+			ERROR("InitConfig Failed to parse JSON String");
 		}
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute initConfig() - 1 argument of type IConfig required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -601,18 +601,18 @@ JSValueRef AAMPMediaPlayerJS_initConfig (JSContextRef ctx, JSObjectRef function,
  */
 JSValueRef AAMPMediaPlayerJS_play (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call play() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 	{
+		WARNING("Calling _aamp->SetRate(1)");
 		privObj->_aamp->SetRate(AAMP_NORMAL_PLAY_RATE);
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -628,18 +628,18 @@ JSValueRef AAMPMediaPlayerJS_play (JSContextRef ctx, JSObjectRef function, JSObj
  */
 JSValueRef AAMPMediaPlayerJS_detach (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call play() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
+	WARNING("Calling _aamp->detach()");
 	privObj->_aamp->detach();
 
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -655,18 +655,18 @@ JSValueRef AAMPMediaPlayerJS_detach (JSContextRef ctx, JSObjectRef function, JSO
  */
 JSValueRef AAMPMediaPlayerJS_pause (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call pause() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 	{
+		WARNING("Calling _aamp->SetRate(0)");
 		privObj->_aamp->SetRate(0);
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -683,16 +683,16 @@ JSValueRef AAMPMediaPlayerJS_pause (JSContextRef ctx, JSObjectRef function, JSOb
  */
 JSValueRef AAMPMediaPlayerJS_stop (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || (privObj && !privObj->_aamp))
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call stop() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
+	WARNING("Calling _aamp->Stop()");
 	privObj->_aamp->Stop();
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -709,11 +709,11 @@ JSValueRef AAMPMediaPlayerJS_stop (JSContextRef ctx, JSObjectRef function, JSObj
  */
 JSValueRef AAMPMediaPlayerJS_seek (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call seek() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -724,15 +724,15 @@ JSValueRef AAMPMediaPlayerJS_seek (JSContextRef ctx, JSObjectRef function, JSObj
 		bool keepPaused = (argumentCount == 2)? JSValueToBoolean(ctx, arguments[1]) : false;
 
 		{
+			WARNING("Calling _aamp->Seek(%f, %d)", newSeekPos, keepPaused);
 			privObj->_aamp->Seek(newSeekPos, keepPaused);
 		}
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1 or 2", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1 or 2", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute seek() - 1 or 2 arguments required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -748,11 +748,11 @@ JSValueRef AAMPMediaPlayerJS_seek (JSContextRef ctx, JSObjectRef function, JSObj
  */
 JSValueRef AAMPMediaPlayerJS_getThumbnails (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call seek() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -761,11 +761,12 @@ JSValueRef AAMPMediaPlayerJS_getThumbnails (JSContextRef ctx, JSObjectRef functi
 	{
 		double thumbnailPosition = JSValueToNumber(ctx, arguments[0], exception);
 
+		WARNING("Calling _aamp->GetThumbnails(%d, 0)", thumbnailPosition);
 		std::string value = privObj->_aamp->GetThumbnails(thumbnailPosition, 0);
 	        if (!value.empty())
         	{
-	                TRACELOG("Exit %s()", __FUNCTION__);
-        	        return aamp_CStringToJSValue(ctx, value.c_str());
+				TRACELOG("Exit");
+				return aamp_CStringToJSValue(ctx, value.c_str());
 	        }
 
 	}
@@ -773,19 +774,19 @@ JSValueRef AAMPMediaPlayerJS_getThumbnails (JSContextRef ctx, JSObjectRef functi
 	{
 		double startPos = JSValueToNumber(ctx, arguments[0], exception);
 		double endPos = JSValueToNumber(ctx, arguments[1], exception);
+		WARNING("Calling _aamp->GetThumbnails(%d, %d)", startPos, endPos);
 		std::string value = privObj->_aamp->GetThumbnails(startPos, endPos);
 		if (!value.empty())
 		{
-			ERROR("Exit %s()", __FUNCTION__);
+			ERROR("Exit");
 			return aamp_CStringToJSValue(ctx, value.c_str());
 		}
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1 or 2", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1 or 2", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute seek() - 1 or 2 arguments required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -801,21 +802,21 @@ JSValueRef AAMPMediaPlayerJS_getThumbnails (JSContextRef ctx, JSObjectRef functi
  */
 JSValueRef AAMPMediaPlayerJS_getAvailableThumbnailTracks (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getVideoBitrates() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
+	WARNING("Calling _aamp->GetAvailableThumbnailTrack()");
 	std::string value = privObj->_aamp->GetAvailableThumbnailTracks();
 	if (!value.empty())
 	{
-		ERROR("Exit %s()", __FUNCTION__);
+		ERROR("Exit");
 		return aamp_CStringToJSValue(ctx, value.c_str());
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -831,21 +832,21 @@ JSValueRef AAMPMediaPlayerJS_getAvailableThumbnailTracks (JSContextRef ctx, JSOb
  */
 JSValueRef AAMPMediaPlayerJS_getAudioTrackInfo (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAudioTrackInfo() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
+	WARNING("Calling _aamp->GetAudioTrackInfo()");
 	std::string value = privObj->_aamp->GetAudioTrackInfo();
 	if (!value.empty())
 	{
-		ERROR("Exit %s()", __FUNCTION__);
+		ERROR("Exit");
 		return aamp_CStringToJSValue(ctx, value.c_str());
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -862,21 +863,21 @@ JSValueRef AAMPMediaPlayerJS_getAudioTrackInfo (JSContextRef ctx, JSObjectRef fu
  */
 JSValueRef AAMPMediaPlayerJS_getPreferredAudioProperties (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getPreferredAudioProperties() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
+	WARNING("Calling _aamp->GetPrefferedAudioProperties()");
 	std::string value = privObj->_aamp->GetPreferredAudioProperties();
 	if (!value.empty())
 	{
-		ERROR("Exit %s()", __FUNCTION__);
+		TRACELOG("Exit %s", value);
 		return aamp_CStringToJSValue(ctx, value.c_str());
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 /**
@@ -891,18 +892,18 @@ JSValueRef AAMPMediaPlayerJS_getPreferredAudioProperties (JSContextRef ctx, JSOb
  */
 JSValueRef AAMPMediaPlayerJS_setThumbnailTrack (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call SetThumbnailTrack() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute SetThumbnailTrack() - 1 argument required");
 	}
 	else
@@ -910,15 +911,15 @@ JSValueRef AAMPMediaPlayerJS_setThumbnailTrack (JSContextRef ctx, JSObjectRef fu
 		int thumbnailIndex = (int) JSValueToNumber(ctx, arguments[0], NULL);
 		if (thumbnailIndex >= 0)
 		{
+			WARNING("Calling _aamp->SetThumbnailTrack(%d)", thumbnailIndex);
 			return JSValueMakeBoolean(ctx, privObj->_aamp->SetThumbnailTrack(thumbnailIndex));
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - Index should be >= 0!", __FUNCTION__);
+			ERROR("InvalidArgument - Index should be >= 0!");
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Index should be >= 0!");
 		}
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -934,15 +935,15 @@ JSValueRef AAMPMediaPlayerJS_setThumbnailTrack (JSContextRef ctx, JSObjectRef fu
  */
 JSValueRef AAMPMediaPlayerJS_getCurrentState (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getCurrentState() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
+	WARNING("Calling _aamp->GetState()");
 	return JSValueMakeNumber(ctx, privObj->_aamp->GetState());
 }
 
@@ -959,24 +960,24 @@ JSValueRef AAMPMediaPlayerJS_getCurrentState (JSContextRef ctx, JSObjectRef func
  */
 JSValueRef AAMPMediaPlayerJS_getDurationSec (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	double duration = 0;
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getDurationSec() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
+	WARNING("Calling _aamp->GetPlaybackDuration()");
 	duration = privObj->_aamp->GetPlaybackDuration();
 	if (duration < 0)
 	{
-		ERROR("%s(): Duration returned by GetPlaybackDuration() is less than 0!", __FUNCTION__);
+		ERROR("Duration returned by GetPlaybackDuration() is less than 0!");
 		duration = 0;
 	}
 
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeNumber(ctx, duration);
 }
 
@@ -993,24 +994,24 @@ JSValueRef AAMPMediaPlayerJS_getDurationSec (JSContextRef ctx, JSObjectRef funct
  */
 JSValueRef AAMPMediaPlayerJS_getCurrentPosition (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	double currPosition = 0;
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getCurrentPosition() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
+	WARNING("Calling _aamp->GetPlaybackPosition()");
 	currPosition = privObj->_aamp->GetPlaybackPosition();
 	if (currPosition < 0)
 	{
-		ERROR("%s(): Current position returned by GetPlaybackPosition() is less than 0!", __FUNCTION__);
+		ERROR("Current position returned by GetPlaybackPosition() is less than 0!");
 		currPosition = 0;
 	}
 
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeNumber(ctx, currPosition);
 }
 
@@ -1027,14 +1028,15 @@ JSValueRef AAMPMediaPlayerJS_getCurrentPosition (JSContextRef ctx, JSObjectRef f
  */
 JSValueRef AAMPMediaPlayerJS_getVideoBitrates (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getVideoBitrates() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
+	WARNING("Calling _aamp->GetVideoBitrates()");
 	std::vector<long> bitrates = privObj->_aamp->GetVideoBitrates();
 	if (!bitrates.empty())
 	{
@@ -1047,7 +1049,7 @@ JSValueRef AAMPMediaPlayerJS_getVideoBitrates (JSContextRef ctx, JSObjectRef fun
 
 		JSValueRef retVal = JSObjectMakeArray(ctx, length, array, NULL);
 		SAFE_DELETE_ARRAY(array);
-		TRACELOG("Exit %s()", __FUNCTION__);
+		TRACELOG("Exit");
 		return retVal;
 	}
 	return JSValueMakeUndefined(ctx);
@@ -1065,23 +1067,24 @@ JSValueRef AAMPMediaPlayerJS_getVideoBitrates (JSContextRef ctx, JSObjectRef fun
  */
 JSValueRef AAMPMediaPlayerJS_getManifest (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getManifest() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
+	WARNING("Calling _aamp->GetManifest()");
 	std::string manifest = privObj->_aamp->GetManifest();
 	if (!manifest.empty())
 	{
-		TRACELOG("Exit %s()", __FUNCTION__);
+		TRACELOG("Exit");
 		return aamp_CStringToJSValue(ctx, manifest.c_str());
 	}
 	else
 	{
-		TRACELOG("Exit %s()", __FUNCTION__);
+		TRACELOG("Exit with undefined");
 		return JSValueMakeUndefined(ctx);
 	}
 }
@@ -1098,14 +1101,15 @@ JSValueRef AAMPMediaPlayerJS_getManifest (JSContextRef ctx, JSObjectRef function
  */
 JSValueRef AAMPMediaPlayerJS_getAudioBitrates (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAudioBitrates() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
+	WARNING("Calling _aamp->GetAudioBitrates()");
 	std::vector<long> bitrates = privObj->_aamp->GetAudioBitrates();
 	if (!bitrates.empty())
 	{
@@ -1118,7 +1122,7 @@ JSValueRef AAMPMediaPlayerJS_getAudioBitrates (JSContextRef ctx, JSObjectRef fun
 
 		JSValueRef retVal = JSObjectMakeArray(ctx, length, array, NULL);
 		SAFE_DELETE_ARRAY(array);
-		TRACELOG("Exit %s()", __FUNCTION__);
+		TRACELOG("Exit");
 		return retVal;
 	}
 	return JSValueMakeUndefined(ctx);
@@ -1137,15 +1141,15 @@ JSValueRef AAMPMediaPlayerJS_getAudioBitrates (JSContextRef ctx, JSObjectRef fun
  */
 JSValueRef AAMPMediaPlayerJS_getCurrentVideoBitrate (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getCurrentVideoBitrate() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
+	WARNING("Calling _aamp->GetVideoBitrate()");
 	return JSValueMakeNumber(ctx, privObj->_aamp->GetVideoBitrate());
 }
 
@@ -1162,18 +1166,18 @@ JSValueRef AAMPMediaPlayerJS_getCurrentVideoBitrate (JSContextRef ctx, JSObjectR
  */
 JSValueRef AAMPMediaPlayerJS_setVideoBitrate (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVideoBitrate() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setVideoBitrate() - 1 argument required");
 	}
 	else
@@ -1182,15 +1186,15 @@ JSValueRef AAMPMediaPlayerJS_setVideoBitrate (JSContextRef ctx, JSObjectRef func
 		//bitrate 0 is for ABR
 		if (bitrate >= 0)
 		{
+			WARNING("Calling _aamp->SetVideoBitrate(%ld)", bitrate);
 			privObj->_aamp->SetVideoBitrate(bitrate);
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - bitrate should be >= 0!", __FUNCTION__);
+			ERROR("InvalidArgument - bitrate should be >= 0!");
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Bitrate should be >= 0!");
 		}
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1207,15 +1211,15 @@ JSValueRef AAMPMediaPlayerJS_setVideoBitrate (JSContextRef ctx, JSObjectRef func
  */
 JSValueRef AAMPMediaPlayerJS_getCurrentAudioBitrate (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getCurrentAudioBitrate() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
+	WARNING("Calling _aamp->GetAudioBitrate()");
 	return JSValueMakeNumber(ctx, privObj->_aamp->GetAudioBitrate());
 }
 
@@ -1232,18 +1236,18 @@ JSValueRef AAMPMediaPlayerJS_getCurrentAudioBitrate (JSContextRef ctx, JSObjectR
  */
 JSValueRef AAMPMediaPlayerJS_setAudioBitrate (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setAudioBitrate() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setAudioBitrate() - 1 argument required");
 	}
 	else
@@ -1251,15 +1255,15 @@ JSValueRef AAMPMediaPlayerJS_setAudioBitrate (JSContextRef ctx, JSObjectRef func
 		long bitrate = (long) JSValueToNumber(ctx, arguments[0], NULL);
 		if (bitrate >= 0)
 		{
+			WARNING("Calling _aamp->SetAudioBitrate(%ld)", bitrate);
 			privObj->_aamp->SetAudioBitrate(bitrate);
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - bitrate should be >= 0!", __FUNCTION__);
+			ERROR("InvalidArgument - bitrate should be >= 0!");
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Bitrate should be >= 0!");
 		}
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1276,15 +1280,15 @@ JSValueRef AAMPMediaPlayerJS_setAudioBitrate (JSContextRef ctx, JSObjectRef func
  */
 JSValueRef AAMPMediaPlayerJS_getAudioTrack (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAudioTrack() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
+	WARNING("Calling _aamp->GetAudioTrack()");
 	return JSValueMakeNumber(ctx, privObj->_aamp->GetAudioTrack());
 }
 
@@ -1301,18 +1305,18 @@ JSValueRef AAMPMediaPlayerJS_getAudioTrack (JSContextRef ctx, JSObjectRef functi
  */
 JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setAudioTrack() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setAudioTrack() - 1 argument required");
 	}
 	else  if (JSValueIsObject(ctx, arguments[0]))
@@ -1335,7 +1339,7 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 		JSObjectRef audioProperty = JSValueToObject(ctx, arguments[0], NULL);
 		if (audioProperty == NULL)
 		{
-			ERROR("%s() Unable to convert argument to JSObject", __FUNCTION__);
+			ERROR("Unable to convert argument to JSObject");
 			return JSValueMakeUndefined(ctx);
 		}
 		JSStringRef propName = JSStringCreateWithUTF8CString("language");
@@ -1387,8 +1391,8 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 		std::string strType = type?std::string(type):"";
 		SAFE_DELETE_ARRAY(type);
 
-		INFO("%s() Calling SetAudioTrack language=%s renditio=%s type=%s codec=%s channel=%d", 
-			strLanguage.c_str(), strRendition.c_str(), strType.c_str(), strCodec.c_str(), channel,	__FUNCTION__);
+		WARNING("Calling _aamp->SetAudioTrack language=%s renditio=%s type=%s codec=%s channel=%d", 
+			strLanguage.c_str(), strRendition.c_str(), strType.c_str(), strCodec.c_str(), channel);
 		privObj->_aamp->SetAudioTrack(strLanguage, strRendition, strType, strCodec, channel);
 		
 	}
@@ -1398,16 +1402,16 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 		if (index >= 0)
 		{
 			{
+				WARNING("Calling _aamp->SetAudioTrack(%d)", index);
 				privObj->_aamp->SetAudioTrack(index);
 			}
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - track index should be >= 0!", __FUNCTION__);
+			ERROR("InvalidArgument - track index should be >= 0!");
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Audio track index should be >= 0!");
 		}
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1424,15 +1428,15 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
  */
 JSValueRef AAMPMediaPlayerJS_getTextTrack (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getTextTrack() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
+	WARNING("Calling _aamp->GetTextTrack()");
 	return JSValueMakeNumber(ctx, privObj->_aamp->GetTextTrack());
 }
 
@@ -1449,18 +1453,18 @@ JSValueRef AAMPMediaPlayerJS_getTextTrack (JSContextRef ctx, JSObjectRef functio
  */
 JSValueRef AAMPMediaPlayerJS_setTextTrack (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setTextTrack() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setTextTrack() - 1 argument required");
 	}
 	else
@@ -1468,15 +1472,15 @@ JSValueRef AAMPMediaPlayerJS_setTextTrack (JSContextRef ctx, JSObjectRef functio
 		int index = (int) JSValueToNumber(ctx, arguments[0], NULL);
 		if (index >= 0)
 		{
+			WARNING("Calling _aamp->SetTextTrack(%d)");
 			privObj->_aamp->SetTextTrack(index);
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - track index should be >= 0!", __FUNCTION__);
+			ERROR("InvalidArgument - track index should be >= 0!");
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Text track index should be >= 0!");
 		}
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1493,15 +1497,15 @@ JSValueRef AAMPMediaPlayerJS_setTextTrack (JSContextRef ctx, JSObjectRef functio
  */
 JSValueRef AAMPMediaPlayerJS_getVolume (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getVolume() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
+	WARNING("Calling _aamp->GetAudioVolume()");
 	return JSValueMakeNumber(ctx, privObj->_aamp->GetAudioVolume());
 }
 
@@ -1518,18 +1522,18 @@ JSValueRef AAMPMediaPlayerJS_getVolume (JSContextRef ctx, JSObjectRef function, 
  */
 JSValueRef AAMPMediaPlayerJS_setVolume (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVolume() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 	
 	if(!privObj->_aamp)
 	{
-		ERROR("%s(): Error - PlayerInstanceAAMP returned NULL!", __FUNCTION__);
+		ERROR("PlayerInstanceAAMP returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVolume() on valid instance of PlayerInstanceAAMP");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -1539,20 +1543,20 @@ JSValueRef AAMPMediaPlayerJS_setVolume (JSContextRef ctx, JSObjectRef function, 
 		int volume = (int) JSValueToNumber(ctx, arguments[0], exception);
 		if (volume >= 0)
 		{
+			WARNING("Calling _aamp->SetAudioVolume(%d)", volume);
 			privObj->_aamp->SetAudioVolume(volume);
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - volume should not be a negative number", __FUNCTION__);
+			ERROR("InvalidArgument - volume should not be a negative number");
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Volume should not be a negative number");
 		}
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setVolume() - 1 argument required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1568,11 +1572,11 @@ JSValueRef AAMPMediaPlayerJS_setVolume (JSContextRef ctx, JSObjectRef function, 
  */
 JSValueRef AAMPMediaPlayerJS_setAudioLanguage (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setAudioLanguage() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -1581,16 +1585,16 @@ JSValueRef AAMPMediaPlayerJS_setAudioLanguage (JSContextRef ctx, JSObjectRef fun
 	{
 		const char *lang = aamp_JSValueToCString(ctx, arguments[0], exception);
 		{
+			WARNING("Calling _aamp->SetLanguage(%s)", lang);
 			privObj->_aamp->SetLanguage(lang);
 		}
 		SAFE_DELETE_ARRAY(lang);
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setAudioLanguage() - 1 argument required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1606,15 +1610,15 @@ JSValueRef AAMPMediaPlayerJS_setAudioLanguage (JSContextRef ctx, JSObjectRef fun
  */
 JSValueRef AAMPMediaPlayerJS_getPlaybackRate (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getPlaybackRate() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
+	WARNING("Calling _aamp->GetPlaybackRate()");
 	return JSValueMakeNumber(ctx, privObj->_aamp->GetPlaybackRate());
 }
 
@@ -1631,11 +1635,11 @@ JSValueRef AAMPMediaPlayerJS_getPlaybackRate (JSContextRef ctx, JSObjectRef func
  */
 JSValueRef AAMPMediaPlayerJS_setPlaybackRate (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setPlaybackRate() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -1649,15 +1653,15 @@ JSValueRef AAMPMediaPlayerJS_setPlaybackRate (JSContextRef ctx, JSObjectRef func
 			overshootCorrection = (int) JSValueToNumber(ctx, arguments[1], exception);
 		}
 		{
+			WARNING("Calling _aamp->SetRate(%d, %d)", rate, overshootCorrection);
 			privObj->_aamp->SetRate(rate, overshootCorrection);
 		}
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setPlaybackRate() - atleast 1 argument required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1674,16 +1678,15 @@ JSValueRef AAMPMediaPlayerJS_setPlaybackRate (JSContextRef ctx, JSObjectRef func
  */
 JSValueRef AAMPMediaPlayerJS_getSupportedKeySystems (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getSupportedKeySystems() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	ERROR("%s(): Invoked getSupportedKeySystems", __FUNCTION__);
-	TRACELOG("Exit %s()", __FUNCTION__);
+	ERROR("Invoked getSupportedKeySystems");
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1700,11 +1703,11 @@ JSValueRef AAMPMediaPlayerJS_getSupportedKeySystems (JSContextRef ctx, JSObjectR
  */
 JSValueRef AAMPMediaPlayerJS_setVideoMute (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVideoMute() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -1712,15 +1715,14 @@ JSValueRef AAMPMediaPlayerJS_setVideoMute (JSContextRef ctx, JSObjectRef functio
 	if (argumentCount == 1)
 	{
 		bool videoMute = JSValueToBoolean(ctx, arguments[0]);
+		WARNING("Calling _aamp->SetVideoMute(%d)", videoMute);
 		privObj->_aamp->SetVideoMute(videoMute);
-		ERROR("%s(): Invoked setVideoMute", __FUNCTION__);
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setVideoMute() - 1 argument required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1737,32 +1739,31 @@ JSValueRef AAMPMediaPlayerJS_setVideoMute (JSContextRef ctx, JSObjectRef functio
  */
 JSValueRef AAMPMediaPlayerJS_setSubscribedTags (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setSubscribedTags() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setSubscribedTags() - 1 argument required");
 	}
 	else if (!aamp_JSValueIsArray(ctx, arguments[0]))
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: aamp_JSValueIsArray=%d", __FUNCTION__, aamp_JSValueIsArray(ctx, arguments[0]));
+		ERROR("InvalidArgument: aamp_JSValueIsArray=%d", aamp_JSValueIsArray(ctx, arguments[0]));
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setSubscribeTags() - parameter 1 is not an array");
 	}
 	else
 	{
 		std::vector<std::string> subscribedTags = aamp_StringArrayToCStringArray(ctx, arguments[0]);
 		privObj->_aamp->SetSubscribedTags(subscribedTags);
-		ERROR("%s(): Invoked setSubscribedTags", __FUNCTION__);
+		ERROR("Invoked setSubscribedTags");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1779,32 +1780,32 @@ JSValueRef AAMPMediaPlayerJS_setSubscribedTags (JSContextRef ctx, JSObjectRef fu
  */
 JSValueRef AAMPMediaPlayerJS_subscribeResponseHeaders (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call subscribeResponseHeaders() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute subscribeResponseHeaders() - 1 argument required");
 	}
 	else if (!aamp_JSValueIsArray(ctx, arguments[0]))
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: aamp_JSValueIsArray=%d", __FUNCTION__, aamp_JSValueIsArray(ctx, arguments[0]));
+		ERROR("InvalidArgument: aamp_JSValueIsArray=%d", aamp_JSValueIsArray(ctx, arguments[0]));
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute subscribeResponseHeaders() - parameter 1 is not an array");
 	}
 	else
 	{
 		std::vector<std::string> responseHeaders = aamp_StringArrayToCStringArray(ctx, arguments[0]);
+		WARNING("Calling _aamp->SubscribeResponseHeaders");
 		privObj->_aamp->SubscribeResponseHeaders(responseHeaders);
-		ERROR("%s(): Invoked SubscribeResponseHeaders", __FUNCTION__);
+		
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1821,11 +1822,11 @@ JSValueRef AAMPMediaPlayerJS_subscribeResponseHeaders (JSContextRef ctx, JSObjec
  */
 JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call addEventListener() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -1838,7 +1839,7 @@ JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef fun
 		if ((callbackObj != NULL) && JSObjectIsFunction(ctx, callbackObj))
 		{
 			AAMPEventType eventType = aampPlayer_getEventTypeFromName(type);
-			LOG("%s() eventType='%s', %d", __FUNCTION__, type, eventType);
+			WARNING("eventType='%s', %d", type, eventType);
 
 			if ((eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 			{
@@ -1847,7 +1848,7 @@ JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef fun
 		}
 		else
 		{
-			ERROR("%s() callbackObj=%p, JSObjectIsFunction(context, callbackObj) is NULL", __FUNCTION__, callbackObj);
+			ERROR("callbackObj=%p, JSObjectIsFunction(context, callbackObj) is NULL", callbackObj);
 			char errMsg[512];
 			memset(errMsg, '\0', 512);
 			snprintf(errMsg, 511, "Failed to execute addEventListener() for event %s - parameter 2 is not a function", type);
@@ -1857,10 +1858,9 @@ JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef fun
 	}
 	else
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument: argumentCount=%d, expected: 2", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute addEventListener() - 2 arguments required.");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1877,11 +1877,11 @@ JSValueRef AAMPMediaPlayerJS_addEventListener (JSContextRef ctx, JSObjectRef fun
  */
 JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call removeEventListener() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -1894,7 +1894,7 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
 		if ((callbackObj != NULL) && JSObjectIsFunction(ctx, callbackObj))
 		{
 			AAMPEventType eventType = aampPlayer_getEventTypeFromName(type);
-			LOG("[AAMP_JS] %s() eventType='%s', %d", __FUNCTION__, type, eventType);
+			WARNING("eventType='%s', %d", type, eventType);
 
 			if ((eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 			{
@@ -1903,7 +1903,7 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
 		}
 		else
 		{
-			ERROR("%s() InvalidArgument: callbackObj=%p, JSObjectIsFunction(context, callbackObj) is NULL", __FUNCTION__, callbackObj);
+			ERROR("InvalidArgument: callbackObj=%p, JSObjectIsFunction(context, callbackObj) is NULL", callbackObj);
 			char errMsg[512];
 			memset(errMsg, '\0', 512);
 			snprintf(errMsg, 511, "Failed to execute removeEventListener() for event %s - parameter 2 is not a function", type);
@@ -1913,10 +1913,9 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute removeEventListener() - 1 argument required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1933,18 +1932,18 @@ JSValueRef AAMPMediaPlayerJS_removeEventListener (JSContextRef ctx, JSObjectRef 
  */
 JSValueRef AAMPMediaPlayerJS_setDRMConfig (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setDrmConfig() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setDrmConfig() - 1 argument required");
 	}
 	else
@@ -1954,7 +1953,6 @@ JSValueRef AAMPMediaPlayerJS_setDRMConfig (JSContextRef ctx, JSObjectRef functio
 			parseDRMConfiguration(ctx, privObj, arguments[0]);
 		}
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -1971,11 +1969,11 @@ JSValueRef AAMPMediaPlayerJS_setDRMConfig (JSContextRef ctx, JSObjectRef functio
  */
 JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call addCustomHTTPHeader() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -2005,7 +2003,7 @@ JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef 
 		// Don't support empty values now
 		if (headerVal.size() == 0)
 		{
-			ERROR("%s() InvalidArgument: Custom header's value is empty", __FUNCTION__);
+			ERROR("InvalidArgument: Custom header's value is empty");
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute addCustomHTTPHeader() - 2nd argument should be a string or array of strings");
 			return JSValueMakeUndefined(ctx);
 		}
@@ -2018,10 +2016,9 @@ JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef 
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute addCustomHTTPHeader() - 2 arguments required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2038,11 +2035,11 @@ JSValueRef AAMPMediaPlayerJS_addCustomHTTPHeader (JSContextRef ctx, JSObjectRef 
  */
 JSValueRef AAMPMediaPlayerJS_removeCustomHTTPHeader (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call removeCustomHTTPHeader() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -2051,15 +2048,15 @@ JSValueRef AAMPMediaPlayerJS_removeCustomHTTPHeader (JSContextRef ctx, JSObjectR
 	{
 		char *name = aamp_JSValueToCString(ctx, arguments[0], exception);
 		std::string headerName(name);
+		WARNING("Calling _aamp->AddCustomHTTPHeader(%s, ())", headerName);
 		privObj->_aamp->AddCustomHTTPHeader(headerName, std::vector<std::string>());
 		SAFE_DELETE_ARRAY(name);
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute removeCustomHTTPHeader() - 1 argument required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2076,11 +2073,11 @@ JSValueRef AAMPMediaPlayerJS_removeCustomHTTPHeader (JSContextRef ctx, JSObjectR
  */
 JSValueRef AAMPMediaPlayerJS_setVideoRect (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVideoRect() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -2092,15 +2089,15 @@ JSValueRef AAMPMediaPlayerJS_setVideoRect (JSContextRef ctx, JSObjectRef functio
 		int w = (int) JSValueToNumber(ctx, arguments[2], exception);
 		int h = (int) JSValueToNumber(ctx, arguments[3], exception);
 		{
+			WARNING("Calling _aamp->SetVideoRectangle(%d, %d, %d, %d)", x, y, w, h);
 			privObj->_aamp->SetVideoRectangle(x, y, w, h);
 		}
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setVideoRect() - 1 argument required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2117,11 +2114,11 @@ JSValueRef AAMPMediaPlayerJS_setVideoRect (JSContextRef ctx, JSObjectRef functio
  */
 JSValueRef AAMPMediaPlayerJS_setVideoZoom (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVideoZoom() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -2138,15 +2135,15 @@ JSValueRef AAMPMediaPlayerJS_setVideoZoom (JSContextRef ctx, JSObjectRef functio
 		{
 			zoom = VIDEO_ZOOM_FULL;
 		}
+		WARNING("Calling _aamp->SetVideoZoom(%d)", static_cast<int>(zoom));
 		privObj->_aamp->SetVideoZoom(zoom);
 		SAFE_DELETE_ARRAY(zoomStr);
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setVideoZoom() - 1 argument required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2163,23 +2160,23 @@ JSValueRef AAMPMediaPlayerJS_setVideoZoom (JSContextRef ctx, JSObjectRef functio
  */
 JSValueRef AAMPMediaPlayerJS_release (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call release() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (false == findInGlobalCacheAndRelease(privObj))
 	{
-		ERROR("%s:%d [WARN] Invoked release of a PlayerInstanceAAMP object(%p) which was already/being released!!", __FUNCTION__, __LINE__, privObj);
+		WARNING("Invoked release of a PlayerInstanceAAMP object(%p) which was already/being released!!", privObj);
 	}
 	else
 	{
-		ERROR("%s:%d [WARN] Cleaned up native object for AAMPMediaPlayer_JS and PlayerInstanceAAMP object(%p)!!", __FUNCTION__, __LINE__, privObj);
+		WARNING("Cleaned up native object for AAMPMediaPlayer_JS and PlayerInstanceAAMP object(%p)!!", privObj);
 	}
 
 	// Un-link native object from JS object
@@ -2189,7 +2186,6 @@ JSValueRef AAMPMediaPlayerJS_release (JSContextRef ctx, JSObjectRef function, JS
 	SAFE_DELETE(privObj);
 
 
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2206,11 +2202,11 @@ JSValueRef AAMPMediaPlayerJS_release (JSContextRef ctx, JSObjectRef function, JS
  */
 static JSValueRef AAMPMediaPlayerJS_getAvailableAudioTracks(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if(!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAvailableAudioTracks() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -2219,15 +2215,17 @@ static JSValueRef AAMPMediaPlayerJS_getAvailableAudioTracks(JSContextRef ctx, JS
 	{
 		allTrack = JSValueToBoolean(ctx, arguments[0]);
 	}
+
+	WARNING("Calling _aamp->GetAvailableAudioTracks(%d)", allTrack);
 	std::string tracks = privObj->_aamp->GetAvailableAudioTracks(allTrack);
 	if (!tracks.empty())
 	{
-		TRACELOG("Exit %s()", __FUNCTION__);
+		TRACELOG("Exit");
 		return aamp_CStringToJSValue(ctx, tracks.c_str());
 	}
 	else
 	{
-		TRACELOG("Exit %s()", __FUNCTION__);
+		WARNING("Audio tracks empty");
 		return JSValueMakeUndefined(ctx);
 	}
 }
@@ -2245,24 +2243,25 @@ static JSValueRef AAMPMediaPlayerJS_getAvailableAudioTracks(JSContextRef ctx, JS
  */
 static JSValueRef AAMPMediaPlayerJS_getAvailableTextTracks(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if(!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAvailableTextTracks() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
+	WARNING("Calling _aamp->GetAvailableTextTracks()");
 	std::string tracks = privObj->_aamp->GetAvailableTextTracks();
 	if (!tracks.empty())
 	{
-		TRACELOG("Exit %s()", __FUNCTION__);
+		TRACELOG("Exit");
 		return aamp_CStringToJSValue(ctx, tracks.c_str());
 	}
 	else
 	{
-		TRACELOG("Exit %s()", __FUNCTION__);
+		WARNING("Text track empty");
 		return JSValueMakeUndefined(ctx);
 	}
 }
@@ -2280,15 +2279,15 @@ static JSValueRef AAMPMediaPlayerJS_getAvailableTextTracks(JSContextRef ctx, JSO
  */
 static JSValueRef AAMPMediaPlayerJS_getVideoRectangle(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if(!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getVideoRectangle() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
+	WARNING("Calling _aamp->GetVideoRectangle()");
 	return aamp_CStringToJSValue(ctx, privObj->_aamp->GetVideoRectangle().c_str());
 }
 
@@ -2304,11 +2303,11 @@ static JSValueRef AAMPMediaPlayerJS_getVideoRectangle(JSContextRef ctx, JSObject
  */
 static JSValueRef AAMPMediaPlayerJS_setAlternateContent(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)	
 {
-	TRACELOG("Enter %s()", __FUNCTION__);	
+	TRACELOG("Enter, ctx: %p", ctx);	
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if(!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setAlternateContent() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -2339,7 +2338,7 @@ static JSValueRef AAMPMediaPlayerJS_setAlternateContent(JSContextRef ctx, JSObje
 			JSObjectRef reservationObject = JSValueToObject(ctx, arguments[0], NULL);
 			if (reservationObject == NULL)
 			{
-				ERROR("%s() Unable to convert argument to JSObject", __FUNCTION__);
+				ERROR("Unable to convert argument to JSObject");
 				return JSValueMakeUndefined(ctx);
 			}
 			JSStringRef propName = JSStringCreateWithUTF8CString("reservationId");
@@ -2396,12 +2395,12 @@ static JSValueRef AAMPMediaPlayerJS_setAlternateContent(JSContextRef ctx, JSObje
 			std::string url(adURL);  //CID:115000 - Resolve Forward null
 
 			privObj->saveCallbackForAdId(adIdStr, callbackObj); //save callback for sending status later, if ad can be played or not
-			ERROR("%s() Calling privObj->_aamp->SetAlternateContents with promiseCallback:%p", __FUNCTION__, callbackObj);
+			WARNING("Calling privObj->_aamp->SetAlternateContents with promiseCallback:%p", callbackObj);
 			privObj->_aamp->SetAlternateContents(adBreakId, adIdStr, url);
 		}
 		else
 		{
-			ERROR("%s() Unable to parse the promiseCallback argument", __FUNCTION__);
+			ERROR("Unable to parse the promiseCallback argument");
 		}
 	
 		SAFE_DELETE_ARRAY(reservationId);
@@ -2410,10 +2409,9 @@ static JSValueRef AAMPMediaPlayerJS_setAlternateContent(JSContextRef ctx, JSObje
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 2", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setAlternateContent() - 2 argument required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2429,11 +2427,11 @@ static JSValueRef AAMPMediaPlayerJS_setAlternateContent(JSContextRef ctx, JSObje
  */
 JSValueRef AAMPMediaPlayerJS_setPreferredAudioLanguage(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setPreferredAudioLanguage() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -2453,6 +2451,7 @@ JSValueRef AAMPMediaPlayerJS_setPreferredAudioLanguage(JSContextRef ctx, JSObjec
 		if(argumentCount >= 4) {
 			codecList = aamp_JSValueToCString(ctx,arguments[3], NULL);
 		}
+		WARNING("Calling _aamp->SetPrefferedLanguages(%s, %s, %s, %s)", lanList, rendition, type, codecList);
 		privObj->_aamp->SetPreferredLanguages(lanList, rendition, type, codecList);
 		SAFE_DELETE_ARRAY(type);
 		SAFE_DELETE_ARRAY(rendition);
@@ -2461,10 +2460,9 @@ JSValueRef AAMPMediaPlayerJS_setPreferredAudioLanguage(JSContextRef ctx, JSObjec
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1, 2 , 3 or 4", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1, 2 , 3 or 4", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setPreferredAudioLanguage() - 1, 2 or 3 arguments required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2482,28 +2480,28 @@ JSValueRef AAMPMediaPlayerJS_setPreferredAudioLanguage(JSContextRef ctx, JSObjec
  */
 JSValueRef AAMPMediaPlayerJS_setPreferredAudioCodec(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 { // placeholder - not ready for use/publishing
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setPreferredAudioCodec() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setPreferredAudioCodec() - 1 argument required");
 	}
 	else
 	{
 		char *codecList = aamp_JSValueToCString(ctx,arguments[0], NULL);
+		WARNING("Calling _aamp->SetPrefferedLanguages(0,0,0,%s)", codecList);
 		privObj->_aamp->SetPreferredLanguages(NULL, NULL, NULL, codecList);
 		SAFE_DELETE_ARRAY(codecList);
 	}
 
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2519,11 +2517,11 @@ JSValueRef AAMPMediaPlayerJS_setPreferredAudioCodec(JSContextRef ctx, JSObjectRe
  */
 static JSValueRef AAMPMediaPlayerJS_notifyReservationCompletion(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if(!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call notifyReservationCompletion() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -2534,15 +2532,14 @@ static JSValueRef AAMPMediaPlayerJS_notifyReservationCompletion(JSContextRef ctx
 		long time = (long) JSValueToNumber(ctx, arguments[1], exception);
 		//Need an API in AAMP to notify that placements for this reservation are over and AAMP might have to trim
 		//the ads to the period duration or not depending on time param
-		ERROR("%s(): Called reservation close for periodId:%s and time:%ld", __FUNCTION__, reservationId, time);
+		INFO("Called reservation close for periodId:%s and time:%ld", reservationId, time);
 		SAFE_DELETE_ARRAY(reservationId);
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 2", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute notifyReservationCompletion() - 2 argument required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2559,26 +2556,26 @@ static JSValueRef AAMPMediaPlayerJS_notifyReservationCompletion(JSContextRef ctx
  */
 JSValueRef AAMPMediaPlayerJS_setClosedCaptionStatus(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setClosedCaptionStatus() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setClosedCaptionStatus() - 1 argument required");
 	}
 	else
 	{
 		bool enabled = JSValueToBoolean(ctx, arguments[0]);
+		WARNING("Calling _aamp->SetCCStatus(%d)", enabled);
 		privObj->_aamp->SetCCStatus(enabled);
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2595,18 +2592,18 @@ JSValueRef AAMPMediaPlayerJS_setClosedCaptionStatus(JSContextRef ctx, JSObjectRe
  */
 JSValueRef AAMPMediaPlayerJS_setTextStyleOptions(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setTextStyleOptions() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setTextStyleOptions() - 1 argument required");
 	}
 	else
@@ -2614,16 +2611,16 @@ JSValueRef AAMPMediaPlayerJS_setTextStyleOptions(JSContextRef ctx, JSObjectRef f
 		if (JSValueIsString(ctx, arguments[0]))
 		{
 			const char *options = aamp_JSValueToCString(ctx, arguments[0], NULL);
+			WARNING("Calling _aamp->SetTextStyle(%s)", options);
 			privObj->_aamp->SetTextStyle(std::string(options));
 			SAFE_DELETE_ARRAY(options);
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - Argument should be a JSON formatted string!", __FUNCTION__);
+			ERROR("InvalidArgument - Argument should be a JSON formatted string!");
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Argument should be a JSON formatted string!");
 		}
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2640,24 +2637,25 @@ JSValueRef AAMPMediaPlayerJS_setTextStyleOptions(JSContextRef ctx, JSObjectRef f
  */
 static JSValueRef AAMPMediaPlayerJS_getTextStyleOptions(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if(!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getTextStyleOptions() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
+	WARNING("Calling _aamp->GetTextStyle()");
 	std::string options = privObj->_aamp->GetTextStyle();
 	if (!options.empty())
 	{
-		TRACELOG("Exit %s()", __FUNCTION__);
+		TRACELOG("Exit");
 		return aamp_CStringToJSValue(ctx, options.c_str());
 	}
 	else
 	{
-		TRACELOG("Exit %s()", __FUNCTION__);
+		WARNING("Text Style empty");
 		return JSValueMakeUndefined(ctx);
 	}
 }
@@ -2674,11 +2672,11 @@ static JSValueRef AAMPMediaPlayerJS_getTextStyleOptions(JSContextRef ctx, JSObje
  */
 JSValueRef AAMPMediaPlayerJS_disableContentRestrictions (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call disableContentRestrictions() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -2698,7 +2696,7 @@ JSValueRef AAMPMediaPlayerJS_disableContentRestrictions (JSContextRef ctx, JSObj
 		JSObjectRef unlockConditionObj = JSValueToObject(ctx, arguments[0], &_exception);
 		if (unlockConditionObj == NULL || _exception != NULL)
 		{
-			ERROR("%s(): InvalidArgument - argument passed is NULL/not a valid object", __FUNCTION__);
+			ERROR("InvalidArgument - argument passed is NULL/not a valid object");
 			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute disableContentRestrictions() - object of unlockConditions required");
 			return JSValueMakeUndefined(ctx);
 		}
@@ -2744,7 +2742,7 @@ JSValueRef AAMPMediaPlayerJS_disableContentRestrictions (JSContextRef ctx, JSObj
 	}
 	else if(argumentCount > 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1 or no argument", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1 or no argument", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute disableContentRestrictions() - 1 argument of type IConfig required");
 	}
 	else
@@ -2754,7 +2752,6 @@ JSValueRef AAMPMediaPlayerJS_disableContentRestrictions (JSContextRef ctx, JSObj
 		privObj->_aamp->DisableContentRestrictions(grace, time, eventChange);
 	}
 
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2771,18 +2768,17 @@ JSValueRef AAMPMediaPlayerJS_disableContentRestrictions (JSContextRef ctx, JSObj
  */
 JSValueRef AAMPMediaPlayerJS_enableContentRestrictions (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call enableContentRestrictions() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 
 	privObj->_aamp->EnableContentRestrictions();
 
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2798,11 +2794,11 @@ JSValueRef AAMPMediaPlayerJS_enableContentRestrictions (JSContextRef ctx, JSObje
  */
 static JSValueRef AAMPMediaPlayerJS_setAuxiliaryLanguage(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if(!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setAuxiliaryLanguage() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -2815,10 +2811,9 @@ static JSValueRef AAMPMediaPlayerJS_setAuxiliaryLanguage(JSContextRef ctx, JSObj
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setAuxiliaryLanguage() - 1 argument required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2834,25 +2829,25 @@ static JSValueRef AAMPMediaPlayerJS_setAuxiliaryLanguage(JSContextRef ctx, JSObj
  *  */
 JSValueRef AAMPMediaPlayerJS_xreSupportedTune(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
 	if (!privObj)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call xreSupportedTune() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 	if (argumentCount == 1)
 	{
 		bool xreSupported = JSValueToBoolean(ctx, arguments[0]);
+		WARNING("Calling _aamp->XRESupportedTune(%d)", xreSupported);
 		privObj->_aamp->XRESupportedTune(xreSupported);
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		ERROR("InvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute xreSupportedTune() - 1 argument required");
 	}
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
 }
 
@@ -2932,11 +2927,11 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
  */
 JSValueRef AAMPMediaPlayerJS_getProperty_Version(JSContextRef ctx, JSObjectRef object, JSStringRef propertyName, JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(object);
 	if (!privObj || !privObj->_aamp)
 	{
-		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		ERROR("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Get property version on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
@@ -2959,18 +2954,18 @@ static const JSStaticValue AAMPMediaPlayer_JS_static_values[] = {
  */
 void AAMPMediaPlayer_JS_finalize(JSObjectRef object)
 {
-	ERROR("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, object: %p", object);
 
 	AAMPMediaPlayer_JS *privObj = (AAMPMediaPlayer_JS *) JSObjectGetPrivate(object);
 	if (privObj != NULL)
 	{
 		if (false == findInGlobalCacheAndRelease(privObj))
 		{
-			ERROR("%s:%d [WARN] Invoked finalize of a PlayerInstanceAAMP object(%p) which was already/being released!!", __FUNCTION__, __LINE__, privObj);
+			WARNING("Invoked finalize of a PlayerInstanceAAMP object(%p) which was already/being released!!", privObj);
 		}
 		else
 		{
-			ERROR("%s:%d [WARN] Cleaned up native object for AAMPMediaPlayer_JS and PlayerInstanceAAMP object(%p)!!", __FUNCTION__, __LINE__, privObj);
+			WARNING("Cleaned up native object for AAMPMediaPlayer_JS and PlayerInstanceAAMP object(%p)!!", privObj);
 		}
 		//unlink native object from JS object
 		JSObjectSetPrivate(object, NULL);
@@ -2979,10 +2974,8 @@ void AAMPMediaPlayer_JS_finalize(JSObjectRef object)
 	}
 	else
 	{
-		ERROR("%s:%d Native memory already cleared, since privObj is NULL", __FUNCTION__, __LINE__);
+		WARNING("Native memory already cleared, since privObj is NULL");
 	}
-
-	ERROR("Exit %s()", __FUNCTION__);
 }
 
 
@@ -3036,7 +3029,7 @@ static JSClassRef AAMPMediaPlayer_object_ref() {
  */
 JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
+	TRACELOG("Enter, ctx: %p", ctx);
 
 	std::string appName;
 	if (argumentCount > 0)
@@ -3045,7 +3038,7 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 		{
 			char *value =  aamp_JSValueToCString(ctx, arguments[0], exception);
 			appName.assign(value);
-			ERROR("%s:%d AAMPMediaPlayer created with app name: %s", __FUNCTION__, __LINE__, appName.c_str());
+			INFO("AAMPMediaPlayer created with app name: %s", appName.c_str());
 			SAFE_DELETE_ARRAY(value);
 		}
 	}
@@ -3056,6 +3049,7 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 	privObj->_aamp = new PlayerInstanceAAMP(NULL, NULL);
 	if (!appName.empty())
 	{
+		WARNING("Calling _aamp->SetAppName(%s)", appName);
 		privObj->_aamp->SetAppName(appName);
 	}
 	privObj->_listeners.clear();
@@ -3086,7 +3080,6 @@ JSObjectRef AAMPMediaPlayer_JS_class_constructor(JSContextRef ctx, JSObjectRef c
 	JSStringRelease(fName);
 	JSStringRelease(fString);
 
-	TRACELOG("Exit %s()", __FUNCTION__);
 	return newObj;
 }
 
@@ -3144,41 +3137,41 @@ public:
 		}
 		else
 		{
-			ERROR("[XREReceiver]:%s:%d no handler for method %s", __FUNCTION__, __LINE__, method.c_str());
+			ERROR("no handler for method %s", method.c_str());
 		}
 	}
 
 	static std::string findTextTrackWithLang(JSContextRef ctx, std::string selectedLang)
 	{
 		const auto textTracks = AampCCManager::GetInstance()->getLastTextTracks();
-		ERROR("[XREReceiver]:%s:%d found %d text tracks", __FUNCTION__, __LINE__, (int)textTracks.size());
+		ERROR("[XREReceiver]: found %d text tracks", (int)textTracks.size());
 
 		if(!selectedLang.empty() && isdigit(selectedLang[0]))
 		{
-			ERROR("[XREReceiver]:%s:%d trying to parse selected lang as index", __FUNCTION__, __LINE__);
+			ERROR("[XREReceiver] trying to parse selected lang as index"\);
 			try
 			{
 				//input index starts from 1, not from 0, hence '-1'
 				int idx = std::stoi(selectedLang)-1;
-				ERROR("[XREReceiver]:%s:%d parsed index = %d", __FUNCTION__, __LINE__, idx);
+				ERROR("[XREReceiver] parsed index = %d", idx);
 				return textTracks.at(idx).instreamId;
 			}
 			catch(const std::exception& e)
 			{
-				ERROR("[XREReceiver]:%s:%d exception during parsing lang selection %s", __FUNCTION__, __LINE__, e.what());
+				ERROR("[XREReceiver] exception during parsing lang selection %s", e.what());
 			}
 		}
 
 		for(const auto& track : textTracks)
 		{
-			ERROR("[XREReceiver]:%s:%d found language '%s', expected '%s'", __FUNCTION__, __LINE__, track.language.c_str(), selectedLang.c_str());
+			ERROR("[XREReceiver] found language '%s', expected '%s'", track.language.c_str(), selectedLang.c_str());
 			if(selectedLang == track.language)
 			{
 				return track.instreamId;
 			}
 		}
 
-		ERROR("[XREReceiver]:%s:%d cannot find text track matching the selected language, defaulting to 'CC1'", __FUNCTION__, __LINE__);
+		ERROR("[XREReceiver] cannot find text track matching the selected language, defaulting to 'CC1'");
 		return "CC1";
 	}
 
@@ -3186,10 +3179,10 @@ private:
 
 	static void handle_onClosedCaptions(JSContextRef ctx, size_t argumentCount, const JSValueRef arguments[])
 	{
-		ERROR("[XREReceiver]:%s:%d ", __FUNCTION__, __LINE__);
+		ERROR("[XREReceiver]");
 		if(argumentCount != 2)
 		{
-			ERROR("[XREReceiver]:%s wrong argument count (expected 2) %d", __FUNCTION__, argumentCount);
+			ERROR("[XREReceiver] wrong argument count (expected 2) %d", argumentCount);
 			return;
 		}
 
@@ -3206,7 +3199,7 @@ private:
 		if(JSValueIsBoolean(ctx, param_enable_value))
 		{
 			const bool enable_value = JSValueToBoolean(ctx, param_enable_value);
-			ERROR("[XREReceiver]:%s:%d received enable boolean %d", __FUNCTION__, __LINE__, enable_value);
+			ERROR("[XREReceiver]: received enable boolean %d", enable_value);
 
 #ifdef AAMP_CC_ENABLED
 			AampCCManager::GetInstance()->SetStatus(enable_value);
@@ -3223,7 +3216,7 @@ private:
 				if(defaultTrack.empty())
 					defaultTrack = "CC1";
 
-				ERROR("[XREReceiver]:%s:%d found %d tracks, selected default textTrack = '%s'", __FUNCTION__, __LINE__, (int)textTracks.size(), defaultTrack.c_str());
+				ERROR("[XREReceiver]:found %d tracks, selected default textTrack = '%s'", (int)textTracks.size(), defaultTrack.c_str());
 
 #ifdef AAMP_CC_ENABLED
 				AampCCManager::GetInstance()->SetTrack(defaultTrack);
@@ -3233,13 +3226,13 @@ private:
 
 		if(JSValueIsObject(ctx, param_setOptions_value))
 		{
-			ERROR("[XREReceiver]:%s:%d received setOptions, ignoring for now", __FUNCTION__, __LINE__);
+			ERROR("[XREReceiver]: received setOptions, ignoring for now");
 		}
 
 		if(JSValueIsString(ctx, param_setTrack_value))
 		{
 			char* lang = aamp_JSValueToCString(ctx, param_setTrack_value, NULL);
-			ERROR("[XREReceiver]:%s:%d received setTrack language:  %s", __FUNCTION__, __LINE__, lang);
+			ERROR("[XREReceiver]: received setTrack language:  %s", lang);
 
 			std::string lang_str;
 			lang_str.assign(lang);
@@ -3247,7 +3240,7 @@ private:
 
 			std::string textTrack = findTextTrackWithLang(ctx, lang_str);
 
-			ERROR("[XREReceiver]:%s:%d selected textTrack = '%s'", __FUNCTION__, __LINE__, textTrack.c_str());
+			ERROR("[XREReceiver]: selected textTrack = '%s'", textTrack.c_str());
 
 #ifdef AAMP_CC_ENABLED
 			AampCCManager::GetInstance()->SetTrack(textTrack);
@@ -3282,7 +3275,7 @@ std::unordered_map<std::string, XREReceiver_onEventHandler::Handler_t>  XRERecei
  */
 JSValueRef XREReceiverJS_onevent (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-	INFO("[XREReceiver]:%s arg count - %d", __FUNCTION__, argumentCount);
+	INFO("[XREReceiver]: arg count - %d", argumentCount);
 	if (argumentCount > 0)
 	{
 		if (JSValueIsString(ctx, arguments[0]))
@@ -3315,15 +3308,15 @@ static const JSStaticFunction XREReceiver_JS_static_functions[] =
  */
 JSObjectRef XREReceiver_JS_class_constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
-        TRACELOG("Enter %s()", __FUNCTION__);
+        TRACELOG("Enter, ctx: %p", ctx);
 	*exception = aamp_GetException(ctx, AAMPJS_GENERIC_ERROR, "Cannot create an object of XREReceiver");
-        TRACELOG("Exit %s()", __FUNCTION__);
+        TRACELOG("Exit");
 	return NULL;
 }
 
 static void XREReceiver_JS_finalize(JSObjectRef thisObject)
 {
-       TRACELOG("%s(): object=%p", __FUNCTION__, thisObject);
+	WARNING(" object=%p", thisObject);
 }
 
 static JSClassDefinition XREReceiver_JS_class_def {
@@ -3348,7 +3341,7 @@ static JSClassDefinition XREReceiver_JS_class_def {
 
 void LoadXREReceiverStub(void* context)
 {
-	TRACELOG("Enter %s(), context = %p", __FUNCTION__, context);
+	TRACELOG("Enter context = %p", context);
 	JSGlobalContextRef jsContext = (JSGlobalContextRef)context;
 
 	JSClassRef myClass = JSClassCreate(&XREReceiver_JS_class_def);
@@ -3358,7 +3351,6 @@ void LoadXREReceiverStub(void* context)
 	JSStringRef str = JSStringCreateWithUTF8CString("XREReceiver");
 	JSObjectSetProperty(jsContext, globalObj, str, classObj, kJSPropertyAttributeReadOnly, NULL);
 
-	TRACELOG("Exit %s()", __FUNCTION__);
 }
 #endif // PLATCO
 
@@ -3369,8 +3361,7 @@ void LoadXREReceiverStub(void* context)
  */
 void AAMPPlayer_LoadJS(void* context)
 {
-	TRACELOG("Enter %s()", __FUNCTION__);
-	ERROR("Enter %s(), context = %p", __FUNCTION__, context);
+	WARNING("context = %p", context);
 	JSGlobalContextRef jsContext = (JSGlobalContextRef)context;
 
 	JSObjectRef globalObj = JSContextGetGlobalObject(jsContext);
@@ -3389,7 +3380,6 @@ void AAMPPlayer_LoadJS(void* context)
 	LoadXREReceiverStub(context);
 #endif
 	
-	TRACELOG("Exit %s()", __FUNCTION__);
 }
 
 /**
@@ -3398,7 +3388,7 @@ void AAMPPlayer_LoadJS(void* context)
  */
 void AAMPPlayer_UnloadJS(void* context)
 {
-	INFO("[AAMP_JS] %s() context=%p", __FUNCTION__, context);
+	INFO("context=%p", context);
 
 	JSValueRef exception = NULL;
 	JSGlobalContextRef jsContext = (JSGlobalContextRef)context;
@@ -3435,7 +3425,6 @@ void AAMPPlayer_UnloadJS(void* context)
 	JSStringRelease(str);
 
 	// Force a garbage collection to clean-up all AAMP objects.
-	LOG("[AAMP_JS] JSGarbageCollect() context=%p", context);
+	WARNING("JSGarbageCollect() context=%p", context);
 	JSGarbageCollect(jsContext);
-	TRACELOG("Exit %s()", __FUNCTION__);
 }

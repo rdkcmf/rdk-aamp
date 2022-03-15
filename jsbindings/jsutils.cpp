@@ -223,23 +223,23 @@ std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JS
 
     if(!arrayRef)
     {
-	ERROR("[AAMP_JS] %s() Error: value is NULL.", __FUNCTION__);
+	ERROR("value is NULL.");
         return retval;
     }
     if (!JSValueIsObject(context, arrayRef))
     {
-	ERROR("[AAMP_JS] %s() Error: value is not an object.", __FUNCTION__);
+	ERROR("value is not an object.");
         return retval;
     }
     if(!aamp_JSValueIsArray(context, arrayRef))
     {
-	ERROR("[AAMP_JS] %s() Error: value is not an array.", __FUNCTION__);
+	ERROR("value is not an array.");
         return retval;
     }
     JSObjectRef arrayObj = JSValueToObject(context, arrayRef, &exception);
     if(exception)
     {
-	ERROR("[AAMP_JS] %s() Error: exception accesing array object.", __FUNCTION__);
+	ERROR("exception accesing array object.");
         return retval;
     }
 
@@ -247,13 +247,13 @@ std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JS
     JSValueRef lengthRef = JSObjectGetProperty(context, arrayObj, lengthStrRef, &exception);
     if(exception)
     {
-	ERROR("[AAMP_JS] %s() Error: exception accesing array length.", __FUNCTION__);
+	ERROR("exception accesing array length.");
         return retval;
     }
     int length = JSValueToNumber(context, lengthRef, &exception);
     if(exception)
     {
-	ERROR("[AAMP_JS] %s() Error: exception array length in not a number.", __FUNCTION__);
+	ERROR("exception array length in not a number.");
         return retval;
     }
 
@@ -265,7 +265,7 @@ std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JS
             continue;
 
         char* str = aamp_JSValueToCString(context, strRef, NULL);
-	LOG("[AAMP_JS] %s() array[%d] = '%s'.", __FUNCTION__, i, str);
+		TRACELOG("array[%d] = '%s'.", i, str);
         retval.push_back(str);
         SAFE_DELETE_ARRAY(str);
     }
@@ -311,14 +311,14 @@ JSValueRef aamp_GetException(JSContextRef context, ErrorCode error, const char *
 		snprintf(exceptionMsg, EXCEPTION_ERR_MSG_MAX_LEN - 1, "%s!!", str);
 	}
 
-	ERROR("[AAMP_JS] %s() Error=%s", __FUNCTION__, exceptionMsg);
+	ERROR("%s", exceptionMsg);
 
 	const JSValueRef arguments[] = { aamp_CStringToJSValue(context, exceptionMsg) };
 	JSValueRef exception = NULL;
 	retVal = JSObjectMakeError(context, 1, arguments, &exception);
 	if (exception)
 	{
-		ERROR("[AAMP_JS] %s() Error: exception creating an error object", __FUNCTION__);
+		ERROR("exception creating an error object");
 		return NULL;
 	}
 
