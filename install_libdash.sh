@@ -19,7 +19,7 @@
 
 echo "Please do make sure you have access to github and code.rdkcentral.com"
 cd ..
-git clone git://github.com/bitmovin/libdash.git
+git clone https://github.com/bitmovin/libdash.git
 cd libdash/libdash
 git checkout stable_3_0
 git clone -b rdk-next "https://code.rdkcentral.com/r/rdk/components/generic/rdk-oe/meta-rdk-ext"
