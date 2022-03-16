@@ -2,6 +2,17 @@
 
 # audio generation requires following installs:
 # pip3 install gtts
+if which gtts-cli > /dev/null; then
+   echo "gtts already installed."
+else
+   echo "Installing gtts, as its not available"
+   pip3 install gtts
+   if which gtts-cli > /dev/null; then
+      echo "gtts successfully installed."
+   else
+      echo "FYI:gtts install failed!"
+   fi
+fi
 
 WIDTH=(640 842 1280 1920)
 HEIGHT=(360 480 720 1080)
@@ -46,7 +57,7 @@ fi
 ffmpeg -hide_banner -y -i overlay${HEIGHT[$I]}.mp4 -map 0:v  -vf scale=w=${WIDTH[$I]}:h=${HEIGHT[$I]}:force_original_aspect_ratio=decrease  -c:v h264 -profile:v main -crf 20 -sc_threshold 0 -g $((FPS*VIDEO_SEGMENT_SEC)) -b:v ${KBPS[$I]}k -maxrate ${MAXKBPS[$I]}k -bufsize 1200k -hls_segment_type fmp4  -hls_time $VIDEO_SEGMENT_SEC -hls_playlist_type vod -hls_segment_filename $DASH_OUT/${HEIGHT[$I]}p_'%03d.m4s' -hls_fmp4_init_filename ${HEIGHT[$I]}p_init.m4s -start_number 1  $DASH_OUT/${HEIGHT[$I]}p.m3u8
 
 # Override DASH video with the same content and generate DASH manifest
-ffmpeg -hide_banner -y -i overlay${HEIGHT[$I]}.mp4 -map 0:v  -vf scale=w=${WIDTH[$I]}:h=${HEIGHT[$I]}:force_original_aspect_ratio=decrease  -c:v h264 -profile:v main -crf 20 -sc_threshold 0 -g $((FPS*VIDEO_SEGMENT_SEC)) -b:v ${KBPS[$I]}k -maxrate ${MAXKBPS[$I]}k -bufsize 1200k -min_seg_duration $((VIDEO_SEGMENT_SEC*1000000)) -use_timeline 1 -use_template 1 -init_seg_name $DASH_OUT/${HEIGHT[$I]}p_init.m4s -media_seg_name $DASH_OUT/${HEIGHT[$I]}p_'$Number%03d$.m4s'  -f dash ${HEIGHT[$I]}p.mpd
+ffmpeg -hide_banner -y -i overlay${HEIGHT[$I]}.mp4 -map 0:v  -vf scale=w=${WIDTH[$I]}:h=${HEIGHT[$I]}:force_original_aspect_ratio=decrease  -c:v h264 -profile:v main -crf 20 -sc_threshold 0 -g $((FPS*VIDEO_SEGMENT_SEC)) -b:v ${KBPS[$I]}k -maxrate ${MAXKBPS[$I]}k -bufsize 1200k -seg_duration $((VIDEO_SEGMENT_SEC)) -use_timeline 1 -use_template 1 -init_seg_name $DASH_OUT/${HEIGHT[$I]}p_init.m4s -media_seg_name $DASH_OUT/${HEIGHT[$I]}p_'$Number%03d$.m4s'  -f dash ${HEIGHT[$I]}p.mpd
 
 # Generate fragmented HLS
 ffmpeg -hide_banner -y -i overlay${HEIGHT[$I]}.mp4 -map 0:v  -vf scale=w=${WIDTH[$I]}:h=${HEIGHT[$I]}:force_original_aspect_ratio=decrease -c:v h264 -profile:v main -crf 20 -sc_threshold 0 -g $((FPS*VIDEO_SEGMENT_SEC)) -hls_time ${VIDEO_SEGMENT_SEC} -hls_playlist_type vod  -b:v ${KBPS[$I]}k -maxrate ${MAXKBPS[$I]}k -bufsize 1200k -hls_segment_filename $HLS_OUT/${HEIGHT[$I]}p_%03d.ts $HLS_OUT/${HEIGHT[$I]}p.m3u8
@@ -72,7 +83,7 @@ ffmpeg -hide_banner -y -i overlayiframe.mp4 -map 0:v -vf scale=w=${WIDTH[$I]}:h=
 ffmpeg -hide_banner -y -i overlayiframe.mp4 -map 0:v -vf scale=w=${WIDTH[$I]}:h=${HEIGHT[$I]}:force_original_aspect_ratio=decrease,select='eq(pict_type\,PICT_TYPE_I)'  -c:v h264 -profile:v main -r $((1/IFRAME_CADENCE_SEC)) -crf 20 -sc_threshold 0 -g 1 -b:v ${KBPS[$I]}k -maxrate ${MAXKBPS[$I]}k -bufsize 1200k -hls_segment_type fmp4  -hls_time $IFRAME_CADENCE_SEC -hls_playlist_type vod -hls_segment_filename $DASH_OUT/iframe_'%03d.m4s' -hls_fmp4_init_filename iframe_init.m4s -start_number 1  $DASH_OUT/iframe.m3u8
 
 # override iframe fragments with the same ones and generate DASH manifest
-ffmpeg -hide_banner -y -i overlayiframe.mp4 -map 0:v -vf scale=w=${WIDTH[$I]}:h=${HEIGHT[$I]}:force_original_aspect_ratio=decrease,select='eq(pict_type\,PICT_TYPE_I)'  -c:v h264 -profile:v main -r $((1/IFRAME_CADENCE_SEC)) -crf 20 -sc_threshold 0 -g 1 -b:v ${KBPS[$I]}k -maxrate ${MAXKBPS[$I]}k -bufsize 1200k -min_seg_duration $((IFRAME_CADENCE_SEC*1000000)) -use_timeline 1 -use_template 1 -init_seg_name $DASH_OUT/iframe_init.m4s -media_seg_name $DASH_OUT/iframe_'$Number%03d$.m4s'  -f dash iframe.mpd
+ffmpeg -hide_banner -y -i overlayiframe.mp4 -map 0:v -vf scale=w=${WIDTH[$I]}:h=${HEIGHT[$I]}:force_original_aspect_ratio=decrease,select='eq(pict_type\,PICT_TYPE_I)'  -c:v h264 -profile:v main -r $((1/IFRAME_CADENCE_SEC)) -crf 20 -sc_threshold 0 -g 1 -b:v ${KBPS[$I]}k -maxrate ${MAXKBPS[$I]}k -bufsize 1200k -seg_duration $((IFRAME_CADENCE_SEC)) -use_timeline 1 -use_template 1 -init_seg_name $DASH_OUT/iframe_init.m4s -media_seg_name $DASH_OUT/iframe_'$Number%03d$.m4s'  -f dash iframe.mpd
 
 ###################################################
 # Generate audio tracks
@@ -156,7 +167,7 @@ do
     ffmpeg -hide_banner -y -i ${AUDIO_PATH}/${LANG[$I]}/full_track.wav -map 0:a -c:a aac -b:a 384k -ar 48000 -t $VIDEO_LENGTH_SEC -hls_segment_type fmp4  -hls_time $VIDEO_SEGMENT_SEC -hls_playlist_type vod -hls_segment_filename $DASH_OUT/${LANG[$I]}_'%03d.mp3' -hls_fmp4_init_filename ${LANG[$I]}_init.m4s -start_number 1  $DASH_OUT/${LANG[$I]}.m3u8
 
     # override DASH audio with the same content and generate DASH manifest
-    ffmpeg -hide_banner -y -i ${AUDIO_PATH}/${LANG[$I]}/full_track.wav -map 0:a -c:a aac -b:a 384k -ar 48000 -t $VIDEO_LENGTH_SEC  -min_seg_duration $((VIDEO_SEGMENT_SEC*1000000)) -use_timeline 1 -use_template 1 -init_seg_name $DASH_OUT/${LANG[$I]}_init.m4s -media_seg_name $DASH_OUT/${LANG[$I]}_'$Number%03d$.mp3'  -f dash ${LANG[$I]}.mpd
+    ffmpeg -hide_banner -y -i ${AUDIO_PATH}/${LANG[$I]}/full_track.wav -map 0:a -c:a aac -b:a 384k -ar 48000 -t $VIDEO_LENGTH_SEC  -seg_duration $((VIDEO_SEGMENT_SEC)) -use_timeline 1 -use_template 1 -init_seg_name $DASH_OUT/${LANG[$I]}_init.m4s -media_seg_name $DASH_OUT/${LANG[$I]}_'$Number%03d$.mp3'  -f dash ${LANG[$I]}.mpd
 
 done
 
