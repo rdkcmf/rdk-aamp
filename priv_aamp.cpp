@@ -188,12 +188,13 @@ struct CurlCallbackContext
 	//represents transfer-encoding based download
 	bool chunkedDownload;
 	std::string remoteUrl;
+	size_t contentLength;
 
-	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false), chunkedDownload(false),  fileType(eMEDIATYPE_DEFAULT), remoteUrl(""), allResponseHeadersForErrorLogging{""}
+	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false), chunkedDownload(false),  fileType(eMEDIATYPE_DEFAULT), remoteUrl(""), allResponseHeadersForErrorLogging{""}, contentLength(0)
 	{
 
 	}
-	CurlCallbackContext(PrivateInstanceAAMP *_aamp, GrowableBuffer *_buffer) : aamp(_aamp), buffer(_buffer), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false),  chunkedDownload(false), fileType(eMEDIATYPE_DEFAULT), remoteUrl(""), allResponseHeadersForErrorLogging{""}{}
+	CurlCallbackContext(PrivateInstanceAAMP *_aamp, GrowableBuffer *_buffer) : aamp(_aamp), buffer(_buffer), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false),  chunkedDownload(false), fileType(eMEDIATYPE_DEFAULT), remoteUrl(""), allResponseHeadersForErrorLogging{""},  contentLength(0){}
 
 	~CurlCallbackContext() {}
 
@@ -855,6 +856,19 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
     pthread_mutex_lock(&context->aamp->mLock);
     if (context->aamp->mDownloadsEnabled)
     {
+		if ((NULL == context->buffer->ptr) && (context->contentLength > 0))
+		{
+			size_t len = context->contentLength + 2;
+			/*Add 2 additional characters to take care of extra characters inserted by aamp_AppendNulTerminator*/
+			if(context->downloadIsEncoded && (len < DEFAULT_ENCODED_CONTENT_BUFFER_SIZE))
+			{
+				// Allocate a fixed buffer for encoded contents. Content length is not trusted here
+				len = DEFAULT_ENCODED_CONTENT_BUFFER_SIZE;
+			}
+			assert(!context->buffer->ptr);
+			context->buffer->ptr = (char *)g_malloc( len );
+			context->buffer->avail = len;
+		}
         size_t numBytesForBlock = size*nmemb;
         aamp_AppendBytes(context->buffer, ptr, numBytesForBlock);
         ret = numBytesForBlock;
@@ -984,17 +998,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		{
 			int contentLengthStartPosition = STRLEN_LITERAL(CONTENTLENGTH_STRING);
 			const char * contentLengthStr = ptr + contentLengthStartPosition;
-			int contentLength = atoi(contentLengthStr);
-
-			/*contentLength can be zero for redirects*/
-			if (contentLength > 0)
-			{
-				size_t len = contentLength + 2;
-				/*Add 2 additional characters to take care of extra characters inserted by aamp_AppendNulTerminator*/
-				assert(!context->buffer->ptr);
-				context->buffer->ptr = (char *)g_malloc( len );
-				context->buffer->avail = len;
-			}
+			context->contentLength = atoi(contentLengthStr);
 		}
 	}
 

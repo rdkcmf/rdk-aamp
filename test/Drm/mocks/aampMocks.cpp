@@ -75,11 +75,9 @@ void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len
 	size_t required = buffer->len + len;
 	if (required > buffer->avail)
 	{
-		if(buffer->avail > (128*1024))
-		{
-			AAMPLOG_WARN("WARNING - realloc. buf %p avail %d required %d",buffer, (int)buffer->avail, (int)required);
-		}
-		buffer->avail = required * 2; // grow generously to minimize realloc overhead
+		// For encoded contents, step by step increment 512KB => 1MB => 2MB => ..
+		// In other cases, double the buffer based on availability and requirement.
+		buffer->avail = ((buffer->avail * 2) > required) ? (buffer->avail * 2) : (required * 2);
 		char *ptr = (char *)g_realloc(buffer->ptr, buffer->avail);
 		assert(ptr);
 		if (ptr)
