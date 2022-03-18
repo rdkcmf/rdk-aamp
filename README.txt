@@ -322,6 +322,9 @@ live        Seek to live point
 exit        Gracefully exit application
 sap <lang>  Select alternate audio language track.
 bps <val>   Set video bitrate in bps
+harvest <harvestConfiguration> Initiate harvesting for space seperated harvest configuration such as 
+	harvestMode=Master harvestUrl=<url> harvestPath=<path> for Master mode(To download all available profiles)
+	harvestMode=Slave harvestUrl=<url> harvestConfig=65535 defaultBitrate=400000 defaultBitrate4K=400000 disableDecode=true harvestPath=<path> for Slave mode(To download selective profile)
 
 To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.cfg
 *<Channel Number> <Channel Name> <Channel URL>
