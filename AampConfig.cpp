@@ -465,7 +465,6 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_ChangeTrackWithoutRetune].value		=	false;
 	bAampCfgValue[eAAMPConfig_EnableCurlStore].value			=	true;
 	bAampCfgValue[eAAMPConfig_RuntimeDRMConfig].value			=	false;
-
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_ABRCacheLife-eAAMPConfig_IntStartValue].value			=	DEFAULT_ABR_CACHE_LIFE;

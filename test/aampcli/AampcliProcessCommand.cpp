@@ -25,6 +25,7 @@
 #include "AampcliProcessCommand.h"
 #include "AampcliGet.h"
 #include "AampcliSet.h"
+#include "AampcliHarvestor.h"
 #include "AampcliPlaybackCommand.h"
 
 CommandDispatcher mCommandDispatcher;
@@ -36,6 +37,7 @@ void CommandDispatcher::registerAampcliCommands()
 {
 	registerCommand( "set", new Set);
 	registerCommand( "get", new Get);
+	registerCommand( "harvest", new Harvestor);
 	registerCommand( "default", new PlaybackCommand);
 }
 
