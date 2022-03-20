@@ -1721,7 +1721,7 @@ static void ProcessCliCommand( char *cmd )
 														  prefTypePresent?type:NULL, 
 														  prefCodecPresent?preferredCodec:NULL);
 					}
-					else if (sscanf(cmd, "set %d %s %s", &opt, preferredLanguages, rendition, type) == 4)
+					else if (sscanf(cmd, "set %d %s %s %s", &opt, preferredLanguages, rendition, type) == 4)
 					{
 						printf("[AAMPCLI] setting PreferredLanguages (%s) with rendition (%s) and type (%s)\n" ,
 										preferredLanguages, rendition, type);  
