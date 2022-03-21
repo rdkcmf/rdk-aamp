@@ -967,8 +967,10 @@ bool MediaTrack::InjectFragment()
 				AAMPLOG_WARN("track %s - encountered aamp discontinuity @position - %f, isDiscoIgnoredForOtherTrack - %d", name, cachedFragment->position, isDiscoIgnoredForOtherTrack);
 				cachedFragment->discontinuity = false;
 				ptsError = false;
-
-				if (totalInjectedDuration == 0)
+                          	//The injected duration might be 0 for the short  duration periods due to fragment download failures.
+				//In that case, if there is an audio codec change is detected for the next period, it could cause audio loss since player should not process the discontinuity.
+				//So in that case,need to process discontinuity to reconfigure the pipeline for the new audio codec even though the injected duration is 0.
+				if (totalInjectedDuration == 0 && !aamp->mpStreamAbstractionAAMP->GetESChangeStatus())
 				{
 					stopInjection = false;
 
@@ -986,7 +988,7 @@ bool MediaTrack::InjectFragment()
 
 					AAMPLOG_WARN("ignoring %s discontinuity since no buffer pushed before!", name);
 				}
-				else if (isDiscoIgnoredForOtherTrack)
+				else if (isDiscoIgnoredForOtherTrack && !aamp->mpStreamAbstractionAAMP->GetESChangeStatus())
 				{
 					AAMPLOG_WARN("discontinuity ignored for other AV track , no need to process %s track", name);
 					stopInjection = false;
