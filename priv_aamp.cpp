@@ -2586,6 +2586,30 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 }
 
 /**
+ * @brief Get the Current Audio Track Id 
+ * Currently it is implimented for AC4 track selection only
+ * 
+ * @return int return the index number of current audio track selected
+ */
+int PrivateInstanceAAMP::GetCurrentAudioTrackId()
+{
+	int trackId = -1;
+	AudioTrackInfo currentAudioTrack;
+
+	/** Only select track Id for setting gstplayer in case of muxed ac4 stream */
+	if (mpStreamAbstractionAAMP->GetCurrentAudioTrack(currentAudioTrack) && (currentAudioTrack.codec.find("ac4") == std::string::npos) && currentAudioTrack.isMuxed )
+	{
+		AAMPLOG_INFO("Found AC4 track as current Audio track  index = %s language - %s role - %s codec %s type %s bandwidth = %ld",
+		currentAudioTrack.index.c_str(), currentAudioTrack.language.c_str(), currentAudioTrack.rendition.c_str(), 
+		currentAudioTrack.codec.c_str(), currentAudioTrack.contentType.c_str(), currentAudioTrack.bandwidth);
+		trackId = std::stoi( currentAudioTrack.index );
+
+	}
+
+	return trackId;
+}
+
+/**
  * @brief Process EOS from Sink and notify listeners if required
  */
 void PrivateInstanceAAMP::NotifyEOSReached()
@@ -9718,7 +9742,6 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 		reconfigure = true;
 		mAuxFormat = auxFormat;
 	}
-
 	if (reconfigure)
 	{
 		// Configure pipeline as TSProcessor might have detected the actual stream type
@@ -10578,6 +10601,9 @@ void PrivateInstanceAAMP::LoadFogConfig(void)
 
 	//disableATMOS
 	jsondata.add("disableATMOS", ISCONFIGSET_PRIV(eAAMPConfig_DisableATMOS));
+
+	//disableAC4
+	jsondata.add("disableAC4", ISCONFIGSET_PRIV(eAAMPConfig_DisableAC4));
 
 	jsonStr = jsondata.print_UnFormatted();
 	std::string remoteUrl = "127.0.0.1:9080/playerconfig";

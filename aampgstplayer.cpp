@@ -116,11 +116,12 @@ struct media_stream
 	bool sourceConfigured;
 	pthread_mutex_t sourceLock;
 	uint32_t timeScale;
+	int32_t trackId;
 
 	media_stream() : sinkbin(NULL), source(NULL), format(FORMAT_INVALID),
 			 using_playersinkbin(FALSE), flush(false), resetPosition(false),
 			 bufferUnderrun(false), eosReached(false), sourceConfigured(false), sourceLock(PTHREAD_MUTEX_INITIALIZER)
-			, timeScale(1)
+			, timeScale(1), trackId(-1)
 	{
 
 	}
@@ -1480,7 +1481,17 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #if !defined(REALTEKCE)
 					g_signal_connect(msg->src, "first-audio-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameAudDecoder), _this);
+#endif				
+					int trackId = _this->privateContext->stream[eMEDIATYPE_AUDIO].trackId;
+					if (trackId >= 0) /** AC4 track selected **/
+					{
+#if !defined(BRCM) /** AC4 support added for non Broadcom platforms */				
+						AAMPLOG_INFO("Selecting AC4 Track Id : %d", trackId);
+						g_object_set(msg->src, "ac4-presentation-group-index", trackId, NULL);
+#else
+						AAMPLOG_WARN("AC4 support has not done for this platform - track Id: %d", trackId);
 #endif
+					}
 				}
 			}
 			if ((NULL != msg->src) && AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
@@ -2606,6 +2617,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 			trickTeardown = false;
 			TearDownStream((MediaType) i);
 			stream->format = newFormat[i];
+			stream->trackId = aamp->GetCurrentAudioTrackId();
 	#ifdef USE_PLAYERSINKBIN
 			if (FORMAT_MPEGTS == stream->format )
 			{
@@ -2617,7 +2629,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 			{
 				stream->using_playersinkbin = FALSE;
 			}
-			if (0 != AAMPGstPlayer_SetupStream(this, (MediaType) i))
+			if (0 != AAMPGstPlayer_SetupStream(this, (MediaType)i))
 			{
 				AAMPLOG_WARN("AAMPGstPlayer: track %d failed", i);
 				return;
