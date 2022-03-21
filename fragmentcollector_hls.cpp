@@ -107,6 +107,8 @@ static const FormatMap mAudioFormatMap[] =
 	{ "mp4a.40.5", FORMAT_AUDIO_ES_AAC },
 	{ "ac-3", FORMAT_AUDIO_ES_AC3 },
 	{ "mp4a.a5", FORMAT_AUDIO_ES_AC3 },
+	{ "ac-4.02.01.01", FORMAT_AUDIO_ES_AC4 },
+	{ "ac-4.02.01.02", FORMAT_AUDIO_ES_AC4 },
 	{ "ec-3", FORMAT_AUDIO_ES_EC3 },
 	{ "ec+3", FORMAT_AUDIO_ES_ATMOS },
 	{ "eac3", FORMAT_AUDIO_ES_EC3 }
@@ -3220,6 +3222,7 @@ bool StreamAbstractionAAMP_HLS::FilterAudioCodecBasedOnConfig(StreamOutputFormat
 	bool ignoreProfile = false;
 	bool bDisableEC3 = ISCONFIGSET(eAAMPConfig_DisableEC3);
 	bool bDisableAC3 = bDisableEC3;
+	bool bDisableAC4 = ISCONFIGSET(eAAMPConfig_DisableAC4);
 	// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
 	bool bDisableATMOS = (bDisableEC3) ? true : ISCONFIGSET(eAAMPConfig_DisableATMOS);
 

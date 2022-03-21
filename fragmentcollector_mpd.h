@@ -226,7 +226,7 @@ private:
 	double GetCulledSeconds();
 	void UpdateCulledAndDurationFromPeriodInfo();
 	void UpdateLanguageList();
-	int GetBestAudioTrackByLanguage(int &desiredRepIdx,AudioType &selectedCodecType);
+	int GetBestAudioTrackByLanguage(int &desiredRepIdx,AudioType &selectedCodecType, std::vector<AudioTrackInfo> &ac4Tracks, std::string &audioTrackIndex);
 	int GetPreferredAudioTrackByLanguage();
 	bool CheckProducerReferenceTimeUTCTimeMatch(IProducerReferenceTime *pRT);
 	void PrintProducerReferenceTimeAtrributes(IProducerReferenceTime *pRT);
@@ -245,8 +245,10 @@ private:
 	void StartLatencyMonitorThread();
 	LatencyStatus GetLatencyStatus() { return latencyStatus; }
 	vector<IDescriptor*> GetContentProtection(const IAdaptationSet *adaptationSet, MediaType mediaType);
-	bool GetPreferredCodecIndex(IAdaptationSet*, int &, AudioType &, uint32_t &, uint32_t &, bool , bool);
+	bool GetPreferredCodecIndex(IAdaptationSet *adaptationSet, int &selectedRepIdx, AudioType &selectedCodecType, 
+	uint32_t &selectedRepBandwidth, uint32_t &bestScore, bool disableEC3, bool disableATMOS, bool disableAC4);
 	void PopulateAudioTracks(void);
+	void ParseAvailablePreselections(IMPDElement *period, std::vector<AudioTrackInfo> & audioAC4Tracks);
 	std::mutex mStreamLock;
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;

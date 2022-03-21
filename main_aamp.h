@@ -108,6 +108,7 @@ enum StreamOutputFormat
 	FORMAT_AUDIO_ES_AC3,    /**< AC3 Audio Elementary Stream */
 	FORMAT_AUDIO_ES_EC3,    /**< Dolby Digital Plus Elementary Stream */
 	FORMAT_AUDIO_ES_ATMOS,  /**< ATMOS Audio stream */
+	FORMAT_AUDIO_ES_AC4,    /**< AC4 Dolby Audio stream */
 	FORMAT_VIDEO_ES_H264,   /**< MPEG-4 Video Elementary Stream */
 	FORMAT_VIDEO_ES_HEVC,   /**< HEVC video elementary stream */
 	FORMAT_VIDEO_ES_MPEG2,  /**< MPEG-2 Video Elementary Stream */
@@ -175,27 +176,41 @@ struct AudioTrackInfo
 	std::string contentType; // used for ATSC to propogate content type
 	std::string mixType; // used for ATSC to propogate mix type
 	std::string accessibilityType; //value of Accessibility
+	bool isMuxed; //Flag to indicated muxed audio track ; this is used by AC4 tracks
 
-	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), bandwidth(0),primaryKey(0), contentType(), mixType(), accessibilityType()
+	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), 
+	bandwidth(0),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(false)
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, std::string cha, int ch):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1), primaryKey(0) , contentType(), mixType(), accessibilityType()
+		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1), primaryKey(0) , contentType(), mixType(), accessibilityType(), isMuxed(false)
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, int pk, std::string conType, std::string mixType):
 			index(idx), language(lang), rendition(rend), name(trackName),
 			codec(codecStr), characteristics(), channels(0), bandwidth(-1), primaryKey(pk),
-                        contentType(conType), mixType(mixType), accessibilityType()
+                        contentType(conType), mixType(mixType), accessibilityType(), isMuxed(false)
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, std::string typ):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ)
+		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ), isMuxed(false)
+	{
+	}
+
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, int channel):
+		index(idx), language(lang), rendition(rend), name(trackName),
+		codec(codecStr), characteristics(), channels(channel), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(false)
+	{
+	}
+
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, int channel, bool muxed):
+		index(idx), language(lang), rendition(rend), name(trackName),
+		codec(codecStr), characteristics(), channels(channel), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(muxed)
 	{
 	}
 
@@ -206,7 +221,8 @@ struct AudioTrackInfo
 			(contentType == track.contentType) &&	
 			(codec == track.codec) &&
 			(channels == track.channels) &&
-			(bandwidth == track.bandwidth));
+			(bandwidth == track.bandwidth) &&
+			(isMuxed == track.isMuxed));
 	}
 
 	bool operator < (const AudioTrackInfo& track) const
@@ -536,6 +552,13 @@ public:
 	 *   @return void
 	 */
 	virtual void StopBuffering(bool forceStop) { };
+
+	/**
+	 * @brief API to set track Id to audio sync property in case of AC4 audio
+	 * 
+	 * @param[in] trackId - AC4 track Id parsed by aamp based of preference
+	 * @return bol sttaus of API
+	 */
 };
 
 

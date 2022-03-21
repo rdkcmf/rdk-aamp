@@ -272,7 +272,8 @@ enum AudioType
 	eAUDIO_UNKNOWN,
 	eAUDIO_AAC,
 	eAUDIO_DDPLUS,
-	eAUDIO_ATMOS
+	eAUDIO_ATMOS,
+	eAUDIO_DOLBYAC4
 };
 
 /**
@@ -3522,6 +3523,15 @@ public:
  	*     @return the json string represenign the playback stats
  	*/
 	std::string GetPlaybackStats();
+
+	/**
+	 * @brief Get the Current Audio Track Id 
+	 * Currently it is implimented for AC4 track selection only
+	 * 
+	 * @return int return the index number of current audio track selected
+	 */
+	int GetCurrentAudioTrackId(void);
+
 private:
 
 	/**

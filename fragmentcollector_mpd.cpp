@@ -461,11 +461,16 @@ static bool IsAtmosAudio(const IMPDElement *nodePtr)
 static AudioType getCodecType(string & codecValue, const IMPDElement *rep)
 {
 	AudioType audioType = eAUDIO_UNSUPPORTED;
+	std::string ac4 = "ac-4";
 	if (codecValue == "ec+3")
 	{
 #ifndef __APPLE__
 		audioType = eAUDIO_ATMOS;
 #endif
+	}
+	else if (!codecValue.compare(0, ac4.size(), ac4))
+	{
+		audioType = eAUDIO_DOLBYAC4;
 	}
 	else if ((codecValue == "ec-3") || (codecValue == "ac-3"))
 	{
@@ -502,7 +507,7 @@ static AudioType getCodecType(string & codecValue, const IMPDElement *rep)
  * @retval whether track selected or not
  */
 bool StreamAbstractionAAMP_MPD::GetPreferredCodecIndex(IAdaptationSet *adaptationSet, int &selectedRepIdx, AudioType &selectedCodecType, 
-	uint32_t &selectedRepBandwidth, uint32_t &bestScore, bool disableEC3, bool disableATMOS)
+	uint32_t &selectedRepBandwidth, uint32_t &bestScore, bool disableEC3, bool disableATMOS, bool disableAC4)
 {
     FN_TRACE_F_MPD( __FUNCTION__ );
 	bool isTrackSelected = false;
@@ -540,7 +545,8 @@ bool StreamAbstractionAAMP_MPD::GetPreferredCodecIndex(IAdaptationSet *adaptatio
 				}
 				AudioType codecType = getCodecType(codecValue, rep);
 				if (((codecType == eAUDIO_ATMOS) && (disableATMOS || disableEC3)) || /*ATMOS audio desable by config */
-					((codecType == eAUDIO_DDPLUS) && disableEC3)) /* EC3 disable neglact it that case */
+					((codecType == eAUDIO_DDPLUS) && disableEC3) || /* EC3 disable neglact it that case */
+					((codecType == eAUDIO_DOLBYAC4) && disableAC4)) /** Disable AC4 **/
 				{
 					//Reduce score to 0 since ATMOS and/or DDPLUS is disabled;
 					score = 0; 
@@ -568,7 +574,7 @@ bool StreamAbstractionAAMP_MPD::GetPreferredCodecIndex(IAdaptationSet *adaptatio
  * @retval index of desired representation
  */
 static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &selectedCodecType, uint32_t &selectedRepBandwidth,
-				bool disableEC3,bool disableATMOS)
+				bool disableEC3,bool disableATMOS, bool disableAC4)
 {
         FN_TRACE_F_MPD( __FUNCTION__ );
 	int selectedRepIdx = -1;
@@ -601,9 +607,11 @@ static int GetDesiredCodecIndex(IAdaptationSet *adaptationSet, AudioType &select
 			* Note that this check comes after the check of selected language.
 			* disableATMOS: avoid use of ATMOS track
 			* disableEC3: avoid use of DDPLUS and ATMOS tracks
+			* disableAC4: avoid use if ATMOS AC4 tracks
 			*/
 			if ((selectedCodecType == eAUDIO_UNKNOWN && (audioType != eAUDIO_UNSUPPORTED || selectedRepBandwidth == 0)) || // Select any profile for the first time, reject unsupported streams then
 				(selectedCodecType == audioType && bandwidth>selectedRepBandwidth) || // same type but better quality
+				(selectedCodecType < eAUDIO_DOLBYAC4 && audioType == eAUDIO_DOLBYAC4 && !disableAC4 ) || // promote to AC4
 				(selectedCodecType < eAUDIO_ATMOS && audioType == eAUDIO_ATMOS && !disableATMOS && !disableEC3) || // promote to atmos
 				(selectedCodecType < eAUDIO_DDPLUS && audioType == eAUDIO_DDPLUS && !disableEC3) || // promote to ddplus
 				(selectedCodecType != eAUDIO_AAC && audioType == eAUDIO_AAC && disableEC3) || // force AAC
@@ -4215,7 +4223,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		}
 		auto end = std::chrono::high_resolution_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-		AAMPLOG_INFO("DEBUG: Time taken to populate Audio Track %lld", static_cast<long long int>(duration.count()));
+		AAMPLOG_INFO("Time taken to populate Audio Track %lld", static_cast<long long int>(duration.count()));
 
 		for (unsigned iPeriod = 0; iPeriod < numPeriods; iPeriod++)
 		{//TODO -  test with streams having multiple periods.
@@ -5993,18 +6001,31 @@ void StreamAbstractionAAMP_MPD::StartDeferredDRMRequestThread(MediaType mediaTyp
 }
 #endif
 
-int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, AudioType &CodecType)
+/**
+ * @brief Get the best Audio track by Language, role, and/or codec type
+ *
+ * @param desiredRepIdx [out] selected representation Index
+ * @param CodecType [out] selected codec type
+ * @param ac4Tracks parsed track from preselection node
+ * @param audioTrackIndex selected audio track index
+ * @return int selected representation index
+ */
+int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, AudioType &CodecType, 
+std::vector<AudioTrackInfo> &ac4Tracks, std::string &audioTrackIndex)
 {
     FN_TRACE_F_MPD( __FUNCTION__ );
 	int bestTrack = -1;
 	int bestScore = -1;
+	AudioTrackInfo selectedAudioTrack; /**< Selected Audio track information */
 	class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[eMEDIATYPE_AUDIO];
 	IPeriod *period = mCurrentPeriod;
+	bool isMuxedAudio = false; /** Flag to inidcate muxed audio track , used by AC4 */
 	if(!period)
 	{
 		AAMPLOG_WARN("period is null");
 		return bestTrack;
 	}
+	
 	size_t numAdaptationSets = period->GetAdaptationSets().size();
 	for( int iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
 	{
@@ -6013,7 +6034,12 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 		{
 			int score = 0;
 			std::string trackLanguage = GetLanguageForAdaptationSet(adaptationSet);
-			if( aamp->preferredLanguagesList.size() > 0 )
+			if(trackLanguage.empty())
+			{
+				isMuxedAudio = true;
+				AAMPLOG_INFO("Found Audio Track with no language, look like muxed stream");
+			}
+			else if( aamp->preferredLanguagesList.size() > 0 )
 			{
 				auto iter = std::find(aamp->preferredLanguagesList.begin(), aamp->preferredLanguagesList.end(), trackLanguage);
 				if(iter != aamp->preferredLanguagesList.end())
@@ -6058,14 +6084,22 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 			uint32_t selRepBandwidth = 0;
 			bool disableATMOS = ISCONFIGSET(eAAMPConfig_DisableATMOS);
 			bool disableEC3 = ISCONFIGSET(eAAMPConfig_DisableEC3);
+			bool disableAC4 = ISCONFIGSET(eAAMPConfig_DisableAC4); 
 			int audioRepresentationIndex = -1;
 			bool audioCodecSelected = false;
 			uint32_t codecScore = 0;
-			if(!GetPreferredCodecIndex(adaptationSet, audioRepresentationIndex, selectedCodecType, selRepBandwidth, codecScore, disableEC3 , disableATMOS))
+			if(!GetPreferredCodecIndex(adaptationSet, audioRepresentationIndex, selectedCodecType, selRepBandwidth, codecScore, disableEC3 , disableATMOS, disableAC4))
 			{
-				audioRepresentationIndex = GetDesiredCodecIndex(adaptationSet, selectedCodecType, selRepBandwidth, disableEC3 , disableATMOS);
+				audioRepresentationIndex = GetDesiredCodecIndex(adaptationSet, selectedCodecType, selRepBandwidth, disableEC3 , disableATMOS, disableAC4);
 				switch( selectedCodecType )
 				{
+					case eAUDIO_DOLBYAC4:
+						if( !disableAC4 )
+						{
+							score += 8;
+						}
+						break;
+
 					case eAUDIO_ATMOS:
 						if( !disableATMOS )
 						{
@@ -6097,6 +6131,59 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 				score += codecScore;
 			}
 
+			/**Add score for language , role and type matching from preselection node for AC4 tracks */
+			if ((selectedCodecType == eAUDIO_DOLBYAC4) && isMuxedAudio)
+			{
+				AAMPLOG_INFO("AC4 Track Selected, get the priority based on language and role" );
+				uint64_t ac4CurrentScore = 0;
+				uint64_t ac4SelectedScore = 0;
+				
+				
+				for(auto ac4Track:ac4Tracks)
+				{
+					if (ac4Track.codec.find("ac-4") != std::string::npos)
+					{
+						//TODO: Non AC4 codec in preselection node as per Dash spec 
+						//https://dashif.org/docs/DASH-IF-IOP-for-ATSC3-0-v1.0.pdf#page=63&zoom=100,92,113
+						continue;
+					}
+					if( aamp->preferredLanguagesList.size() > 0 )
+					{
+						auto iter = std::find(aamp->preferredLanguagesList.begin(), aamp->preferredLanguagesList.end(), ac4Track.language);
+						if(iter != aamp->preferredLanguagesList.end())
+						{ // track is in preferred language list
+							int distance = std::distance(aamp->preferredLanguagesList.begin(),iter);
+							ac4CurrentScore += ((aamp->preferredLanguagesList.size()-distance)+1)*1000000; // big bonus for language match
+						}
+					}
+					if( !aamp->preferredRenditionString.empty() )
+					{
+						if( aamp->preferredRenditionString.compare(ac4Track.rendition)==0 )
+						{
+							ac4CurrentScore += 100000;
+						}
+					}
+					if( !aamp->preferredTypeString.empty() )
+					{
+						if (aamp->preferredTypeString.compare(ac4Track.contentType)==0 )
+						{
+							ac4CurrentScore += 10000;
+						}
+					}
+					if ((ac4CurrentScore > ac4SelectedScore) || 
+					((ac4SelectedScore == ac4CurrentScore ) && (ac4Track.bandwidth > selectedAudioTrack.bandwidth)) /** Same track with best quality */
+					)
+					{
+						selectedAudioTrack = ac4Track;
+						audioTrackIndex = ac4Track.index; /**< for future reference **/
+						ac4SelectedScore = ac4CurrentScore;
+						
+					}
+				}
+				score += ac4SelectedScore;
+				//KC
+				//PrasePreselection and found language match and add points for language role match type match
+			}
 			AAMPLOG_INFO( "track#%d::%d -  score = %d", iAdaptationSet, audioRepresentationIndex,  score );
 			if( score > bestScore )
 			{
@@ -6107,6 +6194,12 @@ int StreamAbstractionAAMP_MPD::GetBestAudioTrackByLanguage( int &desiredRepIdx, 
 			}
 		} // IsContentType(adaptationSet, eMEDIATYPE_AUDIO)
 	} // next iAdaptationSet
+	if (CodecType == eAUDIO_DOLBYAC4)
+	{
+		/* TODO: Cuurently current Audio track is updating only for AC4 need mechanism to update for other tracks also */
+		AAMPLOG_INFO( "Audio Track selected index - %s - language : %s rendition : %s - codec - %s  score = %d", selectedAudioTrack.index.c_str(),
+		selectedAudioTrack.language.c_str(), selectedAudioTrack.rendition.c_str(), selectedAudioTrack.codec.c_str(),  bestScore );
+	}
 	return bestTrack;
 }
 
@@ -6168,10 +6261,18 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 	int audioRepresentationIndex = -1;
 	int desiredRepIdx = -1;
 	int audioAdaptationSetIndex = -1;
+	bool disableAC4 = ISCONFIGSET(eAAMPConfig_DisableAC4); 
 
 	if (rate == AAMP_NORMAL_PLAY_RATE)
 	{
-		audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType);
+		/** Time being preselection based track selection only did for ac4 tracks **/
+		if (!disableAC4) 
+		{
+			std::vector<AudioTrackInfo> ac4Tracks;
+			ParseAvailablePreselections(period, ac4Tracks);
+			aTracks.insert(ac4Tracks.end(), ac4Tracks.begin(), ac4Tracks.end());
+		}
+		audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType, aTracks, aTrackIdx);
 		IAdaptationSet *audioAdaptationSet = NULL;
 		if ( audioAdaptationSetIndex >= 0 )
 		{
@@ -6276,9 +6377,17 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 
 						if (eMEDIATYPE_AUDIO == i)
 						{
-							AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Audio Track - lang:%s, group:%s, name:%s, codec:%s, bandwidth:%d, type:%s",
-								lang.c_str(), group.c_str(), name.c_str(), codec.c_str(), bandwidth, type.c_str());
-							aTracks.push_back(AudioTrackInfo(index, lang, group, name, codec, bandwidth, type));
+							if ((codec.find("ac-4") != std::string::npos) && lang.empty())
+							{
+								/* Incase of AC4 muxed audio track, track information is already provided by preselection node*/
+								AAMPLOG_WARN("AC4 muxed audio track detected.. Skipping..");
+							}
+							else
+							{
+								AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Audio Track - lang:%s, group:%s, name:%s, codec:%s, bandwidth:%d, type:%s",
+									lang.c_str(), group.c_str(), name.c_str(), codec.c_str(), bandwidth, type.c_str());
+								aTracks.push_back(AudioTrackInfo(index, lang, group, name, codec, bandwidth, type));
+							}
 						}
 						else
 						{
@@ -7576,7 +7685,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(int trackIdx, bool 
 							uint64_t s1,s2;
 							sscanf(range.c_str(), "%" PRIu64 "-%" PRIu64 "", &s1,&s2);
 							char temp[128];
-							sprintf( temp, "%lld", s1-1 );
+							sprintf( temp, "%lu", s1-1 );
 							range = "0-";
 							range += temp;
 						}
@@ -7809,7 +7918,9 @@ void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 									uint32_t selectedRepBandwidth = 0;									
 									bool disableATMOS = ISCONFIGSET(eAAMPConfig_DisableATMOS);
 									bool disableEC3 = ISCONFIGSET(eAAMPConfig_DisableEC3);
-									representionIndex = GetDesiredCodecIndex(adaptationSet, selectedAudioType, selectedRepBandwidth,disableEC3 , disableATMOS);
+									bool disableAC4 = ISCONFIGSET(eAAMPConfig_DisableAC4);
+									
+									representionIndex = GetDesiredCodecIndex(adaptationSet, selectedAudioType, selectedRepBandwidth,disableEC3 , disableATMOS, disableAC4);
 									if(selectedAudioType != mAudioType)
 									{
 										continue;
@@ -10190,6 +10301,130 @@ void StreamAbstractionAAMP_MPD::SetAudioTrackInfo(const std::vector<AudioTrackIn
 	}
 }
 
+/** TBD : Move to Dash Utils */
+#define PRESELECTION_PROPERTY_TAG "Preselection"
+
+#define CHANNEL_PROPERTY_TAG "AudioChannelConfiguration"
+#define CHANNEL_SCHEME_ID_TAG "urn:mpeg:mpegB:cicp:ChannelConfiguration"
+
+#define ROLE_PROPERTY_TAG "Role"
+#define ROLE_SCHEME_ID_TAG "urn:mpeg:dash:role:2011"
+
+/** TBD : Move to Dash Utils */
+/**
+ * @brief Get the cannel number from preselection node
+ * @param preselection ndoe as nodePtr
+ * @return channel number
+ */
+static int getChannel(INode *nodePtr)
+{
+	int channel = 0;
+	std::vector<INode*> childNodeList = nodePtr->GetNodes();
+	for (auto &childNode : childNodeList)
+	{
+		const std::string& name = childNode->GetName();
+		if (name == CHANNEL_PROPERTY_TAG ) 
+		{
+			if (childNode->HasAttribute("schemeIdUri")) 
+			{
+				if (childNode->GetAttributeValue("schemeIdUri") == CHANNEL_SCHEME_ID_TAG )
+				{
+					if (childNode->HasAttribute("value")) 
+					{
+						channel = std::stoi(childNode->GetAttributeValue("value"));
+					}
+				}
+			}
+		}
+	}
+
+	return channel;
+}
+
+/** TBD : Move to Dash Utils */
+/**
+ * @brief Get the role from preselection node
+ * @param preselection ndoe as nodePtr
+ * @return role
+ */
+static std::string getRole(INode *nodePtr)
+{
+	std::string role = "";
+	std::vector<INode*> childNodeList = nodePtr->GetNodes();
+	for (auto &childNode : childNodeList)
+	{
+		const std::string& name = childNode->GetName();
+		if (name == ROLE_PROPERTY_TAG ) 
+		{
+			if (childNode->HasAttribute("schemeIdUri")) 
+			{
+				if (childNode->GetAttributeValue("schemeIdUri") == ROLE_SCHEME_ID_TAG )
+				{
+					if (childNode->HasAttribute("value")) 
+					{
+						role = childNode->GetAttributeValue("value");
+					}
+				}
+			}
+		}
+	}
+	return role;
+}
+
+/**
+ * @brief Get the audio track information from all preselection node of the period
+ * @param period Node ans IMPDElement 
+ * @return void
+ */
+void StreamAbstractionAAMP_MPD::ParseAvailablePreselections(IMPDElement *period, std::vector<AudioTrackInfo> & audioAC4Tracks)
+{
+	FN_TRACE_F_MPD( __FUNCTION__ );
+	std::vector<INode*> childNodeList = period->GetAdditionalSubNodes();
+	if (childNodeList.size() > 0)
+	{
+		std::string id ;
+		std::string codec;
+		std::string lang;
+		std::string tag ;
+		long bandwidth;
+		std::string role;
+		int channel = 0;
+		for (auto &childNode : childNodeList)
+		{
+			const std::string& name = childNode->GetName();
+			if (name == PRESELECTION_PROPERTY_TAG ) 
+			{
+				/**
+				 * <Preselection id="100" preselectionComponents="11" 
+				 * tag="10" codecs="ac-4.02.01.01" audioSamplingRate="48000" lang="en">
+				 */
+				if (childNode->HasAttribute("id")) {
+					id = childNode->GetAttributeValue("id");
+				}
+				if (childNode->HasAttribute("tag")) {
+					tag = childNode->GetAttributeValue("tag");
+				}
+				if (childNode->HasAttribute("lang")) {
+					lang = childNode->GetAttributeValue("lang");
+				}
+				if (childNode->HasAttribute("codecs")) {
+					codec = childNode->GetAttributeValue("codecs");
+				}
+				if (childNode->HasAttribute("audioSamplingRate")) {
+					bandwidth = std::stol(childNode->GetAttributeValue("audioSamplingRate"));
+				}
+
+				role = getRole (childNode);
+				channel = getChannel(childNode);
+				/** Preselection node is used for representing muxed audio tracks **/
+				AAMPLOG_INFO("Preselection node found with tag %s language %s role %s id %s codec %s bandwidth %ld Channel %d ", 
+				tag.c_str(), lang.c_str(), role.c_str(), id.c_str(), codec.c_str(), bandwidth, channel);
+				audioAC4Tracks.push_back(AudioTrackInfo(tag, lang, role, id, codec, bandwidth, channel, true));
+			}
+		}
+	}
+}
+
 /**
  * @brief Get the audio track information from all period
  * updated member variable mAudioTracksAll
@@ -10278,6 +10513,11 @@ void StreamAbstractionAAMP_MPD::PopulateAudioTracks(void)
 			} // Audio Adaptation
 			adaptationIndex++;
 		} // Adaptation Loop
+		{
+			std::vector<AudioTrackInfo> ac4Tracks;
+			ParseAvailablePreselections(period, ac4Tracks);
+			mAudioTracksAll.insert(ac4Tracks.end(), ac4Tracks.begin(), ac4Tracks.end());
+		}
 	}//Period loop
 
 	std::sort(mAudioTracksAll.begin(), mAudioTracksAll.end());

@@ -82,6 +82,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"forceEC3",eAAMPConfig_ForceEC3,-1,-1},										// Complete
 	{"disableEC3",eAAMPConfig_DisableEC3,-1,-1},									// Complete
 	{"disableATMOS",eAAMPConfig_DisableATMOS,-1,-1},								// Complete
+	{"disableAC4",eAAMPConfig_DisableAC4,-1,-1},
 	{"stereoOnly",eAAMPConfig_StereoOnly,-1,-1},									// Complete
 	{"descriptiveTrackName",eAAMPConfig_DescriptiveTrackName,-1,-1},
 	{"offset",eAAMPConfig_PlaybackOffset,{.dMinValue = -1},{.dMaxValue = -1}},
@@ -324,6 +325,11 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_DescriptiveTrackName].value			=	false;
 	bAampCfgValue[eAAMPConfig_DisableEC3].value				=	false;
 	bAampCfgValue[eAAMPConfig_DisableATMOS].value				=	false;
+#if defined(BRCM) || defined(RPI) || defined(AAMP_SIMULATOR_BUILD)
+	bAampCfgValue[eAAMPConfig_DisableAC4].value				=	true;
+#else
+	bAampCfgValue[eAAMPConfig_DisableAC4].value				=	false;
+#endif
 	bAampCfgValue[eAAMPConfig_DisablePlaylistIndexEvent].value		=	true;
 	bAampCfgValue[eAAMPConfig_EnableSubscribedTags].value			=	true;
 	bAampCfgValue[eAAMPConfig_DASHIgnoreBaseURLIfSlash].value		=	false;
@@ -1595,6 +1601,7 @@ void AampConfig::ReadOperatorConfiguration()
 	if(env_aamp_force_aac)
 	{
 		AAMPLOG_INFO("AAMP_FORCE_AAC present: Changing preference to AAC over ATMOS & DD+");
+		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_DisableAC4,true);
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_DisableEC3,true);
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_DisableATMOS,true);
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_ForceEC3,false);
@@ -1800,6 +1807,7 @@ void AampConfig::DoCustomSetting(ConfigPriority owner)
 		SetConfigValue<bool>(owner,eAAMPConfig_DisableEC3,true);
 		SetConfigValue<bool>(owner,eAAMPConfig_DisableATMOS,true);
 		SetConfigValue<bool>(owner,eAAMPConfig_ForceEC3,false);
+		SetConfigValue<bool>(owner,eAAMPConfig_DisableAC4,true);
 	}
 	else if(IsConfigSet(eAAMPConfig_DisableEC3))
 	{

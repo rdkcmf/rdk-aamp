@@ -101,6 +101,7 @@ typedef enum
 	eAAMPConfig_ForceEC3,									/**< Forcefully enable DDPlus*/
 	eAAMPConfig_DisableEC3, 								/**< Disable DDPlus*/
 	eAAMPConfig_DisableATMOS,								/**< Disable Dolby ATMOS*/
+	eAAMPConfig_DisableAC4,									/**< Disable AC4 Audio */
 	eAAMPConfig_StereoOnly,									/**< Enable Stereo Only playback, disables EC3/ATMOS. Overrides ForceEC3 */
 	eAAMPConfig_DescriptiveTrackName,							/**< Enable Descriptive track name*/
 	eAAMPConfig_DisablePlaylistIndexEvent,					/**< Disable playlist index event*/
