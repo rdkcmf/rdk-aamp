@@ -968,7 +968,11 @@ bool MediaTrack::InjectFragment()
 				cachedFragment->discontinuity = false;
 				ptsError = false;
 
-				if (totalInjectedDuration == 0)
+				/* GetESChangeStatus() check is specifically added to fix an audio loss issue (DELIA-55078) due to no reconfigure pipeline when there was an audio codec change for a very short period with no fragments.
+				 * The totalInjectedDuration will be 0 for the very short duration periods if the single fragment is not injected or failed (due to fragment download failures).
+				 * In that case, if there is an audio codec change is detected for this period, it could cause audio loss since ignoring the discontinuity to be processed since totalInjectedDuration is 0.
+				 */
+				if (totalInjectedDuration == 0 && !aamp->mpStreamAbstractionAAMP->GetESChangeStatus())
 				{
 					stopInjection = false;
 
@@ -986,7 +990,7 @@ bool MediaTrack::InjectFragment()
 
 					AAMPLOG_WARN("ignoring %s discontinuity since no buffer pushed before!", name);
 				}
-				else if (isDiscoIgnoredForOtherTrack)
+				else if (isDiscoIgnoredForOtherTrack && !aamp->mpStreamAbstractionAAMP->GetESChangeStatus())
 				{
 					AAMPLOG_WARN("discontinuity ignored for other AV track , no need to process %s track", name);
 					stopInjection = false;
