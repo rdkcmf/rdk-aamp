@@ -1255,13 +1255,13 @@ size_t AveDrmManager::write_callback_session(char *ptr, size_t size,
 		//Reset the abort variable
 		numBytesForBlock = 0;		
 	}
-	else if (NULL == data->getData())        
+	else if (data->getData().empty())        
 	{
-		data->setData((unsigned char *) ptr, numBytesForBlock);
+		data->setData((unsigned char *)ptr, numBytesForBlock);
 	}
 	else
 	{
-		data->addData((unsigned char *) ptr, numBytesForBlock);
+		data->addData((unsigned char *)ptr, numBytesForBlock);
 	}
 	
 	return numBytesForBlock;
@@ -1326,7 +1326,7 @@ long AveDrmManager::setSessionToken()
 		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
 		if (httpCode == 200 || httpCode == 206)
 		{
-			std::string tokenReplyStr = std::string(reinterpret_cast<char*>(tokenReply->getData()));
+			std::string tokenReplyStr = tokenReply->getData();
 			std::string tokenStatusCode = extractSubstring(tokenReplyStr, "status\":", ",\"");
 			if(tokenStatusCode.length() == 0)
 			{
