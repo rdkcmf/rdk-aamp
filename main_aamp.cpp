@@ -2811,15 +2811,6 @@ void PlayerInstanceAAMP::SetAuxiliaryLanguage(const std::string &language)
 	}
 
 }
-/**
- *  @brief To set whether the JS playback session is from XRE or not.
- *  @param[in] bool On/Off
- */
-void PlayerInstanceAAMP::XRESupportedTune(bool xreSupported)
-{
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_XRESupportedTune,xreSupported);
-}
-
 
 /**
  *   @brief Set auxiliary language - Internal function
