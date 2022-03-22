@@ -28,7 +28,7 @@
 #include <stddef.h>
 
 extern void logprintf(const char *format, ...);
-extern void logprintf_new(const char* name, int playerId,const char* levelstr,const char* file, int line,const char *format, ...);
+extern void logprintf_new(int playerId,const char* levelstr,const char* file, int line,const char *format, ...);
 class FnLogger {
 public:
     FnLogger( std::string const & pMsg1,std::string const & pMsg2  ) : msg1(pMsg1),msg2(pMsg2)

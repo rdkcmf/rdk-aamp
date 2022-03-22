@@ -71,9 +71,9 @@ void print_nop(const char *format, ...){}
 #define FATAL print_nop
 #else
 
-#define NOTICE(FORMAT, ...) 	AAMPLOG(mLogObj, "AAMP-PLAYER", eLOGLEVEL_INFO, "INFO", FORMAT, ##__VA_ARGS__)
-#define WARNING(FORMAT, ...) 	AAMPLOG(mLogObj, "AAMP-PLAYER", eLOGLEVEL_WARN, "WARN", FORMAT, ##__VA_ARGS__)
-#define ERROR(FORMAT, ...) 	AAMPLOG(mLogObj, "AAMP-PLAYER", eLOGLEVEL_ERROR, "ERROR", FORMAT, ##__VA_ARGS__)
+#define NOTICE(FORMAT, ...) 	AAMPLOG(mLogObj, eLOGLEVEL_INFO, "INFO", FORMAT, ##__VA_ARGS__)
+#define WARNING(FORMAT, ...) 	AAMPLOG(mLogObj, eLOGLEVEL_WARN, "WARN", FORMAT, ##__VA_ARGS__)
+#define ERROR(FORMAT, ...) 	AAMPLOG(mLogObj, eLOGLEVEL_ERROR, "ERROR", FORMAT, ##__VA_ARGS__)
 #endif
 
 

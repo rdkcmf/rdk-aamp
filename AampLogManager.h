@@ -42,14 +42,14 @@
  * if mConfig or gpGlobalConfig is not initialized, skip logging
  * if mconfig or gpGlobalConfig is initialized,  check the LogLevel
  */
-#define AAMPLOG(MYLOGOBJ,NAME,LEVEL,LEVELSTR,FORMAT, ...) \
+#define AAMPLOG(MYLOGOBJ,LEVEL,LEVELSTR,FORMAT, ...) \
 				do { \
 					if (MYLOGOBJ) { \
 					       	if(MYLOGOBJ->isLogLevelAllowed(LEVEL)) { \
-							logprintf_new(NAME, MYLOGOBJ->getPlayerId(),LEVELSTR, __FUNCTION__, __LINE__,FORMAT, ##__VA_ARGS__); }\
+							logprintf_new(MYLOGOBJ->getPlayerId(),LEVELSTR, __FUNCTION__, __LINE__,FORMAT, ##__VA_ARGS__); }\
 						} \
 					else if (gpGlobalConfig && gpGlobalConfig->logging.isLogLevelAllowed(LEVEL)) { \
-						logprintf_new(NAME, -1,LEVELSTR, __FUNCTION__, __LINE__,FORMAT, ##__VA_ARGS__); }\
+						logprintf_new(-1,LEVELSTR, __FUNCTION__, __LINE__,FORMAT, ##__VA_ARGS__); }\
 				 } while (0)
 
 /**
@@ -63,18 +63,17 @@
 
 #define AAMPLOG_FAILOVER(FORMAT, ...) \
 		if (mLogObj && mLogObj->failover) { \
-				logprintf_new("AAMP-PLAYER", mLogObj->getPlayerId(), "FAILOVER",__FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__); \
+				logprintf_new(mLogObj->getPlayerId(), "FAILOVER",__FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__); \
 		}
 
 /**
  * @brief AAMP logging defines, this can be enabled through setLogLevel() as per the need
  */
 
-#define AAMPLOG_TRACE(FORMAT, ...) AAMPLOG(mLogObj,"AAMP-PLAYER", eLOGLEVEL_TRACE, "TRACE", FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_INFO(FORMAT, ...) AAMPLOG(mLogObj,"AAMP-PLAYER", eLOGLEVEL_INFO, "INFO", FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_WARN(FORMAT, ...) AAMPLOG(mLogObj,"AAMP-PLAYER", eLOGLEVEL_WARN, "WARN", FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_ERR(FORMAT, ...) AAMPLOG(mLogObj,"AAMP-PLAYER", eLOGLEVEL_ERROR, "ERROR", FORMAT, ##__VA_ARGS__)
-#define AAMPLOG_FATAL(FORMAT, ...) AAMPLOG(mLogObj,"AAMP-PLAYER", eLOGLEVEL_FATAL, "FATAL", FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_TRACE(FORMAT, ...) AAMPLOG(mLogObj,eLOGLEVEL_TRACE, "TRACE", FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_INFO(FORMAT, ...) AAMPLOG(mLogObj,eLOGLEVEL_INFO, "INFO", FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_WARN(FORMAT, ...) AAMPLOG(mLogObj,eLOGLEVEL_WARN, "WARN", FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_ERR(FORMAT, ...) AAMPLOG(mLogObj,eLOGLEVEL_ERROR, "ERROR", FORMAT, ##__VA_ARGS__)
 
 
 /**
@@ -286,7 +285,7 @@ extern AampLogManager *mLogObj;
  * @retuen void
  */
 extern void logprintf(const char *format, ...);
-extern void logprintf_new(const char* name, int playerId,const char* levelstr,const char* file, int line,const char *format, ...);
+extern void logprintf_new(int playerId,const char* levelstr,const char* file, int line,const char *format, ...);
 
 /**
  * @brief Compactly log blobs of binary data

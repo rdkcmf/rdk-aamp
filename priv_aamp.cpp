@@ -3851,7 +3851,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						// example 18(0) if connection failure with PARTIAL_FILE code
 						timeoutClass = "(" + to_string(reqSize > 0) + ")";
 					}
-					AAMPLOG_WARN("HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%ld,%.500s",
+					AAMPLOG(mLogObj, reqEndLogLevel, "WARN", "HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%ld,%.500s",
 						appName.c_str(), mediaType, simType, http_code, timeoutClass.c_str(), totalPerformRequest, total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize,downloadbps,
 						((res == CURLE_OK) ? effectiveUrl.c_str() : remoteUrl.c_str())); // Effective URL could be different than remoteURL and it is updated only for CURLE_OK case
 				}
@@ -4738,13 +4738,13 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		{
 			if(retVal == eAAMPSTATUS_FAKE_TUNE_COMPLETE)
 			{
-				AAMPLOG_FATAL("Fake tune completed");
+				AAMPLOG(mLogObj, eLOGLEVEL_FATAL, "FATAL", "Fake tune completed");
 			}
 			else
 			{
 				SetState(eSTATE_COMPLETE);
 				mEventManager->SendEvent(std::make_shared<AAMPEventObject>(AAMP_EVENT_EOS));
-				AAMPLOG_FATAL("Stopping fake tune playback");
+				AAMPLOG(mLogObj, eLOGLEVEL_FATAL, "FATAL", "Stopping fake tune playback");
 			}
 		}
 		else if (DownloadsAreEnabled())

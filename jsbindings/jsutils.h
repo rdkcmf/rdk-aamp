@@ -32,10 +32,24 @@
 #include <string.h>
 #include <vector>
 
-#define INFO(FORMAT, ...)  AAMPLOG(mLogObj,"AAMP-JS", eLOGLEVEL_INFO, "INFO", FORMAT, ##__VA_ARGS__)
-#define ERROR(FORMAT, ...) AAMPLOG(mLogObj,"AAMP-JS", eLOGLEVEL_ERROR, "ERROR", FORMAT, ##__VA_ARGS__)
-#define TRACELOG(FORMAT, ...) AAMPLOG(mLogObj,"AAMP-JS", eLOGLEVEL_TRACE, "TRACE", FORMAT, ##__VA_ARGS__)
-#define WARNING(FORMAT, ...) AAMPLOG(mLogObj,"AAMP-JS", eLOGLEVEL_WARN, "WARN", FORMAT, ##__VA_ARGS__)
+#ifndef _DEBUG
+//#define _DEBUG
+#endif
+
+#ifdef _DEBUG
+#define LOG(...)  printf(__VA_ARGS__);printf("\n");fflush(stdout);
+#else
+#define LOG(...)
+#endif
+
+#define INFO(...)  printf(__VA_ARGS__);printf("\n");fflush(stdout);
+#define ERROR(...)  printf(__VA_ARGS__);printf("\n");fflush(stdout);
+
+#ifdef TRACE
+#define TRACELOG(...)  printf(__VA_ARGS__);printf("\n");fflush(stdout);
+#else
+#define TRACELOG(...)
+#endif
 
 #define EXCEPTION_ERR_MSG_MAX_LEN 1024
 

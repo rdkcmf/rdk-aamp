@@ -1027,7 +1027,7 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 
 	if(aampInstance->mIsFakeTune)
 	{
-		AAMPLOG_FATAL("Exiting fake tune after DRM initialization.");
+		AAMPLOG(mLogObj, eLOGLEVEL_FATAL, "FATAL", "Exiting fake tune after DRM initialization.");
 		AampMutexHold keymutex(cachedKeyMutex);
 		cachedKeyIDs[selectedSlot].isFailedKeyId = true;
 		return nullptr;
