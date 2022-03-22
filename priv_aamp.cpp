@@ -6843,6 +6843,15 @@ void PrivateInstanceAAMP::InitializeCC()
 		if (ISCONFIGSET_PRIV(eAAMPConfig_NativeCCRendering))
 		{
 			AampCCManager::GetInstance()->Init((void *)mStreamSink->getCCDecoderHandle());
+
+                        int overrideCfg;
+                        GETCONFIGVALUE_PRIV(eAAMPConfig_CEAPreferred,overrideCfg);
+                        if (overrideCfg == 0)
+                        {
+                            AAMPLOG_WARN("PrivateInstanceAAMP: CC format override to 608 present, selecting 608CC");
+                            AampCCManager::GetInstance()->SetTrack("CC1");
+                        }
+
 		}
 		else
 #endif
