@@ -5066,7 +5066,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	}
 	mEventManager->SetFakeTuneFlag(mIsFakeTune);
 
-	mTSBEnabled = strcasestr(mainManifestUrl, "tsb?");
+	mTSBEnabled = strcasestr(mainManifestUrl, "tsb?") && ISCONFIGSET_PRIV(eAAMPConfig_Fog);
 	if (bFirstAttempt)
 	{
 		// To post player configurations to fog on 1st time tune
