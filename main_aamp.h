@@ -542,7 +542,7 @@ public:
 /**
  * @brief Player interface class for the JS pluggin.
  */
-class PlayerInstanceAAMP 
+class PlayerInstanceAAMP : public AampScheduler
 {
 public:
 	/**
@@ -1120,6 +1120,13 @@ public:
 	void SetAsyncTuneConfig(bool bValue);
 
 	/**
+	 *   @brief Get async tune configuration
+	 *
+	 *   @return bool - true if async tune enabled
+	*/
+	bool GetAsyncTuneConfig();
+
+	/**
 	 *	@brief Set parallel playlist download config value for linear
 	 *	@param[in] bValue - true if a/v playlist to be downloaded in parallel
 	 *
@@ -1558,13 +1565,7 @@ private:
 	 *	 @retval return true if the given rate is valid.
 	 */
 	bool IsValidRate(int rate);
-	// Internal private functions to support Async tune functionality
-	void TuneInternal(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync);
-	void SetRateInternal(int rate,int overshootcorrection);
-	void SeekInternal(double secondsRelativeToTuneTime, bool keepPaused);
-	void SetAudioTrackInternal(std::string language,  std::string rendition, std::string codec,  std::string type, unsigned int channel);
-	void SetAuxiliaryLanguageInternal(const std::string &language);
-	void SetTextTrackInternal(int trackId);
+
 private:	
 
 	/**
@@ -1579,8 +1580,6 @@ private:
 	void* mJSBinding_DL;                /**< Handle to AAMP plugin dynamic lib.  */
 	static std::mutex mPrvAampMtx;      /**< Mutex to protect aamp instance in GetState() */
 	bool mAsyncRunning;                 /**< Flag denotes if async mode is on or not */
-	bool mAsyncTuneEnabled;		    /**< Flag indicating async tune status */
-	AampScheduler mScheduler;
 };
 
 #endif // MAINAAMP_H

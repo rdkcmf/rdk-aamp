@@ -500,6 +500,21 @@ JSValueRef AAMPMediaPlayerJS_load (JSContextRef ctx, JSObjectRef function, JSObj
 		{
 			url = aamp_JSValueToCString(ctx, arguments[0], exception);
 
+			if(privObj->_aamp->GetAsyncTuneConfig())
+			{
+				const std::string manifest = std::string(url);
+				const std::string cType = (contentType != NULL) ? std::string(contentType) : std::string();
+				const std::string traceId = (strTraceId != NULL) ? std::string(strTraceId) : std::string();
+
+				INFO("[AAMP_JS] %s() ASYNC_TUNE CREATE url='%s'", __FUNCTION__, url);
+				privObj->_aamp->ScheduleTask(AsyncTaskObj(
+							[manifest, autoPlay, cType, bFirstAttempt, bFinalAttempt, traceId](void *data)
+							{
+								PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+								instance->Tune(manifest.c_str(), autoPlay, cType.c_str(), bFirstAttempt, bFinalAttempt, traceId.c_str());
+							}, (void *) privObj->_aamp));
+			}
+			else
 			{
 				char* url = aamp_JSValueToCString(ctx, arguments[0], exception);
 				privObj->_aamp->Tune(url, autoPlay, contentType, bFirstAttempt, bFinalAttempt,strTraceId);
@@ -608,6 +623,16 @@ JSValueRef AAMPMediaPlayerJS_play (JSContextRef ctx, JSObjectRef function, JSObj
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call play() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
+	if (privObj->_aamp->GetAsyncTuneConfig())
+	{
+		privObj->_aamp->ScheduleTask(AsyncTaskObj(
+					[](void *data)
+					{
+						PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+						instance->SetRate(AAMP_NORMAL_PLAY_RATE);
+					}, (void *) privObj->_aamp));
+	}
+	else
 	{
 		privObj->_aamp->SetRate(AAMP_NORMAL_PLAY_RATE);
 	}
@@ -662,6 +687,16 @@ JSValueRef AAMPMediaPlayerJS_pause (JSContextRef ctx, JSObjectRef function, JSOb
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call pause() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
+	if (privObj->_aamp->GetAsyncTuneConfig())
+	{
+		privObj->_aamp->ScheduleTask(AsyncTaskObj(
+					[](void *data)
+					{
+						PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+						instance->SetRate(0);
+					}, (void *) privObj->_aamp));
+	}
+	else
 	{
 		privObj->_aamp->SetRate(0);
 	}
@@ -722,6 +757,16 @@ JSValueRef AAMPMediaPlayerJS_seek (JSContextRef ctx, JSObjectRef function, JSObj
 		double newSeekPos = JSValueToNumber(ctx, arguments[0], exception);
 		bool keepPaused = (argumentCount == 2)? JSValueToBoolean(ctx, arguments[1]) : false;
 
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			privObj->_aamp->ScheduleTask(AsyncTaskObj(
+						[newSeekPos, keepPaused](void *data)
+						{
+							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+							instance->Seek(newSeekPos, keepPaused);
+						}, (void *) privObj->_aamp));
+		}
+		else
 		{
 			privObj->_aamp->Seek(newSeekPos, keepPaused);
 		}
@@ -1396,6 +1441,16 @@ JSValueRef AAMPMediaPlayerJS_setAudioTrack (JSContextRef ctx, JSObjectRef functi
 		int index = (int) JSValueToNumber(ctx, arguments[0], NULL);
 		if (index >= 0)
 		{
+			if (privObj->_aamp->GetAsyncTuneConfig())
+			{
+				privObj->_aamp->ScheduleTask(AsyncTaskObj(
+							[index](void *data)
+							{
+								PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+								instance->SetAudioTrack(index);
+							}, (void *) privObj->_aamp));
+			}
+			else
 			{
 				privObj->_aamp->SetAudioTrack(index);
 			}
@@ -1579,6 +1634,17 @@ JSValueRef AAMPMediaPlayerJS_setAudioLanguage (JSContextRef ctx, JSObjectRef fun
 	if (argumentCount == 1)
 	{
 		const char *lang = aamp_JSValueToCString(ctx, arguments[0], exception);
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			std::string language = std::string(lang);
+			privObj->_aamp->ScheduleTask(AsyncTaskObj(
+						[language](void *data)
+						{
+							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+							instance->SetLanguage(language.c_str());
+						}, (void *) privObj->_aamp));
+		}
+		else
 		{
 			privObj->_aamp->SetLanguage(lang);
 		}
@@ -1647,6 +1713,16 @@ JSValueRef AAMPMediaPlayerJS_setPlaybackRate (JSContextRef ctx, JSObjectRef func
 		{
 			overshootCorrection = (int) JSValueToNumber(ctx, arguments[1], exception);
 		}
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			privObj->_aamp->ScheduleTask(AsyncTaskObj(
+						[rate, overshootCorrection](void *data)
+						{
+							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+							instance->SetRate(rate, overshootCorrection);
+						}, (void *) privObj->_aamp));
+		}
+		else
 		{
 			privObj->_aamp->SetRate(rate, overshootCorrection);
 		}
@@ -2090,6 +2166,16 @@ JSValueRef AAMPMediaPlayerJS_setVideoRect (JSContextRef ctx, JSObjectRef functio
 		int y = (int) JSValueToNumber(ctx, arguments[1], exception);
 		int w = (int) JSValueToNumber(ctx, arguments[2], exception);
 		int h = (int) JSValueToNumber(ctx, arguments[3], exception);
+		if (privObj->_aamp->GetAsyncTuneConfig())
+		{
+			privObj->_aamp->ScheduleTask(AsyncTaskObj(
+						[x, y, w, h](void *data)
+						{
+							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+							instance->SetVideoRectangle(x, y, w, h);
+						}, (void *) privObj->_aamp));
+		}
+		else
 		{
 			privObj->_aamp->SetVideoRectangle(x, y, w, h);
 		}
