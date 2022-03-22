@@ -201,7 +201,7 @@ AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
     {
         aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs, (AampCurlInstance) i);
     }
-    aamp->SendMediaMetadataEvent();
+    aamp->SendMediaMetadataEvent(0, mLangList, bitrates, false, false);
     return retval;
 }
 

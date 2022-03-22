@@ -98,7 +98,7 @@ std::mutex PlayerInstanceAAMP::mPrvAampMtx;
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
-	) : aamp(NULL), sp_aamp(nullptr), mInternalStreamSink(NULL), mJSBinding_DL(),mAsyncRunning(false),mConfig(),mAsyncTuneEnabled(false),mScheduler()
+	) : aamp(NULL), sp_aamp(nullptr), mInternalStreamSink(NULL), mJSBinding_DL(),mAsyncRunning(false),mConfig()
 {
 
 #ifdef IARM_MGR
@@ -162,12 +162,8 @@ if(!iarmInitialized)
   
 	sp_aamp = std::make_shared<PrivateInstanceAAMP>(&mConfig);
 	aamp = sp_aamp.get();
-	mLogObj = mConfig.GetLoggerInstance();	
+	mLogObj = mConfig.GetLoggerInstance();
 	mConfig.logging.setPlayerId(aamp->mPlayerId);
-	// start Scheduler Worker for task handling
- 	mScheduler.SetLogger(mLogObj);
-        mScheduler.StartScheduler();
-
 	if (NULL == streamSink)
 	{
 		mInternalStreamSink = new AAMPGstPlayer(mConfig.GetLoggerInstance(), aamp
@@ -179,7 +175,6 @@ if(!iarmInitialized)
 		streamSink = mInternalStreamSink;
 	}
 	aamp->SetStreamSink(streamSink);
-	aamp->SetScheduler(&mScheduler);
 	AsyncStartStop();
 }
 
@@ -196,24 +191,37 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 	{
 		PrivAAMPState state;
 		aamp->GetState(state);
-		// Acquire the lock , to prevent new entries into scheduler
-		mScheduler.SuspendScheduler();			
-		// Remove all the tasks 
-		mScheduler.RemoveAllTasks();
 		if (state != eSTATE_IDLE && state != eSTATE_RELEASED)
 		{
+			if (mAsyncRunning)
+			{
+				// Before stop, clear up any remaining commands in queue
+				RemoveAllTasks();
+				aamp->DisableDownloads();
+				AcquireExLock();
+			}
+
 			//Avoid stop call since already stopped
 			aamp->Stop();
+
+			if (mAsyncRunning)
+			{
+				//Release lock
+				ReleaseExLock();
+				EnableScheduleTask();
+			}
 		}
-		
 		std::lock_guard<std::mutex> lock (mPrvAampMtx);
 		aamp = NULL;
 	}
 	SAFE_DELETE(mInternalStreamSink);
 
-	// Stop the scheduler 
-	mAsyncRunning = false;
-	mScheduler.StopScheduler();
+	// Stop the async thread, queue will be cleared during Stop
+	if (mAsyncRunning)
+	{
+		mAsyncRunning = false;
+		StopScheduler();
+	}
 
 	bool isLastPlayerInstance = !PrivateInstanceAAMP::IsActiveInstancePresent();
 
@@ -276,21 +284,29 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 		PrivAAMPState state;
 		aamp->GetState(state);
 
-		// 1. Ensure scheduler is suspended and all tasks if any to be cleaned 
-		// 2. Check for state ,if already in Idle / Released , ignore stopInternal 
-		// 3. Restart the scheduler , needed if same instance is used for tune again
-
-		mScheduler.SuspendScheduler();
-		mScheduler.RemoveAllTasks();
-
 		//state will be eSTATE_IDLE or eSTATE_RELEASED, right after an init or post-processing of a Stop call
-		if (state != eSTATE_IDLE && state != eSTATE_RELEASED)
+		if (state == eSTATE_IDLE || state == eSTATE_RELEASED)
 		{
-			StopInternal(sendStateChangeEvent);
+			return;
 		}
 
-		//Release lock
-		mScheduler.ResumeScheduler();
+		if (mAsyncRunning)
+		{
+			// Before stop, clear up any remaining commands in queue
+			RemoveAllTasks();
+			aamp->DisableDownloads();
+			AcquireExLock();
+		}
+
+		StopInternal(sendStateChangeEvent);
+
+		if (mAsyncRunning)
+		{
+			//Release lock
+			ReleaseExLock();
+			EnableScheduleTask();
+			// EnableDownloads() not called, because it will be called in aamp->Stop()
+		}
 	}
 }
 
@@ -308,7 +324,6 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
 	Tune(mainManifestUrl, /*autoPlay*/ true, contentType,bFirstAttempt,bFinalAttempt,traceUUID,audioDecoderStreamSync);
 }
 
-
 /**
  * @brief Tune to a URL.
  *
@@ -318,39 +333,9 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  */
 void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
-	if(mAsyncTuneEnabled)
-	{
-		const std::string manifest 	= std::string(mainManifestUrl);
-		const std::string cType 	= (contentType != NULL) ? std::string(contentType) : std::string();
-		const std::string sTraceUUID 	= (traceUUID != NULL)? std::string(traceUUID) : std::string();
-
-		mScheduler.ScheduleTask(AsyncTaskObj([manifest, autoPlay , cType, bFirstAttempt, bFinalAttempt,sTraceUUID,audioDecoderStreamSync](void *data)
-					{
-						PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-						instance->TuneInternal(manifest.c_str(), autoPlay, cType.c_str(), bFirstAttempt, bFinalAttempt,sTraceUUID.c_str(),audioDecoderStreamSync);
-					}, (void *) this, __FUNCTION__));
-	}
-	else
-	{
-		TuneInternal(mainManifestUrl, autoPlay , contentType, bFirstAttempt, bFinalAttempt,traceUUID,audioDecoderStreamSync);
-	}
-}
-
-
-/**
- * @brief Tune to a URL.
- *
- * @param  mainManifestUrl - HTTP/HTTPS url to be played.
- * @param[in] autoPlay - Start playback immediately or not
- * @param  contentType - content Type.
- */
-void PlayerInstanceAAMP::TuneInternal(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
-{
 	PrivAAMPState state;
-	if(aamp){
-
 	aamp->GetState(state);
-	bool IsOTAtoOTA =  false;
+        bool IsOTAtoOTA =  false;
 
 	if((aamp->IsOTAContent()) && (NULL != mainManifestUrl))
 	{
@@ -367,9 +352,10 @@ void PlayerInstanceAAMP::TuneInternal(const char *mainManifestUrl, bool autoPlay
 		//Calling tune without closing previous tune
 		StopInternal(false);
 	}
+
 	aamp->getAampCacheHandler()->StartPlaylistCache();
 	aamp->Tune(mainManifestUrl, autoPlay, contentType, bFirstAttempt, bFinalAttempt,traceUUID,audioDecoderStreamSync);
-	}
+
 }
 
 
@@ -380,15 +366,16 @@ void PlayerInstanceAAMP::TuneInternal(const char *mainManifestUrl, bool autoPlay
  */
 void PlayerInstanceAAMP::detach()
 {
-	// detach is similar to Stop , need to run like stop in Sync mode
-	if(aamp){
-
-	//Acquire lock
-	mScheduler.SuspendScheduler();
+	if (mAsyncRunning)
+	{
+		//Acquire lock
+		AcquireExLock();
+	}
 	aamp->detach();
-	//Release lock
-	mScheduler.ResumeScheduler();
-	
+	if (mAsyncRunning)
+	{
+		//Release lock
+		ReleaseExLock();
 	}
 }
 
@@ -528,7 +515,6 @@ bool PlayerInstanceAAMP::IsValidRate(int rate)
 	return retValue;
 }
 
-
 /**
  *   @brief Set playback rate.
  *
@@ -536,39 +522,6 @@ bool PlayerInstanceAAMP::IsValidRate(int rate)
  *   @param  overshootcorrection - overshoot correction in milliseconds.
  */
 void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
-{
-	AAMPLOG_INFO("PLAYER[%d] rate=%d.", aamp->mPlayerId, rate);
-	if(aamp)
-	{
-		if (!IsValidRate(rate))
-		{
-			AAMPLOG_WARN("SetRate ignored!! Invalid rate (%d)", rate);
-			return;
-		}
-
-		if(mAsyncTuneEnabled)
-		{
-			mScheduler.ScheduleTask(AsyncTaskObj([rate,overshootcorrection](void *data)
-					{
-						PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-						instance->SetRateInternal(rate,overshootcorrection);
-					}, (void *) this,__FUNCTION__));
-		}
-		else
-		{
-			SetRateInternal(rate,overshootcorrection);
-		}
-	}
-}
-
-
-/**
- *   @brief Set playback rate - Internal function
- *
- *   @param  rate - Rate of playback.
- *   @param  overshootcorrection - overshoot correction in milliseconds.
- */
-void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 {
 	AAMPLOG_INFO("PLAYER[%d] rate=%d.", aamp->mPlayerId, rate);
 
@@ -858,7 +811,7 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 			aamp->NotifySpeedChanged(aamp->rate, false);
 		}
 	}
-	return false;  // G_SOURCE_REMOVE = false , G_SOURCE_CONTINUE = true
+	return true;
 }
 
 /**
@@ -869,33 +822,6 @@ static gboolean SeekAfterPrepared(gpointer ptr)
  *   @param  keepPaused - set true if want to keep paused state after seek
  */
 void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
-{
-	if(aamp)
-	{
-		if(mAsyncTuneEnabled)
-		{
-			mScheduler.ScheduleTask(AsyncTaskObj([secondsRelativeToTuneTime,keepPaused](void *data)
-					{
-						PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-						instance->SeekInternal(secondsRelativeToTuneTime,keepPaused);
-					}, (void *) this,__FUNCTION__));
-		}
-		else
-		{
-			SeekInternal(secondsRelativeToTuneTime,keepPaused);
-		}
-	}
-}
-
-
-/**
- *   @brief Seek to a time - Internal function
- *
- *   @param  secondsRelativeToTuneTime - Seek position for VOD,
- *           relative position from first tune command.
- *   @param  keepPaused - set true if want to keep paused state after seek
- */
-void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool keepPaused)
 {
 	bool sentSpeedChangedEv = false;
 	bool isSeekToLiveOrEnd = false;
@@ -1024,22 +950,7 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
  */
 void PlayerInstanceAAMP::SeekToLive(bool keepPaused)
 {
-	if(aamp)
-	{
-		if(mAsyncTuneEnabled)
-		{
-
-			mScheduler.ScheduleTask(AsyncTaskObj([keepPaused](void *data)
-					{
-						PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-						instance->SeekInternal(AAMP_SEEK_TO_LIVE_POSITION, keepPaused);
-					}, (void *) this,__FUNCTION__));
-		}
-		else
-		{
-			SeekInternal(AAMP_SEEK_TO_LIVE_POSITION, keepPaused);
-		}
-	}
+	Seek(AAMP_SEEK_TO_LIVE_POSITION, keepPaused);
 }
 
 /**
@@ -1123,10 +1034,7 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 void PlayerInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
 	ERROR_STATE_CHECK_VOID();
-	if(aamp)
-	{
-		aamp->SetVideoRectangle(x, y, w, h);
-	}
+	aamp->SetVideoRectangle(x, y, w, h);
 }
 
 /**
@@ -1137,7 +1045,6 @@ void PlayerInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 void PlayerInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 {
 	ERROR_STATE_CHECK_VOID();
-	if(aamp){
 	aamp->zoom_mode = zoom;
 	aamp->AcquireStreamLock();
 	if (aamp->mpStreamAbstractionAAMP )
@@ -1149,7 +1056,6 @@ void PlayerInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 		AAMPLOG_WARN("Player is in state (eSTATE_IDLE), value has been cached");
 	}
 	aamp->ReleaseStreamLock();
-	}// end of if aamp
 }
 
 /**
@@ -1160,8 +1066,8 @@ void PlayerInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 void PlayerInstanceAAMP::SetVideoMute(bool muted)
 {
 	ERROR_STATE_CHECK_VOID();
+	
 	AAMPLOG_WARN(" mute == %s", muted?"true":"false");
-	if(aamp){
 	aamp->video_muted = muted;
 	aamp->AcquireStreamLock();
 	if (aamp->mpStreamAbstractionAAMP)
@@ -1173,7 +1079,6 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
 		AAMPLOG_WARN("Player is in state eSTATE_IDLE, value has been cached");
 	}
 	aamp->ReleaseStreamLock();
-	}
 }
 
 /**
@@ -1184,8 +1089,8 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
 void PlayerInstanceAAMP::SetAudioVolume(int volume)
 {
 	ERROR_STATE_CHECK_VOID();
+	
 	AAMPLOG_WARN(" volume == %d");
-	if(aamp){
 	if (volume < AAMP_MINIMUM_AUDIO_LEVEL || volume > AAMP_MAXIMUM_AUDIO_LEVEL)
 	{
 		AAMPLOG_WARN("Audio level (%d) is outside the range supported.. discarding it..",
@@ -1203,7 +1108,6 @@ void PlayerInstanceAAMP::SetAudioVolume(int volume)
 			AAMPLOG_WARN("Player is in state eSTATE_IDLE, value has been cached");
 		}
 	}
-	}// end of if aamp
 }
 
 /**
@@ -1214,22 +1118,7 @@ void PlayerInstanceAAMP::SetAudioVolume(int volume)
 void PlayerInstanceAAMP::SetLanguage(const char* language)
 {
 	ERROR_STATE_CHECK_VOID();
-	if(aamp){
-		if (mAsyncTuneEnabled)
-		{
-			std::string sLanguage = std::string(language);
-			mScheduler.ScheduleTask(AsyncTaskObj(
-				[sLanguage](void *data)
-				{
-					PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-					instance->SetPreferredLanguages(sLanguage.c_str());
-				}, (void *) this,__FUNCTION__));
-		}
-		else
-		{
-			SetPreferredLanguages(language);
-		}
-	}// end of if
+	SetPreferredLanguages(language);
 }
 
 /**
@@ -1240,13 +1129,12 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 void PlayerInstanceAAMP::SetSubscribedTags(std::vector<std::string> subscribedTags)
 {
 	ERROR_STATE_CHECK_VOID();
-	if(aamp){
+
 	aamp->subscribedTags = subscribedTags;
 
 	for (int i=0; i < aamp->subscribedTags.size(); i++) {
 	        AAMPLOG_WARN("    subscribedTags[%d] = '%s'", i, subscribedTags.at(i).data());
 	}
-	}// end of if aamp
 }
 
 /**
@@ -1258,13 +1146,11 @@ void PlayerInstanceAAMP::SubscribeResponseHeaders(std::vector<std::string> respo
 {
 	ERROR_STATE_CHECK_VOID();
 
-	if(aamp){
 	aamp->responseHeaders = responseHeaders;
 
 	for (int header=0; header < aamp->responseHeaders.size(); header++) {
 	    AAMPLOG_INFO("    responseHeaders[%d] = '%s'", header, responseHeaders.at(header).data());
 	}
-	} // end of if aaamp
 }
 
 #ifdef SUPPORT_JS_EVENTS 
@@ -1315,9 +1201,7 @@ void PlayerInstanceAAMP::UnloadJS(void* context)
  */
 void PlayerInstanceAAMP::AddEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
-	if(aamp){
 	aamp->AddEventListener(eventType, eventListener);
-	}
 }
 
 /**
@@ -1328,9 +1212,7 @@ void PlayerInstanceAAMP::AddEventListener(AAMPEventType eventType, EventListener
  */
 void PlayerInstanceAAMP::RemoveEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
-	if(aamp){
 	aamp->RemoveEventListener(eventType, eventListener);
-	}
 }
 
 /**
@@ -1341,9 +1223,7 @@ void PlayerInstanceAAMP::RemoveEventListener(AAMPEventType eventType, EventListe
 bool PlayerInstanceAAMP::IsLive()
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(false);
-	bool isLive = false;
-	if(aamp) isLive = aamp->IsLive();
-	return isLive;
+	return aamp->IsLive();
 }
 
 /**
@@ -1356,8 +1236,6 @@ const char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
 	ERROR_OR_IDLE_STATE_CHECK_VAL("");
 	static char lang[MAX_LANGUAGE_TAG_LENGTH];
 	lang[0] = 0;
-	if(aamp && aamp->mpStreamAbstractionAAMP){
-
 	int trackIndex = GetAudioTrack();
 	if( trackIndex>=0 )
 	{
@@ -1368,7 +1246,6 @@ const char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
 			lang[sizeof(lang)-1] = '\0';  //CID:173324 - Buffer size warning
 		}
 	}
-	}// end of if aamp
 	return lang;
 }
 
@@ -1380,13 +1257,11 @@ const char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
 const char* PlayerInstanceAAMP::GetCurrentDRM(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL("");
-	if(aamp){
 	std::shared_ptr<AampDrmHelper> helper = aamp->GetCurrentDRM();
 	if (helper) 
 	{
 		return helper->friendlyName().c_str();
 	}
-	}// end of if aamp
 	return "NONE";
 }
 
@@ -1417,9 +1292,7 @@ void PlayerInstanceAAMP::AddPageHeaders(std::map<std::string, std::string> pageH
 void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue, bool isLicenseHeader)
 {
 	ERROR_STATE_CHECK_VOID();
-	if(aamp){
 	aamp->AddCustomHTTPHeader(headerName, headerValue, isLicenseHeader);
-	}
 }
 
 /**
@@ -1431,7 +1304,6 @@ void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector
 void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 {
 	ERROR_STATE_CHECK_VOID();
-	if(aamp){
 	if (type == eDRM_PlayReady)
 	{
 		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PRLicenseServerUrl,std::string(url));
@@ -1449,10 +1321,9 @@ void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LicenseServerUrl,std::string(url));
 	}
 	else
-	{
-		AAMPLOG_ERR("PlayerInstanceAAMP:: invalid drm type(%d) received.", type);
-	}
-	}// end of if aamp
+    {
+          AAMPLOG_ERR("PlayerInstanceAAMP:: invalid drm type(%d) received.", type);
+    }
 }
 
 /**
@@ -1629,14 +1500,12 @@ long PlayerInstanceAAMP::GetVideoBitrate(void)
 {
 	long bitrate = 0;
 	ERROR_OR_IDLE_STATE_CHECK_VAL(0);
-	if(aamp){
 	aamp->AcquireStreamLock();
 	if (aamp->mpStreamAbstractionAAMP)
 	{
 		bitrate = aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
 	}
 	aamp->ReleaseStreamLock();
-	} // if aamp
 	return bitrate;
 }
 
@@ -1672,14 +1541,12 @@ long PlayerInstanceAAMP::GetAudioBitrate(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(0);
 	long bitrate = 0;
-	if(aamp){
 	aamp->AcquireStreamLock();
 	if (aamp->mpStreamAbstractionAAMP)
 	{
 		bitrate = aamp->mpStreamAbstractionAAMP->GetAudioBitrate();
 	}
 	aamp->ReleaseStreamLock();
-	} // end of if
 	return bitrate;
 }
 
@@ -1729,14 +1596,12 @@ std::vector<long> PlayerInstanceAAMP::GetVideoBitrates(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::vector<long>());
 	std::vector<long> bitrates;
-	if(aamp){
 	aamp->AcquireStreamLock();
 	if (aamp->mpStreamAbstractionAAMP)
 	{
 		bitrates = aamp->mpStreamAbstractionAAMP->GetVideoBitrates();
 	}
 	aamp->ReleaseStreamLock();
-	} // end of if aamp
 	return bitrates;
 }
 
@@ -1775,14 +1640,12 @@ std::vector<long> PlayerInstanceAAMP::GetAudioBitrates(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::vector<long>());
 	std::vector<long> bitrates;
-	if(aamp){
 	aamp->AcquireStreamLock();
 	if (aamp->mpStreamAbstractionAAMP)
 	{
 		bitrates = aamp->mpStreamAbstractionAAMP->GetAudioBitrates();
 	}
 	aamp->ReleaseStreamLock();
-	}
 	return bitrates;
 }
 
@@ -2043,6 +1906,16 @@ void PlayerInstanceAAMP::SetParallelPlaylistRefresh(bool bValue)
 }
 
 /**
+ *   @brief Get Async Tune configuration
+ *
+ *   @return bool - true if config set
+ */
+bool PlayerInstanceAAMP::GetAsyncTuneConfig()
+{
+	return ISCONFIGSET(eAAMPConfig_AsyncTune);
+}
+
+/**
  *   @brief Set Westeros sink Configuration
  *   @param[in] bValue - true if westeros sink enabled
  *
@@ -2137,41 +2010,13 @@ void PlayerInstanceAAMP::SetSslVerifyPeerConfig(bool bValue)
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_SslVerifyPeer,bValue);
 }
 
-
-/**
- *   @brief Set audio track
- *
- *   @param[in] trackId index of audio track in available track list
- *   @return void
- */
-void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string rendition, std::string codec, std::string type, unsigned int channel)
-{
-	if(aamp)
-	{
-
-		if (mAsyncTuneEnabled)
-		{
-			mScheduler.ScheduleTask(AsyncTaskObj(
-						[language,rendition,codec,type,channel](void *data)
-						{
-							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->SetAudioTrackInternal(language,rendition,codec,type,channel);
-						}, (void *) this,__FUNCTION__));
-		}
-		else
-		{
-			SetAudioTrackInternal(language,rendition,codec,type,channel);
-		}
-	}
-}
-
 /**
  *   @brief Set audio track by audio parameters like language , rendition, codec etc..
  * 	 @param[in][optional] language, rendition, codec, channel 
  *
  *   @return void
  */
-void PlayerInstanceAAMP::SetAudioTrackInternal(std::string language,  std::string rendition, std::string type, std::string codec, unsigned int channel)
+void PlayerInstanceAAMP::SetAudioTrack(std::string language,  std::string rendition, std::string type, std::string codec, unsigned int channel)
 {
 	aamp->mAudioTuple.clear();
 	aamp->mAudioTuple.setAudioTrackTuple(language, rendition, codec, channel);
@@ -2205,6 +2050,7 @@ void PlayerInstanceAAMP::SetPreferredRenditions(const char *renditionList)
 	aamp->SetPreferredLanguages(NULL, renditionList, NULL, NULL);
 }
 
+
 /**
  *   @brief Set optional preferred rendition list
  *   @param[in] renditionList - string with comma-delimited rendition list in ISO-639
@@ -2216,7 +2062,6 @@ std::string PlayerInstanceAAMP::GetPreferredAudioProperties()
 {
 	return aamp->GetPreferredAudioProperties();
 }
-
 /**
  *   @brief Set optional preferred language list
  *   @param[in] languageList - string with comma-delimited language list in ISO-639
@@ -2384,31 +2229,12 @@ void PlayerInstanceAAMP::EnableVideoRectangle(bool rectProperty)
 void PlayerInstanceAAMP::SetAudioTrack(int trackId)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
-	if(aamp && aamp->mpStreamAbstractionAAMP){
-
-		std::vector<AudioTrackInfo> tracks = aamp->mpStreamAbstractionAAMP->GetAvailableAudioTracks();
-		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
-		{
-			//aamp->SetPreferredAudioTrack(tracks[trackId]);
-			SetPreferredLanguages( tracks[trackId].language.c_str(), tracks[trackId].rendition.c_str(), tracks[trackId].accessibilityType.c_str(), tracks[trackId].codec.c_str() );
-			std::string sLang = tracks[trackId].language;
-			std::string mRendition = tracks[trackId].rendition;
-			if (mAsyncTuneEnabled)
-			{
-				mScheduler.ScheduleTask(AsyncTaskObj(
-						[sLang , mRendition ](void *data)
-						{
-							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->SetPreferredLanguages( sLang.c_str(), mRendition.c_str());
-						}, (void *) this,__FUNCTION__));
-			}
-			else
-			{
-				//aamp->SetPreferredAudioTrack(tracks[trackId]);
-				SetPreferredLanguages( sLang.c_str(), mRendition.c_str());
-			}
-		}
-	} // end of if
+	std::vector<AudioTrackInfo> tracks = aamp->mpStreamAbstractionAAMP->GetAvailableAudioTracks();
+	if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
+	{
+		//aamp->SetPreferredAudioTrack(tracks[trackId]);
+		SetPreferredLanguages( tracks[trackId].language.c_str(), tracks[trackId].rendition.c_str(), tracks[trackId].accessibilityType.c_str(), tracks[trackId].codec.c_str() );
+	}
 }
 
 /**
@@ -2423,7 +2249,6 @@ int PlayerInstanceAAMP::GetAudioTrack()
 	return aamp->GetAudioTrack();
 }
 
-
 /**
  *   @brief Set text track
  *
@@ -2432,42 +2257,9 @@ int PlayerInstanceAAMP::GetAudioTrack()
  */
 void PlayerInstanceAAMP::SetTextTrack(int trackId)
 {
-        ERROR_OR_IDLE_STATE_CHECK_VOID();
-	if(aamp && aamp->mpStreamAbstractionAAMP)
-	{
+	ERROR_OR_IDLE_STATE_CHECK_VOID();
 
-		std::vector<TextTrackInfo> tracks = aamp->mpStreamAbstractionAAMP->GetAvailableTextTracks();
-		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
-		{
-			if (mAsyncTuneEnabled)
-			{
-				mScheduler.ScheduleTask(AsyncTaskObj(
-							[trackId ](void *data)
-							{
-								PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-								instance->SetTextTrackInternal(trackId);
-							}, (void *) this,__FUNCTION__));
-			}
-			else
-			{
-				SetTextTrackInternal(trackId);
-			}
-		}
-	}
-}
-
-/**
- *   @brief Set text track ti internal
- *
- *   @param[in] trackId index of text track in available track list
- *   @return void
- */
-void PlayerInstanceAAMP::SetTextTrackInternal(int trackId)
-{
-	if(aamp && aamp->mpStreamAbstractionAAMP)
-	{
-		aamp->SetTextTrack(trackId);
-	}
+	aamp->SetTextTrack(trackId);
 }
 
 /**
@@ -2659,19 +2451,19 @@ void PlayerInstanceAAMP::AsyncStartStop()
 {
 	// Check if global configuration is set to false
 	// Additional check added here, since this API can be called from jsbindings/native app
-	mAsyncTuneEnabled = ISCONFIGSET(eAAMPConfig_AsyncTune);
-	if (mAsyncTuneEnabled && !mAsyncRunning)
+	if (ISCONFIGSET(eAAMPConfig_AsyncTune) && !mAsyncRunning)
 	{
 		AAMPLOG_WARN("Enable async tune operation!!" );
 		mAsyncRunning = true;
-		//mScheduler.StartScheduler();
-		aamp->SetEventPriorityAsyncTune(true);		
+		StartScheduler();
+		aamp->SetEventPriorityAsyncTune(true);
+		aamp->SetScheduler(this);
 	}
-	else if(!mAsyncTuneEnabled && mAsyncRunning)
+	else if(!ISCONFIGSET(eAAMPConfig_AsyncTune) && mAsyncRunning)
 	{
 		AAMPLOG_WARN("Disable async tune operation!!");
 		aamp->SetEventPriorityAsyncTune(false);
-		//mScheduler.StopScheduler();
+		StopScheduler();
 		mAsyncRunning = false;
 	}
 }
@@ -2787,7 +2579,6 @@ std::string PlayerInstanceAAMP::GetAAMPConfig()
 	return jsonStr;
 }
 
-
 /**
  *   @brief Set auxiliary language
  *
@@ -2795,30 +2586,6 @@ std::string PlayerInstanceAAMP::GetAAMPConfig()
  *   @return void
  */
 void PlayerInstanceAAMP::SetAuxiliaryLanguage(const std::string &language)
-{
-	if(mAsyncTuneEnabled)
-	{
-
-		mScheduler.ScheduleTask(AsyncTaskObj([language](void *data)
-					{
-						PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-						instance->SetAuxiliaryLanguageInternal(language);
-					}, (void *)this , __FUNCTION__));
-	}
-	else
-	{
-		SetAuxiliaryLanguageInternal(language);
-	}
-
-}
-
-/**
- *   @brief Set auxiliary language - Internal function
- *
- *   @param[in] language - auxiliary language
- *   @return void
- */
-void PlayerInstanceAAMP::SetAuxiliaryLanguageInternal(const std::string &language)
 {
 	ERROR_STATE_CHECK_VOID();
 #ifdef AAMP_AUXILIARY_AUDIO_ENABLED

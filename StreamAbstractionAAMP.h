@@ -909,7 +909,6 @@ public:
 	bool mCheckForRampdown;			/**< flag to indicate if rampdown is attempted or not */
 	TuneType mTuneType;                     /**< Tune type of current playback, initialize by derived classes on Init()*/
 	int mRampDownCount;			/**< Total number of rampdowns */
-	double mProgramStartTime;		/**< Indicate program start time or availability start time
 
 
 	/**
