@@ -4606,14 +4606,14 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		seek_pos_seconds = GetPositionMilliseconds()/1000;
 	}
 
+	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
+
 #if defined(AMLOGIC)
 	// Send new SEGMENT event only on all trickplay and trickplay -> play, not on pause -> play / seek while paused
 	// this shouldn't impact seekplay or ADs on Peacock & LLAMA
-	if (tuneType == eTUNETYPE_SEEK && !(mbSeeked == true | rate == 0 || (rate == 1 && pipeline_paused == true)))
+	if (tuneType == eTUNETYPE_SEEK && !(mbSeeked == true || rate == 0 || (rate == 1 && pipeline_paused == true)))
 		for (int i = 0; i < AAMP_TRACK_COUNT; i++) mbNewSegmentEvtSent[i] = false;
 #endif
-
-	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
 
 	if (newTune)
 	{

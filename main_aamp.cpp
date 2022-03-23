@@ -926,6 +926,10 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 			aamp->rate = AAMP_NORMAL_PLAY_RATE;
 			sentSpeedChangedEv = true;
 		}
+
+		/**Set the flag true to indicate seeked **/
+		aamp->mbSeeked = true;
+
 		if (aamp->mpStreamAbstractionAAMP)
 		{ // for seek while streaming
 			aamp->SetState(eSTATE_SEEKING);
@@ -937,9 +941,11 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 				aamp->NotifySpeedChanged(aamp->rate, false);
 			}
 		}
-
-		/**Set the flag true to indicate seeked **/
-		aamp->mbSeeked = true;
+		if (aamp->mbPlayEnabled)
+		{
+			// Clear seeked flag for FG instance after SEEK
+			aamp->mbSeeked = false;
+		}
 	}
 }
 
