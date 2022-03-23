@@ -929,7 +929,7 @@ static void ProcessCliCommand( char *cmd )
 		{
 			mSingleton->aamp->mpStreamAbstractionAAMP->DumpProfiles();
 		}
-		printf("[AAMPCLI] current bitrate ~= %ld\n", mSingleton->aamp->GetCurrentlyAvailableBandwidth());
+		printf("[AAMPCLI] current bitrate ~= %ld\n", mSingleton->aamp->GetPersistedBandwidth());
 	}
 	else if (strcmp(cmd, "help") == 0)
 	{
