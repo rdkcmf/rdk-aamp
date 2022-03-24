@@ -1108,6 +1108,13 @@ public:
 	void SetDownloadStartTimeout(long startTimeout);
 
 	/**
+	 *   @brief To set the curl download low bandwidth timeout value
+	 *
+	 *   @param[in] curl download low bandwidth timeout
+	 */
+	void SetDownloadLowBWTimeout(long lowBWTimeout);
+
+	/**
 	 *   @brief Set preferred subtitle language.
 	 *
 	 *   @param[in]  language - Language of text track.

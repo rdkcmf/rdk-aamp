@@ -1878,6 +1878,20 @@ void PlayerInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
 }
 
 /**
+ *   @brief To set the curl download low bandwidth timeout value
+ *
+ *   @param[in] curl download low bandwidth timeout
+ */
+void PlayerInstanceAAMP::SetDownloadLowBWTimeout(long lowBWTimeout)
+{
+	ERROR_STATE_CHECK_VOID();
+	if( lowBWTimeout >= 0 )
+	{
+		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CurlDownloadLowBWTimeout,lowBWTimeout);
+	}
+}
+
+/**
  *   @brief Set preferred subtitle language.
  *
  *   @param[in]  language - Language of text track.
