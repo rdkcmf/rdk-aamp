@@ -173,6 +173,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"sslVerifyPeer",eAAMPConfig_SslVerifyPeer,-1,-1},
 	{"downloadStallTimeout",eAAMPConfig_CurlStallTimeout,{.lMinValue=0},{.lMaxValue=50}},
 	{"downloadStartTimeout",eAAMPConfig_CurlDownloadStartTimeout,{.lMinValue=0},{.lMaxValue=50}},
+	{"downloadLowBWTimeout",eAAMPConfig_CurlDownloadLowBWTimeout,{.lMinValue=0},{.lMaxValue=50}},
 	{"discontinuityTimeout",eAAMPConfig_DiscontinuityTimeout,{.lMinValue=0},{.lMaxValue=50}},
 	{"client-dai",eAAMPConfig_EnableClientDai,-1,-1},                               // not changing this name , this is already in use for RFC
 	{"cdnAdsOnly",eAAMPConfig_PlayAdFromCDN,-1,-1},
@@ -484,6 +485,7 @@ void AampConfig::Initialize()
 	lAampCfgValue[eAAMPConfig_MaxBitrate-eAAMPConfig_LongStartValue].value			= 	LONG_MAX;
 	lAampCfgValue[eAAMPConfig_CurlStallTimeout-eAAMPConfig_LongStartValue].value		=	0;
 	lAampCfgValue[eAAMPConfig_CurlDownloadStartTimeout-eAAMPConfig_LongStartValue].value	=	0;
+	lAampCfgValue[eAAMPConfig_CurlDownloadLowBWTimeout-eAAMPConfig_LongStartValue].value	=	0;
         lAampCfgValue[eAAMPConfig_MinBitrate-eAAMPConfig_LongStartValue].value			=       0;
         iAampCfgValue[eAAMPConfig_PTSErrorThreshold-eAAMPConfig_IntStartValue].value            =       MAX_PTS_ERRORS_THRESHOLD;
         iAampCfgValue[eAAMPConfig_Http5XXRetryWaitInterval-eAAMPConfig_IntStartValue].value     =       DEFAULT_WAIT_TIME_BEFORE_RETRY_HTTP_5XX_MS;

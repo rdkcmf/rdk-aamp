@@ -245,6 +245,7 @@ typedef enum
 	eAAMPConfig_IFrameDefaultBitrate4K,							/**< Default bitrate for iframe track selection for 4K assets*/
 	eAAMPConfig_CurlStallTimeout,								/**< Timeout value for detection curl download stall in seconds*/
 	eAAMPConfig_CurlDownloadStartTimeout,						/**< Timeout value for curl download to start after connect in seconds*/
+	eAAMPConfig_CurlDownloadLowBWTimeout,						/**< Timeout value for curl download expiry if player cann't catchup the selected bitrate buffer*/
 	eAAMPConfig_DiscontinuityTimeout,							/**< Timeout value to auto process pending discontinuity after detecting cache is empty*/
 	eAAMPConfig_MinBitrate, 									/**<minimum bitrate filter for playback profiles */
 	eAAMPConfig_MaxBitrate, 									/**<maximum bitrate filter for playback profiles*/

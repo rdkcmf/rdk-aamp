@@ -131,6 +131,7 @@ typedef enum{
 	eAAMP_SET_LicenseReqProxy,
 	eAAMP_SET_DownloadStallTimeout,
 	eAAMP_SET_DownloadStartTimeout,
+	eAAMP_SET_DownloadLowBWTimeout,
 	eAAMP_SET_PreferredSubtitleLang,
 	eAAMP_SET_ParallelPlaylistDL,
 	eAAMP_SET_PreferredLanguages,
@@ -549,6 +550,7 @@ static void InitSetHelpText()
 	mSetHelpText[eAAMP_SET_LicenseReqProxy] =                    "<x>             // Set License Request Proxy (string x=url)";
 	mSetHelpText[eAAMP_SET_DownloadStallTimeout] =               "<x>             // Set Download Stall timeout (long x=timeout)";
 	mSetHelpText[eAAMP_SET_DownloadStartTimeout] =               "<x>             // Set Download Start timeout (long x=timeout)";
+	mSetHelpText[eAAMP_SET_DownloadLowBWTimeout] =               "<x>             // Set Download Low Bandwidth timeout (long x=timeout)";
 	mSetHelpText[eAAMP_SET_PreferredSubtitleLang] =              "<x>             // Set Preferred Subtitle language (string x = lang)";
 	mSetHelpText[eAAMP_SET_ParallelPlaylistDL] =                 "<x>             // Set Parallel Playlist download (x=0/1)";
 	mSetHelpText[eAAMP_SET_PreferredLanguages] =                 "<x>             // Set Preferred languages (string lang1,lang2,... rendition type codec1,codec2.. ) , use null keyword to discard any argument";
@@ -1619,6 +1621,21 @@ static void ProcessCliCommand( char *cmd )
                                                 printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
                                                 printf("[AAMPCLI] Expected: set %d <value>\n", opt);
                                         }
+					break;
+				}
+
+				case eAAMP_SET_DownloadLowBWTimeout:
+				{
+					long downloadLowBWTimeout;
+					printf("[AAMPCLI] Matched Command eAAMP_SET_DownloadLowBWTimeout - %s\n", cmd);
+					if (sscanf(cmd, "set %d %ld", &opt, &downloadLowBWTimeout) == 2){
+						mSingleton->SetDownloadLowBWTimeout(downloadLowBWTimeout);
+					}
+					else
+										{
+											printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+											printf("[AAMPCLI] Expected: set %d <value>\n", opt);
+										}
 					break;
 				}
 

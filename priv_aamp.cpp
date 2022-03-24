@@ -209,8 +209,8 @@ struct CurlProgressCbContext
 {
 	PrivateInstanceAAMP *aamp;
 	MediaType fileType;
-	CurlProgressCbContext() : aamp(NULL), fileType(eMEDIATYPE_DEFAULT), downloadStartTime(-1), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1), downloadNow(-1), downloadNowUpdatedTime(-1), dlStarted(false), fragmentDurationMs(-1), remoteUrl("") {}
-	CurlProgressCbContext(PrivateInstanceAAMP *_aamp, long long _downloadStartTime) : aamp(_aamp), fileType(eMEDIATYPE_DEFAULT),downloadStartTime(_downloadStartTime), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1), downloadNow(-1), downloadNowUpdatedTime(-1), dlStarted(false), fragmentDurationMs(-1), remoteUrl("") {}
+	CurlProgressCbContext() : aamp(NULL), fileType(eMEDIATYPE_DEFAULT), downloadStartTime(-1), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1), downloadNow(-1), downloadNowUpdatedTime(-1), dlStarted(false), fragmentDurationMs(-1), remoteUrl(""), lowBWTimeout(-1) {}
+	CurlProgressCbContext(PrivateInstanceAAMP *_aamp, long long _downloadStartTime) : aamp(_aamp), fileType(eMEDIATYPE_DEFAULT),downloadStartTime(_downloadStartTime), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1), downloadNow(-1), downloadNowUpdatedTime(-1), dlStarted(false), fragmentDurationMs(-1), remoteUrl(""), lowBWTimeout(-1) {}
 
 	~CurlProgressCbContext() {}
 
@@ -221,6 +221,7 @@ struct CurlProgressCbContext
 	long long downloadUpdatedTime;
 	long startTimeout;
 	long stallTimeout;
+	long lowBWTimeout;
 	double downloadSize;
 	CurlAbortReason abortReason;
 	double downloadNow;
@@ -1296,6 +1297,21 @@ static int progress_callback(
 				{ // received additional bytes - update state to track new size/time
 					context->downloadSize = dlnow;
 					context->downloadUpdatedTime = NOW_STEADY_TS_MS;
+				}
+			}
+		}
+		else if (dlnow > 0 && context->lowBWTimeout > 0 && eMEDIATYPE_VIDEO == context->fileType)
+		{
+			long downloadbps = getCurrentContentDownloadSpeed(aamp, context->fileType, context->dlStarted, (long)context->downloadStartTime, dlnow);
+			long currentProfilebps  = context->aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
+			double timeElapsedInSec = (double)(NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs  //CID:85922 - UNINTENDED_INTEGER_DIVISION
+			if(timeElapsedInSec >= context->lowBWTimeout)
+			{
+				if((downloadbps + DEFAULT_BITRATE_OFFSET_FOR_DOWNLOAD) < currentProfilebps)
+				{
+					AAMPLOG_WARN("Abort download as content is estimated to be expired current BW : %ld bps, min required:%ld bps", downloadbps, currentProfilebps);
+					context->abortReason = eCURL_ABORT_REASON_LOW_BANDWIDTH_TIMEDOUT;
+					rc = -1;
 				}
 			}
 		}
@@ -3482,6 +3498,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			{
 				// for Video/Audio segments , set the start timeout as configured by Application
 				GETCONFIGVALUE_PRIV(eAAMPConfig_CurlDownloadStartTimeout,progressCtx.startTimeout);
+				GETCONFIGVALUE_PRIV(eAAMPConfig_CurlDownloadLowBWTimeout,progressCtx.lowBWTimeout);
 			}
 			GETCONFIGVALUE_PRIV(eAAMPConfig_CurlStallTimeout,progressCtx.stallTimeout);
 
@@ -3777,7 +3794,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					}
 
 					//Attempt retry for partial downloads, which have a higher chance to succeed
-					if((res == CURLE_COULDNT_CONNECT || res == CURLE_OPERATION_TIMEDOUT || isDownloadStalled) && downloadAttempt < maxDownloadAttempt)
+					if((res == CURLE_COULDNT_CONNECT || res == CURLE_OPERATION_TIMEDOUT || (isDownloadStalled && (eCURL_ABORT_REASON_LOW_BANDWIDTH_TIMEDOUT != abortReason))) && downloadAttempt < maxDownloadAttempt)
 					{
 						if(mpStreamAbstractionAAMP)
 						{
@@ -3827,6 +3844,10 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					if( res == CURLE_FILE_COULDNT_READ_FILE )
 					{
 						http_code = 404; // translate file not found to URL not found
+					}
+					else if(abortReason == eCURL_ABORT_REASON_LOW_BANDWIDTH_TIMEDOUT)
+					{
+						http_code = CURLE_OPERATION_TIMEDOUT; // Timed out wrt configured low bandwidth timeout.
 					}
 					else
 					{
@@ -3914,7 +3935,8 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					( GetLLDashServiceData()->lowLatencyMode  && ISCONFIGSET_PRIV(eAAMPConfig_DisableLowLatencyABR)))
 					{
 						// extra coding to avoid picking lower profile
-						if(downloadbps < currentProfilebps && fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2)
+						// Avoid this reset for Low bandwidth timeout cases
+						if(downloadbps < currentProfilebps && fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2 && (abortReason != eCURL_ABORT_REASON_LOW_BANDWIDTH_TIMEDOUT))
 						{
 							downloadbps = currentProfilebps;
 						}
@@ -4048,10 +4070,10 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			*bitrate = context.bitrate;
 		}
 
-		if(abortReason != eCURL_ABORT_REASON_NONE)
-                {
+		if(abortReason != eCURL_ABORT_REASON_NONE && abortReason != eCURL_ABORT_REASON_LOW_BANDWIDTH_TIMEDOUT)
+		{
 			http_code = PARTIAL_FILE_START_STALL_TIMEOUT_AAMP;
-                }
+		}
 		else if (connectTime == 0.0)
 		{
 			//curl connection is failure
