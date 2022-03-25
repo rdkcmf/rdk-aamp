@@ -3100,11 +3100,11 @@ void TrackState::RefreshPlaylist(void)
 		{
 			pthread_mutex_unlock(&aamp->mParallelPlaylistFetchLock);
 		}
-
+		//To send playback stats with partner apps
+		ManifestData manifestData(downloadTime * 1000, playlist.len);
 		aamp->UpdateVideoEndMetrics( actualType,
 								(this->GetCurrentBandWidth()),
-								http_error,mEffectiveUrl, downloadTime);
-
+									http_error,mEffectiveUrl, downloadTime, &manifestData);
 	}
 	if (playlist.len)
 	{ // download successful
@@ -4080,6 +4080,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	{
 		AAMPLOG_WARN("StreamAbstractionAAMP_HLS: Main manifest retrieved from cache");
 	}
+	
+	bool updateVideoEndMetrics = false;
+	double mainManifestdownloadTime;
+	int parseTimeMs = 0;
 	if (!this->mainManifest.len)
 	{
 		aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
@@ -4088,10 +4092,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		std::string mainManifestOrigUrl = aamp->GetManifestUrl();
 		double downloadTime;
 		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
-		(void) aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, &downloadTime, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST, true, eMEDIATYPE_MANIFEST);  //CID:82578 - checked return
+		(void) aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl(), &http_error, &mainManifestdownloadTime, NULL, eCURLINSTANCE_MANIFEST_PLAYLIST, true, eMEDIATYPE_MANIFEST);//CID:82578 - checked return
+		updateVideoEndMetrics = true;
 		aamp->SetCurlTimeout(aamp->mPlaylistTimeoutMs, eCURLINSTANCE_MANIFEST_PLAYLIST);
-		//update videoend info
-		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl(), downloadTime);
 		if (this->mainManifest.len)
 		{
 			aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
@@ -4128,7 +4131,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		sessionMgr->setLicenseRequestAbort(false);
 #endif
 		// Parse the Main manifest ( As Parse function modifies the original data,InsertCache had to be called before it . 
+		long long tStartTime = NOW_STEADY_TS_MS;
 		AAMPStatusType mainManifestResult = ParseMainManifest();
+		parseTimeMs = NOW_STEADY_TS_MS - tStartTime;
 		// Check if Main manifest is good or not 
 		if(mainManifestResult != eAAMPSTATUS_OK)
 		{
@@ -5250,6 +5255,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			{
 				std::string defaultIframePlaylistUrl;
 				std::string defaultIframePlaylistEffectiveUrl;
+				//To avoid clashing with the http error for master manifest
+				long http_error = 0;
 				GrowableBuffer defaultIframePlaylist;
 				HlsStreamInfo *streamInfo = (HlsStreamInfo *)GetStreamInfo(iframeStreamIdx);
 				aamp_ResolveURL(defaultIframePlaylistUrl, aamp->GetManifestUrl(), streamInfo->uri, ISCONFIGSET(eAAMPConfig_PropogateURIParam));
@@ -5257,9 +5264,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				bool bFiledownloaded = false;
 				if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl) == false){
 					double downloadTime;
-					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error, &downloadTime, NULL,eCURLINSTANCE_MANIFEST_PLAYLIST);
+					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error, &downloadTime, NULL,eCURLINSTANCE_MANIFEST_PLAYLIST);				
 					//update videoend info
-					aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,streamInfo->bandwidthBitsPerSecond,http_error,defaultIframePlaylistEffectiveUrl, downloadTime);
+					ManifestData manifestData(downloadTime * 1000, defaultIframePlaylist.len);
+					aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,streamInfo->bandwidthBitsPerSecond,http_error,defaultIframePlaylistEffectiveUrl, downloadTime, &manifestData);
 				}
 				if (defaultIframePlaylist.len && bFiledownloaded)
 				{
@@ -5287,6 +5295,13 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 
 
 		retval = eAAMPSTATUS_OK;
+	}
+	
+	if(updateVideoEndMetrics)
+	{
+		//update videoend info
+		ManifestData manifestData(mainManifestdownloadTime * 1000, this->mainManifest.len, parseTimeMs);
+		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl(), mainManifestdownloadTime, &manifestData);
 	}
 	return retval;
 }
@@ -6626,8 +6641,10 @@ void TrackState::FetchPlaylist()
 		(void) aamp->GetFile(mPlaylistUrl, &playlist, mEffectiveUrl, &http_error, &downloadTime, NULL, (unsigned int)dnldCurlInstance, true, mType);
 		//update videoend info
 		main_error = context->getOriginalCurlError(http_error);
+	
+		ManifestData manifestData(downloadTime * 1000, playlist.len);
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),this->GetCurrentBandWidth(),
-									main_error,mEffectiveUrl, downloadTime);
+									main_error,mEffectiveUrl, downloadTime, &manifestData);
 		if(playlist.len)
 			aamp->profiler.ProfileEnd(bucketId);
 

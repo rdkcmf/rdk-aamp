@@ -1597,6 +1597,12 @@ public:
 	std::shared_ptr<PrivateInstanceAAMP> sp_aamp; /* shared pointer for aamp resource */
 
 	AampConfig mConfig;
+	/**
+	 *   @brief Get playback statistics formated for partner apps
+ 	*
+ 	*   @return json string reperesenting the stats
+ 	*/
+	std::string GetPlaybackStats();
 private:
 	
 	/**

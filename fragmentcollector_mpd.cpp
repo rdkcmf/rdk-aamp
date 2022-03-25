@@ -4258,6 +4258,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 							AAMPLOG_WARN("GAP betwen period found :GAP:%f  mCurrentPeriodIdx %d currentPeriodStart %f offsetFromStart %f",
 								periodGap, mCurrentPeriodIdx, periodStartSeconds, offsetFromStart);
 						}
+						if(!mIsLiveStream && periodGap > 0 )
+						{
+							//increment period gaps to notify partner apps during manifest parsing for VOD assets
+							aamp->IncrementGaps();
+						}
 					}
 					prevPeriodEndMs = periodEnd; // store for future use
 					// Save period start time as first PTS for absolute progress reporting.
@@ -4786,18 +4791,18 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 		AAMPLOG_WARN("StreamAbstractionAAMP_MPD: manifest retrieved from cache");
 		retrievedPlaylistFromCache = true;
 	}
+	double downloadTime;
+	bool updateVideoEndMetrics = false;
+	long http_error = 0;
 	if (!retrievedPlaylistFromCache)
 	{
-		long http_error = 0;
-		double downloadTime;
 		memset(&manifest, 0, sizeof(manifest));
 		aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
 		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs,eCURLINSTANCE_VIDEO);
 		gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_VIDEO, true, eMEDIATYPE_MANIFEST);
 		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,eCURLINSTANCE_VIDEO);
 		//update videoend info
-		aamp->UpdateVideoEndMetrics(eMEDIATYPE_MANIFEST,0,http_error,manifestUrl,downloadTime);
-
+		updateVideoEndMetrics = true;
 		if (gotManifest)
 		{
 			aamp->mManifestUrl = manifestUrl;
@@ -4838,12 +4843,15 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 		gotManifest = true;
 		aamp->mManifestUrl = manifestUrl;
 	}
-
+	long parseTimeMs = 0;
 	if (gotManifest)
 	{
 		MPD* mpd = nullptr;
-		vector<std::string> locationUrl;
+		vector<std::string> locationUrl;		
+		long long tStartTime = NOW_STEADY_TS_MS;
 		ret = GetMpdFromManfiest(manifest, mpd, manifestUrl, init);
+		// get parse time for playback stats, if required, parse error can be considered for a later point for statistics
+		parseTimeMs = NOW_STEADY_TS_MS - tStartTime;
 		if (eAAMPSTATUS_OK == ret)
 		{
 			/* DELIA-42794: All manifest requests after the first should
@@ -4883,6 +4891,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 	else if (AAMPStatusType::eAAMPSTATUS_OK != ret)
 	{
 		AAMPLOG_WARN("aamp: error on manifest fetch");
+	}
+	if(updateVideoEndMetrics)
+	{
+		ManifestData manifestData(downloadTime * 1000, manifest.len, parseTimeMs, mpd ? mpd->GetPeriods().size() : 0);
+		aamp->UpdateVideoEndMetrics(eMEDIATYPE_MANIFEST,0,http_error,manifestUrl,downloadTime, &manifestData);
 	}
 
 	if( ret == eAAMPSTATUS_MANIFEST_PARSE_ERROR || ret == eAAMPSTATUS_MANIFEST_CONTENT_ERROR)
@@ -8134,6 +8147,17 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						{
 							mBasePeriodOffset += (GetPeriodDuration(mpd, iPeriod)/1000.00);	//Already reached -ve. Subtracting from current period duration
 						}
+						//Update period gaps for playback stats
+						if(mIsLiveStream)
+						{
+							double periodGap = (GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs) -GetPeriodStartTime(mpd, iPeriod)) * 1000;
+							if(periodGap > 0)
+							{
+								//for livestream, period gaps are updated as playback progresses throug the periods
+								aamp->IncrementGaps();
+							}
+						}
+						
 						mCurrentPeriodIdx = iPeriod;
 						mBasePeriodId = newPeriod->GetId();
 						periodChanged = false; //If the playing period changes, it will be detected below [if(currentPeriodId != mCurrentPeriod->GetId())]
