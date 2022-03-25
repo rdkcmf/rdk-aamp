@@ -524,7 +524,7 @@ bool PlayerInstanceAAMP::IsValidRate(int rate)
 void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 {
 	AAMPLOG_INFO("PLAYER[%d] rate=%d.", aamp->mPlayerId, rate);
-
+	
 	ERROR_STATE_CHECK_VOID();
 
 	if (!IsValidRate(rate))
@@ -2698,6 +2698,21 @@ void PlayerInstanceAAMP::SetLicenseCustomData(const char *customData)
 {
     ERROR_STATE_CHECK_VOID();
     SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CustomLicenseData,std::string(customData));
+}
+
+/**
+ *   @brief Get playback statistics formated for partner apps
+ *
+ *   @return json string reperesenting the stats
+ */
+std::string PlayerInstanceAAMP::GetPlaybackStats()
+{
+	std::string stats;
+	if(aamp)
+	{
+		stats = aamp->GetPlaybackStats();
+	}
+	return stats;
 }
 
 /**

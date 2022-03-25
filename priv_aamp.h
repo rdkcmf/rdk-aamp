@@ -2589,9 +2589,14 @@ public:
 	 *   @param[in]  bitrate - bitrate ( bits per sec )
 	 *   @param[in]  curlOrHTTPErrorCode - download curl or http error
 	 *   @param[in]  strUrl :  URL in case of faulures
+	*   @param[in] manifestData : Manifest info to be updated to partner apps
 	 *   @return void
 	 */
-	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double curlDownloadTime);
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double curlDownloadTime
+#ifdef SESSION_STATS
+		, ManifestData * manifestData = NULL
+#endif
+		);
 
 	/**   @brief updates download metrics to VideoStat object
 	 *
@@ -2627,9 +2632,14 @@ public:
 	*   @param[in]  strUrl :  URL in case of faulures
 	*   @param[in] keyChanged : if DRM key changed then it is set to true
 	*   @param[in] isEncrypted : if fragment is encrypted then it is set to true
+	*   @param[in] manifestData : Manifest info to be updated to partner apps
 	*   @return void
 	*/
-	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration,double curlDownloadTime, bool keyChanged, bool isEncrypted);
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration,double curlDownloadTime, bool keyChanged, bool isEncrypted
+#ifdef SESSION_STATS
+		, ManifestData * manifestData = NULL
+#endif
+		);
     
 	/**
 	*   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
@@ -3490,7 +3500,22 @@ public:
 	 *    return none
 	 */
 	void LoadFogConfig(void);
+	
+	/**
+	 *    @brief To increment gaps between periods for dash 
+	 *    return none
+	 */
+	void IncrementGaps() {
+#ifdef SESSION_STATS
+		if(mVideoEnd)	mVideoEnd->IncrementGaps();
+#endif
+	}
 
+	/**
+ 	*     @brief Get playback stats for the session so far
+ 	*     @return the json string represenign the playback stats
+ 	*/
+	std::string GetPlaybackStats();
 private:
 
 	/**
@@ -3611,7 +3636,7 @@ private:
 	// VSS license parameters
 	std::string mServiceZone; // part of url
 	std::string  mVssVirtualStreamId; // part of manifest file
-
+	std::string mPlaybackMode; //linear or VOD or any other type
 	bool mTrackInjectionBlocked[AAMP_TRACK_COUNT];
 #ifdef SESSION_STATS
 	CVideoStat * mVideoEnd;

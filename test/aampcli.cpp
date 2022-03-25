@@ -2319,6 +2319,11 @@ static void ProcessCliCommand( char *cmd )
 			printf("[AAMPCLI] Invalid get command = %s\n", cmd);
 		}
 	}
+	//to get the playback stats json
+	else if(strcmp(cmd, "stats") == 0)
+	{
+		printf("[AAMPCLI] Playback stats: %s", mSingleton->GetPlaybackStats().c_str());
+	}
 }
 
 static void DoAutomation(const int startChannel=500, const int stopChannel=1000)

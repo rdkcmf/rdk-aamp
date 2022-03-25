@@ -1521,6 +1521,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mTimedMetadataStartTime(0)
 	, mTimedMetadataDuration(0)
 	, playerStartedWithTrickPlay(false)
+	, mPlaybackMode("UNKNOWN")
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -4657,8 +4658,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		// send previouse tune VideoEnd Metrics data
 		// this is done here because events are cleared on stop and there is chance that event may not get sent
 		// check for mEnableVideoEndEvent and call SendVideoEndEvent ,object mVideoEnd is created inside SendVideoEndEvent
-		if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent)
-			&& (mTuneAttempts == 1)) // only for first attempt, dont send event when JSPP retunes. 
+		if(mTuneAttempts == 1) // only for first attempt, dont send event when JSPP retunes.
 		{
 			SendVideoEndEvent();
 		}
@@ -5716,64 +5716,64 @@ void PrivateInstanceAAMP::SetContentType(const char *cType)
 	mContentType = ContentType_UNKNOWN; //default unknown
 	if(NULL != cType)
 	{
-		std::string playbackMode = std::string(cType);
-		if(playbackMode == "CDVR")
+		mPlaybackMode = std::string(cType);
+		if(mPlaybackMode == "CDVR")
 		{
 			mContentType = ContentType_CDVR; //cdvr
 		}
-		else if(playbackMode == "VOD")
+		else if(mPlaybackMode == "VOD")
 		{
 			mContentType = ContentType_VOD; //vod
 		}
-		else if(playbackMode == "LINEAR_TV")
+		else if(mPlaybackMode == "LINEAR_TV")
 		{
 			mContentType = ContentType_LINEAR; //linear
 		}
-		else if(playbackMode == "IVOD")
+		else if(mPlaybackMode == "IVOD")
 		{
 			mContentType = ContentType_IVOD; //ivod
 		}
-		else if(playbackMode == "EAS")
+		else if(mPlaybackMode == "EAS")
 		{
 			mContentType = ContentType_EAS; //eas
 		}
-		else if(playbackMode == "xfinityhome")
+		else if(mPlaybackMode == "xfinityhome")
 		{
 			mContentType = ContentType_CAMERA; //camera
 		}
-		else if(playbackMode == "DVR")
+		else if(mPlaybackMode == "DVR")
 		{
 			mContentType = ContentType_DVR; //dvr
 		}
-		else if(playbackMode == "MDVR")
+		else if(mPlaybackMode == "MDVR")
 		{
 			mContentType = ContentType_MDVR; //mdvr
 		}
-		else if(playbackMode == "IPDVR")
+		else if(mPlaybackMode == "IPDVR")
 		{
 			mContentType = ContentType_IPDVR; //ipdvr
 		}
-		else if(playbackMode == "PPV")
+		else if(mPlaybackMode == "PPV")
 		{
 			mContentType = ContentType_PPV; //ppv
 		}
-		else if(playbackMode == "OTT")
+		else if(mPlaybackMode == "OTT")
 		{
 			mContentType = ContentType_OTT; //ott
 		}
-		else if(playbackMode == "OTA")
+		else if(mPlaybackMode == "OTA")
 		{
 			mContentType = ContentType_OTA; //ota
 		}
-		else if(playbackMode == "HDMI_IN")
+		else if(mPlaybackMode == "HDMI_IN")
 		{
 			mContentType = ContentType_HDMIIN; //ota
 		}
-		else if(playbackMode == "COMPOSITE_IN")
+		else if(mPlaybackMode == "COMPOSITE_IN")
 		{
 			mContentType = ContentType_COMPOSITEIN; //ota
 		}
-		else if(playbackMode == "SLE")
+		else if(mPlaybackMode == "SLE")
 		{
 			mContentType = ContentType_SLE; //single live event
 		}
@@ -7374,7 +7374,6 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 {
 	bool ret = false;
 #ifdef SESSION_STATS
-	if(mEventManager->IsEventListenerAvailable(AAMP_EVENT_REPORT_METRICS_DATA)) {
 	char * strVideoEndJson = NULL;
 	// Required for protecting mVideoEnd object
 	pthread_mutex_lock(&mLock);
@@ -7396,26 +7395,27 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 		mCurrentLanguageIndex = 0;
 
 		//Memory of this string will be deleted after sending event by destructor of AsyncMetricsEventDescriptor
-		if(mTSBEnabled)
+		if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent) && mEventManager->IsEventListenerAvailable(AAMP_EVENT_REPORT_METRICS_DATA))
 		{
-			char* data = GetOnVideoEndSessionStatData();
-			if(data)
+			if(mTSBEnabled)
 			{
-				AAMPLOG_INFO("TsbSessionEnd:%s", data);
-				strVideoEndJson = mVideoEnd->ToJsonString(data);
-				cJSON_free( data );
-				data = NULL;
+				char* data = GetOnVideoEndSessionStatData();
+				if(data)
+				{
+					AAMPLOG_INFO("TsbSessionEnd:%s", data);
+					strVideoEndJson = mVideoEnd->ToJsonString(data);
+					cJSON_free( data );
+					data = NULL;
+				}
+			}
+			else
+			{
+				strVideoEndJson = mVideoEnd->ToJsonString();
 			}
 		}
-		else
-		{
-			strVideoEndJson = mVideoEnd->ToJsonString();
-		}
-
 		SAFE_DELETE(mVideoEnd);
 	}
-	
-	mVideoEnd = new CVideoStat();
+	mVideoEnd = new CVideoStat(mMediaFormatName[mMediaFormat]);
 	mVideoEnd->SetDisplayResolution(mDisplayWidth,mDisplayHeight);
 	pthread_mutex_unlock(&mLock);
 
@@ -7426,7 +7426,6 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 		SendEvent(e,AAMP_EVENT_ASYNC_MODE);
 		free(strVideoEndJson);
 		ret = true;
-	}
 	}
 #endif
 	return ret;
@@ -7443,20 +7442,17 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 void PrivateInstanceAAMP::UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height)
 {
 #ifdef SESSION_STATS
-	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent)) // avoid mutex mLock lock if disabled.
+	pthread_mutex_lock(&mLock);
+	if(mVideoEnd)
 	{
-		pthread_mutex_lock(&mLock);
-		if(mVideoEnd)
+		VideoStatTrackType trackType = VideoStatTrackType::STAT_VIDEO;
+		if(mediaType == eMEDIATYPE_IFRAME)
 		{
-			VideoStatTrackType trackType = VideoStatTrackType::STAT_VIDEO;
-			if(mediaType == eMEDIATYPE_IFRAME)
-			{
-				trackType = VideoStatTrackType::STAT_IFRAME;
-			}
-			mVideoEnd->SetProfileResolution(trackType,bitrate,width,height);
+			trackType = VideoStatTrackType::STAT_IFRAME;
 		}
-		pthread_mutex_unlock(&mLock);
+		mVideoEnd->SetProfileResolution(trackType,bitrate,width,height);
 	}
+	pthread_mutex_unlock(&mLock);
 #endif
 }
 
@@ -7483,16 +7479,13 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 {
 #ifdef SESSION_STATS
-	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent)) // avoid mutex mLock lock if disabled.
+	pthread_mutex_lock(&mLock);
+	if(mVideoEnd)
 	{
-		pthread_mutex_lock(&mLock);
-		if(mVideoEnd)
-		{
-
-			mVideoEnd->SetTsbStatus(btsbAvailable);
-		}
-		pthread_mutex_unlock(&mLock);
+		
+		mVideoEnd->SetTsbStatus(btsbAvailable);
 	}
+	pthread_mutex_unlock(&mLock);
 #endif
 }   
 
@@ -7505,15 +7498,12 @@ void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 void PrivateInstanceAAMP::UpdateProfileCappedStatus(void)
 {
 #ifdef SESSION_STATS
-	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent))
+	pthread_mutex_lock(&mLock);
+	if(mVideoEnd)
 	{
-		pthread_mutex_lock(&mLock);
-		if(mVideoEnd)
-		{
-			mVideoEnd->SetProfileCappedStatus(mProfileCappedStatus);
-		}
-		pthread_mutex_unlock(&mLock);
+		mVideoEnd->SetProfileCappedStatus(mProfileCappedStatus);
 	}
+	pthread_mutex_unlock(&mLock);
 #endif
 }
 
@@ -7524,188 +7514,187 @@ void PrivateInstanceAAMP::UpdateProfileCappedStatus(void)
  *   @param[in]  bitrate - bitrate ( bits per sec )
  *   @param[in]  curlOrHTTPErrorCode - download curl or http error
  *   @param[in]  strUrl :  URL in case of faulures
+ *   @param[in] manifestData : Manifest info to be updated to partner apps
  *   @return void
  */
-void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, double curlDownloadTime, bool keyChanged, bool isEncrypted)
+void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, double curlDownloadTime, bool keyChanged, bool isEncrypted, ManifestData * manifestData)
 {
 #ifdef SESSION_STATS
-	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent))
+	int audioIndex = 1;
+	// ignore for write and aborted errors
+	// these are generated after trick play options,
+	if( curlOrHTTPCode > 0 &&  !(curlOrHTTPCode == CURLE_ABORTED_BY_CALLBACK || curlOrHTTPCode == CURLE_WRITE_ERROR) )
 	{
-		int audioIndex = 1;
-		// ignore for write and aborted errors
-		// these are generated after trick play options,
-		if( curlOrHTTPCode > 0 &&  !(curlOrHTTPCode == CURLE_ABORTED_BY_CALLBACK || curlOrHTTPCode == CURLE_WRITE_ERROR) )
-		{
-			VideoStatDataType dataType = VideoStatDataType::VE_DATA_UNKNOWN;
-
-			VideoStatTrackType trackType = VideoStatTrackType::STAT_UNKNOWN;
-			VideoStatCountType eCountType = VideoStatCountType::COUNT_UNKNOWN;
-
+		VideoStatDataType dataType = VideoStatDataType::VE_DATA_UNKNOWN;
+		
+		VideoStatTrackType trackType = VideoStatTrackType::STAT_UNKNOWN;
+		VideoStatCountType eCountType = VideoStatCountType::COUNT_UNKNOWN;
+		
 		/*	COUNT_UNKNOWN,
-			COUNT_LIC_TOTAL,
-			COUNT_LIC_ENC_TO_CLR,
-			COUNT_LIC_CLR_TO_ENC,
-			COUNT_STALL,
-		*/
-
-			switch(mediaType)
+		 COUNT_LIC_TOTAL,
+		 COUNT_LIC_ENC_TO_CLR,
+		 COUNT_LIC_CLR_TO_ENC,
+		 COUNT_STALL,
+		 */
+		
+		switch(mediaType)
+		{
+			case eMEDIATYPE_MANIFEST:
 			{
-				case eMEDIATYPE_MANIFEST:
-				{
-					dataType = VideoStatDataType::VE_DATA_MANIFEST;
-					trackType = VideoStatTrackType::STAT_MAIN;
-				}
-					break;
-
-				case eMEDIATYPE_PLAYLIST_VIDEO:
-				{
-					dataType = VideoStatDataType::VE_DATA_MANIFEST;
-					trackType = VideoStatTrackType::STAT_VIDEO;
-				}
-					break;
-
-				case eMEDIATYPE_PLAYLIST_AUDIO:
-				{
-					dataType = VideoStatDataType::VE_DATA_MANIFEST;
-					trackType = VideoStatTrackType::STAT_AUDIO;
-					audioIndex += mCurrentLanguageIndex;
-				}
-					break;
-
-				case eMEDIATYPE_PLAYLIST_AUX_AUDIO:
-				{
-					dataType = VideoStatDataType::VE_DATA_MANIFEST;
-					trackType = VideoStatTrackType::STAT_AUDIO;
-					audioIndex += mCurrentLanguageIndex;
-				}
-					break;
-
-				case eMEDIATYPE_PLAYLIST_IFRAME:
-				{
-					dataType = VideoStatDataType::VE_DATA_MANIFEST;
-					trackType = STAT_IFRAME;
-				}
-					break;
-
-				case eMEDIATYPE_VIDEO:
-				{
-					dataType = VideoStatDataType::VE_DATA_FRAGMENT;
-					trackType = VideoStatTrackType::STAT_VIDEO;
-					// always Video fragment will be from same thread so mutex required
-
-					// !!!!!!!!!! To Do : Support this stats for Audio Only streams !!!!!!!!!!!!!!!!!!!!!
-					//Is success
-					if (((curlOrHTTPCode == 200) || (curlOrHTTPCode == 206))  && duration > 0)
-					{
-						if(mpStreamAbstractionAAMP->GetProfileCount())
-						{
-							long maxBitrateSupported = mpStreamAbstractionAAMP->GetMaxBitrate();
-							if(maxBitrateSupported == bitrate)
-							{
-								mTimeAtTopProfile += duration;
-	
-							}
-	
-						}
-						if(mTimeAtTopProfile == 0) // we havent achived top profile yet
-						{
-							mTimeToTopProfile += duration; // started at top profile
-						}
-
-						mPlaybackDuration += duration;
-					}
-
-				}
-					break;
-				case eMEDIATYPE_AUDIO:
-				{
-					dataType = VideoStatDataType::VE_DATA_FRAGMENT;
-					trackType = VideoStatTrackType::STAT_AUDIO;
-					audioIndex += mCurrentLanguageIndex;
-				}
-					break;
-				case eMEDIATYPE_AUX_AUDIO:
-				{
-					dataType = VideoStatDataType::VE_DATA_FRAGMENT;
-					trackType = VideoStatTrackType::STAT_AUDIO;
-					audioIndex += mCurrentLanguageIndex;
-				}
-					break;
-				case eMEDIATYPE_IFRAME:
-				{
-					dataType = VideoStatDataType::VE_DATA_FRAGMENT;
-					trackType = VideoStatTrackType::STAT_IFRAME;
-				}
-					break;
-
-				case eMEDIATYPE_INIT_IFRAME:
-				{
-					dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
-					trackType = VideoStatTrackType::STAT_IFRAME;
-				}
-					break;
-
-				case eMEDIATYPE_INIT_VIDEO:
-				{
-					dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
-					trackType = VideoStatTrackType::STAT_VIDEO;
-				}
-					break;
-
-				case eMEDIATYPE_INIT_AUDIO:
-				{
-					dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
-					trackType = VideoStatTrackType::STAT_AUDIO;
-					audioIndex += mCurrentLanguageIndex;
-				}
-					break;
-
-				case eMEDIATYPE_INIT_AUX_AUDIO:
-				{
-					dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
-					trackType = VideoStatTrackType::STAT_AUDIO;
-					audioIndex += mCurrentLanguageIndex;
-				}
-					break;
-
-				case eMEDIATYPE_SUBTITLE:
-				{
-					dataType = VideoStatDataType::VE_DATA_FRAGMENT;
-					trackType = VideoStatTrackType::STAT_SUBTITLE;
-				}
+				dataType = VideoStatDataType::VE_DATA_MANIFEST;
+				trackType = VideoStatTrackType::STAT_MAIN;
+			}
 				break;
-
-				default:
-					break;
-			}
-
-
-			// Required for protecting mVideoStat object
-			if( dataType != VideoStatDataType::VE_DATA_UNKNOWN
-					&& trackType != VideoStatTrackType::STAT_UNKNOWN)
+				
+			case eMEDIATYPE_PLAYLIST_VIDEO:
 			{
-				pthread_mutex_lock(&mLock);
-				if(mVideoEnd)
+				dataType = VideoStatDataType::VE_DATA_MANIFEST;
+				trackType = VideoStatTrackType::STAT_VIDEO;
+			}
+				break;
+				
+			case eMEDIATYPE_PLAYLIST_AUDIO:
+			{
+				dataType = VideoStatDataType::VE_DATA_MANIFEST;
+				trackType = VideoStatTrackType::STAT_AUDIO;
+				audioIndex += mCurrentLanguageIndex;
+			}
+				break;
+				
+			case eMEDIATYPE_PLAYLIST_AUX_AUDIO:
+			{
+				dataType = VideoStatDataType::VE_DATA_MANIFEST;
+				trackType = VideoStatTrackType::STAT_AUDIO;
+				audioIndex += mCurrentLanguageIndex;
+			}
+				break;
+				
+			case eMEDIATYPE_PLAYLIST_IFRAME:
+			{
+				dataType = VideoStatDataType::VE_DATA_MANIFEST;
+				trackType = STAT_IFRAME;
+			}
+				break;
+				
+			case eMEDIATYPE_VIDEO:
+			{
+				dataType = VideoStatDataType::VE_DATA_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_VIDEO;
+				// always Video fragment will be from same thread so mutex required
+				
+				// !!!!!!!!!! To Do : Support this stats for Audio Only streams !!!!!!!!!!!!!!!!!!!!!
+				//Is success
+				if (((curlOrHTTPCode == 200) || (curlOrHTTPCode == 206))  && duration > 0)
 				{
-					mVideoEnd->Increment_Data(dataType,trackType,bitrate,curlDownloadTime,curlOrHTTPCode,false,audioIndex);
-					if((curlOrHTTPCode != 200) && (curlOrHTTPCode != 206) && strUrl.c_str())
+					if(mpStreamAbstractionAAMP->GetProfileCount())
 					{
-						//set failure url
-						mVideoEnd->SetFailedFragmentUrl(trackType,bitrate,strUrl);
+						long maxBitrateSupported = mpStreamAbstractionAAMP->GetMaxBitrate();
+						if(maxBitrateSupported == bitrate)
+						{
+							mTimeAtTopProfile += duration;
+							
+						}
+						
 					}
-					if(dataType == VideoStatDataType::VE_DATA_FRAGMENT)
+					if(mTimeAtTopProfile == 0) // we havent achived top profile yet
 					{
-						mVideoEnd->Record_License_EncryptionStat(trackType,isEncrypted,keyChanged);
+						mTimeToTopProfile += duration; // started at top profile
 					}
+					
+					mPlaybackDuration += duration;
 				}
-				pthread_mutex_unlock(&mLock);
-
+				
 			}
-			else
+				break;
+			case eMEDIATYPE_AUDIO:
 			{
-				AAMPLOG_INFO("PrivateInstanceAAMP: Could Not update VideoEnd Event dataType:%d trackType:%d response:%d",
-						dataType,trackType,curlOrHTTPCode);
+				dataType = VideoStatDataType::VE_DATA_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_AUDIO;
+				audioIndex += mCurrentLanguageIndex;
 			}
+				break;
+			case eMEDIATYPE_AUX_AUDIO:
+			{
+				dataType = VideoStatDataType::VE_DATA_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_AUDIO;
+				audioIndex += mCurrentLanguageIndex;
+			}
+				break;
+			case eMEDIATYPE_IFRAME:
+			{
+				dataType = VideoStatDataType::VE_DATA_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_IFRAME;
+			}
+				break;
+				
+			case eMEDIATYPE_INIT_IFRAME:
+			{
+				dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_IFRAME;
+			}
+				break;
+				
+			case eMEDIATYPE_INIT_VIDEO:
+			{
+				dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_VIDEO;
+			}
+				break;
+				
+			case eMEDIATYPE_INIT_AUDIO:
+			{
+				dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_AUDIO;
+				audioIndex += mCurrentLanguageIndex;
+			}
+				break;
+				
+			case eMEDIATYPE_INIT_AUX_AUDIO:
+			{
+				dataType = VideoStatDataType::VE_DATA_INIT_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_AUDIO;
+				audioIndex += mCurrentLanguageIndex;
+			}
+				break;
+				
+			case eMEDIATYPE_SUBTITLE:
+			{
+				dataType = VideoStatDataType::VE_DATA_FRAGMENT;
+				trackType = VideoStatTrackType::STAT_SUBTITLE;
+			}
+				break;
+				
+			default:
+				break;
+		}
+		
+		
+		// Required for protecting mVideoStat object
+		if( dataType != VideoStatDataType::VE_DATA_UNKNOWN
+		   && trackType != VideoStatTrackType::STAT_UNKNOWN)
+		{
+			pthread_mutex_lock(&mLock);
+			if(mVideoEnd)
+			{
+				//curl download time is in seconds, convert it into milliseconds for video end metrics
+				mVideoEnd->Increment_Data(dataType,trackType,bitrate,curlDownloadTime * 1000,curlOrHTTPCode,false,audioIndex, manifestData);
+				if((curlOrHTTPCode != 200) && (curlOrHTTPCode != 206) && strUrl.c_str())
+				{
+					//set failure url
+					mVideoEnd->SetFailedFragmentUrl(trackType,bitrate,strUrl);
+				}
+				if(dataType == VideoStatDataType::VE_DATA_FRAGMENT)
+				{
+					mVideoEnd->Record_License_EncryptionStat(trackType,isEncrypted,keyChanged);
+				}
+			}
+			pthread_mutex_unlock(&mLock);
+			
+		}
+		else
+		{
+			AAMPLOG_INFO("PrivateInstanceAAMP: Could Not update VideoEnd Event dataType:%d trackType:%d response:%d",
+						 dataType,trackType,curlOrHTTPCode);
 		}
 	}
 #endif
@@ -7720,32 +7709,29 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
 {
 #ifdef SESSION_STATS
-	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableVideoEndEvent))
+	//only for Ramp down case
+	if(info.desiredProfileIndex < info.currentProfileIndex)
 	{
-		//only for Ramp down case
-		if(info.desiredProfileIndex < info.currentProfileIndex)
+		AAMPLOG_INFO("UpdateVideoEnd:abrinfo currIdx:%d desiredIdx:%d for:%d",  info.currentProfileIndex,info.desiredProfileIndex,info.abrCalledFor);
+		
+		if(info.abrCalledFor == AAMPAbrType::AAMPAbrBandwidthUpdate)
 		{
-			AAMPLOG_INFO("UpdateVideoEnd:abrinfo currIdx:%d desiredIdx:%d for:%d",  info.currentProfileIndex,info.desiredProfileIndex,info.abrCalledFor);
-
-			if(info.abrCalledFor == AAMPAbrType::AAMPAbrBandwidthUpdate)
+			pthread_mutex_lock(&mLock);
+			if(mVideoEnd)
 			{
-				pthread_mutex_lock(&mLock);
-				if(mVideoEnd)
-				{
-					mVideoEnd->Increment_NetworkDropCount();
-				}
-				pthread_mutex_unlock(&mLock);
+				mVideoEnd->Increment_NetworkDropCount();
 			}
-			else if (info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed
-					|| info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed)
+			pthread_mutex_unlock(&mLock);
+		}
+		else if (info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed
+				 || info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed)
+		{
+			pthread_mutex_lock(&mLock);
+			if(mVideoEnd)
 			{
-				pthread_mutex_lock(&mLock);
-				if(mVideoEnd)
-				{
-					mVideoEnd->Increment_ErrorDropCount();
-				}
-				pthread_mutex_unlock(&mLock);
+				mVideoEnd->Increment_ErrorDropCount();
 			}
+			pthread_mutex_unlock(&mLock);
 		}
 	}
 #endif
@@ -7758,11 +7744,12 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
  *   @param[in]  bitrate - bitrate
  *   @param[in]  curlOrHTTPErrorCode - download curl or http error
  *   @param[in]  strUrl :  URL in case of faulures
+ *   @param[in] manifestData : Manifest info to be updated to partner apps
  *   @return void
  */
-void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double curlDownloadTime)
+void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double curlDownloadTime, ManifestData * manifestData )
 {
-	UpdateVideoEndMetrics(mediaType, bitrate, curlOrHTTPCode, strUrl,0,curlDownloadTime, false, false);
+	UpdateVideoEndMetrics(mediaType, bitrate, curlOrHTTPCode, strUrl,0,curlDownloadTime, false, false, manifestData);
 }
 
 /**
@@ -10486,6 +10473,58 @@ double PrivateInstanceAAMP::GetPeriodStartTimeValue(void)
 double PrivateInstanceAAMP::GetPeriodScaledPtoStartTime(void)
 {
        return mNextPeriodScaledPtoStartTime;
+}
+
+/**
+ *     @brief Get playback stats for the session so far
+ *     @return the json string represenign the playback stats
+ */
+std::string PrivateInstanceAAMP::GetPlaybackStats()
+{
+	std::string strVideoStatsJson;
+#ifdef SESSION_STATS
+	long liveLatency = 0;
+	//Update liveLatency only when playback is active and live
+	if(mpStreamAbstractionAAMP && IsLive())
+		liveLatency = mpStreamAbstractionAAMP->GetBufferedVideoDurationSec() * 1000.0;
+
+	if(mVideoEnd)
+	{
+		mVideoEnd->setPlaybackMode(mPlaybackMode);
+		mVideoEnd->setLiveLatency(liveLatency);
+		mVideoEnd->SetDisplayResolution(mDisplayWidth,mDisplayHeight);
+		//Update VideoEnd Data
+		if(mTimeAtTopProfile > 0)
+		{
+			// Losing milisecons of data in conversion from double to long
+			mVideoEnd->SetTimeAtTopProfile(mTimeAtTopProfile);
+			mVideoEnd->SetTimeToTopProfile(mTimeToTopProfile);
+		}
+		mVideoEnd->SetTotalDuration(mPlaybackDuration);
+		char * videoStatsPtr = mVideoEnd->ToJsonString(nullptr, true);
+		if(videoStatsPtr)
+		{
+			strVideoStatsJson = videoStatsPtr;
+			free(videoStatsPtr);
+		}
+	}
+	else
+	{
+		AAMPLOG_ERR("GetPlaybackStats failed, mVideoEnd is NULL");
+	}
+	
+	if(!strVideoStatsJson.empty())
+	{
+		AAMPLOG_INFO("Playback stats json:%s", strVideoStatsJson.c_str());
+	}
+	else
+	{
+		AAMPLOG_ERR("Failed to retrieve playback stats (video stats returned as empty from aamp metrics)");
+	}
+#else
+	AAMPLOG_WARN("SESSION_STATS not enabled");
+#endif
+	return strVideoStatsJson;
 }
 
 /**
