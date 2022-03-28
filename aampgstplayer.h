@@ -38,6 +38,26 @@
 struct AAMPGstPlayerPriv;
 
 /**
+ * @struct TaskControlData
+ * @brief data for scheduling and handling asynchronous tasks
+ */
+struct TaskControlData
+{
+	guint       taskID;
+	bool        taskIsPending;
+	std::string taskName;
+	TaskControlData(const char* taskIdent) : taskID(0), taskIsPending(false), taskName(taskIdent ? taskIdent : "undefined") {};
+};
+
+/**
+ * @brief Function pointer for the idle task
+ * @param[in] arg - Arguments
+ * @return Idle task status
+ */
+typedef int(*BackgroundTask)(void* arg);
+
+
+/**
  * @class AAMPGstPlayer
  * @brief Class declaration of Gstreamer based player
  */
@@ -77,7 +97,12 @@ public:
 	void GetVideoSize(int &w, int &h);
 	void QueueProtectionEvent(const char *protSystemId, const void *ptr, size_t len, MediaType type);
 	void ClearProtectionEvent();
-	
+	bool IdleTaskAdd(TaskControlData& taskDetails, BackgroundTask funcPtr);
+	bool IdleTaskRemove(TaskControlData& taskDetails);
+	void IdleTaskClearFlags(TaskControlData& taskDetails);
+	void TimerAdd(GSourceFunc funcPtr, int repeatTimeout, guint& taskId, gpointer user_data, const char* timerName = nullptr);
+	void TimerRemove(guint& taskId, const char* timerName = nullptr);
+	bool TimerIsRunning(guint& taskId);
 	void StopBuffering(bool forceStop);
 	bool AdjustPlayBackRate(double position, double rate);
 	

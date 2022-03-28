@@ -39,7 +39,6 @@
 #include <pthread.h>
 #include <atomic>
 
-
 #ifdef __APPLE__
 	#include "gst/video/videooverlay.h"
 	guintptr (*gCbgetWindowContentView)() = NULL;
@@ -133,6 +132,9 @@ struct media_stream
  */
 struct AAMPGstPlayerPriv
 {
+	AAMPGstPlayerPriv(const AAMPGstPlayerPriv&) = delete;
+	AAMPGstPlayerPriv& operator=(const AAMPGstPlayerPriv&) = delete;
+
 	media_stream stream[AAMP_TRACK_COUNT];
 	GstElement *pipeline; //GstPipeline used for playback.
 	GstBus *bus; //Bus for receiving GstEvents from pipeline.
@@ -140,8 +142,8 @@ struct AAMPGstPlayerPriv
 	guint64 total_bytes;
 	gint n_audio; //Number of audio tracks.
 	gint current_audio; //Offset of current audio track.
-	guint firstProgressCallbackIdleTaskId; //ID of idle handler created for notifying first progress event.
-	std::atomic<bool> firstProgressCallbackIdleTaskPending; //Set if any first progress callback is pending.
+	std::mutex TaskControlMutex; //For scheduling/de-scheduling or resetting async tasks/variables and timers
+	TaskControlData firstProgressCallbackIdleTask;
 	guint periodicProgressCallbackIdleTaskId; //ID of timed handler created for notifying progress events.
 	guint bufferingTimeoutTimerId; //ID of timer handler created for buffering timeout.
 	GstElement *video_dec; //Video decoder used by pipeline.
@@ -201,9 +203,9 @@ struct AAMPGstPlayerPriv
 	bool firstAudioFrameReceived; //flag that denotes if first audio frame was notified
 	int  NumberOfTracks;	      //Indicates the number of tracks
 	AAMPGstPlayerPriv() : pipeline(NULL), bus(NULL), current_rate(0),
-			total_bytes(0), n_audio(0), current_audio(0), firstProgressCallbackIdleTaskId(AAMP_TASK_ID_INVALID),
-			firstProgressCallbackIdleTaskPending(false), periodicProgressCallbackIdleTaskId(AAMP_TASK_ID_INVALID),
-			bufferingTimeoutTimerId(AAMP_TASK_ID_INVALID), video_dec(NULL), audio_dec(NULL),
+			total_bytes(0), n_audio(0), current_audio(0), 
+			periodicProgressCallbackIdleTaskId(AAMP_TASK_ID_INVALID),
+			bufferingTimeoutTimerId(AAMP_TASK_ID_INVALID), video_dec(NULL), audio_dec(NULL),TaskControlMutex(),firstProgressCallbackIdleTask("FirstProgressCallback"),
 			video_sink(NULL), audio_sink(NULL),
 #ifdef INTELCE_USE_VIDRENDSINK
 			video_pproc(NULL),
@@ -344,6 +346,153 @@ AAMPGstPlayer::~AAMPGstPlayer()
 	SAFE_DELETE(privateContext);
 	pthread_mutex_destroy(&mBufferingLock);
 	pthread_mutex_destroy(&mProtectionLock);
+}
+
+
+/**
+ * @brief IdleTaskAdd - add an async/idle task in a thread safe manner, assuming it is not queued
+ * @param[in] taskDetails task control data (e.g. id, pending flag and task name)
+ * @param[in] funcPtr function pointer to add to the asynchronous queue task
+ * @return true - if task was added
+ */
+bool AAMPGstPlayer::IdleTaskAdd(TaskControlData& taskDetails, BackgroundTask funcPtr)
+{
+	FN_TRACE( __FUNCTION__ );
+	bool ret = false;
+	std::lock_guard<std::mutex> lock(privateContext->TaskControlMutex);
+
+	if (0 == taskDetails.taskID)
+	{
+		taskDetails.taskIsPending = false;
+		taskDetails.taskID = aamp->ScheduleAsyncTask(funcPtr, (void *)this);
+		// Wait for scheduler response , if failed to create task for wrong state , not to make pending flag as true
+		if(0 != taskDetails.taskID)
+		{
+			taskDetails.taskIsPending = true;
+			ret = true;
+			AAMPLOG_INFO("Task '%.50s' was added with ID = %d.", taskDetails.taskName.c_str(), taskDetails.taskID);
+		}
+		else
+		{
+			AAMPLOG_INFO("Task '%.50s' was not added or already ran.", taskDetails.taskName.c_str());
+		}
+	}
+	else
+	{
+		AAMPLOG_WARN("Task '%.50s' was already pending.", taskDetails.taskName.c_str());
+	}
+	return ret;
+}
+
+/**
+ * @brief IdleTaskRemove - remove an async task in a thread safe manner, if it is queued
+ * @param[in] taskDetails task control data (e.g. id, pending flag and task name)
+ * @return true - if task was removed
+ */
+bool AAMPGstPlayer::IdleTaskRemove(TaskControlData& taskDetails)
+{
+	FN_TRACE( __FUNCTION__ );
+	bool ret = false;
+	std::lock_guard<std::mutex> lock(privateContext->TaskControlMutex);
+
+	if (0 != taskDetails.taskID)
+	{
+		AAMPLOG_INFO("AAMPGstPlayer: Remove task <%.50s> with ID %d", taskDetails.taskName.c_str(), taskDetails.taskID);
+		aamp->RemoveAsyncTask(taskDetails.taskID);
+		taskDetails.taskID = 0;
+		ret = true;
+	}
+	else
+	{
+		AAMPLOG_TRACE("AAMPGstPlayer: Task already removed <%.50s>, with ID %d", taskDetails.taskName.c_str(), taskDetails.taskID);
+	}
+	taskDetails.taskIsPending = false;
+	return ret;
+}
+
+/**
+ * @brief IdleTaskClearFlags - clear async task id and pending flag in a thread safe manner
+ *                             e.g. called when the task executes
+ * @param[in] taskDetails task control data (e.g. id, pending flag and task name)
+ */
+void AAMPGstPlayer::IdleTaskClearFlags(TaskControlData& taskDetails)
+{
+	FN_TRACE( __FUNCTION__ );
+	std::lock_guard<std::mutex> lock(privateContext->TaskControlMutex);
+	if ( 0 != taskDetails.taskID )
+	{
+		AAMPLOG_INFO("AAMPGstPlayer: Clear task control flags <%.50s> with ID %d", taskDetails.taskName.c_str(), taskDetails.taskID);
+	}
+	else
+	{
+		AAMPLOG_TRACE("AAMPGstPlayer: Task control flags were already cleared <%.50s> with ID %d", taskDetails.taskName.c_str(), taskDetails.taskID);
+	}
+	taskDetails.taskIsPending = false;
+	taskDetails.taskID = 0;
+}
+
+/**
+ * @brief TimerAdd - add a new glib timer in thread safe manner
+ * @param[in] funcPtr function to execute on timer expiry
+ * @param[in] repeatTimeout timeout between calls in ms
+ * @param[in] user_data data to pass to the timer function
+ * @param[in] timerName name of the timer being removed (for debug) (opt)
+ * @param[out] taskId id of the timer to be returned
+ */
+void AAMPGstPlayer::TimerAdd(GSourceFunc funcPtr, int repeatTimeout, guint& taskId, gpointer user_data, const char* timerName)
+{
+	FN_TRACE( __FUNCTION__ );
+	std::lock_guard<std::mutex> lock(privateContext->TaskControlMutex);
+	if (funcPtr && user_data)
+	{
+		if (0 == taskId)
+		{
+			taskId = g_timeout_add(repeatTimeout, funcPtr, user_data);
+			AAMPLOG_INFO("AAMPGstPlayer: Added timer '%.50s', %d", (nullptr!=timerName) ? timerName : "unknown" , taskId);
+		}
+		else
+		{
+			AAMPLOG_INFO("AAMPGstPlayer: Timer '%.50s' already added, taskId=%d", (nullptr!=timerName) ? timerName : "unknown", taskId);
+		}
+	}
+	else
+	{
+		AAMPLOG_ERR("Bad pointer. funcPtr = %p, user_data=%p");
+	}
+}
+
+/**
+ * @brief TimerRemove - remove a glib timer in thread safe manner, if it exists
+ * @param[in] taskId id of the timer to be removed
+ * @param[in] timerName name of the timer being removed (for debug) (opt)
+ */
+void AAMPGstPlayer::TimerRemove(guint& taskId, const char* timerName)
+{
+	FN_TRACE( __FUNCTION__ );
+	std::lock_guard<std::mutex> lock(privateContext->TaskControlMutex);
+	if ( 0 != taskId )
+	{
+		AAMPLOG_INFO("AAMPGstPlayer: Remove timer '%.50s', %d", (nullptr!=timerName) ? timerName : "unknown", taskId);
+		g_source_remove(taskId);
+		taskId = 0;
+	}
+	else
+	{
+		AAMPLOG_TRACE("Timer '%.50s' with taskId = %d already removed.", (nullptr!=timerName) ? timerName : "unknown", taskId);
+	}
+}
+
+/**
+ * @brief RemoveTimer - remove a glib timer in thread safe manner, if it exists
+ * @param[in] taskId id of the timer to be removed
+ * @return true - timer is currently scheduled
+ */
+bool AAMPGstPlayer::TimerIsRunning(guint& taskId)
+{
+	FN_TRACE( __FUNCTION__ );
+	std::lock_guard<std::mutex> lock(privateContext->TaskControlMutex);
+
+	return !(0 == privateContext->periodicProgressCallbackIdleTaskId);
 }
 
 /**
@@ -622,16 +771,16 @@ static gboolean IdleCallback(gpointer user_data)
 	{
 		// mAsyncTuneEnabled passed, because this could be called from Scheduler or main loop
 		_this->aamp->ReportProgress();
-		_this->privateContext->firstProgressCallbackIdleTaskId = AAMP_TASK_ID_INVALID;
-		_this->privateContext->firstProgressCallbackIdleTaskPending = false;
+		_this->IdleTaskClearFlags(_this->privateContext->firstProgressCallbackIdleTask);
 
-		if (AAMP_TASK_ID_INVALID == _this->privateContext->periodicProgressCallbackIdleTaskId)
+		if ( !(_this->TimerIsRunning(_this->privateContext->periodicProgressCallbackIdleTaskId)) )
 		{
-			 double  reportProgressInterval;
-			 _this->aamp->mConfig->GetConfigValue(eAAMPConfig_ReportProgressInterval,reportProgressInterval);
-			 reportProgressInterval *= 1000; //convert s to ms
+			double  reportProgressInterval;
+			_this->aamp->mConfig->GetConfigValue(eAAMPConfig_ReportProgressInterval,reportProgressInterval);
+			reportProgressInterval *= 1000; //convert s to ms
 
-			 _this->privateContext->periodicProgressCallbackIdleTaskId = g_timeout_add((int)reportProgressInterval, ProgressCallbackOnTimeout, user_data);
+			GSourceFunc timerFunc = ProgressCallbackOnTimeout;
+			_this->TimerAdd(timerFunc, (int)reportProgressInterval, _this->privateContext->periodicProgressCallbackIdleTaskId, user_data, "periodicProgressCallbackIdleTask");
 			AAMPLOG_WARN("current %d, periodicProgressCallbackIdleTaskId %d", g_source_get_id(g_main_current_source()), _this->privateContext->periodicProgressCallbackIdleTaskId);
 		}
 		else
@@ -700,16 +849,8 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 			//If pipeline is set to ready forcefully due to change in track_id, then re-initialize CC 
 			aamp->InitializeCC();
 		}
-		if (privateContext->firstProgressCallbackIdleTaskId == AAMP_TASK_ID_INVALID)
-		{
-			privateContext->firstProgressCallbackIdleTaskPending = false;		
-			privateContext->firstProgressCallbackIdleTaskId = aamp->ScheduleAsyncTask(IdleCallback, (void *)this, "FirstProgressCallback");
-			// Wait for scheduler response , if failed to create task for wrong state , not to make pending flag as true 
-			if(privateContext->firstProgressCallbackIdleTaskId != AAMP_TASK_ID_INVALID)
-			{
-				privateContext->firstProgressCallbackIdleTaskPending = true;
-			}
-		}
+
+		IdleTaskAdd(privateContext->firstProgressCallbackIdleTask, IdleCallback);
 
 		if ( (!privateContext->firstVideoFrameDisplayedCallbackIdleTaskPending)
 				&& (aamp->IsFirstVideoFrameDisplayedRequired()) )
@@ -1194,15 +1335,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				if (_this->aamp->mMediaFormat == eMEDIAFORMAT_PROGRESSIVE)
 				{
 					_this->aamp->NotifyFirstBufferProcessed();
-					if (_this->privateContext->firstProgressCallbackIdleTaskId == AAMP_TASK_ID_INVALID)
-					{
-						_this->privateContext->firstProgressCallbackIdleTaskPending = false;
-						_this->privateContext->firstProgressCallbackIdleTaskId = _this->aamp->ScheduleAsyncTask(IdleCallback, (void *)_this,"FirstProgressCallback");
-						if(_this->privateContext->firstProgressCallbackIdleTaskId != AAMP_TASK_ID_INVALID)
-						{
-							_this->privateContext->firstProgressCallbackIdleTaskPending = true;
-						}
-					}
+					_this->IdleTaskAdd(_this->privateContext->firstProgressCallbackIdleTask, IdleCallback);
 				}
 #if defined(REALTEKCE)
 				// DELIA-33640: For Realtekce build and westeros-sink disabled
@@ -1226,15 +1359,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 				_this->aamp->NotifyFirstFrameReceived();
 				//Note: Progress event should be sent after the decoderAvailable event only.
 				//BRCM platform sends progress event after AAMPGstPlayer_OnFirstVideoFrameCallback.
-				if (_this->privateContext->firstProgressCallbackIdleTaskId == AAMP_TASK_ID_INVALID)
-				{
-					_this->privateContext->firstProgressCallbackIdleTaskPending = false;
-					_this->privateContext->firstProgressCallbackIdleTaskId = _this->aamp->ScheduleAsyncTask(IdleCallback, (void *)_this,"FirstProgressCallback");					
-					if(_this->privateContext->firstProgressCallbackIdleTaskId != AAMP_TASK_ID_INVALID)
-					{
-						_this->privateContext->firstProgressCallbackIdleTaskPending = true;
-					}
-				}
+				_this->IdleTaskAdd(_this->privateContext->firstProgressCallbackIdleTask, IdleCallback);
 #endif
 				analyze_streams(_this);
 
@@ -2761,19 +2886,11 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 		privateContext->firstVideoFrameReceived = false;
 		privateContext->firstAudioFrameReceived = false ;
 	}
-	if (privateContext->firstProgressCallbackIdleTaskPending)
-	{
-		AAMPLOG_WARN("AAMPGstPlayer: Remove firstProgressCallbackIdleTaskId %d", privateContext->firstProgressCallbackIdleTaskId);
-		aamp->RemoveAsyncTask(privateContext->firstProgressCallbackIdleTaskId);
-		privateContext->firstProgressCallbackIdleTaskPending = false;
-		privateContext->firstProgressCallbackIdleTaskId = AAMP_TASK_ID_INVALID;
-	}
-	if (this->privateContext->periodicProgressCallbackIdleTaskId)
-	{
-		AAMPLOG_WARN("AAMPGstPlayer: Remove periodicProgressCallbackIdleTaskId %d", privateContext->periodicProgressCallbackIdleTaskId);
-		g_source_remove(privateContext->periodicProgressCallbackIdleTaskId);
-		privateContext->periodicProgressCallbackIdleTaskId = AAMP_TASK_ID_INVALID;
-	}
+
+	this->IdleTaskRemove(privateContext->firstProgressCallbackIdleTask);
+
+	this->TimerRemove(this->privateContext->periodicProgressCallbackIdleTaskId, "periodicProgressCallbackIdleTaskId");
+
 	if (this->privateContext->bufferingTimeoutTimerId)
 	{
 		AAMPLOG_WARN("AAMPGstPlayer: Remove bufferingTimeoutTimerId %d", privateContext->bufferingTimeoutTimerId);
