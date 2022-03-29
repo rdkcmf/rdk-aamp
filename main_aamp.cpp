@@ -1067,12 +1067,13 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
 {
 	ERROR_STATE_CHECK_VOID();
 	
-	AAMPLOG_WARN(" mute == %s", muted?"true":"false");
+	AAMPLOG_WARN(" mute == %s subtitles_muted == %s", muted?"true":"false", aamp->subtitles_muted?"true":"false");
 	aamp->video_muted = muted;
 	aamp->AcquireStreamLock();
 	if (aamp->mpStreamAbstractionAAMP)
 	{
 		aamp->SetVideoMute(muted);
+		SetCCStatus(muted ? false : !aamp->subtitles_muted);
 	}
 	else
 	{
