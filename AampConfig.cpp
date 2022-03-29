@@ -252,6 +252,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"supportTLS",eAAMPConfig_TLSVersion,{.lMinValue=CURL_SSLVERSION_DEFAULT},{.lMaxValue=CURL_SSLVERSION_TLSv1_3}},
 	{"fogMaxConcurrentDownloads",eAAMPConfig_FogMaxConcurrentDownloads, -1, -1},
         {"enableFogConfig", eAAMPConfig_EnableAampConfigToFog, -1, -1},
+	{"xreSupportedTune",eAAMPConfig_XRESupportedTune,-1,-1},
 	{"allowPageHeaders",eAAMPConfig_AllowPageHeaders,-1,-1},
 	{"customLicenseData",eAAMPConfig_CustomLicenseData,-1,-1}
 };
@@ -349,14 +350,15 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_DebugLogging].value				=	false;
 	bAampCfgValue[eAAMPConfig_TraceLogging].value				=	false;
 	bAampCfgValue[eAAMPConfig_FailoverLogging].value			=	false;
-	bAampCfgValue[eAAMPConfig_GSTLogging].value					=	false;
+	bAampCfgValue[eAAMPConfig_GSTLogging].value				=	false;
 	bAampCfgValue[eAAMPConfig_ProgressLogging].value			=	false;
 	bAampCfgValue[eAAMPConfig_CurlLogging].value				=	false;
 	bAampCfgValue[eAAMPConfig_CurlLicenseLogging].value			=	false;
 	bAampCfgValue[eAAMPConfig_MetadataLogging].value			=	false;
 	bAampCfgValue[eAAMPConfig_StreamLogging].value				=	false;
 	bAampCfgValue[eAAMPConfig_ID3Logging].value    				= 	false;
-	bAampCfgValue[eAAMPConfig_CurlHeader].value					=	false;
+	bAampCfgValue[eAAMPConfig_CurlHeader].value				=	false;
+	bAampCfgValue[eAAMPConfig_XRESupportedTune].value			=	false;
 	bAampCfgValue[eAAMPConfig_AllowPageHeaders].value			=	true;
 	//bAampCfgValue[eAAMPConfig_XREEventReporting].value			=	true;
 #ifdef INTELCE
