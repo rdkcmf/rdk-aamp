@@ -2710,8 +2710,10 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 		{
 			char classicTuneStr[AAMP_MAX_PIPE_DATA_SIZE];
 			mLogTune = false;
-			profiler.GetClassicTuneTimeInfo(mTuneMetrics.success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
-			SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
+			if (ISCONFIGSET_PRIV(eAAMPConfig_XRESupportedTune)) { 
+				profiler.GetClassicTuneTimeInfo(mTuneMetrics.success, mTuneAttempts, mfirstTuneFmt, mPlayerLoadTime, streamType, IsLive(), durationSeconds, classicTuneStr);
+				SendMessage2Receiver(E_AAMP2Receiver_TUNETIME,classicTuneStr);
+			}
 			mTuneCompleted = true;
 			mFirstTune = false;
 		}
