@@ -80,6 +80,10 @@ typedef enum {
 	eAAMP_GET_PlaybackPosition,
 	eAAMP_GET_PlaybackDuration,
 	eAAMP_GET_VideoBitrate,
+	eAAMP_GET_InitialBitrate,
+	eAAMP_GET_InitialBitrate4k,
+	eAAMP_GET_MinimumBitrate,
+	eAAMP_GET_MaximumBitrate,
 	eAAMP_GET_AudioBitrate,
 	eAAMP_GET_VideoZoom,
 	eAAMP_GET_VideoMute,
@@ -88,12 +92,15 @@ typedef enum {
 	eAAMP_GET_VideoBitrates,
 	eAAMP_GET_AudioBitrates,
 	eAAMP_GET_CurrentPreferredLanguages,
+	eAAMP_GET_RampDownLimit,
 	eAAMP_GET_AvailableAudioTracks,
 	eAAMP_GET_AllAvailableAudioTracks,
 	eAAMP_GET_AvailableTextTracks,
 	eAAMP_GET_AudioTrack,
+	eAAMP_GET_InitialBufferDuration,
 	eAAMP_GET_AudioTrackInfo,
 	eAAMP_GET_PreferredAudioProperties,
+	eAAMP_GET_CCStatus,
 	eAAMP_GET_TextTrack,
 	eAAMP_GET_ThumbnailConfig,
 	eAAMP_GET_ThumbnailData,
@@ -507,21 +514,28 @@ static void InitGetHelpText()
 	mGetHelpText[eAAMP_GET_PlaybackPosition] = "Get Current Playback position";
 	mGetHelpText[eAAMP_GET_PlaybackDuration] = "Get Playback Duration";
 	mGetHelpText[eAAMP_GET_VideoBitrate] = "Get current video bitrate";
+	mGetHelpText[eAAMP_GET_InitialBitrate] ="Get Initial Bitrate";
+	mGetHelpText[eAAMP_GET_InitialBitrate4k] ="Get Initial Bitrate 4K";
+	mGetHelpText[eAAMP_GET_MinimumBitrate]="Get Minimum Bitrate";
+	mGetHelpText[eAAMP_GET_MaximumBitrate]="Get Maximum Bitrate";
 	mGetHelpText[eAAMP_GET_AudioBitrate] = "Get current Audio bitrate";
 	mGetHelpText[eAAMP_GET_VideoZoom] = "Get Video Zoom mode";
-        mGetHelpText[eAAMP_GET_VideoMute] = "Get Video Mute status";
+	mGetHelpText[eAAMP_GET_VideoMute] = "Get Video Mute status";
 	mGetHelpText[eAAMP_GET_AudioVolume] = "Get current Audio volume";
 	mGetHelpText[eAAMP_GET_PlaybackRate] = "Get Current Playback rate";
 	mGetHelpText[eAAMP_GET_VideoBitrates] = "Get Video bitrates supported";
 	mGetHelpText[eAAMP_GET_AudioBitrates] = "Get Audio bitrates supported";
 	mGetHelpText[eAAMP_GET_CurrentPreferredLanguages] = "Get Current preferred languages";
+	mGetHelpText[eAAMP_GET_RampDownLimit] ="Get number of  Ramp down limit during playback";
 	mGetHelpText[eAAMP_GET_AvailableAudioTracks] = "Get Available Audio Tracks";
 	mGetHelpText[eAAMP_GET_AvailableVideoTracks] = "Get All Available Video Tracks information from manifest";
 	mGetHelpText[eAAMP_GET_AllAvailableAudioTracks] = "Get All Available Audio Tracks information from manifest";
 	mGetHelpText[eAAMP_GET_AvailableTextTracks] = "Get Available Text Tracks";
 	mGetHelpText[eAAMP_GET_AudioTrack] = "Get Audio Track";
+	mGetHelpText[eAAMP_GET_InitialBufferDuration] ="Get Initial Buffer Duration( in sec)";
 	mGetHelpText[eAAMP_GET_AudioTrackInfo] = "Get current Audio Track information in json format";
 	mGetHelpText[eAAMP_GET_PreferredAudioProperties] = "Get current Preferred Audio properties in json format";
+	mGetHelpText[eAAMP_GET_CCStatus]="Get CC Status";
 	mGetHelpText[eAAMP_GET_TextTrack] = "Get Text Track";
 	mGetHelpText[eAAMP_GET_ThumbnailConfig] = "Get Available ThumbnailTracks";
 	mGetHelpText[eAAMP_GET_ThumbnailData] = "Get Thumbnail timerange data(int startpos, int endpos)";
@@ -2182,15 +2196,22 @@ static void ProcessCliCommand( char *cmd )
 				case eAAMP_GET_ThumbnailConfig:
 					printf("[AAMPCLI] GETTING AVAILABLE THUMBNAIL TRACKS: %s\n", mSingleton->GetAvailableThumbnailTracks().c_str() );
 					break;
+
 				case eAAMP_GET_CurrentState:
 					printf("[AAMPCLI] GETTING CURRENT STATE: %d\n", (int) mSingleton->GetState());
 					break;
+
 				case eAAMP_GET_ThumbnailData:
 					sscanf(cmd, "get %d %d %d",&opt, &value1, &value2);
 					printf("[AAMPCLI] GETTING THUMBNAIL TIME RANGE DATA for duration(%d,%d): %s\n",value1,value2,mSingleton->GetThumbnails(value1, value2).c_str());
 					break;
+
 				case eAAMP_GET_AudioTrack:
 					printf("[AAMPCLI] CURRENT AUDIO TRACK NUMBER: %d\n", mSingleton->GetAudioTrack() );
+					break;
+
+				case eAAMP_GET_InitialBufferDuration:
+					printf("[AAMPCLI] INITIAL BUFFER DURATION: %d\n", mSingleton->GetInitialBufferDuration() );
 					break;
 
 				case eAAMP_GET_AudioTrackInfo:
@@ -2201,18 +2222,25 @@ static void ProcessCliCommand( char *cmd )
 					printf("[AAMPCLI] CURRENT PREPRRED AUDIO PROPERTIES: %s\n", mSingleton->GetPreferredAudioProperties().c_str() );
 					break;
 
+				case eAAMP_GET_CCStatus:
+					printf("[AAMPCLI] CC VISIBILITY STATUS: %s\n",mSingleton->GetCCStatus()?"ENABLED":"DISABLED");
+					break;
+
 				case eAAMP_GET_TextTrack:
 					printf("[AAMPCLI] CURRENT TEXT TRACK: %d\n", mSingleton->GetTextTrack() );
 					break;
+
 				case eAAMP_GET_AvailableAudioTracks:
 					printf("[AAMPCLI] AVAILABLE AUDIO TRACKS: %s\n", mSingleton->GetAvailableAudioTracks(false).c_str() );
 					break;
 				case eAAMP_GET_AvailableVideoTracks:
 					printf("[AAMPCLI] AVAILABLE VIDEO TRACKS: %s\n", mSingleton->GetAvailableVideoTracks().c_str() );
 					break;
+
 				case eAAMP_GET_AllAvailableAudioTracks:
 					printf("[AAMPCLI] AVAILABLE AUDIO TRACKS: %s\n", mSingleton->GetAvailableAudioTracks(true).c_str() );
 					break;
+
 				case eAAMP_GET_AvailableTextTracks:
 					printf("[AAMPCLI] AVAILABLE TEXT TRACKS: %s\n", mSingleton->GetAvailableTextTracks().c_str() );
 					break;
@@ -2242,26 +2270,46 @@ static void ProcessCliCommand( char *cmd )
 					mSingleton->GetVideoBitrate());
 					break;
 
+				case eAAMP_GET_InitialBitrate:
+					printf("[AAMPCLI] INITIAL BITRATE = %ld \n",
+					mSingleton->GetInitialBitrate());
+					break;
+
+				case eAAMP_GET_InitialBitrate4k:
+					printf("[AAMPCLI] INITIAL BITRATE 4K = %ld \n",
+					mSingleton->GetInitialBitrate4k());
+					break;
+
+				case eAAMP_GET_MinimumBitrate:
+					printf("[AAMPCLI] MINIMUM BITRATE = %ld \n",
+					mSingleton->GetMinimumBitrate());
+					break;
+
+				case eAAMP_GET_MaximumBitrate:
+					printf("[AAMPCLI] MAXIMUM BITRATE = %ld \n",
+					mSingleton->GetMaximumBitrate());
+					break;
+
 				case eAAMP_GET_AudioBitrate:
 					printf("[AAMPCLI] AUDIO BITRATE = %ld\n",
 					mSingleton->GetAudioBitrate());
 					break;
-                                
-                                case eAAMP_GET_VideoZoom:
-                                        printf("[AAMPCLI] Video Zoom mode: %s\n",
-				        (mSingleton->GetVideoZoom())?"None(Normal)":"Full(Enabled)");
-                                        break;
 
-                                case eAAMP_GET_VideoMute:
-                                        printf("[AAMPCLI] Video Mute status:%s\n",
+				case eAAMP_GET_VideoZoom:
+					printf("[AAMPCLI] Video Zoom mode: %s\n",
+					(mSingleton->GetVideoZoom())?"None(Normal)":"Full(Enabled)");
+					break;
+
+				case eAAMP_GET_VideoMute:
+					printf("[AAMPCLI] Video Mute status:%s\n",
 					(mSingleton->GetVideoMute())?"ON":"OFF");
-                                        break;
+					break;
 
 				case eAAMP_GET_AudioVolume:
 					printf("[AAMPCLI] AUDIO VOLUME = %d\n",
 					mSingleton->GetAudioVolume());
 					break;
-				
+
 				case eAAMP_GET_PlaybackRate:
 					printf("[AAMPCLI] PLAYBACK RATE = %d\n",
 					mSingleton->GetPlaybackRate());
@@ -2294,6 +2342,12 @@ static void ProcessCliCommand( char *cmd )
 				{
 					const char *prefferedLanguages = mSingleton->GetPreferredLanguages();
 					printf("[AAMPCLI] PREFERRED LANGUAGES = \"%s\"\n", prefferedLanguages? prefferedLanguages : "<NULL>");
+					break;
+				}
+
+				case eAAMP_GET_RampDownLimit:
+				{
+					printf("[AAMPCLI] RAMP DOWN LIMIT= %d\n", mSingleton->GetRampDownLimit());
 					break;
 				}
 

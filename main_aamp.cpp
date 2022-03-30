@@ -447,6 +447,17 @@ void PlayerInstanceAAMP::SetInitialBufferDuration(int durationSec)
 }
 
 /**
+ * @brief Get initial buffer duration in seconds
+ * @ret int - Initial buffer duration
+ */
+int PlayerInstanceAAMP::GetInitialBufferDuration(void)
+{
+	int durationSec;
+	GETCONFIGVALUE(eAAMPConfig_InitialBuffer,durationSec);
+	return durationSec;
+}
+
+/**
  * @brief Set Maximum Cache Size for playlist store 
  *
  */
@@ -462,6 +473,17 @@ void PlayerInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
 void PlayerInstanceAAMP::SetRampDownLimit(int limit)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RampDownLimit,limit);
+}
+
+/**
+ * @brief Get profile ramp down limit.
+ * @ret int - Ramp down limit
+ */
+int PlayerInstanceAAMP::GetRampDownLimit(void)
+{
+	int limit;
+	GETCONFIGVALUE(eAAMPConfig_RampDownLimit,limit);
+	return limit;
 }
 
 /**
@@ -502,6 +524,17 @@ void PlayerInstanceAAMP::SetMinimumBitrate(long bitrate)
 }
 
 /**
+ * @brief Get minimum bitrate value.
+ * @ret Minimum bitrate value
+ */
+long PlayerInstanceAAMP::GetMinimumBitrate(void)
+{
+	long bitrate;
+	GETCONFIGVALUE(eAAMPConfig_MinBitrate,bitrate);
+	return bitrate;
+}
+
+/**
  * @brief Set maximum bitrate value.
  *
  */
@@ -516,6 +549,17 @@ void PlayerInstanceAAMP::SetMaximumBitrate(long bitrate)
 	{
 		AAMPLOG_WARN("Invalid bitrate value %d", bitrate);
 	}
+}
+
+/**
+ * @brief Get maximum bitrate value.
+ * @ret Maximum bitrate value
+ */
+long PlayerInstanceAAMP::GetMaximumBitrate(void)
+{
+	long bitrate;
+	GETCONFIGVALUE(eAAMPConfig_MaxBitrate,bitrate);
+	return bitrate;
 }
 
 /**
@@ -1847,7 +1891,19 @@ void PlayerInstanceAAMP::SetInitialBitrate(long bitrate)
 }
 
 /**
- *   @brief To set the initial bitrate value for 4K assets.
+ *   @brief To get the initial bitrate value.
+ *
+ *   @ret initial bitrate value
+ */
+long PlayerInstanceAAMP::GetInitialBitrate(void)
+{
+	long bitrate;
+	GETCONFIGVALUE(eAAMPConfig_DefaultBitrate,bitrate);
+	return bitrate;
+}
+
+/**
+ *   @brief To set the initial bitrate value for 4K assets
  *
  *   @param[in] initial bitrate to be selected for 4K assets
  */
@@ -1855,6 +1911,18 @@ void PlayerInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DefaultBitrate4K,bitrate4K);
+}
+
+/**
+ *   @brief To get the initial bitrate value for 4K assets.
+ *
+ *   @ret initial bitrate value for 4K assets
+ */
+long PlayerInstanceAAMP::GetInitialBitrate4k(void)
+{
+	long bitrate4K;
+	GETCONFIGVALUE(eAAMPConfig_DefaultBitrate4K,bitrate4K);
+	return bitrate4K;
 }
 
 /**
@@ -2581,6 +2649,16 @@ void PlayerInstanceAAMP::SetCCStatus(bool enabled)
 	ERROR_STATE_CHECK_VOID();
 
 	aamp->SetCCStatus(enabled);
+}
+
+/**
+ *   @brief Get CC visibility on/off
+ *
+ *   @return bool true(enabled) else false(disabled)
+ */
+bool PlayerInstanceAAMP::GetCCStatus(void)
+{
+	return aamp->GetCCStatus();
 }
 
 /**

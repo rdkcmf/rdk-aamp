@@ -5931,8 +5931,6 @@ AampCacheHandler * PrivateInstanceAAMP::getAampCacheHandler()
 	return mAampCacheHandler;
 }
 
-
-
 /**
  * @brief Get maximum bitrate value.
  * @return maximum bitrate value
@@ -9731,6 +9729,16 @@ void PrivateInstanceAAMP::SetCCStatus(bool enabled)
 	}
 	ReleaseStreamLock();
 	subtitles_muted = !enabled;
+}
+
+/**
+ *   @brief Get CC visibility on/off
+ *
+ *   @return bool-true/false(CC- ON/OFF)
+ */
+bool PrivateInstanceAAMP::GetCCStatus(void)
+{
+	return !(subtitles_muted);
 }
 
 /**

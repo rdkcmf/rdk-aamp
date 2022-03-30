@@ -385,11 +385,11 @@ public:
 	virtual bool Pause(bool pause, bool forceStopGstreamerPreBuffering){ return true; }
 
 	/**
-          *   @brief Get playback duration in milliseconds
-          *
-          *   @return duration in ms.
-          */
-        virtual long GetDurationMilliseconds(void){ return 0; };
+	 *   @brief Get playback duration in milliseconds
+	 *
+	 *   @return duration in ms.
+	 */
+	virtual long GetDurationMilliseconds(void){ return 0; };
 
 	/**
 	 *   @brief Get playback position in milliseconds
@@ -1009,22 +1009,22 @@ public:
 	 *   @param[in] preferred bitrate for audio profile
 	 */
 	void SetAudioBitrate(long bitrate);
-	
-	 /**
-         *   @brief To get video zoom mode
-         *
-         *   @ret video zoom mode
-         */
+
+	/**
+	 *   @brief To get video zoom mode
+	 *
+	 *   @ret video zoom mode
+	 */
 	int GetVideoZoom(void);
 
-	 /**
-         *   @brief To get video mute status
-         *
-         *   @ret video mute status
+	/**
+	 *   @brief To get video mute status
 	 *
-         */
-        bool GetVideoMute(void);
-       	
+	 *   @ret video mute status
+	 *
+	 */
+	bool GetVideoMute(void);
+
 	/**
 	 *   @brief To get the current audio volume.
 	 *
@@ -1068,11 +1068,25 @@ public:
 	void SetInitialBitrate(long bitrate);
 
 	/**
+	 *   @brief To get the initial bitrate value.
+	 *
+	 *   @ret initial bitrate value.
+	 */
+	long  GetInitialBitrate(void);
+
+	/**
 	 *   @brief To set the initial bitrate value for 4K assets.
 	 *
-	 *   @param[in] initial bitrate to be selected for 4K assets
+	 *   @param[in] initial bitrate to be selected for 4K assets.
 	 */
 	void SetInitialBitrate4K(long bitrate4K);
+
+	/**
+	 *   @brief To get the initial bitrate value for 4K assets.
+	 *
+	 *   @ret initial bitrate value for 4k assets
+	 */
+	long GetInitialBitrate4k(void);
 
 	/**
 	 *   @brief To override default curl timeout for playlist/fragment downloads
@@ -1348,13 +1362,19 @@ public:
 	 */
 	void EnableVideoRectangle(bool rectProperty);
 
-	/*
+	/**
 	 * @brief Set profile ramp down limit.
 	 *
 	 */
 	void SetRampDownLimit(int limit);
 
-	/*
+	/**
+	 * @brief Get profile ramp down limit.
+	 *
+	 */
+	int GetRampDownLimit(void);
+
+	/**
 	 * @brief Set Initial profile ramp down limit.
 	 *
 	 */
@@ -1367,10 +1387,22 @@ public:
 	void SetMinimumBitrate(long bitrate);
 
 	/**
+	 * @brief Get minimum bitrate value.
+	 *
+	 */
+	long GetMinimumBitrate(void);
+
+	/**
 	 * @brief Set maximum bitrate value.
 	 *
 	 */
 	void SetMaximumBitrate(long bitrate);
+
+	/**
+	 * @brief Get maximum bitrate value.
+	 *
+	 */
+	long GetMaximumBitrate(void);
 
 	/**
 	 * @brief Set retry limit on Segment injection failure.
@@ -1389,6 +1421,13 @@ public:
 	 *
 	 */
 	void SetInitialBufferDuration(int durationSec);
+
+	/**
+	 * @brief Get initial buffer duration in seconds
+	 *
+	 * @ret int - Initial Buffer Duration
+	 */
+	int GetInitialBufferDuration(void);
 
 	/**
 	 *   @brief Enable/disable the native CC rendering feature
@@ -1449,6 +1488,13 @@ public:
 	 *   @return void
 	 */
 	void SetCCStatus(bool enabled);
+
+	/**
+	 *   @brief Get CC visibility on/off
+	 *
+	 *   @return bool true (enabled) else false(disabled)
+	 */
+	bool GetCCStatus(void);
 
 	/**
 	 *   @brief Set style options for text track rendering
@@ -1514,8 +1560,9 @@ public:
 	 *   @brief Disable 4K Support in player
 	 *
 	 *   @param[in] value - disabled if true
-	*/
+	 */
 	void SetDisable4K(bool value);
+
 	/**
 	 *	 @brief Disable Content Restrictions - unlock
 	 *       @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
@@ -1574,10 +1621,12 @@ public:
 	 *   @param[in] int behavior
 	 */
 	void SetPausedBehavior(int behavior);
+
 	/**
 	* @brief InitAAMPConfig - Initialize the media player session with json config
 	*/
 	bool InitAAMPConfig(char *jsonStr);
+
 	/**
 	* @brief GetAAMPConfig - GetAamp Config as JSON string 
 	*/
@@ -1602,12 +1651,14 @@ public:
 	 *   @return void
 	 */
 	void EnableAsyncOperation();
+
 	/**
 	 *   @brief To set the repairIframes flag
 	 *
 	 *   @param[in] bool enable/disable configuration
 	 */
 	void SetRepairIframes(bool configState);
+
 	/**
 	 *   @brief Set auxiliary language
 	 *
@@ -1615,7 +1666,7 @@ public:
 	 *   @return void
 	 */
 	void SetAuxiliaryLanguage(const std::string &language);
-	
+
 	/**
 	 *   @brief Set License Custom Data
 	 *
