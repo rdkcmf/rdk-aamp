@@ -2941,6 +2941,7 @@ public:
 	 * @return minimum bitrate value
 	 */
 	long GetMinimumBitrate();
+
 	/**
 	 * @brief Get default bitrate value.
 	 * @return default bitrate value
@@ -3086,6 +3087,13 @@ public:
 	 *   @return void
 	 */
 	void SetCCStatus(bool enabled);
+
+	/**
+	 *   @brief Get CC visibility on/off
+	 *
+	 *   @return bool- true/false(OFF/ON)
+	 */
+	bool GetCCStatus(void);
 
 	/**
 	 *   @brief Switch the subtitle track following a change to the 
