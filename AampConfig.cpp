@@ -976,6 +976,11 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 						AAMPLOG_WARN("Preferred key system received - %s", conv.c_str());
 						SetConfigValue<int>(owner,eAAMPConfig_PreferredDRM,(int)drmType);
 					}
+					if(strcasecmp("customData",subitem->string)==0)
+					{
+						AAMPLOG_WARN("customData received - %s", conv.c_str());
+						SetConfigValue<std::string>(owner,eAAMPConfig_CustomLicenseData,conv);
+					}					
 					subitem = subitem->next;
 				}
 			}
