@@ -781,7 +781,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	unsigned int attemptCount = 0;
 	bool requestFailed = true;
 	/* Check whether stopped or not before looping - download will be disabled */
-	while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && aamp->DownloadsAreEnabled())
+	while(attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS && !licenseRequestAbort)
 	{
 		bool loopAgain = false;
 		attemptCount++;
@@ -790,7 +790,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		long long tEndTime = NOW_STEADY_TS_MS;
 		long long downloadTimeMS = tEndTime - tStartTime;
 		/** Restrict further processing license if stop called in between  */
-		if(!aamp->DownloadsAreEnabled())
+		if(licenseRequestAbort)
 		{
 			AAMPLOG_ERR(" Aborting License acquisition");
 			// Update httpCode as 42-curl abort, so that DRM error event will not be sent by upper layer
