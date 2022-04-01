@@ -2,11 +2,13 @@
 # This script will setup basic environment and fetch aamp code
 # for a vanilla Big Sur/Monterey system to be ready for development
 #######################Default Values##################
+aamposxinstallerver="0.9"
 defaultbuilddir=aamp-devenv-$(date +"%Y-%m-%d-%H-%M")
 defaultcodebranch="dev_sprint_22_1"
 defaultchannellistfile="$HOME/aampcli.csv"
+defaultgstversion="1.18.6"
 ######################################################## 
-# Declare a status array to collect full summery to be printed by the end of execution
+# Declare a status array to collect full summary to be printed by the end of execution
 declare -a  arr_install_status
 
 find_or_install_pkgs() {
@@ -19,8 +21,8 @@ find_or_install_pkgs() {
             arr_install_status+=("${pkg} is already installed.")
         else
 	    echo "Installing ${pkg}"
-            brew install $pkg
-            #update summery 
+	    brew install $pkg
+	    #update summery 
             if brew ls --versions $pkg > /dev/null; then
                 #The package is successfully installed 
                 arr_install_status+=("The package was ${pkg} was successfully installed.")
@@ -29,10 +31,10 @@ find_or_install_pkgs() {
                 #The package is failed to be installed
                 arr_install_status+=("The package ${pkg} was FAILED to be installed.")
             fi
-	   fi
+	fi
         #if pkg is openssl and its successfully installed every time ensure to symlink to the latest version 
-        if [ $pkg =  "openssl" ]; then
-            OPENSSL_PATH=$(brew info openssl|sed '4q;d'|cut -d " " -f1)
+        if [ $pkg =  "openssl@1.1" ]; then
+            OPENSSL_PATH=$(brew info openssl@1.1|sed '4q;d'|cut -d " " -f1)
             sudo rm -f /usr/local/ssl
             sudo ln -s $OPENSSL_PATH /usr/local/ssl
             export PKG_CONFIG_PATH="$OPENSSL_PATH/lib/pkgconfig" 
@@ -40,8 +42,10 @@ find_or_install_pkgs() {
     done
 }
 
-install_system_packages() {
 
+
+install_system_packages() {
+      
     #Check/Install brew
     which -s brew
     if [[ $? != 0 ]] ; then
@@ -49,11 +53,9 @@ install_system_packages() {
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     else
         echo "Hoebrew is installed now just updating it"
-        brew update
+        #brew update
     fi
 
-    #Check/Install base packages needed by aamp env
-    echo "Check/Install aamp development environment base packages"
 
     #Install XCode Command Line Tools
     base_macOSver=10.15
@@ -70,33 +72,34 @@ install_system_packages() {
         sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
     fi
 
-    find_or_install_pkgs git cmake openssl libxml2 ossp-uuid cjson gnu-sed meson ninja
+    #Check/Install base packages needed by aamp env
+    echo "Check/Install aamp development environment base packages"
+    find_or_install_pkgs  json-glib cmake openssl libxml2 ossp-uuid cjson gnu-sed meson ninja pkg-config
 
-}
+    git clone https://github.com/DaveGamble/cJSON.git
+    cd cJSON
+    mkdir build
+    cd build
+    cmake ../
+    make
+    sudo make install
+    cd ../../
 
-build_install_gst_and_custom_gst_plugins(){
-        #Install Gstreamer and plugins
-        echo "Installing GStreamer packages..."
-        brew install gstreamer gst-validate gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-validate gst-libav
+    #Install Gstreamer and plugins
+    echo "Installing GStreamer packages..."
+    brew remove -f  --ignore-dependencies gstreamer gst-validate gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-validate gst-libav gst-devtools
+    sudo rm -rf /usr/local/lib/gstreamer-1.0
+    curl -o gstreamer-1.0-1.18.6-x86_64.pkg  https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-1.18.6-x86_64.pkg 
+    sudo installer -pkg gstreamer-1.0-1.18.6-x86_64.pkg -target /
+    rm gstreamer-1.0-1.18.6-x86_64.pkg
+    curl -o gstreamer-1.0-devel-1.18.6-x86_64.pkg https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-devel-1.18.6-x86_64.pkg
+    sudo installer -pkg gstreamer-1.0-devel-1.18.6-x86_64.pkg  -target /
+    rm gstreamer-1.0-devel-1.18.6-x86_64.pkg
 
-        #Patch qtdemux plugin + Build and Install gstreamer 1.18.4 plugins
+ }
 
-        echo "Fetch,aamp custom patch(qtdemux),build and install gst-plugins-good-1.18.4.tar.xz ..."
-
-        curl -o gst-plugins-good-1.18.4.tar.xz https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-1.18.4.tar.xz
-        tar -xvzf gst-plugins-good-1.18.4.tar.xz
-        cd gst-plugins-good-1.18.4
-        pwd
-        patch -p1 < ../../OSx/patches/0009-qtdemux-aamp-tm_gst-1.16.patch
-        patch -p1 < ../../OSx/patches/0013-qtdemux-remove-override-segment-event_gst-1.16.patch
-        patch -p1 < ../../OSx/patches/0014-qtdemux-clear-crypto-info-on-trak-switch_gst-1.16.patch
-        patch -p1 < ../../OSx/patches/0021-qtdemux-aamp-tm-multiperiod_gst-1.16.patch
-        meson build
-        ninja -C build
-        ninja -C build install
-        cd ../
-}
-
+#main/start
+echo "Ver=$aamposxinstallerver"
 #Optional Command-line support for -b <aamp code branch> and -d <build directory> 
 while getopts ":d:b:" opt; do
   case ${opt} in
@@ -133,11 +136,11 @@ if [ -d "../../aamp" ]; then
                      * ) echo "Please answer yes or no.";;
                 esac
         done
-
 fi
 fi
 
 if [[ ! -d "$builddir" ]]; then
+    builddir=$defaultbuilddir
     echo "Creating aamp build directory under $builddir";
     mkdir $builddir
     cd $builddir
@@ -179,86 +182,101 @@ fi
 
 #Check OS=macOS
 if [[ "$OSTYPE" == "darwin"* ]]; then
-        #Mac OSX
-        echo $OSTYPE
-	
-	install_system_packages
-
-    #Build aamp dependent modules
-    echo "git clone aamp and dependent components in a new directory"
-	
-    #cleanup old lib build	
-	if [ -d "./.lib" ]; then
-	    rm -rf ./.lib
+    echo $OSTYPE
+   
+    #cleanup old libs builds
+    if [ -d "./.libs" ]; then
+	    sudo rm -rf ./.libs
     fi
+    
+    mkdir .libs
+    cd .libs
+	
+    install_system_packages
+     
+    #Build aamp dependent modules
+    echo "git clone and install aamp dependencies"
+	
+    #echo "Fetch,aamp custom patch(qtdemux),build and install gst-plugins-good-$defaultgstversion.tar.xz ..." 
+    #pwd
+    #curl -o gst-plugins-good-$defaultgstversion.tar.xz https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-$defaultgstversion.tar.xz
+    #tar -xvzf gst-plugins-good-$defaultgstversion.tar.xz
+    #cd gst-plugins-good-$defaultgstversion
+    #pwd
+    #patch -p1 < ../../OSx/patches/0009-qtdemux-aamp-tm_gst-1.16.patch
+    #patch -p1 < ../../OSx/patches/0013-qtdemux-remove-override-segment-event_gst-1.16.patch
+    #patch -p1 < ../../OSx/patches/0014-qtdemux-clear-crypto-info-on-trak-switch_gst-1.16.patch
+    #patch -p1 < ../../OSx/patches/0021-qtdemux-aamp-tm-multiperiod_gst-1.16.patch
+    #meson build
+    #ninja -C build
+    #ninja -C build install
+    #pwd
+    #cd ../
 
-	mkdir .lib
-	cd .lib
-
-	git clone -b $codebranch https://code.rdkcentral.com/r/rdk/components/generic/aampabr
-    git clone -b $codebranch https://code.rdkcentral.com/r/rdk/components/generic/gst-plugins-rdk-aamp
-    git clone -b $codebranch https://code.rdkcentral.com/r/rdk/components/generic/aampmetrics
-
-    build_install_gst_and_custom_gst_plugins
-
-	echo "Install libdash"
+    echo "Install libdash"
+    sudo rm -rf /usr/local/include/libdash
     mkdir temp
     cp ../install_libdash.sh ./temp
     cd temp
-        
-    source ./install_libdash.sh
-	cd ../../../
 
-	#Build aamp components
-	echo "Building following aamp components"
- 	
-	#Build aampabr
-	echo "Building aampabr..."
-	pwd
-	cd aampabr
-	mkdir build
-	cd build
-	cmake ../
-	make
-	sudo make install
-	cd ../..
+    sudo bash ./install_libdash.sh
+    cd ..
 
-	#Build aampmetrics
-	echo "Building aampmetrics..."
-	cd aampmetrics
-	mkdir build
-	cd build
-	cmake .. 
-	make
-	sudo make install
-	cd ../..
+    pwd
+    git clone -b $codebranch https://code.rdkcentral.com/r/rdk/components/generic/aampabr
+    git clone -b $codebranch https://code.rdkcentral.com/r/rdk/components/generic/gst-plugins-rdk-aamp
+    git clone -b $codebranch https://code.rdkcentral.com/r/rdk/components/generic/aampmetrics
+
+    #Build aamp components
+    echo "Building following aamp components"
+ 	 
+    #Build aampabr
+    echo "Building aampabr..."
+    pwd
+    cd aampabr
+    mkdir build
+    cd build
+    cmake ..
+    make
+    sudo make install
+    cd ../..
+
+    #Build aampmetrics
+    echo "Building aampmetrics..."
+    cd aampmetrics
+    mkdir build
+    cd build
+    cmake .. 
+    make
+    sudo make install
+    cd ../..
 
 
-	#Build aamp-cli
-	echo "Build aamp-cli"
-	pwd
-	cd ../
+    #Build aamp-cli
+    echo "Build aamp-cli"
+    pwd
+    cd ../
     
     #clean existing build folder if exists
     if [ -d "./build" ]; then
-	    rm -rf ./build
+       sudo rm -rf ./build
     fi
 
-	mkdir -p build
+    mkdir -p build
     
-    cd build && PKG_CONFIG_PATH=/usr/local/opt/libffi/lib/pkgconfig:/usr/local/ssl/lib/pkgconfig:$PKG_CONFIG_PATH /usr/local/bin/cmake -DCMAKE_OSX_SYSROOT="/" -DCMAKE_OSX_DEPLOYMENT_TARGET="" -G Xcode ../
+    cd build && PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/opt/libffi/lib/pkgconfig:/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/pkgconfig:/usr/local/ssl/lib/pkgconfig:/usr/local/opt/curl/lib/pkgconfig:$PKG_CONFIG_PATH /usr/local/bin/cmake -DCMAKE_OSX_SYSROOT="/" -DCMAKE_OSX_DEPLOYMENT_TARGET="" -G Xcode ../
 
-	echo "Please Start XCode, open aamp/build/AAMP.xcodeproj project file"
+    echo "Please Start XCode, open aamp/build/AAMP.xcodeproj project file"
 	
-	##Create default channel ~/aampcli.csv – supports local configuration overrides
-	echo "If not present, Create $HOME/aampcli.csv to suport virtual channel list of test assets that could be loaded in aamp-cli"
+    ##Create default channel ~/aampcli.csv – supports local configuration overrides
+    echo "If not present, Create $HOME/aampcli.csv to suport virtual channel list of test assets that could be loaded in aamp-cli"
 
-	if [ -f "$defaultchannellistfile" ]; then
-    		echo "$defaultchannellistfile exists."
-	else 
-    		echo "$defaultchannellistfile does not exist. adding default test version"
-		cp ../OSX/aampcli.csv $defaultchannellistfile
-	fi	
+    if [ -f "$defaultchannellistfile" ]; then
+    	echo "$defaultchannellistfile exists."
+    else 
+    	echo "$defaultchannellistfile does not exist. adding default test version"
+	cp ../OSX/aampcli.csv $defaultchannellistfile
+    fi	
 
     if [ -d "AAMP.xcodeproj" ]; then 
         echo "AAMP Environment Sucessfully Installed."
@@ -267,34 +285,34 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 	    echo "AAMP Environment FAILED to Install."
         arr_install_status+=("AAMP Environment FAILED to Install.")
     fi
-        
+    
+    echo "Starting Xcode, open aamp/build/AAMP.xcodeproj project file OR Execute ./aamp-cli or /playbintest <url> binaries"
+    echo "Opening AAMP project in Xcode..."
+
+    (sleep 20 ; open AAMP.xcodeproj) &
+    
     echo "Now Building aamp-cli" 
     xcodebuild -scheme aamp-cli  build
 
     if [  -f "./Debug/aamp-cli" ]; then 
         echo "OSX AAMP Build PASSED"
         arr_install_status+=("OSX AAMP Build PASSED")
-        ./Debug/aamp-cli https://cpetestutility.stb.r53.xcal.tv/VideoTestStream/main.mpd
     else
         echo "OSX AAMP Build FAILED"
         arr_install_status+=("OSX AAMP Build FAILED")
 	fi
    
-    echo "Starting Xcode, open aamp/build/AAMP.xcodeproj project file OR Execute ./aamp-cli or /playbintest <url> binaries"
-	echo "Opening AAMP project in Xcode..."
-
-    open AAMP.xcodeproj  
-	
     echo ""   
-    echo "********AAMP install summery start************"
+    echo "********AAMP install summary start************"
 
     for item in "${!arr_install_status[@]}"; 
     do
         printf "$item ${arr_install_status[$item]} \n"
     done   
     echo ""
-    echo "********AAMP install summery end************"    
-        
+    echo "********AAMP install summary end************"    
+    #Launching aamp-cli    
+   ./Debug/aamp-cli https://cpetestutility.stb.r53.xcal.tv/VideoTestStream/main.mpd
 
     exit 0
 
