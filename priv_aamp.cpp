@@ -1804,9 +1804,10 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 		}
 		pthread_mutex_unlock(&mStreamLock);
 
-		if ((mReportProgressPosn == position) && !pipeline_paused)
+		if ((mReportProgressPosn == position) && !pipeline_paused && beginningOfStream != true)
 		{
-			// Avoid sending the progress event, if the previous position and the current position is same when pipeline is in playing state.
+			// Avoid sending the progress event, if the previous position and the current position is same when pipeline is in playing state. 
+                	// Addded exception if it's beginning of stream to prevent JSPP not loading previous AD while rewind
 			bProcessEvent = false;
 		}
 
@@ -2645,7 +2646,14 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 		if (rate < 0)
 		{
 			seek_pos_seconds = culledSeconds;
-			AAMPLOG_WARN("Updated seek_pos_seconds %f ", seek_pos_seconds);
+			AAMPLOG_WARN("Updated seek_pos_seconds %f on BOS", seek_pos_seconds);
+			if (trickStartUTCMS == -1)
+			{
+				// Resetting trickStartUTCMS if it's default due to no first frame on high speed rewind. This enables ReportProgress to 
+				// send BOS event to JSPP
+				ResetTrickStartUTCTime();
+				AAMPLOG_INFO("Resetting trickStartUTCMS to %lld since no first frame on trick play rate %d", trickStartUTCMS, rate);
+			}
 			// A new report progress event to be emitted with position 0 when rewind reaches BOS
 			ReportProgress(true, true);
 			rate = AAMP_NORMAL_PLAY_RATE;
