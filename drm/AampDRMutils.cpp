@@ -41,7 +41,7 @@ static const std::string PROTOCOL_REGEX = "^[a-zA-Z0-9\\+\\.-]+://";
  *  @brief		Default constructor for DrmData.
  *				NULL initialize data and dataLength.
  */
-DrmData::DrmData() : data("")
+DrmData::DrmData() : data(NULL), dataLength(0)
 {
 }
 
@@ -53,9 +53,13 @@ DrmData::DrmData() : data("")
  *  @param[in]	data - pointer to data to be copied.
  *  @param[in]	dataLength - length of data
  */
-DrmData::DrmData(unsigned char *data, int dataLength) : data("")
+DrmData::DrmData(unsigned char *data, int dataLength) : data(NULL), dataLength(dataLength)
 {
-		this->data.assign(reinterpret_cast<const char*>(data),dataLength);
+	this->data =(unsigned char*) malloc(dataLength);
+	if(this->data != NULL)
+	{
+		memcpy(this->data,data,dataLength);  //CID:82413 - Null Returns
+	}
 }
 
 /**
@@ -64,9 +68,10 @@ DrmData::DrmData(unsigned char *data, int dataLength) : data("")
  */
 DrmData::~DrmData()
 {
-	if(!data.empty())
+	if(data != NULL)
 	{
-		data.clear();
+		free(data);
+		data = NULL;
 	}
 }
 
@@ -75,7 +80,7 @@ DrmData::~DrmData()
  *
  *  @return		Returns pointer to data.
  */
-const std::string &DrmData::getData()
+unsigned char * DrmData::getData()
 {
 	return data;
 }
@@ -88,7 +93,7 @@ const std::string &DrmData::getData()
  */
 int DrmData::getDataLength()
 {
-	return (this->data.length());
+	return dataLength;
 }
 
 /**
@@ -99,13 +104,15 @@ int DrmData::getDataLength()
  *  @param[in]	dataLength - length of data.
  *  @return		void.
  */
-void DrmData::setData(unsigned char *data, int dataLength)
+void DrmData::setData(unsigned char * data, int dataLength)
 {
-	if(!this->data.empty())
+	if(this->data != NULL)
 	{
-		this->data.clear();
+		free(this->data);
 	}
-	this->data.assign(reinterpret_cast<const char*>(data),dataLength);
+	this->data =  (unsigned char*) malloc(dataLength);
+	this->dataLength = dataLength;
+	memcpy(this->data,data,dataLength);
 }
 
 /**
@@ -115,17 +122,18 @@ void DrmData::setData(unsigned char *data, int dataLength)
  *  @param[in]  dataLength - length of data.
  *  @return     void.
  */
-void DrmData::addData(unsigned char *data, int dataLength)
+void DrmData::addData(unsigned char * data, int dataLength)
 {
-	if(this->data.empty())
+	if(NULL == this->data)
 	{
 		this->setData(data,dataLength);
 	}
 	else
 	{
-		std::string key;
-		key.assign(reinterpret_cast<const char*>(data),dataLength);
-		this->data       = this->data  + key;
+		this->data = (unsigned char*) realloc(this->data, this->dataLength + dataLength);
+		assert(this->data);
+		memcpy(&(this->data[this->dataLength]),data,dataLength);
+		this->dataLength = this->dataLength + dataLength;
 	}
 }
 

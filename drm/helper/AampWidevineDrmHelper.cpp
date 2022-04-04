@@ -226,7 +226,7 @@ void AampWidevineDrmHelper::generateLicenseRequest(const AampChallengeInfo& chal
 
 	licenseRequest.headers = {{"Content-Type:", {"application/octet-stream"}}};
 
-	licenseRequest.payload= challengeInfo.data->getData();
+	licenseRequest.payload.assign(reinterpret_cast<const char *>(challengeInfo.data->getData()), challengeInfo.data->getDataLength());
 }
 
 bool AampWidevineDrmHelperFactory::isDRM(const struct DrmInfo& drmInfo) const

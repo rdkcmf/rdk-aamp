@@ -227,6 +227,7 @@ DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL,
 	} else {
 		AAMPLOG_WARN("Timed out waiting for keyRequest");
 	}
+
 	return result;
 }
 
@@ -235,14 +236,10 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 {
 	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	int retValue = -1;
-	if (key == NULL)
-	{
-		return retValue;
-	}
-	std::string message 		= key->getData();
-	const uint8_t* keyMessage 	= reinterpret_cast<const uint8_t*>(&message[0]);
-	const uint16_t keyMessageLength = key->getDataLength();
-	
+
+	const uint8_t* keyMessage = key ? key->getData() : nullptr;
+	const uint16_t keyMessageLength = key ? key->getDataLength() : 0;
+
 	OpenCDMError status = OpenCDMError::ERROR_NONE;
 
 	if (keyMessage)

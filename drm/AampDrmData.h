@@ -27,7 +27,8 @@
 class DrmData{
 
 private:
- 	std::string data;
+	unsigned char *data;
+	int dataLength;
 public:
 
 	DrmData();
@@ -36,13 +37,13 @@ public:
 	DrmData& operator=(const DrmData&) = delete;
 	~DrmData();
 
-        const std::string  &getData();
+	unsigned char * getData();
 
 	int getDataLength();
 
-	void setData(unsigned char *data, int dataLength);
+	void setData(unsigned char * data, int dataLength);
 
-	void addData(unsigned char *data, int dataLength);
+	void addData(unsigned char * data, int dataLength);
 };
 
 

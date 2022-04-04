@@ -115,7 +115,7 @@ void AampPlayReadyHelper::generateLicenseRequest(const AampChallengeInfo& challe
 
 	if (!mContentMetaData.empty())
 	{
-		std::vector<uint8_t> challengeData(reinterpret_cast<const char*>(challengeInfo.data->getData().c_str()),reinterpret_cast<const char*>(challengeInfo.data->getData().c_str()) + challengeInfo.data->getDataLength());
+		std::vector<uint8_t> challengeData(challengeInfo.data->getData(), challengeInfo.data->getData() + challengeInfo.data->getDataLength());
 
 		AampJsonObject comChallengeObj;
 		comChallengeObj.add("keySystem", "playReady");
@@ -132,7 +132,7 @@ void AampPlayReadyHelper::generateLicenseRequest(const AampChallengeInfo& challe
 	}
 	else if (challengeInfo.data)
 	{
-	   licenseRequest.payload = challengeInfo.data->getData();
+	   licenseRequest.payload.assign(reinterpret_cast<const char *>(challengeInfo.data->getData()), challengeInfo.data->getDataLength());
 	}
 }
 
