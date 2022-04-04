@@ -1477,7 +1477,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mDisplayHeight(0)
 	, preferredRenditionString(""), preferredRenditionList(), preferredTypeString(""), preferredCodecString(""), preferredCodecList(), mAudioTuple()
 	, mProgressReportOffset(-1)
-	, mAutoResumeTaskId(0), mAutoResumeTaskPending(false), mScheduler(NULL), mEventLock(), mEventPriority(G_PRIORITY_DEFAULT_IDLE)
+	, mAutoResumeTaskId(AAMP_TASK_ID_INVALID), mAutoResumeTaskPending(false), mScheduler(NULL), mEventLock(), mEventPriority(G_PRIORITY_DEFAULT_IDLE)
 	, mStreamLock()
 	, mConfig (config),mSubLanguage(), mHarvestCountLimit(0), mHarvestConfig(0)
 	, mIsWVKIDWorkaround(false)
@@ -1522,6 +1522,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mTimedMetadataDuration(0)
 	, playerStartedWithTrickPlay(false)
 	, mPlaybackMode("UNKNOWN")
+	, mApplyVideoRect(false)
+	, mVideoRect{}
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -1977,7 +1979,7 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 				if (!mAutoResumeTaskPending)
 				{
 					mAutoResumeTaskPending = true;
-					mAutoResumeTaskId = ScheduleAsyncTask(PrivateInstanceAAMP_Resume, (void *)this);
+					mAutoResumeTaskId = ScheduleAsyncTask(PrivateInstanceAAMP_Resume, (void *)this, "PrivateInstanceAAMP_Resume");
 				}
 				else
 				{
@@ -2015,7 +2017,7 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 					if (!mAutoResumeTaskPending)
 					{
 						mAutoResumeTaskPending = true;
-						mAutoResumeTaskId = ScheduleAsyncTask(PrivateInstanceAAMP_Resume, (void *)this);
+						mAutoResumeTaskId = ScheduleAsyncTask(PrivateInstanceAAMP_Resume, (void *)this, "PrivateInstanceAAMP_Resume");
 					}
 					else
 					{
@@ -5008,6 +5010,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		{
 			/*For OTA this event will be generated from StreamAbstractionAAMP_OTA*/
 			SetState(eSTATE_PREPARED);
+			SendMediaMetadataEvent();
 		}
 	}
 }
@@ -5387,6 +5390,21 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	AcquireStreamLock();
 	TuneHelper(tuneType);
 	ReleaseStreamLock();
+
+	// To check and apply stored video rectangle properties
+	if (mApplyVideoRect)
+	{
+		if ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE))
+		{
+			mpStreamAbstractionAAMP->SetVideoRectangle(mVideoRect.horizontalPos, mVideoRect.verticalPos, mVideoRect.width, mVideoRect.height);
+		}
+		else
+		{
+			mStreamSink->SetVideoRectangle(mVideoRect.horizontalPos, mVideoRect.verticalPos, mVideoRect.width, mVideoRect.height);
+		}
+		AAMPLOG_INFO("Update SetVideoRectangle x:%d y:%d w:%d h:%d", mVideoRect.horizontalPos, mVideoRect.verticalPos, mVideoRect.width, mVideoRect.height);
+		mApplyVideoRect = false;
+	}
 	// do not change location of this set, it should be done after sending perviouse VideoEnd data which
 	// is done in TuneHelper->SendVideoEndEvent function.
 	if(pTraceID)
@@ -6282,7 +6300,23 @@ bool PrivateInstanceAAMP::GetAsyncTuneConfig()
 {
         return mAsyncTuneEnabled;
 }
-
+/**
+ *   @brief Update video rectangle.
+ *
+ *   @param  x - horizontal start position.
+ *   @param  y - vertical start position.
+ *   @param  w - width.
+ *   @param  h - height.
+ */
+void PrivateInstanceAAMP::UpdateVideoRectangle (int x, int y, int w, int h)
+{
+	mVideoRect.horizontalPos = x;
+	mVideoRect.verticalPos   = y;
+	mVideoRect.width = w;
+	mVideoRect.height = h;
+	mApplyVideoRect = true;
+	AAMPLOG_INFO("Backup VideoRectangle x:%d y:%d w:%d h:%d", x, y, w, h);
+}
 /**
  *   @brief Set video rectangle.
  *
@@ -6293,25 +6327,27 @@ bool PrivateInstanceAAMP::GetAsyncTuneConfig()
  */
 void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
-	if ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE))
+	PrivAAMPState state;
+	GetState(state);
+	pthread_mutex_lock(&mStreamLock);
+	if (mpStreamAbstractionAAMP && state > eSTATE_PREPARING)
 	{
-		pthread_mutex_lock(&mStreamLock);
-		if (mpStreamAbstractionAAMP)
+		if ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE))
 		{
 			mpStreamAbstractionAAMP->SetVideoRectangle(x, y, w, h);
 		}
 		else
 		{
-			AAMPLOG_ERR("No mpStreamAbstractionAAMP instance available to set video rectangle co-ordinates. Skip for now!");
+			mStreamSink->SetVideoRectangle(x, y, w, h);
 		}
-		pthread_mutex_unlock(&mStreamLock);
 	}
 	else
 	{
-		mStreamSink->SetVideoRectangle(x, y, w, h);
+		AAMPLOG_INFO("mpStreamAbstractionAAMP is not Ready, Backup video rect values");
+		UpdateVideoRectangle (x, y, w, h);
 	}
+	pthread_mutex_unlock(&mStreamLock);
 }
-
 /**
  *   @brief Set video zoom.
  *
@@ -6612,7 +6648,7 @@ void PrivateInstanceAAMP::Stop()
 	if (mAutoResumeTaskPending)
 	{
 		RemoveAsyncTask(mAutoResumeTaskId);
-		mAutoResumeTaskId = 0;
+		mAutoResumeTaskId = AAMP_TASK_ID_INVALID;
 		mAutoResumeTaskPending = false;
 	}
 
@@ -7120,7 +7156,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 				pthread_mutex_unlock(&mLock);
 				return;
 			}
-			mDiscontinuityTuneOperationId = ScheduleAsyncTask(PrivateInstanceAAMP_ProcessDiscontinuity, (void *)this);
+			mDiscontinuityTuneOperationId = ScheduleAsyncTask(PrivateInstanceAAMP_ProcessDiscontinuity, (void *)this, "PrivateInstanceAAMP_ProcessDiscontinuity");
 			pthread_mutex_unlock(&mLock);
 
 			AAMPLOG_WARN("PrivateInstanceAAMP: Underflow due to discontinuity handled");
@@ -7213,7 +7249,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 									AAMPLOG_WARN("PrivateInstanceAAMP: Schedule Retune. diffMs %lld < threshold %lld",
 										diffMs, GetLLDashServiceData()->lowLatencyMode?
 										AAMP_MAX_TIME_LL_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS:AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS);
-									ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this);
+									ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this, "PrivateInstanceAAMP_Retune");
 								}
 							}
 							else
@@ -7236,7 +7272,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 					{
 						AAMPLOG_WARN("PrivateInstanceAAMP: Schedule Retune errorType %d error %s", errorType, errorString);
 						gAAMPInstance->reTune = true;
-						ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this);
+						ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this, "PrivateInstanceAAMP_Retune");
 					}
 				}
 				activeAAMPFound = true;
@@ -7276,6 +7312,7 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 	mState = state;
 	pthread_mutex_unlock(&mLock);
 
+	mScheduler->SetState(mState);
 	if (mEventManager->IsEventListenerAvailable(AAMP_EVENT_STATE_CHANGED))
 	{
 		if (mState == eSTATE_PREPARING)
@@ -8146,23 +8183,25 @@ void PrivateInstanceAAMP::SendHTTPHeaderResponse()
 }
 
 /**
- *   @brief  Generate media metadata event based on args passed.
+ *   @brief  Generate media metadata event based on processed attribute values.
  *
- *   @param[in] durationMs - duration of playlist in milliseconds
- *   @param[in] langList - list of audio language available in asset
- *   @param[in] bitrateList - list of video bitrates available in asset
- *   @param[in] hasDrm - indicates if asset is encrypted/clear
- *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
- *   @param[in] programStartTime - indicates the program or availability start time.
  */
-void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std::string>langList, std::vector<long> bitrateList, bool hasDrm, bool isIframeTrackPresent, double programStartTime)
+void PrivateInstanceAAMP::SendMediaMetadataEvent(void)
 {
 	std::vector<int> supportedPlaybackSpeeds { -64, -32, -16, -4, -1, 0, 1, 4, 16, 32, 64 };
+	std::vector<long> bitrateList;
+	std::set<std::string> langList;
 	int langCount = 0;
 	int bitrateCount = 0;
 	int supportedSpeedCount = 0;
 	int width  = 1280;
 	int height = 720;
+
+	bitrateList = mpStreamAbstractionAAMP->GetVideoBitrates();
+	for (int i = 0; i <mMaxLanguageCount; i++)
+	{
+		langList.insert(mLanguageList[i]);
+	}
 
 	GetPlayerVideoSize(width, height);
 
@@ -8173,7 +8212,7 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 		drmType = helper->friendlyName();
 	}
 
-	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(durationMs, width, height, hasDrm, IsLive(), drmType, programStartTime);
+	MediaMetadataEventPtr event = std::make_shared<MediaMetadataEvent>(CONVERT_SEC_TO_MS(durationSeconds), width, height, mpStreamAbstractionAAMP->hasDrm, IsLive(), drmType, mpStreamAbstractionAAMP->mProgramStartTime);
 
 	for (auto iter = langList.begin(); iter != langList.end(); iter++)
 	{
@@ -8190,7 +8229,7 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 	}
 
 	//Iframe track present and hence playbackRate change is supported
-	if (isIframeTrackPresent)
+	if (mIsIframeTrackPresent)
 	{
 		for(int i = 0; i < supportedPlaybackSpeeds.size(); i++)
 		{
@@ -9766,22 +9805,15 @@ void PrivateInstanceAAMP::EnableContentRestrictions()
  *   @param[in] arg - Data
  *   @return int - task id
  */
-int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg)
+int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg, std::string taskName)
 {
-	int taskId = 0;
-	if (GetAsyncTuneConfig())
+	int taskId = AAMP_TASK_ID_INVALID;
+	if (mScheduler)
 	{
-		if (mScheduler)
+		taskId = mScheduler->ScheduleTask(AsyncTaskObj(task, arg, taskName));
+		if (taskId == AAMP_TASK_ID_INVALID)
 		{
-			taskId = mScheduler->ScheduleTask(AsyncTaskObj(task, arg));
-			if (taskId == AAMP_SCHEDULER_ID_INVALID)
-			{
-				AAMPLOG_ERR("mScheduler returned invalid ID, dropping the schedule request!");
-			}
-		}
-		else
-		{
-			AAMPLOG_ERR("mScheduler is NULL, this is a potential issue, dropping the schedule request for now");
+			AAMPLOG_ERR("mScheduler returned invalid ID, dropping the schedule request!");
 		}
 	}
 	else
@@ -9800,7 +9832,7 @@ int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg)
 bool PrivateInstanceAAMP::RemoveAsyncTask(int taskId)
 {
 	bool ret = false;
-	if (GetAsyncTuneConfig())
+	if (mScheduler)
 	{
 		ret = mScheduler->RemoveTask(taskId);
 	}
