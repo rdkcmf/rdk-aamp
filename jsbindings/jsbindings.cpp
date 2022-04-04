@@ -2151,20 +2151,6 @@ static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObject
 			{
 				char* url = aamp_JSValueToCString(context, arguments[0], exception);
 				aamp_ApplyPageHttpHeaders(pAAMP->_aamp);
-				if(pAAMP->_aamp->GetAsyncTuneConfig())
-				{
-					const std::string manifest = std::string(url);
-					const std::string cType = (contentType != NULL) ? std::string(contentType) : std::string();
-
-					INFO("[AAMP_JS] %s() ASYNC_TUNE CREATE url='%s'", __FUNCTION__, url);
-					pAAMP->_aamp->ScheduleTask(AsyncTaskObj(
-								[manifest, cType, bFirstAttempt, bFinalAttempt](void *data)
-								{
-									PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-									instance->Tune(manifest.c_str(), true, cType.c_str(), bFirstAttempt, bFinalAttempt);
-								}, (void *) pAAMP->_aamp));
-				}
-				else
 				{
 					pAAMP->_aamp->Tune(url, true, contentType, bFirstAttempt, bFinalAttempt);
 
@@ -2260,21 +2246,6 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 			LOG("[AAMP_JS] %s() - authToken provided by the App", __FUNCTION__);
 			pAAMP->_aamp->SetSessionToken(strAuthToken);
 		}
-		if(pAAMP->_aamp->GetAsyncTuneConfig())
-		{
-			const std::string manifest = std::string(url);
-			const std::string cType = (contentType != NULL) ? std::string(contentType) : std::string();
-			const std::string traceId = (strTraceId != NULL) ? std::string(strTraceId) : std::string();
-
-			INFO("[AAMP_JS] %s() ASYNC_TUNE CREATE url='%s'", __FUNCTION__, url);
-			pAAMP->_aamp->ScheduleTask(AsyncTaskObj(
-						[manifest, cType, bFirstAttempt, bFinalAttempt, traceId](void *data)
-						{
-							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->Tune(manifest.c_str(), true, cType.c_str(), bFirstAttempt, bFinalAttempt, traceId.c_str());
-						}, (void *) pAAMP->_aamp));
-		}
-		else
 		{
 			pAAMP->_aamp->Tune(url, true, contentType, bFirstAttempt, bFinalAttempt, strTraceId);
 		}
@@ -2353,16 +2324,6 @@ static JSValueRef AAMP_setRate(JSContextRef context, JSObjectRef function, JSObj
 			overshoot = (int)JSValueToNumber(context, arguments[1], exception);
 		}
 		LOG("[AAMP_JS] %s () rate=%d, overshoot=%d", __FUNCTION__, rate, overshoot);
-		if (pAAMP->_aamp->GetAsyncTuneConfig())
-		{
-			pAAMP->_aamp->ScheduleTask(AsyncTaskObj(
-						[rate, overshoot](void *data)
-						{
-							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->SetRate(rate, overshoot);
-						}, (void *) pAAMP->_aamp));
-		}
-		else
 		{
 			pAAMP->_aamp->SetRate(rate, overshoot);
 		}
@@ -2401,16 +2362,6 @@ static JSValueRef AAMP_seek(JSContextRef context, JSObjectRef function, JSObject
 	{
 		double position = JSValueToNumber(context, arguments[0], exception);
 		LOG("[AAMP_JS] %s () position=%g", __FUNCTION__, position);
-		if (pAAMP->_aamp->GetAsyncTuneConfig())
-		{
-			pAAMP->_aamp->ScheduleTask(AsyncTaskObj(
-						[position](void *data)
-						{
-							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->Seek(position);
-						}, (void *) pAAMP->_aamp));
-		}
-		else
 		{
 			pAAMP->_aamp->Seek(position);
 		}
@@ -2440,16 +2391,6 @@ static JSValueRef AAMP_seekToLive(JSContextRef context, JSObjectRef function, JS
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.seekToLive on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
-	if (pAAMP->_aamp->GetAsyncTuneConfig())
-	{
-		pAAMP->_aamp->ScheduleTask(AsyncTaskObj(
-						[](void *data)
-						{
-							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->SeekToLive();
-						}, (void *) pAAMP->_aamp));
-	}
-	else
 	{
 		pAAMP->_aamp->SeekToLive();
 	}
@@ -2489,16 +2430,6 @@ static JSValueRef AAMP_setRect(JSContextRef context, JSObjectRef function, JSObj
 		int y = JSValueToNumber(context, arguments[1], exception);
 		int w = JSValueToNumber(context, arguments[2], exception);
 		int h = JSValueToNumber(context, arguments[3], exception);
-		if (pAAMP->_aamp->GetAsyncTuneConfig())
-		{
-			pAAMP->_aamp->ScheduleTask(AsyncTaskObj(
-						[x, y, w, h](void *data)
-						{
-							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->SetVideoRectangle(x, y, w, h);
-						}, (void *) pAAMP->_aamp));
-		}
-		else
 		{
 			pAAMP->_aamp->SetVideoRectangle(x, y, w, h);
 		}
@@ -2652,17 +2583,6 @@ static JSValueRef AAMP_setLanguage(JSContextRef context, JSObjectRef function, J
 	else
 	{
 		char* lang = aamp_JSValueToCString(context, arguments[0], exception);
-		if (pAAMP->_aamp->GetAsyncTuneConfig())
-		{
-			std::string language = std::string(lang);
-			pAAMP->_aamp->ScheduleTask(AsyncTaskObj(
-						[language](void *data)
-						{
-							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->SetLanguage(language.c_str());
-						}, (void *) pAAMP->_aamp));
-		}
-		else
 		{
 			pAAMP->_aamp->SetLanguage(lang);
 		}
@@ -2988,16 +2908,6 @@ static JSValueRef AAMP_setAudioTrack(JSContextRef context, JSObjectRef function,
 		int index = (int) JSValueToNumber(context, arguments[0], NULL);
 		if (index >= 0)
 		{
-			if (pAAMP->_aamp->GetAsyncTuneConfig())
-			{
-				pAAMP->_aamp->ScheduleTask(AsyncTaskObj(
-							[index](void *data)
-							{
-								PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-								instance->SetAudioTrack(index);
-							}, (void *) pAAMP->_aamp));
-			}
-			else
 			{
 				pAAMP->_aamp->SetAudioTrack(index);
 			}
