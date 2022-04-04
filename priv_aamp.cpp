@@ -828,10 +828,10 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
 		{
 			size_t len = context->contentLength + 2;
 			/*Add 2 additional characters to take care of extra characters inserted by aamp_AppendNulTerminator*/
-			if(context->downloadIsEncoded)
+			if(context->downloadIsEncoded && (len < DEFAULT_ENCODED_CONTENT_BUFFER_SIZE))
 			{
-				// Allocate 20% extra if content is encoded
-				len += (0.2 * context->contentLength);
+				// Allocate a fixed buffer for encoded contents. Content length is not trusted here
+				len = DEFAULT_ENCODED_CONTENT_BUFFER_SIZE;
 			}
 			assert(!context->buffer->ptr);
 			context->buffer->ptr = (char *)g_malloc( len );
