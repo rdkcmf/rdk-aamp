@@ -203,7 +203,7 @@ public:
 
 	void setVideoWindowSize(int width, int height);
 
-	void setPlaybackSpeedState(int speed, double position);
+	void setPlaybackSpeedState(int speed, double position, bool delayNeeded = false);
 
 	void setSessionMgrState(SessionMgrState state);
 

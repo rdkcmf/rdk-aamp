@@ -307,14 +307,14 @@ void AampDRMSessionManager::setVideoWindowSize(int width, int height)
 #endif
 }
 
-void AampDRMSessionManager::setPlaybackSpeedState(int speed, double position)
+void AampDRMSessionManager::setPlaybackSpeedState(int speed, double position, bool delayNeeded)
 {
 #ifdef USE_SECMANAGER
 	logprintf("In AampDRMSessionManager::%s after calling setPlaybackSpeedState speed=%d position=%f mSessionId=[%" PRId64 "]",__FUNCTION__,speed, position, mSessionId);
 	if(mSessionId != AAMP_SECMGR_INVALID_SESSION_ID)
 	{
-		logprintf("In AampDRMSessionManager::%s valid session ID",__FUNCTION__);
-		AampSecManager::GetInstance()->setPlaybackSpeedState(mSessionId, speed, position);
+		AAMPLOG_WARN("In AampDRMSessionManager::valid session ID");
+		AampSecManager::GetInstance()->setPlaybackSpeedState(mSessionId, speed, position, delayNeeded);
 	}
 #endif
 }
