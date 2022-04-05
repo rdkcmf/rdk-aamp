@@ -113,6 +113,9 @@
 #define AAMP_RATE_PAUSE			0
 #define AAMP_RATE_INVALID		INT_MAX
 
+//player id can be -1 when not initialized, but can never be -2
+#define INVALID_PLAYER_ID -2
+
 #define STRLEN_LITERAL(STRING) (sizeof(STRING)-1)
 #define STARTS_WITH_IGNORE_CASE(STRING, PREFIX) (0 == strncasecmp(STRING, PREFIX, STRLEN_LITERAL(PREFIX)))
 

@@ -10515,3 +10515,24 @@ void PrivateInstanceAAMP::LoadFogConfig(void)
 	long http_error = -1;
 	ProcessCustomCurlRequest(remoteUrl, NULL, &http_error, eCURL_POST, jsonStr);
 }
+
+/**
+ * @brief Find foreground instance if present
+ * @retval player id of the foregound player if exists, else return -2
+ */
+int PrivateInstanceAAMP::SearchForAnyForegroundPlayers()
+{
+	int ret = INVALID_PLAYER_ID;
+	pthread_mutex_lock(&gMutex);
+	for(auto &player : gActivePrivAAMPs)
+	{
+		//To look for any valid player with play enabled
+		if(this!=player.pAAMP && player.pAAMP->IsPlayEnabled() && player.pAAMP->mpStreamAbstractionAAMP )
+		{
+			ret =  player.pAAMP->mPlayerId;
+			break;
+		}
+	}
+	pthread_mutex_unlock(&gMutex);
+	return ret;
+}
