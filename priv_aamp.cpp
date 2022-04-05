@@ -7892,7 +7892,10 @@ void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 #ifdef USE_SECMANAGER
 	if(ISCONFIGSET_PRIV(eAAMPConfig_UseSecManager))
 	{
-        mDRMSessionManager->setPlaybackSpeedState(rate,seek_pos_seconds);
+		//Thread to call setplayback speed as it needs a 500ms delay here
+		std::thread t([&](){
+			mDRMSessionManager->setPlaybackSpeedState(rate,seek_pos_seconds, true);});
+		t.detach();
 		int x,y,w,h;
 		sscanf(mStreamSink->GetVideoRectangle().c_str(),"%d,%d,%d,%d",&x,&y,&w,&h);
         AAMPLOG_WARN("calling setVideoWindowSize  w:%d x h:%d ",w,h);

@@ -149,6 +149,9 @@
 #define SECMANGER_ACCTOKEN_EXPIRED 8
 #define SECMANGER_ENTITLEMENT_FAILURE 102
 
+//delay for the first speed set event
+#define SECMANGER_SPEED_SET_DELAY 500
+
 /**
  * @brief Enumeration for TUNED Event Configuration
  */

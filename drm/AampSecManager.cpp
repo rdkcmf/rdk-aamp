@@ -59,7 +59,7 @@ void AampSecManager::DestroyInstance()
  * @brief AampScheduler Constructor
  */
 AampSecManager::AampSecManager() : mSecManagerObj(SECMANAGER_CALL_SIGN), mSecMutex(), mSchedulerStarted(false),
-				   mRegisteredEvents(), mWatermarkPluginObj(WATERMARK_PLUGIN_CALLSIGN), mWatMutex()
+				   mRegisteredEvents(), mWatermarkPluginObj(WATERMARK_PLUGIN_CALLSIGN), mWatMutex(), mSpeedStateMutex()
 {
 	
 	std::lock_guard<std::mutex> lock(mSecMutex);
@@ -447,13 +447,20 @@ bool AampSecManager::setVideoWindowSize(int64_t sessionId, int64_t video_width, 
  *
  * @param[in] sessionId - session id
  * @param[in] playback_speed - playback speed 
- * @param[in] playback_position - playback position 
+ * @param[in] playback_position - playback position
+ *@param[in] delayNeeded - if delay is required, to avoid any wm flash before tune
  */
-bool AampSecManager::setPlaybackSpeedState(int64_t sessionId, int64_t playback_speed, int64_t playback_position)
+bool AampSecManager::setPlaybackSpeedState(int64_t sessionId, int64_t playback_speed, int64_t playback_position, bool delayNeeded)
 {
        bool rpcResult = false;
        JsonObject result;
        JsonObject param;
+       //mSpeedStateMutex is used to avoid any speedstate event to go when a delayed event is in progress results change in order of event call (i.e, if user tries a trickplay within half a second of tune)
+       std::lock_guard<std::mutex> lock(mSpeedStateMutex);
+       if(delayNeeded)
+       {
+              mssleep(SECMANGER_SPEED_SET_DELAY);
+       }
 
        param["sessionId"] = sessionId;
        param["playbackSpeed"] = playback_speed;
