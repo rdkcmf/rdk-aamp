@@ -2140,13 +2140,23 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 						{
 							AAMPLOG_INFO("Processing skipToEnd for track type %d", pMediaStreamContext->type);
 						}
-						else if (pMediaStreamContext->type == eTRACK_AUDIO && (mFirstFragPTS[eTRACK_VIDEO] || mFirstPTS || mVideoPosRemainder)){
-							/* need to adjust audio skipTime/seekPosition so 1st audio fragment sent matches start of 1st video fragment being sent */
-							double newSkipTime = skipTime + (mFirstFragPTS[eTRACK_VIDEO] - firstPTS); /* adjust for audio/video frag start PTS differences */
-							newSkipTime -= mVideoPosRemainder;   /* adjust for mVideoPosRemainder, which is (video seekposition/skipTime - mFirstPTS) */
-							newSkipTime += fragmentDuration/4.0; /* adjust for case where video start is near end of current audio fragment by adding to the audio skipTime, pushing it into the next fragment, if close(within this adjustment) */
-//							AAMPLOG_INFO("newSkiptime %f, skipTime %f  mFirstFragPTS[vid] %f  firstPTS %f  mFirstFragPTS[vid]-firstPTS %f mVideoPosRemainder %f  fragmentDuration/4.0 %f", newSkipTime, skipTime, mFirstFragPTS[eTRACK_VIDEO], firstPTS, mFirstFragPTS[eTRACK_VIDEO]-firstPTS, mVideoPosRemainder,  fragmentDuration/4.0);
-							skipTime = newSkipTime;
+						else
+						{
+							//When player started with rewind mode during trickplay, make sure that the skip time calcualtion would not spill over the duration of the content
+							if(aamp->playerStartedWithTrickPlay && aamp->rate < 0 && skipTime > fragmentDuration )
+							{
+								AAMPLOG_INFO("Player switched in rewind mode, adjusted skptime from %f to %f ", skipTime, skipTime - fragmentDuration);
+								skipTime -= fragmentDuration;
+							}
+							if (pMediaStreamContext->type == eTRACK_AUDIO && (mFirstFragPTS[eTRACK_VIDEO] || mFirstPTS || mVideoPosRemainder)){
+								
+								/* need to adjust audio skipTime/seekPosition so 1st audio fragment sent matches start of 1st video fragment being sent */
+								double newSkipTime = skipTime + (mFirstFragPTS[eTRACK_VIDEO] - firstPTS); /* adjust for audio/video frag start PTS differences */
+								newSkipTime -= mVideoPosRemainder;   /* adjust for mVideoPosRemainder, which is (video seekposition/skipTime - mFirstPTS) */
+								newSkipTime += fragmentDuration/4.0; /* adjust for case where video start is near end of current audio fragment by adding to the audio skipTime, pushing it into the next fragment, if close(within this adjustment) */
+								//							AAMPLOG_INFO("newSkiptime %f, skipTime %f  mFirstFragPTS[vid] %f  firstPTS %f  mFirstFragPTS[vid]-firstPTS %f mVideoPosRemainder %f  fragmentDuration/4.0 %f", newSkipTime, skipTime, mFirstFragPTS[eTRACK_VIDEO], firstPTS, mFirstFragPTS[eTRACK_VIDEO]-firstPTS, mVideoPosRemainder,  fragmentDuration/4.0);
+								skipTime = newSkipTime;
+							}
 						}
 						firstFrag = false;
 						mFirstFragPTS[pMediaStreamContext->mediaType] = firstPTS;
@@ -7909,7 +7919,14 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 				{
 					if(trickPlay && pMediaStreamContext->mDownloadedFragment.ptr == NULL)
 					{
-						if((rate > 0 && delta <= 0) || (rate < 0 && delta >= 0))
+						//When player started in trickplay rate during player swithcing, make sure that we are showing atleast one frame (mainly to avoid cases where trickplay rate is so high that an ad could get skipped completely)
+						if(aamp->playerStartedWithTrickPlay)
+						{
+							AAMPLOG_WARN("Played switched in trickplay, delta set to zero");
+							delta = 0;
+							aamp->playerStartedWithTrickPlay = false;
+						}
+						else if((rate > 0 && delta <= 0) || (rate < 0 && delta >= 0))
 						{
 							delta = rate / vodTrickplayFPS;
 						}

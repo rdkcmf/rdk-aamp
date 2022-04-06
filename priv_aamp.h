@@ -884,7 +884,7 @@ public:
 	std::string mFailureReason;   		/** String to hold the tune failure reason  */
 	long long mTimedMetadataStartTime;	/** Start time to report TimedMetadata   */
 	long long mTimedMetadataDuration;
-
+	bool playerStartedWithTrickPlay; //To indicate player switch happened in trickplay rate
 	/**
 	 * @brief Check if segment starts with an ID3 section
 	 *
