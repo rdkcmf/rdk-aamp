@@ -372,13 +372,13 @@ size_t AampDRMSessionManager::write_callback(char *ptr, size_t size,
 		callbackData->mDRMSessionManager->setCurlAbort(false);
 
         }
-        else if (NULL == data->getData())        
+        else if (data->getData().empty())        
         {
-		data->setData((unsigned char *) ptr, numBytesForBlock);
+		data->setData((unsigned char *)ptr, numBytesForBlock);
 	}
 	else
 	{
-		data->addData((unsigned char *) ptr, numBytesForBlock);
+		data->addData((unsigned char *)ptr, numBytesForBlock);
 	}
 	if (gpGlobalConfig->logging.trace)
 	{
@@ -451,7 +451,7 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
 			if (httpCode == 200 || httpCode == 206)
 			{
-				string tokenReplyStr = string(reinterpret_cast<char*>(tokenReply->getData()));
+				string tokenReplyStr = tokenReply->getData();
 				string tokenStatusCode = _extractSubstring(tokenReplyStr, "status\":", ",\"");
 				if(tokenStatusCode.length() == 0)
 				{
@@ -543,8 +543,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	const char *mediaUsage = "stream";
 	string contentMetaData = drmHelper->getDrmMetaData();
 	char *encodedData = base64_Encode(reinterpret_cast<const unsigned char*>(contentMetaData.c_str()), contentMetaData.length());
-	char *encodedChallengeData = base64_Encode(challengeInfo.data->getData(), challengeInfo.data->getDataLength());
-	
+	char *encodedChallengeData = base64_Encode(reinterpret_cast<const unsigned char*>(challengeInfo.data->getData().c_str()), challengeInfo.data->getDataLength());
 	//Calculate the lengths using the logic in base64_Encode
 	size_t encodedDataLen = ((contentMetaData.length() + 2) /3) * 4;
 	size_t encodedChallengeDataLen = ((challengeInfo.data->getDataLength() + 2) /3) * 4;
@@ -648,7 +647,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 														 encodedChallengeData, strlen(encodedChallengeData), keySystem, mediaUsage,
 														 secclientSessionToken,
 														 &licenseResponseStr, &licenseResponseLength, &refreshDuration, &statusInfo);
-			
+		
 			if (((sec_client_result >= 500 && sec_client_result < 600)||
 				 (sec_client_result >= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_TLS  && sec_client_result <= SEC_CLIENT_RESULT_HTTP_RESULT_FAILURE_GENERIC ))
 				&& attemptCount < MAX_LICENSE_REQUEST_ATTEMPTS)
@@ -681,7 +680,6 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 			eventHandle->setAccessStatusValue(statusInfo.accessAttributeStatus);
 			licenseResponse = new DrmData((unsigned char *)licenseResponseStr, licenseResponseLength);
 		}
-		
 		if (licenseResponseStr) SecClient_FreeResource(licenseResponseStr);
 #if USE_SECMANAGER
 	}
@@ -689,7 +687,6 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 #endif
 	free(encodedData);
 	free(encodedChallengeData);
-
 	return licenseResponse;
 }
 #endif
@@ -1477,7 +1474,7 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 					Licence to decrypt the data can be found by extracting the contents for JSON key licence
 					Format : {"licence":"b64encoded licence","accessAttributes":"0"}
 				*/
-				string jsonStr(reinterpret_cast<char*>(licenseResponse->getData()), licenseResponse->getDataLength());
+				string jsonStr(licenseResponse->getData().c_str(), licenseResponse->getDataLength());
 
 				try
 				{
@@ -1576,10 +1573,11 @@ KeyState AampDRMSessionManager::processLicenseResponse(std::shared_ptr<AampDrmHe
 	 * for processing and the DRM session should await the key from the DRM implementation
 	 */
 	AAMPLOG_INFO("Updating the license response to the aampDRMSession(CDM)");
-
 	aampInstance->profiler.ProfileBegin(PROFILE_BUCKET_LA_POSTPROC);
 	cdmError = drmSessionContexts[sessionSlot].drmSession->aampDRMProcessKey(licenseResponse.get(), drmHelper->keyProcessTimeout());
+
 	aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_POSTPROC);
+
 
 	KeyState code = drmSessionContexts[sessionSlot].drmSession->getState();
 
