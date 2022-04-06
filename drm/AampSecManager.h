@@ -94,7 +94,7 @@ public:
 
 	bool setVideoWindowSize(int64_t sessionId, int64_t video_width, int64_t video_height);
 
-	bool setPlaybackSpeedState(int64_t sessionId, int64_t playback_speed, int64_t playback_position, delayNeeded = false);
+	bool setPlaybackSpeedState(int64_t sessionId, int64_t playback_speed, int64_t playback_position, bool delayNeeded = false);
 
 	bool loadClutWatermark(int64_t sessionId, int64_t graphicId, int64_t watermarkClutBufferKey, int64_t watermarkImageBufferKey, int64_t clutPaletteSize, const char* clutPaletteFormat, int64_t watermarkWidth, int64_t watermarkHeight, float aspectRatio);
 
