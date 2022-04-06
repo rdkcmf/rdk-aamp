@@ -569,6 +569,11 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 				aamp->mbSeeked = false;
 				return;
 			}
+			else if(AAMP_RATE_PAUSE != rate)
+			{
+				AAMPLOG_INFO("Player switched at trickplay %d", rate);
+				aamp->playerStartedWithTrickPlay = true; //to be used to show atleast one frame
+			}
 		}
 		bool retValue = true;
 		if (rate > 0 && aamp->IsLive() && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint() && aamp->rate >= AAMP_NORMAL_PLAY_RATE && !aamp->mbDetached)

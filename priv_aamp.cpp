@@ -1516,7 +1516,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mFailureReason("")
 	, mTimedMetadataStartTime(0)
 	, mTimedMetadataDuration(0)
-
+	, playerStartedWithTrickPlay(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
