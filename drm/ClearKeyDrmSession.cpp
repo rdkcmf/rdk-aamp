@@ -265,7 +265,7 @@ int ClearKeySession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 		return ret;
 	}
 
-	std::string keyDataStr((const char*)key->getData(), key->getDataLength());
+	std::string keyDataStr = key->getData();
 	AAMPLOG_INFO("ClearKeySession: Processing license response %s", keyDataStr.c_str());
 	if (m_eKeyState == KEY_PENDING)
 	{

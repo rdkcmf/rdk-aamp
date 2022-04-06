@@ -290,17 +290,16 @@ DrmData * AAMPOCDMSession::aampGenerateKeyRequest(string& destinationURL, uint32
 int AAMPOCDMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 {
 	int retvalue = -1;
-
 #ifdef TRACE_LOG
 	cout << "aampDRMProcessKey :: Playready Update" << endl;
 #endif
 	pthread_mutex_lock(&decryptMutex);
 	std::string responseMessage;
-
 	media::OpenCdm::KeyStatus keyStatus = media::OpenCdm::KeyStatus::InternalError;
-	const uint8_t* keyMessage = key ? key->getData() : nullptr;
-	const uint16_t keyMessageLength = key ? key->getDataLength() : 0;
-
+	std::string message 	  	= key ? key->getData():"";
+	const uint8_t* keyMessage 	= reinterpret_cast<const uint8_t*>(&message[0]);
+	const uint16_t keyMessageLength = key ? key->getDataLength():0;
+	
 	if (keyMessage)
 	{
 		keyStatus = m_pOpencdm->Update(keyMessage, keyMessageLength, responseMessage);
