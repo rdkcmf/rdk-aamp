@@ -7638,7 +7638,8 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 			pthread_mutex_lock(&mLock);
 			if(mVideoEnd)
 			{
-				mVideoEnd->Increment_Data(dataType,trackType,bitrate,curlDownloadTime,curlOrHTTPCode,false,audioIndex, manifestData);
+				//curl download time is in seconds, convert it into milliseconds for video end metrics
+				mVideoEnd->Increment_Data(dataType,trackType,bitrate,curlDownloadTime * 1000,curlOrHTTPCode,false,audioIndex, manifestData);
 				if((curlOrHTTPCode != 200) && (curlOrHTTPCode != 206) && strUrl.c_str())
 				{
 					//set failure url
