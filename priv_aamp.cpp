@@ -1255,23 +1255,7 @@ static int progress_callback(
 			}
 			else
 			{
-				long downloadbps = 0;
-				if(context->lowBWTimeout > 0 && (eMEDIATYPE_VIDEO == context->fileType))
-				{
-					downloadbps = getCurrentContentDownloadSpeed(aamp, context->fileType, context->dlStarted, (long)context->downloadStartTime, dlnow);
-					long currentProfilebps  = context->aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
-					double timeElapsedInSec = (double)(NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs  //CID:85922 - UNINTENDED_INTEGER_DIVISION
-					if(timeElapsedInSec >= context->lowBWTimeout)
-					{
-						if((downloadbps + DEFAULT_BITRATE_OFFSET_FOR_DOWNLOAD) < currentProfilebps)
-						{
-							AAMPLOG_WARN("Abort download as content is estimated to be expired current BW : %ld bps, min required:%ld bps", downloadbps, currentProfilebps);
-							context->abortReason = eCURL_ABORT_REASON_LOW_BANDWIDTH_TIMEDOUT;
-							rc = -1;
-						}
-					}
-				}
-				if (( rc==0 ) && (dlnow == context->downloadSize))
+				if (dlnow == context->downloadSize)
 				{ // no change in downloaded bytes - check time since last update to infer stall
 					double timeElapsedSinceLastUpdate = (NOW_STEADY_TS_MS - context->downloadUpdatedTime) / 1000.0; //in secs
 					if (timeElapsedSinceLastUpdate >= context->stallTimeout)
@@ -1285,6 +1269,21 @@ static int progress_callback(
 				{ // received additional bytes - update state to track new size/time
 					context->downloadSize = dlnow;
 					context->downloadUpdatedTime = NOW_STEADY_TS_MS;
+				}
+			}
+		}
+		else if (dlnow > 0 && context->lowBWTimeout > 0 && eMEDIATYPE_VIDEO == context->fileType)
+		{
+			long downloadbps = getCurrentContentDownloadSpeed(aamp, context->fileType, context->dlStarted, (long)context->downloadStartTime, dlnow);
+			long currentProfilebps  = context->aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
+			double timeElapsedInSec = (double)(NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs  //CID:85922 - UNINTENDED_INTEGER_DIVISION
+			if(timeElapsedInSec >= context->lowBWTimeout)
+			{
+				if((downloadbps + DEFAULT_BITRATE_OFFSET_FOR_DOWNLOAD) < currentProfilebps)
+				{
+					AAMPLOG_WARN("Abort download as content is estimated to be expired current BW : %ld bps, min required:%ld bps", downloadbps, currentProfilebps);
+					context->abortReason = eCURL_ABORT_REASON_LOW_BANDWIDTH_TIMEDOUT;
+					rc = -1;
 				}
 			}
 		}
