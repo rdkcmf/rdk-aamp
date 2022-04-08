@@ -67,15 +67,16 @@ static int GetFieldValue(string &attrName, string keyName, string &valuePtr){
 	int valueStartPos = 0;
 	int valueEndPos = attrName.length();
 	int status = DRM_API_FAILED;
+	int found = 0;
 
 	AAMPLOG_TRACE("Entring..");
 
-	if (attrName.find(keyName) != std::string::npos)
+	while (attrName.find(keyName,found) != std::string::npos)
 	{
 		AAMPLOG_TRACE("keyName = %s",
 		 keyName.c_str());
 
-		valueStartPos = attrName.find(keyName) + keyName.length();
+		valueStartPos = attrName.find(keyName,found) + keyName.length();
 		if (attrName.at(valueStartPos) == '=')
 		{
 			string valueTempPtr = attrName.substr(valueStartPos);
@@ -105,15 +106,18 @@ static int GetFieldValue(string &attrName, string keyName, string &valuePtr){
 			AAMPLOG_INFO("Value found : %s for Key : %s",
 			valuePtr.c_str(), keyName.c_str());
 			status = DRM_API_SUCCESS;
+			break;
 		}
 		else
 		{
-			AAMPLOG_ERR("Could not able to find %s= in %s",
+			AAMPLOG_TRACE("Checking next occurence of %s= in %s",
 			keyName.c_str(), attrName.c_str());
 			status = DRM_API_FAILED;
+			found = valueStartPos+1;
 		}
 	}
-	else
+
+	if(DRM_API_SUCCESS != status)
 	{
 		AAMPLOG_ERR("Could not able to find %s in %s",
 		keyName.c_str(), attrName.c_str());
