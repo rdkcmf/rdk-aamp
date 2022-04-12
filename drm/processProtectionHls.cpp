@@ -63,24 +63,24 @@ static uint8_t getPsshDataVersion(string attrName);
  * @return none
  */
 static int GetFieldValue(string &attrName, string keyName, string &valuePtr){
-	
+
 	int valueStartPos = 0;
 	int valueEndPos = attrName.length();
+	int keylen = keyName.length();
 	int status = DRM_API_FAILED;
-	int found = 0;
+	int found = 0, foundpos = 0;
 
 	AAMPLOG_TRACE("Entring..");
 
-	while (attrName.find(keyName,found) != std::string::npos)
+	while ( (foundpos = attrName.find(keyName,found)) != std::string::npos)
 	{
 		AAMPLOG_TRACE("keyName = %s",
 		 keyName.c_str());
 
-		valueStartPos = attrName.find(keyName,found) + keyName.length();
+		valueStartPos = foundpos + keylen;
 		if (attrName.at(valueStartPos) == '=')
 		{
-			string valueTempPtr = attrName.substr(valueStartPos);
-			valueTempPtr = valueTempPtr.substr(1);
+			string valueTempPtr = attrName.substr(valueStartPos+1);
 
 			AAMPLOG_TRACE("valueTempPtr = %s",
 			valueTempPtr.c_str());
@@ -92,11 +92,7 @@ static int GetFieldValue(string &attrName, string keyName, string &valuePtr){
 				valueTempPtr = valueTempPtr.substr(1);
 				valueEndPos = valueTempPtr.find('"');
 			}
-			else if (valueTempPtr.find(',') != std::string::npos)
-			{
-				valueEndPos = valueTempPtr.find(',');
-			}
-			else
+			else if ( (valueEndPos = valueTempPtr.find(',')) == std::string::npos)
 			{
 				/*look like end string*/
 				valueEndPos = valueTempPtr.length();
@@ -112,7 +108,6 @@ static int GetFieldValue(string &attrName, string keyName, string &valuePtr){
 		{
 			AAMPLOG_TRACE("Checking next occurence of %s= in %s",
 			keyName.c_str(), attrName.c_str());
-			status = DRM_API_FAILED;
 			found = valueStartPos+1;
 		}
 	}
@@ -121,7 +116,6 @@ static int GetFieldValue(string &attrName, string keyName, string &valuePtr){
 	{
 		AAMPLOG_ERR("Could not able to find %s in %s",
 		keyName.c_str(), attrName.c_str());
-		status = DRM_API_FAILED;
 	}
 
 	return status;
