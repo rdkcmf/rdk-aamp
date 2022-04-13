@@ -1381,7 +1381,7 @@ public:
  */
 class BufferingChangedEvent: public AAMPEventObject
 {
-	bool mBuffering;	/**< true if buffering started, false otherwise */
+	bool mBuffering;	/**< true : Availability of buffer to play, false : Underflow / non-availability of buffer to play */
 
 public:
 	BufferingChangedEvent() = delete;
