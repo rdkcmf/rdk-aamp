@@ -22,12 +22,24 @@ var bitrateList = [];
 var ccStatus = false;
 var disableButtons = false;
 var currentObjID = "";
-const defaultCCOptions = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "small", windowFillColor: "black", fontStyle: "default", textForegroundColor: "white", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "black", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "black", textUnderline: false };
-const defaultCCOptions1 = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "big", windowFillColor: "black", fontStyle: "default", textForegroundColor: "black", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "white", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "blue", textUnderline: false };
-const defaultCCOptions2 = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "small", windowFillColor: "black", fontStyle: "default", textForegroundColor: "blue", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "red", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "blue", textUnderline: false };
-const ccOption1 = {"penItalicized":false,"textEdgeStyle":"none","textEdgeColor":"black","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"white","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"black","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"black","penUnderline":false};
-const ccOption2 = {"penItalicized":false,"textEdgeStyle":"none","textEdgeColor":"yellow","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"yellow","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"cyan","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"black","penUnderline":true};
-const ccOption3 = {"penItalicized":false,"textEdgeStyle":"none","textEdgeColor":"red","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"red","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"black","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"red","penUnderline":true};
+const xreCCOptions1 = { textItalicized: false, textEdgeStyle:"none", textEdgeColor:"black", textSize: "large", windowFillColor: "black", fontStyle: "default", textForegroundColor: "black", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "white", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "blue", textUnderline: false };
+const xreCCOptions2 = { textItalicized: true, textEdgeStyle:"none", textEdgeColor:"black", textSize: "small", windowFillColor: "black", fontStyle: "default", textForegroundColor: "blue", windowFillOpacity: "transparent", textForegroundOpacity: "solid", textBackgroundColor: "red", textBackgroundOpacity:"solid", windowBorderEdgeStyle: "none", windowBorderEdgeColor: "blue", textUnderline: true };
+const ccOptions1 = {"penItalicized":false,"textEdgeStyle":"none","textEdgeColor":"black","penSize":"small","windowFillColor":"black","fontStyle":"default","textForegroundColor":"black","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"cyan","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"black","penUnderline":false};
+const ccOptions2 = {"penItalicized":false,"textEdgeStyle":"none","textEdgeColor":"red","penSize":"large","windowFillColor":"black","fontStyle":"default","textForegroundColor":"red","windowFillOpacity":"transparent","textForegroundOpacity":"solid","textBackgroundColor":"black","textBackgroundOpacity":"solid","windowBorderEdgeStyle":"none","windowBorderEdgeColor":"red","penUnderline":false};
+// create cc option object for xre receiver cc rendering
+var xreCCOptions = {};
+
+for(var option in ccOptions) {
+    if( option === "penItalicized") {
+        xreCCOptions.textItalicized = ccOptions[option];
+    } else if ( option === "penSize") {
+        xreCCOptions.textSize = ccOptions[option];
+    } else if ( option === "penUnderline") {
+        xreCCOptions.textUnderline = ccOptions[option];
+    } else {
+        xreCCOptions[option] = ccOptions[option];
+    }
+}
 
 function playPause() {
     console.log("playPause");
@@ -74,9 +86,10 @@ function toggleCC() {
         // CC ON
         if(enableNativeCC) {
             playerObj.setClosedCaptionStatus(true);
+            playerObj.setTextStyleOptions(JSON.stringify(ccOptions));
         } else {
             XREReceiver.onEvent("onClosedCaptions", { enable: true });
-            XREReceiver.onEvent("onClosedCaptions", { setOptions: defaultCCOptions});
+            XREReceiver.onEvent("onClosedCaptions", { setOptions: xreCCOptions});
         }
         ccStatus = true;
         document.getElementById("ccIcon").src = "../icons/closedCaptioning.png";
@@ -221,26 +234,26 @@ function changeCCStyle() {
         //if CC is enabled
         switch(styleOption) {
             case 0:
-                    playerObj.setTextStyleOptions(JSON.stringify(ccOption1));
+                    playerObj.setTextStyleOptions(JSON.stringify(ccOptions));
                     break;
             case 1:
-                    playerObj.setTextStyleOptions(JSON.stringify(ccOption2));
+                    playerObj.setTextStyleOptions(JSON.stringify(ccOptions1));
                     break;
             case 2:
-                    playerObj.setTextStyleOptions(JSON.stringify(ccOption3));
+                    playerObj.setTextStyleOptions(JSON.stringify(ccOptions2));
                     break;
         }
         console.log("Current closed caption style is :" + playerObj.getTextStyleOptions());
     } else if((!enableNativeCC) && (ccStatus === true)) {
         switch(styleOption) {
             case 0:
-                    XREReceiver.onEvent("onClosedCaptions", { setOptions: defaultCCOptions1});
+                    XREReceiver.onEvent("onClosedCaptions", { setOptions: xreCCOptions});
                     break;
             case 1:
-                    XREReceiver.onEvent("onClosedCaptions", { setOptions: defaultCCOptions2});
+                    XREReceiver.onEvent("onClosedCaptions", { setOptions: xreCCOptions1});
                     break;
             case 2:
-                    XREReceiver.onEvent("onClosedCaptions", { setOptions: defaultCCOptions});
+                    XREReceiver.onEvent("onClosedCaptions", { setOptions: xreCCOptions2});
                     break;
         }
     }
