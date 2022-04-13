@@ -923,13 +923,13 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 
 	if ((aamp->mMediaFormat == eMEDIAFORMAT_HLS || aamp->mMediaFormat == eMEDIAFORMAT_HLS_MP4) && (eSTATE_INITIALIZING == state)  && aamp->mpStreamAbstractionAAMP)
 	{
-		AAMPLOG_WARN("aamp_Seek(%f) at the middle of tune, no fragments downloaded yet.state(%d)", secondsRelativeToTuneTime,state);
+		AAMPLOG_WARN("aamp_Seek(%f) at the middle of tune, no fragments downloaded yet.state(%d), keep paused(%d)", secondsRelativeToTuneTime,state, keepPaused);
 		aamp->mpStreamAbstractionAAMP->SeekPosUpdate(secondsRelativeToTuneTime);
 		SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_PlaybackOffset,secondsRelativeToTuneTime);
 	}
 	else if (eSTATE_INITIALIZED == state || eSTATE_PREPARING == state)
 	{
-		AAMPLOG_WARN("aamp_Seek(%f) will be called after preparing the content.state(%d)", secondsRelativeToTuneTime,state);
+		AAMPLOG_WARN("aamp_Seek(%f) will be called after preparing the content.state(%d), keep paused(%d)", secondsRelativeToTuneTime,state, keepPaused);
 		aamp->seek_pos_seconds = secondsRelativeToTuneTime ;
 		SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_PlaybackOffset,secondsRelativeToTuneTime);
 		g_idle_add(SeekAfterPrepared, (gpointer)aamp);
@@ -941,7 +941,7 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 			isSeekToLiveOrEnd = true;
 		}
 
-		AAMPLOG_WARN("aamp_Seek(%f) and seekToLiveOrEnd(%d) state(%d)", secondsRelativeToTuneTime, isSeekToLiveOrEnd,state);
+		AAMPLOG_WARN("aamp_Seek(%f) and seekToLiveOrEnd(%d) state(%d), keep paused(%d)", secondsRelativeToTuneTime, isSeekToLiveOrEnd,state, keepPaused);
 
 		if (isSeekToLiveOrEnd)
 		{
@@ -997,6 +997,15 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 				aamp->pipeline_paused = false;
 				sentSpeedChangedEv = true;
 			}
+#ifdef AMLOGIC
+			else
+			{
+				// For amlogic only, delay going into the paused state until we receive the 
+				// 'displayed first frame' notification
+				AAMPLOG_WARN("Clearing paused flag for seek while paused");
+				aamp->pipeline_paused = false;
+			}
+#endif			
 			// Resume downloads
 			AAMPLOG_INFO("Resuming downloads");
 			aamp->ResumeDownloads();
