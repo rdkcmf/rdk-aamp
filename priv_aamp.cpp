@@ -2627,6 +2627,18 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 	
 	if (!isDiscontinuity)
 	{
+		/*
+		A temporary work around intended to reduce occurrences of LLAMA-6113.
+		This appears to be caused by late calls to previously stopped/destroyed objects due to a scheduling issue.
+		In this case it makes sense to exit this function ASAP.
+		A more complete (larger, higher risk, more time consuming, threadsafe) change to scheduling is required in the future.
+		*/
+		if(!mpStreamAbstractionAAMP)
+		{
+			AAMPLOG_ERR("null Stream Abstraction AAMP");
+			return;
+		}
+
 		if (!mpStreamAbstractionAAMP->IsEOSReached())
 		{
 			AAMPLOG_ERR("Bogus EOS event received from GStreamer, discarding it!");
