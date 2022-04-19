@@ -2483,9 +2483,10 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
  */
 void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed)
 {
-#ifdef SUPRESS_DECODE
-	return;
-#endif
+	if(ISCONFIGSET(eAAMPConfig_SuppressDecode))
+	{
+		return;
+	}
 	if (fragmentParsed)
 	{
 		mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();

@@ -253,7 +253,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
         {"enableFogConfig", eAAMPConfig_EnableAampConfigToFog, -1, -1},
 	{"xreSupportedTune",eAAMPConfig_XRESupportedTune,-1,-1},
 	{"allowPageHeaders",eAAMPConfig_AllowPageHeaders,-1,-1},
-	{"customLicenseData",eAAMPConfig_CustomLicenseData,-1,-1}
+	{"customLicenseData",eAAMPConfig_CustomLicenseData,-1,-1},
+	{"suppressDecode",eAAMPConfig_SuppressDecode,-1,-1}
 };
 
 /////////////////// Public Functions /////////////////////////////////////
