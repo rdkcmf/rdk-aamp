@@ -2251,6 +2251,7 @@ uint32_t getId3TagSize(const uint8_t *data)
 	return bufferSize;
 }
 
+#if defined(AMLOGIC)
 /**
  * @brief Send new segment event to pipeline
  * @param[in] mediaType stream type
@@ -2262,31 +2263,27 @@ void AAMPGstPlayer::SendNewSegmentEvent(MediaType mediaType, GstClockTime startP
         FN_TRACE( __FUNCTION__ );
         media_stream* stream = &privateContext->stream[mediaType];
         GstPad* sourceEleSrcPad = gst_element_get_static_pad(GST_ELEMENT(stream->source), "src");
-        if (stream->format == FORMAT_ISO_BMFF)
-        {
-                GstSegment segment;
-                gst_segment_init(&segment, GST_FORMAT_TIME);
 
-                segment.start = startPts;
-                segment.position = 0;
-                segment.rate = AAMP_NORMAL_PLAY_RATE;
-                segment.applied_rate = AAMP_NORMAL_PLAY_RATE;
-                if(stopPts) segment.stop = stopPts;
+	GstSegment segment;
+	gst_segment_init(&segment, GST_FORMAT_TIME);
+	segment.start = startPts;
+	segment.position = 0;
+	segment.rate = AAMP_NORMAL_PLAY_RATE;
+	segment.applied_rate = AAMP_NORMAL_PLAY_RATE;
+	if(stopPts) segment.stop = stopPts;
 
-#if defined(AMLOGIC)
-                //AMLOGIC-2143 notify westerossink of rate to run in Vmaster mode
-                if (mediaType == eMEDIATYPE_VIDEO)
-                        segment.applied_rate = privateContext->rate;
-#endif
+	//AMLOGIC-2143 notify westerossink of rate to run in Vmaster mode
+	if (mediaType == eMEDIATYPE_VIDEO)
+		segment.applied_rate = privateContext->rate;
 
-                AAMPLOG_INFO("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
-                GstEvent* event = gst_event_new_segment (&segment);
-                if (!gst_pad_push_event(sourceEleSrcPad, event))
-                {
-                        AAMPLOG_ERR("gst_pad_push_event segment error");
-                }
-        }
+	AAMPLOG_INFO("Sending segment event for mediaType[%d]. start %" G_GUINT64_FORMAT " stop %" G_GUINT64_FORMAT" rate %f applied_rate %f", mediaType, segment.start, segment.stop, segment.rate, segment.applied_rate);
+	GstEvent* event = gst_event_new_segment (&segment);
+	if (!gst_pad_push_event(sourceEleSrcPad, event))
+	{
+		AAMPLOG_ERR("gst_pad_push_event segment error");
+	}
 }
+#endif
 
 /**
  * @brief Inject stream buffer to gstreamer pipeline
