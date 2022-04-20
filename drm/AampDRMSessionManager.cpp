@@ -38,6 +38,8 @@
 #include "AampSecManager.h"
 #endif
 
+#include "AampCurlStore.h"
+
 //#define LOG_TRACE 1
 #define LICENCE_REQUEST_HEADER_ACCEPT "Accept:"
 
@@ -671,8 +673,8 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	callbackData->mDRMSessionManager = this;
 	long challengeLength = 0;
 	long long downloadTimeMS = 0;
-    
-	curl = curl_easy_init();
+
+	curl = CurlStore::GetCurlStoreInstance(aamp)->GetCurlHandle(aamp, licenseRequest.url, eCURLINSTANCE_AES);
 
 	for (auto& header : licenseRequest.headers)
 	{
@@ -849,7 +851,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 
 	SAFE_DELETE(callbackData);
 	curl_slist_free_all(headers);
-	curl_easy_cleanup(curl);
+	CurlStore::GetCurlStoreInstance(aamp)->SaveCurlHandle(aamp, licenseRequest.url, eCURLINSTANCE_AES, curl);
 
 	return keyInfo;
 }

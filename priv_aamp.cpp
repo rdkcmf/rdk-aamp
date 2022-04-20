@@ -45,9 +45,11 @@
 #ifdef AAMP_CC_ENABLED
 #include "AampCCManager.h"
 #endif
-#ifdef USE_OPENCDM // AampOutputProtection is compiled when this  flag is enabled 
+#ifdef USE_OPENCDM // AampOutputProtection is compiled when this  flag is enabled
 #include "aampoutputprotection.h"
 #endif
+
+#include "AampCurlStore.h"
 
 #ifdef IARM_MGR
 #include "host.hpp"
@@ -145,7 +147,6 @@ static std::list<gActivePrivAAMP_t> gActivePrivAAMPs = std::list<gActivePrivAAMP
 
 static pthread_mutex_t gMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t gCond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t gCurlInitMutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int PLAYERID_CNTR = 0;
 
@@ -155,6 +156,7 @@ static bool activeInterfaceWifi = false;
 
 static char previousInterface[20] = {'\0'};
 
+static unsigned int ui32CurlTrace = 0;
 /**
  * @struct CurlCbContextSyncTime 
  * @brief context during curl callbacks
@@ -170,66 +172,6 @@ struct CurlCbContextSyncTime
 
     CurlCbContextSyncTime(const CurlCbContextSyncTime &other) = delete;
     CurlCbContextSyncTime& operator=(const CurlCbContextSyncTime& other) = delete;
-};
-
-/**
- * @struct CurlCallbackContext
- * @brief context during curl callbacks
- */
-struct CurlCallbackContext
-{
-	PrivateInstanceAAMP *aamp;
-	MediaType fileType;
-	std::vector<std::string> allResponseHeadersForErrorLogging;
-	GrowableBuffer *buffer;
-	httpRespHeaderData *responseHeaderData;
-	long bitrate;
-	bool downloadIsEncoded;
-	//represents transfer-encoding based download
-	bool chunkedDownload;
-	std::string remoteUrl;
-	size_t contentLength;
-
-	CurlCallbackContext() : aamp(NULL), buffer(NULL), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false), chunkedDownload(false),  fileType(eMEDIATYPE_DEFAULT), remoteUrl(""), allResponseHeadersForErrorLogging{""}, contentLength(0)
-	{
-
-	}
-	CurlCallbackContext(PrivateInstanceAAMP *_aamp, GrowableBuffer *_buffer) : aamp(_aamp), buffer(_buffer), responseHeaderData(NULL),bitrate(0),downloadIsEncoded(false),  chunkedDownload(false), fileType(eMEDIATYPE_DEFAULT), remoteUrl(""), allResponseHeadersForErrorLogging{""},  contentLength(0){}
-
-	~CurlCallbackContext() {}
-
-	CurlCallbackContext(const CurlCallbackContext &other) = delete;
-	CurlCallbackContext& operator=(const CurlCallbackContext& other) = delete;
-};
-
-/**
- * @struct CurlProgressCbContext
- * @brief context during curl progress callbacks
- */
-struct CurlProgressCbContext
-{
-	PrivateInstanceAAMP *aamp;
-	MediaType fileType;
-	CurlProgressCbContext() : aamp(NULL), fileType(eMEDIATYPE_DEFAULT), downloadStartTime(-1), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1), downloadNow(-1), downloadNowUpdatedTime(-1), dlStarted(false), fragmentDurationMs(-1), remoteUrl(""), lowBWTimeout(-1) {}
-	CurlProgressCbContext(PrivateInstanceAAMP *_aamp, long long _downloadStartTime) : aamp(_aamp), fileType(eMEDIATYPE_DEFAULT),downloadStartTime(_downloadStartTime), abortReason(eCURL_ABORT_REASON_NONE), downloadUpdatedTime(-1), startTimeout(-1), stallTimeout(-1), downloadSize(-1), downloadNow(-1), downloadNowUpdatedTime(-1), dlStarted(false), fragmentDurationMs(-1), remoteUrl(""), lowBWTimeout(-1) {}
-
-	~CurlProgressCbContext() {}
-
-        CurlProgressCbContext(const CurlProgressCbContext &other) = delete;
-        CurlProgressCbContext& operator=(const CurlProgressCbContext& other) = delete;
-
-	long long downloadStartTime;
-	long long downloadUpdatedTime;
-	long startTimeout;
-	long stallTimeout;
-	long lowBWTimeout;
-	double downloadSize;
-	CurlAbortReason abortReason;
-	double downloadNow;
-	long long downloadNowUpdatedTime;
-	bool dlStarted;
-	int fragmentDurationMs;
-	std::string remoteUrl;
 };
 
 /**
@@ -841,14 +783,9 @@ static size_t SyncTime_write_callback(char *ptr, size_t size, size_t nmemb, void
 }
 
 /**
- * @brief write callback to be used by CURL
- * @param ptr pointer to buffer containing the data
- * @param size size of the buffer
- * @param nmemb number of bytes
- * @param userdata CurlCallbackContext pointer
- * @retval size consumed or 0 if interrupted
+ * @brief HandleSSLWriteCallback - Handle write callback from CURL
  */
-static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
+size_t PrivateInstanceAAMP::HandleSSLWriteCallback ( char *ptr, size_t size, size_t nmemb, void* userdata )
 {
     size_t ret = 0;
     CurlCallbackContext *context = (CurlCallbackContext *)userdata;
@@ -887,9 +824,34 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
     }
     else
     {
-        AAMPLOG_WARN("write_callback - interrupted");
+		if(ISCONFIGSET_PRIV(eAAMPConfig_EnableCurlStore) && mOrigManifestUrl.isRemotehost)
+		{
+			ret = (size*nmemb);
+		}
+		else
+		{
+			AAMPLOG_WARN("CurlTrace write_callback - interrupted, ret:%d", ret);
+		}
     }
     pthread_mutex_unlock(&context->aamp->mLock);
+
+    return ret;
+}
+/**
+ * @brief write callback to be used by CURL
+ * @param ptr pointer to buffer containing the data
+ * @param size size of the buffer
+ * @param nmemb number of bytes
+ * @param userdata CurlCallbackContext pointer
+ * @retval size consumed or 0 if interrupted
+ */
+static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    size_t ret = 0;
+    CurlCallbackContext *context = (CurlCallbackContext *)userdata;
+    if(!context) return ret;
+
+	ret = context->aamp->HandleSSLWriteCallback( ptr, size, nmemb, userdata);
     return ret;
 }
 
@@ -914,14 +876,9 @@ static void print_headerResponse(std::vector<std::string> &allResponseHeadersFor
 }
 
 /**
- * @brief callback invoked on http header by curl
- * @param ptr pointer to buffer containing the data
- * @param size size of the buffer
- * @param nmemb number of bytes
- * @param user_data  CurlCallbackContext pointer
- * @retval len
+ * @brief HandleSSLHeaderCallback - Hanlde header callback from SSL
  */
-static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *user_data)
+size_t PrivateInstanceAAMP::HandleSSLHeaderCallback ( const char *ptr, size_t size, size_t nmemb, void* user_data )
 {
 	CurlCallbackContext *context = static_cast<CurlCallbackContext *>(user_data);
 	httpRespHeaderData *httpHeader = context->responseHeaderData;
@@ -939,7 +896,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 	}
 
 	if (context->aamp->mConfig->IsConfigSet(eAAMPConfig_CurlHeader) && ptr[0] &&
-			(eMEDIATYPE_VIDEO == context->fileType || eMEDIATYPE_PLAYLIST_VIDEO == context->fileType))
+		(eMEDIATYPE_VIDEO == context->fileType || eMEDIATYPE_PLAYLIST_VIDEO == context->fileType))
 	{
 		std::string temp = std::string(ptr,endPos);
 		context->allResponseHeadersForErrorLogging.push_back(temp);
@@ -984,10 +941,10 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 		context->downloadIsEncoded = true;
 	}
 	else if (context->aamp->mConfig->IsConfigSet(eAAMPConfig_LimitResolution) && context->aamp->IsFirstRequestToFog() && STARTS_WITH_IGNORE_CASE(ptr, CAPPED_PROFILE_STRING ))
-        {
-                startPos = STRLEN_LITERAL(CAPPED_PROFILE_STRING);
-                isProfileCapHeader = true;
-        }
+	{
+		startPos = STRLEN_LITERAL(CAPPED_PROFILE_STRING);
+		isProfileCapHeader = true;
+	}
 	else if (STARTS_WITH_IGNORE_CASE(ptr, TRANSFER_ENCODING_STRING ))
 	{
 		context->chunkedDownload = true;
@@ -1025,7 +982,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 			}
 		}
 	}
-	
+
 	if(startPos > 0)
 	{
 		while( endPos>startPos && ptr[endPos-1] == ' ' )
@@ -1068,6 +1025,7 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 			AAMPLOG_TRACE("Parsed HTTP %s header: %s", httpHeader->type==eHTTPHEADERTYPE_COOKIE? "Cookie": "X-Reason", httpHeader->data.c_str());
 		}
 	}
+
 	return len;
 }
 
@@ -1193,81 +1151,70 @@ long getCurrentContentDownloadSpeed(PrivateInstanceAAMP *aamp,
     speedcache->totalDownloaded += dl_diff;
     
     return bitsPerSecond;
-  }
+}
 
 /**
- * @brief
- * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
- * @param dltotal total bytes expected to download
- * @param dlnow downloaded bytes so far
- * @param ultotal total bytes expected to upload
- * @param ulnow uploaded bytes so far
- * @retval For failure it will return -1
+ * @brief HandleSSLProgressCallback - Process progress callback from CURL
  */
-static int progress_callback(
-	void *clientp, // app-specific as optionally set with CURLOPT_PROGRESSDATA
-	double dltotal, // total bytes expected to download
-	double dlnow, // downloaded bytes so far
-	double ultotal, // total bytes expected to upload
-	double ulnow // uploaded bytes so far
-	)
+int PrivateInstanceAAMP::HandleSSLProgressCallback ( void *clientp, double dltotal, double dlnow, double ultotal, double ulnow )
 {
-        CurlProgressCbContext *context = (CurlProgressCbContext *)clientp;
-        PrivateInstanceAAMP *aamp = context->aamp;
-        AampConfig *mConfig = context->aamp->mConfig;
+	CurlProgressCbContext *context = (CurlProgressCbContext *)clientp;
+	PrivateInstanceAAMP *aamp = context->aamp;
+	AampConfig *mConfig = context->aamp->mConfig;
 
-        if(context->aamp->GetLLDashServiceData()->lowLatencyMode &&
-           context->fileType == eMEDIATYPE_VIDEO &&
-           context->aamp->CheckABREnabled() &&
-           !(ISCONFIGSET_PRIV(eAAMPConfig_DisableLowLatencyABR)))
-        {
-            //AAMPLOG_WARN("[%d] dltotal: %.0f , dlnow: %.0f, ultotal: %.0f, ulnow: %.0f, time: %.0f\n", context->fileType,
-            //          dltotal, dlnow, ultotal, ulnow, difftime(time(NULL), 0));
+	if(context->aamp->GetLLDashServiceData()->lowLatencyMode &&
+		context->fileType == eMEDIATYPE_VIDEO &&
+		context->aamp->CheckABREnabled() &&
+		!(ISCONFIGSET_PRIV(eAAMPConfig_DisableLowLatencyABR)))
+	{
+		//AAMPLOG_WARN("[%d] dltotal: %.0f , dlnow: %.0f, ultotal: %.0f, ulnow: %.0f, time: %.0f\n", context->fileType,
+		//	dltotal, dlnow, ultotal, ulnow, difftime(time(NULL), 0));
 
-            int  AbrChunkThresholdSize = 0;
-            GETCONFIGVALUE(eAAMPConfig_ABRChunkThresholdSize,AbrChunkThresholdSize);
+		int  AbrChunkThresholdSize = 0;
+		GETCONFIGVALUE(eAAMPConfig_ABRChunkThresholdSize,AbrChunkThresholdSize);
 
-            if (/*(dlnow > AbrChunkThresholdSize) &&*/ (context->downloadNow != dlnow))
-        	{
-                long downloadbps = 0;
+		if (/*(dlnow > AbrChunkThresholdSize) &&*/ (context->downloadNow != dlnow))
+		{
+			long downloadbps = 0;
 
-                context->downloadNow = dlnow;
-                context->downloadNowUpdatedTime = NOW_STEADY_TS_MS;
-                
-                if(!aamp->GetLowLatencyStartABR())
-                {
-                    //Reset speedcache when Fragment download Starts
-                    struct SpeedCache* speedcache = NULL;
-                    speedcache = aamp->GetLLDashSpeedCache();
-                    memset(speedcache, 0x00, sizeof(struct SpeedCache));
-                }
+			context->downloadNow = dlnow;
+			context->downloadNowUpdatedTime = NOW_STEADY_TS_MS;
 
-                downloadbps = getCurrentContentDownloadSpeed(aamp, context->fileType, context->dlStarted, (long)context->downloadStartTime, dlnow);
-                
-                if(context->dlStarted)
-                {
-                    context->dlStarted = false;
-                }
-                
-                if(!aamp->GetLowLatencyStartABR())
-                {
-                    aamp->SetLowLatencyStartABR(true);
-                }
-                
-                if(downloadbps)
-                {
-                    long currentProfilebps  = context->aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
-        
-                    pthread_mutex_lock(&context->aamp->mLock);
-                    context->aamp->mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,downloadbps));
+			if(!aamp->GetLowLatencyStartABR())
+			{
+				//Reset speedcache when Fragment download Starts
+				struct SpeedCache* speedcache = NULL;
+				speedcache = aamp->GetLLDashSpeedCache();
+				memset(speedcache, 0x00, sizeof(struct SpeedCache));
+			}
 
-                    //AAMPLOG_WARN("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
-                    if(context->aamp->mAbrBitrateData.size() > DEFAULT_ABR_CHUNK_CACHE_LENGTH)
-                        context->aamp->mAbrBitrateData.erase(context->aamp->mAbrBitrateData.begin());
-                    pthread_mutex_unlock(&context->aamp->mLock);
-                }
-            }
-        }
+			downloadbps = getCurrentContentDownloadSpeed(aamp, context->fileType, context->dlStarted, (long)context->downloadStartTime, dlnow);
+
+			if(context->dlStarted)
+			{
+				context->dlStarted = false;
+			}
+
+			if(!aamp->GetLowLatencyStartABR())
+			{
+				aamp->SetLowLatencyStartABR(true);
+			}
+
+			if(downloadbps)
+			{
+				long currentProfilebps  = context->aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
+
+				pthread_mutex_lock(&context->aamp->mLock);
+				context->aamp->mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,downloadbps));
+
+				//AAMPLOG_WARN("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
+				if(context->aamp->mAbrBitrateData.size() > DEFAULT_ABR_CHUNK_CACHE_LENGTH)
+					context->aamp->mAbrBitrateData.erase(context->aamp->mAbrBitrateData.begin());
+
+				pthread_mutex_unlock(&context->aamp->mLock);
+			}
+		}
+	}
 
 	int rc = 0;
 	context->aamp->SyncBegin();
@@ -1275,6 +1222,7 @@ static int progress_callback(
 	{
 		rc = -1; // CURLE_ABORTED_BY_CALLBACK
 	}
+
 	context->aamp->SyncEnd();
 	if( rc==0 )
 	{ // only proceed if not an aborted download
@@ -1332,86 +1280,41 @@ static int progress_callback(
 			}
 		}
 	}
-	return rc;
-}
 
-static int eas_curl_debug_callback(CURL *handle, curl_infotype type, char *data, size_t size, void *userp)
-{
-	(void)handle;
-	(void)userp;
-	if(type == CURLINFO_TEXT || type == CURLINFO_HEADER_IN)
-	{ 
-		//limit log spam to only TEXT and HEADER_IN
-		size_t len = size;
-		while( len>0 && data[len-1]<' ' ) len--;
-		std::string printable(data,len);
-		switch (type)
+	if(rc)
+	{
+		if( ISCONFIGSET_PRIV(eAAMPConfig_EnableCurlStore) && mOrigManifestUrl.isRemotehost )
 		{
-		case CURLINFO_TEXT:
-			AAMPLOG_WARN("curl: %s", printable.c_str() );
-			break;
-		case CURLINFO_HEADER_IN:
-			AAMPLOG_WARN("curl header: %s", printable.c_str() );
-			break;
-		default:
-			break; //CID:94999 - Resolve deadcode
+			rc = 0;
+		}
+		else
+		{
+			AAMPLOG_WARN("CurlTrace Progress interrupted, ret:%d", rc);
 		}
 	}
-	return 0;
-}
-
-/**
- * @brief
- * @param curl ptr to CURL instance
- * @param ssl_ctx SSL context used by CURL
- * @param user_ptr data pointer set as param to CURLOPT_SSL_CTX_DATA
- * @retval CURLcode CURLE_OK if no errors, otherwise corresponding CURL code
- */
-CURLcode ssl_callback(CURL *curl, void *ssl_ctx, void *user_ptr)
-{
-	PrivateInstanceAAMP *context = (PrivateInstanceAAMP *)user_ptr;
-	CURLcode rc = CURLE_OK;
-	pthread_mutex_lock(&context->mLock);
-	if (!context->mDownloadsEnabled)
-	{
-		rc = CURLE_ABORTED_BY_CALLBACK ; // CURLE_ABORTED_BY_CALLBACK
-	}
-	pthread_mutex_unlock(&context->mLock);
 	return rc;
 }
 
 /**
  * @brief
- * @param curl ptr to CURL instance
- * @param data curl data lock
- * @param access curl access lock
- * @param user_ptr CurlCallbackContext pointer
- * @retval void
+ * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
+ * @param dltotal total bytes expected to download
+ * @param dlnow downloaded bytes so far
+ * @param ultotal total bytes expected to upload
+ * @param ulnow uploaded bytes so far
+ * @retval
  */
-static void curl_lock_callback(CURL *curl, curl_lock_data data, curl_lock_access access, void *user_ptr)
+static int progress_callback(
+	void *clientp, // app-specific as optionally set with CURLOPT_PROGRESSDATA
+	double dltotal, // total bytes expected to download
+	double dlnow, // downloaded bytes so far
+	double ultotal, // total bytes expected to upload
+	double ulnow // uploaded bytes so far
+	)
 {
-	(void)access; /* unused */
-	(void)user_ptr; /* unused */
-	(void)curl; /* unused */
-	(void)data; /* unused */
-	pthread_mutex_lock(&gCurlInitMutex);
-}
+	CurlProgressCbContext *context = (CurlProgressCbContext *)clientp;
 
-/**
- * @brief
- * @param curl ptr to CURL instance
- * @param data curl data lock
- * @param access curl access lock
- * @param user_ptr CurlCallbackContext pointer
- * @retval void
- */
-static void curl_unlock_callback(CURL *curl, curl_lock_data data, curl_lock_access access, void *user_ptr)
-{
-	(void)access; /* unused */
-	(void)user_ptr; /* unused */
-	(void)curl; /* unused */
-	(void)data; /* unused */
-	pthread_mutex_unlock(&gCurlInitMutex);
+	return context->aamp->HandleSSLProgressCallback ( clientp, dltotal, dlnow, ultotal, ulnow );
 }
 
 // End of curl callback functions
@@ -1432,7 +1335,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(ContentType_UNKNOWN), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
-	mManifestUrl(""), mTunedManifestUrl(""), mServiceZone(), mVssVirtualStreamId(),
+	mManifestUrl(""), mTunedManifestUrl(""), mOrigManifestUrl(), mServiceZone(), mVssVirtualStreamId(),
 	mCurrentLanguageIndex(0),
 	preferredLanguagesString(), preferredLanguagesList(), preferredLabelList(),
 #ifdef SESSION_STATS
@@ -1588,14 +1491,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	pthread_mutex_init(&mDynamicDrmUpdateLock,&mMutexAttr);
 	pthread_mutex_init(&mStreamLock, &mMutexAttr);
 	pthread_mutex_init(&mDiscoCompleteLock,&mMutexAttr);
-	mCurlShared = curl_share_init();
-	curl_share_setopt(mCurlShared, CURLSHOPT_LOCKFUNC, curl_lock_callback);
-	curl_share_setopt(mCurlShared, CURLSHOPT_UNLOCKFUNC, curl_unlock_callback);
-	curl_share_setopt(mCurlShared, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
-	if (ISCONFIGSET_PRIV(eAAMPConfig_EnableSharedSSLSession))
-	{
-		curl_share_setopt(mCurlShared, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
-	}
 
 	for (int i = 0; i < eCURLINSTANCE_MAX; i++)
 	{
@@ -1604,6 +1499,14 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 		httpRespHeaders[i].type = eHTTPHEADERTYPE_UNKNOWN;
 		httpRespHeaders[i].data.clear();
 		curlDLTimeout[i] = 0;
+	}
+
+	if( ISCONFIGSET_PRIV(eAAMPConfig_EnableCurlStore) )
+	{
+		for (int i = 0; i < eCURLINSTANCE_MAX; i++)
+		{
+			curlhost[i] = new eCurlHostMap();
+		}
 	}
 
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
@@ -1700,11 +1603,23 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	SAFE_DELETE(mDRMSessionManager);
 #endif
-	if(mCurlShared)
+
+	if( ISCONFIGSET_PRIV(eAAMPConfig_EnableCurlStore) )
 	{
-		curl_share_cleanup(mCurlShared);
-		mCurlShared = NULL;
-        }
+		for (int i = 0; i < eCURLINSTANCE_MAX; i++)
+		{
+			SAFE_DELETE(curlhost[i]);
+		}
+	}
+
+	if ( !(ISCONFIGSET_PRIV(eAAMPConfig_EnableCurlStore)) )
+	{
+		if(mCurlShared)
+		{
+			curl_share_cleanup(mCurlShared);
+			mCurlShared = NULL;
+		}
+	}
 #ifdef IARM_MGR
 	IARM_Bus_RemoveEventHandler("NET_SRV_MGR", IARM_BUS_NETWORK_MANAGER_EVENT_INTERFACE_IPADDRESS, getActiveInterfaceEventHandler);
 #endif //IARM_MGR
@@ -3062,67 +2977,9 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 	std::string UserAgentString;
 	UserAgentString=mConfig->GetUserAgentString();
 	assert (instanceEnd <= eCURLINSTANCE_MAX);
-	for (unsigned int i = startIdx; i < instanceEnd; i++)
-	{
-		if (!curl[i])
-		{
-			curl[i] = curl_easy_init();
-			if (ISCONFIGSET_PRIV(eAAMPConfig_CurlLogging))
-			{
-				CURL_EASY_SETOPT(curl[i], CURLOPT_VERBOSE, 1L);
-			}
-			CURL_EASY_SETOPT(curl[i], CURLOPT_NOSIGNAL, 1L);
-			//curl_easy_setopt(curl, CURLOPT_READFUNCTION, read_callback); // unused
-			CURL_EASY_SETOPT(curl[i], CURLOPT_PROGRESSFUNCTION, progress_callback);
-			CURL_EASY_SETOPT(curl[i], CURLOPT_HEADERFUNCTION, header_callback);
-			CURL_EASY_SETOPT(curl[i], CURLOPT_WRITEFUNCTION, write_callback);
-			CURL_EASY_SETOPT(curl[i], CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
-			CURL_EASY_SETOPT(curl[i], CURLOPT_CONNECTTIMEOUT, DEFAULT_CURL_CONNECTTIMEOUT);
-			CURL_EASY_SETOPT(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
-			CURL_EASY_SETOPT(curl[i], CURLOPT_FOLLOWLOCATION, 1L);
-			CURL_EASY_SETOPT(curl[i], CURLOPT_NOPROGRESS, 0L); // enable progress meter (off by default)
-			
-			CURL_EASY_SETOPT(curl[i], CURLOPT_USERAGENT, UserAgentString.c_str());
-			CURL_EASY_SETOPT(curl[i], CURLOPT_ACCEPT_ENCODING, "");//Enable all the encoding formats supported by client
-			CURL_EASY_SETOPT(curl[i], CURLOPT_SSL_CTX_FUNCTION, ssl_callback); //Check for downloads disabled in btw ssl handshake
-			CURL_EASY_SETOPT(curl[i], CURLOPT_SSL_CTX_DATA, this);
-			long dns_cache_timeout = 3*60;
-			CURL_EASY_SETOPT(curl[i], CURLOPT_DNS_CACHE_TIMEOUT, dns_cache_timeout);
-			CURL_EASY_SETOPT(curl[i], CURLOPT_SHARE, mCurlShared);
 
-			curlDLTimeout[i] = DEFAULT_CURL_TIMEOUT * 1000;
-
-			if (!proxyName.empty())
-			{
-				/* use this proxy */
-				CURL_EASY_SETOPT(curl[i], CURLOPT_PROXY, proxyName.c_str());
-				/* allow whatever auth the proxy speaks */
-				CURL_EASY_SETOPT(curl[i], CURLOPT_PROXYAUTH, CURLAUTH_ANY);
-			}
-
-			if(ContentType_EAS == mContentType)
-			{
-				//enable verbose logs so we can debug field issues
-				CURL_EASY_SETOPT(curl[i], CURLOPT_VERBOSE, 1);
-				CURL_EASY_SETOPT(curl[i], CURLOPT_DEBUGFUNCTION, eas_curl_debug_callback);
-				//set eas specific timeouts to handle faster cycling through bad hosts and faster total timeout
-				CURL_EASY_SETOPT(curl[i], CURLOPT_TIMEOUT, EAS_CURL_TIMEOUT);
-				CURL_EASY_SETOPT(curl[i], CURLOPT_CONNECTTIMEOUT, EAS_CURL_CONNECTTIMEOUT);
-
-				curlDLTimeout[i] = EAS_CURL_TIMEOUT * 1000;
-
-				//on ipv6 box force curl to use ipv6 mode only (DELIA-20209)
-				struct stat tmpStat;
-				bool isv6(::stat( "/tmp/estb_ipv6", &tmpStat) == 0);
-				if(isv6)
-					CURL_EASY_SETOPT(curl[i], CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V6);
-				AAMPLOG_WARN("aamp eas curl config: timeout=%d, connecttimeout%d, ipv6=%d", EAS_CURL_TIMEOUT, EAS_CURL_CONNECTTIMEOUT, isv6);
-			}
-			//log_current_time("curl initialized");
-		}
-	}
+	CurlStore::GetCurlStoreInstance(this)->CurlInit(this, startIdx, instanceCount, proxyName);
 }
-
 
 /**
  * @brief Storing audio language list
@@ -3201,15 +3058,22 @@ void PrivateInstanceAAMP::CurlTerm(AampCurlInstance startIdx, unsigned int insta
 {
 	int instanceEnd = startIdx + instanceCount;
 	assert (instanceEnd <= eCURLINSTANCE_MAX);
-	for (unsigned int i = startIdx; i < instanceEnd; i++)
+
+	if (ISCONFIGSET_PRIV(eAAMPConfig_EnableCurlStore) && \
+		( startIdx == eCURLINSTANCE_VIDEO ) && (eCURLINSTANCE_AUX_AUDIO < instanceEnd) )
 	{
-		if (curl[i])
+		for(int i=0; i<eCURLINSTANCE_MAX;++i)
 		{
-			curl_easy_cleanup(curl[i]);
-			curl[i] = NULL;
-			curlDLTimeout[i] = 0;
+			if(curlhost[i]->curl)
+			{
+				CurlStore::GetCurlStoreInstance(this)->CurlTerm(this, (AampCurlInstance)i, 1, curlhost[i]->hostname);
+			}
+			curlhost[i]->isRemotehost=true;
+			curlhost[i]->redirect=true;
 		}
 	}
+
+	CurlStore::GetCurlStoreInstance(this)->CurlTerm(this, startIdx, instanceCount);
 }
 
 /**
@@ -3560,11 +3424,36 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		{
 			if (remoteUrl.find("?") == std::string::npos)
 			{
-				uriParameter[0] = '?';				
+				uriParameter[0] = '?';
 			}
-			
+
 			remoteUrl.append(uriParameter.c_str());
 			//printf ("URL after appending uriParameter :: %s\n", remoteUrl.c_str());
+		}
+
+		if(ISCONFIGSET_PRIV(eAAMPConfig_EnableCurlStore) && mOrigManifestUrl.isRemotehost )
+		{
+			if( curlhost[curlInstance]->isRemotehost && curlhost[curlInstance]->redirect &&
+				( NULL == curlhost[curlInstance]->curl || std::string::npos == remoteUrl.find(curlhost[curlInstance]->hostname)) )
+			{
+				if(NULL != curlhost[curlInstance]->curl)
+				{
+					CurlStore::GetCurlStoreInstance(this)->CurlTerm(this, (AampCurlInstance)curlInstance, 1, curlhost[curlInstance]->hostname);
+				}
+
+				curlhost[curlInstance]->hostname = aamp_getHostFromURL(remoteUrl);
+				curlhost[curlInstance]->isRemotehost =!(aamp_IsLocalHost(curlhost[curlInstance]->hostname));
+				curlhost[curlInstance]->redirect = false;
+
+				if( curlhost[curlInstance]->isRemotehost && (std::string::npos == mOrigManifestUrl.hostname.find(curlhost[curlInstance]->hostname)) )
+				{
+					CurlStore::GetCurlStoreInstance(this)->CurlInit(this, (AampCurlInstance)curlInstance, 1, GetNetworkProxy(), curlhost[curlInstance]->hostname);
+					CURL_EASY_SETOPT(curlhost[curlInstance]->curl, CURLOPT_TIMEOUT_MS, curlDLTimeout[curlInstance]);
+				}
+			}
+
+			if ( curlhost[curlInstance]->curl )
+			curl=curlhost[curlInstance]->curl;
 		}
 
 		AAMPLOG_INFO("aamp url:%d,%d,%d,%f,%s", mediaType, simType, curlInstance,fragmentDurationSeconds, remoteUrl.c_str());
@@ -3857,6 +3746,11 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					if(effectiveUrlPtr)
 					{
 						effectiveUrl.assign(effectiveUrlPtr);    //CID:81493 - Resolve Forward null
+
+						if( ISCONFIGSET_PRIV(eAAMPConfig_EnableCurlStore) && (remoteUrl!=effectiveUrl) )
+						{
+							curlhost[curlInstance]->redirect = true;
+						}
 					}
 
 					// check if redirected url is pointing to fog / local ip
@@ -4030,8 +3924,14 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					AAMPLOG(mLogObj, reqEndLogLevel, "WARN", "HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%ld,%.500s",
 						appName.c_str(), mediaType, simType, http_code, timeoutClass.c_str(), totalPerformRequest, total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize,downloadbps,
 						((res == CURLE_OK) ? effectiveUrl.c_str() : remoteUrl.c_str())); // Effective URL could be different than remoteURL and it is updated only for CURLE_OK case
+					if(ui32CurlTrace < 10 )
+					{
+						AAMPLOG_INFO("%d.CurlTrace:Dns:%2.4f, Conn:%2.4f, Ssl:%2.4f, Redir:%2.4f, Pre:Start[%2.4f:%2.4f], Hdl:%p, Url:%s",
+							ui32CurlTrace, resolve, connect, appConnect, redirect, preTransfer, startTransfer, curl,((res==CURLE_OK)?effectiveUrl.c_str():remoteUrl.c_str()));
+						++ui32CurlTrace;
+					}
 				}
-				
+
 				if(!loopAgain)
 					break;
 			}
@@ -4706,8 +4606,8 @@ void PrivateInstanceAAMP::SendMessage2Receiver(AAMP2ReceiverMsgType type, const 
 
 /**
  * @brief The helper function which perform tuning
- *        Common tune operations used on Tune, Seek, SetRate etc
- */        
+ * Common tune operations used on Tune, Seek, SetRate etc
+ */
 void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 {
 	bool newTune;
@@ -4761,6 +4661,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		for (int i = 0; i < AAMP_TRACK_COUNT; i++) mbNewSegmentEvtSent[i] = false;
 #endif
 
+	ui32CurlTrace=0;
+
 	if (newTune)
 	{
 
@@ -4787,6 +4689,10 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		pInstance->Release();
 #endif
 		AAMPLOG_INFO ("Display Resolution width:%d height:%d", mDisplayWidth, mDisplayHeight);
+
+		mOrigManifestUrl.hostname = aamp_getHostFromURL(mManifestUrl);
+		mOrigManifestUrl.isRemotehost = !(aamp_IsLocalHost(mOrigManifestUrl.hostname));
+		AAMPLOG_TRACE("CurlTrace OrigManifest url:%s", mOrigManifestUrl.hostname.c_str());
 	}
 
 	trickStartUTCMS = -1;
@@ -5508,7 +5414,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 
 	// this function uses mIsVSS and mTSBEnabled, hence it should be called after these variables are updated.
 	ExtractServiceZone(mManifestUrl);
-
 	SetTunedManifestUrl(mTSBEnabled);
 
 	if(bFirstAttempt)
@@ -5518,7 +5423,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mCdaiObject = NULL;
 	AcquireStreamLock();
 	TuneHelper(tuneType);
-	
+
 	//Apply the cached video mute call as it got invoked when stream lock was not available
 	if(mApplyCachedVideoMute)
 	{
@@ -5671,6 +5576,8 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 		long bitrate;
 		int fogError;
 
+		mOrigManifestUrl.hostname=aamp_getHostFromURL(url);
+		mOrigManifestUrl.isRemotehost = !(aamp_IsLocalHost(mOrigManifestUrl.hostname));
 		CurlInit(eCURLINSTANCE_MANIFEST_PLAYLIST, 1, GetNetworkProxy());
 
 		bool gotManifest = GetFile(url,
@@ -5712,6 +5619,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 			}
 		}
 		aamp_Free(&sniffedBytes);
+		CurlTerm(eCURLINSTANCE_MANIFEST_PLAYLIST);
 	}
 	return rc;
 }

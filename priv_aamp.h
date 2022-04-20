@@ -577,7 +577,7 @@ public:
 	attrNameData() : attrName(""),isProcessed(false)
 	{
 	}
-		
+
 	attrNameData(std::string argument) : attrName(argument), isProcessed(false)
 	{
 	}
@@ -586,6 +586,41 @@ public:
 };
 
 #endif
+
+/**
+ * @brief To have hostname mapped curl handles
+ */
+typedef struct eCurlHostMap
+{
+	CURL *curl;
+	std::string hostname;
+	bool isRemotehost;
+	bool redirect;
+
+	eCurlHostMap():curl(NULL),hostname(""),isRemotehost(true),redirect(true)
+	{}
+
+	//Disabled
+	eCurlHostMap(const eCurlHostMap&) = delete;
+	eCurlHostMap& operator=(const eCurlHostMap&) = delete;
+}eCurlHostMapStruct;
+
+/**
+ * @brief Struct to store parsed url hostname & its type
+ */
+typedef struct AampUrlInfo
+{
+	std::string hostname;
+	bool isRemotehost;
+
+	AampUrlInfo():hostname(""),isRemotehost(true)
+	{}
+
+	//Disabled
+	AampUrlInfo(const AampUrlInfo&) = delete;
+	AampUrlInfo& operator=(const AampUrlInfo&) = delete;
+}AampURLInfoStruct;
+
 /**
  * @}
  */
@@ -780,6 +815,7 @@ public:
 	AudioType previousAudioType; 			/**< Used to maintain previous audio type */
 
 	CURL *curl[eCURLINSTANCE_MAX];
+	eCurlHostMapStruct *curlhost[eCURLINSTANCE_MAX];
 	CURLSH* mCurlShared;
 
 	// To store Set Cookie: headers and X-Reason headers in HTTP Response
@@ -789,6 +825,7 @@ public:
 	std::string mTunedManifestUrl;
 	std::string mTsbSessionRequestUrl;
 	std::string schemeIdUriDai;
+	AampURLInfoStruct mOrigManifestUrl;					/**< Original Manifest URl */
 
 	bool isPreferredDRMConfigured;
 	bool mIsWVKIDWorkaround;            			/**< Widevine KID workaround flag */
@@ -1516,7 +1553,13 @@ public:
 	 */
 	bool IsOTAContent() { return (mContentType==ContentType_OTA);}
 	/**
-	 * @fn ReportTimedMetadata 
+	 * @brief Checking whether EAS content or not
+	 *
+	 * @return True or False
+	 */
+	bool IsEASContent() { return (mContentType==ContentType_EAS);}
+	/**
+	 * @fn ReportTimedMetadata
 	 */
 	void ReportTimedMetadata(bool init=false);
 	/**
@@ -3644,6 +3687,40 @@ public:
 	 *     @fn GetCurrentAudioTrackId
 	 */
 	int GetCurrentAudioTrackId(void);
+
+	/**
+	 * @fn HandleSSLWriteCallback
+	 *
+	 * @param ptr pointer to buffer containing the data
+	 * @param size size of the buffer
+	 * @param nmemb number of bytes
+	 * @param userdata CurlCallbackContext pointer
+	 * @retval size consumed or 0 if interrupted
+	 */
+	size_t HandleSSLWriteCallback ( char *ptr, size_t size, size_t nmemb, void* userdata );
+
+	/**
+	 * @fn HandleSSLProgressCallback
+	 *
+	 * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
+	 * @param dltotal total bytes expected to download
+	 * @param dlnow downloaded bytes so far
+	 * @param ultotal total bytes expected to upload
+	 * @param ulnow uploaded bytes so far
+	 * @retval negative value to abort, zero otherwise
+	 */
+	int HandleSSLProgressCallback ( void *clientp, double dltotal, double dlnow, double ultotal, double ulnow );
+
+	/**
+	 * @fn HandleSSLHeaderCallback
+	 *
+	 * @param ptr pointer to buffer containing the data
+	 * @param size size of the buffer
+	 * @param nmemb number of bytes
+	 * @param user_data  CurlCallbackContext pointer
+	 * @retval returns size * nmemb
+	 */
+	size_t HandleSSLHeaderCallback ( const char *ptr, size_t size, size_t nmemb, void* userdata );
 
 private:
 

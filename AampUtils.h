@@ -97,10 +97,18 @@ long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_T
 /**
  * @fn aamp_getHostFromURL
  *
- * @param url - Input URL
+ * @param[in] url - Input URL
  * @retval host of input url
  */
 std::string aamp_getHostFromURL(std::string url);
+
+/**
+ * @fn aamp_IsLocalHost
+ *
+ * @param[in] Hostname - Hostname parsed from url
+ * @retval true if localhost false otherwise.
+ */
+bool aamp_IsLocalHost ( std::string Hostname );
 
 /**
  * @fn aamp_ResolveURL
