@@ -110,41 +110,42 @@ include_directories(${LIBCJSON_INCLUDE_DIRS})
 
 
 set(LIBAAMP_SOURCES iso639map.cpp
-                    base16.cpp
-                    _base64.cpp
-                    AampMemoryUtils.cpp
-                    AampCacheHandler.cpp
-                    AampScheduler.cpp
-                    AampUtils.cpp
-                    AampJsonObject.cpp
-                    AampProfiler.cpp
-                    AampEvent.cpp
-                    AampEventListener.cpp
-                    ota_shim.cpp
-                    hdmiin_shim.cpp
-                    videoin_shim.cpp
-                    compositein_shim.cpp
-                    fragmentcollector_progressive.cpp
-                    fragmentcollector_hls.cpp
-                    fragmentcollector_mpd.cpp
-                    admanager_mpd.cpp
-                    streamabstraction.cpp
-                    drm/ave/drm.cpp
-                    priv_aamp.cpp
-                    main_aamp.cpp
-                    aampgstplayer.cpp
-                    tsprocessor.cpp
-                    drm/aes/aamp_aes.cpp
-                    aamplogging.cpp
-		    AampConfig.cpp
-		    AampEventManager.cpp
-                    subtitle/webvttParser.cpp
-                    isobmff/isobmffbox.cpp
-                    isobmff/isobmffbuffer.cpp
-                    isobmff/isobmffprocessor.cpp
-                    drm/helper/AampDrmHelper.cpp
-                    AampGstUtils.cpp
-		    MediaStreamContext.cpp
+					base16.cpp
+					_base64.cpp
+					AampMemoryUtils.cpp
+					AampCacheHandler.cpp
+					AampScheduler.cpp
+					AampUtils.cpp
+					AampJsonObject.cpp
+					AampProfiler.cpp
+					AampEvent.cpp
+					AampEventListener.cpp
+					ota_shim.cpp
+					hdmiin_shim.cpp
+					videoin_shim.cpp
+					compositein_shim.cpp
+					fragmentcollector_progressive.cpp
+					fragmentcollector_hls.cpp
+					fragmentcollector_mpd.cpp
+					admanager_mpd.cpp
+					streamabstraction.cpp
+					drm/ave/drm.cpp
+					priv_aamp.cpp
+					main_aamp.cpp
+					aampgstplayer.cpp
+					tsprocessor.cpp
+					drm/aes/aamp_aes.cpp
+					aamplogging.cpp
+					AampConfig.cpp
+					AampEventManager.cpp
+					subtitle/webvttParser.cpp
+					isobmff/isobmffbox.cpp
+					isobmff/isobmffbuffer.cpp
+					isobmff/isobmffprocessor.cpp
+					drm/helper/AampDrmHelper.cpp
+					AampGstUtils.cpp
+					MediaStreamContext.cpp
+					AampCurlStore.cpp
 )
 
 if (CMAKE_WPEFRAMEWORK_REQUIRED)
@@ -579,6 +580,7 @@ install(FILES AampEvent.h AampConfig.h AampEventManager.h AampDefine.h AampEvent
   AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h AampRfc.h AampGstUtils.h
   AampScheduler.h
   drm/AampSecManager.h
+  AampCurlStore.h
   DESTINATION include)
 
 if (CMAKE_AAMP_RFC_REQUIRED)

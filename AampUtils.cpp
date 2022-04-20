@@ -288,6 +288,23 @@ std::string aamp_getHostFromURL(std::string url)
 }
 
 /**
+ * @brief check is local or not from given hostname
+ *
+ * @retval true if localhost, false otherwise.
+ */
+bool aamp_IsLocalHost ( std::string Hostname )
+{
+	bool isLocalHost = false;
+	if( std::string::npos != Hostname.find("127.0.0.1") || \
+		std::string::npos != Hostname.find("localhost") )
+	{
+		isLocalHost = true;
+	}
+
+	return isLocalHost;
+}
+
+/**
  * @brief Check if string start with a prefix
  *
  * @retval TRUE if substring is found in bigstring

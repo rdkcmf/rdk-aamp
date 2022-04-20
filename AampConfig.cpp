@@ -271,6 +271,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"gstSubtecEnabled",eAAMPConfig_GstSubtecEnabled,-1,-1},
 	{"changeTrackWithoutRetune", eAAMPConfig_ChangeTrackWithoutRetune, -1,-1},
 	{"contentProtectionDataUpdateTimeout",eAAMPConfig_ContentProtectionDataUpdateTimeout,{.iMinValue = 0},{.iMaxValue=-1}}
+	,{"curlStore", eAAMPConfig_EnableCurlStore, -1, -1}
+	,{"maxCurlStore", eAAMPConfig_MaxCurlSockStore,{.iMinValue=1},{.iMaxValue=10}}
 };
 /////////////////// Public Functions /////////////////////////////////////
 /**
@@ -454,6 +456,8 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_PersistHighNetworkBandwidth].value		=	false;
 	bAampCfgValue[eAAMPConfig_PersistLowNetworkBandwidth].value		=	true;
 	bAampCfgValue[eAAMPConfig_ChangeTrackWithoutRetune].value		=	false;
+	bAampCfgValue[eAAMPConfig_EnableCurlStore].value		= true;
+
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_ABRCacheLife-eAAMPConfig_IntStartValue].value			=	DEFAULT_ABR_CACHE_LIFE;
@@ -505,6 +509,7 @@ void AampConfig::Initialize()
 	iAampCfgValue[eAAMPConfig_MaxInitFragCachePerTrack-eAAMPConfig_IntStartValue].value	=       MAX_INIT_FRAGMENT_CACHE_PER_TRACK;
 	iAampCfgValue[eAAMPConfig_FogMaxConcurrentDownloads-eAAMPConfig_IntStartValue].value	=	FOG_MAX_CONCURRENT_DOWNLOADS;
 	iAampCfgValue[eAAMPConfig_ContentProtectionDataUpdateTimeout-eAAMPConfig_IntStartValue].value	=	DEFAULT_CONTENT_PROTECTION_DATA_UPDATE_TIMEOUT;
+	iAampCfgValue[eAAMPConfig_MaxCurlSockStore-eAAMPConfig_IntStartValue].value		=	MAX_CURL_SOCK_STORE;
 
 	///////////////// Following for long data types /////////////////////////////
 	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value	=	DEFAULT_DISCONTINUITY_TIMEOUT;
