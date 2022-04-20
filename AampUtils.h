@@ -61,7 +61,7 @@ bool aamp_IsAbsoluteURL( const std::string &url );
  * @param url - Input URL
  * @retval - host of input url
  */
-std::string aamp_getHostFromURL(std::string url);
+std::string aamp_getHostFromURL(std::string url, int *protocol=NULL, int *IsRemote=NULL);
 
 /**
  * @brief Create file URL from the base and file path

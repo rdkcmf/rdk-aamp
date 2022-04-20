@@ -189,6 +189,7 @@ typedef enum
 	eAAMPConfig_AllowPageHeaders,						/**< Allow page http headers*/
 	eAAMPConfig_SuppressDecode,						/**< To Suppress Decode of segments for playback . Test only Downloader */
 	eAAMPConfig_PersistProfileAcrossTune,                                   /** Flag to enable Persist Network Bandwidth across Tunes */
+	eAAMPConfig_EnableCurlStore,					/**< Enable/Disable CurlStore to save/reuse curl fds */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
@@ -240,6 +241,7 @@ typedef enum
 	eAAMPConfig_FragmentDownloadFailThreshold, 						/**<Retry attempts for non-init fragment curl timeout failures*/
 	eAAMPConfig_MaxInitFragCachePerTrack,							/** Max no of Init fragment cache per track */
 	eAAMPConfig_FogMaxConcurrentDownloads,                                                  /**< Concurrent download posted to fog from player*/
+	eAAMPConfig_MaxCurlSockStore,								/**< Max no of curl socket to be stored */
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,
