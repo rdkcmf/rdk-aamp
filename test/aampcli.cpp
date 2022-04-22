@@ -21,7 +21,7 @@
  * @file aampcli.cpp
  * @brief Stand alone AAMP player with command line interface.
  */
-
+#include "AampDefine.h"
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 #ifdef __APPLE__
 	#define GL_SILENCE_DEPRECATION

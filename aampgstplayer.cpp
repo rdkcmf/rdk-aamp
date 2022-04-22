@@ -1031,6 +1031,7 @@ static gboolean VideoDecoderPtsCheckerForEOS(gpointer user_data)
 GstFlowReturn AAMPGstPlayer::AAMPGstPlayer_OnVideoSample(GstElement* object, AAMPGstPlayer * _this)
 {
 	FN_TRACE( __FUNCTION__ );
+	using ::mLogObj; //To use global log object
 	GstSample *sample;
 	GstBuffer *buffer;
 	GstMapInfo map;

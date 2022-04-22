@@ -153,6 +153,9 @@
 //delay for the first speed set event
 #define SECMANGER_SPEED_SET_DELAY 500
 
+//DELIA-53727 change this into #define to extract the raw YCrCb colors from each frame of video
+#undef RENDER_FRAMES_IN_APP_CONTEXT
+
 /**
  * @brief Enumeration for TUNED Event Configuration
  */
