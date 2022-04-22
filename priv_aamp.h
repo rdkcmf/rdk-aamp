@@ -718,12 +718,6 @@ public:
 	 */
 	unsigned char* ReplaceKeyIDPsshData(const unsigned char *InputData, const size_t InputDataLength,  size_t & OutputDataLength);
 	
-	/**
-	 * @brief Find foreground instance if present
-	 * @retval player id of the foregound player if exists, else return -2
-	 */
-	int SearchForAnyForegroundPlayers();
-	
 	std::vector< std::pair<long long,long> > mAbrBitrateData;
 
 	pthread_mutex_t mLock;// = PTHREAD_MUTEX_INITIALIZER;
