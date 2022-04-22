@@ -549,13 +549,6 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 		}
 		if(!(aamp->mbPlayEnabled) && aamp->pipeline_paused && (AAMP_RATE_PAUSE != rate) && (aamp->mbSeeked || !aamp->mbDetached))
 		{
-			//To avoid two player instances playing in parellel and causing crash, just ignore the player switch with a logging
-			int foregroundInstance = aamp->SearchForAnyForegroundPlayers();
-			if(foregroundInstance != INVALID_PLAYER_ID )
-			{
-				AAMPLOG_ERR("Failed to bring AAMP instance %d into foreground. Player instance  %d is already in foreground!!",aamp->mPlayerId, foregroundInstance);
-				return;
-			}
 			AAMPLOG_WARN("PLAYER[%d] Player %s=>%s.", aamp->mPlayerId, STRBGPLAYER, STRFGPLAYER );
 			aamp->mbPlayEnabled = true;
 			if (AAMP_NORMAL_PLAY_RATE == rate)
