@@ -83,13 +83,19 @@ sudo ln -s /usr/local/Cellar/openssl\@1.1/1.1.1g /usr/local/ssl
 ```
 Here 1.1.1g is the version 
 
-**6. Install libXML2**
+**6. Install GLM**
+
+```
+brew install glm
+
+```
+**7. Install libXML2**
 
 ```
 brew install libxml2
 ln -s /usr/local/opt/libxml2/lib/pkgconfig/* /usr/local/lib/pkgconfig/
 ```
-**7. Install libdash**
+**8. Install libdash**
 
 ```
 source install_libdash.sh
@@ -147,19 +153,19 @@ cp -pr ../libdash/source/metrics/*.h /usr/local/include/libdash/metrics
 
 echo -e 'prefix=/usr/local \nexec_prefix=${prefix} \nlibdir=${exec_prefix}/lib \nincludedir=${prefix}/include/libdash \n \nName: libdash \nDescription: ISO/IEC MPEG-DASH library \nVersion: 3.0 \nRequires: libxml-2.0 \nLibs: -L${libdir} -ldash \nLibs.private: -lxml2 \nCflags: -I${includedir}'  > /usr/local/lib/pkgconfig/libdash.pc
 ```
-**8. Install libuuid**
+**9. Install libuuid**
 
 ```
 brew install ossp-uuid
 ```
 
-**9. Install cjson**
+**10. Install cjson**
 
 ```
 brew install cjson
 ```
 
-**10. Install aampabr**
+**11. Install aampabr**
 
 ```
 git clone https://code.rdkcentral.com/r/rdk/components/generic/aampabr aampabr
@@ -171,7 +177,7 @@ make
 make install
 ```
 
-**11. Install aampmetrics**
+**12. Install aampmetrics**
 
 ```
 git clone https://code.rdkcentral.com/r/rdk/components/generic/aampmetrics aampmetrics

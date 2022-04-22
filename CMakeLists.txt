@@ -59,10 +59,7 @@ else()
 	message("CMAKE_QT5WEBKIT_JSBINDINGS not set, CMAKE_WPEWEBKIT_JSBINDINGS not set")
 endif()
 
-if(CMAKE_RENDER_FRAMES_IN_APP_CONTEXT)
-        #Gstreamer will export frames to app. It is app's responsibility to render frames.
-        message("CMAKE_RENDER_FRAMES_IN_APP_CONTEXT set")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DRENDER_FRAMES_IN_APP_CONTEXT")
+if (CMAKE_PLATFORM_UBUNTU OR CMAKE_SYSTEM_NAME STREQUAL Darwin OR CMAKE_SOC_PLATFORM_RPI)
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
         set(OPENGL_LIBRARIES "-framework OpenGL -framework GLUT")
 else()
