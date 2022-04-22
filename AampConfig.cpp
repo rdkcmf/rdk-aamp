@@ -841,16 +841,16 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 				CustomArrayRead( custom,owner );
 				customFound = true;
 			}
-			std::string keyname;
-			for (auto it = mAampLookupTable.begin(); it != mAampLookupTable.end(); ++it)
-			{
 
-				AampConfigLookupEntry cfg = it->second;
-				AAMPConfigSettings cfgEnum = cfg.cfgEntryValue;
-				keyname =  it->first;
-				cJSON *searchObj = cJSON_GetObjectItem(cfgdata,keyname.c_str());
-				if(searchObj)
+			for(cJSON *searchObj = cfgdata->child; NULL != searchObj; searchObj=searchObj->next)
+			{
+				auto it = mAampLookupTable.find(searchObj->string);
+				if ( it != mAampLookupTable.end())
 				{
+					AampConfigLookupEntry cfg = it->second;
+					AAMPConfigSettings cfgEnum = cfg.cfgEntryValue;
+					std::string keyname = it->first;
+
 					// Found that keyname in json string
 					if(cfgEnum < eAAMPConfig_BoolMaxValue )
 					{
