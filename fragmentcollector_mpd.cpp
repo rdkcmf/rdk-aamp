@@ -1136,13 +1136,37 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	bool retval=false;
-
+	static bool FCS_content=false;
+	static bool FCS_rep=false;
+	FailoverContent failovercontent;
+	static std::vector<IFCS *>failovercontents;
 	SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),
 					pMediaStreamContext->adaptationSet->GetSegmentTemplate() );
 #ifdef DEBUG_TIMELINE
 	AAMPLOG_WARN("Type[%d] timeLineIndex %d fragmentRepeatCount %u PeriodDuration:%f mCurrentPeriodIdx:%d mPeriodStartTime %f",pMediaStreamContext->type,
 				pMediaStreamContext->timeLineIndex, pMediaStreamContext->fragmentRepeatCount,mPeriodDuration,mCurrentPeriodIdx,mPeriodStartTime );
 #endif
+//To fill the failover Content Vector for only once on every representation ,if it presents
+        static int OldRepresentation = -1;
+	pMediaStreamContext->failAdjacentSegment = false;
+	if(OldRepresentation != pMediaStreamContext->representationIndex)
+	{
+		FCS_rep=false;
+		failovercontents.clear();
+		FCS_content = false;
+		ISegmentBase *segmentBase = pMediaStreamContext->representation->GetSegmentBase();
+		if (segmentBase)
+		{
+			const IFailoverContent *failoverContent = segmentBase->GetFailoverContent();
+			if(failoverContent)
+			{
+				failovercontents = failoverContent->GetFCS();
+				bool valid = failoverContent->IsValid();
+				//to indicate this representation contain failover tag or not
+				FCS_rep = valid ? false : true;
+			}
+		}
+	}
 	if( segmentTemplates.HasSegmentTemplate() )
 	{
 		std::string media = segmentTemplates.Getmedia();
@@ -1409,7 +1433,46 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 							pMediaStreamContext->type,pMediaStreamContext->fragmentDescriptor.Time,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->lastSegmentTime,duration,pMediaStreamContext->fragmentTime,endTime);
 #endif
 						retval = true;
-						if(mIsFogTSB || (mPeriodDuration !=0 && (mPeriodStartTime + positionInPeriod) < endTime))
+						if(FCS_rep)
+                                                {
+							FCS_content = false;
+							for(int i =0;i< failovercontents.size();i++)
+                                                        {
+								double starttime = failovercontents.at(i)->GetStartTime();
+								double duration  =  failovercontents.at(i)->GetDuration();
+								// Logic  to handle the duration option missing case
+								if(!duration)
+								{
+									//If not present, the alternative content section lasts until the start of the next FCS element
+									if(i+1 < failovercontents.size())
+									{
+										duration =  failovercontents.at(i+1)->GetStartTime();
+									}
+									// until the end of the Period
+									else if(mPeriodEndTime)
+									{
+										duration = mPeriodEndTime;
+									}
+									// or until the end of MPD duration
+                                                                        else
+									{
+										std::string durationStr =  mpd->GetMediaPresentationDuration();
+										if(!durationStr.empty())
+										{
+											duration = ParseISO8601Duration( durationStr.c_str());
+										}
+									}
+								}
+								// the value of this attribute minus the value of the @presentationTimeOffset specifies the MPD start time,
+								double fcscontent_range = (starttime  + duration);
+								if((starttime <= pMediaStreamContext->fragmentDescriptor.Time)&&(fcscontent_range > pMediaStreamContext->fragmentDescriptor.Time))
+								{
+									FCS_content = true;
+								}
+							}
+						}
+
+						if((mIsFogTSB || (mPeriodDuration !=0 && (mPeriodStartTime + positionInPeriod) < endTime))&& !FCS_content)
 						{
 							retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
 						}
@@ -1418,6 +1481,29 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 							AAMPLOG_WARN("Type[%d] Skipping Fetchfragment, Number(%lld) fragment beyond duration. fragmentPosition: %lf periodEndTime : %lf", pMediaStreamContext->type
 								, pMediaStreamContext->fragmentDescriptor.Number, positionInPeriod , endTime);
 						}
+						if(FCS_content)
+						{
+							long http_code = 404;
+							retval = false;
+							if (pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO)
+							{
+								// Attempt rampdown
+								if (CheckForRampDownProfile(http_code))
+								{
+									AAMPLOG_WARN("RampDownProfile Due to failover Content %lf Number %lf FDT",pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentDescriptor.Time);
+									mCheckForRampdown = true;
+									// Rampdown attempt success, download same segment from lower profile.
+									pMediaStreamContext->mSkipSegmentOnError = false;
+									return retval;
+								}
+								else
+								{
+									AAMPLOG_WARN("Already at the lowest profile, skipping segment due to failover");
+									mRampDownCount = 0;
+								}
+							}
+						}
+
 						if(retval)
 						{
 							pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
@@ -1549,6 +1635,42 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 								pMediaStreamContext->fragmentRepeatCount = timelines.at(pMediaStreamContext->timeLineIndex)->GetRepeatCount();
 							}
 						}
+					}
+				}
+				 //< FailoverContent> can span more than one adjacent segment on a profile - in this case, client shall remain ramped down for the duration of the marked fragments (without re-injecting extra init header in-between)
+				if((OldRepresentation != pMediaStreamContext->representationIndex) && ( pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO))
+				{
+					std::vector<IFCS *>failovercontents;
+					if(OldRepresentation != -1)
+					{
+						if(pMediaStreamContext->adaptationSet!=NULL){
+							const std::vector<IRepresentation *> representation = pMediaStreamContext->adaptationSet ->GetRepresentation();
+							if(OldRepresentation < (representation.size()-1)){
+								const dash::mpd::IRepresentation *rep = representation.at(OldRepresentation);
+								if(rep){
+									ISegmentBase *segmentBase = rep->GetSegmentBase();
+									if (segmentBase)
+									{
+										const IFailoverContent *failoverContent = segmentBase->GetFailoverContent();
+										if(failoverContent)
+										{
+											failovercontents = failoverContent->GetFCS();
+											bool valid = failoverContent->IsValid();
+											for(int i =0;i< failovercontents.size() && !valid;i++)
+											{
+												double starttime = failovercontents.at(i)->GetStartTime();
+												double duration  =  failovercontents.at(i)->GetDuration();
+												double fcscontent_range = starttime + duration ;
+												if((starttime <= pMediaStreamContext->fragmentDescriptor.Time)&&(fcscontent_range > pMediaStreamContext->fragmentDescriptor.Time))
+													pMediaStreamContext->failAdjacentSegment = true;
+											}
+										}
+									}
+								}}
+						}}
+					if(!pMediaStreamContext->failAdjacentSegment)
+					{
+						OldRepresentation = pMediaStreamContext->representationIndex;
 					}
 				}
 			}
@@ -8091,7 +8213,7 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 						{
 							pMediaStreamContext->GetContext()->CheckForPlaybackStall(true);
 						}
-						if((!pMediaStreamContext->GetContext()->trickplayMode) && (eMEDIATYPE_VIDEO == trackIdx))
+						if((!pMediaStreamContext->GetContext()->trickplayMode) && (eMEDIATYPE_VIDEO == trackIdx)&& !pMediaStreamContext->failAdjacentSegment)
 						{
 							if (aamp->CheckABREnabled())
 							{

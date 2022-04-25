@@ -28,6 +28,7 @@ public:
             mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true),
             downloadedDuration(0)
 	   , scaledPTO(0)
+	   , failAdjacentSegment(false)
     {
         memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
         fragmentDescriptor.bUseMatchingBaseUrl = ISCONFIGSET(eAAMPConfig_MatchBaseUrl);
@@ -140,6 +141,7 @@ public:
     uint32_t adaptationSetId;
     bool mSkipSegmentOnError;
     double scaledPTO;
+    bool failAdjacentSegment;
 }; // MediaStreamContext
 
 #endif /* MEDIASTREAMCONTEXT_H */
