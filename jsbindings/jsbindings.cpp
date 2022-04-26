@@ -3021,6 +3021,67 @@ static JSValueRef AAMP_setTextTrack(JSContextRef context, JSObjectRef function, 
 	return JSValueMakeUndefined(context);
 }
 
+/**
+ * @brief Callback invoked from JS to get list of video tracks
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_getAvailableVideoTracks(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getAvailableAudioTracks on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+	std::string tracks = pAAMP->_aamp->GetAvailableVideoTracks();
+	if (!tracks.empty())
+	{
+		return aamp_CStringToJSValue(context, tracks.c_str());
+	}
+	else
+	{
+		return JSValueMakeUndefined(context);
+	}
+}
+
+/**
+ * @brief Callback invoked from JS to set video track
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_setVideoTracks(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setVideoTrack on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	std::vector<long> bitrateList;
+	for (int i = 0; i < argumentCount; i++)
+	{
+		bitrateList.push_back ((long) JSValueToNumber(context, arguments[i], exception));
+	}
+	pAAMP->_aamp->SetVideoTracks(bitrateList);
+
+	return JSValueMakeUndefined(context);
+}
 
 /**
  * @brief Callback invoked from JS to set license server URL
@@ -3825,6 +3886,8 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ "setSubscribeTags", AAMP_setSubscribeTags, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setAds", AAMP_setAds, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "subscribeTimedMetadata", AAMP_setSubscribeTags, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "getAvailableVideoTracks", AAMP_getAvailableVideoTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setVideoTracks", AAMP_setVideoTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getAvailableAudioTracks", AAMP_getAvailableAudioTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getAudioTrack", AAMP_getAudioTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getAudioTrackInfo", AAMP_getAudioTrackInfo, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },

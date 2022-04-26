@@ -1524,6 +1524,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mPlaybackMode("UNKNOWN")
 	, mApplyVideoRect(false)
 	, mVideoRect{}
+	, bitrateList()
+	, userProfileStatus(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -8990,6 +8992,101 @@ std::string PrivateInstanceAAMP::GetPreferredAudioProperties()
 	}
 	cJSON_Delete(item);
 	return preferrence;
+}
+
+/**
+ *   @brief Get available video tracks.
+ *
+ *   @return std::string JSON formatted string of available video tracks
+ */
+std::string PrivateInstanceAAMP::GetAvailableVideoTracks()
+{
+	std::string tracks;
+
+	pthread_mutex_lock(&mStreamLock);
+	if (mpStreamAbstractionAAMP)
+	{
+		std::vector <StreamInfo*> trackInfo = mpStreamAbstractionAAMP->GetAvailableVideoTracks();
+		if (!trackInfo.empty())
+		{
+			//Convert to JSON format
+			cJSON *root;
+			cJSON *item;
+			root = cJSON_CreateArray();
+			if(root)
+			{
+				for (int i = 0; i < trackInfo.size(); i++)
+				{
+					cJSON_AddItemToArray(root, item = cJSON_CreateObject());
+					if (trackInfo[i]->bandwidthBitsPerSecond != -1)
+					{
+						cJSON_AddNumberToObject(item, "bandwidth", trackInfo[i]->bandwidthBitsPerSecond);
+					}
+					if (trackInfo[i]->resolution.width != -1)
+					{
+						cJSON_AddNumberToObject(item, "width", trackInfo[i]->resolution.width);
+					}
+					if (trackInfo[i]->resolution.height != -1)
+					{
+						cJSON_AddNumberToObject(item, "height", trackInfo[i]->resolution.height);
+					}
+					if (trackInfo[i]->resolution.framerate != -1)
+					{
+						cJSON_AddNumberToObject(item, "framerate", trackInfo[i]->resolution.framerate);
+					}
+
+					cJSON_AddNumberToObject(item, "enabled", trackInfo[i]->enabled);
+
+					if (trackInfo[i]->codecs)
+					{
+						cJSON_AddStringToObject(item, "codec", trackInfo[i]->codecs);
+					}
+				}
+				char *jsonStr = cJSON_Print(root);
+				if (jsonStr)
+				{
+					tracks.assign(jsonStr);
+					free(jsonStr);
+				}
+				cJSON_Delete(root);
+			}
+		}
+		else
+		{
+			AAMPLOG_ERR("PrivateInstanceAAMP: No available video track information!");
+		}
+	}
+	pthread_mutex_unlock(&mStreamLock);
+	return tracks;
+}
+
+/**
+ *   @brief Set birate for video tracks selection.
+ *
+ *   @param[in] long - bitrate list
+ *   @return none
+ */
+void PrivateInstanceAAMP::SetVideoTracks(std::vector<long> bitrateList)
+{
+	int bitrateSize = bitrateList.size();
+	//clear cached bitrate list
+	this->bitrateList.clear();
+	// user profile stats enabled only for valid bitrate list, otherwise disabled for empty bitrates
+	this->userProfileStatus = (bitrateSize > 0) ? true : false;
+	AAMPLOG_INFO("User Profile filtering bitrate size:%d status:%d", bitrateSize, this->userProfileStatus);
+	for (int i = 0; i < bitrateSize; i++)
+	{
+		this->bitrateList.push_back(bitrateList.at(i));
+		AAMPLOG_WARN("User Profile Index : %d(%d) Bw : %ld", i, bitrateSize, bitrateList.at(i));
+	}
+	PrivAAMPState state;
+	GetState(state);
+	if (state > eSTATE_PREPARING)
+	{
+		AcquireStreamLock();
+		TuneHelper(eTUNETYPE_RETUNE);
+		ReleaseStreamLock();
+	}
 }
 
 /**

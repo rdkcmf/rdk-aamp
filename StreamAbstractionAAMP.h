@@ -63,6 +63,8 @@ struct StreamInfo
 {
 	bool enabled;					/**< indicates if the streamInfo profile is enabled */
 	bool isIframeTrack;             /**< indicates if the stream is iframe stream*/
+	bool validity;			/**< indicates profile validity against user configured profile range */
+	const char *codecs;		/**< Codec String */
 	long bandwidthBitsPerSecond;    /**< Bandwidth of the stream bps*/
 	StreamResolution resolution;    /**< Resolution of the stream*/
 	BitrateChangeReason reason;	/**< Reason for bitrate change*/
@@ -1179,6 +1181,8 @@ public:
 	 * @param[in] wxh - width & height of video rectangle
 	 */
 	virtual void SetVideoRectangle(int x, int y, int w, int h) {}
+
+	virtual std::vector<StreamInfo*> GetAvailableVideoTracks(void) = 0;
 
         /**
          *   @brief Get available thumbnail bitrates.

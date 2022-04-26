@@ -391,6 +391,15 @@ std::vector<long> StreamAbstractionAAMP_PROGRESSIVE::GetAudioBitrates(void)
 }
 
 /**
+ * @brief To get the available video tracks.
+ * @ret available video tracks.
+ */
+std::vector<StreamInfo*> StreamAbstractionAAMP_PROGRESSIVE::GetAvailableVideoTracks(void)
+{ // STUB
+	return std::vector<StreamInfo*>();
+}
+
+/**
  * @brief To get the available thumbnail tracks.
  * @ret available thumbnail tracks.
  */

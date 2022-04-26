@@ -62,6 +62,7 @@ public:
     void SeekPosUpdate(double) { };
 
     void FetcherLoop();
+    std::vector<StreamInfo*> GetAvailableVideoTracks(void) override;
     std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
     bool SetThumbnailTrack(int) override;
     std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;

@@ -97,6 +97,7 @@ typedef enum {
 	eAAMP_GET_TextTrack,
 	eAAMP_GET_ThumbnailConfig,
 	eAAMP_GET_ThumbnailData,
+	eAAMP_GET_AvailableVideoTracks,
 	eAAMP_GET_TYPE_COUNT
 }AAMPGetTypes;
 
@@ -157,6 +158,7 @@ typedef enum{
 	eAAMP_SET_PausedBehavior,
 	eAAMP_SET_AuxiliaryAudio,
 	eAAMP_SET_RegisterForMediaMetadata,
+	eAAMP_SET_VideoTrack,
 	eAAMP_SET_TYPE_COUNT
 }AAMPSetTypes;
 
@@ -514,6 +516,7 @@ static void InitGetHelpText()
 	mGetHelpText[eAAMP_GET_AudioBitrates] = "Get Audio bitrates supported";
 	mGetHelpText[eAAMP_GET_CurrentPreferredLanguages] = "Get Current preferred languages";
 	mGetHelpText[eAAMP_GET_AvailableAudioTracks] = "Get Available Audio Tracks";
+	mGetHelpText[eAAMP_GET_AvailableVideoTracks] = "Get All Available Video Tracks information from manifest";
 	mGetHelpText[eAAMP_GET_AllAvailableAudioTracks] = "Get All Available Audio Tracks information from manifest";
 	mGetHelpText[eAAMP_GET_AvailableTextTracks] = "Get Available Text Tracks";
 	mGetHelpText[eAAMP_GET_AudioTrack] = "Get Audio Track";
@@ -583,6 +586,7 @@ static void InitSetHelpText()
 	mSetHelpText[eAAMP_SET_PausedBehavior] =                     "<x>             // Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"";
 	mSetHelpText[eAAMP_SET_AuxiliaryAudio] =                     "<x>             // Set auxiliary audio language (x = string lang)";
 	mSetHelpText[eAAMP_SET_RegisterForMediaMetadata] =           "<x>             // Set Listen for AAMP_EVENT_MEDIA_METADATA events (x = 1 - add listener, x = 0 - remove)";
+	mSetHelpText[eAAMP_SET_VideoTrack] =			     "<x> <y> <z>     // Set Video tracks range (x = bitrate1, y = bitrate2, z = bitrate3) OR single bitrate provide same value for x, y,z ";
 }
 /**
  * @brief Show help menu with aamp command line interface
@@ -1815,7 +1819,24 @@ static void ProcessCliCommand( char *cmd )
                                         }
 					break;
 				}
-
+				case eAAMP_SET_VideoTrack:
+				{
+					long bitrate1, bitrate2, bitrate3;
+					std::vector<long>bitrateList;
+					printf("[AAMPCLI] Matched Command eAAMP_SET_VideoTrack - %s\n", cmd);
+					if (sscanf(cmd, "set %d %ld %ld %ld", &opt, &bitrate1, &bitrate2, &bitrate3) == 4){
+						bitrateList.push_back(bitrate1);
+						bitrateList.push_back(bitrate2);
+						bitrateList.push_back(bitrate3);
+						mSingleton->SetVideoTracks(bitrateList);
+					}
+					else
+					{
+						printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+						printf("[AAMPCLI] Expected: set %d <value1> <value2> <value3>\n", opt);
+					}
+					break;
+				}
 				case eAAMP_SET_MaximumSegmentInjFailCount:
 				{
 					int failCount;
@@ -2185,6 +2206,9 @@ static void ProcessCliCommand( char *cmd )
 					break;
 				case eAAMP_GET_AvailableAudioTracks:
 					printf("[AAMPCLI] AVAILABLE AUDIO TRACKS: %s\n", mSingleton->GetAvailableAudioTracks(false).c_str() );
+					break;
+				case eAAMP_GET_AvailableVideoTracks:
+					printf("[AAMPCLI] AVAILABLE VIDEO TRACKS: %s\n", mSingleton->GetAvailableVideoTracks().c_str() );
 					break;
 				case eAAMP_GET_AllAvailableAudioTracks:
 					printf("[AAMPCLI] AVAILABLE AUDIO TRACKS: %s\n", mSingleton->GetAvailableAudioTracks(true).c_str() );

@@ -7555,6 +7555,31 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 		// Add all the iframe tracks
 		int iFrameSelectedCount = 0;
 		int iFrameAvailableCount = 0;
+
+		if (aamp->userProfileStatus)
+		{
+			// To select profile bitrates are nearer with user configured bitrate range
+			for (int i = 0; i < aamp->bitrateList.size(); i++)
+			{
+				int curIdx = 0;
+				long curValue, diff;
+				struct HlsStreamInfo *streamInfo;
+				// Add nearest bitrate profiles until user provided bitrate count
+				for (int pidx = 0; pidx < mProfileCount; pidx++)
+				{
+					streamInfo = &this->streamInfo[pidx];
+					diff = abs(streamInfo->bandwidthBitsPerSecond - aamp->bitrateList.at(i));
+					if ((0 == pidx) || (diff < curValue))
+					{
+						curValue = diff;
+						curIdx = pidx;
+					}
+				}
+				streamInfo = &this->streamInfo[curIdx];
+				streamInfo->validity = true;
+			}
+		}
+
 		for (;;)
 		{
 			bool loopAgain = false;
@@ -7565,14 +7590,19 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 				if(streamInfo->isIframeTrack && !(isThumbnailStream(streamInfo)))
 				{
 					iFrameAvailableCount++;
-					if (resolutionCheckEnabled && (streamInfo->resolution.width > aamp->mDisplayWidth))
+					if (false == aamp->userProfileStatus && resolutionCheckEnabled && (streamInfo->resolution.width > aamp->mDisplayWidth))
 					{
 						AAMPLOG_INFO("Iframe Video Profile ignoring higher res=%d:%d display=%d:%d BW=%ld", streamInfo->resolution.width, streamInfo->resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight, streamInfo->bandwidthBitsPerSecond);
 						iProfileCapped = true;
 					}
-					else if ((streamInfo->bandwidthBitsPerSecond >= minBitrate) && (streamInfo->bandwidthBitsPerSecond <= maxBitrate))
+					else if (aamp->userProfileStatus || ((streamInfo->bandwidthBitsPerSecond >= minBitrate) && (streamInfo->bandwidthBitsPerSecond <= maxBitrate)))
 					{
-						if (ISCONFIGSET(eAAMPConfig_Disable4K) &&
+						if (aamp->userProfileStatus && false == streamInfo->validity)
+						{
+							AAMPLOG_INFO("Iframe Video Profile ignoring by User profile range BW=%ld", streamInfo->bandwidthBitsPerSecond);
+							continue;
+						}
+						else if (false == aamp->userProfileStatus && ISCONFIGSET(eAAMPConfig_Disable4K) &&
 							(streamInfo->resolution.height > 1080 || streamInfo->resolution.width > 1920))
 						{
 							continue;
@@ -7645,6 +7675,30 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 			AAMPLOG_WARN("Audio groupId selected:%s", audiogroupId.c_str());
 		}
 
+		if (aamp->userProfileStatus)
+		{
+			// To select profile based on user configured bitrate range
+			for (int i = 0; i < aamp->bitrateList.size(); i++)
+			{
+				int tempIdx = 0;
+				long tval, diff;
+				struct HlsStreamInfo *streamInfo;
+				// select profiles bitrate closer with user profiles bitrate
+				for (int pidx = 0; pidx < mProfileCount; pidx++)
+				{
+					streamInfo = &this->streamInfo[pidx];
+					diff = abs(streamInfo->bandwidthBitsPerSecond - aamp->bitrateList.at(i));
+					if ((0 == pidx) || (diff < tval))
+					{
+						tval = diff;
+						tempIdx = pidx;
+					}
+				}
+				streamInfo = &this->streamInfo[tempIdx];
+				streamInfo->validity = true;
+			}
+		}
+
 		int vProfileCountSelected = 0;
 		do{
 			int aacProfiles = 0, ac3Profiles = 0, ec3Profiles = 0, atmosProfiles = 0;
@@ -7677,21 +7731,27 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 					if((!audiogroupId.empty() && streamInfo->audio && !audiogroupId.compare(streamInfo->audio)) || audiogroupId.empty())
 					{
 						audioProfileMatchedCount++;
-						if(resolutionCheckEnabled && (streamInfo->resolution.width > aamp->mDisplayWidth))
+						if(false == aamp->userProfileStatus && resolutionCheckEnabled && (streamInfo->resolution.width > aamp->mDisplayWidth))
 						{
 							iProfileCapped = true;
 							AAMPLOG_INFO("Video Profile ignored Bw=%ld res=%d:%d display=%d:%d", streamInfo->bandwidthBitsPerSecond, streamInfo->resolution.width, streamInfo->resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight);
 						}
-						else if(ISCONFIGSET(eAAMPConfig_Disable4K) && (streamInfo->resolution.height > 1080 || streamInfo->resolution.width > 1920))
+						else if(false == aamp->userProfileStatus && ISCONFIGSET(eAAMPConfig_Disable4K) && (streamInfo->resolution.height > 1080 || streamInfo->resolution.width > 1920))
 						{
 							AAMPLOG_INFO("Video Profile ignored for disabled 4k content");
 						}
 						else
 						{
 							resolutionMatchedCount++;
-							if (((streamInfo->bandwidthBitsPerSecond < minBitrate) || (streamInfo->bandwidthBitsPerSecond > maxBitrate)) && !ignoreBitRateRangeCheck)
+							if (false == aamp->userProfileStatus && 
+								((streamInfo->bandwidthBitsPerSecond < minBitrate) || (streamInfo->bandwidthBitsPerSecond > maxBitrate)) && !ignoreBitRateRangeCheck)
 							{
 								iProfileCapped = true;
+							}
+							else if (aamp->userProfileStatus && false == streamInfo->validity && !ignoreBitRateRangeCheck)
+							{
+								iProfileCapped = true;
+								AAMPLOG_INFO("Video Profile ignored User Profile range Bw=%ld", streamInfo->bandwidthBitsPerSecond);
 							}
 							else
 							{
@@ -8098,6 +8158,25 @@ StreamOutputFormat StreamAbstractionAAMP_HLS::GetStreamOutputFormatForTrack(Trac
 		format = FORMAT_AUDIO_ES_AAC;
 	}
 	return format;
+}
+
+/***************************************************************************
+* @fn GetAvailableVideoTracks
+* @brief Function to get available video tracks
+*
+* @return list of available video tracks.
+***************************************************************************/
+std::vector<StreamInfo*> StreamAbstractionAAMP_HLS::GetAvailableVideoTracks(void)
+{
+	std::vector<StreamInfo*> videoTracks;
+	for( int i = 0; i < mProfileCount; i++ )
+	{
+		struct HlsStreamInfo *streamInfo = &this->streamInfo[i];
+		struct StreamInfo *sptr = streamInfo;
+		sptr->codecs =  streamInfo->codecs;
+		videoTracks.push_back(sptr);
+	}
+	return videoTracks;
 }
 
 /***************************************************************************

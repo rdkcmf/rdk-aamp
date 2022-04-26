@@ -1170,6 +1170,15 @@ std::vector<long> StreamAbstractionAAMP_OTA::GetAudioBitrates(void)
 }
 
 /**
+ * @brief To get the available video tracks.
+ * @ret available video tracks
+ */
+std::vector<StreamInfo*> StreamAbstractionAAMP_OTA::GetAvailableVideoTracks(void)
+{ // STUB
+	return std::vector<StreamInfo*>();
+}
+
+/**
  * @brief To get the available thumbnail tracks.
  * @ret available thumbnail tracks
  */

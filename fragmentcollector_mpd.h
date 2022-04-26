@@ -179,6 +179,7 @@ public:
 	int GetProfileIndexForBandwidth(long mTsbBandwidth);
 
 	std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
+	std::vector<StreamInfo*> GetAvailableVideoTracks(void) override;
 	bool SetThumbnailTrack(int) override;
 	std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 
@@ -344,6 +345,7 @@ private:
 	LatencyStatus prevLatencyStatus; /**< Previous latency status of the playback*/
 	bool latencyMonitorThreadStarted; /**< Monitor latency thread  status*/
 	pthread_t latencyMonitorThreadID; /**< Fragment injector thread id*/
+	int mProfileCount; /**< Total video profile count*/
 };
 
 #endif //FRAGMENTCOLLECTOR_MPD_H_

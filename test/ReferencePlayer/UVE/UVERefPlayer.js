@@ -310,6 +310,7 @@ function playbackStateChanged(event) {
             break;
         case playerStatesEnum.initialized:
             playerState = playerStatesEnum.initialized;
+            var videoTracksAvailable = playerObj.getAvailableVideoTracks();
             var audioTracksAvailable = playerObj.getAvailableAudioTracks();
             var textTracksAvailable = playerObj.getAvailableTextTracks();
             console.log("Available audio tracks: " + audioTracksAvailable);

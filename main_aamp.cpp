@@ -2336,6 +2336,29 @@ void PlayerInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
 }
 
 /**
+ *   @brief Get available video tracks.
+ *
+ *   @return std::string JSON formatted list of video tracks
+ */
+std::string PlayerInstanceAAMP::GetAvailableVideoTracks()
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
+
+	return aamp->GetAvailableVideoTracks();
+}
+
+/**
+ *   @brief Set video track selection.
+ *   @param[in] bitratelist - list of bitrates used for profile selection
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetVideoTracks(std::vector<long> bitrates)
+{
+	return aamp->SetVideoTracks(bitrates);
+}
+
+/**
  *   @brief Get available audio tracks.
  *
  *   @return std::string JSON formatted list of audio tracks

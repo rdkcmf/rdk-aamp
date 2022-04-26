@@ -48,6 +48,7 @@ public:
     AAMPStatusType Init(TuneType tuneType) override;
     void Start() override;
     void Stop(bool clearChannelData) override;
+    std::vector<StreamInfo*> GetAvailableVideoTracks(void) override;
     std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
     bool SetThumbnailTrack(int) override;
     std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;

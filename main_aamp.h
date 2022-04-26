@@ -1250,6 +1250,21 @@ public:
 	void SetNewAdBreakerConfig(bool bValue);
 
 	/**
+	 *   @brief Get available video tracks.
+	 *
+	 *   @return std::string JSON formatted list of video tracks
+	 */
+	std::string GetAvailableVideoTracks();
+
+	/**
+	 *   @brief Set video tracks.
+	 *   @param[in] bitrate - video bitrate list
+	 *   
+	 *   @return void
+	 */
+	void SetVideoTracks(std::vector<long> bitrates);
+
+	/**
 	 *   @brief Get available audio tracks.
 	 *
 	 *   @return std::string JSON formatted list of audio tracks
