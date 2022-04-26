@@ -4016,6 +4016,7 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 				else
 				{
 					sendEndEvent = aamp->PausePipeline(false, false);
+					aamp->UpdateSubtitleTimestamp();
 				}
 			}
 			else
