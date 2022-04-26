@@ -88,6 +88,7 @@ public:
     void SetPreferredAudioLanguages() override;
     void DisableContentRestrictions(long grace, long time, bool eventChange) override;
     void EnableContentRestrictions() override;
+    std::vector<StreamInfo*> GetAvailableVideoTracks(void) override;
     std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
     bool SetThumbnailTrack(int) override;
     std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;

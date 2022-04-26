@@ -296,6 +296,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	,mHasServerUtcTime(0)
 	,latencyMonitorThreadStarted(false),prevLatencyStatus(LATENCY_STATUS_UNKNOWN),latencyStatus(LATENCY_STATUS_UNKNOWN),latencyMonitorThreadID(0)
 	,mStreamLock()
+	,mProfileCount(0)
 {
         FN_TRACE_F_MPD( __FUNCTION__ );
 	this->aamp = aamp;
@@ -6774,6 +6775,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 	bool isFogTsb = mIsFogTSB && !mAdPlayingFromCDN;	/*Conveys whether the current playback from FOG or not.*/
 	long minBitrate = aamp->GetMinimumBitrate();
 	long maxBitrate = aamp->GetMaximumBitrate();
+	mProfileCount = 0;
 	if(periodChanged)
 	{
 				// sometimes when period changes, period in manifest is empty hence mark it for later use when period gets filled with data.
@@ -6833,6 +6835,16 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 							mStreamInfo[idx].resolution.width = representation->GetWidth();
 							mStreamInfo[idx].resolution.framerate = 0;
 							mStreamInfo[idx].enabled = false;
+							mStreamInfo[idx].validity = false;
+							//Get video codec details
+							if (representation->GetCodecs().size())
+							{
+								mStreamInfo[idx].codecs = representation->GetCodecs().at(0).c_str();
+							}
+							else if (pMediaStreamContext->adaptationSet->GetCodecs().size())
+							{
+								mStreamInfo[idx].codecs = pMediaStreamContext->adaptationSet->GetCodecs().at(0).c_str();
+							}
 							//Update profile resolution with VideoEnd Metrics object.
 							aamp->UpdateVideoEndProfileResolution((mStreamInfo[idx].isIframeTrack ? eMEDIATYPE_IFRAME : eMEDIATYPE_VIDEO ),
 													mStreamInfo[idx].bandwidthBitsPerSecond,
@@ -6960,7 +6972,18 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								mStreamInfo[idx].resolution.width = representation->GetWidth();
 								mStreamInfo[idx].resolution.framerate = 0;
 								std::string repFrameRate = representation->GetFrameRate();
+								// Get codec details for video profile
+								if (representation->GetCodecs().size())
+								{
+									mStreamInfo[idx].codecs = representation->GetCodecs().at(0).c_str();
+								}
+								else if (adaptationSet->GetCodecs().size())
+								{
+									mStreamInfo[idx].codecs = adaptationSet->GetCodecs().at(0).c_str();
+								}
+
 								mStreamInfo[idx].enabled = false;
+								mStreamInfo[idx].validity = false;
 								if(repFrameRate.empty())
 									repFrameRate = adapFrameRate;
 								if(!repFrameRate.empty())
@@ -6992,9 +7015,31 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 							}
 						}
 					}
+					// To select profiles bitrates nearer with user configured bitrate list
+					if (aamp->userProfileStatus)
+					{
+						for (int i = 0; i < aamp->bitrateList.size(); i++)
+						{
+							int curIdx = 0;
+							long curValue, diff;
+							// traverse all profiles and select closer to user bitrate
+							for (int pidx = 0; pidx < idx; pidx++)
+							{
+								diff = abs(mStreamInfo[pidx].bandwidthBitsPerSecond - aamp->bitrateList.at(i));
+								if ((0 == pidx) || (diff < curValue))
+								{
+									curValue = diff;
+									curIdx = pidx;
+								}
+							}
+
+							mStreamInfo[curIdx].validity = true;
+						}
+					}
+					mProfileCount = idx;
 					for (int pidx = 0; pidx < idx; pidx++)
 					{
-						if (resolutionCheckEnabled && (mStreamInfo[pidx].resolution.width > aamp->mDisplayWidth) &&
+						if (false == aamp->userProfileStatus && resolutionCheckEnabled && (mStreamInfo[pidx].resolution.width > aamp->mDisplayWidth) &&
 							((mStreamInfo[pidx].isIframeTrack && bIframeCapped) || 
 							(!mStreamInfo[pidx].isIframeTrack && bVideoCapped)))
 						{
@@ -7002,9 +7047,14 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 						}
 						else
 						{
-							if ((mStreamInfo[pidx].bandwidthBitsPerSecond > minBitrate) && (mStreamInfo[pidx].bandwidthBitsPerSecond < maxBitrate))
+							if (aamp->userProfileStatus || ((mStreamInfo[pidx].bandwidthBitsPerSecond > minBitrate) && (mStreamInfo[pidx].bandwidthBitsPerSecond < maxBitrate)))
 							{
-								if (ISCONFIGSET(eAAMPConfig_Disable4K) &&
+								if (aamp->userProfileStatus && false ==  mStreamInfo[pidx].validity)
+								{
+									AAMPLOG_INFO("Video Profile ignoring user profile range BW=%ld", mStreamInfo[pidx].bandwidthBitsPerSecond);
+									continue;
+								}
+								else if (false == aamp->userProfileStatus && ISCONFIGSET(eAAMPConfig_Disable4K) &&
 									(mStreamInfo[pidx].resolution.height > 1080 || mStreamInfo[pidx].resolution.width > 1920))
 								{
 									continue;
@@ -11356,3 +11406,19 @@ vector<IDescriptor*> StreamAbstractionAAMP_MPD::GetContentProtection(const IAdap
 		}
 		return (adaptationSet->GetContentProtection());
 	}
+/***************************************************************************
+* @fn GetAvailableVideoTracks
+* @brief Function to get available video tracks
+*
+* @return vector of available video tracks.
+***************************************************************************/
+std::vector<StreamInfo*> StreamAbstractionAAMP_MPD::GetAvailableVideoTracks(void)
+{
+	std::vector<StreamInfo*> videoTracks;
+	for( int i = 0; i < mProfileCount; i++ )
+	{
+		struct StreamInfo *streamInfo = &mStreamInfo[i];
+		videoTracks.push_back(streamInfo);
+	}
+	return videoTracks;
+}

@@ -85,12 +85,22 @@ void StreamAbstractionAAMP_COMPOSITEIN::Stop(bool clearChannelData)
 }
 
 /**
+ * @brief To get the available video tracks.
+ * @ret available video tracks.
+ */
+std::vector<StreamInfo*> StreamAbstractionAAMP_COMPOSITEIN::GetAvailableVideoTracks(void)
+{ // STUB
+	AAMPLOG_WARN("StreamAbstractionAAMP_COMPOSITEIN");
+	return std::vector<StreamInfo*>();
+}
+
+/**
  * @brief To get the available thumbnail tracks.
  * @ret available thumbnail tracks.
  */
 std::vector<StreamInfo*> StreamAbstractionAAMP_COMPOSITEIN::GetAvailableThumbnailTracks(void)
 { // STUB
-        AAMPLOG_WARN("StreamAbstractionAAMP_COMPOSITEIN");
+	AAMPLOG_WARN("StreamAbstractionAAMP_COMPOSITEIN");
 	return std::vector<StreamInfo*>();
 }
 

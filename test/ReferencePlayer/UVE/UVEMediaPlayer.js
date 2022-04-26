@@ -157,6 +157,10 @@ class AAMPMediaPlayer {
         console.log("Invoked setVideoZoom");
     }
 
+    getAvailableVideoTracks() {
+       console.log("Invoked getAvailableVideoTracks");
+    }
+
     getAvailableAudioTracks() {
        console.log("Invoked getAvailableAudioTracks");
     }
@@ -472,6 +476,13 @@ class AAMPPlayer {
      */
     setAlternateContent(reservationObject, callback) {
 	this.player.setAlternateContent(reservationObject, callback);
+    }
+
+    /**
+     * Get available video track info
+     */
+    getAvailableVideoTracks() {
+       return this.player.getAvailableVideoTracks();
     }
 
     /**

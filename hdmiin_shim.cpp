@@ -95,6 +95,16 @@ void StreamAbstractionAAMP_HDMIIN::Stop(bool clearChannelData)
 }
 
 /**
+ * @brief To get the available video tracks.
+ * @ret available video tracks
+ */
+std::vector<StreamInfo*> StreamAbstractionAAMP_HDMIIN::GetAvailableVideoTracks(void)
+{ // STUB
+	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN");
+	return std::vector<StreamInfo*>();
+}
+
+/**
  * @brief To get the available thumbnail tracks.
  * @ret available thumbnail tracks
  */

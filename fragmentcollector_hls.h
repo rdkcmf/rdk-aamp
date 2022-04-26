@@ -450,6 +450,8 @@ public:
 	
 	// Function to get the total number of profiles
 	int GetTotalProfileCount() { return mProfileCount;}
+	// Function to get total video track
+	std::vector<StreamInfo*> GetAvailableVideoTracks(void);
 //private:
 	// TODO: following really should be private, but need to be accessible from callbacks
 	

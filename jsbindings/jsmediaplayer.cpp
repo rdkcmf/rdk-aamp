@@ -2201,6 +2201,68 @@ JSValueRef AAMPMediaPlayerJS_release (JSContextRef ctx, JSObjectRef function, JS
 	return JSValueMakeUndefined(ctx);
 }
 
+/**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.getAvailableVideoTracks()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMPMediaPlayerJS_getAvailableVideoTracks(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if(!privObj || !privObj->_aamp)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAvailableAudioTracks() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+	std::string tracks = privObj->_aamp->GetAvailableVideoTracks();
+	if (!tracks.empty())
+	{
+		TRACELOG("Exit %s()", __FUNCTION__);
+		return aamp_CStringToJSValue(ctx, tracks.c_str());
+	}
+	else
+	{
+		TRACELOG("Exit %s()", __FUNCTION__);
+		return JSValueMakeUndefined(ctx);
+	}
+}
+
+/**
+ * @brief API invoked from JS when executing AAMPMediaPlayer.setvideoTrack()
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_setVideoTracks (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	std::vector<long> bitrateList;
+	if (!privObj || !privObj->_aamp)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setVideoTrack() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+	for (int i =0; i < argumentCount; i++)
+	{
+		bitrateList.push_back((long) JSValueToNumber(ctx, arguments[i], exception));
+	}
+	privObj->_aamp->SetVideoTracks(bitrateList);
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
 
 /**
  * @brief API invoked from JS when executing AAMPMediaPlayer.getAvailableAudioTracks()
@@ -2932,6 +2994,8 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "setVideoRect", AAMPMediaPlayerJS_setVideoRect, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setVideoZoom", AAMPMediaPlayerJS_setVideoZoom, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "release", AAMPMediaPlayerJS_release, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "getAvailableVideoTracks", AAMPMediaPlayerJS_getAvailableVideoTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
+	{ "setVideoTracks", AAMPMediaPlayerJS_setVideoTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "getAvailableAudioTracks", AAMPMediaPlayerJS_getAvailableAudioTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "getAvailableTextTracks", AAMPMediaPlayerJS_getAvailableTextTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "getVideoRectangle", AAMPMediaPlayerJS_getVideoRectangle, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},

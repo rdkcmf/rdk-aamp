@@ -793,6 +793,7 @@ public:
 	std::vector<TimedMetadata> timedMetadataNew;
 	std::vector<ContentGapInfo> contentGaps;
 	std::vector<std::string> responseHeaders;
+	std::vector<long>bitrateList;
 	std::map<std::string, std::string> httpHeaderResponses;
 	bool mIsIframeTrackPresent;				/**< flag to check iframe track availability*/
 
@@ -890,6 +891,7 @@ public:
 	long long mTimedMetadataStartTime;	/** Start time to report TimedMetadata   */
 	long long mTimedMetadataDuration;
 	bool playerStartedWithTrickPlay; //To indicate player switch happened in trickplay rate
+	bool userProfileStatus; /**< Select profile based on user list*/
 	/**
 	 * @brief Check if segment starts with an ID3 section
 	 *
@@ -2791,6 +2793,21 @@ public:
 	 *   @return void
 	 */
 	void FlushStreamSink(double position, double rate);
+
+	/**
+	 *   @brief Get available video tracks.
+	 *
+	 *   @return std::string JSON formatted list of video tracks
+	 */
+	std::string GetAvailableVideoTracks();
+
+	/**
+         *   @brief Set video tracks.
+         *   @param[in] bitrateList
+	 *
+         *   @return void
+	 */
+	void SetVideoTracks(std::vector<long> bitrateList);
 
 	/**
 	 *   @brief Get available audio tracks.
