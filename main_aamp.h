@@ -161,58 +161,190 @@ typedef enum
 } LangCodePreference;
 
 /**
+ * @class Accessibility
+ * @brief Data type to stro Accessibility Node data
+ */
+class Accessibility 
+{
+	std::string strSchemeId;
+    int intValue;
+	std::string strValue;
+	std::string valueType;
+	
+	bool isNumber(const std::string& str)
+	{
+	    std::string::const_iterator it = str.begin();
+		while (it != str.end() && std::isdigit(*it)) ++it;
+		return !str.empty() && it == str.end();
+	};
+
+  public:
+	Accessibility(std::string schemId, std::string val): strSchemeId(schemId), intValue(-1), strValue(""), valueType("") 
+	{
+		if (isNumber(val))
+		{
+			valueType = "int_value";
+			intValue = std::stoi(val);
+			strValue = "";
+		}
+		else
+		{
+			valueType = "string_value";
+			intValue = -1;
+			strValue = val;
+		}
+
+	};
+
+	Accessibility():strSchemeId(""), intValue(-1), strValue(""), valueType("") {};
+
+	void setAccessibilityData(std::string schemId, std::string val)
+	{
+		strSchemeId = schemId;
+		if (isNumber(val))
+		{
+			valueType = "int_value";
+			intValue = std::stoi(val);
+			strValue = "";
+		}
+		else
+		{
+			valueType = "string_value";
+			intValue = -1;
+			strValue = val;
+		}
+	};
+
+	void setAccessibilityData(std::string schemId, int val)
+	{
+		strSchemeId = schemId;
+		valueType = "int_value";
+		intValue = val;
+		strValue = "";
+	};
+
+	std::string& getTypeName() {return valueType;};
+	std::string& getSchemeId() {return strSchemeId;};
+	int getIntValue() {return intValue;};
+	std::string& getStrValue() {return strValue;};
+	void clear()
+	{
+		strSchemeId = "";
+		intValue = -1;
+		strValue = "";
+		valueType = "";
+	};
+
+	bool operator == (const Accessibility& track) const
+	{
+		return ((strSchemeId == track.strSchemeId) &&	
+			(valueType == "int_value"?(intValue == track.intValue):(strValue == track.strValue)));	
+	};
+	
+	Accessibility& operator = (const Accessibility& track)
+	{
+		strSchemeId = track.strSchemeId;
+		intValue = track.intValue;
+		strValue = track.strValue;
+		valueType = track.valueType;
+		
+		return *this;
+	};
+
+	std::string print()
+	{
+		char strData [228];
+		std::string retVal = "";
+		if (!strSchemeId.empty())
+		{
+			std::snprintf(strData, sizeof(strData), "{ scheme:%s, %s:", strSchemeId.c_str(), valueType.c_str());
+			retVal += strData;
+			if (valueType == "int_value")
+			{
+				std::snprintf(strData, sizeof(strData), "%d }", intValue);
+			}else
+			{
+				std::snprintf(strData, sizeof(strData), "%s }", strValue.c_str());
+			}
+			retVal += strData;
+		}
+		else
+		{
+			retVal = "NULL";
+		}
+		return retVal;
+	};
+};
+
+/**
+ * @struct AudioTrackInfo
  * @brief Structure for audio track information
  *        Holds information about an audio track in playlist
  */
 struct AudioTrackInfo
 {
-	std::string index;
-	std::string language;
-	std::string rendition; //role for DASH, group-id for HLS
-	std::string name;
-	std::string codec;
-	std::string characteristics;
-	int channels;
-	long bandwidth;
-	int primaryKey; // used for ATSC to store key , this should not be exposed to app.
-	std::string contentType; // used for ATSC to propogate content type
-	std::string mixType; // used for ATSC to propogate mix type
-	std::string accessibilityType; //value of Accessibility
-	bool isMuxed; //Flag to indicated muxed audio track ; this is used by AC4 tracks
+	std::string index;			/**< Index of track */
+	std::string language;		/**< Language of track */
+	std::string rendition;		/**< role for DASH, group-id for HLS */
+	std::string name;			/**< Name of track info */
+	std::string codec;			/**< Codec of Audio track */
+	std::string characteristics;/**< Charesterics field of audio track */
+	std::string label;			/**< label of audio track info */
+	int channels;				/**< number channels of track */
+	long bandwidth;				/**< Bandwidth value of track **/
+	int primaryKey; 			/**< used for ATSC to store key , this should not be exposed to app */
+	std::string contentType; 	/**< used for ATSC to propogate content type */
+	std::string mixType; 		/**< used for ATSC to propogate mix type */
+	std::string accessibilityType;  /**< value of Accessibility */
+	bool isMuxed; 				/**< Flag to indicated muxed audio track ; this is used by AC4 tracks */
+	Accessibility accessibilityItem; /**< Field to store Accessibility Node */
+	std::string mType;			/**< Type field of track, to be populated by player */
 
 	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), 
-	bandwidth(0),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(false)
+	bandwidth(0),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(false), label(), mType(), accessibilityItem() 
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, std::string cha, int ch):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1), primaryKey(0) , contentType(), mixType(), accessibilityType(), isMuxed(false)
+		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1), primaryKey(0) , contentType(), mixType(), accessibilityType(), isMuxed(false), label(), mType(), accessibilityItem()
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, int pk, std::string conType, std::string mixType):
 			index(idx), language(lang), rendition(rend), name(trackName),
 			codec(codecStr), characteristics(), channels(0), bandwidth(-1), primaryKey(pk),
-                        contentType(conType), mixType(mixType), accessibilityType(), isMuxed(false)
+                        contentType(conType), mixType(mixType), accessibilityType(), isMuxed(false), label(), mType(), accessibilityItem()
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, std::string typ):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ), isMuxed(false)
+		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ), isMuxed(false), label(), mType(), accessibilityItem()
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, int channel):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(), channels(channel), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(false)
+		codec(codecStr), characteristics(), channels(channel), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(false), label(), mType(), accessibilityItem()
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, int channel, bool muxed):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(), channels(channel), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(muxed)
+		codec(codecStr), characteristics(), channels(channel), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(muxed), label(), mType(), accessibilityItem()
+	{
+	}
+
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, std::string typ, bool muxed, std::string lab, std::string type):
+		index(idx), language(lang), rendition(rend), name(trackName),
+		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ), isMuxed(muxed), label(lab), mType(type), accessibilityItem()
+	{
+	}
+
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, std::string typ, bool muxed, std::string lab, std::string type, Accessibility accessbility):
+		index(idx), language(lang), rendition(rend), name(trackName),
+		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ), isMuxed(muxed), label(lab), mType(type), accessibilityItem(accessbility)
 	{
 	}
 
@@ -224,7 +356,10 @@ struct AudioTrackInfo
 			(codec == track.codec) &&
 			(channels == track.channels) &&
 			(bandwidth == track.bandwidth) &&
-			(isMuxed == track.isMuxed));
+			(isMuxed == track.isMuxed) &&
+			(label == track.label) &&
+			(mType == track.mType) &&
+			(accessibilityItem == track.accessibilityItem));
 	}
 
 	bool operator < (const AudioTrackInfo& track) const
@@ -252,33 +387,91 @@ struct TextTrackInfo
 	std::string instreamId;
 	std::string characteristics;
 	std::string codec;
+	std::string label; //Field for label	
 	int primaryKey; // used for ATSC to store key , this should not be exposed to app.
 	std::string accessibilityType; //value of Accessibility
+	Accessibility accessibilityItem; /**< Field to store Accessibility Node */
+	std::string mType;
 
-	TextTrackInfo() : index(), language(), isCC(false), rendition(), name(), instreamId(), characteristics(), codec(), primaryKey(0), accessibilityType()
+	TextTrackInfo() : index(), language(), isCC(false), rendition(), name(), instreamId(), characteristics(), codec(), primaryKey(0), accessibilityType(), label(), mType(), accessibilityItem()
 	{
 	}
 
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(id), characteristics(cha),
-		codec(), primaryKey(0), accessibilityType()
+		codec(), primaryKey(0), accessibilityType(), label(), mType(), accessibilityItem()
 	{
 	}
 
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha, int pk):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(id), characteristics(cha),
-		codec(), primaryKey(pk), accessibilityType()
+		codec(), primaryKey(pk), accessibilityType(), label(), mType(), accessibilityItem()
 	{
 	}
 
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr, std::string cha, std::string typ):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(), characteristics(cha),
-		codec(codecStr), primaryKey(0), accessibilityType(typ)
+		codec(codecStr), primaryKey(0), accessibilityType(typ), label(), mType(), accessibilityItem()
 	{
 	}
+	
+	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr, std::string cha, std::string typ, std::string lab, std::string type):
+		index(idx), language(lang), isCC(cc), rendition(rend),
+		name(trackName), instreamId(), characteristics(cha),
+		codec(codecStr), primaryKey(0), accessibilityType(typ), label(lab), mType(type), accessibilityItem()
+	{
+	}
+
+	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr, std::string cha, std::string typ, std::string lab, std::string type, Accessibility acc):
+		index(idx), language(lang), isCC(cc), rendition(rend),
+		name(trackName), instreamId(), characteristics(cha),
+		codec(codecStr), primaryKey(0), accessibilityType(typ), label(lab), mType(type), accessibilityItem(acc)
+	{
+	}
+
+	void set (std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr, std::string cha, 
+			std::string acctyp, std::string lab, std::string type, Accessibility acc)
+	{
+		index = idx; 
+		language = lang;
+		isCC = cc;
+		rendition = rend;
+		name = trackName; 
+		characteristics = cha;
+		codec = codecStr; 
+		accessibilityType = acctyp;
+		label = lab; 
+		accessibilityItem = acc;
+		mType = type;
+	}
+
+	bool operator == (const TextTrackInfo& track) const
+	{
+		return ((language == track.language) &&	
+			(isCC == track.isCC) &&	
+			(rendition == track.rendition) &&
+			(name == track.name) &&
+			(characteristics == track.characteristics) &&
+			(codec == track.codec) &&
+			(accessibilityType == track.accessibilityType) &&
+			(label == track.label) &&
+			(accessibilityItem == track.accessibilityItem) &&
+			(mType == track.mType));
+	}
+
+	bool operator < (const TextTrackInfo& track) const
+	{
+		return (index < track.index);
+	}
+
+	bool operator > (const TextTrackInfo& track) const
+	{
+		return (index > track.index);
+	}
+
 };
 
 /**
@@ -1308,7 +1501,7 @@ public:
 	 *
 	 *   @return std::string JSON formatted list of text tracks
 	 */
-	std::string GetAvailableTextTracks();
+	std::string GetAvailableTextTracks(bool allTrack = false);
 
 	/*
 	 *   @brief Get the video window co-ordinates
@@ -1328,19 +1521,35 @@ public:
 	 *   @brief Set optional preferred language list
 	 *   @param[in] languageList - string with comma-delimited language list in ISO-639
 	 *             from most to least preferred: "lang1,lang2". Set NULL to clear current list.
-         *   @param[in] preferredRendition  - preferred rendition from role
-         *   @param[in] preferredType -  preferred accessibility type
+     	 *   @param[in] preferredRendition  - preferred rendition from role
+     	 *   @param[in] preferredType -  preferred accessibility type
+	 *   @param[in] codecList - string with comma-delimited codec list
+	 *             from most to least preferred: "codec1,codec2". Set NULL to clear current list.
+	 * 	 @param[in] labelList - string with comma-delimited label list
+	 *             from most to least preferred: "label1,label2". Set NULL to clear current list.
 	 *   @return void
 	 */
-	 void SetPreferredLanguages(const char* languageList, const char *preferredRendition = NULL, const char *preferredType = NULL, const char* codecList = NULL ); 
+	 void SetPreferredLanguages(const char* languageList, const char *preferredRendition = NULL, const char *preferredType = NULL, const char* codecList = NULL, const char* labelList = NULL ); 
+
+
+	/**
+	 *   @brief Set optional preferred language list
+	 *   @param[in] languageList - string with comma-delimited language list in ISO-639
+	 *   @return void
+	 */
+	 void SetPreferredTextLanguages(const char* param); 
 
 	/**
 	 *   @brief Set audio track by audio parameters like language , rendition, codec etc..
-	 *   @param[in][optional] language, rendition, codec, bitrate, channel 
+	 *   @param[in] language - Language to set 
+	 *   @param[in] rendition - Role/rendition to set
+	 *   @param[in] codec - Codec to set
+	 *   @param[in] channel - Channel number to set
+	 *   @param[in] label - Label to set
 	 *
 	 *   @return void
 	 */
-	void SetAudioTrack(std::string language="", std::string rendition="", std::string type="", std::string codec="", unsigned int channel=0);
+	void SetAudioTrack(std::string language="", std::string rendition="", std::string type="", std::string codec="", unsigned int channel=0, std::string label="");
 	/**
 	 *   @brief Set optional preferred codec list
 	 *   @param[in] codecList[] - string with array with codec list
@@ -1348,6 +1557,14 @@ public:
 	 *   @return void
 	 */
 	void SetPreferredCodec(const char *codecList);
+
+	/**
+	 *   @brief Set optional preferred label list
+	 *   @param[in] lableList[] - string with array with label list
+	 *
+	 *   @return void
+	 */
+	void SetPreferredLabels(const char *lableList);
 
 	/**
 	 *   @brief Set optional preferred rendition list
@@ -1478,12 +1695,26 @@ public:
 	std::string GetAudioTrackInfo();
 
 	/**
+	 *   @brief Get current audio track index
+	 *
+	 *   @return int - index of current audio track in available track list
+	 */
+	std::string GetTextTrackInfo();
+
+	/**
 	 *   @brief Get preferred audio properties
 	 *
 	 *   @return json string
 	 */
 	std::string GetPreferredAudioProperties();
 
+	/**
+	 *   @brief Get preferred audio properties
+	 *
+	 *   @return json string
+	 */
+	std::string GetPreferredTextProperties();
+	
 	/**
 	 *   @brief Set text track
 	 *
@@ -1716,8 +1947,23 @@ private:
 	void TuneInternal(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync);
 	void SetRateInternal(int rate,int overshootcorrection);
 	void SeekInternal(double secondsRelativeToTuneTime, bool keepPaused);
-	void SetAudioTrackInternal(std::string language,  std::string rendition, std::string codec,  std::string type, unsigned int channel);
+	/**
+	 *   @brief Set audio track by audio parameters like language , rendition, codec etc..
+	 *   @param[in][optional] language, rendition, codec, channel 
+	 *   @return void
+	 */
+	void SetAudioTrackInternal(std::string language,  std::string rendition, std::string codec,  std::string type, unsigned int channel, std::string label);
+	/**
+	 *   @brief Set auxiluerry track language.
+	 *   @param[in][optional] language
+	 *   @return void
+	 */
 	void SetAuxiliaryLanguageInternal(const std::string &language);
+	/**
+	 *   @brief Set text track by Id
+	 *   @param[in] trackId
+	 *   @return void
+	 */
 	void SetTextTrackInternal(int trackId);
 private:	
 

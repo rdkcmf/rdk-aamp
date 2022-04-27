@@ -80,6 +80,33 @@ public:
 	bool add(const std::string& name, std::vector<AampJsonObject*>& values);
 
 	/**
+	 *  @brief Add a vector of #AampJsonObject as a JSON array
+	 *
+	 *  @param name name for the array
+	 *  @param values String Array
+	 *  @return true if successfully added, false otherwise
+	 */
+	bool get(const std::string& name, const std::vector<std::string>& values);
+	
+	/**
+	 *  @brief Add a vector of #AampJsonObject as a JSON array
+	 *
+	 *  @param name name for the array
+	 *  @param values String Array
+	 *  @return true if successfully added, false otherwise
+	 */
+	bool get(const std::string& name, std::vector<std::string>& values);
+	
+	/**
+	 *  @brief Add a vector of #AampJsonObject as a JSON array
+	 *
+	 *  @param name name for the array
+	 *  @param values String Array
+	 *  @return true if successfully added, false otherwise
+	 */
+	bool get(const std::string& name, int& value);
+	
+	/**
 	 * @brief Get a string value
 	 *
 	 * @param name name of the property to retrieve
@@ -97,6 +124,16 @@ public:
 	 * @return true if successfully retrieved and decoded value, false otherwise
 	 */
 	bool get(const std::string& name, std::vector<uint8_t>& values, const ENCODING encoding = ENCODING_STRING);
+
+	/**
+	 * @fn get
+	 * @brief Get a string value as a vector of bytes
+	 *
+	 * @param name name of the property to retrieve
+	 * @param value[out] reference Object which return as json object inside json data.
+	 * @return true if successfully retrieved and decoded value, false otherwise
+	 */
+	bool get(const std::string& name, AampJsonObject &value);
 
 	/**
 	 *  @brief Print the constructed JSON to a string
@@ -155,9 +192,50 @@ public:
 	 */
 	bool add(const std::string& name, long value);
 	
+	/**
+	 *  @brief Add a long value
+	 *
+	 *  @param name name for the value
+	 *  @param value long to add
+	 *  @return true if successfully added, false otherwise
+	 */
+	bool add(const std::string& name, cJSON *value);
+
+	/**
+	 * @fn isArray
+	 * 
+	 * @brief Check whether the value is Array or not
+	 * @return true if it is Array or false
+	 */
+	int isArray(const std::string& name);
+
+	/**
+	 * @fn isString
+	 * 
+	 * @brief Check whether the value is String or not
+	 * @return true if it is String or false
+	 */
+	int isString(const std::string& name);
+
+	/**
+	 * @fn isNumber
+	 * 
+	 * @brief Check whether the value is Number or not
+	 * @return true if it is Number or false
+	 */
+	int isNumber(const std::string& name);
+
+	/**
+	 * @fn isObject
+	 * 
+	 * @brief Check whether the value is Object or not
+	 * @return true if it is Object or false
+	 */
+	int isObject(const std::string& name);
 
 private:
-	bool add(const std::string& name, cJSON *value);
+	bool set(AampJsonObject *parent, cJSON *object);
+	bool add(const std::string& name);
 	cJSON *mJsonObj;
 	AampJsonObject *mParent;
 };

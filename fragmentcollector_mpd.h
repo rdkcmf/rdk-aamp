@@ -26,6 +26,7 @@
 #define FRAGMENTCOLLECTOR_MPD_H_
 
 #include "StreamAbstractionAAMP.h"
+#include "AampJsonObject.h" /**< For JSON parsing */
 #include <string>
 #include <stdint.h>
 #include "libdash/IMPD.h"
@@ -175,6 +176,16 @@ public:
 	void SeekPosUpdate(double secondsRelativeToTuneTime) {seekPosition = secondsRelativeToTuneTime; }
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) override;
 	virtual std::vector<AudioTrackInfo> & GetAvailableAudioTracks(bool allTrack=false) override;
+	/**
+         * @brief Gets all/current available text tracks
+         * @retval vector of tracks
+         */
+	virtual std::vector<TextTrackInfo>& GetAvailableTextTracks(bool allTrack=false) override;
+	
+	/**
+         * @brief Gets number of profiles
+         * @retval number of profiles
+         */
 	int GetProfileCount();
 	int GetProfileIndexForBandwidth(long mTsbBandwidth);
 
@@ -196,7 +207,13 @@ public:
 	uint32_t GetCurrPeriodTimeScale();
 	dash::mpd::IMPD *GetMPD( void );
 	IPeriod *GetPeriod( void );
+	void GetPreferredTextRepresentation(IAdaptationSet *adaptationSet, int &selectedRepIdx, 	uint32_t &selectedRepBandwidth, uint64_t &score, std::string &name, std::string &codec);
+	static Accessibility getAccessibilityNode(void *adaptationSet);
+	static Accessibility getAccessibilityNode(AampJsonObject &accessNode);
+	bool GetBestTextTrackByLanguage( TextTrackInfo &selectedTextTrack);
+	void ParseTrackInformation(IAdaptationSet *adaptationSet, uint32_t iAdaptationIndex, MediaType media, std::vector<AudioTrackInfo> &aTracks, std::vector<TextTrackInfo> &tTracks);
 private:
+	void printSelectedTrack(const std::string &trackIndex, MediaType media);
 	void AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState);
 	void FetcherLoop();
 	StreamInfo* GetStreamInfo(int idx) override;
@@ -247,10 +264,44 @@ private:
 	LatencyStatus GetLatencyStatus() { return latencyStatus; }
 	vector<IDescriptor*> GetContentProtection(const IAdaptationSet *adaptationSet, MediaType mediaType);
 	bool GetPreferredCodecIndex(IAdaptationSet *adaptationSet, int &selectedRepIdx, AudioType &selectedCodecType, 
-	uint32_t &selectedRepBandwidth, uint32_t &bestScore, bool disableEC3, bool disableATMOS, bool disableAC4);
+	uint32_t &selectedRepBandwidth, uint32_t &bestScore, bool disableEC3, bool disableATMOS, bool disableAC4, bool &disabled);
+ 	
+	/**
+         * @brief Get the audio track information from all period
+         * updated member variable mAudioTracksAll
+         * @return void
+         */
 	void PopulateAudioTracks(void);
+	
+	/**
+         * @brief Get the audio track information from all preselection node of the period
+         * @param period Node ans IMPDElement 
+         * @return void
+         */
 	void ParseAvailablePreselections(IMPDElement *period, std::vector<AudioTrackInfo> & audioAC4Tracks);
+	
+	/**
+	 * @brief Populate the track infromation from manifest
+	 * @param media - Media type 
+	 * @param - Do need to reset vector?
+	 * @retun none
+	 */
+	void PopulateTrackInfo(MediaType media, bool reset=false);
+	
+	/**
+	 * @brief get the current meme type from manifest
+	 * @param media type
+	 * @return meme type value
+	 */	
 	std::string GetCurrentMimeType(MediaType mediaType);
+	
+	/**
+	 * @brief get the label from manifest
+	 * @param daptation set
+	 * @return label value
+	 */	
+	std::string GetLabel(IAdaptationSet *adaptationSet);
+
 	std::mutex mStreamLock;
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;

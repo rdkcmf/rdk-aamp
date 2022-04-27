@@ -27,6 +27,7 @@
 
 #include "AampMemoryUtils.h"
 #include "priv_aamp.h"
+#include "AampJsonObject.h"
 #include <map>
 #include <iterator>
 #include <vector>
@@ -896,7 +897,6 @@ public:
 	 *   @return true if limit reached, false otherwise
 	 */
 	bool CheckForRampDownLimitReached();
-
 	bool trickplayMode;                     /**< trick play flag to be updated by subclasses*/
 	int currentProfileIndex;                /**< current Video profile index of the track*/
 	int currentAudioProfileIndex;           /**< current Audio profile index of the track*/
@@ -1095,7 +1095,7 @@ public:
 	 *
 	 *   @return std::vector<TextTrackInfo> list of text tracks
 	 */
-	virtual std::vector<TextTrackInfo> &GetAvailableTextTracks() { return mTextTracks; };
+	virtual std::vector<TextTrackInfo> &GetAvailableTextTracks(bool allTrack = false) { return mTextTracks; };
 
 	/**
 	*   @brief Update seek position when player is initialized
@@ -1159,6 +1159,14 @@ public:
 	 *   @return found or not 
 	 */
 	virtual bool GetCurrentAudioTrack(AudioTrackInfo &audioTrack);
+
+	/**
+	 *   @brief Get current text track information
+	 *
+	 *   @param [out] TextTrack - current text track
+	 *   @return found or not 
+	 */
+	virtual bool GetCurrentTextTrack(TextTrackInfo &textTrack);
 
 	/**
 	 *   @brief Get current text track
@@ -1354,14 +1362,15 @@ private:
 	int mRampDownLimit;		/**< stores ramp down limit value */
 	BitrateChangeReason mBitrateReason; /**< holds the reason for last bitrate change */
 protected:
-	ABRManager mAbrManager;             /**< Pointer to abr manager*/
-	std::vector<AudioTrackInfo> mAudioTracks; /**< Available audio tracks */
-	std::vector<AudioTrackInfo> mAudioTracksAll; /**< Alternative variable to store audio track information from all period */
-	std::vector<TextTrackInfo> mTextTracks; /**< Available text tracks */
-	MediaTrackDiscontinuityState mTrackState; /**< stores the discontinuity status of tracks*/
-	std::string mAudioTrackIndex; /**< Current audio track index in track list */
-	std::string mTextTrackIndex; /**< Current text track index in track list */
-	bool mFwdAudioToAux;  /**< If audio buffers are to be forwarded to auxiliary pipeline, happens if both are playing same language */
+	ABRManager mAbrManager;                       /**< Pointer to abr manager*/
+	std::vector<AudioTrackInfo> mAudioTracks;     /**< Available audio tracks */
+	std::vector<AudioTrackInfo> mAudioTracksAll;  /**< Alternative variable to store audio track information from all period */
+	std::vector<TextTrackInfo> mTextTracksAll;    /**< Alternative variable to store text track information from all period */
+	std::vector<TextTrackInfo> mTextTracks;       /**< Available text tracks */
+	MediaTrackDiscontinuityState mTrackState;     /**< stores the discontinuity status of tracks*/
+	std::string mAudioTrackIndex;                 /**< Current audio track index in track list */
+	std::string mTextTrackIndex;                  /**< Current text track index in track list */
+	bool mFwdAudioToAux;                          /**< If audio buffers are to be forwarded to auxiliary pipeline, happens if both are playing same language */
 };
 
 #endif // STREAMABSTRACTIONAAMP_H

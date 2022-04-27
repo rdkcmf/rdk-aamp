@@ -84,7 +84,16 @@ public:
     std::vector<AudioTrackInfo> &GetAvailableAudioTracks(bool allTrack=false) override;
     int GetAudioTrack() override;
     bool GetCurrentAudioTrack(AudioTrackInfo &audioTrack) override;
-    std::vector<TextTrackInfo> &GetAvailableTextTracks() override;
+    /**
+     *   @brief Get the list of available text tracks
+     *
+     *   @return std::vector<TextTrackInfo> List of available text tracks
+     */
+    std::vector<TextTrackInfo> &GetAvailableTextTracks(bool all=false) override;
+    /**
+     * @brief SetPreferredAudioLanguages set the preferred audio language list
+     *
+     */
     void SetPreferredAudioLanguages() override;
     void DisableContentRestrictions(long grace, long time, bool eventChange) override;
     void EnableContentRestrictions() override;

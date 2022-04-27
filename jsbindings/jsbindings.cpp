@@ -322,7 +322,6 @@ static JSValueRef AAMP_getProperty_AudioLanguage(JSContextRef context, JSObjectR
 	return aamp_CStringToJSValue(context, language);
 }
 
-
 /**
  * @brief Callback invoked from JS to get the currentDRM property value
  * @param[in] context JS execution context
@@ -2591,7 +2590,6 @@ static JSValueRef AAMP_setLanguage(JSContextRef context, JSObjectRef function, J
 	}
 	return JSValueMakeUndefined(context);
 }
- 
 
 /**
  * @brief Callback invoked from JS to set list of subscribed tags
@@ -2833,10 +2831,41 @@ static JSValueRef AAMP_getAudioTrackInfo(JSContextRef context, JSObjectRef funct
 	if(!pAAMP)
 	{
 		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
-		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getAudioTrack on instances of AAMP");
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getAudioTrackInfo on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 	std::string track = pAAMP->_aamp->GetAudioTrackInfo();
+	if (!track.empty())
+	{
+		return aamp_CStringToJSValue(context, track.c_str());
+	}
+	else
+	{
+		return JSValueMakeUndefined(context);
+	}
+}
+
+/**
+ * @brief Callback invoked from JS to get current text track info
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_getTextTrackInfo(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getTextTrackInfo on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+	std::string track = pAAMP->_aamp->GetTextTrackInfo();
 	if (!track.empty())
 	{
 		return aamp_CStringToJSValue(context, track.c_str());
@@ -2922,6 +2951,36 @@ static JSValueRef AAMP_setAudioTrack(JSContextRef context, JSObjectRef function,
 	return JSValueMakeUndefined(context);
 }
 
+/**
+ * @brief Callback invoked from JS to get preferred text properties
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_getPreferredTextProperties(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getPreferredTextProperties on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+	std::string textPreference = pAAMP->_aamp->GetPreferredTextProperties();
+	if (!textPreference.empty())
+	{
+		return aamp_CStringToJSValue(context, textPreference.c_str());
+	}
+	else
+	{
+		return JSValueMakeUndefined(context);
+	}
+}
 
 /**
  * @brief Callback invoked from JS to get list of text tracks
@@ -2943,8 +3002,12 @@ static JSValueRef AAMP_getAvailableTextTracks(JSContextRef context, JSObjectRef 
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getAvailableTextTracks on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
-
-	std::string tracks = pAAMP->_aamp->GetAvailableTextTracks();
+	bool allTrack = false;
+	if (argumentCount == 1)
+	{
+		allTrack = JSValueToBoolean(context, arguments[0]);
+	}
+	std::string tracks = pAAMP->_aamp->GetAvailableTextTracks(allTrack);
 	if (!tracks.empty())
 	{
 		return aamp_CStringToJSValue(context, tracks.c_str());
@@ -3891,7 +3954,9 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ "getAvailableAudioTracks", AAMP_getAvailableAudioTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getAudioTrack", AAMP_getAudioTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getAudioTrackInfo", AAMP_getAudioTrackInfo, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "getTextTrackInfo", AAMP_getTextTrackInfo, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getPreferredAudioProperties", AAMP_getPreferredAudioProperties, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "getPreferredTextProperties", AAMP_getPreferredTextProperties, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setAudioTrack", AAMP_setAudioTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getAvailableTextTracks", AAMP_getAvailableTextTracks, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "getTextTrack", AAMP_getTextTrack, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },

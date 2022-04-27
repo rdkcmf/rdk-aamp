@@ -859,7 +859,7 @@ void StreamAbstractionAAMP_OTA::SetAudioTrack(int trackId)
  *
  *   @return std::vector<TextTrackInfo> List of available text tracks
  */
-std::vector<TextTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableTextTracks()
+std::vector<TextTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableTextTracks(bool all)
 {
 	AAMPLOG_TRACE("[OTA_SHIM]");
 	if (mTextTracks.empty())

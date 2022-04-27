@@ -268,27 +268,31 @@ typedef enum
 	eAAMPConfig_DoubleMaxValue,
 	////////////////////////////////////
 	eAAMPConfig_StringStartValue,
-	eAAMPConfig_MapMPD, 										/**< host name in url for which hls to mpd mapping done'*/
-	eAAMPConfig_MapM3U8,										/**< host name in url for which mpd to hls mapping done'*/
-	eAAMPConfig_HarvestPath,									/**< Path to store Harvested files */
-	eAAMPConfig_LicenseServerUrl,								/**< License server URL ( if no individual configuration */
-	eAAMPConfig_CKLicenseServerUrl,								/**< ClearKey License server URL*/
-	eAAMPConfig_PRLicenseServerUrl,								/**< PlayReady License server URL*/
-	eAAMPConfig_WVLicenseServerUrl,								/**< Widevine License server URL*/
-	eAAMPConfig_UserAgent,										/**< Curl user-agent string */
-	eAAMPConfig_SubTitleLanguage,								/**< User preferred subtitle language*/
-	//eAAMPConfig_RedirectUrl,									/**<redirects requests to tune to url1 to url2*/
-	eAAMPConfig_CustomHeader,								  	/**<custom header string data to be appended to curl request*/
-	eAAMPConfig_URIParameter,									/**<uri parameter data to be appended on download-url during curl request*/
-	eAAMPConfig_NetworkProxy,									/**<Network Proxy */
-	eAAMPConfig_LicenseProxy,									/**<License Proxy */
-	eAAMPConfig_AuthToken,									/**<Session Token  */
-	eAAMPConfig_LogLevel,										/**< New Configuration to overide info/debug/trace */
-	eAAMPConfig_CustomHeaderLicense,                            					/**<custom header string data to be appended to curl License request*/
-	eAAMPConfig_PreferredAudioRendition,								/**< PreferredAudioRendition*/
-	eAAMPConfig_PreferredAudioCodec,								/**< PreferredAudioCodec*/
-	eAAMPConfig_PreferredAudioLanguage,								/**< PreferredAudioLanguage*/
-	eAAMPConfig_CustomLicenseData,                                         /**< Custom Data for License Request */
+	eAAMPConfig_MapMPD, 							/**< host name in url for which hls to mpd mapping done'*/
+	eAAMPConfig_MapM3U8,							/**< host name in url for which mpd to hls mapping done'*/
+	eAAMPConfig_HarvestPath,						/**< Path to store Harvested files */
+	eAAMPConfig_LicenseServerUrl,						/**< License server URL ( if no individual configuration */
+	eAAMPConfig_CKLicenseServerUrl,						/**< ClearKey License server URL*/
+	eAAMPConfig_PRLicenseServerUrl,						/**< PlayReady License server URL*/
+	eAAMPConfig_WVLicenseServerUrl,						/**< Widevine License server URL*/
+	eAAMPConfig_UserAgent,							/**< Curl user-agent string */
+	eAAMPConfig_SubTitleLanguage,						/**< User preferred subtitle language*/
+	//eAAMPConfig_RedirectUrl,						/**< redirects requests to tune to url1 to url2 */
+	eAAMPConfig_CustomHeader,						/**< custom header string data to be appended to curl request*/
+	eAAMPConfig_URIParameter,						/**< uri parameter data to be appended on download-url during curl request*/
+	eAAMPConfig_NetworkProxy,						/**< Network Proxy */
+	eAAMPConfig_LicenseProxy,						/**< License Proxy */
+	eAAMPConfig_AuthToken,							/**< Session Token  */
+	eAAMPConfig_LogLevel,							/**< New Configuration to overide info/debug/trace */
+	eAAMPConfig_CustomHeaderLicense,                       			/**< custom header string data to be appended to curl License request*/
+	eAAMPConfig_PreferredAudioRendition,					/**< PreferredAudioRendition*/
+	eAAMPConfig_PreferredAudioCodec,					/**< PreferredAudioCodec*/
+	eAAMPConfig_PreferredAudioLanguage,					/**< PreferredAudioLanguage*/
+	eAAMPConfig_PreferredAudioLabel,					/**< Preferred Audio labels*/ 
+	eAAMPConfig_PreferredTextRendition,					/**< Preferred Text Rendition*/
+	eAAMPConfig_PreferredTextLanguage,					/**< Preferred Text Language*/
+	eAAMPConfig_PreferredTextLabel,						/**< Preferred Text labels*/ 
+	eAAMPConfig_CustomLicenseData,                          		/**< Custom Data for License Request */
 	eAAMPConfig_StringMaxValue,
 	eAAMPConfig_MaxValue
 }AAMPConfigSettings;
