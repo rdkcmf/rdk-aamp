@@ -2,7 +2,7 @@
 # This script will setup basic environment and fetch aamp code
 # for a vanilla Big Sur/Monterey system to be ready for development
 #######################Default Values##################
-aamposxinstallerver="0.9"
+aamposxinstallerver="0.10"
 defaultbuilddir=aamp-devenv-$(date +"%Y-%m-%d-%H-%M")
 defaultcodebranch="dev_sprint_22_1"
 defaultchannellistfile="$HOME/aampcli.csv"
@@ -43,7 +43,6 @@ find_or_install_pkgs() {
 }
 
 
-
 install_system_packages() {
       
     #Check/Install brew
@@ -53,7 +52,7 @@ install_system_packages() {
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     else
         echo "Hoebrew is installed now just updating it"
-        #brew update
+        brew update
     fi
 
 
@@ -85,7 +84,13 @@ install_system_packages() {
     sudo make install
     cd ../../
 
-    #Install Gstreamer and plugins
+    #Install Gstreamer and plugins if not installed
+    if [ -f  /Library/Frameworks/GStreamer.framework/Versions/1.0/bin/gst-launch-1.0 ];then
+      if [ $(/Library/Frameworks/GStreamer.framework/Versions/1.0/bin/gst-launch-1.0 --version | head -n1 |cut -d " " -f 3) == $defaultgstversion ] ; then
+        echo "gstreamer ver $defaultgstversion installed"
+        return
+    fi
+   fi
     echo "Installing GStreamer packages..."
     brew remove -f  --ignore-dependencies gstreamer gst-validate gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-validate gst-libav gst-devtools
     sudo rm -rf /usr/local/lib/gstreamer-1.0
@@ -123,7 +128,7 @@ if [[ $codebranch == "" ]]; then
 fi 
 
 if [[ "$builddir" == "" ]]; then
-
+builddir=$defaultbuilddir
 if [ -d "../../aamp" ]; then
         abs_path="$(cd "../../aamp" && pwd -P)"
         while true; do
@@ -140,7 +145,6 @@ fi
 fi
 
 if [[ ! -d "$builddir" ]]; then
-    builddir=$defaultbuilddir
     echo "Creating aamp build directory under $builddir";
     mkdir $builddir
     cd $builddir
@@ -197,21 +201,23 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     #Build aamp dependent modules
     echo "git clone and install aamp dependencies"
 	
-    #echo "Fetch,aamp custom patch(qtdemux),build and install gst-plugins-good-$defaultgstversion.tar.xz ..." 
-    #pwd
-    #curl -o gst-plugins-good-$defaultgstversion.tar.xz https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-$defaultgstversion.tar.xz
-    #tar -xvzf gst-plugins-good-$defaultgstversion.tar.xz
-    #cd gst-plugins-good-$defaultgstversion
-    #pwd
-    #patch -p1 < ../../OSx/patches/0009-qtdemux-aamp-tm_gst-1.16.patch
-    #patch -p1 < ../../OSx/patches/0013-qtdemux-remove-override-segment-event_gst-1.16.patch
-    #patch -p1 < ../../OSx/patches/0014-qtdemux-clear-crypto-info-on-trak-switch_gst-1.16.patch
-    #patch -p1 < ../../OSx/patches/0021-qtdemux-aamp-tm-multiperiod_gst-1.16.patch
-    #meson build
-    #ninja -C build
-    #ninja -C build install
-    #pwd
-    #cd ../
+    echo "Fetch,aamp custom patch(qtdemux),build and install gst-plugins-good-$defaultgstversion.tar.xz ..." 
+    pwd
+    curl -o gst-plugins-good-$defaultgstversion.tar.xz https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-$defaultgstversion.tar.xz
+    tar -xvzf gst-plugins-good-$defaultgstversion.tar.xz
+    cd gst-plugins-good-$defaultgstversion
+    pwd
+    patch -p1 < ../../OSx/patches/0009-qtdemux-aamp-tm_gst-1.16.patch
+    patch -p1 < ../../OSx/patches/0013-qtdemux-remove-override-segment-event_gst-1.16.patch
+    patch -p1 < ../../OSx/patches/0014-qtdemux-clear-crypto-info-on-trak-switch_gst-1.16.patch
+    patch -p1 < ../../OSx/patches/0021-qtdemux-aamp-tm-multiperiod_gst-1.16.patch
+    sed -in 's/gstglproto_dep\x27], required: true/gstglproto_dep\x27], required: false/g' meson.build
+    meson --pkg-config-path /Library/Frameworks/GStreamer.framework/Versions/1.0/lib/pkgconfig build 
+    ninja -C build
+    ninja -C build install
+    sudo cp  /usr/local/lib/gstreamer-1.0/libgstisomp4.dylib /Library/Frameworks/GStreamer.framework/Versions/1.0/lib/gstreamer-1.0/libgstisomp4.dylib
+    pwd
+    cd ../
 
     echo "Install libdash"
     sudo rm -rf /usr/local/include/libdash
