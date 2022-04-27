@@ -834,12 +834,6 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 	}
 }
 
-/**
- *   @brief Seek to a time.
- *
- *   @param  ptr - Aamp  instance,
- *           Return true on success
- */
 static gboolean SeekAfterPrepared(gpointer ptr)
 {
 	PrivateInstanceAAMP* aamp = (PrivateInstanceAAMP*) ptr;
@@ -2291,7 +2285,7 @@ void PlayerInstanceAAMP::SetSslVerifyPeerConfig(bool bValue)
  *   @param[in] trackId index of audio track in available track list
  *   @return void
  */
-void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string rendition, std::string codec, std::string type, unsigned int channel)
+void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string rendition, std::string codec, std::string type, unsigned int channel, std::string label)
 {
 	if(aamp)
 	{
@@ -2299,15 +2293,15 @@ void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string renditi
 		if (mAsyncTuneEnabled)
 		{
 			mScheduler.ScheduleTask(AsyncTaskObj(
-						[language,rendition,codec,type,channel](void *data)
+						[language,rendition,codec,type,channel, label](void *data)
 						{
 							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->SetAudioTrackInternal(language,rendition,codec,type,channel);
+							instance->SetAudioTrackInternal(language,rendition,codec,type,channel, label);
 						}, (void *) this,__FUNCTION__));
 		}
 		else
 		{
-			SetAudioTrackInternal(language,rendition,codec,type,channel);
+			SetAudioTrackInternal(language,rendition,codec,type,channel, label);
 		}
 	}
 }
@@ -2318,7 +2312,7 @@ void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string renditi
  *
  *   @return void
  */
-void PlayerInstanceAAMP::SetAudioTrackInternal(std::string language,  std::string rendition, std::string type, std::string codec, unsigned int channel)
+void PlayerInstanceAAMP::SetAudioTrackInternal(std::string language,  std::string rendition, std::string type, std::string codec, unsigned int channel, std::string label)
 {
 	aamp->mAudioTuple.clear();
 	aamp->mAudioTuple.setAudioTrackTuple(language, rendition, codec, channel);
@@ -2326,7 +2320,8 @@ void PlayerInstanceAAMP::SetAudioTrackInternal(std::string language,  std::strin
 	SetPreferredLanguages( language.empty()?NULL:language.c_str(),
 							rendition.empty()?NULL:rendition.c_str(),
 							type.empty()?NULL:type.c_str(), 
-							codec.empty()?NULL:codec.c_str());
+							codec.empty()?NULL:codec.c_str(),
+							label.empty()?NULL:label.c_str());
 }
 
 /**
@@ -2337,7 +2332,12 @@ void PlayerInstanceAAMP::SetAudioTrackInternal(std::string language,  std::strin
  */
 void PlayerInstanceAAMP::SetPreferredCodec(const char *codecList)
 {
-	aamp->SetPreferredLanguages(NULL, NULL, NULL, codecList);
+	aamp->SetPreferredLanguages(NULL, NULL, NULL, codecList, NULL);
+}
+
+void PlayerInstanceAAMP::SetPreferredLabels(const char *labelList)
+{
+	aamp->SetPreferredLanguages(NULL, NULL, NULL, NULL, labelList);
 }
 
 /**
@@ -2349,19 +2349,43 @@ void PlayerInstanceAAMP::SetPreferredCodec(const char *codecList)
  */
 void PlayerInstanceAAMP::SetPreferredRenditions(const char *renditionList)
 {
-	aamp->SetPreferredLanguages(NULL, renditionList, NULL, NULL);
+	aamp->SetPreferredLanguages(NULL, renditionList, NULL, NULL, NULL);
 }
 
 /**
- *   @brief Set optional preferred rendition list
- *   @param[in] renditionList - string with comma-delimited rendition list in ISO-639
- *             from most to least preferred. Set NULL to clear current list.
+ *   @brief Get preferred audio prioperties
  *
- *   @return void
+ *   @return text preferred proprties in json format
  */
 std::string PlayerInstanceAAMP::GetPreferredAudioProperties()
 {
 	return aamp->GetPreferredAudioProperties();
+}
+
+/**
+ *   @brief Get preferred text prioperties
+ *
+ *   @return text preferred proprties in json format
+ */
+std::string PlayerInstanceAAMP::GetPreferredTextProperties()
+{
+	return aamp->GetPreferredTextProperties();
+}
+
+/**
+ *   @brief Set optional preferred language list
+ *   @param[in] languageList - string with comma-delimited language list in ISO-639
+ *             from most to least preferred. Set NULL to clear current list.
+ *   @param[in] preferredRendition  - preferred rendition from role
+ *   @param[in] preferredType -  preferred accessibility type
+ *   @param[in] codecList - Preferred Codec List as , seperated 
+ *   @param[in] labelList - Preferred Label List as , seperated 
+ *
+ *   @return void
+ */
+void PlayerInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition, const char *preferredType, const char* codecList, const char* labelList )
+{
+	aamp->SetPreferredLanguages(languageList, preferredRendition, preferredType, codecList, labelList);
 }
 
 /**
@@ -2373,9 +2397,9 @@ std::string PlayerInstanceAAMP::GetPreferredAudioProperties()
  *
  *   @return void
  */
-void PlayerInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition, const char *preferredType, const char* codecList )
+void PlayerInstanceAAMP::SetPreferredTextLanguages(const char *param)
 {
-	aamp->SetPreferredLanguages(languageList, preferredRendition, preferredType, codecList);
+	aamp->SetPreferredTextLanguages(param);
 }
 
 /**
@@ -2464,17 +2488,23 @@ std::string PlayerInstanceAAMP::GetAudioTrackInfo()
 	return aamp->GetAudioTrackInfo();
 }
 
+std::string PlayerInstanceAAMP::GetTextTrackInfo()
+{
+	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
+
+	return aamp->GetTextTrackInfo();
+}
 
 /**
  *   @brief Get available text tracks.
  *
  *   @return std::string JSON formatted list of text tracks
  */
-std::string PlayerInstanceAAMP::GetAvailableTextTracks()
+std::string PlayerInstanceAAMP::GetAvailableTextTracks(bool allTrack)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
 
-	return aamp->GetAvailableTextTracks();
+	return aamp->GetAvailableTextTracks(allTrack);
 }
 
 /*

@@ -268,27 +268,31 @@ typedef enum
 	eAAMPConfig_DoubleMaxValue,
 	////////////////////////////////////
 	eAAMPConfig_StringStartValue,
-	eAAMPConfig_MapMPD, 										/**< host name in url for which hls to mpd mapping done'*/
-	eAAMPConfig_MapM3U8,										/**< host name in url for which mpd to hls mapping done'*/
-	eAAMPConfig_HarvestPath,									/**< Path to store Harvested files */
-	eAAMPConfig_LicenseServerUrl,								/**< License server URL ( if no individual configuration */
-	eAAMPConfig_CKLicenseServerUrl,								/**< ClearKey License server URL*/
-	eAAMPConfig_PRLicenseServerUrl,								/**< PlayReady License server URL*/
-	eAAMPConfig_WVLicenseServerUrl,								/**< Widevine License server URL*/
-	eAAMPConfig_UserAgent,										/**< Curl user-agent string */
-	eAAMPConfig_SubTitleLanguage,								/**< User preferred subtitle language*/
-	//eAAMPConfig_RedirectUrl,									/**<redirects requests to tune to url1 to url2*/
-	eAAMPConfig_CustomHeader,								  	/**<custom header string data to be appended to curl request*/
-	eAAMPConfig_URIParameter,									/**<uri parameter data to be appended on download-url during curl request*/
-	eAAMPConfig_NetworkProxy,									/**<Network Proxy */
-	eAAMPConfig_LicenseProxy,									/**<License Proxy */
-	eAAMPConfig_AuthToken,									/**<Session Token  */
-	eAAMPConfig_LogLevel,										/**< New Configuration to overide info/debug/trace */
-	eAAMPConfig_CustomHeaderLicense,                            					/**<custom header string data to be appended to curl License request*/
-	eAAMPConfig_PreferredAudioRendition,								/**< PreferredAudioRendition*/
-	eAAMPConfig_PreferredAudioCodec,								/**< PreferredAudioCodec*/
-	eAAMPConfig_PreferredAudioLanguage,								/**< PreferredAudioLanguage*/
-	eAAMPConfig_CustomLicenseData,                                         /**< Custom Data for License Request */
+	eAAMPConfig_MapMPD, 							/**< host name in url for which hls to mpd mapping done'*/
+	eAAMPConfig_MapM3U8,							/**< host name in url for which mpd to hls mapping done'*/
+	eAAMPConfig_HarvestPath,						/**< Path to store Harvested files */
+	eAAMPConfig_LicenseServerUrl,						/**< License server URL ( if no individual configuration */
+	eAAMPConfig_CKLicenseServerUrl,						/**< ClearKey License server URL*/
+	eAAMPConfig_PRLicenseServerUrl,						/**< PlayReady License server URL*/
+	eAAMPConfig_WVLicenseServerUrl,						/**< Widevine License server URL*/
+	eAAMPConfig_UserAgent,							/**< Curl user-agent string */
+	eAAMPConfig_SubTitleLanguage,						/**< User preferred subtitle language*/
+	//eAAMPConfig_RedirectUrl,						/**< redirects requests to tune to url1 to url2 */
+	eAAMPConfig_CustomHeader,						/**< custom header string data to be appended to curl request*/
+	eAAMPConfig_URIParameter,						/**< uri parameter data to be appended on download-url during curl request*/
+	eAAMPConfig_NetworkProxy,						/**< Network Proxy */
+	eAAMPConfig_LicenseProxy,						/**< License Proxy */
+	eAAMPConfig_AuthToken,							/**< Session Token  */
+	eAAMPConfig_LogLevel,							/**< New Configuration to overide info/debug/trace */
+	eAAMPConfig_CustomHeaderLicense,                       			/**< custom header string data to be appended to curl License request*/
+	eAAMPConfig_PreferredAudioRendition,				/**< New Configuration to save preferred Audio rendition/role descriptor field; support only single string value*/
+	eAAMPConfig_PreferredAudioCodec,					/**< New Configuration to save preferred Audio codecs values; support comma separated multiple string values*/
+	eAAMPConfig_PreferredAudioLanguage,					/**< New Configuration to save preferred Audio languages; support comma separated multiple string values*/
+	eAAMPConfig_PreferredAudioLabel,					/**< New Configuration to save preferred Audio label field; Label is a textual description of the content. Support only single string value*/ 
+	eAAMPConfig_PreferredTextRendition,					/**< New Configuration to save preferred Text rendition/role descriptor field; support only single string value*/
+	eAAMPConfig_PreferredTextLanguage,					/**<  New Configuration to save preferred Text languages; support comma separated multiple string values*/
+	eAAMPConfig_PreferredTextLabel,						/**< New Configuration to save preferred Text label field; Label is a textual description of the content. Support only single string value*/
+	eAAMPConfig_CustomLicenseData,                          		/**< Custom Data for License Request */
 	eAAMPConfig_StringMaxValue,
 	eAAMPConfig_MaxValue
 }AAMPConfigSettings;
