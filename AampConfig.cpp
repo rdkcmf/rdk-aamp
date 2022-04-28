@@ -427,7 +427,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableAampConfigToFog].value                  =       true;
 #ifdef USE_SECMANAGER
   	// LLAMA-5520 workaround, QS005 branch only
-	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	false;
+	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	true;
 #else
 	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	false;
 #endif
