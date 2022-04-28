@@ -456,7 +456,7 @@ void AampEventManager::SetCallbackAsDispatched(guint id)
 	}
 	else
 	{
-		AAMPLOG_WARN("id:%d not in mPendingAsyncEvents, insert and mark as not pending", id);
+		AAMPLOG_TRACE("id:%d not in mPendingAsyncEvents, insert and mark as not pending", id);
 		mPendingAsyncEvents[id] = false;
 	}
 	pthread_mutex_unlock(&mMutexVar);
@@ -472,14 +472,14 @@ void AampEventManager::SetCallbackAsPending(guint id)
 	AsyncEventListIter  itr = mPendingAsyncEvents.find(id);
 	if(itr != mPendingAsyncEvents.end())
 	{
-		AAMPLOG_WARN("id:%d already in mPendingAsyncEvents and completed, erase it State:%d",id,itr->second);
+		AAMPLOG_TRACE("id:%d already in mPendingAsyncEvents and completed, erase it State:%d",id,itr->second);
 		assert (!itr->second);
 		mPendingAsyncEvents.erase(itr);
 	}
 	else
 	{
 		mPendingAsyncEvents[id] = true;
-		AAMPLOG_INFO("id:%d in mPendingAsyncEvents, added to list", id);
+		AAMPLOG_TRACE("id:%d in mPendingAsyncEvents, added to list", id);
 	}
 	pthread_mutex_unlock(&mMutexVar);
 }

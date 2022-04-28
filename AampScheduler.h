@@ -43,6 +43,7 @@
 #define AAMPLOG_WARN(FORMAT, ...) { printf(FORMAT,##__VA_ARGS__);printf("\n");}
 #define AAMPLOG_INFO(FORMAT, ...) { printf(FORMAT,##__VA_ARGS__);printf("\n");}
 #define AAMPLOG_ERR(FORMAT, ...)  { printf(FORMAT,##__VA_ARGS__);printf("\n");}
+#define AAMPLOG_TRACE(FORMAT, ...)  { printf(FORMAT,##__VA_ARGS__);printf("\n");}
 #endif
 #define AAMP_SCHEDULER_ID_MAX_VALUE INT_MAX  // 10000
 #define AAMP_SCHEDULER_ID_DEFAULT 1		//ID ranges from DEFAULT to MAX
