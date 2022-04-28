@@ -2730,6 +2730,10 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 {
 	FN_TRACE( __FUNCTION__ );
 	AAMPLOG_WARN("entering AAMPGstPlayer_Stop keepLastFrame %d", keepLastFrame);
+
+	//XIONE-8595 - make the execution of this function more deterministic and reduce scope for potential pipeline lockups
+	gst_bus_remove_watch(privateContext->bus);
+
 #ifdef INTELCE
 	if (privateContext->video_sink)
 	{
@@ -2802,13 +2806,26 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	}
 	if (this->privateContext->pipeline)
 	{
+		privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
 		GstState current;
 		GstState pending;
-		privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
-		if(GST_STATE_CHANGE_FAILURE == gst_element_get_state(privateContext->pipeline, &current, &pending, 0))
+		auto stateChangeReturn = gst_element_get_state(privateContext->pipeline, &current, &pending, 0);
+		switch(stateChangeReturn)
 		{
-			AAMPLOG_WARN("AAMPGstPlayer: Pipeline is in FAILURE state : current %s  pending %s",gst_element_state_get_name(current), gst_element_state_get_name(pending));
+			case GST_STATE_CHANGE_FAILURE:
+				AAMPLOG_WARN("AAMPGstPlayer: Pipeline is in FAILURE state : current %s  pending %s",gst_element_state_get_name(current), gst_element_state_get_name(pending));
+				break;
+  			case GST_STATE_CHANGE_SUCCESS:	
+				break;
+  			case GST_STATE_CHANGE_ASYNC:
+  				AAMPLOG_WARN("AAMPGstPlayer: Pipeline state is changing asynchronously : current %s  pending %s",gst_element_state_get_name(current), gst_element_state_get_name(pending));
+				break;
+			default:
+				AAMPLOG_ERR("AAMPGstPlayer: unexpected pipeline state");
+				break;
 		}
+		//XIONE-8595 - gst_element_set_state can lockup if there are pipeline errors
+		AAMPLOG_WARN("AAMPGstPlayer: Attempting to set pipeline state set to null");
 		gst_element_set_state(this->privateContext->pipeline, GST_STATE_NULL);
 		AAMPLOG_WARN("AAMPGstPlayer: Pipeline state set to null");
 	}
