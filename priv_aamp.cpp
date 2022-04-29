@@ -1304,11 +1304,23 @@ static int progress_callback(
 				}
 			}
 		}
-		else if (dlnow > 0 && context->lowBWTimeout > 0 && eMEDIATYPE_VIDEO == context->fileType)
+		if (dlnow == 0 && context->startTimeout > 0)
+		{ // check to handle scenario where <startTimeout> seconds delay occurs without any bytes having been downloaded (stall at start)
+			double timeElapsedInSec = (double)(NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs  //CID:85922 - UNINTENDED_INTEGER_DIVISION
+			if (timeElapsedInSec >= context->startTimeout)
+			{
+				AAMPLOG_WARN("Abort download as no data received for %.2f seconds", timeElapsedInSec);
+				context->abortReason = eCURL_ABORT_REASON_START_TIMEDOUT;
+				rc = -1;
+			}
+		}
+
+		if (dlnow > 0 && context->lowBWTimeout > 0 && eMEDIATYPE_VIDEO == context->fileType)
 		{
+			// Timeout for profile rampdown if network bandwidth is not good enough
 			long downloadbps = getCurrentContentDownloadSpeed(aamp, context->fileType, context->dlStarted, (long)context->downloadStartTime, dlnow);
 			long currentProfilebps  = context->aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
-			double timeElapsedInSec = (double)(NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs  //CID:85922 - UNINTENDED_INTEGER_DIVISION
+			double timeElapsedInSec = (double)(NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs
 			if(timeElapsedInSec >= context->lowBWTimeout)
 			{
 				if((downloadbps + DEFAULT_BITRATE_OFFSET_FOR_DOWNLOAD) < currentProfilebps)
@@ -1317,16 +1329,6 @@ static int progress_callback(
 					context->abortReason = eCURL_ABORT_REASON_LOW_BANDWIDTH_TIMEDOUT;
 					rc = -1;
 				}
-			}
-		}
-		else if (dlnow == 0 && context->startTimeout > 0)
-		{ // check to handle scenario where <startTimeout> seconds delay occurs without any bytes having been downloaded (stall at start)
-			double timeElapsedInSec = (double)(NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs  //CID:85922 - UNINTENDED_INTEGER_DIVISION
-			if (timeElapsedInSec >= context->startTimeout)
-			{
-				AAMPLOG_WARN("Abort download as no data received for %.2f seconds", timeElapsedInSec);
-				context->abortReason = eCURL_ABORT_REASON_START_TIMEDOUT;
-				rc = -1;
 			}
 		}
 	}
@@ -10707,6 +10709,7 @@ void PrivateInstanceAAMP::LoadFogConfig(void)
 	std::string jsonStr;
 	AampJsonObject jsondata;
 	double tmpVar = 0;
+	long tmpLongVar = 0;
 	int maxdownload = 0;
 
 	// networkTimeout value in sec and convert into MS
@@ -10718,15 +10721,20 @@ void PrivateInstanceAAMP::LoadFogConfig(void)
         GETCONFIGVALUE_PRIV(eAAMPConfig_ManifestTimeout,tmpVar);
         jsondata.add("manifestTimeoutMS", (long)CONVERT_SEC_TO_MS(tmpVar));
 
-	tmpVar = 0;
+	tmpLongVar = 0;
 	//downloadStallTimeout in sec
-	GETCONFIGVALUE_PRIV(eAAMPConfig_CurlStallTimeout,tmpVar);
-	jsondata.add("downloadStallTimeout", (long)(tmpVar));
+	GETCONFIGVALUE_PRIV(eAAMPConfig_CurlStallTimeout,tmpLongVar);
+	jsondata.add("downloadStallTimeout", tmpLongVar);
 
-	tmpVar = 0;
+	tmpLongVar = 0;
 	//downloadStartTimeout sec
-	GETCONFIGVALUE_PRIV(eAAMPConfig_CurlDownloadStartTimeout,tmpVar);
-	jsondata.add("downloadStartTimeout", (long)(tmpVar));
+	GETCONFIGVALUE_PRIV(eAAMPConfig_CurlDownloadStartTimeout,tmpLongVar);
+	jsondata.add("downloadStartTimeout", tmpLongVar);
+
+	tmpLongVar = 0;
+	//downloadStartTimeout sec
+	GETCONFIGVALUE_PRIV(eAAMPConfig_CurlDownloadLowBWTimeout,tmpLongVar);
+	jsondata.add("downloadLowBWTimeout", tmpLongVar);
 
 	//maxConcurrentDownloads
 	GETCONFIGVALUE_PRIV(eAAMPConfig_FogMaxConcurrentDownloads, maxdownload);
