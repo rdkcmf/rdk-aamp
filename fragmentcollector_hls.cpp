@@ -1575,6 +1575,13 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 									position = ISO8601DateTimeToUTCSeconds(programDateTime );
 									AAMPLOG_WARN("[%s] Discontinuity - position from program-date-time %f", name, position);
 								}
+								if(mDiscontinuityCheckingOn)
+								{
+									//if The mDiscontinuityCheckingOn is true, then the other track is in progress with the discontinuity check. Hence this track should wait till the completion of the othertrack and proceed
+									pthread_mutex_lock(&mDiscoCheckMutex);
+									pthread_cond_wait(&mDiscoCheckComplete, &mDiscoCheckMutex);
+									pthread_mutex_unlock(&mDiscoCheckMutex);
+								}
 								AAMPLOG_WARN("%s Checking HasDiscontinuity for position :%f, playposition :%f playtarget:%f mDiscontinuityCheckingOn:%d",name,position,playPosition,playTarget,mDiscontinuityCheckingOn);								
 								if (!mDiscontinuityCheckingOn) 
 								{
@@ -5684,7 +5691,7 @@ TrackState::TrackState(AampLogManager *logObj, TrackType type, StreamAbstraction
 		index(), targetDurationSeconds(1), mDeferredDrmKeyMaxTime(0), startTimeForPlaylistSync(),
 		context(parent), fragmentEncrypted(false), mKeyTagChanged(false), mLastKeyTagIdx(0), mDrmInfo(),
 		mDrmMetaDataIndexPosition(0), mDrmMetaDataIndex(), mDiscontinuityIndex(), mKeyHashTable(), mPlaylistMutex(),
-		mPlaylistIndexed(), mTrackDrmMutex(), mPlaylistType(ePLAYLISTTYPE_UNDEFINED), mReachedEndListTag(false),
+		mPlaylistIndexed(), mDiscoCheckMutex(), mDiscoCheckComplete(), mTrackDrmMutex(), mPlaylistType(ePLAYLISTTYPE_UNDEFINED), mReachedEndListTag(false),
 		mByteOffsetCalculation(false),mSkipAbr(false),
 		mCheckForInitialFragEnc(false), mFirstEncInitFragmentInfo(NULL), mDrmMethod(eDRM_KEY_METHOD_NONE)
 		,mXStartTimeOFfset(0), mCulledSecondsAtStart(0.0)
@@ -5700,6 +5707,8 @@ TrackState::TrackState(AampLogManager *logObj, TrackType type, StreamAbstraction
 	pthread_cond_init(&mPlaylistIndexed, NULL);
 	pthread_mutex_init(&mPlaylistMutex, NULL);
 	pthread_mutex_init(&mTrackDrmMutex, NULL);
+	pthread_cond_init(&mDiscoCheckComplete, NULL);
+        pthread_mutex_init(&mDiscoCheckMutex, NULL);
 	mCulledSecondsAtStart = aamp->culledSeconds;
 	mProgramDateTime = aamp->mProgramDateTime;
 	AAMPLOG_INFO("Restore PDT (%f) ",mProgramDateTime);
@@ -5731,6 +5740,8 @@ TrackState::~TrackState()
 		free(mDrmInfo.iv);
 		mDrmInfo.iv = NULL;
 	}
+	pthread_cond_destroy(&mDiscoCheckComplete);
+        pthread_mutex_destroy(&mDiscoCheckMutex);
 	pthread_cond_destroy(&mPlaylistIndexed);
 	pthread_mutex_destroy(&mPlaylistMutex);
 	pthread_mutex_destroy(&mTrackDrmMutex);
@@ -5877,6 +5888,7 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 		TrackState *otherTrack = trackState[(iTrack == eTRACK_VIDEO)? eTRACK_AUDIO: eTRACK_VIDEO];
 		if(otherTrack && otherTrack->Enabled())
 		{
+			otherTrack->StopDiscontinuityCheckWait();
 			otherTrack->StopWaitForPlaylistRefresh();
 		}
 
@@ -6930,6 +6942,7 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 
 	}
 	mDiscontinuityCheckingOn = false;
+	StopDiscontinuityCheckWait();
 	pthread_mutex_unlock(&mPlaylistMutex);
 	return discontinuityFound;
 }
@@ -7268,6 +7281,16 @@ void TrackState::StopWaitForPlaylistRefresh()
 	pthread_mutex_unlock(&mPlaylistMutex);
 }
 
+/**
+ * @brief Stop the wait for discontinuity check in each track
+ */
+void TrackState::StopDiscontinuityCheckWait()
+{
+	AAMPLOG_WARN("track [%s]", name);
+	pthread_mutex_lock(&mDiscoCheckMutex);
+	pthread_cond_signal(&mDiscoCheckComplete);
+	pthread_mutex_unlock(&mDiscoCheckMutex);
+}
 
 /**
  * @brief Cancel all DRM operations

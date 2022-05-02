@@ -337,6 +337,13 @@ public:
 	void CancelDrmOperation(bool clearDRM);
 
 	/***************************************************************************
+	 * @fn StopDiscontinuityCheck
+	 *
+	 * @return void
+	***************************************************************************/
+	void StopDiscontinuityCheckWait();
+	
+	/***************************************************************************
      	 * @fn RestoreDrmState
     	 *
      	 * @return void
@@ -527,6 +534,8 @@ private:
 	pthread_mutex_t mPlaylistMutex;         /**< protect playlist update */
 	pthread_cond_t mPlaylistIndexed;        /**< Notifies after a playlist indexing operation */
 	pthread_mutex_t mTrackDrmMutex;         /**< protect DRM Interactions for the track */
+	pthread_mutex_t mDiscoCheckMutex;         	/**< protect playlist discontinuity check */
+	pthread_cond_t mDiscoCheckComplete;     /**< Notifies after a discontinuity check */
 	double mLastMatchedDiscontPosition;     /**< Holds discontinuity position last matched  by other track */
 	double mCulledSeconds;                  /**< Total culled duration in this streamer instance*/
 	double mCulledSecondsOld;               /**< Total culled duration in this streamer instance*/
