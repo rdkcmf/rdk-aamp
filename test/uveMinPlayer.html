@@ -1,0 +1,49 @@
+<html>
+<head>
+	<title> MINIMAL UVE PLAYER </title>
+</head>
+	
+<script>
+	window.onload = function() {
+        try {
+            var player = new AAMPMediaPlayer();
+            player.addEventListener("playbackFailed", mediaPlaybackFailed);
+            var locator = "https://cpetestutility.stb.r53.xcal.tv/VideoTestStream/main.m3u8"; // REPLACE ME
+            //var locator = "https://cpetestutility.stb.r53.xcal.tv/VideoTestStream/main.mpd";
+            //var locator = "https://cpetestutility.stb.r53.xcal.tv/VideoTestStream/main_mp4.m3u8";
+            player.load(locator);
+            console.log( "Loading " + locator + " using AAMP" );
+        } catch {
+            var msg = window.navigator.userAgent.includes("WPE")? "AAMPMediaPlayer not available" : "This app is intended to be used on RDK devices";
+            showText(msg);
+        }
+	}
+
+    function mediaPlaybackFailed(event) {
+        showText(event.description);
+    }
+
+    function showText(msg) {
+        document.getElementById('modal').style.display = "block";
+        document.getElementById("msg").innerHTML = "ERROR: " + msg;
+    }
+</script>
+<style>
+    #modal {
+        display: none; 
+        position: absolute;
+        background-color: rgba(0,0,0,0.5);
+        margin: 100px 0 auto 35%;
+        color: #fff;
+        font: 16px arial, sans-serif;
+    }
+</style>
+<body>
+	<video style="height:100%; width:100%; position:absolute; bottom:0; left:0">
+		<source src="dummy.mp4" type="video/ave"> <!-- hole punching -->
+	</video>
+    <div id="modal">
+        <p id="msg"></p>
+    </div>
+</body>
+</html>
