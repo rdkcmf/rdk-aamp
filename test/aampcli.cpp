@@ -946,7 +946,7 @@ static void ProcessCliCommand( char *cmd )
 		{
 			mSingleton->aamp->mpStreamAbstractionAAMP->DumpProfiles();
 		}
-		printf("[AAMPCLI] current bitrate ~= %ld\n", mSingleton->aamp->GetPersistedBandwidth());
+		printf("[AAMPCLI] current network bandwidth ~= %ld\n", mSingleton->aamp->GetPersistedBandwidth());
 	}
 	else if (strcmp(cmd, "help") == 0)
 	{
@@ -2266,7 +2266,7 @@ static void ProcessCliCommand( char *cmd )
 					break;
 
 				case eAAMP_GET_VideoBitrate:
-					printf("[AAMPCLI] VIDEO BITRATE = %ld\n",
+					printf("[AAMPCLI] CURRENT VIDEO PROFILE BITRATE = %ld\n",
 					mSingleton->GetVideoBitrate());
 					break;
 
