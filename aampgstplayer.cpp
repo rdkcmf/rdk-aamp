@@ -286,6 +286,15 @@ static gboolean buffering_timeout (gpointer data);
  * @brief check if elemement is instance (BCOM-3563)
  */
 static void type_check_instance( const char * str, GstElement * elem);
+
+/**
+ * @brief wraps gst_element_set_state and adds log messages where applicable
+ * @param[in] element the GstElement whose state is to be changed
+ * @param[in] targetState the GstState to apply to element
+ * @retval Result of the state change (from inner gst_element_set_state())
+ */
+static GstStateChangeReturn SetStateWithWarnings(GstElement *element, GstState targetState);
+
 #define PLUGINS_TO_LOWER_RANK_MAX    2
 const char *plugins_to_lower_rank[PLUGINS_TO_LOWER_RANK_MAX] = {
 	"aacparse",
@@ -1198,7 +1207,7 @@ static gboolean buffering_timeout (gpointer data)
 #endif
 			{
 				AAMPLOG_WARN("Set pipeline state to %s - buffering_timeout_cnt %u  frames %i", gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1), frames);
-				gst_element_set_state (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
+				SetStateWithWarnings (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
 				_this->privateContext->buffering_in_progress = false;
 				_this->aamp->UpdateSubtitleTimestamp();
 			}
@@ -1419,8 +1428,8 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 	case GST_MESSAGE_CLOCK_LOST:
 		AAMPLOG_WARN("GST_MESSAGE_CLOCK_LOST");
 		// get new clock - needed?
-		gst_element_set_state(_this->privateContext->pipeline, GST_STATE_PAUSED);
-		gst_element_set_state(_this->privateContext->pipeline, GST_STATE_PLAYING);
+		SetStateWithWarnings(_this->privateContext->pipeline, GST_STATE_PAUSED);
+		SetStateWithWarnings(_this->privateContext->pipeline, GST_STATE_PLAYING);
 		break;
 
 #ifdef TRACE
@@ -2002,7 +2011,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 			/* set the playbin state to NULL before detach it */
 			if (stream->sinkbin)
 			{
-				if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(GST_ELEMENT(stream->sinkbin), GST_STATE_NULL))
+				if (GST_STATE_CHANGE_FAILURE == SetStateWithWarnings(GST_ELEMENT(stream->sinkbin), GST_STATE_NULL))
 				{
 					AAMPLOG_WARN("AAMPGstPlayer::TearDownStream: Failed to set NULL state for sinkbin");
 				}
@@ -2018,7 +2027,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 
 			if (stream->using_playersinkbin && stream->source)
 			{
-				if (GST_STATE_CHANGE_FAILURE == gst_element_set_state(GST_ELEMENT(stream->source), GST_STATE_NULL))
+				if (GST_STATE_CHANGE_FAILURE == SetStateWithWarnings(GST_ELEMENT(stream->source), GST_STATE_NULL))
 				{
 					AAMPLOG_WARN("AAMPGstPlayer::TearDownStream: Failed to set NULL state for source");
 				}
@@ -2642,7 +2651,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 
 	if (setReadyAfterPipelineCreation)
 	{
-		if(gst_element_set_state(this->privateContext->pipeline, GST_STATE_READY) == GST_STATE_CHANGE_FAILURE)
+		if(SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_READY) == GST_STATE_CHANGE_FAILURE)
 		{
 			AAMPLOG_ERR("AAMPGstPlayer_Configure GST_STATE_READY failed on forceful set");
 		}
@@ -2717,7 +2726,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		this->privateContext->buffering_target_state = GST_STATE_PLAYING;
 		this->privateContext->buffering_in_progress = true;
 		this->privateContext->buffering_timeout_cnt = DEFAULT_BUFFERING_MAX_CNT;
-		if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
+		if (SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
 		{
 			AAMPLOG_WARN("AAMPGstPlayer_Configure GST_STATE_PLAUSED failed");
 		}
@@ -2725,7 +2734,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	}
 	else
 	{
-		if (gst_element_set_state(this->privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
+		if (SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
 		{
 			AAMPLOG_WARN("AAMPGstPlayer: GST_STATE_PLAYING failed");
 		}
@@ -2869,26 +2878,7 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	if (this->privateContext->pipeline)
 	{
 		privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
-		GstState current;
-		GstState pending;
-		auto stateChangeReturn = gst_element_get_state(privateContext->pipeline, &current, &pending, 0);
-		switch(stateChangeReturn)
-		{
-			case GST_STATE_CHANGE_FAILURE:
-				AAMPLOG_WARN("AAMPGstPlayer: Pipeline is in FAILURE state : current %s  pending %s",gst_element_state_get_name(current), gst_element_state_get_name(pending));
-				break;
-  			case GST_STATE_CHANGE_SUCCESS:	
-				break;
-  			case GST_STATE_CHANGE_ASYNC:
-  				AAMPLOG_WARN("AAMPGstPlayer: Pipeline state is changing asynchronously : current %s  pending %s",gst_element_state_get_name(current), gst_element_state_get_name(pending));
-				break;
-			default:
-				AAMPLOG_ERR("AAMPGstPlayer: unexpected pipeline state");
-				break;
-		}
-		//XIONE-8595 - gst_element_set_state can lockup if there are pipeline errors
-		AAMPLOG_WARN("AAMPGstPlayer: Attempting to set pipeline state set to null");
-		gst_element_set_state(this->privateContext->pipeline, GST_STATE_NULL);
+		SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_NULL);
 		AAMPLOG_WARN("AAMPGstPlayer: Pipeline state set to null");
 	}
 #ifdef AAMP_MPD_DRM
@@ -3060,6 +3050,12 @@ static std::string GetStatus(gpointer pElementOrBin, int& recursionCount, gpoint
 	return returnStringBuilder;
 }
 
+static void LogStatus(GstElement* pElementOrBin)
+{
+	int recursionCount = 0;
+	AAMPLOG_WARN("AAMPGstPlayer: %s Status: %s",SafeName(pElementOrBin).c_str(), GetStatus(pElementOrBin, recursionCount).c_str());
+}
+
 /**
  *  @brief Log the various info related to playback
  */
@@ -3115,8 +3111,7 @@ void AAMPGstPlayer::DumpStatus(void)
 			GST_TIME_ARGS(pos), GST_TIME_ARGS(len));
 	}
 
-	int recursionCount = 0;
-	AAMPLOG_WARN("Gst Pipeline Status: %s", GetStatus(privateContext->pipeline, recursionCount).c_str());
+	LogStatus(privateContext->pipeline);
 }
 
 
@@ -3155,6 +3150,55 @@ static GstState validateStateWithMsTimeout( AAMPGstPlayer *_this, GstState state
 }
 
 
+static GstStateChangeReturn SetStateWithWarnings(GstElement *element, GstState targetState)
+{
+    GstStateChangeReturn rc = GST_STATE_CHANGE_FAILURE;
+	if(element)
+	{
+		//XIONE-8595 - in a synchronous only transition gst_element_set_state can lockup if there are pipeline errors
+		bool syncOnlyTransition = (targetState==GST_STATE_NULL)||(targetState==GST_STATE_READY);
+
+		GstState current;
+		GstState pending;
+		auto stateChangeReturn = gst_element_get_state(element, &current, &pending, 0);
+		switch(stateChangeReturn)
+		{
+			case GST_STATE_CHANGE_FAILURE:
+				AAMPLOG_WARN("AAMPGstPlayer: %s is in FAILURE state : current %s  pending %s", SafeName(element).c_str(),gst_element_state_get_name(current), gst_element_state_get_name(pending));
+				LogStatus(element);
+				break;
+			case GST_STATE_CHANGE_SUCCESS:
+				break;
+			case GST_STATE_CHANGE_ASYNC:
+				if(syncOnlyTransition)
+				{
+					AAMPLOG_WARN("AAMPGstPlayer: %s state is changing asynchronously : current %s  pending %s", SafeName(element).c_str(),gst_element_state_get_name(current), gst_element_state_get_name(pending));
+					LogStatus(element);
+				}
+				break;
+			default:
+				AAMPLOG_ERR("AAMPGstPlayer: %s is in an unknown state", SafeName(element).c_str());
+				break;
+		}
+
+		if(syncOnlyTransition)
+		{
+			AAMPLOG_WARN("AAMPGstPlayer: Attempting to set %s state to %s", SafeName(element).c_str(), gst_element_state_get_name(targetState));
+		}
+		rc = gst_element_set_state(element, targetState);
+		if(syncOnlyTransition)
+		{
+			AAMPLOG_WARN("AAMPGstPlayer: %s state set to %s",  SafeName(element).c_str(), gst_element_state_get_name(targetState));
+		}
+	}
+	else
+	{
+		AAMPLOG_ERR("AAMPGstPlayer: Attempted to set the state of a null pointer");
+	}
+    return rc;
+}
+
+
 /**
  * @brief Flush the buffers in pipeline
  */
@@ -3182,7 +3226,7 @@ void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 	/*On pc, tsdemux requires null transition*/
 	stateBeforeFlush = GST_STATE_NULL;
 #endif
-	rc = gst_element_set_state(this->privateContext->pipeline, stateBeforeFlush);
+	rc = SetStateWithWarnings(this->privateContext->pipeline, stateBeforeFlush);
 	if (GST_STATE_CHANGE_ASYNC == rc)
 	{
 		if (GST_STATE_PAUSED != validateStateWithMsTimeout(this,GST_STATE_PAUSED, 50))
@@ -3200,7 +3244,7 @@ void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 	if (!ret) AAMPLOG_WARN("AAMPGstPlayer_Flush: flush stop error");
 	if (playAfterFlush)
 	{
-		rc = gst_element_set_state(this->privateContext->pipeline, GST_STATE_PLAYING);
+		rc = SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_PLAYING);
 
 		if (GST_STATE_CHANGE_ASYNC == rc)
 		{
@@ -3375,7 +3419,7 @@ bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 			privateContext->buffering_in_progress = false;
 		}
 
-		GstStateChangeReturn rc = gst_element_set_state(this->privateContext->pipeline, nextState);
+		GstStateChangeReturn rc = SetStateWithWarnings(this->privateContext->pipeline, nextState);
 		if (GST_STATE_CHANGE_ASYNC == rc)
 		{
 			/* wait a bit longer for the state change to conclude */
@@ -3408,7 +3452,7 @@ bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 		media_stream *stream = &privateContext->stream[iTrack];
 		if (stream->source)
 		{
-			rc = gst_element_set_state(privateContext->stream->sinkbin, GST_STATE_PAUSED);
+			rc = SetStateWithWarnings(privateContext->stream->sinkbin, GST_STATE_PAUSED);
 		}
 	}
 #endif
@@ -3938,7 +3982,7 @@ void AAMPGstPlayer::NotifyFragmentCachingComplete()
 	if(privateContext->pendingPlayState)
 	{
 		AAMPLOG_WARN("AAMPGstPlayer: Setting pipeline to PLAYING state ");
-		if (gst_element_set_state(privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
+		if (SetStateWithWarnings(privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
 		{
 			AAMPLOG_WARN("AAMPGstPlayer_Configure GST_STATE_PLAYING failed");
 		}
