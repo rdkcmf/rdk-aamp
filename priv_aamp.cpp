@@ -1522,6 +1522,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mTimedMetadataDuration(0)
 	, playerStartedWithTrickPlay(false)
 	, mPlaybackMode("UNKNOWN")
+	, mApplyCachedVideoMute(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -5388,7 +5389,22 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mCdaiObject = NULL;
 	AcquireStreamLock();
 	TuneHelper(tuneType);
+	
+	//Apply the cached video mute call as it got invoked when stream lock was not available
+	if(mApplyCachedVideoMute)
+	{
+		mApplyCachedVideoMute = false;
+		AAMPLOG_INFO("Cached videoMute is being executed, mute value: %d", video_muted);
+		if (mpStreamAbstractionAAMP)
+		{
+			//There two fns are being called in PlayerInstanceAAMP::SetVideoMute
+			SetVideoMute(video_muted);
+			SetCCStatus(video_muted ? false : !subtitles_muted);
+		}
+	}
 	ReleaseStreamLock();
+	
+	
 	// do not change location of this set, it should be done after sending perviouse VideoEnd data which
 	// is done in TuneHelper->SendVideoEndEvent function.
 	if(pTraceID)
@@ -9822,6 +9838,16 @@ bool PrivateInstanceAAMP::RemoveAsyncTask(int taskId)
 void PrivateInstanceAAMP::AcquireStreamLock()
 {
 	pthread_mutex_lock(&mStreamLock);
+}
+
+/**
+ *   @brief try to acquire streamsink lock
+ *
+ *    @return True if it could I acquire it seccessfully else false
+ */
+bool PrivateInstanceAAMP::TryStreamLock()
+{
+	return (pthread_mutex_trylock(&mStreamLock) == 0);
 }
 
 /**

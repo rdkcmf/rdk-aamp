@@ -879,6 +879,7 @@ public:
 	long long mTimedMetadataStartTime;	/** Start time to report TimedMetadata   */
 	long long mTimedMetadataDuration;
 	bool playerStartedWithTrickPlay; //To indicate player switch happened in trickplay rate
+	bool mApplyCachedVideoMute;	/**< To apply vidoeMute() operations if it has been cached due to tune in progress 
 	/**
 	 * @brief Check if segment starts with an ID3 section
 	 *
@@ -3256,6 +3257,13 @@ public:
 	 *	 @return void
 	 */
 	void AcquireStreamLock();
+	
+	/**
+	*   @brief try to acquire streamsink lock
+	 *
+	*    @return True if it could I acquire it seccessfully else false
+	*/
+	bool TryStreamLock();
 	
 	/**
 	 *	 @brief release streamsink lock

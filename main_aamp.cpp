@@ -1089,17 +1089,27 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
 	
 	AAMPLOG_WARN(" mute == %s subtitles_muted == %s", muted?"true":"false", aamp->subtitles_muted?"true":"false");
 	aamp->video_muted = muted;
-	aamp->AcquireStreamLock();
-	if (aamp->mpStreamAbstractionAAMP)
+	
+	//If lock could not be acquired, then cache it
+	if(aamp->TryStreamLock())
 	{
-		aamp->SetVideoMute(muted);
-		SetCCStatus(muted ? false : !aamp->subtitles_muted);
+		if (aamp->mpStreamAbstractionAAMP)
+		{
+			aamp->SetVideoMute(muted);
+			SetCCStatus(muted ? false : !aamp->subtitles_muted);
+		}
+		else
+		{
+			AAMPLOG_WARN("Player is in state eSTATE_IDLE, value has been cached");
+			aamp->mApplyCachedVideoMute = true;
+		}
+		aamp->ReleaseStreamLock();
 	}
 	else
 	{
-		AAMPLOG_WARN("Player is in state eSTATE_IDLE, value has been cached");
+		AAMPLOG_WARN("StreamLock is not available, value has been cached");
+		aamp->mApplyCachedVideoMute = true;
 	}
-	aamp->ReleaseStreamLock();
 }
 
 /**
