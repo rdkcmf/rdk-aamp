@@ -2737,6 +2737,101 @@ void PrivateInstanceAAMP::NotifyOnEnteringLive()
 }
 
 /**
+ * @brief track description string from TrackType enum
+ */
+static std::string TrackTypeString(const int track)
+{
+	switch(track)
+	{
+		case eTRACK_VIDEO:
+			return "Video";
+		case eTRACK_AUDIO:
+			return "Audio";
+		case eTRACK_SUBTITLE:
+			return "Subtitle";
+		case eTRACK_AUX_AUDIO:
+			return "Aux Audio";
+	}
+	return "unknown track type";
+}
+
+/**
+* @brief Additional Tune Fail Diagnostics
+ */
+void PrivateInstanceAAMP::AdditionalTuneFailLogEntries()
+{
+	mStreamSink->DumpStatus();
+
+	{
+		std::string downloadsBlockedMessage = "Downloads";
+		if (!mbDownloadsBlocked)
+		{
+			downloadsBlockedMessage += " not";
+		}
+		downloadsBlockedMessage += " blocked, track download status: ";
+		for (int i = 0; i < AAMP_TRACK_COUNT; i++)
+		{
+			downloadsBlockedMessage+=TrackTypeString(i);
+			if (!mbTrackDownloadsBlocked[i])
+			{
+				downloadsBlockedMessage += " not";
+			}
+			downloadsBlockedMessage += " blocked, ";
+		}
+		AAMPLOG_WARN(downloadsBlockedMessage.c_str());
+	}
+
+	{
+		std::string injectionBlockedMessage = "Track injection status: ";
+		for (int i = 0; i < AAMP_TRACK_COUNT; i++)
+		{
+			injectionBlockedMessage+=TrackTypeString(i);
+			if (!mTrackInjectionBlocked[i])
+			{
+				injectionBlockedMessage += " not";
+			}
+			injectionBlockedMessage += " blocked, ";
+		}
+		AAMPLOG_WARN(injectionBlockedMessage.c_str());
+	}
+
+	{
+		std::string trackBufferStatusMessage = "Track buffer status: ";
+		for (int i = 0; i < AAMP_TRACK_COUNT; i++)
+		{
+			trackBufferStatusMessage+=TrackTypeString(i);
+			auto track = mpStreamAbstractionAAMP->GetMediaTrack(static_cast<TrackType>(i));
+			if(nullptr != track)
+			{
+				const auto status = track->GetBufferStatus();
+				trackBufferStatusMessage += " ";
+				switch (status)
+				{
+					case BUFFER_STATUS_GREEN:
+						trackBufferStatusMessage += "green";
+						break;
+					case BUFFER_STATUS_YELLOW:
+						trackBufferStatusMessage += "yellow";
+						break;
+					case BUFFER_STATUS_RED:
+						trackBufferStatusMessage += "red";
+						break;
+					default:
+						trackBufferStatusMessage += "unknown";
+						break;
+				}
+			}
+			else
+			{
+				trackBufferStatusMessage += "invalid track";
+			}
+			trackBufferStatusMessage += ", ";
+		}
+		AAMPLOG_WARN(trackBufferStatusMessage.c_str());
+	}
+}
+
+/**
 * @brief Profiler for failure Tunes
  *
  * @param[in] Fail - Tune fail status
@@ -2762,7 +2857,8 @@ void PrivateInstanceAAMP::TuneFail(bool fail)
 	{
 		LogPlayerPreBuffered();        //Need to calculate prebufferedtime when tune interruption happens with playerprebuffer
 	}
-	profiler.TuneEnd(mTuneMetrics, mAppName,(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mPlayerPreBuffered, durationSeconds, activeInterfaceWifi,mFailureReason);		
+	profiler.TuneEnd(mTuneMetrics, mAppName,(mbPlayEnabled?STRFGPLAYER:STRBGPLAYER), mPlayerId, mPlayerPreBuffered, durationSeconds, activeInterfaceWifi,mFailureReason);
+	AdditionalTuneFailLogEntries();
 }
 
 /**
@@ -7293,6 +7389,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 									AAMPLOG_WARN("PrivateInstanceAAMP: Schedule Retune. diffMs %lld < threshold %lld",
 										diffMs, GetLLDashServiceData()->lowLatencyMode?
 										AAMP_MAX_TIME_LL_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS:AAMP_MAX_TIME_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS);
+									AdditionalTuneFailLogEntries();
 									ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this, "PrivateInstanceAAMP_Retune");
 								}
 							}
@@ -7316,6 +7413,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 					{
 						AAMPLOG_WARN("PrivateInstanceAAMP: Schedule Retune errorType %d error %s", errorType, errorString);
 						gAAMPInstance->reTune = true;
+						AdditionalTuneFailLogEntries();
 						ScheduleAsyncTask(PrivateInstanceAAMP_Retune, (void *)this, "PrivateInstanceAAMP_Retune");
 					}
 				}

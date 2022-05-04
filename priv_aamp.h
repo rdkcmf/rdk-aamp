@@ -1585,7 +1585,14 @@ public:
 	 *   @return void
 	 */
 	void LogTuneComplete(void);
-	
+
+	/**
+	*   @brief Additional log entries to assist with tune failure diagnostics
+	*
+	*   @return void
+	*/
+	void AdditionalTuneFailLogEntries();
+
 	/**
         *   @brief Profiler for failure tune
         *
