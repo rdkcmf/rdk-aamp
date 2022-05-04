@@ -2968,6 +2968,153 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	AAMPLOG_WARN("exiting AAMPGstPlayer_Stop");
 }
 
+/**
+ * @brief Generates a state description for gst target, next and pending state i.e. **not current state**.
+ * @param[in] state  - the state of the current element
+ * @param[in] start - a  char to place before the state text e.g. on open bracket
+ * @param[in] end  - a char to place after the state text e.g. a close bracket
+ * @param[in] currentState - the current state from the same element as 'state'
+ * @param[in] parentState - the state of the parent, if there is one
+ * @return  - "" unless state is 'interesting' otherwise *start* *state description* *end* e.g. {GST_STATE_READY}
+ */
+static std::string StateText(GstState state, char start, char end, GstState currentState, GstState parentState = GST_STATE_VOID_PENDING)
+{
+	if((state == GST_STATE_VOID_PENDING) || ((state == currentState) && ((state == parentState) || (parentState == GST_STATE_VOID_PENDING))))
+	{
+		return "";
+	}
+	else
+	{
+		std::string returnStringBuilder(1, start);
+		returnStringBuilder += gst_element_state_get_name(state);
+		returnStringBuilder += end;
+		return returnStringBuilder;
+	}
+}
+
+/**
+ * @brief wraps gst_element_get_name handling unnamed elements and resource freeing
+ * @param[in] element a GstElement
+ * @retval The name of element or "unnamed element" as a std::string
+ */
+static std::string SafeName(GstElement *element)
+{
+	std::string name;
+	auto elementName = gst_element_get_name(element);
+	if(elementName)
+	{
+		name = elementName;
+		g_free(elementName);
+	}
+	else
+	{
+		name = "unnamed element";
+	}
+	return name;
+}
+
+/**
+ * @brief - returns a string describing pElementOrBin and its children (if any).
+ * The top level elements name:state are shown along with any child elements in () separated by ,
+ * State information is displayed as GST_STATE[GST_STATE_TARGET]{GST_STATE_NEXT}<GST_STATE_PENDING>
+ * Target state, next state and pending state are not always shown.
+ * Where GST_STATE_CHANGE for the element is not GST_STATE_CHANGE_SUCCESS an additional character is appended to the element name:
+	GST_STATE_CHANGE_FAILURE: "!", GST_STATE_CHANGE_ASYNC:"~", GST_STATE_CHANGE_NO_PREROLL:"*"
+ * @param[in] pElementOrBin - pointer to a gst element or bin
+ * @param[in] pParent - parent (optional)
+ * @param recursionCount - variable shared with self calls to limit recursion depth
+ * @return - description string
+ */
+static std::string GetStatus(gpointer pElementOrBin, int& recursionCount, gpointer pParent = nullptr)
+{
+	recursionCount++;
+	constexpr int RECURSION_LIMIT = 10;
+	if(RECURSION_LIMIT < recursionCount)
+	{
+		return "recursion limit exceeded";
+	}
+
+	std::string returnStringBuilder("");
+	if(nullptr !=pElementOrBin)
+	{
+		if(GST_IS_ELEMENT(pElementOrBin))
+		{
+			auto pElement = reinterpret_cast<_GstElement*>(pElementOrBin);
+
+			bool validParent = (pParent != nullptr) && GST_IS_ELEMENT(pParent);
+
+			returnStringBuilder += SafeName(pElement);
+			GstState state;
+			GstState statePending;
+			auto changeStatus = gst_element_get_state(pElement, &state, &statePending, 0);
+			switch(changeStatus)
+			{
+				case  GST_STATE_CHANGE_FAILURE:
+					returnStringBuilder +="!";
+				break;
+
+				case  GST_STATE_CHANGE_SUCCESS:
+					//no annnotation
+				break;
+
+				case  GST_STATE_CHANGE_ASYNC:
+					returnStringBuilder +="~";
+					break;
+
+				case  GST_STATE_CHANGE_NO_PREROLL:
+					returnStringBuilder +="*";
+					break;
+
+				default:
+					returnStringBuilder +="?";
+					break;
+			}
+
+			returnStringBuilder += ":";
+
+			returnStringBuilder += gst_element_state_get_name(state);
+			auto parentState = validParent?GST_STATE(pParent):GST_STATE_VOID_PENDING;
+
+			returnStringBuilder += StateText(statePending, '<', '>', state,
+									 validParent?GST_STATE_PENDING(pParent):GST_STATE_VOID_PENDING);
+			returnStringBuilder += StateText(GST_STATE_TARGET(pElement), '[', ']', state,
+									 validParent?GST_STATE_TARGET(pParent):GST_STATE_VOID_PENDING);
+			returnStringBuilder += StateText(GST_STATE_NEXT(pElement), '{', '}', state,
+									 validParent?GST_STATE_NEXT(pParent):GST_STATE_VOID_PENDING);
+		}
+
+		//note bin inherits from element so name bin name is also printed above, with state info where applicable
+		if(GST_IS_BIN(pElementOrBin))
+		{
+			returnStringBuilder += " (";
+
+			auto pBin = reinterpret_cast<_GstElement*>(pElementOrBin);
+			bool first = true;
+			for (auto currentListItem = GST_BIN_CHILDREN(pBin);
+			currentListItem;
+			currentListItem = currentListItem->next)
+			{
+				if(first)
+				{
+					first = false;
+				}
+				else
+				{
+					returnStringBuilder += ", ";
+				}
+
+				auto currentChildElement = currentListItem->data;
+				if (nullptr != currentChildElement)
+				{
+					returnStringBuilder += GetStatus(currentChildElement, recursionCount, pBin);
+				}
+			}
+			returnStringBuilder += ")";
+		}
+	}
+	recursionCount--;
+	return returnStringBuilder;
+}
 
 /**
  * @brief Log the various info related to playback
@@ -3023,6 +3170,9 @@ void AAMPGstPlayer::DumpStatus(void)
 		AAMPLOG_WARN("Position: %" GST_TIME_FORMAT " / %" GST_TIME_FORMAT "\r",
 			GST_TIME_ARGS(pos), GST_TIME_ARGS(len));
 	}
+
+	int recursionCount = 0;
+	AAMPLOG_WARN("Gst Pipeline Status: %s", GetStatus(privateContext->pipeline, recursionCount).c_str());
 }
 
 
