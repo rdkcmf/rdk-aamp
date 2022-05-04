@@ -1496,6 +1496,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mVideoRect{}
 	, bitrateList()
 	, userProfileStatus(false)
+	, mApplyCachedVideoMute(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -5388,6 +5389,19 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mCdaiObject = NULL;
 	AcquireStreamLock();
 	TuneHelper(tuneType);
+	
+	//Apply the cached video mute call as it got invoked when stream lock was not available
+	if(mApplyCachedVideoMute)
+	{
+		mApplyCachedVideoMute = false;
+		AAMPLOG_INFO("Cached videoMute is being executed, mute value: %d", video_muted);
+		if (mpStreamAbstractionAAMP)
+		{
+			//There two fns are being called in PlayerInstanceAAMP::SetVideoMute
+			SetVideoMute(video_muted);
+			SetCCStatus(video_muted ? false : !subtitles_muted);
+		}
+	}
 	ReleaseStreamLock();
 
 	// To check and apply stored video rectangle properties
@@ -9953,6 +9967,16 @@ bool PrivateInstanceAAMP::RemoveAsyncTask(int taskId)
 void PrivateInstanceAAMP::AcquireStreamLock()
 {
 	pthread_mutex_lock(&mStreamLock);
+}
+
+/**
+ *   @brief try to acquire streamsink lock
+ *
+ *    @return True if it could I acquire it seccessfully else false
+ */
+bool PrivateInstanceAAMP::TryStreamLock()
+{
+	return (pthread_mutex_trylock(&mStreamLock) == 0);
 }
 
 /**
