@@ -2929,6 +2929,7 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	}
 	if (this->privateContext->pipeline)
 	{
+		privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
 		GstState current;
 		GstState pending;
 		auto stateChangeReturn = gst_element_get_state(privateContext->pipeline, &current, &pending, 0);
