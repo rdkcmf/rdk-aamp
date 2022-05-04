@@ -3237,12 +3237,14 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 			rate = 1; // MP4 position query alaways return absolute value
 		}
 
+#if !defined(REALTEKCE)	// Pos always start from "0" in Realtek
 		if (privateContext->segmentStart > 0)
 		{
 			// DELIA-39530 - Deduct segment.start to find the actual time of media that's played.
 			rc = (GST_TIME_AS_MSECONDS(pos) - privateContext->segmentStart) * rate;
 		}
 		else
+#endif
 		{
 			rc = GST_TIME_AS_MSECONDS(pos) * rate;
 		}
