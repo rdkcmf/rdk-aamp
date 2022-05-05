@@ -8480,7 +8480,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 					int adaptationSetCount = adapatationSets.size();
 					if(currentPeriodId != mCurrentPeriod->GetId())
 					{
-						if (!mIsFogTSB && aamp->mIsPeriodChangeMarked)
+						if (aamp->mIsPeriodChangeMarked)
 						{
 							AAMPLOG_WARN("Discontinuity process is yet to complete, going to wait until it is done");
 							aamp->WaitForDiscontinuityProcessToComplete();
