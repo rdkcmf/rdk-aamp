@@ -731,9 +731,7 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp){
 					DrmSessionDataInfo* drmData = ProcessContentProtection(aamp, aamp->aesCtrAttrDataList.at(i).attrName);
 					if (NULL != drmData){
 /* This needs effort from MSO as to what they want to do viz-a-viz preferred DRM, */						
-	               					if (NULL != drmDataToUse) {
-		                                        free(drmDataToUse);//CID:178316 RESOURCE_LEAK
-                                                   	}
+		                                        SAFE_DELETE(drmDataToUse);//CID:178316 RESOURCE_LEAK
 							drmDataToUse = drmData;
 						}
 					}
@@ -743,9 +741,10 @@ static void InitiateDrmProcess(PrivateInstanceAAMP* aamp){
 				SpawnDRMLicenseAcquireThread(aamp, drmDataToUse);
 			}
 			pthread_mutex_unlock(&aamp->drmParserMutex);
-			if (NULL != drmDataToUse) {
-			    free(drmDataToUse);
-			}
+			SAFE_DELETE(drmDataToUse->sessionData);
+			if(drmDataToUse->processedKeyId != NULL)
+				free(drmDataToUse->processedKeyId);
+			SAFE_DELETE(drmDataToUse);   //DELIA-55593
 		}
 #endif
 }

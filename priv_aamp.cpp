@@ -4491,6 +4491,7 @@ char * PrivateInstanceAAMP::GetOnVideoEndSessionStatData()
 		{
 			// succesfully requested
 			AAMPLOG_INFO("curl request %s success", remoteUrl.c_str());
+			aamp_AppendNulTerminator(&data); //DELIA-55593 To avoid junk value in end
 			cJSON *root = cJSON_Parse(data.ptr);
 			if (root == NULL)
 			{
