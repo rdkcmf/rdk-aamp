@@ -1311,6 +1311,11 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 						AAMPLOG_INFO("Overriden OTA Url!!");
 						channelInfo.uri = token;
 					}
+					else if(token.compare(0,4,"file") == 0)
+					{
+						AAMPLOG_INFO("Overriden Progressive URL!!");
+						channelInfo.uri = token;
+					}
 					else if (token.compare(0,17,"licenseServerUrl=") == 0)
 					{
 						channelInfo.licenseUri = token.substr(17);
