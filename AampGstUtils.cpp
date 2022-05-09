@@ -26,11 +26,7 @@
 #include "priv_aamp.h" // Included for AAMPLOG
 //TODO: Fix cyclic dependency btw GlobalConfig and AampLogManager
 
-/**
- * @brief Parse format to generate GstCaps
- * @param[in] format stream format to generate caps
- * @retval GstCaps for the input format
- */
+
 GstCaps* GetGstCaps(StreamOutputFormat format)
 {
 	GstCaps * caps = NULL;

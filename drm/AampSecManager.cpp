@@ -29,11 +29,7 @@
 
 AampSecManager* AampSecManager::mInstance = NULL;
 
-/**
- * @brief To get AampSecManager instance
- *
- * @return AampSecManager instance
- */
+
 AampSecManager* AampSecManager::GetInstance()
 {
 	if (mInstance == NULL)
@@ -43,9 +39,7 @@ AampSecManager* AampSecManager::GetInstance()
 	return mInstance;
 }
 
-/**
- * @brief To release AampSecManager singelton instance
- */
+
 void AampSecManager::DestroyInstance()
 {
 	if (mInstance)
@@ -55,9 +49,7 @@ void AampSecManager::DestroyInstance()
 	}
 }
 
-/**
- * @brief AampScheduler Constructor
- */
+
 AampSecManager::AampSecManager() : mSecManagerObj(SECMANAGER_CALL_SIGN), mSecMutex(), mSchedulerStarted(false),
 				   mRegisteredEvents(), mWatermarkPluginObj(WATERMARK_PLUGIN_CALLSIGN), mWatMutex(), mSpeedStateMutex()
 {
@@ -79,9 +71,7 @@ AampSecManager::AampSecManager() : mSecManagerObj(SECMANAGER_CALL_SIGN), mSecMut
 	RegisterAllEvents();
 }
 
-/**
- * @brief AampScheduler Destructor
- */
+
 AampSecManager::~AampSecManager()
 {
 	std::lock_guard<std::mutex> lock(mSecMutex);
@@ -96,24 +86,7 @@ AampSecManager::~AampSecManager()
 	UnRegisterAllEvents();
 }
 
-/**
- * @brief To acquire license from SecManager
- *
- * @param[in] licenseUrl - url to fetch license from
- * @param[in] moneyTraceMetdata - moneytrace info
- * @param[in] accessAttributes - accessAttributes info
- * @param[in] contentMetadata - content metadata info
- * @param[in] licenseRequest - license challenge info
- * @param[in] keySystemId - unique system ID of drm
- * @param[in] mediaUsage - indicates whether its stream or download license request
- * @param[in] accessToken - access token info
- * @param[out] sessionId - ID of current session
- * @param[out] licenseResponse - license response
- * @param[out] licenseResponseLength - len of license response
- * @param[out] statusCode - license fetch status code
- * @param[out] reasonCode - license fetch reason code
- * @return bool - true if license fetch successful, false otherwise
- */
+
 bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licenseUrl, const char* moneyTraceMetdata[][2],
 					const char* accessAttributes[][2], const char* contentMetdata, size_t contMetaLen,
 					const char* licenseRequest, size_t licReqLen, const char* keySystemId,
@@ -323,12 +296,7 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 	return ret;
 }
 
-/**
- * @brief To update session state to SecManager
- *
- * @param[in] sessionId - session id
- * @param[in] active - true if session is active, false otherwise
- */
+
 void AampSecManager::UpdateSessionState(int64_t sessionId, bool active)
 {
 	bool rpcResult = false;
@@ -366,11 +334,7 @@ void AampSecManager::UpdateSessionState(int64_t sessionId, bool active)
 	}
 }
 
-/**
- * @brief To notify SecManager to release a session
- *
- * @param[in] sessionId - session id
- */
+
 void AampSecManager::ReleaseSession(int64_t sessionId)
 {
 	bool rpcResult = false;
@@ -401,13 +365,8 @@ void AampSecManager::ReleaseSession(int64_t sessionId)
 	/*Clear aampInstanse pointer*/
 	mAamp = NULL;
 }
-/**
- * @brief To update session state to SecManager
- *
- * @param[in] sessionId - session id
- * @param[in] video_width - video width 
- * @param[in] video_height - video height 
- */
+
+
 bool AampSecManager::setVideoWindowSize(int64_t sessionId, int64_t video_width, int64_t video_height)
 {
        bool rpcResult = false;
@@ -442,14 +401,7 @@ bool AampSecManager::setVideoWindowSize(int64_t sessionId, int64_t video_width, 
        return rpcResult;
 }
 
-/**
- * @brief To set Playback Speed State to SecManager
- *
- * @param[in] sessionId - session id
- * @param[in] playback_speed - playback speed 
- * @param[in] playback_position - playback position
- *@param[in] delayNeeded - if delay is required, to avoid any wm flash before tune
- */
+
 bool AampSecManager::setPlaybackSpeedState(int64_t sessionId, int64_t playback_speed, int64_t playback_position, bool delayNeeded)
 {
        bool rpcResult = false;
@@ -490,10 +442,7 @@ bool AampSecManager::setPlaybackSpeedState(int64_t sessionId, int64_t playback_s
        return rpcResult;
 }
 
-/**
- * @brief To Load ClutWatermark
- * @param[in] 
- *  */
+
 bool AampSecManager::loadClutWatermark(int64_t sessionId, int64_t graphicId, int64_t watermarkClutBufferKey, int64_t watermarkImageBufferKey, int64_t clutPaletteSize,
                                                                        const char* clutPaletteFormat, int64_t watermarkWidth, int64_t watermarkHeight, float aspectRatio)
 {
@@ -536,11 +485,7 @@ bool AampSecManager::loadClutWatermark(int64_t sessionId, int64_t graphicId, int
 
 }
 
-/**
- *   @brief  Registers  Event to input plugin and to mRegisteredEvents list for later use.
- *   @param[in] eventName : Event name
- *   @param[in] functionHandler : Event funciton pointer
- */
+
 void AampSecManager::RegisterEvent (string eventName, std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> functionHandler)
 {
 	bool bSubscribed;
@@ -551,9 +496,7 @@ void AampSecManager::RegisterEvent (string eventName, std::function<void(const W
 	}
 }
 
-/**
- *   @brief  Registers all Events to input plugin
- */
+
 void AampSecManager::RegisterAllEvents ()
 {
 	std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> watermarkSessionMethod = std::bind(&AampSecManager::watermarkSessionHandler, this, std::placeholders::_1);
@@ -578,9 +521,7 @@ void AampSecManager::RegisterAllEvents ()
 
 }
 
-/**
- *   @brief  UnRegisters all Events from plugin
- */
+
 void AampSecManager::UnRegisterAllEvents ()
 {
 	for (auto const& evtName : mRegisteredEvents) {
@@ -589,9 +530,7 @@ void AampSecManager::UnRegisterAllEvents ()
 	mRegisteredEvents.clear();
 }
 
-/**
- *   @brief  Detects watermarking session conditions
- */
+
 void AampSecManager::watermarkSessionHandler(const JsonObject& parameters)
 {
 	std::string param;
@@ -602,9 +541,8 @@ void AampSecManager::watermarkSessionHandler(const JsonObject& parameters)
 		mAamp->SendWatermarkSessionUpdateEvent( parameters["sessionId"].Number(),parameters["conditionContext"].Number(),parameters["watermarkingSystem"].String());
 	}
 }
-/**
- *   @brief  Gets watermark image details and manages watermark rendering
- */
+
+
 void AampSecManager::addWatermarkHandler(const JsonObject& parameters)
 {
 #ifdef DEBUG_SECMAMANER
@@ -658,9 +596,8 @@ void AampSecManager::addWatermarkHandler(const JsonObject& parameters)
 #endif
 	}
 }
-/**
- *   @brief  Gets updated watermark image details and manages watermark rendering
- */
+
+
 void AampSecManager::updateWatermarkHandler(const JsonObject& parameters)
 {
 	if(mSchedulerStarted)
@@ -676,9 +613,8 @@ void AampSecManager::updateWatermarkHandler(const JsonObject& parameters)
 		}, (void *) this));
 	}
 }
-/**
- *   @brief Removes watermark image
-*/
+
+
 void AampSecManager::removeWatermarkHandler(const JsonObject& parameters)
 {
 #ifdef DEBUG_SECMAMANER
@@ -707,9 +643,7 @@ void AampSecManager::removeWatermarkHandler(const JsonObject& parameters)
 
 }
 
-/**
- *   @brief Handles watermark calls to be only once
-*/
+
 void AampSecManager::showWatermarkHandler(const JsonObject& parameters)
 {
 	bool show = true;
@@ -731,9 +665,7 @@ void AampSecManager::showWatermarkHandler(const JsonObject& parameters)
 }
 
 
-/**
- *   @brief Show watermark image
-*/
+
 void AampSecManager::ShowWatermark(bool show)
 {
 	JsonObject param;
@@ -763,9 +695,7 @@ void AampSecManager::ShowWatermark(bool show)
 	return;
 }
 
-/**
- *   @brief Create Watermark
-*/
+
 void AampSecManager::CreateWatermark(int graphicId, int zIndex )
 {
 	JsonObject param;
@@ -795,9 +725,7 @@ void AampSecManager::CreateWatermark(int graphicId, int zIndex )
 	return;
 }
 
-/**
- *   @brief Delete Watermark
-*/
+
 void AampSecManager::DeleteWatermark(int graphicId)
 {
 	JsonObject param;
@@ -827,9 +755,7 @@ void AampSecManager::DeleteWatermark(int graphicId)
 	return;
 }
 
-/**
- *   @brief Create Watermark
-*/
+
 void AampSecManager::UpdateWatermark(int graphicId, int smKey, int smSize )
 {
 	JsonObject param;
@@ -860,10 +786,8 @@ void AampSecManager::UpdateWatermark(int graphicId, int smKey, int smSize )
 
 	return;
 }
-/**
- *   @brief Show watermark image
- *   This method need to be used only when RDKShell is used for rendering. Not supported by Watermark Plugin
-*/
+
+
 void AampSecManager::AlwaysShowWatermarkOnTop(bool show)
 {
 	JsonObject param;
@@ -891,9 +815,7 @@ void AampSecManager::AlwaysShowWatermarkOnTop(bool show)
 	}
 }
 
-/**
- *   @brief GetWaterMarkPalette
-*/
+
 void AampSecManager::GetWaterMarkPalette(int sessionId, int graphicId)
 {
 	JsonObject param;
@@ -936,9 +858,7 @@ void AampSecManager::GetWaterMarkPalette(int sessionId, int graphicId)
 	}
 }
 
-/**
- *   @brief ModifyWatermarkPalette
-*/
+
 void AampSecManager::ModifyWatermarkPalette(int graphicId, int clutKey, int imageKey)
 {
 	JsonObject param;

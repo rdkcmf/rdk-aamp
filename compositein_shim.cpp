@@ -18,7 +18,7 @@
  */
 
 /**
- * @file fragmentcollector_COMPOSITEIN.cpp
+ * @file compositein_shim.cpp
  * @brief shim for dispatching UVE Composite input playback
  */
 #include "compositein_shim.h"
@@ -31,30 +31,19 @@
 
 #define COMPOSITEINPUT_CALLSIGN "org.rdk.CompositeInput.1"
 
-/**
- * @brief StreamAbstractionAAMP_COMPOSITEIN Constructor
- * @param aamp pointer to PrivateInstanceAAMP object associated with player
- * @param seek_pos Seek position
- * @param rate playback rate
- */
+
 StreamAbstractionAAMP_COMPOSITEIN::StreamAbstractionAAMP_COMPOSITEIN(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
                              : StreamAbstractionAAMP_VIDEOIN("COMPOSITEIN", COMPOSITEINPUT_CALLSIGN, logObj, aamp,seek_pos,rate)
 {
 	aamp->SetContentType("COMPOSITE_IN");
 }
 
-/**
- * @brief StreamAbstractionAAMP_COMPOSITEIN Destructor
- */
+
 StreamAbstractionAAMP_COMPOSITEIN::~StreamAbstractionAAMP_COMPOSITEIN()
 {
 	AAMPLOG_WARN("destructor ");
 }
-/**
- *   @brief  Initialize a newly created object.
- *   @param  tuneType to set type of object.
- *   @retval eAAMPSTATUS_OK
- */
+
 
 AAMPStatusType StreamAbstractionAAMP_COMPOSITEIN::Init(TuneType tuneType)
 {
@@ -63,9 +52,7 @@ AAMPStatusType StreamAbstractionAAMP_COMPOSITEIN::Init(TuneType tuneType)
         return retval;
 }
 
-/**
- *   @brief  Starts streaming.
- */
+
 void StreamAbstractionAAMP_COMPOSITEIN::Start(void)
 {
 	const char *url = aamp->GetManifestUrl().c_str();
@@ -76,39 +63,33 @@ void StreamAbstractionAAMP_COMPOSITEIN::Start(void)
 	}
 }
 
-/**
-*   @brief  Stops streaming.
-*/
+
 void StreamAbstractionAAMP_COMPOSITEIN::Stop(bool clearChannelData)
 {
 	StopHelper("stopCompositeInput");
 }
 
-/**
- * @brief To get the available video tracks.
- * @ret available video tracks.
- */
+
 std::vector<StreamInfo*> StreamAbstractionAAMP_COMPOSITEIN::GetAvailableVideoTracks(void)
 { // STUB
 	AAMPLOG_WARN("StreamAbstractionAAMP_COMPOSITEIN");
 	return std::vector<StreamInfo*>();
 }
 
-/**
- * @brief To get the available thumbnail tracks.
- * @ret available thumbnail tracks.
- */
+
 std::vector<StreamInfo*> StreamAbstractionAAMP_COMPOSITEIN::GetAvailableThumbnailTracks(void)
 { // STUB
 	AAMPLOG_WARN("StreamAbstractionAAMP_COMPOSITEIN");
 	return std::vector<StreamInfo*>();
 }
 
+
 bool StreamAbstractionAAMP_COMPOSITEIN::SetThumbnailTrack(int thumbnailIndex)
 {
 	(void)thumbnailIndex;	/* unused */
         return false;
 }
+
 
 std::vector<ThumbnailData> StreamAbstractionAAMP_COMPOSITEIN::GetThumbnailRangeData(double start, double end, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
 {

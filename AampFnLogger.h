@@ -18,7 +18,7 @@
 */
 
 /**
- * @file aamplogger.h
+ * @file AampFnLogger.h
  * @brief AAMP Log unitility
  */
 
@@ -29,6 +29,12 @@
 
 extern void logprintf(const char *format, ...);
 extern void logprintf_new(int playerId,const char* levelstr,const char* file, int line,const char *format, ...);
+
+/**
+ * @class FnLogger
+ * @brief Enable Logger to add more logs
+ */
+
 class FnLogger {
 public:
     FnLogger( std::string const & pMsg1,std::string const & pMsg2  ) : msg1(pMsg1),msg2(pMsg2)

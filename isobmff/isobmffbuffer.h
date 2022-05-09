@@ -83,9 +83,9 @@ private:
      * @brief parse ISOBMFF boxes of a type in a parsed buffer
      *
      * @param[in] boxes - ISOBMFF boxes
-     * @param[in] const char * - box name to get
-     * @param[out] uint8_t * - mdat buffer pointer
-     * @param[out] size_t - size of mdat buffer
+     * @param[in] name - box name to get
+     * @param[out] buf - mdat buffer pointer
+     * @param[out] size - size of mdat buffer
      * @return bool
      */
 	bool parseBoxInternal(const std::vector<Box*> *boxes, const char *name, uint8_t *buf, size_t &size);
@@ -94,8 +94,8 @@ private:
      * @brief get ISOBMFF box size of a type
      *
      * @param[in] boxes - ISOBMFF boxes
-     * @param[in] const char * - box name to get
-     * @param[out] size_t - size of mdat buffer
+     * @param[in] name - box name to get
+     * @param[out] size - size of mdat buffer
      * @return bool
      */
 	bool getBoxSizeInternal(const std::vector<Box*> *boxes, const char *name, size_t &size);
@@ -104,8 +104,8 @@ private:
      * @brief get ISOBMFF box list of a type in a parsed buffer
      *
      * @param[in] boxes - ISOBMFF boxes
-     * @param[in] const char * - box name to get
-     * @param[out] size_t - size of mdat buffer
+     * @param[in] name - box name to get
+     * @param[out] pBoxes - size of mdat buffer
      * @return bool
      */
     bool getBoxesInternal(const std::vector<Box*> *boxes, const char *name, std::vector<Box*> *pBoxes);
@@ -207,15 +207,15 @@ public:
 
 	/**
 	* @brief Get mdat buffer handle and size from parsed buffer
-	* @param[out] uint8_t * - mdat buffer pointer
-	* @param[out] size_t - size of mdat buffer
+	* @param[out] buf - mdat buffer pointer
+	* @param[out] size - size of mdat buffer
 	* @return true if mdat buffer is available. false otherwise
 	*/
 	bool parseMdatBox(uint8_t *buf, size_t &size);
 
 	/**
 	* @brief Get mdat buffer size
-	* @param[out] size_t - size of mdat buffer
+	* @param[out] size - size of mdat buffer
 	* @return true if buffer size available. false otherwise
 	*/
 	bool getMdatBoxSize(size_t &size);
@@ -254,7 +254,7 @@ public:
 	
 	/**
 	* @brief Check mdat buffer count in parsed buffer
-	* @param[out] size_t - mdat box count
+	* @param[out] count - mdat box count
 	* @return true if mdat count available. false otherwise
 	*/
 	bool getMdatBoxCount(size_t &count);
@@ -268,8 +268,8 @@ public:
 
 	/**
 	* @brief Get list of box handle in parsed bufferr using name
-	* @param[in] const char * - box name to get
-	* @param[out] std::vector<Box*> - List of box handles of a type in a parsed buffer
+	* @param[in] name - box name to get
+	* @param[out] stBoxes - List of box handles of a type in a parsed buffer
 	* @return true if Box found. false otherwise
 	*/
 	bool getTypeOfBoxes(const char *name, std::vector<Box*> &stBoxes);
@@ -290,15 +290,15 @@ public:
 
 	/**
 	* @brief Get box handle in parsed bufferr using name
-	* @param[in] const char * - box name to get
-	* @param[out] size_t - index of box in a parsed buffer
+	* @param[in] name - box name to get
+	* @param[out] index - index of box in a parsed buffer
 	* @return Box handle if Box found at index given. NULL otherwise
 	*/
 	Box* getBox(const char *name, size_t &index);
 
 	/**
 	* @brief Get box handle in parsed bufferr using index
-	* @param[out] size_t - index of box in a parsed buffer
+	* @param[out] index - index of box in a parsed buffer
 	* @return Box handle if Box found at index given. NULL otherwise
 	*/
 	Box* getBoxAtIndex(size_t index);
@@ -315,7 +315,7 @@ public:
 	* @brief Get ISOBMFF box Sample Duration
 	*
 	* @param[in] box - ISOBMFF box
-	* @param[in] uint64_t* -  duration to get
+	* @param[in] fduration -  duration to get
 	* @return void
 	*/
 	void getSampleDuration(Box *box, uint64_t &fduration);
@@ -331,8 +331,8 @@ public:
 	/**
 	* @brief Get ISOBMFF box PTS
 	*
-	* @param[in] boxe - ISOBMFF box
-	* @param[in] uint64_t* -  PTS to get
+	* @param[in] box - ISOBMFF box
+	* @param[in] fpts -  PTS to get
 	* @return void
 	*/
 	void getPts(Box *box, uint64_t &fpts);

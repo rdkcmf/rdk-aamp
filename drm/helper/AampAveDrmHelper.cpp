@@ -17,6 +17,10 @@
  * limitations under the License.
 */
 
+/**
+ * @file AampAveDrmHelper.cpp
+ * @brief Helper functions for Aamp Ave Drm
+ */
 
 #include "AampAveDrmHelper.h"
 #include "drm.h"

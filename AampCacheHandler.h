@@ -17,6 +17,11 @@
  * limitations under the License.
 */
 
+/**
+ * @file AampCacheHandler.h
+ * @brief Cache handler for AAMP
+ */
+ 
 #ifndef __AAMP_CACHE_HANDLER_H__
 #define __AAMP_CACHE_HANDLER_H__
 
@@ -97,6 +102,10 @@ typedef struct initfragtrackstruct
 	}
 }InitFragTrackStruct;
 
+/**
+ * @class AampCacheHandler
+ * @brief Handles Aamp Cahe operations
+ */
 
 class AampCacheHandler
 {
@@ -124,7 +133,7 @@ private:
 	CacheTrackQueue umCacheTrackQ;
 	pthread_mutex_t mInitFragMutex;
 	bool bInitFragCache;
-	int MaxInitCacheSlot;						/* Max no of init fragment per track*/
+	int MaxInitCacheSlot;						/**< Max no of init fragment per track */
 
 private:
 
@@ -139,7 +148,7 @@ private:
 	void ClearCacheHandler();
 
 	/**
-	 *	 @brief Async Cache Cleanup task
+	 *	 @brief Thread function for Async Cache clean
 	 *
 	 *	 @return void
 	 */
@@ -157,7 +166,7 @@ private:
 	 */
 	void ClearPlaylistCache();
 	/**
-	 *   @brief AllocatePlaylistCacheSlot Freeup Playlist cache for new playlist caching
+	 *   @brief AllocatePlaylistCacheSlot Allocate Slot for adding new playlist
 	 *   @param[in] fileType - Indicate the type of playlist to store/remove
 	 *   @param[in] newLen  - Size required to store new playlist
 	 *
@@ -217,7 +226,7 @@ public:
 	 *   @param[in] effectiveUrl - Final URL
 	 *   @param[in] trackLiveStatus - Live Status of the track inserted
 	 *   @param[in] fileType - Type of the file inserted
-     *
+     	 *
 	 *   @return void
 	 */
 	void InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,bool trackLiveStatus,MediaType fileType=eMEDIATYPE_DEFAULT);
@@ -235,10 +244,10 @@ public:
 	/**
 	*   @brief SetMaxPlaylistCacheSize - Set Max Cache Size
 	*
-	*   @param[in] cacheSz- CacheSize
+	*   @param[in] maxPlaylistCacheSz - CacheSize
 	*   @return None
 	*/
-	void SetMaxPlaylistCacheSize(int);
+	void SetMaxPlaylistCacheSize(int maxPlaylistCacheSz);
 	/**
 	*   @brief GetMaxPlaylistCacheSize - Get present CacheSize
 	*
@@ -259,7 +268,7 @@ public:
 	 *   @param[in] buffer - Pointer to growable buffer
 	 *   @param[in] effectiveUrl - Final URL
 	 *   @param[in] fileType - Type of the file inserted
-     *
+     	 *
 	 *   @return void
 	 */
 	void InsertToInitFragCache(const std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,MediaType fileType);
@@ -278,11 +287,11 @@ public:
 	/**
 	*   @brief SetMaxInitFragCacheSize - Set Max Cache Size
 	*
-	*   @param[in] cacheSz- CacheSize
+	*   @param[in] maxInitFragCacheSz - CacheSize
 	*
 	*   @return None
 	*/
-	void SetMaxInitFragCacheSize( int );
+	void SetMaxInitFragCacheSize( int maxInitFragCacheSz);
 
 	/**
 	*   @brief GetMaxPlaylistCacheSize - Get present CacheSize
@@ -291,8 +300,15 @@ public:
 	*/
 	int  GetMaxInitFragCacheSize() { return MaxInitCacheSlot; }
 
-	// Copy constructor and Copy assignment disabled 
+        /**
+         * @brief Copy constructor disabled
+         *
+         */
 	AampCacheHandler(const AampCacheHandler&) = delete;
+	/**
+         * @brief assignment operator disabled
+         *
+         */
 	AampCacheHandler& operator=(const AampCacheHandler&) = delete;
 };
 

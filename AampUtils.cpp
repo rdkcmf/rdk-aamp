@@ -55,11 +55,7 @@
 #define RAND_STRING_LEN (MAC_STRING_LEN + 2*URAND_STRING_LEN)
 #define MAX_BUFF_LENGTH 4096 
 
-/**
- * @brief Get current time stamp
- *
- * @retval - current clock time as milliseconds
- */
+
 long long aamp_GetCurrentTimeMS(void)
 {
 	struct timeval t;
@@ -67,11 +63,7 @@ long long aamp_GetCurrentTimeMS(void)
 	return (long long)(t.tv_sec*1e3 + t.tv_usec*1e-3);
 }
 
-/**
- * @brief to get default path to dump harvested files
- * @param void
- * @return character pointer indicating default dump path
- */
+
 void getDefaultHarvestPath(std::string &value)
 {
         value = "/aamp/";
@@ -124,14 +116,7 @@ static const char * ParseUriProtocol(const char *uri)
 	return NULL;
 }
 
-/**
- * @brief Resolve URL from base and uri
- *
- * @param[out] dst Destination buffer
- * @param[in] base Base URL
- * @param[in] uri manifest/ fragment uri
- * @retval void
- */
+
 void aamp_ResolveURL(std::string& dst, std::string base, const char *uri , bool bPropagateUriParams)
 {
 	if( ParseUriProtocol(uri) )
@@ -190,13 +175,6 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri , bool 
 		}
 	}
 }
-/**
-* @brief replace all occurrences of existingSubStringToReplace in str with replacementString
-* @param str string to be scanned/modified
-* @param existingSubStringToReplace substring to be replaced
-* @param replacementString string to be substituted
-* @retval true iff str was modified
-*/
 
 
 bool replace(std::string &str, const char *existingSubStringToReplace, const char *replacementString)
@@ -224,24 +202,14 @@ bool replace(std::string &str, const char *existingSubStringToReplace, const cha
         return rc;
 }
 
-/**
- * @brief distinguish between absolute and relative urls
- *
- * @param[in] url - Input URL
- * @return true iff url starts with http:// or https://
- */
+
 bool aamp_IsAbsoluteURL( const std::string &url )
 {
 	return url.compare(0, 7, "http://")==0 || url.compare(0, 8, "https://")==0;
 	// note: above slightly faster than equivalent url.rfind("http://",0)==0 || url.rfind("https://",0)==0;
 }
 
-/**
- * @brief Extract host string from url
- *
- * @param[in] url - Input URL
- * @retval - host of input url
- */
+
 std::string aamp_getHostFromURL(std::string url)
 {
 	std::string host = "";
@@ -272,13 +240,7 @@ std::string aamp_getHostFromURL(std::string url)
 	return host;
 }
 
-/**
- * @brief Check if string start with a prefix
- *
- * @param[in] inputStr - Input string
- * @param[in] prefix - substring to be searched
- * @retval TRUE if substring is found in bigstring
- */
+
 bool aamp_StartsWith( const char *inputStr, const char *prefix )
 {
 	bool rc = true;
@@ -293,14 +255,7 @@ bool aamp_StartsWith( const char *inputStr, const char *prefix )
 	return rc;
 }
 
-/**
- * @brief convert blob of binary data to ascii base64-URL-encoded equivalent
- * @param src pointer to first byte of binary data to be encoded
- * @param len number of bytes to encode
- * @retval pointer to malloc'd cstring containing base64 URL encoded version of string
- * @retval NULL if insufficient memory to allocate base64-URL-encoded copy
- * @note caller responsible for freeing returned cstring
- */
+
 char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len)
 {
 	char * b64Src = base64_Encode(src, len);
@@ -332,15 +287,6 @@ char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len)
 }
 
 
-/**
- * @brief decode base64 URL encoded data to binary equivalent
- * @param src pointer to cstring containing base64-URL-encoded data
- * @param len receives byte length of returned pointer, or zero upon failure
- * @retval pointer to malloc'd memory containing decoded binary data
- * @retval NULL if insufficient memory to allocate decoded data
- * @note caller responsible for freeing returned data
- */
-
 unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLen)
 {
 	//Calculate the size for corresponding Base64 Encoded string with padding
@@ -364,10 +310,7 @@ unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLe
 	return decodedStr;
 }
 
-/**
- * @brief unescape uri-encoded uri parameter
- * @param uriParam string to un-escape
- */
+
 void aamp_DecodeUrlParameter( std::string &uriParam )
 {
 	std::string rc;
@@ -385,11 +328,7 @@ void aamp_DecodeUrlParameter( std::string &uriParam )
 	}
 }
 
-/**
- * @brief Parse date time from ISO8601 string and return value in seconds
- * @param ptr ISO8601 string
- * @retval durationMs duration in milliseconds
- */
+
 double ISO8601DateTimeToUTCSeconds(const char *ptr)
 {
 	double timeSeconds = 0;
@@ -418,6 +357,7 @@ double ISO8601DateTimeToUTCSeconds(const char *ptr)
 	return timeSeconds;
 }
 
+
 static size_t MyRpcWriteFunction( void *buffer, size_t size, size_t nmemb, void *context )
 {
 	std::string *response = (std::string *)context;
@@ -425,6 +365,7 @@ static size_t MyRpcWriteFunction( void *buffer, size_t size, size_t nmemb, void 
 	*response += std::string((const char *)buffer,numBytes);
 	return numBytes;
 }
+
 
 std::string aamp_PostJsonRPC( std::string id, std::string method, std::string params )
 {
@@ -463,6 +404,7 @@ std::string aamp_PostJsonRPC( std::string id, std::string method, std::string pa
 	}
         return response;
 }
+
 
 #ifdef USE_MAC_FOR_RANDOM_GEN
 /**
@@ -538,12 +480,7 @@ static bool getEstbMac(char* mac)
 }
 #endif
 
-/**
- * @brief Get time to defer DRM acquisition
- *
- * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
- * @return Time in MS to defer DRM acquisition
- */
+
 int aamp_GetDeferTimeMs(long maxTimeSeconds)
 {
 	int ret = 0;
@@ -602,11 +539,7 @@ int aamp_GetDeferTimeMs(long maxTimeSeconds)
 	return ret;
 }
 
-/**
-* @brief Get DRM system from ID
-* @param ID of the DRM system, empty string if not supported
-* @retval drmSystem drm system
-*/
+
 DRMSystems GetDrmSystem(std::string drmSystemID)
 {
 	if(drmSystemID == WIDEVINE_UUID)
@@ -628,11 +561,6 @@ DRMSystems GetDrmSystem(std::string drmSystemID)
 }
 
 
-/**
- * @brief Get name of DRM system
- * @param drmSystem drm system
- * @retval Name of the DRM system, empty string if not supported
- */
 const char * GetDrmSystemName(DRMSystems drmSystem)
 {
 	switch(drmSystem)
@@ -653,11 +581,7 @@ const char * GetDrmSystemName(DRMSystems drmSystem)
 	}
 }
 
-/**
- * @brief Get ID of DRM system
- * @param drmSystem drm system
- * @retval ID of the DRM system, empty string if not supported
- */
+
 const char * GetDrmSystemID(DRMSystems drmSystem)
 {
 	if(drmSystem == eDRM_WideVine)
@@ -682,13 +606,7 @@ const char * GetDrmSystemID(DRMSystems drmSystem)
 	}
 }
 
-/**
- * @brief Encode URL
- *
- * @param[in] inStr - Input URL
- * @param[out] outStr - Encoded URL
- * @return Encoding status
- */
+
 void UrlEncode(std::string inStr, std::string &outStr)
 {
 	outStr.clear();
@@ -718,10 +636,7 @@ void UrlEncode(std::string inStr, std::string &outStr)
 	}
 }
 
-/**
- * @brief Trim a string
- * @param[in][out] src Buffer containing string
- */
+
 void trim(std::string& src)
 {
 	size_t first = src.find_first_not_of(' ');
@@ -761,31 +676,31 @@ struct timespec aamp_GetTimespec(int timeInMs)
 /** Harvest Configuration type */
 enum HarvestConfigType
 {
-	eHARVEST_DISABLE_DEFAULT = 0x00000000,      /**< Desable harversting for unknown type */
-	eHARVEST_ENAABLE_VIDEO = 0x00000001,       /**< Enable Harvest Video fragments - set 1st bit*/
-	eHARVEST_ENAABLE_AUDIO = 0x00000002,       /**< Enable Harvest audio - set 2nd bit*/
-	eHARVEST_ENAABLE_SUBTITLE = 0x00000004,    /**< Enable Harvest subtitle - set 3rd bit */
-	eHARVEST_ENAABLE_AUX_AUDIO = 0x00000008,   /**< Enable Harvest auxiliary audio - set 4th bit*/
-	eHARVEST_ENAABLE_MANIFEST = 0x00000010,    /**< Enable Harvest manifest - set 5th bit */
-	eHARVEST_ENAABLE_LICENCE = 0x00000020,     /**< Enable Harvest license - set 6th bit  */
-	eHARVEST_ENAABLE_IFRAME = 0x00000040,      /**< Enable Harvest iframe - set 7th bit  */
-	eHARVEST_ENAABLE_INIT_VIDEO = 0x00000080,   /**< Enable Harvest video init fragment - set 8th bit*/
-	eHARVEST_ENAABLE_INIT_AUDIO = 0x00000100,               /**< Enable Harvest audio init fragment - set 9th bit*/
-	eHARVEST_ENAABLE_INIT_SUBTITLE = 0x00000200,            /**< Enable Harvest subtitle init fragment - set 10th bit*/
-	eHARVEST_ENAABLE_INIT_AUX_AUDIO = 0x00000400,      /**< Enable Harvest auxiliary audio init fragment - set 11th bit*/
-	eHARVEST_ENAABLE_PLAYLIST_VIDEO = 0x00000800,      /**< Enable Harvest video playlist - set 12th bit*/
-	eHARVEST_ENAABLE_PLAYLIST_AUDIO = 0x00001000,      /**< Enable Harvest audio playlist - set 13th bit*/
-	eHARVEST_ENAABLE_PLAYLIST_SUBTITLE = 0x00002000 ,	/**< Enable Harvest subtitle playlist - set 14th bit*/
-	eHARVEST_ENAABLE_PLAYLIST_AUX_AUDIO = 0x00004000,	/**< Enable Harvest auxiliary audio playlist - set 15th bit*/
-	eHARVEST_ENAABLE_PLAYLIST_IFRAME = 0x00008000,     /**< Enable Harvest Iframe playlist - set 16th bit*/
-	eHARVEST_ENAABLE_INIT_IFRAME = 0x00010000,         /**< Enable Harvest IFRAME init fragment - set 17th bit*/
-	eHARVEST_ENAABLE_DSM_CC = 0x00020000,              /**< Enable Harvest digital storage media command and control (DSM-CC)- set 18th bit */
+	eHARVEST_DISABLE_DEFAULT = 0x00000000,            /**< Desable harversting for unknown type */
+	eHARVEST_ENAABLE_VIDEO = 0x00000001,              /**< Enable Harvest Video fragments - set 1st bit*/
+	eHARVEST_ENAABLE_AUDIO = 0x00000002,              /**< Enable Harvest audio - set 2nd bit*/
+	eHARVEST_ENAABLE_SUBTITLE = 0x00000004,           /**< Enable Harvest subtitle - set 3rd bit */
+	eHARVEST_ENAABLE_AUX_AUDIO = 0x00000008,          /**< Enable Harvest auxiliary audio - set 4th bit*/
+	eHARVEST_ENAABLE_MANIFEST = 0x00000010,           /**< Enable Harvest manifest - set 5th bit */
+	eHARVEST_ENAABLE_LICENCE = 0x00000020,            /**< Enable Harvest license - set 6th bit  */
+	eHARVEST_ENAABLE_IFRAME = 0x00000040,             /**< Enable Harvest iframe - set 7th bit  */
+	eHARVEST_ENAABLE_INIT_VIDEO = 0x00000080,         /**< Enable Harvest video init fragment - set 8th bit*/
+	eHARVEST_ENAABLE_INIT_AUDIO = 0x00000100,         /**< Enable Harvest audio init fragment - set 9th bit*/
+	eHARVEST_ENAABLE_INIT_SUBTITLE = 0x00000200,      /**< Enable Harvest subtitle init fragment - set 10th bit*/
+	eHARVEST_ENAABLE_INIT_AUX_AUDIO = 0x00000400,     /**< Enable Harvest auxiliary audio init fragment - set 11th bit*/
+	eHARVEST_ENAABLE_PLAYLIST_VIDEO = 0x00000800,     /**< Enable Harvest video playlist - set 12th bit*/
+	eHARVEST_ENAABLE_PLAYLIST_AUDIO = 0x00001000,     /**< Enable Harvest audio playlist - set 13th bit*/
+	eHARVEST_ENAABLE_PLAYLIST_SUBTITLE = 0x00002000,  /**< Enable Harvest subtitle playlist - set 14th bit*/
+	eHARVEST_ENAABLE_PLAYLIST_AUX_AUDIO = 0x00004000, /**< Enable Harvest auxiliary audio playlist - set 15th bit*/
+	eHARVEST_ENAABLE_PLAYLIST_IFRAME = 0x00008000,    /**< Enable Harvest Iframe playlist - set 16th bit*/
+	eHARVEST_ENAABLE_INIT_IFRAME = 0x00010000,        /**< Enable Harvest IFRAME init fragment - set 17th bit*/
+	eHARVEST_ENAABLE_DSM_CC = 0x00020000,             /**< Enable Harvest digital storage media command and control (DSM-CC)- set 18th bit */
 	eHARVEST_ENAABLE_DEFAULT = 0xFFFFFFFF             /**< Harvest unknown - Enable all by default */
 };
 
 /**
  * @brief Inline function to create directory
- * @param direpath - path name
+ * @param dirpath - path name
  */
 static inline void createdir(const char *dirpath)
 {
@@ -800,11 +715,7 @@ static inline void createdir(const char *dirpath)
 	}
 }
 
-/**
- * @brief Get harvest config corresponds to Media type
- * @param fileType meida file type
- * @return HarvestConfigType harvestType
- */
+
 int getHarvestConfigForMedia(MediaType fileType)
 {
 	enum HarvestConfigType harvestType = eHARVEST_ENAABLE_DEFAULT;
@@ -877,13 +788,7 @@ int getHarvestConfigForMedia(MediaType fileType)
 	return (int)harvestType;
 }
 
-/**
- * @brief Write file to storage
- * @param fileName out file name
- * @param data buffer
- * @param len length of buffer
- * @param media type of file
- */
+
 bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count,const char *prefix)
 {
 	bool retVal=false;	
@@ -933,10 +838,7 @@ bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaTyp
 	return retVal;
 }
 
-/**
- * @brief Get compatible trickplay for 6s cadense of iframe track from the given rates
- * @param rate input rate
- */
+
 int getWorkingTrickplayRate(int rate)
 {
 	int workingRate;
@@ -965,10 +867,7 @@ int getWorkingTrickplayRate(int rate)
 	return workingRate;
 }
 
-/**
- * @brief Get reverse map the working rates to the rates given by platform player
- * @param rate working rate
- */
+
 int getPseudoTrickplayRate(int rate)
 {
 	int psudoRate;
@@ -997,12 +896,7 @@ int getPseudoTrickplayRate(int rate)
 	return psudoRate;
 }
 
-/**
- * @brief Convert string of chars to its representative string of hex numbers
- * @param[in] str input string
- * @param[out] hexstr output hex string
- * @param[in] bool - to enable capital letter conversion flag
- */
+
 void stream2hex(const std::string str, std::string& hexstr, bool capital)
 {
 	hexstr.resize(str.size() * 2);
@@ -1015,10 +909,7 @@ void stream2hex(const std::string str, std::string& hexstr, bool capital)
 	}
 }
 
-/**
- * @brief Sleep for given milliseconds
- * @param milliseconds Time to sleep
- */
+
 void mssleep(int milliseconds)
 {
 	struct timespec req, rem;

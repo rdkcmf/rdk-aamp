@@ -49,7 +49,7 @@ public:
 	/**
 	* @brief CDAIObjectMPD Constructor
 	*
-	 * @param[in] aamp - Pointer to PrivateInstanceAAMP
+	* @param[in] aamp - Pointer to PrivateInstanceAAMP
 	*/
 	CDAIObjectMPD(AampLogManager *logObj, PrivateInstanceAAMP* aamp);
 
@@ -320,7 +320,7 @@ public:
 	/**
 	 * @brief Setting the alternate contents' (Ads/blackouts) URL
 	 *
-	 * @param[in] adBreakId - Adbreak's unique identifier.
+	 * @param[in] periodId - Adbreak's unique identifier.
 	 * @param[in] adId - Individual Ad's id
 	 * @param[in] url - Ad URL
 	 * @param[in] startMS - Ad start time in milliseconds
@@ -342,7 +342,7 @@ public:
 	 *
 	 * @return Pointer to the MPD object
 	 */
-	MPD*  GetAdMPD(std::string &url, bool &finalManifest, bool tryFog = false);
+	MPD* GetAdMPD(std::string &url, bool &finalManifest, bool tryFog = false);
 
 	/**
 	 * @brief Method to insert period into period map

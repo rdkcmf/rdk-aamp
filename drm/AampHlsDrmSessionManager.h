@@ -20,26 +20,41 @@
 #ifndef _AAMP_HLS_DRM_SESSION_MGR_H
 #define _AAMP_HLS_DRM_SESSION_MGR_H
 
+/**
+ * @file AampHlsDrmSessionManager.h
+ * @brief Operations for HLS DRM
+ */
+
+
 #include "HlsDrmBase.h"
 #include "AampDrmSession.h"
+
+
+/**
+ * @class AampHlsDrmSessionManager
+ * @brief DRM Session manager for HLS stream operations
+ */
 
 class AampHlsDrmSessionManager
 {
 	AampDrmSession* mDrmSession;
 public:
-	/*
+	/**
+	 * @brief getInstance Get DRM instance
 	 * Get an instance of the Hls DRM Session Manager
 	 * @return Aamp Hls Drm Session Manager instance
 	 */
 	static AampHlsDrmSessionManager& getInstance();
 
 	/**
+	 * @brief Check stream is DRM supported
 	 * @param drmInfo DrmInfo built by the HLS manifest parser
 	 * @return true if a DRM support available, false otherwise
 	 */
 	 bool isDrmSupported(const struct DrmInfo& drmInfo) const;
 
 	/**
+	 * @brief createSession create session for DRM
 	 * @param aampInstance aampContext
 	 * @param drmInfo DrmInfo built by the HLS manifest parser
 	 * @return true if a DRM support available, false otherwise

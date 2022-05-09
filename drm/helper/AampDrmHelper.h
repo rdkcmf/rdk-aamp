@@ -20,6 +20,11 @@
 #ifndef _AAMP_DRM_HELPER_H
 #define _AAMP_DRM_HELPER_H
 
+/**
+ * @file AampDrmHelper.h
+ * @brief Implented DRM helper functionalities
+ */
+
 #include <string>
 #include <memory>
 #include <vector>
@@ -31,13 +36,23 @@
 #include "AampDRMutils.h"
 #include "AampMemorySystem.h"
 
+/**
+ * @struct AampChallengeInfo
+ * @brief Aamp challenge info to get the License
+ */
+
 struct AampChallengeInfo
 {
 	AampChallengeInfo() : data(), url(), accessToken() {};
-	std::shared_ptr<DrmData> data; // Challenge data returned from the DRM system
-	std::string url;               // Challenge URL returned from the DRM system
-	std::string accessToken;       // Access token required for the license request (if applicable)
+	std::shared_ptr<DrmData> data; /**< Challenge data returned from the DRM system */
+	std::string url;               /**< Challenge URL returned from the DRM system */
+	std::string accessToken;       /**< Access token required for the license request (if applicable) */
 };
+
+/**
+ * @struct AampLicenseRequest
+ * @brief Holds the data to get the License
+ */
 
 struct AampLicenseRequest
 {
@@ -45,9 +60,9 @@ struct AampLicenseRequest
 	{}
 	enum LicenseMethod
 	{
-		DRM_RETRIEVE,   // Don't fetch the license, it will be handled externally by the DRM
-		GET,		// Fetch license via HTTP GET request
-		POST		// Fetch license via HTTP POST request
+		DRM_RETRIEVE,   /**< Don't fetch the license, it will be handled externally by the DRM */
+		GET,		    /**< Fetch license via HTTP GET request */
+		POST		    /**< Fetch license via HTTP POST request */
 	};
 
 	LicenseMethod method;
@@ -57,6 +72,10 @@ struct AampLicenseRequest
 	std::unordered_map<std::string, std::vector<std::string>> headers;
 };
 
+/**
+ * @class AampDrmHelper
+ * @brief AampDRM helper to handle DRM operations
+ */
 class AampDrmHelper
 {
 public:
@@ -70,7 +89,7 @@ public:
 	AampDrmHelper& operator=(const AampDrmHelper&) = delete;
 	
 	/**
-	 * Returns the OCDM system ID of the helper
+	 * @brief Returns the OCDM system ID of the helper
 	 * @return the OCDM system ID
 	 */
 	virtual const std::string& ocdmSystemId() const = 0;
@@ -82,7 +101,7 @@ public:
 	virtual void createInitData(std::vector<uint8_t>& initData) const = 0;
 
 	/**
-	 * Parse the optional PSSH data
+	 * @brief Parse the optional PSSH data
 	 * @param initData The init data from the PSSH
 	 * @param initDataLen the length of initData
 	 * @return
@@ -90,43 +109,43 @@ public:
 	virtual bool parsePssh(const uint8_t* initData, uint32_t initDataLen) = 0;
 
 	/**
-	 * Determine if the DRM system needs to be in the clear or encrypted
+	 * @brief Determine if the DRM system needs to be in the clear or encrypted
 	 * @return true if the data is clear, false if it should remain in the TEE
 	 */
 	virtual bool isClearDecrypt() const = 0;
 
-	/*
-	 * Determine whether HDCP 2.2 protection is required to be active
+	/**
+	 * @brief Determine whether HDCP 2.2 protection is required to be active
 	 * @return true if HDCP 2.2 protection is required, false otherwise
 	 */
 	virtual bool isHdcp22Required() const { return bOutputProtectionEnabled; };
 
 	/**
-	 * Returns the content specific DRM metadata
+	 * @brief Returns the content specific DRM metadata
 	 * @return the DRM metadata
 	 */
 	virtual const std::string& getDrmMetaData() const {return EMPTY_DRM_METADATA;}
 
 	/**
-	 * Sets the content specific DRM metadata
+	 * @brief Sets the content specific DRM metadata
 	 * @param the DRM metadata
 	 */
 	virtual void setDrmMetaData(const std::string& metaData) { }
 
 	/**
-	 * Sets the defualt keyID
+	 * @brief Sets the defualt keyID
 	 * @param the DRM cencData data
 	 */
 	virtual void setDefaultKeyID(const std::string& cencData) { }
 
 	/**
-	 * Returns the DRM codec type for the helper, used in trace
+	 * @brief Returns the DRM codec type for the helper, used in trace
 	 * @return the DRM codec type
 	 */
 	virtual int getDrmCodecType() const { return 0; }
 
 	/**
-	 * Get the amount of time in milliseconds to wait before aborting the wait
+	 * @brief Get the amount of time in milliseconds to wait before aborting the wait
 	 * for the license_challenge message to be received
 	 * Default is TWO Seconds - 2000
 	 * @return the time to wait in milliseconds
@@ -134,7 +153,7 @@ public:
 	virtual uint32_t licenseGenerateTimeout() const { return TIMEOUT_SECONDS; }
 
 	/**
-	 * Get the amount of time in milliseconds to wait before aborting the wait
+	 * @brief Get the amount of time in milliseconds to wait before aborting the wait
 	 * for the key_updated message to be received
 	 * Default is TWO Seconds - 2000
 	 * @return the time to wait in milliseconds
@@ -142,25 +161,25 @@ public:
 	virtual uint32_t keyProcessTimeout() const { return TIMEOUT_SECONDS; }
 
 	/**
-	 * Get the key ID
+	 * @brief Get the key ID
 	 * @param keyID The key ID as a vector of binary data
 	 */
 	virtual void getKey(std::vector<uint8_t>& keyID) const = 0;
 
 	 /**
-         * Get the key IDs
-         * @param keyIDs The map containing Key ID vector of binary data
-         */
+      * @brief Get the key IDs
+      * @param keyIDs The map containing Key ID vector of binary data
+      */
 	virtual void getKeys(std::map<int, std::vector<uint8_t>>& keyIDs) const {};
 
 	/**
-	 * Get the UUID
+	 * @brief Get the UUID
 	 * @return the UUID
 	 */
 	virtual const std::string& getUuid() const { return mDrmInfo.systemUUID; };
 
 	/**
-	 * Determines if the DRM itself fetches the license or if AAMP should use
+	 * @brief Determines if the DRM itself fetches the license or if AAMP should use
 	 * its own internal HTTP client to fetch the license
 	 * Returning 'true' removes AAMP calling generateLicenseRequest() on the CDM
 	 * Default is to return false
@@ -169,49 +188,49 @@ public:
 	virtual bool isExternalLicense() const { return false; };
 
 	/**
-	 * Generate the request details for the DRM license
+	 * @brief Generate the request details for the DRM license
 	 * @param challengeInfo challenge information from the DRM system necessary to construct the license request
 	 * @param licenseRequest license request data to populate
 	 */
 	virtual void generateLicenseRequest(const AampChallengeInfo& challengeInfo, AampLicenseRequest& licenseRequest) const = 0;
 
 	/**
-	 * Transform the license response from the server into the necessary format for OCDM
+	 * @brief Transform the license response from the server into the necessary format for OCDM
 	 * @param licenseResponse license response from the server to transform
 	 */
 	virtual void transformLicenseResponse(std::shared_ptr<DrmData> licenseResponse) const {};
 
 	/**
-	 * Get the memory system used to transform data for transmission
+	 * @brief Get the memory system used to transform data for transmission
 	 * @return the memory system, or null if to send it as is to the ocdm wrapper
 	 */
 	virtual AAMPMemorySystem* getMemorySystem() { return nullptr; }
 
-	/*
-	 * Compare against another helper instance
+	/**
+	 * @brief Compare against another helper instance
 	 * @return true if the two helpers can be considered the same, false otherwise
 	 */
 	virtual bool compare(std::shared_ptr<AampDrmHelper> other);
 
-	/*
-	 * Cancels a DRM session
+	/**
+	 * @brief Cancels a DRM session
 	 */
 	virtual void cancelDrmSession() { };
 
-	/*
-	 * Checks if the helper can cancel a session, or if the caller should do it
+	/**
+	 * @brief Checks if the helper can cancel a session, or if the caller should do it
 	 * @return true if the helper can cancel
 	 */
 	virtual bool canCancelDrmSession() { return false; }
 
-	/*
-	 * Gets the friendly display name of the DRM
+	/**
+	 * @brief Gets the friendly display name of the DRM
 	 * @return friendly name
 	 */
 	virtual const std::string& friendlyName() const { return EMPTY_STRING; }
 
-	/*
-	 * Set Output protection flag for the drmHelper
+	/**
+	 * @brief Set Output protection flag for the drmHelper
 	 * @return None
 	 */
 	void setOutputProtectionFlag(bool bValue) { bOutputProtectionEnabled = bValue;}
@@ -223,38 +242,44 @@ protected:
 	bool bOutputProtectionEnabled;
 };
 
+/**
+ * @class AampDrmHelperFactory
+ * @brief Helper class to  Maintain DRM data
+ */
+
 class AampDrmHelperFactory
 {
 public:
-	/* Default weighting of a helper factory.
+	/**
+         * @brief Default weighting of a helper factory.
 	 * Nominal scale of 0 to DEFAULT_WEIGHTING * 2
 	 * Larger weightings have lower priority
 	 */
 	static const int DEFAULT_WEIGHTING = 50;
 
 	/**
-	 * Determines if a helper class provides the identified DRM
+	 * @brief Determines if a helper class provides the identified DRM
 	 * @param drmInfo DrmInfo built by the HLS manifest parser
 	 * @return true if this helper provides that DRM
 	 */
 	virtual bool isDRM(const struct DrmInfo& drmInfo) const = 0;
 
 	/**
-	 * Build a helper class to support the identified DRM
+	 * @brief Build a helper class to support the identified DRM
 	 * @param drmInfo DrmInfo built by the HLS manifest parser
 	 * @return the helper
 	 */
 	virtual std::shared_ptr<AampDrmHelper> createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj=NULL) const = 0;
 
 	/**
-	 * Adds the system IDs supported by the DRM to a vector
+	 * @brief Adds the system IDs supported by the DRM to a vector
 	 * Used by the GStreamer plugins to advertise the DRM upstream to the pipeline
 	 * @param systemIds the vector to use
 	 */
 	virtual void appendSystemId(std::vector<std::string>& systemIds) const = 0;
 
-	/*
-	 * Get the weighting for this helper factory, which determines its priority
+	/**
+	 * @brief Get the weighting for this helper factory, which determines its priority
 	 * @return weighting value
 	 */
 	int getWeighting() { return mWeighting; }
@@ -267,18 +292,22 @@ protected:
 };
 
 
+/**
+ * @class AampDrmHelperEngine
+ * @brief Helper Engine for Aamp DRM operations
+ */
 class AampDrmHelperEngine
 {
 private:
 	std::vector<AampDrmHelperFactory* > factories;
 
 public:
-	/*
-	 * AampDrmHelperEngine constructor
+	/**
+	 * @brief AampDrmHelperEngine constructor
 	 */
 	AampDrmHelperEngine() : factories() {};
 	/**
-	 * Determines whether the helper engine has a DRM helper available for the
+	 * @brief Determines whether the helper engine has a DRM helper available for the
 	 * specified DrmInfo
 	 * @param systemId the UUID from the PSSH or manifest
 	 * @param drmInfo DrmInfo built by the HLS manifest parser
@@ -287,26 +316,26 @@ public:
 	bool hasDRM(const struct DrmInfo& drmInfo) const;
 
 	/**
-	 * Build a helper class to support the identified DRM
+	 * @brief Build a helper class to support the identified DRM
 	 * @param drmInfo DrmInfo built by the HLS manifest parser
 	 * @return the helper
 	 */
 	std::shared_ptr<AampDrmHelper> createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj=NULL) const;
 
-	/*
-	 * Get the supported OCDM system IDs
+	/**
+	 * @brief Get the supported OCDM system IDs
 	 * @param ids vector to populate with supported IDs
 	 */
 	void getSystemIds(std::vector<std::string>& ids) const;
 
-	/*
-	 * Get an instance of the DRM Helper Engine
+	/**
+	 * @brief Get an instance of the DRM Helper Engine
 	 * @return DRM Helper Engine instance
 	 */
 	static AampDrmHelperEngine& getInstance();
 
-	/*
-	 * Register a Helper Factory
+	/**
+	 * @brief Register a Helper Factory
 	 * @param factory helper factory instance to register
 	 */
 	void registerFactory(AampDrmHelperFactory* factory);

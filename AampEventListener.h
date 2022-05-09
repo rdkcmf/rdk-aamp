@@ -27,6 +27,11 @@
 
 #include "AampEvent.h"
 
+/**
+ * @class EventListener
+ * @brief Class for sed event to Listener
+ */
+
 class EventListener
 {
 public:

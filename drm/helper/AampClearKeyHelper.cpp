@@ -17,6 +17,12 @@
  * limitations under the License.
 */
 
+
+/**
+ * @file AampClearKeyHelper.cpp
+ * @brief Helper functions for Clear key
+ */
+
 #include "AampClearKeyHelper.h"
 #include "AampJsonObject.h"
 

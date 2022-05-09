@@ -31,20 +31,14 @@
 
 #include <closedcaptions/subtec/SubtecConnector.h>
 
-/**
- * @brief Impl specific initialization code called before each public interface call
- * @return void
- */
+
 void AampSubtecCCManager::EnsureInitialized()
 {
 	EnsureHALInitialized();
 	EnsureRendererCommsInitialized();
 }
 
-/**
-	* @brief Impl specific initialization code for HAL
-	* @return void
-*/
+
 void AampSubtecCCManager::EnsureHALInitialized()
 {
 	if(not mHALInitialized)
@@ -61,10 +55,7 @@ void AampSubtecCCManager::EnsureHALInitialized()
 	}
 };
 
-/**
-	* @brief Impl specific initialization code for Communication with renderer
-	* @return void
-	*/
+
 void AampSubtecCCManager::EnsureRendererCommsInitialized()
 {
 	if(not mRendererInitialized)
@@ -81,11 +72,7 @@ void AampSubtecCCManager::EnsureRendererCommsInitialized()
 	}
 };
 
-/**
- * @brief Gets Handle or ID
- *
- * @return int -  unique ID
- */
+
 int AampSubtecCCManager::GetId()
 {
     std::lock_guard<std::mutex> lock(mIdLock);
@@ -94,9 +81,7 @@ int AampSubtecCCManager::GetId()
     return mId;
 }
 
-/**
- * @brief Release CC resources
- */
+
 void AampSubtecCCManager::Release(int id)
 {
     std::lock_guard<std::mutex> lock(mIdLock);
@@ -123,31 +108,19 @@ void AampSubtecCCManager::Release(int id)
 	}
 }
 
-/**
- * @brief To start CC rendering
- *
- * @return void
- */
+
 void AampSubtecCCManager::StartRendering()
 {
 	subtecConnector::ccMgrAPI::ccShow();
 }
 
-/**
- * @brief To stop CC rendering
- *
- * @return void
- */
+
 void AampSubtecCCManager::StopRendering()
 {
 	subtecConnector::ccMgrAPI::ccHide();
 }
 
-/**
- * @brief set digital channel with specified id
- *
- * @return CC_VL_OS_API_RESULT
- */
+
 int AampSubtecCCManager::SetDigitalChannel(unsigned int id)
 {
 	const auto ret =  subtecConnector::ccMgrAPI::ccSetDigitalChannel(id);
@@ -155,11 +128,7 @@ int AampSubtecCCManager::SetDigitalChannel(unsigned int id)
 	return ret;
 }
 
-/**
- * @brief set analog channel with specified id
- *
- * @return CC_VL_OS_API_RESULT
- */
+
 int AampSubtecCCManager::SetAnalogChannel(unsigned int id)
 {
 	const auto ret =  subtecConnector::ccMgrAPI::ccSetAnalogChannel(id);
@@ -167,11 +136,7 @@ int AampSubtecCCManager::SetAnalogChannel(unsigned int id)
 	return ret;
 }
 
-/**
- * @brief ensure mEnabled is consistent with renderer state
- *
- * @return void
- */
+
 void AampSubtecCCManager::EnsureRendererStateConsistency()
 {
 	AAMPLOG_WARN("AampSubtecCCManager::");
@@ -186,9 +151,7 @@ void AampSubtecCCManager::EnsureRendererStateConsistency()
 	SetStyle(mOptions);
 }
 
-/**
- * @brief Constructor
-*/
+
 AampSubtecCCManager::AampSubtecCCManager()
 {
  	// Some of the apps don’t call set track  and as default CC is not set, CC doesn’t work. 

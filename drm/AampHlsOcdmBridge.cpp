@@ -17,6 +17,11 @@
  * limitations under the License.
 */
 
+/**
+ * @file AampHlsOcdmBridge.cpp
+ * @brief Handles OCDM bridge to validate DRM License
+ */
+
 #include "AampHlsOcdmBridge.h"
 
 #define DRM_IV_LEN 16
@@ -34,10 +39,12 @@ AampHlsOcdmBridge::AampHlsOcdmBridge(AampLogManager *logObj, AampDrmSession * aa
 	pthread_mutex_init(&m_Mutex, NULL);
 }
 
+
 AampHlsOcdmBridge::~AampHlsOcdmBridge()
 {
 	pthread_mutex_destroy(&m_Mutex);
 }
+
 
 DrmReturn AampHlsOcdmBridge::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo, AampLogManager *logObj)
 {
@@ -57,6 +64,7 @@ DrmReturn AampHlsOcdmBridge::SetDecryptInfo( PrivateInstanceAAMP *aamp, const st
 
 	return result;
 }
+
 
 DrmReturn AampHlsOcdmBridge::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen,int timeInMs)
 {
@@ -86,11 +94,13 @@ DrmReturn AampHlsOcdmBridge::Decrypt( ProfilerBucketType bucketType, void *encry
 	return result;
 }
 
+
 void AampHlsOcdmBridge::Release(void)
 {
 	AAMPLOG_WARN("Releasing the Opencdm Session\n");
 	m_drmSession->clearDecryptContext();
 }
+
 
 void AampHlsOcdmBridge::CancelKeyWait(void)
 {

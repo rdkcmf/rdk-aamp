@@ -17,6 +17,11 @@
  * limitations under the License.
 */
 
+/**
+ * @file AampSharedMemorySystem.cpp
+ * @brief Handles the functionalities for shared memory Aamp DRM
+ */
+
 #include "AampSharedMemorySystem.h"
 
 // For shared memory
@@ -81,6 +86,7 @@ bool AampSharedMemorySystem::encode(const uint8_t *dataIn, uint32_t dataInSz, st
 
 	return true;
 }
+
 
 bool AampSharedMemorySystem::decode(const uint8_t * dataIn, uint32_t dataInSz, uint8_t* dataOut, uint32_t dataOutSz) 
 {

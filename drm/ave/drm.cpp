@@ -362,15 +362,7 @@ static void freeDrmErrorData(void * arg)
 	SAFE_DELETE(drmerrordata);
 }
 
-/**
- * @brief SetMetaData Function to create adapter and listner for Metadata handling
- *
- * @param[in] aamp      Pointer to PrivateInstanceAAMP object associated with player
- * @param[in] metadata  Pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
- * @param[in] trackType Track Type ( audio / video)
- *
- * @retval eDRM_SUCCESS on success
- */
+
 DrmReturn AveDrm::SetMetaData( class PrivateInstanceAAMP *aamp, void *metadata,int trackType, AampLogManager *logObj)
 {
 	const DrmMetadata *drmMetadata = ( DrmMetadata *)metadata;
@@ -396,13 +388,7 @@ DrmReturn AveDrm::SetMetaData( class PrivateInstanceAAMP *aamp, void *metadata,i
 	return err;
 }
 
-/**
- * @brief StoreDecryptInfoIfChanged Checks if DrmInfo to be stored 
- *
- * @param[in] drmInfo  DRM information required to decrypt
- *
- * @retval True on new DrmInfo , false if already exist
- */
+
 bool AveDrm::StoreDecryptInfoIfChanged( const DrmInfo *drmInfo)
 {
 	bool newInfo = false;
@@ -451,13 +437,7 @@ bool AveDrm::StoreDecryptInfoIfChanged( const DrmInfo *drmInfo)
 }
 
 
-/**
- * @brief Set information required for decryption
- *
- * @param aamp AAMP instance to be associated with this decryptor
- * @param drmInfo DRM information required to decrypt
- * @retval eDRM_SUCCESS on success
- */
+
 DrmReturn AveDrm::SetDecryptInfo( PrivateInstanceAAMP *aamp, const DrmInfo *drmInfo, AampLogManager *logObj)
 {
 	DrmReturn err = eDRM_ERROR;
@@ -486,13 +466,7 @@ DrmReturn AveDrm::SetDecryptInfo( PrivateInstanceAAMP *aamp, const DrmInfo *drmI
 	return eDRM_SUCCESS;
 }
 
-/**
- * @brief Decrypts an encrypted buffer
- * @param bucketType Type of bucket for profiling
- * @param encryptedDataPtr pointer to encyrpted payload
- * @param encryptedDataLen length in bytes of data pointed to by encryptedDataPtr
- * @param timeInMs wait time
- */
+
 DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen,int timeInMs)
 {
 	DrmReturn err = eDRM_ERROR;
@@ -554,9 +528,7 @@ DrmReturn AveDrm::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 }
 
 
-/**
- * @brief Release drm session
- */
+
 void AveDrm::Release()
 {
 	pthread_mutex_lock(&mutex);
@@ -577,9 +549,7 @@ void AveDrm::Release()
 }
 
 
-/**
- * @brief Cancel timed_wait operation drm_Decrypt
- */
+
 void AveDrm::CancelKeyWait()
 {
 	pthread_mutex_lock(&mutex);
@@ -605,10 +575,7 @@ void AveDrm::CancelKeyWait()
 }
 
 
-/**
- * @brief Restore key state post cleanup of
- * audio/video TrackState in case DRM data is persisted
- */
+
 void AveDrm::RestoreKeyState()
 {
 	pthread_mutex_lock(&mutex);
@@ -621,10 +588,6 @@ void AveDrm::RestoreKeyState()
 }
 
 
-/**
- * @brief Destructor of AveDrm
- *
- */
 AveDrm::~AveDrm()
 {
 	SAFE_DELETEm_pDrmListner);
@@ -647,12 +610,7 @@ AveDrm::~AveDrm()
 	pthread_cond_destroy(&cond);
 }
 
-/**
-* @brief AcquireKey Acquire key for AveDrm instance for Meta provided
-*
-* @param[in] aamp      Pointer to PrivateInstanceAAMP object associated with player
-* @param[in] metadata  Pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
-*/
+
 void AveDrm::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType, AampLogManager *logObj)
 {
 	(void)metadata;
@@ -712,10 +670,7 @@ void AveDrm::RestoreKeyState()
 {
 }
 
-/**
-* @brief Destructor of AveDrm
-*
-*/
+
 AveDrm::~AveDrm()
 {
 	pthread_mutex_destroy(&mutex);
@@ -727,9 +682,7 @@ AveDrm::~AveDrm()
 #endif // !AVE_DRM
 
 
-/**
- * @brief AveDrm Constructor
- */
+
 AveDrm::AveDrm() : mpAamp(NULL), m_pDrmAdapter(NULL), m_pDrmListner(NULL),
 		mDrmState(eDRM_INITIALIZED), mPrevDrmState(eDRM_INITIALIZED),
 		mMetaData(), mDrmInfo(), cond(), mutex(), mLogObj(NULL)
@@ -744,11 +697,6 @@ AveDrm::AveDrm() : mpAamp(NULL), m_pDrmAdapter(NULL), m_pDrmListner(NULL),
 }
 
 
-/**
- * @brief Set state and signal waiting threads. Used internally by listener.
- *
- * @param state State to be set
- */
 void AveDrm::SetState(DRMState state)
 {
 	pthread_mutex_lock(&mutex);
@@ -756,20 +704,14 @@ void AveDrm::SetState(DRMState state)
 	pthread_cond_broadcast(&cond);
 	pthread_mutex_unlock(&mutex);
 }
-/**
- * @brief GetState Function to return current DRM State
- *
- * @retval DRMState
- */
+
+
 DRMState AveDrm::GetState()
 {
 	return mDrmState;
 }
 
-/**
- * @brief AveDrmManager Constructor.
- *
- */
+
 AveDrmManager::AveDrmManager() :
 		mDrm(NULL), mDrmContexSet(false), mHasBeenUsed(false),
 		mUserCount(0), mTrackType(0), mDeferredTime(0)
@@ -786,9 +728,7 @@ AveDrmManager::AveDrmManager() :
 #define AVE_DRM_MANGER_DEBUG AAMPLOG_TRACE
 #endif
 
-/**
- * @brief Reset state of AveDrmManager instance. Used internally
- */
+
 void AveDrmManager::Reset()
 {
 	mDrmContexSet = false;
@@ -845,9 +785,7 @@ void AveDrmManager::FlushAfterIndexList(const char* trackname,int trackType)
 }
 
 
-/**
- * @brief Reset state of AveDrmManager.
- */
+
 void AveDrmManager::ResetAll()
 {
 	pthread_mutex_lock(&aveDrmManagerMutex);
@@ -858,9 +796,7 @@ void AveDrmManager::ResetAll()
 	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 
-/**
- * @brief Cancel wait inside Decrypt function of all active DRM instances
- */
+
 void AveDrmManager::CancelKeyWaitAll()
 {
 	pthread_mutex_lock(&aveDrmManagerMutex);
@@ -871,9 +807,7 @@ void AveDrmManager::CancelKeyWaitAll()
 	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 
-/**
- * @brief Release all active DRM instances
- */
+
 void AveDrmManager::ReleaseAll()
 {
 	// Only called from Stop of fragment collector of hls , mutex protection 
@@ -896,9 +830,7 @@ void AveDrmManager::ReleaseAll()
 	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 
-/**
- * @brief Restore key states of all active DRM instances
- */
+
 void AveDrmManager::RestoreKeyStateAll()
 {
 	pthread_mutex_lock(&aveDrmManagerMutex);
@@ -909,13 +841,7 @@ void AveDrmManager::RestoreKeyStateAll()
 	pthread_mutex_unlock(&aveDrmManagerMutex);
 }
 
-/**
-* @brief Set DRM meta-data. Creates AveDrm instance if meta-data is not already configured.
-*
-* @param[in] aamp          AAMP instance associated with the operation.
-* @param[in] metaDataNode  DRM meta data node containing meta-data to be set.
-* @param[in] trackType     Source track type (audio/video)
-*/
+
 void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType, AampLogManager *mLogObj)
 {
 	AveDrmManager* aveDrmManager = NULL;
@@ -956,14 +882,7 @@ void AveDrmManager::SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *meta
 }
 
 
-/**
-* @brief AcquireKey Acquire key for Meta data provided for stream type
-*
-* @param[in] aamp      Pointer to PrivateInstanceAAMP object associated with player
-* @param[in] metadata  Pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
-* @param[in] trackType Track type audio / video
-* @param[in] overrideDeferring Flag to indicate override deferring and request key immediately
-*/
+
 bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType, AampLogManager *mLogObj, bool overrideDeferring)
 {
 	bool retStatus = true;
@@ -1047,11 +966,8 @@ bool AveDrmManager::AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaD
 	return retStatus;
 
 }
-/**
- * @brief Print DRM metadata hash
- *
- * @param sha1Hash SHA1 hash to be printed
- */
+
+
 void AveDrmManager::PrintSha1Hash(char* sha1Hash)
 {
 	for (int j = 0; j < DRM_SHA1_HASH_LEN; j++)
@@ -1061,9 +977,7 @@ void AveDrmManager::PrintSha1Hash(char* sha1Hash)
 	printf("\n");
 }
 
-/**
- * @brief Dump cached DRM licenses
- */
+
 void AveDrmManager::DumpCachedLicenses()
 {
 	std::shared_ptr<AveDrm>  aveDrm = nullptr;
@@ -1077,15 +991,7 @@ void AveDrmManager::DumpCachedLicenses()
 	printf("\n");
 }
 
-/**
- * @brief Get AveDrm instance configured with a specific metadata
- *
- * @param[in] sha1Hash SHA1 hash of meta-data
- * @param[in] trackType Sourec track type (audio/video)
- *
- * @return AveDrm  Instance corresponds to sha1Hash
- * @return NULL    If AveDrm instance configured with the meta-data is not available
- */
+
 std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType, AampLogManager *mLogObj)
 {
         std::shared_ptr<AveDrm>  aveDrm = nullptr;
@@ -1153,12 +1059,7 @@ std::shared_ptr<AveDrm> AveDrmManager::GetAveDrm(char* sha1Hash,int trackType, A
 }
 
 
-/**
- * @brief Get index of drm meta-data which is not yet configured
- *
- * @param drmMetadataIdx Indexed DRM meta-data
- * @param drmMetadataCount Count of meta-data present in the index
- */
+
 int AveDrmManager::IsMetadataAvailable(char* sha1Hash)
 {
         int idx = -1;
@@ -1208,15 +1109,7 @@ std::string extractSubstring(std::string parentStr, std::string startStr, std::s
 	return ret;
 }
 
-/**
- * @brief
- * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
- * @param dltotal total bytes expected to download
- * @param dlnow downloaded bytes so far
- * @param ultotal total bytes expected to upload
- * @param ulnow uploaded bytes so far
- * @retval
- */
+
 int AveDrmManager::progress_callback(
 	void *clientp, // app-specific as optionally set with CURLOPT_PROGRESSDATA
 	double dltotal, // total bytes expected to download
@@ -1235,15 +1128,7 @@ int AveDrmManager::progress_callback(
 	return returnCode;
 }
 
-/**
- *  @brief		Curl write callback, used to get the curl o/p
- *  			from DRM license, accessToken curl requests.
- *
- *  @param[in]	ptr - Pointer to received data.
- *  @param[in]	size, nmemb - Size of received data (size * nmemb).
- *  @param[out]	userdata - Pointer to buffer where the received data is copied.
- *  @return		returns the number of bytes processed.
- */
+
 size_t AveDrmManager::write_callback_session(char *ptr, size_t size,
 		size_t nmemb, void *userdata)
 {

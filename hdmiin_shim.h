@@ -41,20 +41,67 @@ using namespace std;
 class StreamAbstractionAAMP_HDMIIN : public StreamAbstractionAAMP_VIDEOIN
 {
 public:
+    /**
+     * @brief StreamAbstractionAAMP_HDMIIN Constructor
+     * @param aamp pointer to PrivateInstanceAAMP object associated with player
+     * @param seekpos Seek position
+     * @param rate playback rate
+     */	
     StreamAbstractionAAMP_HDMIIN(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+    /**
+     * @brief StreamAbstractionAAMP_HDMIIN Destructor
+     */    
     ~StreamAbstractionAAMP_HDMIIN();
+    /**
+     * @brief Copy constructor disabled
+     *
+     */
     StreamAbstractionAAMP_HDMIIN(const StreamAbstractionAAMP_HDMIIN&) = delete;
+    /**
+     * @brief assignment operator disabled
+     *
+     */
     StreamAbstractionAAMP_HDMIIN& operator=(const StreamAbstractionAAMP_HDMIIN&) = delete;
+    /**
+     *   @brief  Initialize a newly created object.
+     *   @param  tuneType to set type of object.
+     *   @retval eAAMPSTATUS_OK
+     */
     AAMPStatusType Init(TuneType tuneType) override;
+    /**
+     *   @brief  Starts streaming.
+     */
     void Start() override;
+    /**
+     *   @brief  Stops streaming.
+     */
     void Stop(bool clearChannelData) override;
+    /**
+     * @brief To get the available video tracks.
+     * @return available video tracks
+     */
     std::vector<StreamInfo*> GetAvailableVideoTracks(void) override;
+    /**
+     * @brief To get the available thumbnail tracks.
+     * @return available thumbnail tracks
+     */
     std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
+    /**
+     * @brief To set the thumbnail track by index.
+     * @return True or False indicating success failure.
+     */
     bool SetThumbnailTrack(int) override;
+    /**
+     * @brief To get thumbnail range data.
+     * @return vector containg multiple thumbnail tile info.
+     */
     std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 private:
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
     /*Event Handler*/
+    /**
+     *   @brief  Gets videoStreamInfoUpdate event and translates into aamp events
+     */
     void OnVideoStreamInfoUpdate(const JsonObject& parameters);
 #endif
 };

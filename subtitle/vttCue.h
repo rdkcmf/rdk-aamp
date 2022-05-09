@@ -31,7 +31,7 @@
 
 
 /**
-* \struct      VTT cue data structure
+* \struct      VTTCue
 * \brief       Data structure to hold a VTT cue
 *
 * This is the data structure to store parsed WebVTT cues in AAMP

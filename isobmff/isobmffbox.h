@@ -49,10 +49,29 @@
 #define READ_FLAGS(buf) \
 		(buf[0] << 16) | (buf[1] << 8) | buf[2]; buf+=3;
 
+/**
+ * @brief Utility function to read 8 bytes from a buffer
+ *
+ * @param[in] buf - buffer pointer
+ * @return bytes read from buffer
+ */
 uint64_t ReadUint64(uint8_t *buf);
 
+/**
+ * @brief Utility function to write 8 bytes to a buffer
+ *
+ * @param[in] dst - buffer pointer
+ * @param[in] val - value to write
+ * @return void
+ */
 void WriteUint64(uint8_t *dst, uint64_t val);
 
+/**
+ * @brief Read a string from buffer and return it
+ *
+ * @param[in] buffer Buffer to read
+ * @param[in] bufferLen String length
+ */
 uint32_t ReadCStringLen(const uint8_t* buffer, uint32_t bufferLen);
 
 #define READ_BMDT64(buf) \
@@ -71,9 +90,9 @@ uint32_t ReadCStringLen(const uint8_t* buffer, uint32_t bufferLen);
 class Box
 {
 private:
-	uint32_t offset;	//Offset from the beginning of the segment
-	uint32_t size;		//Box Size
-	char type[5]; 		//Box Type Including \0
+	uint32_t offset;	/**< Offset from the beginning of the segment */
+	uint32_t size;		/**< Box Size */
+	char type[5]; 		/**< Box Type Including \0 */
 
 /*TODO: Handle special cases separately */
 public:

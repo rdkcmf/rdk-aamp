@@ -53,17 +53,17 @@
  * @brief Enum of configuration flags used by playbin
  */
 typedef enum {
-	GST_PLAY_FLAG_VIDEO = (1 << 0), // 0x001
-	GST_PLAY_FLAG_AUDIO = (1 << 1), // 0x002
-	GST_PLAY_FLAG_TEXT = (1 << 2), // 0x004
-	GST_PLAY_FLAG_VIS = (1 << 3), // 0x008
-	GST_PLAY_FLAG_SOFT_VOLUME = (1 << 4), // 0x010
-	GST_PLAY_FLAG_NATIVE_AUDIO = (1 << 5), // 0x020
-	GST_PLAY_FLAG_NATIVE_VIDEO = (1 << 6), // 0x040
-	GST_PLAY_FLAG_DOWNLOAD = (1 << 7), // 0x080
-	GST_PLAY_FLAG_BUFFERING = (1 << 8), // 0x100
-	GST_PLAY_FLAG_DEINTERLACE = (1 << 9), // 0x200
-	GST_PLAY_FLAG_SOFT_COLORBALANCE = (1 << 10) // 0x400
+	GST_PLAY_FLAG_VIDEO = (1 << 0),             /**< value is 0x001 */
+	GST_PLAY_FLAG_AUDIO = (1 << 1),             /**< value is 0x002 */
+	GST_PLAY_FLAG_TEXT = (1 << 2),              /**< value is 0x004 */
+	GST_PLAY_FLAG_VIS = (1 << 3),               /**< value is 0x008 */
+	GST_PLAY_FLAG_SOFT_VOLUME = (1 << 4),       /**< value is 0x010 */
+	GST_PLAY_FLAG_NATIVE_AUDIO = (1 << 5),      /**< value is 0x020 */
+	GST_PLAY_FLAG_NATIVE_VIDEO = (1 << 6),      /**< value is 0x040 */
+	GST_PLAY_FLAG_DOWNLOAD = (1 << 7),          /**< value is 0x080 */
+	GST_PLAY_FLAG_BUFFERING = (1 << 8),         /**< value is 0x100 */
+	GST_PLAY_FLAG_DEINTERLACE = (1 << 9),       /**< value is 0x200 */
+	GST_PLAY_FLAG_SOFT_COLORBALANCE = (1 << 10) /**< value is 0x400 */
 } GstPlayFlags;
 
 //#define SUPPORT_MULTI_AUDIO
@@ -83,16 +83,16 @@ typedef enum {
 #define INPUT_GAIN_DB_MUTE  (gdouble)-145
 #define INPUT_GAIN_DB_UNMUTE  (gdouble)0
 #endif
-#define DEFAULT_BUFFERING_TO_MS 10                       // TimeOut interval to check buffer fullness
+#define DEFAULT_BUFFERING_TO_MS 10                       /**< TimeOut interval to check buffer fullness */
 #if defined(REALTEKCE)
-#define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (3)          // if the video decoder has this many queued frames start..
-#define DEFAULT_AVSYNC_FREERUN_THRESHOLD_SECS 12         // Currently MAX FRAG DURATION + 2 per Realtek
+#define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (3)          /**< if the video decoder has this many queued frames start.. */
+#define DEFAULT_AVSYNC_FREERUN_THRESHOLD_SECS 12         /**< Currently MAX FRAG DURATION + 2 per Realtek */
 #else
-#define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (5)          // if the video decoder has this many queued frames start.. even at 60fps, close to 100ms...
+#define DEFAULT_BUFFERING_QUEUED_FRAMES_MIN (5)          /**< if the video decoder has this many queued frames start.. even at 60fps, close to 100ms... */
 #endif
 
-#define DEFAULT_BUFFERING_MAX_MS (1000)                  // max buffering time
-#define DEFAULT_BUFFERING_MAX_CNT (DEFAULT_BUFFERING_MAX_MS/DEFAULT_BUFFERING_TO_MS)   // max buffering timeout count
+#define DEFAULT_BUFFERING_MAX_MS (1000)                  /**< max buffering time */
+#define DEFAULT_BUFFERING_MAX_CNT (DEFAULT_BUFFERING_MAX_MS/DEFAULT_BUFFERING_TO_MS)   /**< max buffering timeout count */
 #define AAMP_MIN_PTS_UPDATE_INTERVAL 4000
 #define AAMP_DELAY_BETWEEN_PTS_CHECK_FOR_EOS_ON_UNDERFLOW 500
 #define BUFFERING_TIMEOUT_PRIORITY -70
@@ -136,72 +136,72 @@ struct AAMPGstPlayerPriv
 	AAMPGstPlayerPriv& operator=(const AAMPGstPlayerPriv&) = delete;
 
 	media_stream stream[AAMP_TRACK_COUNT];
-	GstElement *pipeline; //GstPipeline used for playback.
-	GstBus *bus; //Bus for receiving GstEvents from pipeline.
+	GstElement *pipeline; 		/**< GstPipeline used for playback */
+	GstBus *bus; 			/**< Bus for receiving GstEvents from pipeline */
 	int current_rate; 
 	guint64 total_bytes;
-	gint n_audio; //Number of audio tracks.
-	gint current_audio; //Offset of current audio track.
-	std::mutex TaskControlMutex; //For scheduling/de-scheduling or resetting async tasks/variables and timers
+	gint n_audio; 			/**< Number of audio tracks */
+	gint current_audio; 		/**<Offset of current audio track */
+	std::mutex TaskControlMutex; 	/**<For scheduling/de-scheduling or resetting async tasks/variables and timers */
 	TaskControlData firstProgressCallbackIdleTask;
-	guint periodicProgressCallbackIdleTaskId; //ID of timed handler created for notifying progress events.
-	guint bufferingTimeoutTimerId; //ID of timer handler created for buffering timeout.
-	GstElement *video_dec; //Video decoder used by pipeline.
-	GstElement *audio_dec; //Audio decoder used by pipeline.
-	GstElement *video_sink; //Video sink used by pipeline.
-	GstElement *audio_sink; //Audio sink used by pipeline.
+	guint periodicProgressCallbackIdleTaskId; /**< ID of timed handler created for notifying progress events */
+	guint bufferingTimeoutTimerId; 	/**< ID of timer handler created for buffering timeout */
+	GstElement *video_dec; 		/**< Video decoder used by pipeline */
+	GstElement *audio_dec; 		/**< Audio decoder used by pipeline */
+	GstElement *video_sink; 	/**< Video sink used by pipeline */
+	GstElement *audio_sink; 	/**< Audio sink used by pipeline */
 #ifdef INTELCE_USE_VIDRENDSINK
-	GstElement *video_pproc; //Video element used by pipeline.(only for Intel).
+	GstElement *video_pproc; 	/**< Video element used by pipeline.(only for Intel) */
 #endif
 
-	int rate; //Current playback rate.
-	double playbackrate; //playback rate in fractions
-	VideoZoomMode zoom; //Video-zoom setting.
-	bool videoMuted; //Video mute status.
-	bool audioMuted; //Audio mute status.
-	double audioVolume; //Audio volume.
-	guint eosCallbackIdleTaskId; //ID of idle handler created for notifying EOS event.
-	std::atomic<bool> eosCallbackIdleTaskPending; //Set if any eos callback is pending.
-	bool firstFrameReceived; //Flag that denotes if first frame was notified.
-	char videoRectangle[VIDEO_COORDINATES_SIZE]; //Video-rectangle co-ordinates in format x,y,w,h.
-	bool pendingPlayState; //Flag that denotes if set pipeline to PLAYING state is pending.
-	bool decoderHandleNotified; //Flag that denotes if decoder handle was notified.
-	guint firstFrameCallbackIdleTaskId; //ID of idle handler created for notifying first frame event.
-	GstEvent *protectionEvent[AAMP_TRACK_COUNT]; //GstEvent holding the pssi data to be sent downstream.
-	std::atomic<bool> firstFrameCallbackIdleTaskPending; //Set if any first frame callback is pending.
-	bool using_westerossink; //true if westros sink is used as video sink
+	int rate; 				/**< Current playback rate */
+	double playbackrate; 			/**< playback rate in fractions */
+	VideoZoomMode zoom; 			/**< Video-zoom setting */
+	bool videoMuted; 			/**< Video mute status */
+	bool audioMuted;			/**< Audio mute status */
+	double audioVolume; 			/**< Audio volume */
+	guint eosCallbackIdleTaskId; 		/**< ID of idle handler created for notifying EOS event */
+	std::atomic<bool> eosCallbackIdleTaskPending; /**< Set if any eos callback is pending */
+	bool firstFrameReceived; 		/**< Flag that denotes if first frame was notified */
+	char videoRectangle[VIDEO_COORDINATES_SIZE]; /**< Video-rectangle co-ordinates in format x,y,w,h */
+	bool pendingPlayState; 			/**< Flag that denotes if set pipeline to PLAYING state is pending */
+	bool decoderHandleNotified; 		/**<Flag that denotes if decoder handle was notified */
+	guint firstFrameCallbackIdleTaskId; 	/**< ID of idle handler created for notifying first frame event */
+	GstEvent *protectionEvent[AAMP_TRACK_COUNT]; /**< GstEvent holding the pssi data to be sent downstream */
+	std::atomic<bool> firstFrameCallbackIdleTaskPending; /**< Set if any first frame callback is pending */
+	bool using_westerossink; 			     /**< true if westros sink is used as video sink */
 	guint busWatchId;
-	std::atomic<bool> eosSignalled; /** Indicates if EOS has signaled */
-	gboolean buffering_enabled; // enable buffering based on multiqueue
-	gboolean buffering_in_progress; // buffering is in progress
-	guint buffering_timeout_cnt;    // make sure buffering_timout doesn't get stuck
-	GstState buffering_target_state; // the target state after buffering
+	std::atomic<bool> eosSignalled; 		     /**< Indicates if EOS has signaled */
+	gboolean buffering_enabled; 			     /**< enable buffering based on multiqueue */
+	gboolean buffering_in_progress; 		     /**< buffering is in progress */
+	guint buffering_timeout_cnt;    		     /**< make sure buffering_timout doesn't get stuck */
+	GstState buffering_target_state; 		     /**< the target state after buffering */
 #ifdef INTELCE
-	bool keepLastFrame; //Keep last frame over next pipeline delete/ create cycle
+	bool keepLastFrame; 				     /**< Keep last frame over next pipeline delete/ create cycle */
 #endif
-	gint64 lastKnownPTS; //To store the PTS of last displayed video
-	long long ptsUpdatedTimeMS; //Timestamp when PTS was last updated
-	guint ptsCheckForEosOnUnderflowIdleTaskId; //ID of task to ensure video PTS is not moving before notifying EOS on underflow.
-	int numberOfVideoBuffersSent; //Number of video buffers sent to pipeline
-	gint64 segmentStart; // segment start value; required when qtdemux is enabled and restamping is disabled
-	GstQuery *positionQuery; // pointer that holds a position query object
-        GstQuery *durationQuery; // pointer that holds a duration query object
-	bool paused; // if pipeline is deliberately put in PAUSED state due to user interaction
-	GstState pipelineState; // current state of pipeline
-	guint firstVideoFrameDisplayedCallbackIdleTaskId; //ID of idle handler created for notifying state changed to Playing
-	std::atomic<bool> firstVideoFrameDisplayedCallbackIdleTaskPending; //Set if any state changed to Playing callback is pending.
+	gint64 lastKnownPTS; 				     /**< To store the PTS of last displayed video */
+	long long ptsUpdatedTimeMS; 			     /**< Timestamp when PTS was last updated */
+	guint ptsCheckForEosOnUnderflowIdleTaskId;	     /**< ID of task to ensure video PTS is not moving before notifying EOS on underflow */
+	int numberOfVideoBuffersSent; 			     /**< Number of video buffers sent to pipeline */
+	gint64 segmentStart;				     /**< segment start value; required when qtdemux is enabled and restamping is disabled */
+	GstQuery *positionQuery; 			     /**< pointer that holds a position query object */
+        GstQuery *durationQuery; 			     /**< pointer that holds a duration query object */
+	bool paused; 				  	     /**< if pipeline is deliberately put in PAUSED state due to user interaction */
+	GstState pipelineState; 			     /**< current state of pipeline */
+	guint firstVideoFrameDisplayedCallbackIdleTaskId;    /**< ID of idle handler created for notifying state changed to Playing */
+	std::atomic<bool> firstVideoFrameDisplayedCallbackIdleTaskPending; /**< Set if any state changed to Playing callback is pending */
 #if defined(REALTEKCE)
-	bool firstTuneWithWesterosSinkOff; 	// DELIA-33640: track if first tune was done for Realtekce build
+	bool firstTuneWithWesterosSinkOff; 	/**< DELIA-33640: track if first tune was done for Realtekce build */
 #endif
-	long long decodeErrorMsgTimeMS; //Timestamp when decode error message last posted
-	int decodeErrorCBCount; //Total decode error cb received within thresold time
+	long long decodeErrorMsgTimeMS; 	/**< Timestamp when decode error message last posted */
+	int decodeErrorCBCount; 		/**< Total decode error cb received within thresold time */
 	bool progressiveBufferingEnabled;
 	bool progressiveBufferingStatus;
-	bool forwardAudioBuffers; // flag denotes if audio buffers to be forwarded to aux pipeline
+	bool forwardAudioBuffers; 		/**< flag denotes if audio buffers to be forwarded to aux pipeline */
 	bool enableSEITimeCode;
-	bool firstVideoFrameReceived; //flag that denotes if first video frame was notified.
-	bool firstAudioFrameReceived; //flag that denotes if first audio frame was notified
-	int  NumberOfTracks;	      //Indicates the number of tracks
+	bool firstVideoFrameReceived; 		/**< flag that denotes if first video frame was notified */
+	bool firstAudioFrameReceived; 		/**< flag that denotes if first audio frame was notified */
+	int  NumberOfTracks;	      		/**< Indicates the number of tracks */
 	AAMPGstPlayerPriv() : pipeline(NULL), bus(NULL), current_rate(0),
 			total_bytes(0), n_audio(0), current_audio(0), 
 			periodicProgressCallbackIdleTaskId(AAMP_TASK_ID_INVALID),
@@ -292,10 +292,7 @@ const char *plugins_to_lower_rank[PLUGINS_TO_LOWER_RANK_MAX] = {
 	"ac3parse",
 };
 
-/**
- * @brief AAMPGstPlayer Constructor
- * @param[in] aamp pointer to PrivateInstanceAAMP object associated with player
- */
+
 AAMPGstPlayer::AAMPGstPlayer(AampLogManager *logObj, PrivateInstanceAAMP *aamp
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
         , std::function< void(uint8_t *, int, int, int) > exportFrames
@@ -328,9 +325,6 @@ AAMPGstPlayer::AAMPGstPlayer(AampLogManager *logObj, PrivateInstanceAAMP *aamp
 }
 
 
-/**
- * @brief AAMPGstPlayer Destructor
- */
 AAMPGstPlayer::~AAMPGstPlayer()
 {
 	FN_TRACE( __FUNCTION__ );
@@ -343,12 +337,6 @@ AAMPGstPlayer::~AAMPGstPlayer()
 }
 
 
-/**
- * @brief IdleTaskAdd - add an async/idle task in a thread safe manner, assuming it is not queued
- * @param[in] taskDetails task control data (e.g. id, pending flag and task name)
- * @param[in] funcPtr function pointer to add to the asynchronous queue task
- * @return true - if task was added
- */
 bool AAMPGstPlayer::IdleTaskAdd(TaskControlData& taskDetails, BackgroundTask funcPtr)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -378,11 +366,7 @@ bool AAMPGstPlayer::IdleTaskAdd(TaskControlData& taskDetails, BackgroundTask fun
 	return ret;
 }
 
-/**
- * @brief IdleTaskRemove - remove an async task in a thread safe manner, if it is queued
- * @param[in] taskDetails task control data (e.g. id, pending flag and task name)
- * @return true - if task was removed
- */
+
 bool AAMPGstPlayer::IdleTaskRemove(TaskControlData& taskDetails)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -404,11 +388,7 @@ bool AAMPGstPlayer::IdleTaskRemove(TaskControlData& taskDetails)
 	return ret;
 }
 
-/**
- * @brief IdleTaskClearFlags - clear async task id and pending flag in a thread safe manner
- *                             e.g. called when the task executes
- * @param[in] taskDetails task control data (e.g. id, pending flag and task name)
- */
+
 void AAMPGstPlayer::IdleTaskClearFlags(TaskControlData& taskDetails)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -425,14 +405,7 @@ void AAMPGstPlayer::IdleTaskClearFlags(TaskControlData& taskDetails)
 	taskDetails.taskID = 0;
 }
 
-/**
- * @brief TimerAdd - add a new glib timer in thread safe manner
- * @param[in] funcPtr function to execute on timer expiry
- * @param[in] repeatTimeout timeout between calls in ms
- * @param[in] user_data data to pass to the timer function
- * @param[in] timerName name of the timer being removed (for debug) (opt)
- * @param[out] taskId id of the timer to be returned
- */
+
 void AAMPGstPlayer::TimerAdd(GSourceFunc funcPtr, int repeatTimeout, guint& taskId, gpointer user_data, const char* timerName)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -455,11 +428,7 @@ void AAMPGstPlayer::TimerAdd(GSourceFunc funcPtr, int repeatTimeout, guint& task
 	}
 }
 
-/**
- * @brief TimerRemove - remove a glib timer in thread safe manner, if it exists
- * @param[in] taskId id of the timer to be removed
- * @param[in] timerName name of the timer being removed (for debug) (opt)
- */
+
 void AAMPGstPlayer::TimerRemove(guint& taskId, const char* timerName)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -476,11 +445,7 @@ void AAMPGstPlayer::TimerRemove(guint& taskId, const char* timerName)
 	}
 }
 
-/**
- * @brief RemoveTimer - remove a glib timer in thread safe manner, if it exists
- * @param[in] taskId id of the timer to be removed
- * @return true - timer is currently scheduled
- */
+
 bool AAMPGstPlayer::TimerIsRunning(guint& taskId)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -802,10 +767,7 @@ static gboolean IdleCallbackFirstVideoFrameDisplayed(gpointer user_data)
 	return G_SOURCE_REMOVE;
 }
 
-/**
- * @brief Notify first Audio and Video frame through an idle function to make the playersinkbin halding same as normal(playbin) playback.
- * @param[in] type media type of the frame which is decoded, either audio or video.
- */
+
 void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -1022,12 +984,7 @@ static gboolean VideoDecoderPtsCheckerForEOS(gpointer user_data)
 
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 
-/**
- * @brief Callback function to get video frames
- * @param[in] object - pointer to appsink instance triggering "new-sample" signal
- * @param[in] _this  - pointer to AAMPGstPlayer instance
- * @retval GST_FLOW_OK
- */
+
 GstFlowReturn AAMPGstPlayer::AAMPGstPlayer_OnVideoSample(GstElement* object, AAMPGstPlayer * _this)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -1759,9 +1716,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 }
 
 
-/**
- * @brief Create a new Gstreamer pipeline
- */
 bool AAMPGstPlayer::CreatePipeline()
 {
 	FN_TRACE( __FUNCTION__ );
@@ -1812,9 +1766,6 @@ bool AAMPGstPlayer::CreatePipeline()
 }
 
 
-/**
- * @brief Cleanup an existing Gstreamer pipeline and associated resources
- */
 void AAMPGstPlayer::DestroyPipeline()
 {
 	FN_TRACE( __FUNCTION__ );
@@ -1847,10 +1798,6 @@ void AAMPGstPlayer::DestroyPipeline()
 }
 
 
-/**
- * @brief Retrieve the video decoder handle from pipeline
- * @retval the decoder handle
- */
 unsigned long AAMPGstPlayer::getCCDecoderHandle()
 {
 	FN_TRACE( __FUNCTION__ );
@@ -1877,12 +1824,7 @@ unsigned long AAMPGstPlayer::getCCDecoderHandle()
 	return (unsigned long)dec_handle;
 }
 
-/**
- * @brief Generate a protection event
- * @param[in] protSystemId keysystem to be used
- * @param[in] initData DRM initialization data
- * @param[in] initDataSize DRM initialization data size
- */
+
 void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *initData, size_t initDataSize, MediaType type)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -1923,9 +1865,7 @@ void AAMPGstPlayer::QueueProtectionEvent(const char *protSystemId, const void *i
 #endif
 }
 
-/**
- * @brief Cleanup generated protection event
- */
+
 void AAMPGstPlayer::ClearProtectionEvent()
 {
 	FN_TRACE( __FUNCTION__ );
@@ -2010,10 +1950,6 @@ static GstElement* AAMPGstPlayer_GetAppSrc(AAMPGstPlayer *_this, MediaType media
 }
 
 
-/**
- * @brief Cleanup resources and flags for a particular stream type
- * @param[in] mediaType stream type
- */
 void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -2238,11 +2174,7 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 	return 0;
 }
 
-/**
- * @brief Send any pending/cached events to pipeline
- * @param[in] mediaType stream type
- * @param[in] pts PTS of next buffer
- */
+
 void AAMPGstPlayer::SendGstEvents(MediaType mediaType, GstClockTime pts)
 {
 	media_stream* stream = &privateContext->stream[mediaType];
@@ -2365,7 +2297,7 @@ bool hasId3Header(MediaType mediaType, const uint8_t* data, int32_t length)
 
 /**
  * @brief Get the size of the ID3v2 tag.
- * @param[in] ptr buffer pointer
+ * @param[in] data buffer pointer
  */
 uint32_t getId3TagSize(const uint8_t *data)
 {
@@ -2392,12 +2324,8 @@ uint32_t getId3TagSize(const uint8_t *data)
 }
 
 #if defined(AMLOGIC)
-/**
- * @brief Send new segment event to pipeline
- * @param[in] mediaType stream type
- * @param[in] startPos Start Position of first buffer
- * @param[in] stopPos Stop position of last buffer
- */
+
+
 void AAMPGstPlayer::SendNewSegmentEvent(MediaType mediaType, GstClockTime startPts ,GstClockTime stopPts)
 {
         FN_TRACE( __FUNCTION__ );
@@ -2425,17 +2353,7 @@ void AAMPGstPlayer::SendNewSegmentEvent(MediaType mediaType, GstClockTime startP
 }
 #endif
 
-/**
- * @brief Inject stream buffer to gstreamer pipeline
- * @param[in] mediaType stream type
- * @param[in] ptr buffer pointer
- * @param[in] len0 length of buffer
- * @param[in] fpts PTS of buffer (in sec)
- * @param[in] fdts DTS of buffer (in sec)
- * @param[in] fDuration duration of buffer (in sec)
- * @param[in] copy to map or transfer the buffer
- * @param[in] initFragment flag for buffer type (init, data)
- */
+
 bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration, bool copy, bool initFragment)
 {
 	if(ISCONFIGSET(eAAMPConfig_SuppressDecode))
@@ -2601,30 +2519,14 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 	return true;
 }
 
-/**
- * @brief inject HLS/ts elementary stream buffer to gstreamer pipeline
- * @param[in] mediaType stream type
- * @param[in] ptr buffer pointer
- * @param[in] len0 length of buffer
- * @param[in] fpts PTS of buffer (in sec)
- * @param[in] fdts DTS of buffer (in sec)
- * @param[in] fDuration duration of buffer (in sec)
- */
+
 void AAMPGstPlayer::SendCopy(MediaType mediaType, const void *ptr, size_t len0, double fpts, double fdts, double fDuration)
 {
 	FN_TRACE( __FUNCTION__ );
 	SendHelper( mediaType, ptr, len0, fpts, fdts, fDuration, true /*copy*/ );
 }
 
-/**
- * @brief inject mp4 segment to gstreamer pipeline
- * @param[in] mediaType stream type
- * @param[in] pBuffer buffer as GrowableBuffer pointer
- * @param[in] fpts PTS of buffer (in sec)
- * @param[in] fdts DTS of buffer (in sec)
- * @param[in] fDuration duration of buffer (in sec)
- * @param[in] initFragment flag for buffer type (init, data)
- */
+
 void AAMPGstPlayer::SendTransfer(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration, bool initFragment)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -2813,10 +2715,6 @@ static void AAMPGstPlayer_SignalEOS(GstElement *source )
 }
 
 
-/**
- * @brief Starts processing EOS for a particular stream type
- * @param[in] type stream type
- */
 void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -2848,10 +2746,6 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 }
 
 
-/**
- * @brief Stop playback and any idle handlers active at the time
- * @param[in] keepLastFrame denotes if last video frame should be kept
- */
 void AAMPGstPlayer::Stop(bool keepLastFrame)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3116,9 +3010,6 @@ static std::string GetStatus(gpointer pElementOrBin, int& recursionCount, gpoint
 	return returnStringBuilder;
 }
 
-/**
- * @brief Log the various info related to playback
- */
 void AAMPGstPlayer::DumpStatus(void)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3224,10 +3115,6 @@ void AAMPGstPlayer::Flush(void)
 }
 
 
-/**
- * @brief Pause pipeline and flush 
- * @param playAfterFlush denotes if it should be set to playing at the end
- */
 void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3282,10 +3169,7 @@ void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 	aamp->SyncEnd();
 }
 
-/**
- * @brief Get playback duration in MS
- * @retval playback duration in MS
- */
+
 long AAMPGstPlayer::GetDurationMilliseconds(void)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3328,10 +3212,7 @@ long AAMPGstPlayer::GetDurationMilliseconds(void)
 	return rc;
 }
 
-/**
- * @brief Get playback position in MS
- * @retval playback position in MS
- */
+
 long AAMPGstPlayer::GetPositionMilliseconds(void)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3406,12 +3287,6 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 }
 
 
-/**
- * @brief To pause/play pipeline
- * @param[in] Pause flag to pause/play the pipeline
- * @param[in] forceStopGstreamerPreBuffering - true for disabling bufferinprogress
- * @retval true if content successfully paused
- */
 bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3480,13 +3355,6 @@ bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 }
 
 
-/**
- * @brief Set video display rectangle co-ordinates
- * @param[in] x x co-ordinate of display rectangle
- * @param[in] y y co-ordinate of display rectangle
- * @param[in] w width of display rectangle
- * @param[in] h height of display rectangle
- */
 void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3547,10 +3415,6 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 }
 
 
-/**
- * @brief Set video zoom
- * @param[in] zoom zoom setting to be set
- */
 void AAMPGstPlayer::SetVideoZoom(VideoZoomMode zoom)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3582,10 +3446,6 @@ void AAMPGstPlayer::SetVideoZoom(VideoZoomMode zoom)
 }
 
 
-/**
- * @brief Set video mute
- * @param[in] muted true to mute video otherwise false
- */
 void AAMPGstPlayer::SetVideoMute(bool muted)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3611,10 +3471,6 @@ void AAMPGstPlayer::SetVideoMute(bool muted)
 }
 
 
-/**
- * @brief Set audio volume
- * @param[in] volume audio volume value (0-100)
- */
 void AAMPGstPlayer::SetAudioVolume(int volume)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3625,10 +3481,6 @@ void AAMPGstPlayer::SetAudioVolume(int volume)
 }
 
 
-/**
- * @brief Set audio volume or mute
- * @note set privateContext->audioVolume before calling this function
- */
 void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3713,12 +3565,6 @@ void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 }
 
 
-/**
- * @brief Flush cached GstBuffers and set seek position & rate
- * @param[in] position playback seek position
- * @param[in] rate playback rate
- * @param[in] shouldTearDown flag indicates if pipeline should be destroyed if in invalid state
- */
 void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 {
 	if(ISCONFIGSET(eAAMPConfig_SuppressDecode))
@@ -3858,11 +3704,6 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 }
 
 
-/**
- * @brief Process discontinuity for a stream type
- * @param type stream type
- * @retval true if discontinuity processed
- */
 bool AAMPGstPlayer::Discontinuity(MediaType type)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3885,13 +3726,7 @@ bool AAMPGstPlayer::Discontinuity(MediaType type)
 	return ret;
 }
 
-/**
- * @brief Check if PTS is changing
- *
- * @param[in] timeout - to check if PTS hasn't changed within a time duration
- * @retval true if PTS changed from lastKnown PTS or timeout hasn't expired, will optimistically return true
- * 			if video-pts attribute is not available from decoder
- */
+
 bool AAMPGstPlayer::CheckForPTSChangeWithTimeout(long timeout)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3926,11 +3761,7 @@ bool AAMPGstPlayer::CheckForPTSChangeWithTimeout(long timeout)
 	return ret;
 }
 
-/**
- * @brief Gets Video PTS
- * @param none
- * @retval Video PTS value
- */
+
 long long AAMPGstPlayer::GetVideoPTS(void)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -3957,19 +3788,13 @@ long long AAMPGstPlayer::GetVideoPTS(void)
 	return (long long) currentPTS;
 }
 
-/**
- * @brief Reset EOS SignalledFlag
- */
+
 void AAMPGstPlayer::ResetEOSSignalledFlag()
 {
 	privateContext->eosSignalled = false;
 }
 
-/**
- * @brief Check if cache empty for a media type
- * @param[in] mediaType stream type
- * @retval true if cache empty
- */
+
 bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -4015,9 +3840,7 @@ bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 	return ret;
 }
 
-/**
- * @brief Set pipeline to PLAYING state once fragment caching is complete
- */
+
 void AAMPGstPlayer::NotifyFragmentCachingComplete()
 {
 	FN_TRACE( __FUNCTION__ );
@@ -4036,9 +3859,7 @@ void AAMPGstPlayer::NotifyFragmentCachingComplete()
 	}
 }
 
-/**
- * @brief Set pipeline to PAUSED state to wait on NotifyFragmentCachingComplete()
- */
+
 void AAMPGstPlayer::NotifyFragmentCachingOngoing()
 {
 	FN_TRACE( __FUNCTION__ );
@@ -4049,11 +3870,7 @@ void AAMPGstPlayer::NotifyFragmentCachingOngoing()
 	privateContext->pendingPlayState = true;
 }
 
-/**
- * @brief Get video display's width and height
- * @param[in] width video width
- * @param[in] height video height
- */
+
 void AAMPGstPlayer::GetVideoSize(int &width, int &height)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -4067,9 +3884,6 @@ void AAMPGstPlayer::GetVideoSize(int &width, int &height)
 }
 
 
-/**
- * @brief Increase the rank of AAMP decryptor plugins
- */
 void AAMPGstPlayer::InitializeAAMPGstreamerPlugins(AampLogManager *mLogObj)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -4140,10 +3954,6 @@ void AAMPGstPlayer::InitializeAAMPGstreamerPlugins(AampLogManager *mLogObj)
 }
 
 
-/**
- * @brief Notify EOS to core aamp asynchronously if required.
- * @note Used internally by AAMPGstPlayer
- */
 void AAMPGstPlayer::NotifyEOS()
 {
 	FN_TRACE( __FUNCTION__ );
@@ -4200,10 +4010,7 @@ static void DumpFile(const char* fileName)
 	}
 }
 
-/**
- * @brief Dump diagnostic information
- *
- */
+
 void AAMPGstPlayer::DumpDiagnostics()
 {
 	FN_TRACE( __FUNCTION__ );
@@ -4217,10 +4024,7 @@ void AAMPGstPlayer::DumpDiagnostics()
 #endif
 }
 
-/**
- *   @brief Signal trick mode discontinuity to gstreamer pipeline
- *
- */
+
 void AAMPGstPlayer::SignalTrickModeDiscontinuity()
 {
 	FN_TRACE( __FUNCTION__ );
@@ -4253,10 +4057,7 @@ void AAMPGstPlayer::SeekStreamSink(double position, double rate)
 
 }
 
-/**
- *   @brief Get the video rectangle co-ordinates
- *
- */
+
 std::string AAMPGstPlayer::GetVideoRectangle()
 {
 	FN_TRACE( __FUNCTION__ );
@@ -4264,11 +4065,6 @@ std::string AAMPGstPlayer::GetVideoRectangle()
 }
 
 
-/**
- * @brief Un-pause pipeline and notify buffer end event to player.
- *
- * @param[in] forceStop - true to force end buffering
- */
 void AAMPGstPlayer::StopBuffering(bool forceStop)
 {
 	FN_TRACE( __FUNCTION__ );
@@ -4341,12 +4137,7 @@ void type_check_instance(const char * str, GstElement * elem)
 	AAMPLOG_WARN("%s %p type_check %d", str, elem, G_TYPE_CHECK_INSTANCE (elem));
 }
 
-/**
- * @brief Wait for source element to be configured.
- *
- * @param[in] mediaType - source element for media type
- * @return bool - true if source setup completed within timeout
- */
+
 bool AAMPGstPlayer::WaitForSourceSetup(MediaType mediaType)
 {
 	bool ret = false;
@@ -4384,11 +4175,7 @@ bool AAMPGstPlayer::WaitForSourceSetup(MediaType mediaType)
 	return ret;
 }
 
-/**
- * @brief Forward buffer to aux pipeline
- *
- * @param[in] buffer - input buffer to be forwarded
- */
+
 void AAMPGstPlayer::ForwardBuffersToAuxPipeline(GstBuffer *buffer)
 {
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_AUX_AUDIO];
@@ -4421,11 +4208,7 @@ void AAMPGstPlayer::ForwardBuffersToAuxPipeline(GstBuffer *buffer)
 	}
 }
 
-/**
- * @brief Check if audio buffers to be forwarded or not
- *
- * @return bool - true if audio to be forwarded
- */
+
 bool AAMPGstPlayer::ForwardAudioBuffersToAux()
 {
 	return (privateContext->forwardAudioBuffers && privateContext->stream[eMEDIATYPE_AUX_AUDIO].format != FORMAT_INVALID);
@@ -4435,12 +4218,7 @@ bool AAMPGstPlayer::ForwardAudioBuffersToAux()
  * @}
  */
 
-/**
- * @brief  adjust playback rate
- * @param[in] position playback seek position
- * @param[in] rate playback rate
- * @return true if playrate adjusted
- */
+
 bool AAMPGstPlayer::AdjustPlayBackRate(double position, double rate)
 {
 	FN_TRACE( __FUNCTION__ );

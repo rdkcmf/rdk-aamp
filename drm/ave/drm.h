@@ -57,18 +57,74 @@ struct DrmMetadata
 class AveDrm : public HlsDrmBase
 {
 public:
+	/**
+	 * @brief AveDrm Constructor
+	 */
 	AveDrm();
 	AveDrm(const AveDrm&) = delete;
 	AveDrm& operator=(const AveDrm&) = delete;
+	/**
+	 * @brief Destructor of AveDrm
+	 *
+	 */
 	~AveDrm();
+	/**
+	 * @brief SetMetaData Function to create adapter and listner for Metadata handling
+	 *
+	 * @param[in] aamp      Pointer to PrivateInstanceAAMP object associated with player
+	 * @param[in] metadata  Pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
+	 * @param[in] trackType Track Type ( audio / video)
+	 *
+	 * @retval eDRM_SUCCESS on success
+	 */
 	DrmReturn SetMetaData(class PrivateInstanceAAMP *aamp, void* metadata,int trackType, AampLogManager *logObj=NULL);
+	/**
+	 * @brief Set information required for decryption
+	 *
+	 * @param aamp AAMP instance to be associated with this decryptor
+	 * @param drmInfo DRM information required to decrypt
+	 * @retval eDRM_SUCCESS on success
+	 */
 	DrmReturn SetDecryptInfo(PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo, AampLogManager *logObj=NULL);
+	/**
+	 * @brief Decrypts an encrypted buffer
+	 * @param bucketType Type of bucket for profiling
+	 * @param encryptedDataPtr pointer to encyrpted payload
+	 * @param encryptedDataLen length in bytes of data pointed to by encryptedDataPtr
+	 * @param timeInMs wait time
+	 */
 	DrmReturn Decrypt(ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs);
+	/**
+	 * @brief Release drm session
+	 */
 	void Release();
+	/**
+	 * @brief Cancel timed_wait operation drm_Decrypt
+	 */
 	void CancelKeyWait();
+	/**
+	 * @brief Restore key state post cleanup of
+	 * audio/video TrackState in case DRM data is persisted
+	 */
 	void RestoreKeyState();
+	/**
+	 * @brief Set state and signal waiting threads. Used internally by listener.
+	 *
+	 * @param state State to be set
+	 */
 	void SetState(DRMState state);
+	/**
+	 * @brief GetState Function to return current DRM State
+	 *
+	 * @retval DRMState
+	 */
 	DRMState GetState();
+	/**
+	 * @brief AcquireKey Acquire key for AveDrm instance for Meta provided
+	 *
+	 * @param[in] aamp      Pointer to PrivateInstanceAAMP object associated with player
+	 * @param[in] metadata  Pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
+	 */
 	void AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType, AampLogManager *logObj);
 	DRMState mDrmState;
 private:
@@ -81,13 +137,20 @@ private:
 	pthread_cond_t cond;
 	pthread_mutex_t mutex;
 	// Function to store the new DecrypytInfo 
+	/**
+	 * @brief StoreDecryptInfoIfChanged Checks if DrmInfo to be stored 
+	 *
+	 * @param[in] drmInfo  DRM information required to decrypt
+	 *
+	 * @retval True on new DrmInfo , false if already exist
+	 */
 	bool StoreDecryptInfoIfChanged( const DrmInfo *drmInfo);
 	AampLogManager *mLogObj;
 };
 
 
 /**
-* @struct       data
+* @struct       DRMErrorData 
 * @brief        data structure for poplulating values from DRM listner to senderrorevent.
 */
 typedef struct DRMErrorData
@@ -119,22 +182,81 @@ struct DrmMetadataNode
 class AveDrmManager
 {
 public:
+	/**
+	 * @brief Reset state of AveDrmManager.
+         */
 	static void ResetAll();
+	/**
+	 * @brief Cancel wait inside Decrypt function of all active DRM instances
+	 */
 	static void CancelKeyWaitAll();
+	/**
+	 * @brief Release all active DRM instances
+	 */
 	static void ReleaseAll();
+	/**
+	 * @brief Restore key states of all active DRM instances
+	 */
 	static void RestoreKeyStateAll();
+	/**
+	 * @brief Set DRM meta-data. Creates AveDrm instance if meta-data is not already configured.
+	 *
+	 * @param[in] aamp          AAMP instance associated with the operation.
+	 * @param[in] metaDataNode  DRM meta data node containing meta-data to be set.
+	 * @param[in] trackType     Source track type (audio/video)
+	 */
 	static void SetMetadata(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType, AampLogManager *mLogObj = NULL);
+	/**
+	 * @brief Print DRM metadata hash
+	 *
+	 * @param sha1Hash SHA1 hash to be printed
+	 */
 	static void PrintSha1Hash( char* sha1Hash);
+	/**
+	 * @brief Dump cached DRM licenses
+	 */	
 	static void DumpCachedLicenses();
+	/**
+	 * @brief Flush the hash after index list
+	 *
+	 */
 	static void FlushAfterIndexList(const char* trackname,int trackType);
 	static void UpdateBeforeIndexList(const char* trackname,int trackType);
+	/**
+	 * @brief Check whether meta data is available or not
+	 *
+	 */
 	static int IsMetadataAvailable(char* sha1Hash);
+	/**
+	 * @brief Get AveDrm instance configured with a specific metadata
+	 *
+	 * @param[in] sha1Hash SHA1 hash of meta-data
+	 * @param[in] trackType Sourec track type (audio/video)
+	 *
+	 * @return AveDrm  Instance corresponds to sha1Hash
+	 * @return NULL    If AveDrm instance configured with the meta-data is not available
+	 */
 	static std::shared_ptr<AveDrm> GetAveDrm(char* sha1Hash,int trackType, AampLogManager *logObj=NULL);
+	/**
+	 * @brief AcquireKey Acquire key for Meta data provided for stream type
+	 *
+	 * @param[in] aamp      Pointer to PrivateInstanceAAMP object associated with player
+	 * @param[in] metaDataNode  Pointed to DrmMetadata structure - unpacked binary metadata from EXT-X-FAXS-CM
+	 * @param[in] trackType Track type audio / video
+	 * @param[in] overrideDeferring Flag to indicate override deferring and request key immediately
+	 */
 	static bool AcquireKey(PrivateInstanceAAMP *aamp, DrmMetadataNode *metaDataNode,int trackType, AampLogManager *logObj = NULL, bool overrideDeferring=false);
 	static int GetNewMetadataIndex(DrmMetadataNode* drmMetadataIdx, int drmMetadataCount);
 	static void ApplySessionToken();
 private:
+	/**
+	 * @brief AveDrmManager Constructor.
+	 *
+	 */
 	AveDrmManager();
+	/**
+	 * @brief Reset state of AveDrmManager instance. Used internally
+	 */
 	void Reset();
 	char mSha1Hash[DRM_SHA1_HASH_LEN];
 	std::shared_ptr<AveDrm> mDrm;
@@ -147,7 +269,25 @@ private:
 	static bool mSessionTokenWaitAbort;
 	static std::vector<AveDrmManager*> sAveDrmManager;
 	static long setSessionToken();
+	/**
+	 *  @brief		Curl write callback, used to get the curl o/p
+	 *  			from DRM license, accessToken curl requests.
+	 *
+	 *  @param[in]	ptr - Pointer to received data.
+	 *  @param[in]	size, nmemb - Size of received data (size * nmemb).
+	 *  @param[out]	userdata - Pointer to buffer where the received data is copied.
+	 *  @return		returns the number of bytes processed.
+	 */
 	static size_t write_callback_session(char *ptr, size_t size,size_t nmemb, void *userdata);
+	/**
+	 * @brief
+	 * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
+	 * @param dltotal total bytes expected to download
+	 * @param dlnow downloaded bytes so far
+	 * @param ultotal total bytes expected to upload
+	 * @param ulnow uploaded bytes so far
+	 *
+	 */
 	static int progress_callback(void *clientp,double dltotal,double dlnow,double ultotal, double ulnow );
 };
 

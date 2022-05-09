@@ -1,6 +1,10 @@
 #ifndef OpenCDMSessionAdapter_h
 #define OpenCDMSessionAdapter_h
 
+/**
+ * @file opencdmsessionadapter.h
+ * @brief Handles operation with OCDM session to handle DRM License data
+ */
 
 #include "AampDrmSession.h"
 #include "aampoutputprotection.h"
@@ -13,8 +17,8 @@
 using namespace std;
 
 /**
- * @class AAMPOCDMSessionAdapter
- * @brief Open CDM DRM session
+ * @class Event
+ * @brief class to DRM Event handle
  */
 
 class Event {
@@ -70,6 +74,11 @@ public:
 	        pthread_mutex_unlock(&lock);
         }
 };
+
+/**
+ * @class AAMPOCDMSessionAdapter
+ * @brief Open CDM DRM session
+ */ 
 
 class AAMPOCDMSessionAdapter : public AampDrmSession
 {

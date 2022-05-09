@@ -34,6 +34,12 @@
 #define GSW_CC_COLOR(r,g,b)  ( (((r) & 0xFF) << 16) | (((g) & 0xFF) << 8) | ((b) & 0xFF) )
 
 #define GSW_MAX_CC_COLOR_NAME_LENGTH 32
+
+/**
+ * @struct gsw_CcColor
+ * @brief Structure to hold color information for CC
+ */
+
 typedef struct gsw_CcColor {
     int rgb;
     char name[GSW_MAX_CC_COLOR_NAME_LENGTH];
@@ -76,27 +82,27 @@ typedef enum gsw_CcFontSize {
 
 
 static const char *CCSupportedColors_strings[] = {
-    "BLACK",                /* CCColor_BLACK,            */
-    "WHITE",                /* CCColor_WHITE,            */
-    "RED",                  /* CCColor_RED,              */
-    "GREEN",                /* CCColor_GREEN,            */
-    "BLUE",                 /* CCColor_BLUE,             */
-    "YELLOW",               /* CCColor_YELLOW,           */
-    "MAGENTA",              /* CCColor_MAGENTA,          */
-    "CYAN",                 /* CCColor_CYAN,             */
-    "AUTO",                 /* CCColor_AUTO,             */
+    "BLACK",                /**< CCColor_BLACK,            */
+    "WHITE",                /**< CCColor_WHITE,            */
+    "RED",                  /**< CCColor_RED,              */
+    "GREEN",                /**< CCColor_GREEN,            */
+    "BLUE",                 /**< CCColor_BLUE,             */
+    "YELLOW",               /**< CCColor_YELLOW,           */
+    "MAGENTA",              /**< CCColor_MAGENTA,          */
+    "CYAN",                 /**< CCColor_CYAN,             */
+    "AUTO",                 /**< CCColor_AUTO,             */
 };
 
 static unsigned long CCSupportedColors[] = {
-    0x00000000,             /* CCColor_BLACK,            */
-    0x00ffffff,             /* CCColor_WHITE,            */
-    0x00FF0000,             /* CCColor_RED,              */
-    0x0000FF00,             /* CCColor_GREEN,            */
-    0x000000FF,             /* CCColor_BLUE,             */
-    0x00FFFF00,             /* CCColor_YELLOW,           */
-    0x00FF00FF,             /* CCColor_MAGENTA,          */
-    0x0000FFFF,             /* CCColor_CYAN,             */
-    0xFF000000,             /* CCColor_AUTO,             */
+    0x00000000,             /**< CCColor_BLACK,            */
+    0x00ffffff,             /**< CCColor_WHITE,            */
+    0x00FF0000,             /**< CCColor_RED,              */
+    0x0000FF00,             /**< CCColor_GREEN,            */
+    0x000000FF,             /**< CCColor_BLUE,             */
+    0x00FFFF00,             /**< CCColor_YELLOW,           */
+    0x00FF00FF,             /**< CCColor_MAGENTA,          */
+    0x0000FFFF,             /**< CCColor_CYAN,             */
+    0xFF000000,             /**< CCColor_AUTO,             */
 };
 
 
@@ -159,20 +165,20 @@ typedef enum gsw_CcEdgeType {
  * @brief Closed Captioning Attributes
  */
 typedef struct gsw_CcAttributes {
-    gsw_CcColor charBgColor;    /* character background color */
-    gsw_CcColor charFgColor;    /* character foreground color */
-    gsw_CcColor winColor;       /* window color */
-    gsw_CcOpacity charBgOpacity;    /* background opacity */
-    gsw_CcOpacity charFgOpacity;    /* foreground opacity */
-    gsw_CcOpacity winOpacity;   /* window opacity */
-    gsw_CcFontSize fontSize;    /* font size */
-    gsw_CcFontStyle fontStyle;  /* font style */
-    gsw_CcTextStyle fontItalic; /* italicized font */
-    gsw_CcTextStyle fontUnderline;  /* underlined font */
-    gsw_CcBorderType borderType;    /* window border type */
-    gsw_CcColor borderColor;    /* window border color */
-    gsw_CcEdgeType edgeType;    /* font edge type */
-    gsw_CcColor edgeColor;      /* font edge color */
+    gsw_CcColor charBgColor;		/**< character background color */
+    gsw_CcColor charFgColor;    	/**< character foreground color */
+    gsw_CcColor winColor;       	/**< window color */
+    gsw_CcOpacity charBgOpacity;    	/**< background opacity */
+    gsw_CcOpacity charFgOpacity;    	/**< foreground opacity */
+    gsw_CcOpacity winOpacity;   	/**< window opacity */
+    gsw_CcFontSize fontSize;    	/**< font size */
+    gsw_CcFontStyle fontStyle;  	/**< font style */
+    gsw_CcTextStyle fontItalic; 	/**< italicized font */
+    gsw_CcTextStyle fontUnderline;  	/**< underlined font */
+    gsw_CcBorderType borderType;    	/**< window border type */
+    gsw_CcColor borderColor;    	/**< window border color */
+    gsw_CcEdgeType edgeType;    	/**< font edge type */
+    gsw_CcColor edgeColor;      	/**< font edge color */
 
 } gsw_CcAttributes;
 
@@ -227,29 +233,29 @@ typedef enum _CC_VL_OS_API_RESULT {
 
 typedef enum {
 
-    CCChannel_INCLUSIVE_MINIMUM = 1000, /* Not set */
+    CCChannel_INCLUSIVE_MINIMUM = 1000, /**< Not set */
 
-    CCChannel_CC1,          /* CC1 */
+    CCChannel_CC1,          /**< CC1 */
 
-    CCChannel_CC2,          /* CC2 */
+    CCChannel_CC2,          /**< CC2 */
 
-    CCChannel_CC3,          /* CC3 */
+    CCChannel_CC3,          /**< CC3 */
 
-    CCChannel_CC4,          /* CC4 */
+    CCChannel_CC4,          /**< CC4 */
 
-    CCChannel_TEXT1,        /* Text 1 */
+    CCChannel_TEXT1,        /**< Text 1 */
 
-    CCChannel_TEXT2,        /* Text 2 */
+    CCChannel_TEXT2,        /**< Text 2 */
 
-    CCChannel_TEXT3,        /* Text 3 */
+    CCChannel_TEXT3,        /**< Text 3 */
 
-    CCChannel_TEXT4,        /* Text 4 */
+    CCChannel_TEXT4,        /**< Text 4 */
 
-    CCChannel_NONE,         /* Used to Set Digital channel to none. (Used to Disable Analog CC ) */
+    CCChannel_NONE,         /**< Used to Set Digital channel to none. (Used to Disable Analog CC ) */
 
-    CCChannel_XDS,          /* XDS */
+    CCChannel_XDS,          /**< XDS */
 
-    CCChannel_EXCLUSIVE_MAXIMUM /* Exclusive bounds check */
+    CCChannel_EXCLUSIVE_MAXIMUM /**< Exclusive bounds check */
 } CCAnalogChannel_t;
 
 typedef enum gsw_CcAnalogServices {
@@ -341,11 +347,11 @@ typedef enum {
  * @brief Closed Caption Status values as referred to by Applications
  */
 typedef enum {
-    CCStatus_OFF = 0,       /* Closed Caption Disabled */
+    CCStatus_OFF = 0,       /**< Closed Caption Disabled */
 
-    CCStatus_ON,            /* Closed Caption Enabled */
+    CCStatus_ON,            /**< Closed Caption Enabled */
 
-    CCStatus_ON_MUTE,       /* Closed Caption ON MUTE */
+    CCStatus_ON_MUTE,       /**< Closed Caption ON MUTE */
 
     CCStatus_EXCLUSIVE_MAXIMUM
 } CCStatus_t;

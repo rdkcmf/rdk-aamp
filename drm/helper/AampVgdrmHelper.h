@@ -32,6 +32,11 @@
 #error "No memory model for interchange"
 #endif
 
+/**
+ * @class AampVgdrmHelper
+ * @brief Handles the operation for Vg DRM 
+ */
+
 class AampVgdrmHelper : public AampDrmHelper
 {
 public:
@@ -81,6 +86,11 @@ private:
 	AampSharedMemorySystem memorySystem;
 #endif
 };
+
+/**
+ * @class AampVgdrmHelperFactory 
+ * @brief Helps to operate Vg DRM
+ */
 
 class AampVgdrmHelperFactory : public AampDrmHelperFactory
 {

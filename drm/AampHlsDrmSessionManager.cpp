@@ -17,6 +17,12 @@
  * limitations under the License.
 */
 
+
+/**
+ * @file AampHlsDrmSessionManager.cpp
+ * @brief Operations for HLS DRM 
+ */
+
 #include "AampHlsDrmSessionManager.h"
 #include "AampDRMSessionManager.h"
 #include "AampDrmHelper.h"

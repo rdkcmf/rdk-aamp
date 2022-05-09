@@ -17,14 +17,14 @@
  * limitations under the License.
 */
 
+/**************************************
+* @file AampCacheHandler.cpp
+* @brief Cache handler operations for AAMP
+**************************************/
+
 #include "AampCacheHandler.h"
 
-/**
- * @brief Insert playlist to playlist cache
- * @param url URL corresponding to playlist
- * @param buffer Contains the playlist
- * @param effectiveUrl Effective URL of playlist
- */
+
 void AampCacheHandler::InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,bool trackLiveStatus,MediaType fileType)
 {
 	PlayListCachedData *tmpData,*newtmpData;
@@ -102,13 +102,6 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 }
 
 
-/**
- * @brief Retrieve playlist from playlist cache
- * @param url URL corresponding to playlist
- * @param[out] buffer Output buffer containing playlist
- * @param[out] effectiveUrl effective URL of retrieved playlist
- * @retval true if playlist is successfully retrieved.
- */
 bool AampCacheHandler::RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, std::string& effectiveUrl)
 {
 	GrowableBuffer* buf = NULL;
@@ -137,9 +130,6 @@ bool AampCacheHandler::RetrieveFromPlaylistCache(const std::string url, Growable
 }
 
 
-/**
- * @brief Clear playlist cache
- */
 void AampCacheHandler::ClearPlaylistCache()
 {
 	AAMPLOG_INFO("cache size %d", (int)mPlaylistCache.size());
@@ -158,9 +148,7 @@ void AampCacheHandler::ClearPlaylistCache()
 	mPlaylistCache.clear();
 }
 
-/**
- * @brief AllocatePlaylistCacheSlot Allocate Slot for adding new playlist
- */
+
 bool AampCacheHandler::AllocatePlaylistCacheSlot(MediaType fileType,size_t newLen)
 {
 	bool retVal = true;
@@ -229,6 +217,7 @@ bool AampCacheHandler::AllocatePlaylistCacheSlot(MediaType fileType,size_t newLe
 	return retVal;
 }
 
+
 void AampCacheHandler::Init()
 {
 	//Check if already initialized
@@ -248,6 +237,8 @@ void AampCacheHandler::Init()
 	}
 	mInitialized = true;
 }
+
+
 void AampCacheHandler::ClearCacheHandler()
 {
 	//Check if already uninitialized
@@ -274,6 +265,8 @@ void AampCacheHandler::ClearCacheHandler()
 	ClearInitFragCache();
 	mInitialized = false;
 }
+
+
 AampCacheHandler::AampCacheHandler(AampLogManager *logObj):
 	mCacheStoredSize(0),mAsyncThreadStartedFlag(false),mAsyncCleanUpTaskThreadId(0),mCacheActive(false),
 	mAsyncCacheCleanUpThread(false),mMutex(),mCondVarMutex(),mCondVar(),mPlaylistCache()
@@ -289,9 +282,7 @@ AampCacheHandler::AampCacheHandler(AampLogManager *logObj):
 	pthread_mutex_init(&mInitFragMutex, NULL);
 }
 
-/**
- * @brief Destructor Function
- */
+
 AampCacheHandler::~AampCacheHandler()
 {
 	if(true == mInitialized)
@@ -303,11 +294,7 @@ AampCacheHandler::~AampCacheHandler()
 	pthread_mutex_destroy(&mInitFragMutex);
 }
 
-/**
- *	 @brief Start playlist caching
- *
- *	 @return void
- */
+
 void AampCacheHandler::StartPlaylistCache()
 {
 	mCacheActive = true;
@@ -315,11 +302,8 @@ void AampCacheHandler::StartPlaylistCache()
 	pthread_cond_signal(&mCondVar);
 	pthread_mutex_unlock(&mCondVarMutex );
 }
-/**
- *	 @brief Stop playlist caching
- *
- *	 @return void
- */
+
+
 void AampCacheHandler::StopPlaylistCache()
 {
 	mCacheActive = false;
@@ -328,11 +312,7 @@ void AampCacheHandler::StopPlaylistCache()
 	pthread_mutex_unlock(&mCondVarMutex );
 }
 
-/**
- *	 @brief Thread function for Async Cache clean
- *
- *	 @return void
- */
+
 void AampCacheHandler::AsyncCacheCleanUpTask()
 {
 	pthread_mutex_lock(&mCondVarMutex);
@@ -358,12 +338,6 @@ void AampCacheHandler::AsyncCacheCleanUpTask()
 }
 
 
-/**
-*   @brief SetMaxPlaylistCacheSize - Set Max Cache Size
-*
-*   @param[in] cacheSz- CacheSize
-*   @return None
-*/
 void AampCacheHandler::SetMaxPlaylistCacheSize(int maxPlaylistCacheSz)
 {
 	pthread_mutex_lock(&mMutex);
@@ -371,11 +345,8 @@ void AampCacheHandler::SetMaxPlaylistCacheSize(int maxPlaylistCacheSz)
 	AAMPLOG_WARN("Setting mMaxPlaylistCacheSize to :%d",maxPlaylistCacheSz);
 	pthread_mutex_unlock(&mMutex);	
 }
-/**
-*   @brief IsUrlCached - Check if URL is already cached
-*
-*   @return bool - true if file found, else false
-*/
+
+
 bool AampCacheHandler::IsUrlCached(std::string url)
 {
 	bool retval = false;
@@ -388,13 +359,7 @@ bool AampCacheHandler::IsUrlCached(std::string url)
 	return retval;
 }
 
-/**
- * @brief Insert init fragment to cache table
- * @param url URL for init fragment
- * @param buffer Contains the init fragment data
- * @param effectiveUrl Effective URL of init fragment
- * @param fileType file format of init fragment
- */
+
 void AampCacheHandler::InsertToInitFragCache(const std::string url, const GrowableBuffer* buffer,
 						std::string effectiveUrl, MediaType fileType)
 {
@@ -475,15 +440,9 @@ void AampCacheHandler::InsertToInitFragCache(const std::string url, const Growab
 	pthread_mutex_unlock(&mInitFragMutex);
 }
 
-/**
- * @brief Retrieve init fragment from fragment cache table
- * @param url URL corresponding to init fragment
- * @param[out] buffer Output buffer containing init fragment
- * @param[out] effectiveUrl effective URL of retrieved init fragment
- * @retval true if init fragment is successfully retrieved.
- */
+
 bool AampCacheHandler::RetrieveFromInitFragCache(const std::string url, GrowableBuffer* buffer,
-													std::string& effectiveUrl)
+									std::string& effectiveUrl)
 {
 	GrowableBuffer* buf = NULL;
 	bool ret;
@@ -510,12 +469,8 @@ bool AampCacheHandler::RetrieveFromInitFragCache(const std::string url, Growable
 	return ret;
 }
 
-/**
- * @brief Removes very first inserted entry ( and duplicate entry, if present)  of given filetype
- * from fragment cache table in FIFO order, also removes the corresponding url from track queue.
- * @param fileType type of file format to be removed from cache table
- */
- void AampCacheHandler::RemoveInitFragCacheEntry ( MediaType fileType )
+
+void AampCacheHandler::RemoveInitFragCacheEntry ( MediaType fileType )
 {
 	CacheTrackQueueIter IterCq = umCacheTrackQ.find(fileType);
 	if(IterCq == umCacheTrackQ.end())
@@ -561,9 +516,7 @@ bool AampCacheHandler::RetrieveFromInitFragCache(const std::string url, Growable
 	}
 }
 
-/**
- * @brief Clear init fragment cache table & track queue table
- */
+
 void AampCacheHandler::ClearInitFragCache()
 {
 	AAMPLOG_INFO("Fragment cache size %d", (int)umInitFragCache.size());
@@ -592,12 +545,7 @@ void AampCacheHandler::ClearInitFragCache()
 	umCacheTrackQ.clear();
 }
 
-/**
-*   @brief SetMaxInitFragCacheSize - Set Max no of init fragment to Cache per track
-*
-*   @param[in] maxInitFragCacheSz- Max no of Cache
-*   @return None
-*/
+
 void AampCacheHandler::SetMaxInitFragCacheSize(int maxInitFragCacheSz)
 {
 	pthread_mutex_lock(&mInitFragMutex);

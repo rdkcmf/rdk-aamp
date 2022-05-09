@@ -19,6 +19,11 @@
 #ifndef _AAMP_WIDEVINE_DRM_HELPER_H
 #define _AAMP_WIDEVINE_DRM_HELPER_H
 
+/**
+ * @file AampWidevineDrmHelper.h
+ * @brief Handles the operation for Wide vine DRM operation
+ */
+
 #include <memory>
 
 #include "AampDrmHelper.h"
@@ -26,6 +31,11 @@
 #define KEYID_MARKER 0x12
 #define CONTENTID_MARKER 0x22
 #define DATA_LENGTH_FIELD_SIZE 2
+
+/**
+ * @class AampWidevineDrmHelper
+ * @brief Handles the operation for Wide vine DRM operation
+ */
 
 class AampWidevineDrmHelper: public AampDrmHelper
 {
@@ -87,6 +97,10 @@ private:
 	int mDefaultKeySlot;
 };
 
+/**
+ * @class AampWidevineDrmHelperFactory
+ * @brief Helps to handle widevine DRM
+ */
 class AampWidevineDrmHelperFactory : public AampDrmHelperFactory
 {
 	std::shared_ptr<AampDrmHelper> createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj=NULL) const;

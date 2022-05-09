@@ -23,9 +23,8 @@
  */
 
 #include "AampScheduler.h"
-/**
- * @brief AampScheduler Constructor
- */
+
+
 AampScheduler::AampScheduler() : mTaskQueue(), mQMutex(), mQCond(),
 	mSchedulerRunning(false), mSchedulerThread(), mExMutex(),
 	mExLock(mExMutex, std::defer_lock), mNextTaskId(AAMP_SCHEDULER_ID_DEFAULT),
@@ -34,9 +33,7 @@ AampScheduler::AampScheduler() : mTaskQueue(), mQMutex(), mQCond(),
 {
 }
 
-/**
- * @brief AampScheduler Destructor
- */
+
 AampScheduler::~AampScheduler()
 {
 	if (mSchedulerRunning)
@@ -45,11 +42,7 @@ AampScheduler::~AampScheduler()
 	}
 }
 
-/**
- * @brief To start scheduler thread
- *
- * @return void
- */
+
 void AampScheduler::StartScheduler()
 {
 	//Turn on thread for processing async operations
@@ -59,12 +52,7 @@ void AampScheduler::StartScheduler()
 	AAMPLOG_WARN("Started Async Worker Thread");
 }
 
-/**
- * @brief To schedule a task to be executed later
- *
- * @param[in] obj - object to be scheduled
- * @return void
- */
+
 int AampScheduler::ScheduleTask(AsyncTaskObj obj)
 {
 	int id = AAMP_TASK_ID_INVALID;
@@ -100,11 +88,7 @@ int AampScheduler::ScheduleTask(AsyncTaskObj obj)
 	return id;
 }
 
-/**
- * @brief Executes scheduled tasks - invoked by thread
- *
- * @return void
- */
+
 void AampScheduler::ExecuteAsyncTask()
 {
 	std::unique_lock<std::mutex>lock(mQMutex);
@@ -149,11 +133,7 @@ void AampScheduler::ExecuteAsyncTask()
 	AAMPLOG_INFO("Exited Async Worker Thread");
 }
 
-/**
- * @brief To remove all scheduled tasks and prevent further tasks from scheduling
- *
- * @return void
- */
+
 void AampScheduler::RemoveAllTasks()
 {
 	std::lock_guard<std::mutex>lock(mQMutex);
@@ -164,11 +144,7 @@ void AampScheduler::RemoveAllTasks()
 	}
 }
 
-/**
- * @brief To stop scheduler and associated resources
- *
- * @return void
- */
+
 void AampScheduler::StopScheduler()
 {
 	AAMPLOG_WARN("Stopping Async Worker Thread");
@@ -181,11 +157,7 @@ void AampScheduler::StopScheduler()
         mSchedulerThread.join();
 }
 
-/**
- * @brief To acquire execution lock for synchronisation purposes
- *
- * @return void
- */
+
 void AampScheduler::SuspendScheduler()
 {
 	mExLock.lock();
@@ -193,11 +165,7 @@ void AampScheduler::SuspendScheduler()
 	mLockOut = true;
 }
 
-/**
- * @brief To remove all scheduled tasks
- *
- * @return void
- */
+
 void AampScheduler::ResumeScheduler()
 {
 	mExLock.unlock();
@@ -205,12 +173,7 @@ void AampScheduler::ResumeScheduler()
 	mLockOut = false;
 }
 
-/**
- * @brief To remove a scheduled tasks with ID
- *
- * @param[in] id - ID of task to be removed
- * @return bool true if removed, false otherwise
- */
+
 bool AampScheduler::RemoveTask(int id)
 {
 	bool ret = false;
@@ -235,22 +198,14 @@ bool AampScheduler::RemoveTask(int id)
 	return ret;
 }
 
-/**
- * @brief To enable scheduler to queue new tasks
- *
- * @return void
- */
+
 void AampScheduler::EnableScheduleTask()
 {
 	std::lock_guard<std::mutex>lock(mQMutex);
 	mLockOut = false;
 }
 
-/**
- * @brief To Set the state of the player
- *
- * @return void
- */
+
 void AampScheduler::SetState(PrivAAMPState sstate)
 {
 	mState = sstate;

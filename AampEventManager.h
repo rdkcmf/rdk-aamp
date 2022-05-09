@@ -43,19 +43,23 @@
  */
 struct ListenerData {
 	EventListener* eventListener;   /**< Event listener */
-	ListenerData* pNext;                /**< Next listener */
+	ListenerData* pNext;            /**< Next listener */
 };
 
+/**
+ * @class AampEventManager
+ * @brief Class to Handle Aamp Events
+ */ 
 
 class AampEventManager
 {
 
 private:
-	bool mIsFakeTune;		/**< Flag indicating if fake tune enabled or not  */
-	bool mAsyncTuneEnabled;		/**< Flag indicating if Async tune enabled or not  */
-	PrivAAMPState mPlayerState;	/**< Player state flag , updated only at start and Release */
-	pthread_mutex_t mMutexVar ;
-	int mEventPriority;		/**< Async Event task Priority  */
+	bool mIsFakeTune;		     /**< Flag indicating if fake tune enabled or not  */
+	bool mAsyncTuneEnabled;		     /**< Flag indicating if Async tune enabled or not  */
+	PrivAAMPState mPlayerState;	     /**< Player state flag , updated only at start and Release */
+	pthread_mutex_t mMutexVar ;          /**< Mutex variable to handle pending and dispatch operation */
+	int mEventPriority;		     /**< Async Event task Priority  */
 	// Separate registration for each event
 	ListenerData* mEventListeners[AAMP_MAX_NUM_EVENTS];		/**< Event listener registration */
 	int mEventStats[AAMP_MAX_NUM_EVENTS];				/**< Event stats */
@@ -72,23 +76,25 @@ private:
 	 */
 	void AsyncEvent();
 	/**
-	 * @brief GetSourceID - GetSourceId of the function
+	 * @brief GetSourceID - Get the idle task's source ID
 	 * @return Source Id
 	 */
 	guint GetSourceID();
 	/**
 	 * @brief SetCallbackAsDispatched - Set callbackId as dispatched/done
-	 * @param guint - CallbackId for the IdleEvent
+	 * @param id - CallbackId for the IdleEvent
 	 * @return void
 	 */
 	void SetCallbackAsDispatched(guint id);
 	/**
 	 * @brief SetCallbackAsPending - Set callbackId as Pending/to be done
-	 * @param guint - CallbackId for the IdleEvent
+	 * @param id - CallbackId for the IdleEvent
 	 * @return void
 	 */
 	void SetCallbackAsPending(guint id);
-	// Thread entry function for Async Event Processing
+	/**
+	 * @brief Thread entry function for Async Event Processing
+	 */
 	static gboolean EventManagerThreadFunction(gpointer This)
 	{
 		guint callbackId =	g_source_get_id(g_main_current_source());
@@ -99,13 +105,13 @@ private:
 	}
 	/**
 	 * @brief SendEventAsync - Function to send events Async
-	 * @param AAMPEventPtr - Event data
+	 * @param eventData - Event data
 	 * @return void
 	 */
 	void SendEventAsync(const AAMPEventPtr &eventData);
 	/**
 	 * @brief SendEventSync - Function to send events sync
-	 * @param AAMPEventPtr - Event data
+	 * @param eventData - Event data
 	 * @return void
 	 */
 	void SendEventSync(const AAMPEventPtr &eventData);
@@ -118,82 +124,87 @@ public:
 	 *	 @return void
 	 */
 	AampEventManager(AampLogManager *logObj);
-
 	/**
 	* @brief Destructor Function
 	*/
 	~AampEventManager();
-
-
 	/**
 	 * @brief SetFakeTuneFlag - Some events are restricted for FakeTune
-	 * @param boolean - True for FakeTune
+	 * @param isFakeTuneSetting - True for FakeTune
 	 * @return void
 	 */
 	void SetFakeTuneFlag(bool isFakeTuneSetting);
 	/**
 	 * @brief SetAsyncTuneState - Flag for Async Tune
-	 * @param boolean - True for Async tune
+	 * @param isAsyncTuneSetting - True for Async tune
 	 * @return void
 	 */
 	void SetAsyncTuneState(bool isAsyncTuneSetting);
 	/**
 	 * @brief SetPlayerState - Flag to update player state
-	 * @param PrivAAMPState - Player state
+	 * @param state - Aamp Player state
 	 * @return void
 	 */
 	void SetPlayerState(PrivAAMPState state);
 	/**
 	 * @brief SendEvent - Generic function to send events
-	 * @param AAMPEventPtr - Event data
+	 * @param eventData - Event data
+	 * @param eventMode - Aamp Event mode
 	 * @return void
 	 */
 	void SendEvent(const AAMPEventPtr &eventData, AAMPEventMode eventMode=AAMP_EVENT_DEFAULT_MODE);
 	/**
 	 * @brief AddListenerForAllEvents - Register one listener for all events
-	 * @param EventListener - listerner for events
+	 * @param eventListener - listerner for events
 	 * @return void
 	 */
 	void AddListenerForAllEvents(EventListener* eventListener);
 	/**
 	 * @brief RemoveListenerForAllEvents - Remove listener for all events
-	 * @param EventListener - listerner for events
+	 * @param eventListener - listerner for events
 	 * @return void
 	 */	
 	void RemoveListenerForAllEvents(EventListener* eventListener);
 	/**
 	 * @brief AddEventListener - Register  listener for one eventtype
-	 * @param EventListener - listerner for events
+	 * @param eventType - Aamp Event type
+	 * @param eventListener - listerner for events
 	 * @return void
 	 */
 	void AddEventListener(AAMPEventType eventType, EventListener* eventListener);
 	/**
 	 * @brief RemoveEventListener - Remove one listener registration for one event
-	 * @param EventListener - listerner for events
+	 * @param eventType - Aamp Event type
+	 * @param eventListener - listerner for events
 	 * @return void
 	 */
 	void RemoveEventListener(AAMPEventType eventType, EventListener* eventListener);
 	/**
 	 * @brief IsEventListenerAvailable - Check if any listners present for this event
-	 * @param AAMPEventType - Event Type
+	 * @param eventType - Aamp Event Type
 	 * @return True if listner present
 	 */
 	bool IsEventListenerAvailable(AAMPEventType eventType);
 	/**
 	 * @brief IsSpecificEventListenerAvailable - Check if this particular listener present for this event
-	 * @param AAMPEventType - Event Type
+	 * @param eventType - Event Type
 	 * @return True if listner present
 	 */
 	bool IsSpecificEventListenerAvailable(AAMPEventType eventType);
-
 	/**
 	 * @brief FlushPendingEvents - Clear all pending events from EventManager
 	 * @return void
 	 */
 	void FlushPendingEvents();
-
-	// Copy constructor and Copy assignment disabled
+	/**
+         * @brief Copy constructor disabled
+         *
+         */
 	AampEventManager(const AampEventManager&) = delete;
+	/**
+         * @brief assignment operator disabled
+         *
+         */
 	AampEventManager& operator=(const AampEventManager&) = delete;
 };
 

@@ -20,20 +20,26 @@
 #ifndef AAMPDRMMEDIAFORMAT_H
 #define AAMPDRMMEDIAFORMAT_H
 
+/** 
+ * @file AampDrmMediaFormat.h
+ * @brief Types of Media 
+ */
+
 /**
+ * @enum MediaFormat
  * @brief Media format types
  */
 typedef enum
 {
-	eMEDIAFORMAT_HLS,
-	eMEDIAFORMAT_DASH,
-	eMEDIAFORMAT_PROGRESSIVE,
-	eMEDIAFORMAT_HLS_MP4,
-	eMEDIAFORMAT_OTA,
-	eMEDIAFORMAT_HDMI,
-	eMEDIAFORMAT_COMPOSITE,
-	eMEDIAFORMAT_SMOOTHSTREAMINGMEDIA,
-	eMEDIAFORMAT_UNKNOWN
+	eMEDIAFORMAT_HLS,		   /**< HLS Media */
+	eMEDIAFORMAT_DASH,		   /**< Dash Media */
+	eMEDIAFORMAT_PROGRESSIVE,	   /**< Progressive Media */
+	eMEDIAFORMAT_HLS_MP4,		   /**< HLS mp4 Format */
+	eMEDIAFORMAT_OTA,		   /**< OTA Media */
+	eMEDIAFORMAT_HDMI,		   /**< HDMI Format */
+	eMEDIAFORMAT_COMPOSITE,		   /**< Composite Media */
+	eMEDIAFORMAT_SMOOTHSTREAMINGMEDIA, /**< Smooth streaming Media */
+	eMEDIAFORMAT_UNKNOWN		   /**< Unknown media format */
 } MediaFormat;
 
 #endif /* AAMPDRMMEDIAFORMAT_H */

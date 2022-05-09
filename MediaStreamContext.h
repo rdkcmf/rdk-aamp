@@ -20,6 +20,11 @@
 #ifndef MEDIASTREAMCONTEXT_H
 #define MEDIASTREAMCONTEXT_H
 
+/**
+ * @file MediaStreamContext.h
+ * @brief Handles operations for Media stream context
+ */
+
 #include "StreamAbstractionAAMP.h"
 #include "fragmentcollector_mpd.h"
 
@@ -33,7 +38,7 @@ public:
     /**
      * @brief MediaStreamContext Constructor
      * @param type Type of track
-     * @param context  MPD collector context
+     * @param ctx context  MPD collector context
      * @param aamp Pointer to associated aamp instance
      * @param name Name of the track
      */
@@ -98,7 +103,7 @@ public:
      * @param range byte range
      * @param initSegment true if fragment is init fragment
      * @param discontinuity true if fragment is discontinuous
-     * @param  playingAd flag if playing Ad
+     * @param playingAd flag if playing Ad
      * @param pto unscaled pto value from mpd
      * @param scale timeScale value from mpd
      * @retval true on success
@@ -107,10 +112,10 @@ public:
 
     /**
      * @brief Cache Fragment Chunk
-     * @param MediaType type of cached media
-     * @param char* CURL provided chunk data
-     * @param size_t CURL provided chunk data size
-     * @param fragmentUrl url of fragment
+     * @param actualType MediaType type of cached media
+     * @param ptr CURL provided chunk data
+     * @param size CURL provided chunk data size
+     * @param remoteUrl url of fragment
      */
     bool CacheFragmentChunk(MediaType actualType, char *ptr, size_t size, std::string remoteUrl);
 

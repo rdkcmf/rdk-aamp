@@ -51,6 +51,9 @@
 
 typedef std::function<void (void *)> AsyncTask;
 
+/**
+ * @brief Async task operations
+ */
 struct AsyncTaskObj
 {
 	AsyncTask mTask;
@@ -178,17 +181,17 @@ protected:
 	 */
 	void ExecuteAsyncTask();
 
-	std::deque<AsyncTaskObj> mTaskQueue;	// Queue for storing scheduled tasks
-	std::mutex mQMutex;			// Mutex for accessing mTaskQueue
-	std::condition_variable mQCond;		// To notify when a task is queued in mTaskQueue
-	bool mSchedulerRunning;			// Flag denotes if scheduler thread is running
-	std::thread mSchedulerThread;		// Scheduler thread
-	std::mutex mExMutex;			// Execution mutex for synchronization
-	std::unique_lock<std::mutex> mExLock;	// Lock to be used by SuspendScheduler and ResumeScheduler
-	int mNextTaskId;			// counter that holds ID value of next task to be scheduled
-	int mCurrentTaskId;			// ID of current executed task
-	bool mLockOut;				// flag indicates if the queue is locked out or not
-	PrivAAMPState mState;		// Player State
+	std::deque<AsyncTaskObj> mTaskQueue;	/**< Queue for storing scheduled tasks */
+	std::mutex mQMutex;			/**< Mutex for accessing mTaskQueue */
+	std::condition_variable mQCond;		/**< To notify when a task is queued in mTaskQueue */
+	bool mSchedulerRunning;			/**< Flag denotes if scheduler thread is running */
+	std::thread mSchedulerThread;		/**< Scheduler thread */
+	std::mutex mExMutex;			/**< Execution mutex for synchronization */
+	std::unique_lock<std::mutex> mExLock;	/**< Lock to be used by SuspendScheduler and ResumeScheduler */
+	int mNextTaskId;			/**< counter that holds ID value of next task to be scheduled */
+	int mCurrentTaskId;			/**< ID of current executed task */
+	bool mLockOut;				/**< flag indicates if the queue is locked out or not */
+	PrivAAMPState mState;		        /**< Player State */
 };
 
 #endif /* __AAMP_SCHEDULER_H__ */

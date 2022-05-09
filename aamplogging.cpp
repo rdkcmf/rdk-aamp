@@ -44,30 +44,20 @@ static char gAampCliCfg[] = "/opt/aampcli.cfg";
 /*-----------------------------------------------------------------------------------------------------*/
 bool AampLogManager::disableLogRedirection = false;
 
-/**
- * @brief To check the given log level is allowed to print mechanism
- * @param[in] chkLevel - log level
- * @retval true if the log level allowed for print mechanism
- */
+
 bool AampLogManager::isLogLevelAllowed(AAMP_LogLevel chkLevel)
 {
 	return (chkLevel>=aampLoglevel);
 }
 
-/**
- * @brief Set the log level for print mechanism
- * @param[in] newLevel - log level new value
- * @retuen void
- */
+
 void AampLogManager::setLogLevel(AAMP_LogLevel newLevel)
 {
 	if(!info && !debug && !trace)
 		aampLoglevel = newLevel;
 }
 
-/**
- * @brief Set log file and cfg directory index.
- */
+
 void AampLogManager::setLogAndCfgDirectory(char driveName)
 {
 	gAampLog[0] = driveName;
@@ -75,17 +65,13 @@ void AampLogManager::setLogAndCfgDirectory(char driveName)
 	gAampCliCfg[0] = driveName;
 }
 
-/**
- * @brief Get aamp cfg directory.
- */
+
 const char* AampLogManager::getAampCfgPath(void)
 {
 	return gAampCfg;
 }
 
-/**
- * @brief Get aamp cfg directory.
- */
+
 const char* AampLogManager::getAampCliCfgPath(void)
 {
 	return gAampCliCfg;
@@ -100,14 +86,7 @@ std::string AampLogManager::getHexDebugStr(const std::vector<uint8_t>& data)
 	return hexSs.str();
 }
 
-/**
- * @brief Print the network latency level logging for triage purpose
- * @param[in] url - content url
- * @param[in] downloadTime - download time of the fragment or manifest
- * @param[in] downloadThresholdTimeoutMs - specified download threshold time out value
- * @param[in] type - media type
- * @retuen void
- */
+
 void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int downloadThresholdTimeoutMs, MediaType type)
 {
 	std::string contentType;
@@ -120,14 +99,7 @@ void AampLogManager::LogNetworkLatency(const char* url, int downloadTime, int do
 		downloadTime, downloadThresholdTimeoutMs, contentType.c_str(), location.c_str(), symptom.c_str(), url);
 }
 
-/**
- * @brief Print the network error level logging for triage purpose
- * @param[in] url - content url
- * @param[in] errorType - it can be http or curl errors
- * @param[in] errorCode - it can be http error or curl error code
- * @param[in] type - media type
- * @retuen void
- */
+
 void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType errorType, int errorCode, MediaType type)
 {
 	std::string contentType;
@@ -173,15 +145,7 @@ void AampLogManager::LogNetworkError(const char* url, AAMPNetworkErrorType error
 	}
 }
 
-/**
- * @brief To get the issue symptom based on the error type for triage purpose
- * @param[in] url - content url
- * @param[out] contentType - it could be a manifest or other audio/video/iframe tracks
- * @param[out] location - server location
- * @param[out] symptom - issue exhibiting scenario for error case
- * @param[in] type - media type
- * @retuen void
- */
+
 void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, std::string& location, std::string& symptom, MediaType type)
 {
 	static const char *mMediaTypes[eMEDIATYPE_DEFAULT] = { // enum MediaType
@@ -277,12 +241,7 @@ void AampLogManager::ParseContentUrl(const char* url, std::string& contentType, 
 	}
 }
 
-/**
- * @brief Print the DRM error level logging for triage purpose
- * @param[in] major - drm major error code
- * @param[in] minor - drm minor error code
- * @retuen void
- */
+
 void AampLogManager::LogDRMError(int major, int minor)
 {
 	std::string description;
@@ -368,11 +327,7 @@ void AampLogManager::LogDRMError(int major, int minor)
 	AAMPLOG(this, eLOGLEVEL_ERROR, "ERROR", "AAMPLogDRMError error=%d.%d description='%s'", major, minor, description.c_str());
 }
 
-/**
- * @brief Log ABR info for triage purpose
- * @param[in] pstAbrInfo - pointer to a structure which will have abr info to be logged
- * @return void
- */
+
 void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
 {
 	if (pstAbrInfo)
@@ -432,11 +387,7 @@ void AampLogManager::LogABRInfo(AAMPAbrInfo *pstAbrInfo)
 	}
 }
 
-/**
- * @brief Check curl error before log on console.
- * @param[in] errorCode - curl error
- * @retuen true if it is not a curl error 23 and 42, bcasue those are not a real network errors.
- */
+
 bool AampLogManager::isLogworthyErrorCode(int errorCode)
 {
 	bool returnValue = false;
@@ -449,11 +400,7 @@ bool AampLogManager::isLogworthyErrorCode(int errorCode)
 	return returnValue;
 }
 
-/**
- * @brief Print logs to console / log file
- * @param[in] format - printf style string
- * @retuen void
- */
+
 void logprintf(const char *format, ...)
 {
 	int len = 0;
@@ -502,11 +449,6 @@ void logprintf(const char *format, ...)
 }
 
 
-/**
- * @brief Print logs to console / log file
- * @param[in] format - printf style string
- * @retuen void
- */
 void logprintf_new(int playerId,const char* levelstr,const char* file, int line,const char *format, ...)
 {
 	int len = 0;
@@ -555,14 +497,6 @@ void logprintf_new(int playerId,const char* levelstr,const char* file, int line,
 }
 
 
-/**
- * @brief Compactly log blobs of binary data
- *
- * @param[in] ptr to the buffer
- * @param[in] size_t    length of buffer
- *
- * @return void
- */
 void DumpBlob(const unsigned char *ptr, size_t len)
 {
 #define FIT_CHARS 64

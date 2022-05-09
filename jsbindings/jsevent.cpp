@@ -38,9 +38,7 @@
 static JSClassRef AAMPJSEvent_class_ref();
 
 #ifdef JSEVENT_WITH_NATIVE_MEMORY
-/**
- * @brief AAMPJSEvent Constructor
- */
+
 AAMPJSEvent::AAMPJSEvent()
 	: _bubbles(false)
 	, _cancelable(false)
@@ -60,12 +58,7 @@ AAMPJSEvent::AAMPJSEvent()
 }
 
 
-/**
- * @brief AAMPJSEvent Constructor
- * @param[in] type event type
- * @param[in] bubble true if event is a bubbling event
- * @param[in] cancelable true if event default operation can be cancelled
- */
+
 AAMPJSEvent::AAMPJSEvent(const char *type, bool bubble, bool cancelable)
 	: _bubbles(bubble)
 	, _cancelable(cancelable)
@@ -84,9 +77,7 @@ AAMPJSEvent::AAMPJSEvent(const char *type, bool bubble, bool cancelable)
 
 }
 
-/**
- * @brief AAMPJSEvent Destructor
- */
+
 AAMPJSEvent::~AAMPJSEvent()
 {
 	if(_target != NULL)
@@ -101,12 +92,7 @@ AAMPJSEvent::~AAMPJSEvent()
 }
 
 
-/**
- * @brief Initialize event's properties
- * @param[in] type event type
- * @param[in] bubble true if event is a bubbling event
- * @param[in] cancelable true if event default operation can be cancelled
- */
+
 void AAMPJSEvent::initEvent(const char *type, bool bubble, bool cancelable)
 {
 	_typeName = type;
@@ -526,14 +512,8 @@ static const JSClassDefinition AAMPJSEvent_object_def =
 	NULL
 };
 
-/**
- * @brief To create a new JS event instance
- * @param[in] ctx JS execution context
- * @param[in] type event type
- * @param[in] bubbles denotes if event support bubbling
- * @param[in] cancelable denotes if event is cancelable
- * @retval JSObject of the new instance created
- */
+
+
 JSObjectRef createNewAAMPJSEvent(JSGlobalContextRef ctx, const char *type, bool bubbles, bool cancelable)
 {
         JSObjectRef eventObj = JSObjectMake(ctx, AAMPJSEvent_class_ref(), NULL);

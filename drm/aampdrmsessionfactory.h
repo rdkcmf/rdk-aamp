@@ -36,6 +36,13 @@
 class AampDrmSessionFactory
 {
 public:
+	
+	/**
+	 *  @brief	Creates an appropriate DRM session based on the given DrmHelper
+	 *
+	 *  @param[in]	drmHelper - DrmHelper instance
+	 *  @return		Pointer to DrmSession.
+	 */
 	static AampDrmSession* GetDrmSession(AampLogManager *logObj, std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *drmCallbacks);
 };
 #endif

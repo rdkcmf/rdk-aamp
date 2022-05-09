@@ -37,17 +37,50 @@
 class AAMP_JSEventListener : public AAMPEventObjectListener
 {
 public:
-
+	/**
+	 * @brief Adds a JS function as listener for a particular event
+	 * @param[in] obj instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
 	static void AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
+	/**
+	 * @brief Removes a JS listener for a particular event
+	 * @param[in] obj instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be removed as listener
+	 */
 	static void RemoveEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
-
+	/**
+	 * @brief Remove all JS listeners registered
+	 * @param[in] obj instance of PrivAAMPStruct_JS
+	 */
 	static void RemoveAllEventListener(PrivAAMPStruct_JS* obj);
-
+	/**
+	 * @brief AAMP_JSEventListener Constructor
+	 * @param[in] obj instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback for the event type
+	 */
 	AAMP_JSEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
+	/**
+	 * @brief AAMP_JSEventListener Destructor
+	 */
 	~AAMP_JSEventListener();
+	/**
+         * @brief Copy constructor disabled
+         *
+         */
 	AAMP_JSEventListener(const AAMP_JSEventListener&) = delete;
+	/**
+ 	 * @brief assignment operator disabled
+  	 *
+ 	 */
 	AAMP_JSEventListener& operator=(const AAMP_JSEventListener&) = delete;
-
+	/**
+	 * @brief Callback invoked for dispatching event
+	 * @param[in] e AAMPEventPtr event object
+	 */
 	void Event(const AAMPEventPtr& e);
 
 	virtual void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
@@ -55,9 +88,9 @@ public:
 	}
 
 public:
-	PrivAAMPStruct_JS* p_obj;  /** JS execution context to use **/
-	AAMPEventType p_type;       /** event type **/
-	JSObjectRef p_jsCallback;   /** callback registered for event **/
+	PrivAAMPStruct_JS* p_obj;   /**< JS execution context to use */
+	AAMPEventType p_type;       /**< event type */
+	JSObjectRef p_jsCallback;   /**< callback registered for event */
 };
 
 #endif /** __AAMP_JSEVENTLISTENER__H__ **/

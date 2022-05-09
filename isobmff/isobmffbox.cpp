@@ -27,13 +27,7 @@
 #include "AampUtils.h"
 #include <stddef.h>
 #include <inttypes.h>
-/**
- * @brief Read a string from buffer and return it
- *
- * @param[in] buffer Buffer to read
- * @param[in] lenth String length
- * @param[in] Length of string
- */
+
 uint32_t ReadCStringLen(const uint8_t* buffer, uint32_t bufferLen)
 {
 	int retLen = -1;
@@ -51,12 +45,7 @@ uint32_t ReadCStringLen(const uint8_t* buffer, uint32_t bufferLen)
 	return retLen;
 }
 
-/**
- * @brief Utility function to read 8 bytes from a buffer
- *
- * @param[in] buf - buffer pointer
- * @return bytes read from buffer
- */
+
 uint64_t ReadUint64(uint8_t *buf)
 {
 	uint64_t val = READ_U32(buf);
@@ -64,13 +53,7 @@ uint64_t ReadUint64(uint8_t *buf)
 	return val;
 }
 
-/**
- * @brief Utility function to write 8 bytes to a buffer
- *
- * @param[in] dst - buffer pointer
- * @param[in] value - value to write
- * @return void
- */
+
 void WriteUint64(uint8_t *dst, uint64_t val)
 {
 	uint32_t msw = (uint32_t)(val>>32);
@@ -78,83 +61,49 @@ void WriteUint64(uint8_t *dst, uint64_t val)
 	WRITE_U32(dst, val);
 }
 
-/**
- * @brief Box constructor
- *
- * @param[in] sz - box size
- * @param[in] btype - box type
- */
+
 Box::Box(uint32_t sz, const char btype[4]) : offset(0), size(sz), type{}
 {
 	memcpy(type,btype,4);
 }
 
-/**
- * @brief Set box's offset from the beginning of the buffer
- *
- * @param[in] os - offset
- * @return void
- */
+
 void Box::setOffset(uint32_t os)
 {
 	offset = os;
 }
 
-/**
- * @brief Get box offset
- *
- * @return offset of box
- */
+
 uint32_t Box::getOffset() const
 {
 	return offset;
 }
 
-/**
- * @brief To check if box has any child boxes
- *
- * @return true if this box has other boxes as children
- */
+
 bool Box::hasChildren()
 {
 	return false;
 }
 
-/**
- * @brief Get children of this box
- *
- * @return array of child boxes
- */
+
 const std::vector<Box*> *Box::getChildren()
 {
 	return NULL;
 }
 
-/**
- * @brief Get box size
- *
- * @return box size
- */
+
 uint32_t Box::getSize() const
 {
 	return size;
 }
 
-/**
- * @brief Get box type
- *
- * @return box type
- */
+
 const char *Box::getType()
 {
 	return type;
 }
 
-/**
- * @brief Get box type
- *
- * @return box type
- */
+
 const char* Box::getBoxType() const
 {
     if ((!IS_TYPE(type, MOOV)) ||
@@ -177,13 +126,6 @@ const char* Box::getBoxType() const
 }
 
 
-/**
- * @brief Static function to construct a Box object
- *
- * @param[in] hdr - pointer to box
- * @param[in] maxSz - box size
- * @return newly constructed Box object
- */
 Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, AampLogManager *mLogObj, bool correctBoxSize)
 {
 	L_RESTART:
@@ -277,20 +219,13 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, AampLogManager *mLogObj, bo
 	return new Box(size, (const char *)type);
 }
 
-/**
- * @brief GenericContainerBox constructor
- *
- * @param[in] sz - box size
- * @param[in] btype - box type
- */
+
 GenericContainerBox::GenericContainerBox(uint32_t sz, const char btype[4]) : Box(sz, btype), children()
 {
 
 }
 
-/**
- * @brief GenericContainerBox destructor
- */
+
 GenericContainerBox::~GenericContainerBox()
 {
 	for (unsigned int i = children.size(); i>0;)
@@ -302,45 +237,25 @@ GenericContainerBox::~GenericContainerBox()
 	children.clear();
 }
 
-/**
- * @brief Add a box as a child box
- *
- * @param[in] box - child box object
- * @return void
- */
+
 void GenericContainerBox::addChildren(Box *box)
 {
 	children.push_back(box);
 }
 
-/**
- * @brief To check if box has any child boxes
- *
- * @return true if this box has other boxes as children
- */
+
 bool GenericContainerBox::hasChildren()
 {
 	return true;
 }
 
-/**
- * @brief Get children of this box
- *
- * @return array of child boxes
- */
+
 const std::vector<Box*> *GenericContainerBox::getChildren()
 {
 	return &children;
 }
 
-/**
- * @brief Static function to construct a GenericContainerBox object
- *
- * @param[in] sz - box size
- * @param[in] btype - box type
- * @param[in] ptr - pointer to box
- * @return newly constructed GenericContainerBox object
- */
+
 GenericContainerBox* GenericContainerBox::constructContainer(uint32_t sz, const char btype[4], uint8_t *ptr)
 {
 	GenericContainerBox *cbox = new GenericContainerBox(sz, btype);
@@ -356,69 +271,37 @@ GenericContainerBox* GenericContainerBox::constructContainer(uint32_t sz, const 
 	return cbox;
 }
 
-/**
- * @brief FullBox constructor
- *
- * @param[in] sz - box size
- * @param[in] btype - box type
- * @param[in] ver - version value
- * @param[in] f - flag value
- */
+
 FullBox::FullBox(uint32_t sz, const char btype[4], uint8_t ver, uint32_t f) : Box(sz, btype), version(ver), flags(f)
 {
 
 }
 
-/**
- * @brief MvhdBox constructor
- *
- * @param[in] sz - box size
- * @param[in] tScale - TimeScale value
- */
+
 MvhdBox::MvhdBox(uint32_t sz, uint32_t tScale) : FullBox(sz, Box::MVHD, 0, 0), timeScale(tScale)
 {
 
 }
 
-/**
- * @brief MvhdBox constructor
- *
- * @param[in] fbox - box object
- * @param[in] tScale - TimeScale value
- */
+
 MvhdBox::MvhdBox(FullBox &fbox, uint32_t tScale) : FullBox(fbox), timeScale(tScale)
 {
 
 }
 
-/**
- * @brief Set TimeScale value
- *
- * @param[in] tScale - TimeScale value
- * @return void
- */
+
 void MvhdBox::setTimeScale(uint32_t tScale)
 {
 	timeScale = tScale;
 }
 
-/**
- * @brief Get TimeScale value
- *
- * @return TimeScale value
- */
+
 uint32_t MvhdBox::getTimeScale()
 {
 	return timeScale;
 }
 
-/**
- * @brief Static function to construct a MvhdBox object
- *
- * @param[in] sz - box size
- * @param[in] ptr - pointer to box
- * @return newly constructed MvhdBox object
- */
+
 MvhdBox* MvhdBox::constructMvhdBox(uint32_t sz, uint8_t *ptr)
 {
 	uint8_t version = READ_VERSION(ptr);
@@ -439,56 +322,31 @@ MvhdBox* MvhdBox::constructMvhdBox(uint32_t sz, uint8_t *ptr)
 	return new MvhdBox(fbox, tScale);
 }
 
-/**
- * @brief MdhdBox constructor
- *
- * @param[in] sz - box size
- * @param[in] tScale - TimeScale value
- */
+
 MdhdBox::MdhdBox(uint32_t sz, uint32_t tScale) : FullBox(sz, Box::MDHD, 0, 0), timeScale(tScale)
 {
 
 }
 
-/**
- * @brief MdhdBox constructor
- *
- * @param[in] fbox - box object
- * @param[in] tScale - TimeScale value
- */
+
 MdhdBox::MdhdBox(FullBox &fbox, uint32_t tScale) : FullBox(fbox), timeScale(tScale)
 {
 
 }
 
-/**
- * @brief Set TimeScale value
- *
- * @param[in] tScale - TimeScale value
- * @return void
- */
+
 void MdhdBox::setTimeScale(uint32_t tScale)
 {
 	timeScale = tScale;
 }
 
-/**
- * @brief Get TimeScale value
- *
- * @return TimeScale value
- */
+
 uint32_t MdhdBox::getTimeScale()
 {
 	return timeScale;
 }
 
-/**
- * @brief Static function to construct a MdhdBox object
- *
- * @param[in] sz - box size
- * @param[in] ptr - pointer to box
- * @return newly constructed MdhdBox object
- */
+
 MdhdBox* MdhdBox::constructMdhdBox(uint32_t sz, uint8_t *ptr)
 {
 	uint8_t version = READ_VERSION(ptr);
@@ -509,56 +367,31 @@ MdhdBox* MdhdBox::constructMdhdBox(uint32_t sz, uint8_t *ptr)
 	return new MdhdBox(fbox, tScale);
 }
 
-/**
- * @brief TfdtBox constructor
- *
- * @param[in] sz - box size
- * @param[in] mdt - BaseMediaDecodeTime value
- */
+
 TfdtBox::TfdtBox(uint32_t sz, uint64_t mdt) : FullBox(sz, Box::TFDT, 0, 0), baseMDT(mdt)
 {
 
 }
 
-/**
- * @brief TfdtBox constructor
- *
- * @param[in] fbox - box object
- * @param[in] mdt - BaseMediaDecodeTime value
- */
+
 TfdtBox::TfdtBox(FullBox &fbox, uint64_t mdt) : FullBox(fbox), baseMDT(mdt)
 {
 
 }
 
-/**
- * @brief Set BaseMediaDecodeTime value
- *
- * @param[in] mdt - BaseMediaDecodeTime value
- * @return void
- */
+
 void TfdtBox::setBaseMDT(uint64_t mdt)
 {
 	baseMDT = mdt;
 }
 
-/**
- * @brief Get BaseMediaDecodeTime value
- *
- * @return BaseMediaDecodeTime value
- */
+
 uint64_t TfdtBox::getBaseMDT()
 {
 	return baseMDT;
 }
 
-/**
- * @brief Static function to construct a TfdtBox object
- *
- * @param[in] sz - box size
- * @param[in] ptr - pointer to box
- * @return newly constructed TfdtBox object
- */
+
 TfdtBox* TfdtBox::constructTfdtBox(uint32_t sz, uint8_t *ptr)
 {
 	uint8_t version = READ_VERSION(ptr);
@@ -577,12 +410,7 @@ TfdtBox* TfdtBox::constructTfdtBox(uint32_t sz, uint8_t *ptr)
 	return new TfdtBox(fbox, mdt);
 }
 
-/**
- * @brief EmsgBox constructor
- *
- * @param[in] sz - box size
- * @param[in] tScale - TimeScale value
- */
+
 EmsgBox::EmsgBox(uint32_t sz, uint32_t tScale, uint32_t evtDur, uint32_t _id) : FullBox(sz, Box::EMSG, 0, 0)
 	, timeScale(tScale), eventDuration(evtDur), id(_id)
 	, presentationTimeDelta(0), presentationTime(0)
@@ -591,14 +419,7 @@ EmsgBox::EmsgBox(uint32_t sz, uint32_t tScale, uint32_t evtDur, uint32_t _id) : 
 
 }
 
-/**
- * @brief EmsgBox constructor
- *
- * @param[in] fbox - box object
- * @param[in] tScale - TimeScale value
- * @param[in] evtDur - eventDuration value
- * @param[in] _id - id value
- */
+
 EmsgBox::EmsgBox(FullBox &fbox, uint32_t tScale, uint32_t evtDur, uint32_t _id, uint64_t presTime, uint32_t presTimeDelta) : FullBox(fbox)
 	, timeScale(tScale), eventDuration(evtDur), id(_id)
 	, presentationTimeDelta(presTimeDelta), presentationTime(presTime)
@@ -607,9 +428,7 @@ EmsgBox::EmsgBox(FullBox &fbox, uint32_t tScale, uint32_t evtDur, uint32_t _id, 
 
 }
 
-/**
- * @brief EmsgBox dtor
- */
+
 EmsgBox::~EmsgBox()
 {
 	if (messageData)
@@ -628,192 +447,110 @@ EmsgBox::~EmsgBox()
 	}
 }
 
-/**
- * @brief Set TimeScale value
- *
- * @param[in] tScale - TimeScale value
- * @return void
- */
+
 void EmsgBox::setTimeScale(uint32_t tScale)
 {
 	timeScale = tScale;
 }
 
-/**
- * @brief Get TimeScale value
- *
- * @return TimeScale value
- */
+
 uint32_t EmsgBox::getTimeScale()
 {
 	return timeScale;
 }
 
-/**
- * @brief Set eventDuration value
- *
- * @param[in] evtDur - eventDuration value
- * @return void
- */
+
 void EmsgBox::setEventDuration(uint32_t evtDur)
 {
 	eventDuration = evtDur;
 }
 
-/**
- * @brief Get eventDuration
- *
- * @return eventDuration value
- */
+
 uint32_t EmsgBox::getEventDuration()
 {
 	return eventDuration;
 }
 
-/**
- * @brief Set id
- *
- * @param[in] _id - id
- * @return void
- */
+
 void EmsgBox::setId(uint32_t _id)
 {
 	id = _id;
 }
 
-/**
- * @brief Get id
- *
- * @return id value
- */
+
 uint32_t EmsgBox::getId()
 {
 	return id;
 }
 
-/**
- * @brief Set presentationTimeDelta
- *
- * @param[in] presTimeDelta - presTimeDelta
- * @return void
- */
+
 void EmsgBox::setPresentationTimeDelta(uint32_t presTimeDelta)
 {
 	presentationTimeDelta = presTimeDelta;
 }
 
-/**
- * @brief Get presentationTimeDelta
- *
- * @return presentationTimeDelta value
- */
+
 uint32_t EmsgBox::getPresentationTimeDelta()
 {
 	return presentationTimeDelta;
 }
 
-/**
- * @brief Set presentationTime
- *
- * @param[in] presTime - presTime
- * @return void
- */
+
 void EmsgBox::setPresentationTime(uint64_t presTime)
 {
 	presentationTime = presTime;
 }
 
-/**
- * @brief Get presentationTime
- *
- * @return presentationTime value
- */
+
 uint64_t EmsgBox::getPresentationTime()
 {
 	return presentationTime;
 }
 
-/**
- * @brief Set schemeIdUri
- *
- * @param[in] schemeIdUri - schemeIdUri pointer
- * @return void
- */
+
 void EmsgBox::setSchemeIdUri(uint8_t* schemeIdURI)
 {
 	schemeIdUri = schemeIdURI;
 }
 
-/**
- * @brief Get schemeIdUri
- *
- * @return schemeIdUri value
- */
+
 uint8_t* EmsgBox::getSchemeIdUri()
 {
 	return schemeIdUri;
 }
 
-/**
- * @brief Set value
- *
- * @param[in] value - value pointer
- * @return void
- */
+
 void EmsgBox::setValue(uint8_t* schemeIdValue)
 {
 	value = schemeIdValue;
 }
 
-/**
- * @brief Get value
- *
- * @return schemeIdUri value
- */
+
 uint8_t* EmsgBox::getValue()
 {
 	return value;
 }
 
-/**
- * @brief Set Message
- *
- * @param[in] value - Message pointer
- * @return void
- */
+
 void EmsgBox::setMessage(uint8_t* message, uint32_t len)
 {
 	messageData = message;
 	messageLen = len;
 }
 
-/**
- * @brief Get Message
- *
- * @return messageData
- */
+
 uint8_t* EmsgBox::getMessage()
 {
 	return messageData;
 }
 
-/**
- * @brief Get Message length
- *
- * @return messageLen
- */
+
 uint32_t EmsgBox::getMessageLen()
 {
 	return messageLen;
 }
 
-/**
- * @brief Static function to construct a EmsgBox object
- *
- * @param[in] sz - box size
- * @param[in] ptr - pointer to box
- * @return newly constructed EmsgBox object
- */
+
 EmsgBox* EmsgBox::constructEmsgBox(uint32_t sz, uint8_t *ptr)
 {
 	uint8_t version = READ_VERSION(ptr);
@@ -915,54 +652,29 @@ EmsgBox* EmsgBox::constructEmsgBox(uint32_t sz, uint8_t *ptr)
 	return retBox;
 }
 
-/**
- * @brief TrunBox constructor
- *
- * @param[in] sz - box size
- * @param[in] mdt - sampleDuration value
- */
+
 TrunBox::TrunBox(uint32_t sz, uint64_t sampleDuration) : FullBox(sz, Box::TRUN, 0, 0), duration(sampleDuration)
 {
 }
 
-/**
- * @brief TrunBox constructor
- *
- * @param[in] fbox - box object
- * @param[in] mdt - BaseMediaDecodeTime value
- */
+
 TrunBox::TrunBox(FullBox &fbox, uint64_t sampleDuration) : FullBox(fbox), duration(sampleDuration)
 {
 }
 
-/**
- * @brief Set SampleDuration value
- *
- * @param[in] sampleDuration - Sample Duration value
- * @return void
- */
+
 void TrunBox::setSampleDuration(uint64_t sampleDuration)
 {
     duration = sampleDuration;
 }
 
-/**
- * @brief Get sampleDuration value
- *
- * @return sampleDuration value
- */
+
 uint64_t TrunBox::getSampleDuration()
 {
     return duration;
 }
 
-/**
- * @brief Static function to construct a TrunBox object
- *
- * @param[in] sz - box size
- * @param[in] ptr - pointer to box
- * @return newly constructed TrunBox object
- */
+
 TrunBox* TrunBox::constructTrunBox(uint32_t sz, uint8_t *ptr)
 {
 	const uint32_t TRUN_FLAG_DATA_OFFSET_PRESENT                    = 0x0001;
@@ -1039,13 +751,7 @@ uint64_t TfhdBox::getSampleDuration()
     return duration;
 }
 
-/**
- * @brief Static function to construct a TfhdBox object
- *
- * @param[in] sz - box size
- * @param[in] ptr - pointer to box
- * @return newly constructed TfhdBox object
- */
+
 TfhdBox* TfhdBox::constructTfhdBox(uint32_t sz, uint8_t *ptr)
 {
     uint8_t version = READ_VERSION(ptr); //8
@@ -1144,13 +850,7 @@ uint64_t PrftBox::getMediaTime()
     return media_time;
 }
 
-/**
- * @brief Static function to construct a PrftBox object
- *
- * @param[in] sz - box size
- * @param[in] ptr - pointer to box
- * @return newly constructed PrftBox object
- */
+
 PrftBox* PrftBox::constructPrftBox(uint32_t sz, uint8_t *ptr)
 {
     uint8_t version = READ_VERSION(ptr); //8
@@ -1170,13 +870,7 @@ PrftBox* PrftBox::constructPrftBox(uint32_t sz, uint8_t *ptr)
     return new PrftBox(fbox, track_id, ntp_ts, pts);
 }
 
-/**
- * @brief Static function to construct a trak object
- *
- * @param[in] sz - box size
- * @param[in] ptr - pointer to box
- * @return newly constructed Trak box object
- */
+
 TrakBox* TrakBox::constructTrakBox(uint32_t sz, uint8_t *ptr)
 {
 	TrakBox *cbox = new TrakBox(sz);

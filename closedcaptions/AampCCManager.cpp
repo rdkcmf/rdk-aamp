@@ -393,12 +393,8 @@ static int getOpacity(std::string input, gsw_CcOpacity *opacityOut)
 	return 0;
 }
 
-/**
- * @brief Set CC styles for rendering
- *
- * @param[in] options - rendering style options
- * @return int - 0 on success, -1 on failure
- */
+
+
 int AampCCManagerBase::SetStyle(const std::string &options)
 try
 {
@@ -549,11 +545,6 @@ catch(const AampJsonParseException& e)
 }
 
 
-/**
- * @brief To stop CC rendering
- *
- * @return void
- */
 void AampCCManagerBase::Stop()
 {
 	EnsureRendererCommsInitialized();
@@ -561,12 +552,14 @@ void AampCCManagerBase::Stop()
 	StopRendering();
 }
 
+
 void AampCCManagerBase::Start()
 {
 	EnsureInitialized();
 	AAMPLOG_WARN("AampCCManagerBase:: mEnabled=%d",  mEnabled);
 	StartRendering();
 }
+
 
 int AampCCManagerBase::Init(void *handle)
 {
@@ -596,6 +589,7 @@ int AampCCManagerBase::Init(void *handle)
 	return 0;
 }
 
+
 void AampCCManagerBase::SetTrickplayStatus(bool on)
 {
 	AAMPLOG_WARN("AampCCManagerBase::trickplay status(%d)", on);
@@ -612,12 +606,7 @@ void AampCCManagerBase::SetTrickplayStatus(bool on)
 	mTrickplayStarted = on;
 }
 
-/**
- * @brief Set Parental Control Status
- *
- * @param[in] locked - lock status
- * @return
- */
+
 void AampCCManagerBase::SetParentalControlStatus(bool locked)
 {
 	EnsureInitialized();
@@ -638,12 +627,7 @@ void AampCCManagerBase::SetParentalControlStatus(bool locked)
 	mParentalCtrlLocked = locked;
 }
 
-/**
- * @brief Set CC track
- *
- * @param[in] track - CC track to be selected
- * @return int - 0 on success, -1 on failure
- */
+
 int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 {
 	EnsureRendererCommsInitialized();
@@ -734,11 +718,7 @@ int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 	return ret;
 }
 
-/**
- * @brief To restore cc state after new tune
- *
- * @return void
- */
+
 void AampCCManagerBase::RestoreCC()
 {
 	AAMPLOG_WARN("AampCCManagerBase::mEnabled: %d, mTrickplayStarted: %d, mParentalCtrlLocked: %d, mCCHandle: %s",
@@ -747,12 +727,7 @@ void AampCCManagerBase::RestoreCC()
 	SetTrack(GetTrack());
 }
 
-/**
- * @brief Enable/disable CC rendering
- *
- * @param[in] enable - true to enable CC rendering
- * @return int - 0 on success, -1 on failure
- */
+
 int AampCCManagerBase::SetStatus(bool enable)
 {
 	int ret = 0;
@@ -781,11 +756,7 @@ int AampCCManagerBase::SetStatus(bool enable)
  */
 AampCCManagerBase *AampCCManager::mInstance = NULL;
 
-/**
- * @brief Get the singleton instance
- *
- * @return AampCCManager - singleton instance
- */
+
 AampCCManagerBase *AampCCManager::GetInstance()
 {
 	if (mInstance == NULL)
@@ -801,11 +772,7 @@ AampCCManagerBase *AampCCManager::GetInstance()
 	return mInstance;
 }
 
-/**
- * @brief Destroy instance
- *
- * @return void
- */
+
 void AampCCManager::DestroyInstance()
 {
 	if (mInstance)

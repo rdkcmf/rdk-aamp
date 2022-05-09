@@ -35,6 +35,11 @@
 #include <closedcaptions/subtec/SubtecConnector.h>
 
 
+/**
+ * @class AampSubtecCCManager
+ * @brief Handling Subtec CC operation
+ */
+
 class AampSubtecCCManager : public AampCCManagerBase
 {
 public:

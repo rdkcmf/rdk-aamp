@@ -70,33 +70,83 @@ private:
 
 	AampOutputProtection* m_pOutputProtection;
 
-
+	/**
+	 * @brief Initialize PR DRM session, state will be set as KEY_INIT
+	 *        on success KEY_ERROR if failure.
+	 */
 	void initAampDRMSession();
-
+	/**
+	 * @brief Retrieve PlayReady Object(PRO) from init data
+	 * @param f_pbInitData : Pointer to initdata
+	 * @param f_cbInitData : size of initdata
+	 * @param f_pibPRO : Gets updated with PRO
+	 * @param f_pcbPRO : size of PRO
+	 * @retval DRM_SUCCESS if no errors encountered
+	 */
 	int _GetPROFromInitData(const DRM_BYTE *f_pbInitData,
 			DRM_DWORD f_cbInitData, DRM_DWORD *f_pibPRO, DRM_DWORD *f_pcbPRO);
-
+	/**
+	 * @brief Parse init data to retrieve PRO from it
+	 * @param f_pbInitData : Pointer to initdata
+	 * @param f_cbInitData : size of init data
+	 * @retval DRM_SUCCESS if no errors encountered
+	 */
 	int _ParseInitData(const uint8_t *f_pbInitData, uint32_t f_cbInitData);
 
 
 public:
-
+	/**
+	 * @brief PlayReadyDRMSession Constructor
+	 */
 	PlayReadyDRMSession(AampLogManager *logObj);
-
+	/**
+	 * @brief PlayReadyDRMSession Destructor
+	 */
 	~PlayReadyDRMSession();
-
+	/**
+	 * @brief Create drm session with given init data
+	 *        state will be KEY_INIT on success KEY_ERROR if failed
+	 * @param f_pbInitData pointer to initdata
+	 * @param f_cbInitData init data size
+	 */
 	void generateAampDRMSession(const uint8_t *f_pbInitData,
 			uint32_t f_cbInitData, std::string &customData);
-
+	/**
+	 * @brief Generate key request from DRM session
+	 *        Caller function should free the returned memory.
+	 * @param destinationURL : gets updated with license server url
+	 * @param timeout : max timeout untill which to wait for cdm key generation.
+	 * @retval Pointer to DrmData containing license request, NULL if failure.
+	 */
 	DrmData * aampGenerateKeyRequest(string& destinationURL, uint32_t timeout);
-
+	/**
+	 * @brief Updates the received key to DRM session
+	 * @param key : License key from license server.
+	 * @param timeout : max timeout untill which to wait for cdm key processing.
+	 * @retval DRM_SUCCESS if no errors encountered
+	 */
 	int aampDRMProcessKey(DrmData* key, uint32_t timeout);
-
+	/**
+	 * @brief Function to decrypt stream  buffer.
+	 * @param f_pbIV : Initialization vector.
+	 * @param f_cbIV : Initialization vector length.
+	 * @param payloadData : Data to decrypt.
+	 * @param payloadDataSize : Size of data.
+	 * @param ppOpaqueData : pointer to opaque buffer in case of SVP.
+	 * @retval Returns 1 on success 0 on failure.
+	 */
 	int decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 			const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData);
-
+	/**
+	 * @brief Get the current state of DRM Session.
+	 * @retval KeyState
+	 */
 	KeyState getState();
-
+	
+	/**
+	 * @brief Clear the current session context
+	 *        So that new init data can be bound.
+	 */
 	void clearDecryptContext();
 
 };

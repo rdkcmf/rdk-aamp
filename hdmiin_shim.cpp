@@ -18,7 +18,7 @@
  */
 
 /**
- * @file fragmentcollector_HDMIIN.cpp
+ * @file hdmiin_shim.cpp
  * @brief shim for dispatching UVE HDMI input playback
  */
 #include "hdmiin_shim.h"
@@ -31,35 +31,23 @@
 #include "AampUtils.h"
 
 /**
-HdmiInput thunder plugin reference: https://wiki.rdkcentral.com/display/RDK/HDMI++Input
+* HdmiInput thunder plugin reference: https://wiki.rdkcentral.com/display/RDK/HDMI++Input
 */
 
 #define HDMIINPUT_CALLSIGN "org.rdk.HdmiInput.1"
 
-/**
- * @brief StreamAbstractionAAMP_HDMIIN Constructor
- * @param aamp pointer to PrivateInstanceAAMP object associated with player
- * @param seek_pos Seek position
- * @param rate playback rate
- */
+
 StreamAbstractionAAMP_HDMIIN::StreamAbstractionAAMP_HDMIIN(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
                              : StreamAbstractionAAMP_VIDEOIN("HDMIIN", HDMIINPUT_CALLSIGN,logObj,aamp,seek_pos,rate)
 {
 	aamp->SetContentType("HDMI_IN");
 }
 		   
-/**
- * @brief StreamAbstractionAAMP_HDMIIN Destructor
- */
+
 StreamAbstractionAAMP_HDMIIN::~StreamAbstractionAAMP_HDMIIN()
 {
 	AAMPLOG_WARN("destructor ");
 }
-/**
- *   @brief  Initialize a newly created object.
- *   @param  tuneType to set type of object.
- *   @retval eAAMPSTATUS_OK
- */
 
 AAMPStatusType StreamAbstractionAAMP_HDMIIN::Init(TuneType tuneType)
 {
@@ -73,9 +61,7 @@ AAMPStatusType StreamAbstractionAAMP_HDMIIN::Init(TuneType tuneType)
 	return retval;
 }
 
-/**
- *   @brief  Starts streaming.
- */
+
 void StreamAbstractionAAMP_HDMIIN::Start(void)
 {
 	const char *url = aamp->GetManifestUrl().c_str();
@@ -86,56 +72,42 @@ void StreamAbstractionAAMP_HDMIIN::Start(void)
 	}
 }
 
-/**
-*   @brief  Stops streaming.
-*/
+
 void StreamAbstractionAAMP_HDMIIN::Stop(bool clearChannelData)
 {
 	StopHelper("stopHdmiInput");
 }
 
-/**
- * @brief To get the available video tracks.
- * @ret available video tracks
- */
+
 std::vector<StreamInfo*> StreamAbstractionAAMP_HDMIIN::GetAvailableVideoTracks(void)
 { // STUB
 	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN");
 	return std::vector<StreamInfo*>();
 }
 
-/**
- * @brief To get the available thumbnail tracks.
- * @ret available thumbnail tracks
- */
+
 std::vector<StreamInfo*> StreamAbstractionAAMP_HDMIIN::GetAvailableThumbnailTracks(void)
 { // STUB
 	AAMPLOG_WARN("StreamAbstractionAAMP_HDMIIN");
 	return std::vector<StreamInfo*>();
 }
 
-/**
- * @brief To set the thumbnail track by index.
- * @ret True or False indicating success failure.
- */
+
 bool StreamAbstractionAAMP_HDMIIN::SetThumbnailTrack(int thumbnailIndex)
 {
 	(void)thumbnailIndex;	/* unused */
 	return false;
 }
 
-/**
- * @brief To get thumbnail range data.
- * @ret vector containg multiple thumbnail tile info.
- */
+
 std::vector<ThumbnailData> StreamAbstractionAAMP_HDMIIN::GetThumbnailRangeData(double start, double end, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
 {
         return std::vector<ThumbnailData>();
 }
+
+
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
-/**
- *   @brief  Gets videoStreamInfoUpdate event and translates into aamp events
- */
+
 void StreamAbstractionAAMP_HDMIIN::OnVideoStreamInfoUpdate(const JsonObject& parameters)
 {
         std::string message;
