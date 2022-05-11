@@ -1601,12 +1601,13 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 								AAMPLOG_WARN("%s Checking HasDiscontinuity for position :%f, playposition :%f playtarget:%f mDiscontinuityCheckingOn:%d",name,position,playPosition,playTarget,mDiscontinuityCheckingOn);								
 								if (!mDiscontinuityCheckingOn) 
 								{
-									if(false == other->HasDiscontinuityAroundPosition(position, (NULL != programDateTime), diff, playPosition,mCulledSeconds,mProgramDateTime))
+									bool isDiffChkReq=true;
+									if(false == other->HasDiscontinuityAroundPosition(position, (NULL != programDateTime), diff, playPosition,mCulledSeconds,mProgramDateTime,isDiffChkReq))
 									{
 										AAMPLOG_WARN("[%s] Ignoring discontinuity as %s track does not have discontinuity", name, other->name);
 										discontinuity = false;
 									}
-									else if (programDateTime)
+									else if ( programDateTime && isDiffChkReq )
 									{
 										AAMPLOG_WARN("[WARN] [%s] diff %f with other track discontinuity position!!", name, diff);
 
@@ -6701,7 +6702,7 @@ int TrackState::GetNumberOfPeriods()
 /**
  * @brief Check if discontinuity present around given position
  */
-bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscontinuityDateTime, double &diffBetweenDiscontinuities, double playPosition,double inputCulledSec,double inputProgramDateTime)
+bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscontinuityDateTime, double &diffBetweenDiscontinuities, double playPosition,double inputCulledSec,double inputProgramDateTime,bool &isDiffChkReq)
 {
 	bool discontinuityFound = false;
 	bool useProgramDateTimeIfAvailable = UseProgramDateTimeIfAvailable();
@@ -6716,246 +6717,134 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 
 	while (aamp->DownloadsAreEnabled())
 	{
-		if(ISCONFIGSET(eAAMPConfig_NewDiscontinuity))
+		// No condition to check DiscontinuityCount.Possible that in next refresh it will be available, 
+		// Case where one discontinnuity in one track ,but other track not having it	
+		DiscontinuityIndexNode* discontinuityIndex = (DiscontinuityIndexNode*)mDiscontinuityIndex.ptr;
+		double deltaCulledSec = inputCulledSec - mCulledSeconds;
+		bool foundmatchingdisc = false;
+		for (int i = 0; i < mDiscontinuityIndexCount; i++)
 		{
-			// No condition to check DiscontinuityCount.Possible that in next refresh it will be available, 
-			// Case where one discontinnuity in one track ,but other track not having it	
-			// New code -enabled by config 
-			DiscontinuityIndexNode* discontinuityIndex = (DiscontinuityIndexNode*)mDiscontinuityIndex.ptr;
-			double deltaCulledSec = inputCulledSec - mCulledSeconds;
-			bool foundmatchingdisc = false;
-			for (int i = 0; i < mDiscontinuityIndexCount; i++)
+			// Live is complicated lets finish that 
+			double discdatetime = 0.0;
+			if(discontinuityIndex[i].programDateTime)
+			discdatetime = ISO8601DateTimeToUTCSeconds(discontinuityIndex[i].programDateTime);
+			
+			if (IsLive())
 			{
-				// Live is complicated lets finish that 
-					double discdatetime = 0.0;
-					if(discontinuityIndex[i].programDateTime)
-						discdatetime = ISO8601DateTimeToUTCSeconds(discontinuityIndex[i].programDateTime);
-
-
-					if (IsLive())
-					{
-						AAMPLOG_WARN("[%s] Host loop %d mDiscontinuityIndexCount %d discontinuity-pos %f mCulledSeconds %f playlistRefreshTime:%f",name, i,
-							mDiscontinuityIndexCount, discontinuityIndex[i].position, mCulledSeconds,mProgramDateTime);
-
-						AAMPLOG_WARN("Visitor loop %d Input track position:%f useDateTime:%d CulledSeconds :%f playlistRefreshTime :%f DeltaCulledSec:%f", i,
-							position ,useDiscontinuityDateTime, inputCulledSec , inputProgramDateTime , deltaCulledSec);
-					}
-					// check if date and time for discontinuity tag exists 
-					if(useDiscontinuityDateTime && discdatetime)
-					{
-						// unfortunately date and time of calling track is passed in position arguement
-						AAMPLOG_WARN("Comparing two disc date&time input pdt:%f pdt:%f diff:%f",position, discdatetime, fabs(discdatetime - position));
-						if( fabs( discdatetime - position ) <= targetDurationSeconds )
-						{
-							foundmatchingdisc = true;
-							diffBetweenDiscontinuities = discdatetime - position;
-							AAMPLOG_WARN("[%s] Found the matching discontinuity with pdt at position:%f", name,position);
-							break;
-						}			
-					}
-					else
-					{
-						// No PDT , now compare the position based on culled delta 
-						// Additional fragmentDuration is considered as rounding with decimal is missing the position when culled delta is same 
-						// Ignore milli second accuracy 
-						int limit1 = (int)(discontinuityIndex[i].position - abs(deltaCulledSec) - targetDurationSeconds - 1.0);
-						int limit2 = (int)(discontinuityIndex[i].position + abs(deltaCulledSec) + targetDurationSeconds + 1.0);
-						// DELIA-46385 
-						// Due to increase in fragment duration and mismatch between audio and video,
-						// Discontinuity pairing is missed 
-						// Example : input posn:2290 index[12] position:2293 deltaCulled:0.000000 limit1:2291 limit2:2295
-						// As a workaround , adding a buffer of +/- 1sec around the limit check .
-						// Also instead of int conversion ,round is called for better 
-						int roundedPosn = std::round(position);
-						
-						AAMPLOG_INFO("Comparing position input posn:%d index[%d] position:%d deltaCulled:%f limit1:%d limit2:%d  ",roundedPosn,i,(int)(discontinuityIndex[i].position),deltaCulledSec,
-										limit1, limit2);
-						if(roundedPosn >= limit1 && roundedPosn <= limit2 )
-						{
-							foundmatchingdisc = true;	
-							AAMPLOG_WARN("[%s] Found the matching discontinuity at position:%f for position:%f",name,discontinuityIndex[i].position,position);
-							break;
-						}
-					}
+				AAMPLOG_WARN("[%s] Host loop %d mDiscontinuityIndexCount %d discontinuity-pos %f mCulledSeconds %f playlistRefreshTime:%f discdatetime=%f",name, i,
+															mDiscontinuityIndexCount, discontinuityIndex[i].position, mCulledSeconds,mProgramDateTime,discdatetime);
+							
+				AAMPLOG_WARN("Visitor loop %d Input track position:%f useDateTime:%d CulledSeconds :%f playlistRefreshTime :%f DeltaCulledSec:%f", i,
+																		position ,useDiscontinuityDateTime, inputCulledSec , inputProgramDateTime , deltaCulledSec);
 			}
-
-			// Now the worst part . Not found matching discontinuity.How long to wait ??? 
-			if(!foundmatchingdisc)
+			// check if date and time for discontinuity tag exists 
+			if(useDiscontinuityDateTime && discdatetime)
 			{
-				AAMPLOG_WARN("##[%s] Discontinuity not found mDuration %f playPosition %f  playlistType %d useStartTime %d ",
-					 name, mDuration, playPosition, (int)mPlaylistType, (int)useDiscontinuityDateTime);
-				if (IsLive())
-				{						
-					int maxPlaylistRefreshCount;
-					bool liveNoTSB; 						
-					if (aamp->IsTSBSupported() || aamp->IsInProgressCDVR())
-					{
-						maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT;
-						liveNoTSB = false;
-					}
-					else
-					{
-						maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE;
-						liveNoTSB = true;
-					}
-					// how long to wait?? Two ways to check .
-					// 1. using Program Date and Time of playlist update .
-					// 2. using the position and count of target duration.
-					if(useProgramDateTimeIfAvailable)
-					{
-						// check if the track called have higher PDT or not 
-						// if my refresh time is higher to calling track playlist track by an extra target duration,no point in waiting							
-						if (mProgramDateTime >= inputProgramDateTime+targetDurationSeconds || playlistRefreshCount > maxPlaylistRefreshCount)
-						{
-							AAMPLOG_WARN("%s Discontinuity not found mProgramDateTime:%f > inputProgramDateTime:%f playlistRefreshCount:%d maxPlaylistRefreshCount:%d",name,
-								mProgramDateTime,inputProgramDateTime,playlistRefreshCount,maxPlaylistRefreshCount);								
-							break;
-						}
-					}
-					else
-					{
-
-						if(!((playlistRefreshCount < maxPlaylistRefreshCount) && (liveNoTSB || (mDuration < (playPosition + discDiscardTolreanceInSec)))))
-						{
-							AAMPLOG_WARN("%s Discontinuity not found After playlistRefreshCount:%d",name,playlistRefreshCount);	
-							break;
-						}							
-					}
-					AAMPLOG_WARN("Wait for [%s] playlist update over for playlistRefreshCount %d", name, playlistRefreshCount);
-					pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
-					playlistRefreshCount++;
-				}
-				else
+				// unfortunately date and time of calling track is passed in position arguement
+				AAMPLOG_WARN("Comparing two disc date&time input pdt:%f pdt:%f diff:%f",position, discdatetime, fabs(discdatetime - position));
+				if( fabs( discdatetime - position ) <= targetDurationSeconds )
 				{
+					foundmatchingdisc = true;
+					diffBetweenDiscontinuities = discdatetime - position;
+					AAMPLOG_WARN("[%s] Found the matching discontinuity with pdt at position:%f", name,position);
 					break;
-				}
+				}			
 			}
 			else
 			{
-				discontinuityFound = true;
-				break;
+				// No PDT , now compare the position based on culled delta 
+				// Additional fragmentDuration is considered as rounding with decimal is missing the position when culled delta is same 
+				// Ignore milli second accuracy 
+				int limit1 = (int)(discontinuityIndex[i].position - abs(deltaCulledSec) - targetDurationSeconds - 1.0);
+				int limit2 = (int)(discontinuityIndex[i].position + abs(deltaCulledSec) + targetDurationSeconds + 1.0);
+				// DELIA-46385 
+				// Due to increase in fragment duration and mismatch between audio and video,
+				// Discontinuity pairing is missed 
+				// Example : input posn:2290 index[12] position:2293 deltaCulled:0.000000 limit1:2291 limit2:2295
+				// As a workaround , adding a buffer of +/- 1sec around the limit check .
+				// Also instead of int conversion ,round is called for better
+				//DELIA-56215
+				// We have seen some of the playlist is missing PDT for either of the track and this is leading 
+				//to ignoring the discontinuity and eventually 30 seconds tick and playback stalled. To fix the issue we need
+				//to check is either of the track is missing PDT for discontinuity, if not missing use  position else 
+				//playposition(e.g:85.6 seconds instead of epoc PDT time 1652300037) 
+				int roundedPosn=0;
+				if(discdatetime)
+				{
+					roundedPosn = std::round(position);
+				}
+				else
+				{
+					roundedPosn = std::round(playPosition);
+					isDiffChkReq = false;
+				} 
+												
+				AAMPLOG_WARN("Comparing position input posn:%d index[%d] position:%d deltaCulled:%f limit1:%d limit2:%d  ",roundedPosn,i,(int)(discontinuityIndex[i].position),deltaCulledSec,
+																															limit1, limit2);
+				if(roundedPosn >= limit1 && roundedPosn <= limit2 )
+				{
+					foundmatchingdisc = true;	
+					AAMPLOG_WARN("[%s] Found the matching discontinuity at position:%f for position:%f",name,discontinuityIndex[i].position,position);
+					break;
+				}
 			}
 		}
-		else
+
+		// Now the worst part . Not found matching discontinuity.How long to wait ??? 
+		if(!foundmatchingdisc)
 		{
-			bool waitForRefresh = false;
-
-			// existing code logic 
-			if (0 != mDiscontinuityIndexCount)
-			{
-				DiscontinuityIndexNode* discontinuityIndex = (DiscontinuityIndexNode*)mDiscontinuityIndex.ptr;
-				for (int i = 0; i < mDiscontinuityIndexCount; i++)
+			AAMPLOG_WARN("##[%s] Discontinuity not found mDuration %f playPosition %f  playlistType %d useStartTime %d ",
+										 name, mDuration, playPosition, (int)mPlaylistType, (int)useDiscontinuityDateTime);
+			if (IsLive())
+			{						
+				int maxPlaylistRefreshCount;
+				bool liveNoTSB; 						
+				if (aamp->IsTSBSupported() || aamp->IsInProgressCDVR())
 				{
-					if (IsLive())
-					{
-						AAMPLOG_WARN("[%s] loop %d mLastMatchedDiscontPosition %f mDiscontinuityIndexCount %d discontinuity-pos %f mCulledSeconds %f",
-							 name, i, mLastMatchedDiscontPosition, mDiscontinuityIndexCount, discontinuityIndex[i].position, mCulledSeconds);
-					}
-
-					if ((mLastMatchedDiscontPosition < 0) || (discontinuityIndex[i].position + mCulledSeconds > mLastMatchedDiscontPosition))
-					{
-						if (!useDiscontinuityDateTime)
-						{
-							AAMPLOG_WARN("[%s] low %f high %f position %f discontinuity-pos %f discontinuity-discardTolreanceInSec %f mDiscontinuityIndexCount %d",
-									 name, low, high, position, discontinuityIndex[i].position, discDiscardTolreanceInSec, mDiscontinuityIndexCount);
-							if (low < discontinuityIndex[i].position && high > discontinuityIndex[i].position)
-							{
-								mLastMatchedDiscontPosition = discontinuityIndex[i].position + mCulledSeconds;
-								discontinuityFound = true;
-								AAMPLOG_WARN("[%s] Break :: mLastMatchedDiscontPosition %f", name, mLastMatchedDiscontPosition);
-								break;
-							}
-						}
-						else
-						{
-							double discPos = ISO8601DateTimeToUTCSeconds(discontinuityIndex[i].programDateTime);
-							{
-								AAMPLOG_WARN ("[%s] low %f high %f position %f discontinuity %f discontinuity-discardTolreanceInSec %f",
-									name, low, high, position, discPos, discDiscardTolreanceInSec);
-
-								if (low < discPos && high > discPos)
-								{
-									double diff = discPos - position;
-									discontinuityFound = true;
-									if (fabs(diff) < fabs(diffBetweenDiscontinuities))
-									{
-										diffBetweenDiscontinuities = diff;
-										mLastMatchedDiscontPosition = discontinuityIndex[i].position + mCulledSeconds;
-									}
-									else
-									{
-										AAMPLOG_WARN("[%s] Break :: mLastMatchedDiscontPosition %f", name, mLastMatchedDiscontPosition);
-										break;
-									}
-								}
-							}
-						}
-					}
-				}
-
-				if (!discontinuityFound)
-				{
-					AAMPLOG_WARN("##[%s] Discontinuity not found in window low %f high %f position %f mLastMatchedDiscontPosition %f mDuration %f playPosition %f playlistRefreshCount %d playlistType %d useStartTime %d discontinuity-discardTolreanceInSec %f",
-						name, low, high, position, mLastMatchedDiscontPosition, mDuration, playPosition, playlistRefreshCount, (int)mPlaylistType, (int)useDiscontinuityDateTime, discDiscardTolreanceInSec);
-
-					waitForRefresh = true;
+					maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT;
+					liveNoTSB = false;
 				}
 				else
 				{
-					AAMPLOG_WARN("[%s] Break :: mLastMatchedDiscontPosition %f", name, mLastMatchedDiscontPosition);
-					break;
+					maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE;
+					liveNoTSB = true;
 				}
-			}
-			else
-			{
-				waitForRefresh = true;
-				AAMPLOG_WARN("##[%s] Discontinuity not found, wait for next playlist refresh, present mDiscontinuityIndexCount %d", name, mDiscontinuityIndexCount);
-			}
-
-			if (waitForRefresh)
-			{
-				if (IsLive())
+				// how long to wait?? Two ways to check .
+				// 1. using Program Date and Time of playlist update .
+				// 2. using the position and count of target duration.
+				if(useProgramDateTimeIfAvailable)
 				{
-					int maxPlaylistRefreshCount;
-					bool liveNoTSB;
-					if (aamp->IsTSBSupported() || aamp->IsInProgressCDVR())
+					// check if the track called have higher PDT or not 
+					// if my refresh time is higher to calling track playlist track by an extra target duration,no point in waiting							
+					if (mProgramDateTime >= inputProgramDateTime+targetDurationSeconds || playlistRefreshCount > maxPlaylistRefreshCount)
 					{
-						maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_EVENT;
-						liveNoTSB = false;
-					}
-					else
-					{
-						maxPlaylistRefreshCount = MAX_PLAYLIST_REFRESH_FOR_DISCONTINUITY_CHECK_LIVE;
-						liveNoTSB = true;
-					}
-
-					if ((playlistRefreshCount < maxPlaylistRefreshCount) && (liveNoTSB || (mDuration < (playPosition + discDiscardTolreanceInSec))))
-					{
-						AAMPLOG_WARN("Waiting for [%s] playlist update mDuration %f mCulledSeconds %f playlistRefreshCount %d",
-						        name, mDuration, mCulledSeconds, playlistRefreshCount);
-						pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
-						AAMPLOG_WARN("Wait for [%s] playlist update over for playlistRefreshCount %d", name, playlistRefreshCount);
-						playlistRefreshCount++;
-					}
-					else
-					{
-						AAMPLOG_INFO("[%s] Break", name);
+						AAMPLOG_WARN("%s Discontinuity not found mProgramDateTime:%f > inputProgramDateTime:%f playlistRefreshCount:%d maxPlaylistRefreshCount:%d",name,
+						mProgramDateTime,inputProgramDateTime,playlistRefreshCount,maxPlaylistRefreshCount);								
 						break;
 					}
 				}
 				else
 				{
-					AAMPLOG_INFO("[%s] Break", name);
-					break;
+					if(!((playlistRefreshCount < maxPlaylistRefreshCount) && (liveNoTSB || (mDuration < (playPosition + discDiscardTolreanceInSec)))))
+					{
+						AAMPLOG_WARN("%s Discontinuity not found After playlistRefreshCount:%d",name,playlistRefreshCount);	
+						break;
+					}							
 				}
+				AAMPLOG_WARN("Wait for [%s] playlist update over for playlistRefreshCount %d", name, playlistRefreshCount);
+				pthread_cond_wait(&mPlaylistIndexed, &mPlaylistMutex);
+				playlistRefreshCount++;
 			}
 			else
 			{
-				AAMPLOG_INFO("[%s] Break", name);
 				break;
 			}
 		}
-
+		else
+		{
+			discontinuityFound = true;
+			break;
+		}
 	}
 	mDiscontinuityCheckingOn = false;
 	StopDiscontinuityCheckWait();

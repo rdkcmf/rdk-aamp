@@ -301,12 +301,17 @@ public:
 	int GetNumberOfPeriods();
 
 	/***************************************************************************
-     	 * @fn HasDiscontinuityAroundPosition
+    	 * @fn HasDiscontinuityAroundPosition
      	 * @param[in] position Position to check for discontinuity
-     	 * @param[out] diffBetweenDiscontinuities discontinuity position minus input position
-     	 * @return true if discontinuity present around given position
+		 * @param[in] useStartTime starting time to search discontinuity
+		 * @param[out] diffBetweenDiscontinuities discontinuity position minus input position
+		 * @param[in] playPosition playback position 
+		 * @param[in] inputCulledSec culled seconds
+		 * @param [in] inputProgramDateTime prorgram date and time in epoc format
+		 * @param [out] isDiffChkReq indicates is diffBetweenDiscontinuities check required 
+		 * @return true if discontinuity present around given position
      	 ***************************************************************************/
-	bool HasDiscontinuityAroundPosition(double position, bool useStartTime, double &diffBetweenDiscontinuities, double playPosition,double inputCulledSec,double inputProgramDateTime);
+	bool HasDiscontinuityAroundPosition(double position, bool useStartTime, double &diffBetweenDiscontinuities, double playPosition,double inputCulledSec,double inputProgramDateTime,bool &isDiffChkReq);
 
 	/***************************************************************************
      	 * @fn StartInjection
