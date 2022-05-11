@@ -1717,7 +1717,8 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 	PrivAAMPState state;
 	GetState(state);
 
-	if (mDownloadsEnabled && (state != eSTATE_IDLE) && (state != eSTATE_RELEASED))
+	//Once GST_MESSAGE_EOS is received, AAMP does not want any stray progress to be sent to player. so added the condition state != eSTATE_COMPLETE
+	if (mDownloadsEnabled && (state != eSTATE_IDLE) && (state != eSTATE_RELEASED) && (state != eSTATE_COMPLETE))
 	{
 		ReportAdProgress(sync);
 
