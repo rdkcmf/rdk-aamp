@@ -927,7 +927,9 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 {
 	if(aamp)
 	{
-		if(mAsyncTuneEnabled)
+		PrivAAMPState state;
+		aamp->GetState(state);
+		if(mAsyncTuneEnabled && state != eSTATE_IDLE && state != eSTATE_RELEASED)
 		{
 			mScheduler.ScheduleTask(AsyncTaskObj([secondsRelativeToTuneTime,keepPaused](void *data)
 					{
@@ -1296,7 +1298,9 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 {
 	ERROR_STATE_CHECK_VOID();
 	if(aamp){
-		if (mAsyncTuneEnabled)
+		PrivAAMPState state;
+		aamp->GetState(state);
+		if (mAsyncTuneEnabled && state != eSTATE_IDLE && state != eSTATE_RELEASED)
 		{
 			std::string sLanguage = std::string(language);
 			mScheduler.ScheduleTask(AsyncTaskObj(
