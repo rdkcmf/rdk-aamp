@@ -6581,6 +6581,9 @@ void PrivateInstanceAAMP::Stop()
 		}
 #endif
 		mpStreamAbstractionAAMP->Stop(true);
+		//Deleting mpStreamAbstractionAAMP here will prevent the extra stop call in TeardownStream()
+		//and will avoid enableDownlaod() call being made unnecessarily
+		SAFE_DELETE(mpStreamAbstractionAAMP);
 	}
 
 	TeardownStream(true);
