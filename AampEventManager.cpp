@@ -450,7 +450,7 @@ void AampEventManager::SetCallbackAsDispatched(guint id)
 	AsyncEventListIter  itr = mPendingAsyncEvents.find(id);
 	if(itr != mPendingAsyncEvents.end())
 	{
-		AAMPLOG_INFO("id:%d in mPendingAsyncEvents, erasing it. State:%d", id,itr->second);
+		AAMPLOG_TRACE("id:%d in mPendingAsyncEvents, erasing it. State:%d", id,itr->second);
 		assert (itr->second);
 		mPendingAsyncEvents.erase(itr);
 	}
