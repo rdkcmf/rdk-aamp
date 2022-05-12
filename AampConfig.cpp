@@ -396,7 +396,7 @@ void AampConfig::Initialize()
 // this isolates XClass build from having async tune default enabled as temporary workaround for RDKTV-15238 
 	bAampCfgValue[eAAMPConfig_AsyncTune].value                              =       false;
 #else
-	bAampCfgValue[eAAMPConfig_AsyncTune].value                              =       true;
+	bAampCfgValue[eAAMPConfig_AsyncTune].value                              =       false;
 #endif
 	bAampCfgValue[eAAMPConfig_EnableAccessAttributes].value			=	true;
 	bAampCfgValue[eAAMPConfig_DisableUnderflow].value                       =       false;
