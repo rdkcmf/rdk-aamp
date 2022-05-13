@@ -222,7 +222,22 @@ if(CMAKE_PLATFORM_UBUNTU)
     STRING(REPLACE " -Werror=effc++" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 endif()
 
-set(AAMP_CLI_SOURCES test/aampcli.cpp ${AAMP_OS_SOURCES})
+set(AAMP_CLI_HEADERS test/aampcli/Aampcli.h 
+		     test/aampcli/AampcliPlaybackCommand.h
+	             test/aampcli/AampcliProcessCommand.h
+		     test/aampcli/AampcliGet.h
+		     test/aampcli/AampcliSet.h
+		     test/aampcli/AampcliVirtualChannelMap.h
+		     test/aampcli/AampcliShader.h
+		     ${AAMP_OS_SOURCES})
+set(AAMP_CLI_SOURCES test/aampcli/Aampcli.cpp 
+		     test/aampcli/AampcliPlaybackCommand.cpp
+	             test/aampcli/AampcliProcessCommand.cpp
+		     test/aampcli/AampcliGet.cpp
+		     test/aampcli/AampcliSet.cpp
+		     test/aampcli/AampcliVirtualChannelMap.cpp
+		     test/aampcli/AampcliShader.cpp
+		     ${AAMP_OS_SOURCES})
 
 set(AAMP_SUBTEC_SOURCES subtec/PacketSender.cpp)
 
@@ -252,7 +267,7 @@ if(CMAKE_AVE_DRM)
 	message("CMAKE_AVE_DRM set, adding stubs")
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -laveadapter -lAVEPlayer -lmetrics")
 	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAVE_DRM")
-	set(AAMP_CLI_SOURCES ${AAMP_CLI_SOURCES} drm/ave/StubsForAVEPlayer.cpp)
+	set(AAMP_CLI_SOURCES ${AAMP_CLI_HEADERS} ${AAMP_CLI_SOURCES} drm/ave/StubsForAVEPlayer.cpp)
 	#Linking QT libraries to libaamp will make local stubs obsolete for aamp-cli
 	if(NOT CMAKE_QT5WEBKIT_JSBINDINGS AND CMAKE_WPEWEBKIT_JSBINDINGS)
 		set(AAMP_CLI_EXTRA_DEFINES "${AAMP_CLI_EXTRA_DEFINES} -DAAMP_STUBS_FOR_JS")
@@ -472,7 +487,7 @@ set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} ${SEC_CONTENT_METADATA_ENABLED}")
 set(LIBAAMP_SOURCES "${LIBAAMP_SOURCES}" "${LIBAAMP_DRM_SOURCES}")
 
 add_library(aamp SHARED ${LIBAAMP_SOURCES} ${LIBAAMP_HELP_SOURCES})
-add_executable(aamp-cli ${AAMP_CLI_SOURCES})
+add_executable(aamp-cli ${AAMP_CLI_HEADERS} ${AAMP_CLI_SOURCES})
 add_executable(playbintest test/playbintest.cpp)
 target_link_libraries(playbintest ${PLAYBINTEST_DEPENDS})
 
