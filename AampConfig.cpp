@@ -27,7 +27,7 @@
 #include "base16.h"
 #include "AampJsonObject.h" // For JSON parsing
 #include "AampUtils.h"
-
+#include "aampgstplayer.h"
 //////////////// CAUTION !!!! STOP !!! Read this before you proceed !!!!!!! /////////////
 /// 1. This Class handles Configuration Parameters of AAMP Player , only Config related functionality to be added
 /// 2. Simple Steps to add a new configuration
@@ -90,6 +90,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"disableATMOS",eAAMPConfig_DisableATMOS,-1,-1},					// Complete
 	{"disableAC4",eAAMPConfig_DisableAC4,-1,-1},
 	{"stereoOnly",eAAMPConfig_StereoOnly,-1,-1},						// Complete
+	{"disableAC3",eAAMPConfig_DisableAC3,-1,-1},
 	{"descriptiveTrackName",eAAMPConfig_DescriptiveTrackName,-1,-1},
 	{"offset",eAAMPConfig_PlaybackOffset,{.dMinValue = -1},{.dMaxValue = -1}},
 	{"cdvrLiveOffset",eAAMPConfig_CDVRLiveOffset,{.dMinValue = 0},{.dMaxValue=50}},
@@ -347,6 +348,7 @@ void AampConfig::Initialize()
 #else
 	bAampCfgValue[eAAMPConfig_DisableAC4].value				=	false;
 #endif
+	bAampCfgValue[eAAMPConfig_DisableAC3].value				=	false;
 	bAampCfgValue[eAAMPConfig_DisablePlaylistIndexEvent].value		=	true;
 	bAampCfgValue[eAAMPConfig_EnableSubscribedTags].value			=	true;
 	bAampCfgValue[eAAMPConfig_DASHIgnoreBaseURLIfSlash].value		=	false;
@@ -567,6 +569,30 @@ void AampConfig::Initialize()
 	sAampCfgValue[eAAMPConfig_PreferredAudioLabel-eAAMPConfig_StringStartValue].value    =       "";
 	sAampCfgValue[eAAMPConfig_CustomLicenseData-eAAMPConfig_StringStartValue].value        =       "";
 }
+
+void AampConfig::ReadDeviceCapability()
+{
+#if defined(BRCM) || defined(RPI) || defined(AAMP_SIMULATOR_BUILD)
+        bAampCfgValue[eAAMPConfig_DisableAC4].value			=	true;
+#else
+	if(!AAMPGstPlayer::IsCodecSupported("ac-4"))
+	{	
+ 		bAampCfgValue[eAAMPConfig_DisableAC4].value		=	true;
+		logprintf("AC4 not supported. DisableAC4 Audio");
+	}
+	else
+	{
+		bAampCfgValue[eAAMPConfig_DisableAC4].value		=	false;
+	}
+#endif  
+
+	if(!AAMPGstPlayer::IsCodecSupported("ac-3"))
+	{
+		bAampCfgValue[eAAMPConfig_DisableAC3].value		=	false;
+		logprintf("AC3 not supported. DisableAC3 Audio");
+	}
+}
+
 
 #if 0
 LangCodePreference AampConfig::GetLanguageCodePreference()
@@ -1597,6 +1623,7 @@ void AampConfig::ReadOperatorConfiguration()
 		AAMPLOG_INFO("AAMP_FORCE_AAC present: Changing preference to AAC over ATMOS & DD+");
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_DisableAC4,true);
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_DisableEC3,true);
+		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_DisableAC3,true);
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_DisableATMOS,true);
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_ForceEC3,false);
 		SetConfigValue<bool>(AAMP_OPERATOR_SETTING,eAAMPConfig_StereoOnly,true);
@@ -1793,6 +1820,7 @@ void AampConfig::DoCustomSetting(ConfigPriority owner)
 		SetConfigValue<bool>(owner,eAAMPConfig_DisableATMOS,true);
 		SetConfigValue<bool>(owner,eAAMPConfig_ForceEC3,false);
 		SetConfigValue<bool>(owner,eAAMPConfig_DisableAC4,true);
+		SetConfigValue<bool>(owner,eAAMPConfig_DisableAC3,true);
 	}
 	else if(IsConfigSet(eAAMPConfig_DisableEC3))
 	{
