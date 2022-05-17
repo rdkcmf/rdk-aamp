@@ -284,7 +284,7 @@ void StreamAbstractionAAMP_PROGRESSIVE::DumpProfiles(void)
  * @param[out]  audioOutputFormat - format of audio track
  * @param[out]  auxAudioOutputFormat - format of aux audio track
  */
-void StreamAbstractionAAMP_PROGRESSIVE::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat, StreamOutputFormat &subtitleOutputFormat)
+void StreamAbstractionAAMP_PROGRESSIVE::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat)
 {
     primaryOutputFormat = FORMAT_ISO_BMFF;
     audioOutputFormat = FORMAT_INVALID;

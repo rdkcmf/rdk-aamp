@@ -99,12 +99,12 @@ std::string convertCueToTtmlString(int id, VTTCue *cue, double startTime)
 
 WebVTTSubtecDevParser::WebVTTSubtecDevParser(AampLogManager *logObj, PrivateInstanceAAMP *aamp, SubtitleMimeType type) : WebVTTParser(logObj, aamp, type), m_channel(nullptr)
 {
-	m_channel = SubtecChannel::SubtecChannelFactory(SubtecChannel::ChannelType::TTML);
-	if (!m_channel->InitComms())
+	if (!PacketSender::Instance()->Init())
 	{
-		AAMPLOG_INFO("Init failed - subtitle parsing disabled");
+		AAMPLOG_WARN("Init failed - subtitle parsing disabled");
 		throw std::runtime_error("PacketSender init failed");
 	}
+	m_channel = make_unique<TtmlChannel>();
 	m_channel->SendResetAllPacket();
 	int width = 1920, height = 1080;
 

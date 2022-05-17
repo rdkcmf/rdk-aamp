@@ -160,7 +160,7 @@ public:
 	void Start() override;
 	void Stop(bool clearChannelData) override;
 	AAMPStatusType Init(TuneType tuneType) override;
-	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat, StreamOutputFormat &subtitleOutputFormat) override;
+	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat) override;
 	double GetStreamPosition() override;
 	MediaTrack* GetMediaTrack(TrackType type) override;
 	double GetFirstPTS() override;
@@ -250,7 +250,6 @@ private:
 	uint32_t &selectedRepBandwidth, uint32_t &bestScore, bool disableEC3, bool disableATMOS, bool disableAC4);
 	void PopulateAudioTracks(void);
 	void ParseAvailablePreselections(IMPDElement *period, std::vector<AudioTrackInfo> & audioAC4Tracks);
-	std::string GetCurrentMimeType(MediaType mediaType);
 	std::mutex mStreamLock;
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;

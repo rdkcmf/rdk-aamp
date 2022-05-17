@@ -27,6 +27,8 @@
 
 #include <closedcaptions/subtec/CCDataController.h>
 
+#include <PacketSender.hpp>
+
 
 namespace subtecConnector
 {

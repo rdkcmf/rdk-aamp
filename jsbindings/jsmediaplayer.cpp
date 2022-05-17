@@ -1721,7 +1721,6 @@ JSValueRef AAMPMediaPlayerJS_setVideoMute (JSContextRef ctx, JSObjectRef functio
 	{
 		bool videoMute = JSValueToBoolean(ctx, arguments[0]);
 		privObj->_aamp->SetVideoMute(videoMute);
-		// privObj->_aamp->SetSubtitleMute(videoMute);
 		ERROR("%s(): Invoked setVideoMute", __FUNCTION__);
 	}
 	else

@@ -118,13 +118,13 @@ class TtmlChannel : public SubtecChannel
 public:
     TtmlChannel() : SubtecChannel() {}
 
-    virtual void SendSelectionPacket(uint32_t width, uint32_t height) override {
+    void SendSelectionPacket(uint32_t width, uint32_t height) {
         sendPacket<TtmlSelectionPacket>(width, height);
     }
-    virtual void SendDataPacket(std::vector<uint8_t> &&data, std::int64_t time_offset_ms = 0) override {
+    void SendDataPacket(std::vector<uint8_t> &&data, std::int64_t time_offset_ms = 0) {
         sendPacket<TtmlDataPacket>(time_offset_ms, std::move(data));
     }
-    virtual void SendTimestampPacket(uint64_t timestampMs) override {
+    void SendTimestampPacket(uint64_t timestampMs) {
         sendPacket<TtmlTimestampPacket>(timestampMs);
     }
 };

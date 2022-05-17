@@ -21,7 +21,8 @@
 
 #include "webvttParser.h"
 #include "vttCue.h"
-#include "SubtecChannel.hpp"
+#include "PacketSender.hpp"
+#include "TtmlPacket.hpp"
 
 class WebVTTSubtecDevParser : public WebVTTParser
 {
@@ -40,7 +41,7 @@ public:
 	void pause(bool pause) override;
 	void mute(bool mute) override;
 protected:
-	std::unique_ptr<SubtecChannel> m_channel;
+	std::unique_ptr<TtmlChannel> m_channel;
 private:
 	std::string getVttAsTtml();
 };

@@ -635,7 +635,7 @@ public:
 	 *   @param[out]  auxAudioOutputFormat - format of aux audio track
 	 *   @return void
 	 */
-	virtual void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat, StreamOutputFormat &subtitleOutputFormat) = 0;
+	virtual void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat) = 0;
 
 	/**
 	 *   @brief Get current stream position.

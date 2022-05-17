@@ -27,6 +27,11 @@
 #include <limits>
 #include <mutex>
 
+template<typename T, typename ...Args>
+std::unique_ptr<T> make_unique(Args&& ...args)
+{
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
 
 class Packet
 {
@@ -137,25 +142,24 @@ protected:
 
     enum class PacketType : std::uint32_t
     {
-        ZERO,
-        PES_DATA,
-        TIMESTAMP,
-        RESET_ALL,
-        RESET_CHANNEL,
-        SUBTITLE_SELECTION,
-        TELETEXT_SELECTION,
-        TTML_SELECTION,
-        TTML_DATA,
-        TTML_TIMESTAMP,
-        CC_DATA,
-        PAUSE,
-        RESUME,
-        MUTE,
-        UNMUTE,
-        WEBVTT_SELECTION,
-        WEBVTT_DATA,
-        WEBVTT_TIMESTAMP,
-        CC_SET_ATTRIBUTE,
+        PES_DATA = 1,
+        TIMESTAMP = 2,
+        RESET_ALL = 3,
+        RESET_CHANNEL = 4,
+        SUBTITLE_SELECTION = 5,
+        TELETEXT_SELECTION = 6,
+        TTML_SELECTION = 7,
+        TTML_DATA = 8,
+        TTML_TIMESTAMP = 9,
+        CC_DATA = 10,
+        PAUSE = 11,
+        RESUME = 12,
+        MUTE = 13,
+        UNMUTE = 14,
+        WEBVTT_SELECTION = 15,
+        WEBVTT_DATA = 16,
+        WEBVTT_TIMESTAMP = 17,
+        CC_SET_ATTRIBUTE = 18,
 
         INVALID = 0xFFFFFFFF,
     };
@@ -169,6 +173,20 @@ protected:
         m_buffer.push_back((static_cast<std::uint8_t>((value >> 8)) & 0xFF));
         m_buffer.push_back((static_cast<std::uint8_t>((value >> 16)) & 0xFF));
         m_buffer.push_back((static_cast<std::uint8_t>((value >> 24)) & 0xFF));
+    }
+
+    void append32(std::int32_t value)
+    {
+        m_buffer.push_back((static_cast<std::int8_t>((value >> 0)) & 0xFF));
+        m_buffer.push_back((static_cast<std::int8_t>((value >> 8)) & 0xFF));
+        m_buffer.push_back((static_cast<std::int8_t>((value >> 16)) & 0xFF));
+        m_buffer.push_back((static_cast<std::int8_t>((value >> 24)) & 0xFF));
+    }
+
+    void append64(std::uint64_t value)
+    {
+        append32((static_cast<std::int32_t>((value >> 0)) & 0xFFFFFFFF));
+        append32((static_cast<std::int32_t>((value >> 32)) & 0xFFFFFFFF));
     }
 
     void append64(std::int64_t value)

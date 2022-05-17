@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
     WebVttChannel *channel = new WebVttChannel();
     std::vector<uint8_t> data;
 
-    ret = channel->InitComms();
+    ret = PacketSender::Instance()->Init();
 	if (ret)
 	{
 		channel->SendResetAllPacket();

@@ -4643,26 +4643,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					{
 						ts->streamOutputFormat = format;
 						SubtitleMimeType type = (format == FORMAT_SUBTITLE_WEBVTT) ? eSUB_TYPE_WEBVTT : eSUB_TYPE_UNKNOWN;
-						if(!ISCONFIGSET(eAAMPConfig_GstSubtecEnabled))
-						{
-							AAMPLOG_WARN("Legacy subtec");
-							ts->mSubtitleParser = SubtecFactory::createSubtitleParser(mLogObj, aamp, type);
-						}
-						else
-						{
-							AAMPLOG_WARN("GST subtec");
-							if (aamp->WebVTTCueListenersRegistered())
-								ts->mSubtitleParser = make_unique<WebVTTParser>(mLogObj, aamp, type);
-						}
+						ts->mSubtitleParser = SubtecFactory::createSubtitleParser(mLogObj, aamp, type);
 						if (!ts->mSubtitleParser) 
 						{
-							if(!ISCONFIGSET(eAAMPConfig_GstSubtecEnabled))
-							{
-								AAMPLOG_WARN("No subtec, no sub parser");
-								ts->streamOutputFormat = FORMAT_INVALID;
-								ts->fragmentURI = NULL;
-								ts->enabled = false;								
-							}
+							ts->streamOutputFormat = FORMAT_INVALID;
+							ts->fragmentURI = NULL;
+							ts->enabled = false;
 						}
 						aamp->StopTrackDownloads(eMEDIATYPE_SUBTITLE);
 					}
@@ -6049,12 +6035,11 @@ void StreamAbstractionAAMP_HLS::DumpProfiles(void)
 * @param audioOutputFormat[out] auxiliary audio format
 * @return void
 ***************************************************************************/
-void StreamAbstractionAAMP_HLS::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat, StreamOutputFormat &subOutputFormat)
+void StreamAbstractionAAMP_HLS::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat)
 {
 	primaryOutputFormat = trackState[eMEDIATYPE_VIDEO]->streamOutputFormat;
 	audioOutputFormat = trackState[eMEDIATYPE_AUDIO]->streamOutputFormat;
 	auxOutputFormat = trackState[eMEDIATYPE_AUX_AUDIO]->streamOutputFormat;
-	subOutputFormat = trackState[eMEDIATYPE_SUBTITLE]->streamOutputFormat;
 }
 /***************************************************************************
 * @fn GetVideoBitrates

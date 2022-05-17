@@ -23,15 +23,7 @@
 #include "WebVttSubtecParser.hpp"
 #include "TtmlSubtecParser.hpp"
 #include "subtitleParser.h" //required for gpGlobalConfig also
-
-namespace
-{
-    template<typename T, typename ...Args>
-    std::unique_ptr<T> make_unique(Args&& ...args)
-    {
-        return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-    }
-}
+#include "SubtecPacket.hpp" // for make_unique
 
 class SubtecFactory
 {
@@ -63,7 +55,7 @@ public:
                     // If JavaScript cue listeners have been registered use WebVTTParser,
                     // otherwise use subtec
                     if (!aamp->WebVTTCueListenersRegistered())
-			            if (ISCONFIGSET(eAAMPConfig_WebVTTNative))
+            			if (ISCONFIGSET(eAAMPConfig_WebVTTNative))
                             return make_unique<WebVTTSubtecParser>(mLogObj, aamp, mimeType);
                         else
                             return make_unique<WebVTTSubtecDevParser>(mLogObj, aamp, mimeType);
