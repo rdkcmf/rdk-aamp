@@ -366,6 +366,13 @@ public:
 	 * @param rate play rate  
      	 */
 	void SeekStreamSink(double position, double rate);
+	
+	/**
+     	 * @fn static IsCodecSupported
+    	 * @param[in] codecName - name of the codec value
+     	 */
+	static bool IsCodecSupported(const std::string &codecName);
+	
 	/**
      	 *   @fn GetVideoRectangle
     	 *

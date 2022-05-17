@@ -109,6 +109,7 @@ typedef enum
 	eAAMPConfig_DisableAC4,							/**< Disable AC4 Audio */
 	eAAMPConfig_StereoOnly,							/**< Enable Stereo Only playback, disables EC3/ATMOS. Overrides ForceEC3 */
 	eAAMPConfig_DescriptiveTrackName,					/**< Enable Descriptive track name*/
+	eAAMPConfig_DisableAC3,							/**< Disable AC3 Audio */
 	eAAMPConfig_DisablePlaylistIndexEvent,					/**< Disable playlist index event*/
 	eAAMPConfig_EnableSubscribedTags,					/**< Enabled subscribed tags*/
 	eAAMPConfig_DASHIgnoreBaseURLIfSlash,					/**< Ignore the constructed URI of DASH, if it is / */
@@ -467,6 +468,11 @@ public:
      	 */
 	AampConfig& operator=(const AampConfig&);
 	void Initialize();
+	/**
+	 * @fn ReadDeviceCapability
+	 * @return Void
+	 */
+	void ReadDeviceCapability();
 	/**
      	 * @fn ShowOperatorSetConfiguration
      	 * @return Void

@@ -5069,7 +5069,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PlaylistTimeout,tmpVar);
 	mPlaylistTimeoutMs = (long)CONVERT_SEC_TO_MS(tmpVar);
 	if(mPlaylistTimeoutMs <= 0) mPlaylistTimeoutMs = mManifestTimeoutMs;
-
 	mLogTimetoTopProfile = true;
 	// Reset mProgramDateTime to 0 , to avoid spill over to next tune if same session is 
 	// reused 
@@ -5163,7 +5162,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 
 	mbPlayEnabled = autoPlay;
 	mPlayerPreBuffered = !autoPlay ;
-
+	
 	ResumeDownloads();
 
 	if (!autoPlay)
@@ -10932,7 +10931,10 @@ long PrivateInstanceAAMP::LoadFogConfig()
 
 	//persistLowNetworkBandwidth
 	jsondata.add("persistLowNetworkBandwidth", ISCONFIGSET_PRIV(eAAMPConfig_PersistLowNetworkBandwidth));
-
+	
+	//disableAC3
+	jsondata.add("disableAC3", ISCONFIGSET_PRIV(eAAMPConfig_DisableAC3));
+	
 	//persistHighNetworkBandwidth
 	jsondata.add("persistHighNetworkBandwidth", ISCONFIGSET_PRIV(eAAMPConfig_PersistHighNetworkBandwidth));
 	/*
@@ -11031,6 +11033,7 @@ long PrivateInstanceAAMP::LoadFogConfig()
 			jsondata.add("trackPreference", jsondataForPreference);
 		}
 	}
+	
 
 	jsonStr = jsondata.print_UnFormatted();
 	AAMPLOG_TRACE("%s", jsonStr.c_str());
@@ -11049,3 +11052,4 @@ std::string PrivateInstanceAAMP::GetLicenseCustomData()
     GETCONFIGVALUE_PRIV(eAAMPConfig_CustomLicenseData,customData);
     return customData;
 }
+

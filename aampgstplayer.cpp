@@ -101,6 +101,20 @@ typedef enum {
 #define BUFFERING_TIMEOUT_PRIORITY -70
 #define AAMP_MIN_DECODE_ERROR_INTERVAL 10000
 #define VIDEO_COORDINATES_SIZE 32
+
+/**
+ * @name gmapDecoderLoookUptable
+ * 
+ * @brief Decoder map list lookup table 
+ * convert from codec to string map list of gstreamer 
+ * component.
+ */
+static std::map <std::string, std::vector<std::string>> gmapDecoderLoookUptable = 
+{
+	{"ac-3", {"omxac3dec", "avdec_ac3", "avdec_ac3_fixed"}},
+	{"ac-4", {"omxac4dec"}}
+};
+
 /**
  * @struct media_stream
  * @brief Holds stream(A/V) specific variables.
@@ -4149,6 +4163,33 @@ void AAMPGstPlayer::GetVideoSize(int &width, int &height)
 		width = w;
 		height = h;
 	}
+}
+
+/***
+ * @fn  IsCodecSupported
+ * 
+ * @brief Check whether Gstreamer platform has support of the given codec or not. 
+ *        codec to component mapping done in gstreamer side.
+ * @param codecName - Name of codec to be checked
+ * @return True if platform has the support else false
+ */
+
+bool AAMPGstPlayer::IsCodecSupported(const std::string &codecName)
+{
+	FN_TRACE( __FUNCTION__ );
+	bool retValue = false;
+	GstRegistry* registry = gst_registry_get(); 
+	for (std::string &componentName: gmapDecoderLoookUptable[codecName])
+	{
+		GstPluginFeature* pluginFeature = gst_registry_lookup_feature(registry, componentName.c_str());
+		if (pluginFeature != NULL)
+		{
+			retValue = true;
+			break;
+		}
+	}
+
+	return retValue;
 }
 
 /**
