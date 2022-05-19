@@ -8181,7 +8181,8 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(double durationMs, std::set<std
 	{
 		if (!iter->empty())
 		{
-			assert(iter->size() < MAX_LANGUAGE_TAG_LENGTH - 1);
+			// assert if size >= < MAX_LANGUAGE_TAG_LENGTH 
+			assert(iter->size() < MAX_LANGUAGE_TAG_LENGTH);
 			event->addLanguage((*iter));
 		}
 	}
