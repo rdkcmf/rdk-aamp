@@ -299,52 +299,60 @@ struct AudioTrackInfo
 	bool isMuxed; 				/**< Flag to indicated muxed audio track ; this is used by AC4 tracks */
 	Accessibility accessibilityItem; /**< Field to store Accessibility Node */
 	std::string mType;			/**< Type field of track, to be populated by player */
+	bool isAvailable;
 
 	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), 
-	bandwidth(0),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(false), label(), mType(), accessibilityItem() 
+	bandwidth(0),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(false), label(), mType(), accessibilityItem(), isAvailable(true) 
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, std::string cha, int ch):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1), primaryKey(0) , contentType(), mixType(), accessibilityType(), isMuxed(false), label(), mType(), accessibilityItem()
+		codec(codecStr), characteristics(cha), channels(ch), bandwidth(-1), primaryKey(0) , contentType(), mixType(), accessibilityType(), isMuxed(false), label(), mType(), accessibilityItem(),
+		isAvailable(true)
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, int pk, std::string conType, std::string mixType):
 			index(idx), language(lang), rendition(rend), name(trackName),
 			codec(codecStr), characteristics(), channels(0), bandwidth(-1), primaryKey(pk),
-                        contentType(conType), mixType(mixType), accessibilityType(), isMuxed(false), label(), mType(), accessibilityItem()
+                        contentType(conType), mixType(mixType), accessibilityType(), isMuxed(false), label(), mType(), accessibilityItem(),
+			isAvailable(true)
 	{
 	}
 
-	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, std::string typ):
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, std::string typ, bool available):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ), isMuxed(false), label(), mType(), accessibilityItem()
+		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ), isMuxed(false), label(), mType(), accessibilityItem(),
+		isAvailable(true)
 	{
 	}
 
 	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, int channel):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(), channels(channel), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(false), label(), mType(), accessibilityItem()
+		codec(codecStr), characteristics(), channels(channel), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(false), label(), mType(), accessibilityItem(),
+		isAvailable(true)
 	{
 	}
 
-	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, int channel, bool muxed):
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, int channel, bool muxed, bool available):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(), channels(channel), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(muxed), label(), mType(), accessibilityItem()
+		codec(codecStr), characteristics(), channels(channel), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(muxed), label(), mType(), accessibilityItem(),
+		isAvailable(available)
 	{
 	}
 
-	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, std::string typ, bool muxed, std::string lab, std::string type):
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, std::string typ, bool muxed, std::string lab, std::string type, bool available):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ), isMuxed(muxed), label(lab), mType(type), accessibilityItem()
+		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ), isMuxed(muxed), label(lab), mType(type), accessibilityItem(),
+		isAvailable(available)
 	{
 	}
 
-	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, std::string typ, bool muxed, std::string lab, std::string type, Accessibility accessbility):
+	AudioTrackInfo(std::string idx, std::string lang, std::string rend, std::string trackName, std::string codecStr, long bw, std::string typ, bool muxed, std::string lab, std::string type, Accessibility accessbility, bool available):
 		index(idx), language(lang), rendition(rend), name(trackName),
-		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ), isMuxed(muxed), label(lab), mType(type), accessibilityItem(accessbility)
+		codec(codecStr), characteristics(), channels(0), bandwidth(bw),primaryKey(0), contentType(), mixType(), accessibilityType(typ), isMuxed(muxed), label(lab), mType(type), accessibilityItem(accessbility),
+		isAvailable(available)
 	{
 	}
 
@@ -392,43 +400,45 @@ struct TextTrackInfo
 	std::string accessibilityType; //value of Accessibility
 	Accessibility accessibilityItem; /**< Field to store Accessibility Node */
 	std::string mType;
+	bool isAvailable;
 
-	TextTrackInfo() : index(), language(), isCC(false), rendition(), name(), instreamId(), characteristics(), codec(), primaryKey(0), accessibilityType(), label(), mType(), accessibilityItem()
+	TextTrackInfo() : index(), language(), isCC(false), rendition(), name(), instreamId(), characteristics(), codec(), primaryKey(0), accessibilityType(), label(), mType(), accessibilityItem(),
+			  isAvailable(true)
 	{
 	}
 
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(id), characteristics(cha),
-		codec(), primaryKey(0), accessibilityType(), label(), mType(), accessibilityItem()
+		codec(), primaryKey(0), accessibilityType(), label(), mType(), accessibilityItem(), isAvailable(true)
 	{
 	}
 
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string id, std::string cha, int pk):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(id), characteristics(cha),
-		codec(), primaryKey(pk), accessibilityType(), label(), mType(), accessibilityItem()
+		codec(), primaryKey(pk), accessibilityType(), label(), mType(), accessibilityItem(), isAvailable(true)
 	{
 	}
 
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr, std::string cha, std::string typ):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(), characteristics(cha),
-		codec(codecStr), primaryKey(0), accessibilityType(typ), label(), mType(), accessibilityItem()
+		codec(codecStr), primaryKey(0), accessibilityType(typ), label(), mType(), accessibilityItem(), isAvailable(true)
 	{
 	}
 	
 	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr, std::string cha, std::string typ, std::string lab, std::string type):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(), characteristics(cha),
-		codec(codecStr), primaryKey(0), accessibilityType(typ), label(lab), mType(type), accessibilityItem()
+		codec(codecStr), primaryKey(0), accessibilityType(typ), label(lab), mType(type), accessibilityItem(), isAvailable(true)
 	{
 	}
 
-	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr, std::string cha, std::string typ, std::string lab, std::string type, Accessibility acc):
+	TextTrackInfo(std::string idx, std::string lang, bool cc, std::string rend, std::string trackName, std::string codecStr, std::string cha, std::string typ, std::string lab, std::string type, Accessibility acc, bool available):
 		index(idx), language(lang), isCC(cc), rendition(rend),
 		name(trackName), instreamId(), characteristics(cha),
-		codec(codecStr), primaryKey(0), accessibilityType(typ), label(lab), mType(type), accessibilityItem(acc)
+		codec(codecStr), primaryKey(0), accessibilityType(typ), label(lab), mType(type), accessibilityItem(acc), isAvailable(available)
 	{
 	}
 
