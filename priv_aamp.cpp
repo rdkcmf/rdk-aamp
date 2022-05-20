@@ -3383,6 +3383,16 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 			//AAMPLOG_WARN("NwBW with newlogic size[%d] avg[%ld] ",tmpData.size(), avg/tmpData.size());
 			ret = (avg/tmpData.size());
 			mAvailableBandwidth = ret;
+			//Store the PersistBandwidth and UpdatedTime on ABRManager
+			//Bitrate Update only for foreground player
+			if(ISCONFIGSET_PRIV(eAAMPConfig_PersistProfileAcrossTune))
+			{
+				if(mAvailableBandwidth  > 0 && mbPlayEnabled)
+				{
+					ABRManager::setPersistBandwidth(mAvailableBandwidth );
+					ABRManager::mPersistBandwidthUpdatedTime = aamp_GetCurrentTimeMS();
+				}
+			}
 		}
 		else
 		{
@@ -10878,6 +10888,9 @@ void PrivateInstanceAAMP::LoadFogConfig(void)
 
 	//disableAC4
 	jsondata.add("disableAC4", ISCONFIGSET_PRIV(eAAMPConfig_DisableAC4));
+
+	//persistProfileAcrossTune
+	jsondata.add("persistProfileAcrossTune", ISCONFIGSET_PRIV(eAAMPConfig_PersistProfileAcrossTune));
 
 	jsonStr = jsondata.print_UnFormatted();
 	std::string remoteUrl = "127.0.0.1:9080/playerconfig";
