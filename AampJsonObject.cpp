@@ -63,12 +63,12 @@ bool AampJsonObject::add(const std::string& name, const std::string& value, cons
 
 bool AampJsonObject::add(const std::string& name, const std::vector<std::string>& values)
 {
-	std::vector<const char*> cstrings;
+	cJSON* arr = cJSON_CreateArray();
 	for (auto value : values)
 	{
-		cstrings.push_back(value.c_str());
+		cJSON_AddItemToArray(arr, cJSON_CreateString(value.c_str()));
 	}
-	return add(name, cJSON_CreateStringArray(&cstrings[0], values.size()));
+	return add(name, arr);
 }
 
 bool AampJsonObject::add(const std::string& name, const std::vector<uint8_t>& values, const ENCODING encoding)
@@ -112,6 +112,13 @@ bool AampJsonObject::add(const std::string& name, const std::vector<uint8_t>& va
 	}
 
 	return res;
+}
+
+bool AampJsonObject::add(const std::string& name, AampJsonObject& value)
+{
+	cJSON_AddItemToObject(mJsonObj, name.c_str(), value.mJsonObj);
+	value.mParent = this;
+	return true;
 }
 
 bool AampJsonObject::add(const std::string& name, std::vector<AampJsonObject*>& values)

@@ -254,6 +254,7 @@ private:
 	int GetDrmPrefs(const std::string& uuid);
 	std::string GetPreferredDrmUUID();
 	bool IsEmptyPeriod(IPeriod *period, bool isFogPeriod = false);
+	bool IsEmptyAdaptation(IAdaptationSet *adaptationSet, bool isFogPeriod);
 	void GetAvailableVSSPeriods(std::vector<IPeriod*>& PeriodIds);
 	bool CheckForVssTags();
 	std::string GetVssVirtualStreamID();

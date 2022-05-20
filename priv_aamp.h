@@ -624,6 +624,13 @@ public:
 	void Tune(const char *url, bool autoPlay,  const char *contentType = NULL, bool bFirstAttempt = true, bool bFinalAttempt = false, const char *sessionUUID = NULL,bool audioDecoderStreamSync = true);
 
 	/**
+	 * @brief API Used to reload TSB with new session
+	 *
+	 * @return void
+	 */
+	void ReloadTSB();
+
+	/**
 	 * @brief The helper function which perform tuning
 	 *
 	 * @param[in] tuneType - Type of tuning. eg: Normal, trick, seek to live, etc
@@ -751,6 +758,7 @@ public:
 	//std::string cookieHeaders[MAX_CURL_INSTANCE_COUNT]; //To store Set-Cookie: headers in HTTP response
 	std::string  mManifestUrl;
 	std::string mTunedManifestUrl;
+	std::string mTsbSessionRequestUrl;
 	std::string schemeIdUriDai;
 
 	bool isPreferredDRMConfigured;
@@ -3579,9 +3587,9 @@ public:
 
 	/**
 	 *    @brief LoadFogConfig
-	 *    return none
+	 *    return long error code
 	 */
-	void LoadFogConfig(void);
+	long LoadFogConfig(void);
 	
 	/**
 	 *    @brief To increment gaps between periods for dash 

@@ -1543,6 +1543,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, userProfileStatus(false)
 	, mApplyCachedVideoMute(false)
 	, mFirstProgress(false)
+	, mTsbSessionRequestUrl()
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -5179,6 +5180,34 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 }
 
 /**
+ * @brief Reload TSB for same URL .
+ */
+void PrivateInstanceAAMP::ReloadTSB()
+{
+	TuneType tuneType =  eTUNETYPE_SEEK;
+
+	mEventManager->SetPlayerState(eSTATE_IDLE);
+	mManifestUrl = mTsbSessionRequestUrl + "&reloadTSB=true";
+	// To post player configurations to fog on 1st time tune
+	long configPassCode = -1;
+	if(mTSBEnabled && ISCONFIGSET_PRIV(eAAMPConfig_EnableAampConfigToFog))
+	{
+		configPassCode = LoadFogConfig();
+	}
+	if(configPassCode == 200 || configPassCode == 204 || configPassCode == 206)
+	{
+		mMediaFormat = GetMediaFormatType(mManifestUrl.c_str());
+		ResumeDownloads();
+
+		mIsFirstRequestToFOG = (mTSBEnabled == true);
+
+		{
+			AAMPLOG_WARN("Reloading TSB, URL: %s", mManifestUrl.c_str());
+		}
+	}
+}
+
+/**
  * @brief Tune to a URL.
  *
  * @param  mainManifestUrl - HTTP/HTTPS url to be played.
@@ -5524,6 +5553,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 
 	{
 		char tuneStrPrefix[64];
+		mTsbSessionRequestUrl.clear();
 		memset(tuneStrPrefix, '\0', sizeof(tuneStrPrefix));
 		if (!mAppName.empty())
 		{
@@ -5542,6 +5572,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		{
 			AAMPLOG_WARN("%s aamp_tune: attempt: %d format: %s URL: (BIG)", tuneStrPrefix, mTuneAttempts, mMediaFormatName[mMediaFormat]);
 			AAMPLOG_INFO("URL: %s", mManifestUrl.c_str());
+		}
+		if(IsTSBSupported())
+		{
+			mTsbSessionRequestUrl = mManifestUrl;
 		}
 	}
 
@@ -10656,6 +10690,11 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			bool labelPresent = false;
 			int trackIndex = GetAudioTrack();
 
+			bool languageAvailabilityInManifest = false;
+			bool renditionAvailabilityInManifest = false;
+			bool accessibilityAvailabilityInManifest = false;
+			bool labelAvailabilityInManifest = false;
+
 			if (trackIndex >= 0)
 			{
 				std::vector<AudioTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableAudioTracks();
@@ -10674,6 +10713,10 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 								[languageList, currentPrefLanguage](AudioTrackInfo& temp)
 								{ return ((temp.language == languageList) && (temp.language != currentPrefLanguage)); });
 					languagePresent = (language != end(trackInfo) || (preferredLanguagesList.size() > 1)); /* If multiple value of language is present then retune */
+					auto languageAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
+								[languageList, currentPrefLanguage](AudioTrackInfo& temp)
+								{ return ((temp.language == languageList) && (temp.language != currentPrefLanguage) && (temp.isAvailable)); });
+					languageAvailabilityInManifest = (languageAvailable != end(trackInfo) && languageAvailable->isAvailable);
 				}
 
 				// Logic to check whether the given label is present in the available tracks,
@@ -10685,6 +10728,11 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 								[labelList, currentPrefLabel](AudioTrackInfo& temp)
 								{ return ((temp.label == labelList) && (temp.label != currentPrefLabel)); });
 					labelPresent = (label != end(trackInfo) || (preferredLabelList.size() > 1)); /* If multiple value of label is present then retune */
+					auto labelAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
+								[labelList, currentPrefLabel](AudioTrackInfo& temp)
+								{ return ((temp.label == labelList) && (temp.label != currentPrefLabel) && (temp.isAvailable)); });
+					labelAvailabilityInManifest = ((labelAvailable != end(trackInfo) ) && labelAvailable->isAvailable);
+
 				}
 
 				
@@ -10697,6 +10745,10 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 								[preferredRendition, currentPrefRendition](AudioTrackInfo& temp)
 								{ return ((temp.rendition == preferredRendition) && (temp.rendition != currentPrefRendition)); });
 					renditionPresent = (rendition != end(trackInfo));
+					auto renditionAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
+								[preferredRendition, currentPrefRendition](AudioTrackInfo& temp)
+								{ return ((temp.rendition == preferredRendition) && (temp.rendition != currentPrefRendition) && (temp.isAvailable)); });
+					renditionAvailabilityInManifest = ((renditionAvailable != end(trackInfo)) && renditionAvailable->isAvailable);
 				}
 
 				// Logic to check whether the given accessibility is present in the available tracks,
@@ -10708,6 +10760,10 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 								[preferredType, currentPrefAccessibility](AudioTrackInfo& temp)
 								{ return ((temp.accessibilityType == preferredType) && (temp.accessibilityType != currentPrefAccessibility)); });
 					accessibilityPresent = (accessType != end(trackInfo));
+					auto accessTypeAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
+								[preferredType, currentPrefAccessibility](AudioTrackInfo& temp)
+								{ return ((temp.accessibilityType == preferredType) && (temp.accessibilityType != currentPrefAccessibility) && (temp.isAvailable)); });
+					accessibilityAvailabilityInManifest = ((accessTypeAvailable != end(trackInfo)) && accessTypeAvailable->isAvailable);
 				}
 
 				// Logic to check whether the given codec is present in the available tracks,
@@ -10717,7 +10773,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				{
 					auto codec = std::find_if(trackInfo.begin(), trackInfo.end(),
 								[codecList, currentPrefCodec](AudioTrackInfo& temp)
-								{ return ((temp.codec == codecList) && (temp.codec != currentPrefCodec)); });
+								{ return ((temp.codec == codecList) && (temp.codec != currentPrefCodec) && (temp.isAvailable)); });
 					codecPresent = (codec != end(trackInfo) || (preferredCodecList.size() > 1) ); /* If multiple value of codec is present then retune */
 				}
 			}
@@ -10739,6 +10795,14 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				mLanguageChangeInProgress = true;
 				AcquireStreamLock();
 				TeardownStream(false);
+				if(IsTSBSupported() &&
+				 ((languagePresent && !languageAvailabilityInManifest) ||
+				 (renditionPresent && !renditionAvailabilityInManifest) ||
+				 (accessibilityPresent && !accessibilityAvailabilityInManifest) ||
+				 (labelPresent && !labelAvailabilityInManifest)))
+				{
+					ReloadTSB();
+				}
 				TuneHelper(eTUNETYPE_SEEK);
 				discardEnteringLiveEvt = false;
 				ReleaseStreamLock();
@@ -10872,6 +10936,10 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 			bool labelPresent = false;
 			int trackIndex = GetTextTrack();
 
+                        bool languageAvailabilityInManifest = false;
+                        bool renditionAvailabilityInManifest = false;
+                        bool accessibilityAvailabilityInManifest = false;
+                        bool labelAvailabilityInManifest = false;
 			if (trackIndex >= 0)
 			{
 				std::vector<TextTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableTextTracks();
@@ -10887,6 +10955,10 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 								[param, currentPrefLanguage](TextTrackInfo& temp)
 								{ return ((temp.language == param) && (temp.language != currentPrefLanguage)); });
 					languagePresent = (language != end(trackInfo) || (preferredTextLanguagesList.size() > 1)); /* If multiple value of language is present then retune */
+					auto languageAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
+								[param, currentPrefLanguage](TextTrackInfo& temp)
+								{ return ((temp.language == param) && (temp.language != currentPrefLanguage) && (temp.isAvailable)); });
+					languageAvailabilityInManifest = (languageAvailable != end(trackInfo) && languageAvailable->isAvailable);
 				}
 			}
 
@@ -10902,6 +10974,15 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 				mLanguageChangeInProgress = true;
 				AcquireStreamLock();
 				TeardownStream(false);
+				if(IsTSBSupported() &&
+				 ((languagePresent && !languageAvailabilityInManifest) ||
+				 (renditionPresent && !renditionAvailabilityInManifest) ||
+				 (accessibilityPresent && !accessibilityAvailabilityInManifest) ||
+				 (labelPresent && !labelAvailabilityInManifest)))
+				{
+					ReloadTSB();
+				}
+
 				TuneHelper(eTUNETYPE_SEEK);
 				discardEnteringLiveEvt = false;
 				ReleaseStreamLock();
@@ -11390,8 +11471,9 @@ std::string PrivateInstanceAAMP::GetPlaybackStats()
 
 /**
 * @brief LoadFogConfig - Load needed player Config to Fog
+* @return long http error code
 */
-void PrivateInstanceAAMP::LoadFogConfig(void)
+long PrivateInstanceAAMP::LoadFogConfig()
 {
 	std::string jsonStr;
 	AampJsonObject jsondata;
@@ -11439,10 +11521,109 @@ void PrivateInstanceAAMP::LoadFogConfig(void)
 	//persistProfileAcrossTune
 	jsondata.add("persistProfileAcrossTune", ISCONFIGSET_PRIV(eAAMPConfig_PersistProfileAcrossTune));
 
+	/*
+	 * Audio and subtitle preference
+	 * Disabled this for XRE supported TSB linear
+	 */
+	if (!ISCONFIGSET_PRIV(eAAMPConfig_XRESupportedTune))
+	{
+		AampJsonObject jsondataForPreference;
+		AampJsonObject audioPreference;
+		AampJsonObject subtitlePreference;
+		bool aPrefAvail = false;
+		bool tPrefAvail = false;
+		if((preferredLanguagesList.size() > 0) || !preferredRenditionString.empty() || !preferredTypeString.empty() || !preferredAudioAccessibilityNode.getSchemeId().empty())
+		{
+			aPrefAvail = true;
+			if (preferredLanguagesList.size() > 0)
+			{
+				audioPreference.add("languages", preferredLanguagesList);
+			}
+			if(!preferredRenditionString.empty())
+			{
+				audioPreference.add("rendition", preferredRenditionString);
+			}
+			if(!preferredLabelsString.empty())
+			{
+				audioPreference.add("label", preferredLabelsString);
+			}
+			if(!preferredAudioAccessibilityNode.getSchemeId().empty())
+			{
+				AampJsonObject accessiblity;
+				std::string schemeId = preferredAudioAccessibilityNode.getSchemeId();
+				accessiblity.add("schemeId", schemeId);
+				std::string value;
+				if(preferredAudioAccessibilityNode.getTypeName() == "int_value")
+				{
+					value = std::to_string(preferredAudioAccessibilityNode.getIntValue());
+				}
+				else
+				{
+					value = preferredAudioAccessibilityNode.getStrValue();
+				}
+				accessiblity.add("value", value);
+				audioPreference.add("accessibility", accessiblity);
+			}
+		}
+
+		if((preferredTextLanguagesList.size() > 0) || !preferredTextRenditionString.empty() || !preferredTextLabelString.empty() || !preferredTextAccessibilityNode.getSchemeId().empty())
+		{
+			tPrefAvail = true;
+			if (preferredTextLanguagesList.size() > 0)
+			{
+				subtitlePreference.add("languages", preferredTextLanguagesList);
+			}
+			if(!preferredTextRenditionString.empty())
+			{
+				subtitlePreference.add("rendition", preferredTextRenditionString);
+			}
+			if(!preferredTextLabelString.empty())
+			{
+				subtitlePreference.add("label", preferredTextLabelString);
+			}
+			if(!preferredTextAccessibilityNode.getSchemeId().empty())
+			{
+				AampJsonObject accessiblity;
+				std::string schemeId = preferredTextAccessibilityNode.getSchemeId();
+				accessiblity.add("schemeId", schemeId);
+				std::string value;
+				if(preferredTextAccessibilityNode.getTypeName() == "int_value")
+				{
+					value = std::to_string(preferredTextAccessibilityNode.getIntValue());
+				}
+				else
+				{
+					value = preferredTextAccessibilityNode.getStrValue();
+				}
+				accessiblity.add("value", value);
+				subtitlePreference.add("accessibility", accessiblity);
+			}
+		}
+
+		bool trackAdded = false;
+		if(aPrefAvail)
+		{
+			jsondataForPreference.add("audio", audioPreference);
+			trackAdded = true;
+		}
+		if(tPrefAvail)
+		{
+			jsondataForPreference.add("text", subtitlePreference);
+			trackAdded = true;
+		}
+
+		if(trackAdded)
+		{
+			jsondata.add("trackPreference", jsondataForPreference);
+		}
+	}
+
 	jsonStr = jsondata.print_UnFormatted();
+	AAMPLOG_TRACE("%s", jsonStr.c_str());
 	std::string remoteUrl = "127.0.0.1:9080/playerconfig";
 	long http_error = -1;
 	ProcessCustomCurlRequest(remoteUrl, NULL, &http_error, eCURL_POST, jsonStr);
+	return http_error;
 }
 
 /**

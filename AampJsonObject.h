@@ -182,6 +182,8 @@ public:
 	 *  @return true if successfully added, false otherwise
 	 */
 	bool add(const std::string& name, long value);
+
+	bool add(const std::string& name, AampJsonObject& value);
 	
 	/**
 	 *  @brief Add a long value

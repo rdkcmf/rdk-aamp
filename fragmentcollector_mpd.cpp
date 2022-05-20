@@ -5137,50 +5137,7 @@ bool StreamAbstractionAAMP_MPD::IsEmptyPeriod(IPeriod *period, bool isFogPeriod)
 		}
 		else
 		{
-			IRepresentation *representation = NULL;
-			ISegmentTemplate *segmentTemplate = adaptationSet->GetSegmentTemplate();
-			if (segmentTemplate)
-			{
-				if(!isFogPeriod || (0 != segmentTemplate->GetDuration()))
-				{
-					isEmptyPeriod = false;
-				}
-			}
-			else
-			{
-				if(adaptationSet->GetRepresentation().size() > 0)
-				{
-					//Get first representation in the adapatation set
-					representation = adaptationSet->GetRepresentation().at(0);
-				}
-				if(representation)
-				{
-					segmentTemplate = representation->GetSegmentTemplate();
-					if(segmentTemplate)
-					{
-						if(!isFogPeriod || (0 != segmentTemplate->GetDuration()))
-						{
-							isEmptyPeriod = false;
-						}
-					}
-					else
-					{
-						ISegmentList *segmentList = representation->GetSegmentList();
-						if(segmentList)
-						{
-							isEmptyPeriod = false;
-						}
-						else
-						{
-							ISegmentBase *segmentBase = representation->GetSegmentBase();
-							if(segmentBase)
-							{
-								isEmptyPeriod = false;
-							}
-						}
-					}
-				}
-			}
+			isEmptyPeriod = IsEmptyAdaptation(adaptationSet, isFogPeriod);
 
 			if(!isEmptyPeriod)
 			{
@@ -5193,6 +5150,61 @@ bool StreamAbstractionAAMP_MPD::IsEmptyPeriod(IPeriod *period, bool isFogPeriod)
 	return isEmptyPeriod;
 }
 
+/**
+ * @brief Check if Period is empty or not
+ * @param Adaptation
+ * @param bool isFogPeriod
+ * @retval Return true on empty Period
+ */
+bool StreamAbstractionAAMP_MPD::IsEmptyAdaptation(IAdaptationSet *adaptationSet, bool isFogPeriod)
+{
+	bool isEmptyAdaptation = true;
+	IRepresentation *representation = NULL;
+	ISegmentTemplate *segmentTemplate = adaptationSet->GetSegmentTemplate();
+	if (segmentTemplate)
+	{
+		if(!isFogPeriod || (0 != segmentTemplate->GetDuration()))
+		{
+			isEmptyAdaptation = false;
+		}
+	}
+	else
+	{
+		if(adaptationSet->GetRepresentation().size() > 0)
+		{
+			//Get first representation in the adapatation set
+			representation = adaptationSet->GetRepresentation().at(0);
+		}
+		if(representation)
+		{
+			segmentTemplate = representation->GetSegmentTemplate();
+			if(segmentTemplate)
+			{
+				if(!isFogPeriod || (0 != segmentTemplate->GetDuration()))
+				{
+					isEmptyAdaptation = false;
+				}
+			}
+			else
+			{
+				ISegmentList *segmentList = representation->GetSegmentList();
+				if(segmentList)
+				{
+					isEmptyAdaptation = false;
+				}
+				else
+				{
+					ISegmentBase *segmentBase = representation->GetSegmentBase();
+					if(segmentBase)
+					{
+						isEmptyAdaptation = false;
+					}
+				}
+			}
+		}
+	}
+	return isEmptyAdaptation;
+}
 
 /**
  * @brief Check if Period is empty or not
@@ -6748,6 +6760,7 @@ void StreamAbstractionAAMP_MPD::ParseTrackInformation(IAdaptationSet *adaptation
 				std::string name = rep->GetId();
 				long bandwidth = rep->GetBandwidth();
 				const std::vector<std::string> repCodecs = rep->GetCodecs();
+				bool isAvailable = !IsEmptyAdaptation(adaptationSet, mIsFogTSB);
 				// check if Representation includes codec
 				if (repCodecs.size())
 				{
@@ -6773,16 +6786,16 @@ void StreamAbstractionAAMP_MPD::ParseTrackInformation(IAdaptationSet *adaptation
 					}
 					else
 					{
-						AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Audio Track - lang:%s, group:%s, name:%s, codec:%s, bandwidth:%d, AccessibilityType:%s label:%s type:%s",
-						lang.c_str(), group.c_str(), name.c_str(), codec.c_str(), bandwidth, accessibilityType.c_str(), label.c_str(), type.c_str());
-						aTracks.push_back(AudioTrackInfo(index, lang, group, name, codec, bandwidth, accessibilityType, false, label, type, accessibilityNode));
+						AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Audio Track - lang:%s, group:%s, name:%s, codec:%s, bandwidth:%d, AccessibilityType:%s label:%s type:%s availability:%d",
+						lang.c_str(), group.c_str(), name.c_str(), codec.c_str(), bandwidth, accessibilityType.c_str(), label.c_str(), type.c_str(), isAvailable);
+						aTracks.push_back(AudioTrackInfo(index, lang, group, name, codec, bandwidth, accessibilityType, false, label, type, accessibilityNode, isAvailable));
 					}
 				}
 				else
 				{
-					AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Text Track - lang:%s, isCC:0, group:%s, name:%s, codec:%s, accessibilityType:%s label:%s type:%s",
-						lang.c_str(), group.c_str(), name.c_str(), codec.c_str(), accessibilityType.c_str(), label.c_str(), type.c_str());
-					tTracks.push_back(TextTrackInfo(index, lang, false, group, name, codec, empty, accessibilityType, label, type, accessibilityNode));
+					AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Text Track - lang:%s, isCC:0, group:%s, name:%s, codec:%s, accessibilityType:%s label:%s type:%s availability:%d",
+						lang.c_str(), group.c_str(), name.c_str(), codec.c_str(), accessibilityType.c_str(), label.c_str(), type.c_str(), isAvailable);
+					tTracks.push_back(TextTrackInfo(index, lang, false, group, name, codec, empty, accessibilityType, label, type, accessibilityNode, isAvailable));
 				}
 			}
 		}
@@ -6810,7 +6823,7 @@ void StreamAbstractionAAMP_MPD::ParseTrackInformation(IAdaptationSet *adaptation
 							ParseCCStreamIDAndLang(value.substr(0, delim), id, lang);
 							AAMPLOG_WARN("StreamAbstractionAAMP_MPD: CC Track - lang:%s, isCC:1, group:%s, id:%s",
 								lang.c_str(), schemeId.c_str(), id.c_str());
-							tTracks.push_back(TextTrackInfo(empty, lang, true, schemeId, empty, id, empty, empty, empty, empty, accessibilityNode));
+							tTracks.push_back(TextTrackInfo(empty, lang, true, schemeId, empty, id, empty, empty, empty, empty, accessibilityNode, true));
 							value = value.substr(delim + 1);
 							delim = value.find(';');
 						}
@@ -6818,13 +6831,13 @@ void StreamAbstractionAAMP_MPD::ParseTrackInformation(IAdaptationSet *adaptation
 						lang = Getiso639map_NormalizeLanguageCode(lang,aamp->GetLangCodePreference());
 						AAMPLOG_WARN("StreamAbstractionAAMP_MPD: CC Track - lang:%s, isCC:1, group:%s, id:%s",
 							lang.c_str(), schemeId.c_str(), id.c_str());
-						tTracks.push_back(TextTrackInfo(empty, lang, true, schemeId, empty, id, empty, empty, empty, empty, accessibilityNode));
+						tTracks.push_back(TextTrackInfo(empty, lang, true, schemeId, empty, id, empty, empty, empty, empty, accessibilityNode, true));
 					}
 					else
 					{
 						// value = empty is highly discouraged as per spec, just added as fallback
 						AAMPLOG_WARN("StreamAbstractionAAMP_MPD: CC Track - group:%s, isCC:1", schemeId.c_str());
-						tTracks.push_back(TextTrackInfo(empty, empty, true, schemeId, empty, empty, empty, empty, empty, empty, accessibilityNode));
+						tTracks.push_back(TextTrackInfo(empty, empty, true, schemeId, empty, empty, empty, empty, empty, empty, accessibilityNode, true));
 					}
 				}
 			}
@@ -10994,7 +11007,7 @@ void StreamAbstractionAAMP_MPD::ParseAvailablePreselections(IMPDElement *period,
 				/** Preselection node is used for representing muxed audio tracks **/
 				AAMPLOG_INFO("Preselection node found with tag %s language %s role %s id %s codec %s bandwidth %ld Channel %d ", 
 				tag.c_str(), lang.c_str(), role.c_str(), id.c_str(), codec.c_str(), bandwidth, channel);
-				audioAC4Tracks.push_back(AudioTrackInfo(tag, lang, role, id, codec, bandwidth, channel, true));
+				audioAC4Tracks.push_back(AudioTrackInfo(tag, lang, role, id, codec, bandwidth, channel, true, true));
 			}
 		}
 	}
