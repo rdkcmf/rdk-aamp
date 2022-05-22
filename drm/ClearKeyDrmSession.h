@@ -18,7 +18,7 @@
 */
 
 /**
- * @file ClearKeyDrmSession.h
+ * @file ClearKeySession.h
  * @brief Header file for ClearKeySession
  */
 
@@ -36,7 +36,7 @@
 using namespace std;
 
 /**
- * @class ClearKeySession
+ * @class AAMPOCDMSession
  * @brief Open CDM DRM session
  */
 class ClearKeySession : public AampDrmSession
@@ -51,9 +51,6 @@ private:
 	size_t m_keyLen;
 	unsigned char* m_keyId;
 	size_t m_keyIdLen;
-	/**
-	 * @brief Initialize CK DRM session, Initializes EVP context.
-	 */
 	void initAampDRMSession();
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 	EVP_CIPHER_CTX *mOpensslCtx;
@@ -71,15 +68,9 @@ public:
 	 * @brief ClearKeySession Destructor
 	 */
 	~ClearKeySession();
-	/**     
-     	 * @brief Copy constructor disabled
-     	 *
-     	 */
+
 	ClearKeySession(const ClearKeySession&) = delete;
-	/**
- 	 * @brief assignment operator disabled
-	 *
- 	 */
+
 	ClearKeySession& operator=(const ClearKeySession&) = delete;
 
 	/**
@@ -104,14 +95,14 @@ public:
 	 * @brief Updates the received key to DRM session
 	 * @param key : License key from license server.
 	 * @param timeout: max timeout untill which to wait for cdm processing.
-	 * @retval DRM_SUCCESS(1) if no errors encountered
+	 * @retval 1 if no errors encountered
 	 */
 	int aampDRMProcessKey(DrmData* key, uint32_t timeout);
 
 	/**
 	 * @brief SetKid for this session.
-	 * @param keyId Clear key ID
-	 * @param keyIDLen key length
+	 * @param keyId
+	 * @param keyID Len
 	 */
 	void setKeyId(const char* keyId, int32_t keyIDLen);
 

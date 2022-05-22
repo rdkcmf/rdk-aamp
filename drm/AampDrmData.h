@@ -17,11 +17,6 @@
  * limitations under the License.
 */
 
-/**
- * @file AampDrmData.h
- * @brief File holds DRM License data
- */ 
-
 #ifndef AAMPDRMDATA_H
 #define AAMPDRMDATA_H
 
@@ -32,65 +27,21 @@
 class DrmData{
 
 private:
- 	std::string data;  /**< License Data */
+ 	std::string data;
 public:
-	/**
-	 *  @brief	Default constructor for DrmData.
-	 *		NULL initialize data and dataLength.
-	 */
+
 	DrmData();
-	/**
-	 *  @brief Constructor for DrmData
-	 *         allocate memory and initialize data and
-	 *	   dataLength with given params.
-	 *
-	 *  @param[in]	data - pointer to data to be copied.
-	 *  @param[in]	dataLength - length of data
-	 */	
 	DrmData(unsigned char *data, int dataLength);
-	/**
-         * @brief Copy constructor disabled
-         *
-         */
 	DrmData(const DrmData&) = delete;
-	/**
-         * @brief assignment operator disabled
-         *
-         */
 	DrmData& operator=(const DrmData&) = delete;
-	/**
-	 *  @brief	Distructor for DrmData.
-	 *		Free memory (if any) allocated for data.
-	 */
 	~DrmData();
-	/**
-	 *  @brief	Getter method for data.
-	 *
-	 *  @return	Returns pointer to data.
-	 */
-    	const std::string  &getData();
-	/**
-	 *  @brief  Getter method for dataLength.
-	 *
-	 *  @return Returns dataLength.
-	 */
+
+        const std::string  &getData();
+
 	int getDataLength();
-	/**
-	 *  @brief	Updates DrmData with given data.
-	 *		Frees the existing data, before copying new data.
-	 *
-	 *  @param[in]	data - Pointer to data to be set.
-	 *  @param[in]	dataLength - length of data.
-	 *  @return		void.
-	 */
+
 	void setData(unsigned char *data, int dataLength);
-	/**
-	 *  @brief      Appends DrmData with given data.
-	 *
-	 *  @param[in]  data - Pointer to data to be appended.
-	 *  @param[in]  dataLength - length of data.
-	 *  @return     void.
-	 */
+
 	void addData(unsigned char *data, int dataLength);
 };
 

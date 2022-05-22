@@ -17,12 +17,6 @@
  * limitations under the License.
 */
 
-/**
- * @file AampVgdrmHelper.cpp
- * @brief Handles operations for Vg DRM
- */
-
-
 #include <memory>
 #include <iostream>
 

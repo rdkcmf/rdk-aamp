@@ -19,19 +19,10 @@
 #ifndef _AAMP_CLEARKEY_HELPER_H
 #define _AAMP_CLEARKEY_HELPER_H
 
-/**
- * @file AampClearKeyHelper.cpp
- * @brief Implemented Clear key helper functions
- */
-
 #include <memory>
 
 #include "AampDrmHelper.h"
 
-/**
- * @class AampClearKeyHelper
- * @brief Class handles the clear key license operations
- */
 class AampClearKeyHelper : public AampDrmHelper
 {
 public:
@@ -75,11 +66,6 @@ private:
 	std::vector<uint8_t> mInitData;
 	std::vector<uint8_t> mKeyID;
 };
-
-/**
- * @class AampClearKeyHelperFactory
- * @brief Helper Factory class to maintain Aamp DRM data
- */
 
 class AampClearKeyHelperFactory : public AampDrmHelperFactory
 {

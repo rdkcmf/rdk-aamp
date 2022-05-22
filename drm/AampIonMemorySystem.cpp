@@ -17,11 +17,6 @@
  * limitations under the License.
 */
 
-/**
- * @file AampIonMemorySystem.cpp
- * @brief Handles ION memory management segments
- */
-
 #include "AampIonMemorySystem.h"
 
 // For Ion memory
@@ -60,11 +55,6 @@ bool AampIonMemorySystem::AampIonMemoryContext::createBuffer(size_t len) {
 	}
 	return (ret == 0);
 }
-
-/**
- * @class AampIonMemorySystemCloser
- * @brief Class to handle close the ION memory
- */
 
 class AampIonMemorySystemCloser {
 private:

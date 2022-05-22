@@ -51,13 +51,18 @@ using namespace std;
  */
 typedef	enum
 {
-	KEY_INIT = 0,			/**< Has been initialized */
-	KEY_PENDING = 1,		/**< Has a key message pending to be processed */
-	KEY_READY = 2,			/**< Has a usable key */
-	KEY_ERROR = 3,			/**< Has an error */
-	KEY_CLOSED = 4,			/**< Has been closed */
-	KEY_ERROR_EMPTY_SESSION_ID = 5	/**< Has Empty DRM session id */
-	
+	// Has been initialized.
+	KEY_INIT = 0,
+	// Has a key message pending to be processed.
+	KEY_PENDING = 1,
+	// Has a usable key.
+	KEY_READY = 2,
+	// Has an error.
+	KEY_ERROR = 3,
+	// Has been closed.
+	KEY_CLOSED = 4,
+	// Has Empty DRM session id.
+	KEY_ERROR_EMPTY_SESSION_ID = 5
 } KeyState;
 
 /**
@@ -147,15 +152,8 @@ public:
 	 * @param keySystem : DRM key system uuid
 	 */
 	AampDrmSession(AampLogManager *logObj, const string &keySystem);
-	/**     
-     	 * @brief Copy constructor disabled
-     	 *
-     	 */
+
 	AampDrmSession(const AampDrmSession&) = delete;
-	/**
- 	 * @brief assignment operator disabled
- 	 *
- 	 */
 	AampDrmSession& operator=(const AampDrmSession&) = delete;
 	/**
 	 * @brief Destructor for AampDrmSession..

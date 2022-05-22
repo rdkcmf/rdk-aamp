@@ -17,11 +17,6 @@
  * limitations under the License.
 */
 
-/**
- * @file AampWidevineDrmHelper.cpp
- * @brief Handles the Widevine DRM helper functions
- */
-
 #include <memory>
 #include <iostream>
 

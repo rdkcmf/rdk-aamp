@@ -20,31 +20,18 @@
 #ifndef AAMPIONMEMORYSYSTEM_H
 #define AAMPIONMEMORYSYSTEM_H
 
-/**
- * @file AampIonMemorySystem.h
- * @brief Controls the ION memory for aamp
- */
-
 #include "AampMemorySystem.h"
 
 #include <fcntl.h>
 #include <ion/ion.h>
 #include <linux/ion.h>
 
-/**
- * @struct AampIonMemoryInterchangeBuffer
- * @brief Stores the information on ION Memory to store data
- */
 struct AampIonMemoryInterchangeBuffer {
-	uint32_t size;            /**< The size of this buffer, for testing */
-	uint32_t dataSize;        /**< The size of data stored in the ION memory */
-	unsigned long phyAddr;    /**< The location in Physical ION memory where the data is [from ION spec] */
+	uint32_t size;            /// The size of this buffer, for testing
+	uint32_t dataSize;        /// The size of data stored in the ION memory
+	unsigned long phyAddr;    /// The location in Physical ION memory where the data is [from ION spec]
 };
 
-/**
- * @class AampIonMemorySystem
- * @brief Handles ION memory storage to store data
- */ 
 
 class AampIonMemorySystem : public AAMPMemorySystem {
 public:
@@ -52,7 +39,7 @@ public:
 	virtual ~AampIonMemorySystem();
 
 	/**
-	 * @brief Encode a block of data to send over the divide
+	 * Encode a block of data to send over the divide
 	 * @param dataIn pointer to the data to encode
 	 * @param dataInSz the size to encode
 	 * @param out dataOut the data to send
@@ -60,7 +47,7 @@ public:
 	 */
 	virtual bool encode(const uint8_t *dataIn, uint32_t dataInSz, std::vector<uint8_t>& dataOut) override;
 	/**
-	 * @brief Decode from getting back
+	 * Decode from getting back
 	 * @param dataIn pointer to the data to decode
 	 * @param size the size to decode
 	 * @param out dataOut the data to recover
@@ -69,7 +56,7 @@ public:
 	virtual bool decode(const uint8_t* dataIn, uint32_t dataInSz, uint8_t *dataOut, uint32_t dataOutSz) override;
 
 	/**
-	 * @brief Call this if there's an failure external to the MS and it needs to tidy up unexpectedly
+	 * Call this if there's an failure external to the MS and it needs to tidy up unexpectedly
 	 */
 	virtual void terminateEarly() override;
 

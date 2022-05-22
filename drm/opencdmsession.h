@@ -17,9 +17,7 @@
  * limitations under the License.
 */
 
-/**
- * @file opencdmsession.h
- * @brief DRM Session management for Aamp
+/* DRM Session management for Aamp
  *
  */
 
@@ -49,16 +47,16 @@ private:
 	void initAampDRMSession();
 
 public:
-        AAMPOCDMSession(AampLogManager *logObj, const string& keySystem);
+    AAMPOCDMSession(AampLogManager *logObj, const string& keySystem);
 	~AAMPOCDMSession();
 	AAMPOCDMSession(const AAMPOCDMSession&) = delete;
 	AAMPOCDMSession& operator=(const AAMPOCDMSession&) = delete;
 	void generateAampDRMSession(const uint8_t *f_pbInitData,
-	uint32_t f_cbInitData, std::string &customData);
+			uint32_t f_cbInitData, std::string &customData);
 	DrmData * aampGenerateKeyRequest(string& destinationURL, uint32_t timeout);
 	int aampDRMProcessKey(DrmData* key, uint32_t timeout);
 	int decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
-	const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData);
+			const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData);
 	KeyState getState();
 	void clearDecryptContext();
 };

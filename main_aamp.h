@@ -67,9 +67,9 @@
  */
 typedef enum
 {
-	ANOMALY_ERROR,    /**< Error Message */
-	ANOMALY_WARNING,  /**< Warning Message */
-	ANOMALY_TRACE	  /**< Trace Message */
+	ANOMALY_ERROR,
+	ANOMALY_WARNING,
+	ANOMALY_TRACE
 } AAMPAnomalyMessageType;
 
 /**
@@ -132,13 +132,10 @@ using AdObject = std::pair<std::string, std::string>;
  *  @brief Auth Token Failure codes
  */
 enum AuthTokenErrors {
-	eAUTHTOKEN_TOKEN_PARSE_ERROR = -1,    /**< Auth token parse Error */
-	eAUTHTOKEN_INVALID_STATUS_CODE = -2   /**< Auth token Invalid status */
+	eAUTHTOKEN_TOKEN_PARSE_ERROR = -1,
+	eAUTHTOKEN_INVALID_STATUS_CODE = -2
 };
 
-/**
- * @brief Pre cache the data information
- */
 typedef struct PreCacheUrlData
 {
 	std::string url;
@@ -169,17 +166,17 @@ struct AudioTrackInfo
 {
 	std::string index;
 	std::string language;
-	std::string rendition;		/**< role for DASH, group-id for HLS */
+	std::string rendition; //role for DASH, group-id for HLS
 	std::string name;
 	std::string codec;
 	std::string characteristics;
 	int channels;
 	long bandwidth;
-	int primaryKey; 		/**< used for ATSC to store key , this should not be exposed to app */
-	std::string contentType; 	/**< used for ATSC to propogate content type */
-	std::string mixType; 		/**< used for ATSC to propogate mix type */
-	std::string accessibilityType;  /**< value of Accessibility */
-	bool isMuxed; 			/**< Flag to indicated muxed audio track ; this is used by AC4 tracks */
+	int primaryKey; // used for ATSC to store key , this should not be exposed to app.
+	std::string contentType; // used for ATSC to propogate content type
+	std::string mixType; // used for ATSC to propogate mix type
+	std::string accessibilityType; //value of Accessibility
+	bool isMuxed; //Flag to indicated muxed audio track ; this is used by AC4 tracks
 
 	AudioTrackInfo() : index(), language(), rendition(), name(), codec(), characteristics(), channels(0), 
 	bandwidth(0),primaryKey(0), contentType(), mixType(), accessibilityType(), isMuxed(false)
@@ -369,10 +366,11 @@ public:
 	virtual void Flush(double position = 0, int rate = AAMP_NORMAL_PLAY_RATE, bool shouldTearDown = true){}
 
 	/**
-	 *   @brief Adjust the pipeline
+	 *   @brief Flush the pipeline
 	 *
 	 *   @param[in]  position - playback position
 	 *   @param[in]  rate - Speed
+	 *   @param[in]  shouldTearDown - if pipeline is not in a valid state, tear down pipeline
 	 *   @return void
 	 */
 	virtual bool AdjustPlayBackRate(double position, double rate){ return true; }
@@ -604,7 +602,7 @@ public:
 	 *      DEPRECATED!  This is included for backwards compatibility with current Sky AS integration
 	 *      audioDecoderStreamSync is a broadcom-specific hack (for original xi6 POC build) - this doesn't belong in Tune API.
 	 *
-	 *   @param[in]  mainManifestUrl - HTTP/HTTPS url to be played.
+	 *   @param[in]  url - HTTP/HTTPS url to be played.
 	 *   @param[in]  contentType - Content type of the asset
 	 *   @param[in]  audioDecoderStreamSync - Enable or disable audio decoder stream sync,
 	 *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
@@ -615,7 +613,7 @@ public:
 	/**
 	 *   @brief Tune to a URL.
 	 *
-	 *   @param[in]  mainManifestUrl - HTTP/HTTPS url to be played.
+	 *   @param[in]  url - HTTP/HTTPS url to be played.
 	 *   @param[in]  autoPlay - Start playback immediately or not
 	 *   @param[in]  contentType - Content type of the asset
 	 *   @param[in]  audioDecoderStreamSync - Enable or disable audio decoder stream sync,
@@ -641,7 +639,7 @@ public:
 	 *   @brief Set playback rate.
 	 *
 	 *   @param[in]  rate - Rate of playback.
-	 *   @param[in]  overshootcorrection - overshoot correction in milliseconds.
+	 *   @param[in]  overshoot - overshoot correction in milliseconds.
 	 *   @return void
 	 */
 	void SetRate(int rate, int overshootcorrection=0);
@@ -744,9 +742,9 @@ public:
 	void SetSubscribedTags(std::vector<std::string> subscribedTags);
 
 	/**
-         *   @brief Set array of http response headers.
-         *
-         *   @param  responseHeaders - Array of response headers.
+     *   @brief Set array of http response headers.
+     *
+     *   @param  responseHeaders - Array of response headers.
 	 *   @return void
 	 */
 	void SubscribeResponseHeaders(std::vector<std::string> responseHeaders);
@@ -816,7 +814,7 @@ public:
 	const char* GetCurrentDRM();
 	/**
 	 * @brief Applies the custom http headers received from the js layer
-	 * @param customHttpHeaders - customHttpHeaders map of custom http headers
+	 * @param id customHttpHeaders map of custom http headers
 	 */
 	void AddPageHeaders(std::map<std::string, std::string> customHttpHeaders);
 
@@ -905,7 +903,7 @@ public:
 	/**
 	*	@brief SetPreCacheTimeWindow Function to Set PreCache Time
 	*
-	*	@param nTimeWindow Time in minutes - Max PreCache Time 
+	*	@param	Time in minutes - Max PreCache Time 
 	*/
 	void SetPreCacheTimeWindow(int nTimeWindow);
 
@@ -966,63 +964,63 @@ public:
 	/**
 	 *   @brief To get the current playback position.
 	 *
-	 *   @return current playback position in seconds
+	 *   @ret current playback position in seconds
 	 */
 	double GetPlaybackPosition(void);
 
 	/**
 	 *   @brief To get the current asset's duration.
 	 *
-	 *   @return duration in seconds
+	 *   @ret duration in seconds
 	 */
 	double GetPlaybackDuration(void);
 
 	/**
 	 *   @brief To get the current AAMP state.
 	 *
-	 *   @return current AAMP state
+	 *   @ret current AAMP state
 	 */
 	PrivAAMPState GetState(void);
 
 	/**
 	 *   @brief To get the bitrate of current video profile.
 	 *
-	 *   @return bitrate of video profile
+	 *   @ret bitrate of video profile
 	 */
 	long GetVideoBitrate(void);
 
 	/**
 	 *   @brief To set a preferred bitrate for video profile.
 	 *
-	 *   @param[in] bitrate preferred bitrate for video profile
+	 *   @param[in] preferred bitrate for video profile
 	 */
 	void SetVideoBitrate(long bitrate);
 
 	/**
 	 *   @brief To get the bitrate of current audio profile.
 	 *
-	 *   @return bitrate of audio profile
+	 *   @ret bitrate of audio profile
 	 */
 	long GetAudioBitrate(void);
 
 	/**
 	 *   @brief To set a preferred bitrate for audio profile.
 	 *
-	 *   @param[in] bitrate preferred bitrate for audio profile
+	 *   @param[in] preferred bitrate for audio profile
 	 */
 	void SetAudioBitrate(long bitrate);
 
 	/**
 	 *   @brief To get video zoom mode
 	 *
-	 *   @return video zoom mode
+	 *   @ret video zoom mode
 	 */
 	int GetVideoZoom(void);
 
 	/**
 	 *   @brief To get video mute status
 	 *
-	 *   @return video mute status
+	 *   @ret video mute status
 	 *
 	 */
 	bool GetVideoMute(void);
@@ -1030,126 +1028,126 @@ public:
 	/**
 	 *   @brief To get the current audio volume.
 	 *
-	 *   @return audio volume
+	 *   @ret audio volume
 	 */
 	int GetAudioVolume(void);
 
 	/**
 	 *   @brief To get the current playback rate.
 	 *
-	 *   @return current playback rate
+	 *   @ret current playback rate
 	 */
 	int GetPlaybackRate(void);
 
 	/**
 	 *   @brief To get the available video bitrates.
 	 *
-	 *   @return available video bitrates
+	 *   @ret available video bitrates
 	 */
 	std::vector<long> GetVideoBitrates(void);
 
 	/**
          *   @brief To get the available manifest.
          *
-         *   @return available manifest
+         *   @ret available manifest
          */
         std::string GetManifest(void);
 
 	/**
 	 *   @brief To get the available audio bitrates.
 	 *
-	 *   @return available audio bitrates
+	 *   @ret available audio bitrates
 	 */
 	std::vector<long> GetAudioBitrates(void);
 
 	/**
 	 *   @brief To set the initial bitrate value.
 	 *
-	 *   @param[in] bitrate initial bitrate to be selected
+	 *   @param[in] initial bitrate to be selected
 	 */
 	void SetInitialBitrate(long bitrate);
 
 	/**
 	 *   @brief To get the initial bitrate value.
 	 *
-	 *   @return initial bitrate value.
+	 *   @ret initial bitrate value.
 	 */
 	long  GetInitialBitrate(void);
 
 	/**
 	 *   @brief To set the initial bitrate value for 4K assets.
 	 *
-	 *   @param[in] bitrate4K initial bitrate to be selected for 4K assets.
+	 *   @param[in] initial bitrate to be selected for 4K assets.
 	 */
 	void SetInitialBitrate4K(long bitrate4K);
 
 	/**
 	 *   @brief To get the initial bitrate value for 4K assets.
 	 *
-	 *   @return initial bitrate value for 4k assets
+	 *   @ret initial bitrate value for 4k assets
 	 */
 	long GetInitialBitrate4k(void);
 
 	/**
 	 *   @brief To override default curl timeout for playlist/fragment downloads
 	 *
-	 *   @param[in] timeout preferred timeout value
+	 *   @param[in] preferred timeout value
 	 */
 	void SetNetworkTimeout(double timeout);
 
 	/**
 	 *   @brief Optionally override default HLS main manifest download timeout with app-specific value.
 	 *
-	 *   @param[in] timeout preferred timeout value
+	 *   @param[in] preferred timeout value
 	 */
 	void SetManifestTimeout(double timeout);
 
 	/**
 	 *   @brief Optionally override default HLS main manifest download timeout with app-specific value.
 	 *
-	 *   @param[in] timeout preferred timeout value
-	 */
+	 *   @param[in] preferred timeout value
+	*/
 	void SetPlaylistTimeout(double timeout);
 
 	/**
 	 *   @brief To set the download buffer size value
 	 *
-	 *   @param[in] bufferSize preferred download buffer size
+	 *   @param[in] preferred download buffer size
 	 */
 	void SetDownloadBufferSize(int bufferSize);
 
 	/**
 	 *   @brief To set the network proxy
 	 *
-	 *   @param[in] proxy network proxy to use
+	 *   @param[in] network proxy to use
 	 */
 	void SetNetworkProxy(const char * proxy);
 
 	/**
 	 *   @brief To set the proxy for license request
 	 *
-	 *   @param[in] licenseProxy proxy to use for license request
+	 *   @param[in] proxy to use for license request
 	 */
 	void SetLicenseReqProxy(const char * licenseProxy);
 
 	/**
 	 *   @brief To set the curl stall timeout value
 	 *
-	 *   @param[in] stallTimeout curl stall timeout value
+	 *   @param[in] curl stall timeout value
 	 */
 	void SetDownloadStallTimeout(long stallTimeout);
 
 	/**
 	 *   @brief To set the curl download start timeout
 	 *
-	 *   @param[in] startTimeout curl download start timeout
+	 *   @param[in] curl download start timeout
 	 */
 	void SetDownloadStartTimeout(long startTimeout);
 
 	/**
 	 *   @brief To set the curl download low bandwidth timeout value
 	 *
-	 *   @param[in] lowBWTimeout curl download low bandwidth timeout
+	 *   @param[in] curl download low bandwidth timeout
 	 */
 	void SetDownloadLowBWTimeout(long lowBWTimeout);
 
@@ -1161,12 +1159,12 @@ public:
 	 */
 	void SetPreferredSubtitleLanguage(const char* language);
 
-	/**
+	/*
 	 *   @brief Setting the alternate contents' (Ads/blackouts) URL
 	 *
-	 *   @param[in] adBreakId Adbreak's unique identifier.
-	 *   @param[in] adId Individual Ad's id
-	 *   @param[in] url Ad URL
+	 *   @param[in] Adbreak's unique identifier.
+	 *   @param[in] Individual Ad's id
+	 *   @param[in] Ad URL
 	 */
 	void SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url);
 
@@ -1294,7 +1292,7 @@ public:
 	 */
 	std::string GetAvailableTextTracks();
 
-	/**
+	/*
 	 *   @brief Get the video window co-ordinates
 	 *
 	 *   @return current video co-ordinates in x,y,w,h format
@@ -1312,22 +1310,22 @@ public:
 	 *   @brief Set optional preferred language list
 	 *   @param[in] languageList - string with comma-delimited language list in ISO-639
 	 *             from most to least preferred: "lang1,lang2". Set NULL to clear current list.
-     	 *   @param[in] preferredRendition  - preferred rendition from role
-     	 *   @param[in] preferredType -  preferred accessibility type
+         *   @param[in] preferredRendition  - preferred rendition from role
+         *   @param[in] preferredType -  preferred accessibility type
 	 *   @return void
 	 */
 	 void SetPreferredLanguages(const char* languageList, const char *preferredRendition = NULL, const char *preferredType = NULL, const char* codecList = NULL ); 
 
 	/**
 	 *   @brief Set audio track by audio parameters like language , rendition, codec etc..
-	 *   @param[in] language, rendition, codec, channel 
+	 *   @param[in][optional] language, rendition, codec, bitrate, channel 
 	 *
 	 *   @return void
 	 */
 	void SetAudioTrack(std::string language="", std::string rendition="", std::string type="", std::string codec="", unsigned int channel=0);
 	/**
 	 *   @brief Set optional preferred codec list
-	 *   @param[in] codecList - string with array with codec list
+	 *   @param[in] codecList[] - string with array with codec list
 	 *
 	 *   @return void
 	 */
@@ -1353,14 +1351,14 @@ public:
 	/**
 	 *   @brief To set the vod-tune-event according to the player.
 	 *
-	 *   @param[in] tuneEventType preferred tune event type
+	 *   @param[in] preferred tune event type
 	 */
 	void SetTuneEventConfig(int tuneEventType);
 
 	/**
 	 *   @brief Set video rectangle property
 	 *
-	 *   @param[in] rectProperty video rectangle property
+	 *   @param[in] video rectangle property
 	 */
 	void EnableVideoRectangle(bool rectProperty);
 
@@ -1390,7 +1388,6 @@ public:
 
 	/**
 	 * @brief Get minimum bitrate value.
-	 * @return Minimum bitrate value
 	 *
 	 */
 	long GetMinimumBitrate(void);
@@ -1409,7 +1406,7 @@ public:
 
 	/**
 	 * @brief Set retry limit on Segment injection failure.
-	 *        
+	 *
 	 */
 	void SetSegmentInjectFailCount(int value);
 
@@ -1428,7 +1425,7 @@ public:
 	/**
 	 * @brief Get initial buffer duration in seconds
 	 *
-	 * @return int - Initial Buffer Duration
+	 * @ret int - Initial Buffer Duration
 	 */
 	int GetInitialBufferDuration(void);
 
@@ -1540,10 +1537,9 @@ public:
 	void SetSessionToken(std::string sessionToken);
 
 	/**
-	 *   @brief Set Maximum Cache Size for storing playlist
-	 *   @param cacheSize size of cache to store
-	 *   @return void
-	 */
+	 *       @brief Set Maximum Cache Size for storing playlist
+	 *       @return void
+	*/
 	void SetMaxPlaylistCacheSize(int cacheSize);
 
 	/**
@@ -1601,28 +1597,28 @@ public:
 	/**
 	 *   @brief To get the available bitrates for thumbnails.
 	 *
-	 *   @return bitrate of thumbnail track.
+	 *   @ret bitrate of thumbnail track.
 	 */
 	std::string GetAvailableThumbnailTracks(void);
 
 	/**
 	 *   @brief To set a preferred bitrate for thumbnail profile.
 	 *
-	 *   @param[in] thumbIndex preferred bitrate for thumbnail profile
+	 *   @param[in] preferred bitrate for thumbnail profile
 	 */
 	bool SetThumbnailTrack(int thumbIndex);
 
 	/**
 	 *   @brief To get preferred thumbnails for the duration.
 	 *
-	 *   @param[in] eduration duration  for thumbnails
+	 *   @param[in] duration  for thumbnails
 	 */
 	std::string GetThumbnails(double sduration, double eduration);
 
 	/**
 	 *   @brief To set preferred paused state behavior
 	 *
-	 *   @param[in]  behavior paused behavior
+	 *   @param[in] int behavior
 	 */
 	void SetPausedBehavior(int behavior);
 
@@ -1637,16 +1633,16 @@ public:
 	std::string GetAAMPConfig();
 
 	/**
-     	 *   @brief To set UseAbsoluteTimeline for DASH
+         *   @brief To set UseAbsoluteTimeline for DASH
 	 *
-     	 *   @param[in] configState bool enable/disable configuration
-     	 */
+         *   @param[in] bool enable/disable configuration
+         */
 	void SetUseAbsoluteTimeline(bool configState);
 
 	/**
-  	 *   @brief To set whether the JS playback session is from XRE or not.
-   	 *   @param[in] xreSupported bool On/Off
-     	 */
+  	 *  @brief To set whether the JS playback session is from XRE or not.
+   	 *   @param[in] bool On/Off
+         */
 	void XRESupportedTune(bool xreSupported);
 
 	/**
@@ -1659,7 +1655,7 @@ public:
 	/**
 	 *   @brief To set the repairIframes flag
 	 *
-	 *   @param[in] configState bool enable/disable configuration
+	 *   @param[in] bool enable/disable configuration
 	 */
 	void SetRepairIframes(bool configState);
 
@@ -1685,49 +1681,23 @@ public:
 	AampConfig mConfig;
 	/**
 	 *   @brief Get playback statistics formated for partner apps
- 	 *
- 	 *   @return json string reperesenting the stats
- 	 */
+ 	*
+ 	*   @return json string reperesenting the stats
+ 	*/
 	std::string GetPlaybackStats();
 private:
 	
 	/**
-	 * @brief Check given rate is valid.
+	 *	 @brief Check given rate is valid.
 	 *
-	 * @param[in]  rate - Rate of playback.
-	 * @retval return true if the given rate is valid.
+	 *	 @param[in]  rate - Rate of playback.
+	 *	 @retval return true if the given rate is valid.
 	 */
 	bool IsValidRate(int rate);
 	// Internal private functions to support Async tune functionality
-	/**
-	 * @brief Tune to a URL.
-	 *
-	 * @param  mainManifestUrl - HTTP/HTTPS url to be played.
-	 * @param[in] autoPlay - Start playback immediately or not
-	 * @param  contentType - content Type.
-	 */
 	void TuneInternal(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync);
-	/**
-	 *   @brief Set playback rate - Internal function
-	 *
-	 *   @param  rate - Rate of playback.
-	 *   @param  overshootcorrection - overshoot correction in milliseconds.
-	 */
 	void SetRateInternal(int rate,int overshootcorrection);
-	/**
-	 *   @brief Seek to a time - Internal function
-	 *
-	 *   @param  secondsRelativeToTuneTime - Seek position for VOD,
-	 *           relative position from first tune command.
-	 *   @param  keepPaused - set true if want to keep paused state after seek
-	 */
 	void SeekInternal(double secondsRelativeToTuneTime, bool keepPaused);
-	/**
-	 *   @brief Set audio track by audio parameters like language , rendition, codec etc..
-	 * 	 @param[in][optional] language, rendition, codec, channel 
-	 *
-	 *   @return void
-	 */
 	void SetAudioTrackInternal(std::string language,  std::string rendition, std::string codec,  std::string type, unsigned int channel);
 	void SetAuxiliaryLanguageInternal(const std::string &language);
 	void SetTextTrackInternal(int trackId);

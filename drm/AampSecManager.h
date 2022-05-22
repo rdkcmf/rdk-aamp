@@ -34,10 +34,6 @@
 #define WATERMARK_PLUGIN_CALLSIGN "org.rdk.Watermark.1"
 //#define RDKSHELL_CALLSIGN "org.rdk.RDKShell.1"   //need to be used instead of WATERMARK_PLUGIN_CALLSIGN if RDK Shell is used for rendering watermark
 
-/**
- * @class AampSecManager
- * @brief Class to get License from Sec Manager
- */
 class AampSecManager : public AampScheduler
 {
 public:
@@ -95,28 +91,11 @@ public:
 	 * @param[in] sessionId - session id
 	 */
 	void ReleaseSession(int64_t sessionId);
-	/**
-	 * @brief To update session state to SecManager
-	 *
-	 * @param[in] sessionId - session id
-	 * @param[in] video_width - video width 
-	 * @param[in] video_height - video height 
-	 */
+
 	bool setVideoWindowSize(int64_t sessionId, int64_t video_width, int64_t video_height);
-	/**
-	 * @brief To set Playback Speed State to SecManager
-	 *
-	 * @param[in] sessionId - session id
-	 * @param[in] playback_speed - playback speed 
-	 * @param[in] playback_position - playback position
-	 * @param[in] delayNeeded - if delay is required, to avoid any wm flash before tune
-	 */
+
 	bool setPlaybackSpeedState(int64_t sessionId, int64_t playback_speed, int64_t playback_position, bool delayNeeded = false);
-	/**
-	 * @brief To Load ClutWatermark
-	 * @param[in] sessionId - session id
-	 *  
-	 */
+
 	bool loadClutWatermark(int64_t sessionId, int64_t graphicId, int64_t watermarkClutBufferKey, int64_t watermarkImageBufferKey, int64_t clutPaletteSize, const char* clutPaletteFormat, int64_t watermarkWidth, int64_t watermarkHeight, float aspectRatio);
 
 private:
@@ -130,95 +109,36 @@ private:
 	 * @brief AampScheduler Destructor
 	 */
 	~AampSecManager();
-	/**     
-     	 * @brief Copy constructor disabled
-    	 *
-     	 */
+
 	AampSecManager(const AampSecManager&) = delete;
-	/**
- 	 * @brief assignment operator disabled
-         *
-         */
 	AampSecManager* operator=(const AampSecManager&) = delete;
-	/**
-	 *   @brief  Registers  Event to input plugin and to mRegisteredEvents list for later use.
-	 *   @param[in] eventName : Event name
-	 *   @param[in] functionHandler : Event funciton pointer
-	 */
+
 	void RegisterEvent (string eventName, std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> functionHandler);
-	/**
-	 *   @brief  Registers all Events to input plugin
-	 */
 	void RegisterAllEvents ();
-	/**
-	 *   @brief  UnRegisters all Events from plugin
-	 */
 	void UnRegisterAllEvents ();
 
 	/*Event Handlers*/
-	/**
-	 *   @brief  Detects watermarking session conditions
-	 *   @param  parameters - i/p JsonObject params
-	 */
 	void watermarkSessionHandler(const JsonObject& parameters);
-	/**
-	 *   @brief  Gets watermark image details and manages watermark rendering
-	 *   @param  parameters - i/p JsonObject params
-	 */
 	void addWatermarkHandler(const JsonObject& parameters);
-	/**
-	 *   @brief  Gets updated watermark image details and manages watermark rendering
-	 *   @param  parameters - i/p JsonObject params
-	 */
 	void updateWatermarkHandler(const JsonObject& parameters);
-	/**
-	 *   @brief  Removes watermark image
-	 *   @param  parameters - i/p JsonObject params
-	 */
 	void removeWatermarkHandler(const JsonObject& parameters);
-	/**
-	 *   @brief Handles watermark calls to be only once
-	 *   @param parameters - i/p JsonObject params	 
-	 */
 	void showWatermarkHandler(const JsonObject& parameters);
 
-	/**
-	 *   @brief Show watermark image
-	 */
 	void ShowWatermark(bool show);
-	/**
-	 *   @brief Create Watermark
-	 */
 	void CreateWatermark(int graphicId, int zIndex);
-	/**
-	 *   @brief Delete Watermark
-	 */
 	void DeleteWatermark(int graphicId);
-	/**
-	 *   @brief Create Watermark
-	 */
 	void UpdateWatermark(int graphicId, int smKey, int smSize);
-	/**
-	 *   @brief Show watermark image
-	 *   This method need to be used only when RDKShell is used for rendering. Not supported by Watermark Plugin
-	 */
 	void AlwaysShowWatermarkOnTop(bool show);
-	/**
-	 *   @brief GetWaterMarkPalette
-	 */
 	void GetWaterMarkPalette(int sessionId, int graphicId);
-	/**
-	 *   @brief ModifyWatermarkPalette
-	 */
 	void ModifyWatermarkPalette(int graphicId, int clutKey, int imageKey);
 
-	static AampSecManager *mInstance;       /**< singleton instance*/
-	PrivateInstanceAAMP* mAamp;             /**< Pointer to the PrivateInstanceAAMP*/
-	ThunderAccessAAMP mSecManagerObj;       /**< ThunderAccessAAMP object for communicating with SecManager*/
-	ThunderAccessAAMP mWatermarkPluginObj;  /**< ThunderAccessAAMP object for communicating with Watermark Plugin Obj*/
-	std::mutex mSecMutex;    	        /**< Lock for accessing mSecManagerObj*/
-	std::mutex mWatMutex;		        /**< Lock for accessing mWatermarkPluginObj*/
-	std::mutex mSpeedStateMutex;		/**< Lock for accessing mWatermarkPluginObj*/
+	static AampSecManager *mInstance;  /**< singleton instance*/
+	PrivateInstanceAAMP* mAamp;        /**< Pointer to the PrivateInstanceAAMP*/
+	ThunderAccessAAMP mSecManagerObj;  /**< ThunderAccessAAMP object for communicating with SecManager*/
+	ThunderAccessAAMP mWatermarkPluginObj;    /**< ThunderAccessAAMP object for communicating with Watermark Plugin Obj*/
+	std::mutex mSecMutex;		   /**<  Lock for accessing mSecManagerObj*/
+	std::mutex mWatMutex;		   /**<  Lock for accessing mWatermarkPluginObj*/
+	std::mutex mSpeedStateMutex;		   /**<  Lock for accessing mWatermarkPluginObj*/
 	std::list<std::string> mRegisteredEvents;
 	bool mSchedulerStarted;
 };

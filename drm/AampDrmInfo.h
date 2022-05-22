@@ -20,12 +20,6 @@
 #ifndef AAMPDRMINFO_H
 #define AAMPDRMINFO_H
 
-
-/**
- * @file AampDrmInfo.h
- * @brief DRM license information for Aamp
- */
-
 #ifdef AVE_DRM
 #include "ave-adapter/MyFlashAccessAdapter.h"
 #else
@@ -33,6 +27,10 @@
 #include <string>
 #include "AampDrmMediaFormat.h"
 
+/**
+ * @struct DrmInfo
+ * @brief DRM information required to decrypt
+ */
 
 /**
  * @enum DrmMethod
@@ -41,14 +39,9 @@
 typedef enum
 {
 	eMETHOD_NONE,
-	eMETHOD_AES_128, /**< encrypted using Advanced Encryption Standard 128-bit key and PKCS7 padding */
+	eMETHOD_AES_128, /// encrypted using Advanced Encryption Standard 128-bit key and PKCS7 padding
 } DrmMethod;
 
-
-/**
- * @struct DrmInfo
- * @brief DRM information required to decrypt
- */
 struct DrmInfo
 {
 	DrmInfo() : method(eMETHOD_NONE), mediaFormat(eMEDIAFORMAT_HLS), useFirst16BytesAsIV(false), iv(nullptr),
@@ -81,18 +74,18 @@ struct DrmInfo
 		iv = other.iv;
 		return *this;
 	}
-	DrmMethod method;			/**< Encryption method */
-	MediaFormat mediaFormat;		/**< Format of the media being played e.g. DASH, HLS*/
+	DrmMethod method;				// Encryption method
+	MediaFormat mediaFormat;		// Format of the media being played e.g. DASH, HLS
 	bool useFirst16BytesAsIV;
-	bool bPropagateUriParams;		/**< Propagagate Manifest uri params in DRM */
-	bool bUseMediaSequenceIV;		/**< To create IV using media sequence number */
-	unsigned char *iv;			/**< [16] Initialisation vector */
-	std::string masterManifestURL;		/**< URL of the master manifest */
-	std::string manifestURL;		/**< URL of playlist the DRM info was taken from. May be the same as the masterManifestURL */
-	std::string keyURI;			/**< URI to fetch key. May be relative to the manifest URL */
-	std::string keyFormat;			/**< Format of key */
-	std::string systemUUID;			/**< UUID of the DRM */
-	std::string initData;			/**< Base64 init data string from the main manifest URI */
+	bool bPropagateUriParams;		// Propagagate Manifest uri params in DRM
+	bool bUseMediaSequenceIV;		// To create IV using media sequence number
+	unsigned char *iv;				// [16] Initialisation vector
+	std::string masterManifestURL;	// URL of the master manifest
+	std::string manifestURL;		// URL of playlist the DRM info was taken from. May be the same as the masterManifestURL
+	std::string keyURI;				// URI to fetch key. May be relative to the manifest URL
+	std::string keyFormat;			// Format of key
+	std::string systemUUID;			// UUID of the DRM
+	std::string initData;			// Base64 init data string from the main manifest URI
 };
 
 

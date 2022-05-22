@@ -20,24 +20,15 @@
 #ifndef AAMPMEMORYSYSTEM_H
 #define AAMPMEMORYSYSTEM_H
 
-/**
- * @file AampMemorySystem.h
- * @brief Memory handler for Aamp DRM process
- */
-
 #include <stdint.h>
 #include <vector>
 #include <unistd.h>
 #include "AampConfig.h"
 
-/**
- * @class AAMPMemorySystem
- * @brief Handles the operations for AAMP memory managemnts
- */
 class AAMPMemorySystem {
 public:
 	/**
-	 * @brief Encode a block of data to send over the divide
+	 * Encode a block of data to send over the divide
 	 * @param dataIn pointer to the data to encode
 	 * @param dataInSz the size to encode
 	 * @param out dataOut the data to send
@@ -45,7 +36,7 @@ public:
 	 */
 	virtual bool encode(const uint8_t *dataIn, uint32_t dataInSz, std::vector<uint8_t>& dataOut) = 0;
 	/**
-	 * @brief Decode from getting back
+	 * Decode from getting back
 	 * @param dataIn pointer to the data to decode
 	 * @param size the size to decode
 	 * @param out dataOut the data to recover
@@ -54,7 +45,7 @@ public:
 	virtual bool decode(const uint8_t* dataIn, uint32_t dataInSz, uint8_t *dataOut, uint32_t dataOutSz) = 0;
 
 	/**
-	 * @brief Call this if there's an failure external to the MS and it needs to tidy up unexpectedly
+	 * Call this if there's an failure external to the MS and it needs to tidy up unexpectedly
 	 */
 	virtual void terminateEarly() {}
 
@@ -65,10 +56,7 @@ public:
 	AampLogManager *mLogObj;
 };
 
-/**
- * @class AampMemoryHandleCloser
- * @brief  This just closes a file on descope
- */
+// This just closes a file on descope
 class AampMemoryHandleCloser {
 public:
 	AampMemoryHandleCloser(int handle) : handle_(handle) {};

@@ -1,8 +1,3 @@
-/**
- * @file AampOcdmGstSessionAdapter.cpp
- * @brief File holds operations on OCDM gst sessions
- */
-
 #include <sys/time.h>
 #include "AampOcdmGstSessionAdapter.h"
 

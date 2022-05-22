@@ -1,16 +1,6 @@
-/**
- * @file AampOcdmBasicSessionAdapter.cpp
- * @brief Handles operations on OCDM session
- */
-
-
 #include "opencdmsessionadapter.h"
 #include "AampDrmHelper.h"
 
-/**
- * @class AAMPOCDMBasicSessionAdapter
- * @brief OCDM session Adapter
- */
 class AAMPOCDMBasicSessionAdapter : public AAMPOCDMSessionAdapter
 {
 public:

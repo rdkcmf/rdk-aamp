@@ -33,11 +33,16 @@
 */
 typedef enum _PlayMode
 {
-	PlayMode_normal,		/**< Playing a recording in normal mode */
-	PlayMode_retimestamp_IPB,	/**< Playing with I-Frame, P-Frame and B-Frame */
-	PlayMode_retimestamp_IandP,	/**< Playing with I-Frame and P-Frame */
-	PlayMode_retimestamp_Ionly,	/**< Playing a recording with I-Frame only */
-	PlayMode_reverse_GOP,		/**< Playing a recording with rewind mode */
+	/** Playing a recording in normal mode */
+	PlayMode_normal,
+	/** Playing with I-Frame, P-Frame and B-Frame */
+	PlayMode_retimestamp_IPB,
+	/** Playing with I-Frame and P-Frame */
+	PlayMode_retimestamp_IandP,
+	/** Playing a recording with I-Frame only */
+	PlayMode_retimestamp_Ionly,
+	/** Playing a recording with rewind mode */
+	PlayMode_reverse_GOP,
 } PlayMode;
 
 /**

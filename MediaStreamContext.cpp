@@ -17,17 +17,17 @@
  * limitations under the License.
 */
 
-/**
- * @file MediaStreamContext.cpp
- * @brief Handles operations on Media streams
- */
-
 #include "MediaStreamContext.h"
 #include "AampMemoryUtils.h"
 #include "isobmff/isobmffbuffer.h"
 #include "AampCacheHandler.h"
 
-
+/**
+ * @brief Receives cached fragment and injects to sink.
+ *
+ * @param[in] cachedFragment - contains fragment to be processed and injected
+ * @param[out] fragmentDiscarded - true if fragment is discarded.
+ */
 void MediaStreamContext::InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded)
 {
     //FN_TRACE_F_MPD( __FUNCTION__ );
@@ -46,7 +46,20 @@ void MediaStreamContext::InjectFragmentInternal(CachedFragment* cachedFragment, 
     fragmentDiscarded = false;
 } // InjectFragmentInternal
 
-
+/**
+ * @brief Fetch and cache a fragment
+ * @param fragmentUrl url of fragment
+ * @param curlInstance curl instance to be used to fetch
+ * @param position position of fragment in seconds
+ * @param duration duration of fragment in seconds
+ * @param range byte range
+ * @param initSegment true if fragment is init fragment
+ * @param discontinuity true if fragment is discontinuous
+ * @param playingAd flag if playing Ad
+ * @param pto unscaled pto value from mpd
+ * @param scale timeScale value from mpd
+ * @retval true on success
+ */
 bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range, bool initSegment, bool discontinuity
     , bool playingAd, double pto, uint32_t scale)
 {
@@ -302,7 +315,9 @@ bool MediaStreamContext::CacheFragmentChunk(MediaType actualType, char *ptr, siz
     return ret;
 }
 
-
+/**
+ * @brief Listener to ABR profile change
+ */
 void MediaStreamContext::ABRProfileChanged(void)
 {
     struct ProfileInfo profileMap = context->GetAdaptationSetAndRepresetationIndicesForProfile(context->currentProfileIndex);
@@ -349,7 +364,6 @@ void MediaStreamContext::ABRProfileChanged(void)
 
 }
 
-
 double MediaStreamContext::GetBufferedDuration()
 {
     double position = aamp->GetPositionMs() / 1000.00;
@@ -369,13 +383,18 @@ double MediaStreamContext::GetBufferedDuration()
 }
 
 
+/**
+ * @brief Notify discontinuity during trick-mode as PTS re-stamping is done in sink
+ */
 void MediaStreamContext::SignalTrickModeDiscontinuity()
 {
      //       FN_TRACE_F_MPD( __FUNCTION__ );
     aamp->SignalTrickModeDiscontinuity();
 }
 
-
+/**
+ * @brief Returns if the end of track reached.
+ */
 bool MediaStreamContext::IsAtEndOfTrack()
 {
     //        FN_TRACE_F_MPD( __FUNCTION__ );

@@ -19,20 +19,10 @@
 #ifndef _AAMP_PLAYREADY_HELPER_H
 #define _AAMP_PLAYREADY_HELPER_H
 
-/**
- * @file AampPlayReadyHelper.h
- * @brief Handles the operation for Play ready DRM operations
- */
-
 #include <memory>
 
 #include "AampDrmHelper.h"
 #include "AampConfig.h"
-
-/** 
- * @class AampPlayReadyHelper
- * @brief Handles the operation for Play ready DRM operations
- */
 
 class AampPlayReadyHelper : public AampDrmHelper
 {
@@ -81,10 +71,6 @@ private:
 	std::string mContentMetaData;
 };
 
-/**
- * @class AampPlayReadyHelperFactory
- * @brief Handles operations to support play ready DRM
- */
 class AampPlayReadyHelperFactory : public AampDrmHelperFactory
 {
 public:

@@ -20,15 +20,9 @@
 #ifndef AAMPDRMCALLBACKS_H
 #define AAMPDRMCALLBACKS_H
 
-/**
- * @file AampDrmCallbacks.h
- * @brief Call back handler for Aamp
- */
-
 #include <string>
 
 /**
- * @class AampDrmCallbacks
  * @brief DRM callback interface
  */
 class AampDrmCallbacks

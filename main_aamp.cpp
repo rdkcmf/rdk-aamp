@@ -91,8 +91,11 @@ AampLogManager *mLogObj=NULL;
 
 static bool iarmInitialized = false;
 std::mutex PlayerInstanceAAMP::mPrvAampMtx;
-
-
+/**
+ *   @brief Constructor.
+ *
+ *   @param[in]  streamSink - custom stream sink, NULL for default.
+ */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
 	, std::function< void(uint8_t *, int, int, int) > exportFrames
 	) : aamp(NULL), sp_aamp(nullptr), mInternalStreamSink(NULL), mJSBinding_DL(),mAsyncRunning(false),mConfig(),mAsyncTuneEnabled(false),mScheduler()
@@ -186,7 +189,9 @@ if(!iarmInitialized)
 	AsyncStartStop();
 }
 
-
+/**
+ * @brief PlayerInstanceAAMP Destructor
+ */
 PlayerInstanceAAMP::~PlayerInstanceAAMP()
 {
 	mLogObj = gpGlobalConfig->GetLoggerInstance();
@@ -245,7 +250,10 @@ PlayerInstanceAAMP::~PlayerInstanceAAMP()
 }
 
 
-
+/**
+ * @brief API to reset configuration across tunes for single player instance
+ *
+ */
 void PlayerInstanceAAMP::ResetConfiguration()
 {
 	AAMPLOG_WARN("Resetting Configuration to default values ");
@@ -262,7 +270,11 @@ void PlayerInstanceAAMP::ResetConfiguration()
 }
 
 
-
+/**
+ * @brief Stop playback and release resources.
+ *
+ * @param[in] sendStateChangeEvent - true if state change events need to be sent for Stop operation, default value true
+ */
 void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 {
 	if (aamp)
@@ -288,14 +300,28 @@ void PlayerInstanceAAMP::Stop(bool sendStateChangeEvent)
 	}
 }
 
-
+/**
+ *   @brief Tune to a URL.
+ *   This extra Tune function is included for backwards compatibility
+ *   @param[in]  url - HTTP/HTTPS url to be played.
+ *   @param[in]  contentType - Content type of the asset
+ *   @param[in]  audioDecoderStreamSync - Enable or disable audio decoder stream sync,
+ *                set to 'false' if audio fragments come with additional padding at the end (BCOM-4203)
+ *   @return void
+ */
 void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
 	Tune(mainManifestUrl, /*autoPlay*/ true, contentType,bFirstAttempt,bFinalAttempt,traceUUID,audioDecoderStreamSync);
 }
 
 
-
+/**
+ * @brief Tune to a URL.
+ *
+ * @param  mainManifestUrl - HTTP/HTTPS url to be played.
+ * @param[in] autoPlay - Start playback immediately or not
+ * @param  contentType - content Type.
+ */
 void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
 	if(mAsyncTuneEnabled)
@@ -317,7 +343,13 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
 }
 
 
-
+/**
+ * @brief Tune to a URL.
+ *
+ * @param  mainManifestUrl - HTTP/HTTPS url to be played.
+ * @param[in] autoPlay - Start playback immediately or not
+ * @param  contentType - content Type.
+ */
 void PlayerInstanceAAMP::TuneInternal(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
 	PrivAAMPState state;
@@ -348,6 +380,10 @@ void PlayerInstanceAAMP::TuneInternal(const char *mainManifestUrl, bool autoPlay
 
 
 
+/**
+ * @brief Soft-realease player.
+ *
+ */
 void PlayerInstanceAAMP::detach()
 {
 	// detach is similar to Stop , need to run like stop in Sync mode
@@ -362,38 +398,58 @@ void PlayerInstanceAAMP::detach()
 	}
 }
 
-
+/**
+ *   @brief Register event handler.
+ *
+ *   @param  eventListener - pointer to implementation of EventListener to receive events.
+ */
 void PlayerInstanceAAMP::RegisterEvents(EventListener* eventListener)
 {
 	aamp->RegisterEvents(eventListener);
 }
 
-
+/**
+ *   @brief UnRegister event handler.
+ *
+ *   @param  eventListener - pointer to implementation of EventListener to receive events.
+ */
 void PlayerInstanceAAMP::UnRegisterEvents(EventListener* eventListener)
 {
 	aamp->UnRegisterEvents(eventListener);
 }
 
-
+/**
+ * @brief Set retry limit on Segment injection failure.
+ *
+ */
 void PlayerInstanceAAMP::SetSegmentInjectFailCount(int value)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_SegmentInjectThreshold,value);
 }
 
-
+/**
+ * @brief Set retry limit on Segment drm decryption failure.
+ *
+ */
 void PlayerInstanceAAMP::SetSegmentDecryptFailCount(int value)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DRMDecryptThreshold,value);
 }
 
-
+/**
+ * @brief Set initial buffer duration in seconds
+ *
+ */
 void PlayerInstanceAAMP::SetInitialBufferDuration(int durationSec)
 {
 	NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_InitialBuffer,durationSec);
 }
 
-
+/**
+ * @brief Get initial buffer duration in seconds
+ * @ret int - Initial buffer duration
+ */
 int PlayerInstanceAAMP::GetInitialBufferDuration(void)
 {
 	int durationSec;
@@ -401,19 +457,28 @@ int PlayerInstanceAAMP::GetInitialBufferDuration(void)
 	return durationSec;
 }
 
-
+/**
+ * @brief Set Maximum Cache Size for playlist store 
+ *
+ */
 void PlayerInstanceAAMP::SetMaxPlaylistCacheSize(int cacheSize)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_MaxPlaylistCacheSize,cacheSize);
 }
 
-
+/**
+ * @brief Set profile ramp down limit.
+ *
+ */
 void PlayerInstanceAAMP::SetRampDownLimit(int limit)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RampDownLimit,limit);
 }
 
-
+/**
+ * @brief Get profile ramp down limit.
+ * @ret int - Ramp down limit
+ */
 int PlayerInstanceAAMP::GetRampDownLimit(void)
 {
 	int limit;
@@ -421,7 +486,14 @@ int PlayerInstanceAAMP::GetRampDownLimit(void)
 	return limit;
 }
 
-
+/**
+ * @brief Set Language Format
+ * @param[in] preferredFormat - one of \ref LangCodePreference
+ * @param[in] useRole - if enabled, the language in format <lang>-<role>
+ *                      if <role> attribute available in stream
+ *
+ * @return void
+ */
 void PlayerInstanceAAMP::SetLanguageFormat(LangCodePreference preferredFormat, bool useRole)
 {
 	//NOT_IDLE_AND_NOT_RELEASED_STATE_CHECK_VOID(); // why was this here?
@@ -433,7 +505,10 @@ void PlayerInstanceAAMP::SetLanguageFormat(LangCodePreference preferredFormat, b
 	//gpGlobalConfig->bDescriptiveAudioTrack = useRole;
 }
 
-
+/**
+ * @brief Set minimum bitrate value.
+ * @param  url - stream url with vss service zone info as query string
+ */
 void PlayerInstanceAAMP::SetMinimumBitrate(long bitrate)
 {
 	if (bitrate > 0)
@@ -448,7 +523,10 @@ void PlayerInstanceAAMP::SetMinimumBitrate(long bitrate)
 
 }
 
-
+/**
+ * @brief Get minimum bitrate value.
+ * @ret Minimum bitrate value
+ */
 long PlayerInstanceAAMP::GetMinimumBitrate(void)
 {
 	long bitrate;
@@ -456,7 +534,10 @@ long PlayerInstanceAAMP::GetMinimumBitrate(void)
 	return bitrate;
 }
 
-
+/**
+ * @brief Set maximum bitrate value.
+ *
+ */
 void PlayerInstanceAAMP::SetMaximumBitrate(long bitrate)
 {
 	if (bitrate > 0)
@@ -470,7 +551,10 @@ void PlayerInstanceAAMP::SetMaximumBitrate(long bitrate)
 	}
 }
 
-
+/**
+ * @brief Get maximum bitrate value.
+ * @ret Maximum bitrate value
+ */
 long PlayerInstanceAAMP::GetMaximumBitrate(void)
 {
 	long bitrate;
@@ -478,7 +562,12 @@ long PlayerInstanceAAMP::GetMaximumBitrate(void)
 	return bitrate;
 }
 
-
+/**
+ *   @brief Check given rate is valid.
+ *
+ *   @param[in] rate - Rate of playback.
+ *   @retval return true if the given rate is valid.
+ */
 bool PlayerInstanceAAMP::IsValidRate(int rate)
 {
 	bool retValue = false;
@@ -490,7 +579,12 @@ bool PlayerInstanceAAMP::IsValidRate(int rate)
 }
 
 
-
+/**
+ *   @brief Set playback rate.
+ *
+ *   @param  rate - Rate of playback.
+ *   @param  overshootcorrection - overshoot correction in milliseconds.
+ */
 void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 {
 	AAMPLOG_INFO("PLAYER[%d] rate=%d.", aamp->mPlayerId, rate);
@@ -518,7 +612,12 @@ void PlayerInstanceAAMP::SetRate(int rate,int overshootcorrection)
 }
 
 
-
+/**
+ *   @brief Set playback rate - Internal function
+ *
+ *   @param  rate - Rate of playback.
+ *   @param  overshootcorrection - overshoot correction in milliseconds.
+ */
 void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 {
 	AAMPLOG_INFO("PLAYER[%d] rate=%d.", aamp->mPlayerId, rate);
@@ -817,7 +916,13 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 	return false;  // G_SOURCE_REMOVE = false , G_SOURCE_CONTINUE = true
 }
 
-
+/**
+ *   @brief Seek to a time.
+ *
+ *   @param  secondsRelativeToTuneTime - Seek position for VOD,
+ *           relative position from first tune command.
+ *   @param  keepPaused - set true if want to keep paused state after seek
+ */
 void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 {
 	if(aamp)
@@ -840,7 +945,13 @@ void PlayerInstanceAAMP::Seek(double secondsRelativeToTuneTime, bool keepPaused)
 }
 
 
-
+/**
+ *   @brief Seek to a time - Internal function
+ *
+ *   @param  secondsRelativeToTuneTime - Seek position for VOD,
+ *           relative position from first tune command.
+ *   @param  keepPaused - set true if want to keep paused state after seek
+ */
 void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool keepPaused)
 {
 	bool sentSpeedChangedEv = false;
@@ -978,7 +1089,11 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 	}
 }
 
-
+/**
+ *   @brief Seek to live point.
+ *
+ *   @param[in]  keepPaused - set true if want to keep paused state after seek
+ */
 void PlayerInstanceAAMP::SeekToLive(bool keepPaused)
 {
 	if(aamp)
@@ -999,7 +1114,13 @@ void PlayerInstanceAAMP::SeekToLive(bool keepPaused)
 	}
 }
 
-
+/**
+ *   @brief Seek to a time and playback with a new rate.
+ *
+ *   @param  rate - Rate of playback.
+ *   @param  secondsRelativeToTuneTime - Seek position for VOD,
+ *           relative position from first tune command.
+ */
 void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTime)
 {
 	TuneType tuneType = eTUNETYPE_SEEK;
@@ -1063,7 +1184,14 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 	}
 }
 
-
+/**
+ *   @brief Set video rectangle.
+ *
+ *   @param  x - horizontal start position.
+ *   @param  y - vertical start position.
+ *   @param  w - width.
+ *   @param  h - height.
+ */
 void PlayerInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1073,7 +1201,11 @@ void PlayerInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 	}
 }
 
-
+/**
+ *   @brief Set video zoom.
+ *
+ *   @param  zoom - zoom mode.
+ */
 void PlayerInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1092,7 +1224,11 @@ void PlayerInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 	}// end of if aamp
 }
 
-
+/**
+ *   @brief Enable/ Disable Video.
+ *
+ *   @param  muted - true to disable video, false to enable video.
+ */
 void PlayerInstanceAAMP::SetVideoMute(bool muted)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1123,7 +1259,11 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
 	}
 }
 
-
+/**
+ *   @brief Set Audio Volume.
+ *
+ *   @param  volume - Minimum 0, maximum 100.
+ */
 void PlayerInstanceAAMP::SetAudioVolume(int volume)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1149,7 +1289,11 @@ void PlayerInstanceAAMP::SetAudioVolume(int volume)
 	}// end of if aamp
 }
 
-
+/**
+ *   @brief Set Audio language.
+ *
+ *   @param  language - Language of audio track.
+ */
 void PlayerInstanceAAMP::SetLanguage(const char* language)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1173,7 +1317,11 @@ void PlayerInstanceAAMP::SetLanguage(const char* language)
 	}// end of if
 }
 
-
+/**
+ *   @brief Set array of subscribed tags.
+ *
+ *   @param  subscribedTags - Array of subscribed tags.
+ */
 void PlayerInstanceAAMP::SetSubscribedTags(std::vector<std::string> subscribedTags)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1186,7 +1334,11 @@ void PlayerInstanceAAMP::SetSubscribedTags(std::vector<std::string> subscribedTa
 	}// end of if aamp
 }
 
-
+/**
+ *   @brief Subscribe array of http response headers.
+ *
+ *   @param  responseHeaders - Array of response headers.
+ */
 void PlayerInstanceAAMP::SubscribeResponseHeaders(std::vector<std::string> responseHeaders)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1201,8 +1353,11 @@ void PlayerInstanceAAMP::SubscribeResponseHeaders(std::vector<std::string> respo
 }
 
 #ifdef SUPPORT_JS_EVENTS 
-
-
+/**
+ *   @brief Load AAMP JS object in the specified JS context.
+ *
+ *   @param  context - JS context.
+ */
 void PlayerInstanceAAMP::LoadJS(void* context)
 {
 	AAMPLOG_WARN("[AAMP_JS] (%p)", context);
@@ -1217,7 +1372,11 @@ void PlayerInstanceAAMP::LoadJS(void* context)
 	}
 }
 
-
+/**
+ *   @brief Unoad AAMP JS object in the specified JS context.
+ *
+ *   @param  context - JS context.
+ */
 void PlayerInstanceAAMP::UnloadJS(void* context)
 {
 	AAMPLOG_WARN("[AAMP_JS] (%p)", context);
@@ -1233,7 +1392,12 @@ void PlayerInstanceAAMP::UnloadJS(void* context)
 }
 #endif
 
-
+/**
+ *   @brief Support multiple listeners for multiple event type
+ *
+ *   @param  eventType - type of event.
+ *   @param  eventListener - listener for the eventType.
+ */
 void PlayerInstanceAAMP::AddEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
 	if(aamp){
@@ -1241,7 +1405,12 @@ void PlayerInstanceAAMP::AddEventListener(AAMPEventType eventType, EventListener
 	}
 }
 
-
+/**
+ *   @brief Remove event listener for eventType.
+ *
+ *   @param  eventType - type of event.
+ *   @param  eventListener - listener to be removed for the eventType.
+ */
 void PlayerInstanceAAMP::RemoveEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
 	if(aamp){
@@ -1249,7 +1418,11 @@ void PlayerInstanceAAMP::RemoveEventListener(AAMPEventType eventType, EventListe
 	}
 }
 
-
+/**
+ *   @brief To check playlist type.
+ *
+ *   @return bool - True if live content, false otherwise
+ */
 bool PlayerInstanceAAMP::IsLive()
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(false);
@@ -1258,7 +1431,11 @@ bool PlayerInstanceAAMP::IsLive()
 	return isLive;
 }
 
-
+/**
+ *   @brief Get current audio language.
+ *
+ *   @return current audio language
+ */
 const char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL("");
@@ -1280,7 +1457,11 @@ const char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
 	return lang;
 }
 
-
+/**
+ *   @brief Get current drm
+ *
+ *   @return current drm
+ */
 const char* PlayerInstanceAAMP::GetCurrentDRM(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL("");
@@ -1294,7 +1475,10 @@ const char* PlayerInstanceAAMP::GetCurrentDRM(void)
 	return "NONE";
 }
 
-
+/**
+ * @brief Applies the custom http headers for page (Injector bundle) received from the js layer
+ * @param id customHttpHeaders map of custom http headers
+ */
 void PlayerInstanceAAMP::AddPageHeaders(std::map<std::string, std::string> pageHeaders)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1308,7 +1492,13 @@ void PlayerInstanceAAMP::AddPageHeaders(std::map<std::string, std::string> pageH
 	}
 }
 
-
+/**
+ *   @brief Add/Remove a custom HTTP header and value.
+ *
+ *   @param  headerName - Name of custom HTTP header
+ *   @param  headerValue - Value to be passed along with HTTP header.
+ *   @param  isLicenseHeader - true if header is for license request
+ */
 void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue, bool isLicenseHeader)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1317,7 +1507,12 @@ void PlayerInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector
 	}
 }
 
-
+/**
+ *   @brief Set License Server URL.
+ *
+ *   @param  url - URL of the server to be used for license requests
+ *   @param  type - DRM Type(PR/WV) for which the server URL should be used, global by default
+ */
 void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1345,41 +1540,65 @@ void PlayerInstanceAAMP::SetLicenseServerURL(const char *url, DRMSystems type)
 	}// end of if aamp
 }
 
-
+/**
+ *   @brief Indicates if session token has to be used with license request or not.
+ *
+ *   @param  isAnonymous - True if session token should be blank and false otherwise.
+ */
 void PlayerInstanceAAMP::SetAnonymousRequest(bool isAnonymous)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_AnonymousLicenseRequest,isAnonymous);
 }
 
-
+/**
+ *   @brief Indicates average BW to be used for ABR Profiling.
+ *
+ *   @param  useAvgBW - Flag for true / false
+ */
 void PlayerInstanceAAMP::SetAvgBWForABR(bool useAvgBW)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_AvgBWForABR,useAvgBW);
 }
 
-
+/**
+*   @brief SetPreCacheTimeWindow Function to Set PreCache Time
+*
+*   @param  Time in minutes - Max PreCache Time 
+*/
 void PlayerInstanceAAMP::SetPreCacheTimeWindow(int nTimeWindow)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PreCachePlaylistTime,nTimeWindow);
 }
 
-
+/**
+ *   @brief Set VOD Trickplay FPS.
+ *
+ *   @param  vodTrickplayFPS - FPS to be used for VOD Trickplay
+ */
 void PlayerInstanceAAMP::SetVODTrickplayFPS(int vodTrickplayFPS)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_VODTrickPlayFPS,vodTrickplayFPS);
 }
 
-
+/**
+ *   @brief Set Linear Trickplay FPS.
+ *
+ *   @param  linearTrickplayFPS - FPS to be used for Linear Trickplay
+ */
 void PlayerInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LinearTrickPlayFPS,linearTrickplayFPS);
 }
 
-
+/**
+ *   @brief Set Live Offset.
+ *
+ *   @param  liveoffset- Live Offset
+ */
 void PlayerInstanceAAMP::SetLiveOffset(int liveoffset)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1387,21 +1606,33 @@ void PlayerInstanceAAMP::SetLiveOffset(int liveoffset)
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LiveOffset,(double)liveoffset);
 }
 
-
+/**
+ *   @brief To set the error code to be used for playback stalled error.
+ *
+ *   @param  errorCode - error code for playback stall errors.
+ */
 void PlayerInstanceAAMP::SetStallErrorCode(int errorCode)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_StallErrorCode,errorCode);	
 }
 
-
+/**
+ *   @brief To set the timeout value to be used for playback stall detection.
+ *
+ *   @param  timeoutMS - timeout in milliseconds for playback stall detection.
+ */
 void PlayerInstanceAAMP::SetStallTimeout(int timeoutMS)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_StallTimeoutMS,timeoutMS);	
 }
 
-
+/**
+ *   @brief Set report interval duration
+ *
+ *   @param  reportInterval - report interval duration in milliSeconds
+ */
 void PlayerInstanceAAMP::SetReportInterval(int reportInterval)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1415,7 +1646,11 @@ void PlayerInstanceAAMP::SetReportInterval(int reportInterval)
 	}
 }
 
-
+/**
+ *   @brief To set the max retry attempts for init frag curl timeout failures
+ *
+ *   @param  count - max attempt for timeout retry count
+ */
 void PlayerInstanceAAMP::SetInitFragTimeoutRetryCount(int count)
 {
 	if(count >= 0)
@@ -1424,21 +1659,33 @@ void PlayerInstanceAAMP::SetInitFragTimeoutRetryCount(int count)
 	}
 }
 
-
+/**
+ *   @brief To get the current playback position.
+ *
+ *   @ret current playback position in seconds
+ */
 double PlayerInstanceAAMP::GetPlaybackPosition()
 {
 	ERROR_STATE_CHECK_VAL(0.00);
 	return (aamp->GetPositionMilliseconds() / 1000.00);
 }
 
-
+/**
+*   @brief To get the current asset's duration.
+*
+*   @ret duration in seconds
+*/
 double PlayerInstanceAAMP::GetPlaybackDuration()
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(0.00);
 	return (aamp->GetDurationMs() / 1000.00);
 }
 
-
+/**
+ *   @brief To get the current AAMP state.
+ *
+ *   @ret current AAMP state
+ */
 PrivAAMPState PlayerInstanceAAMP::GetState(void)
 {
 	PrivAAMPState currentState = eSTATE_RELEASED;
@@ -1458,7 +1705,11 @@ PrivAAMPState PlayerInstanceAAMP::GetState(void)
 	return currentState;
 }
 
-
+/**
+ *   @brief To get the bitrate of current video profile.
+ *
+ *   @ret bitrate of video profile
+ */
 long PlayerInstanceAAMP::GetVideoBitrate(void)
 {
 	long bitrate = 0;
@@ -1474,7 +1725,11 @@ long PlayerInstanceAAMP::GetVideoBitrate(void)
 	return bitrate;
 }
 
-
+/**
+ *   @brief To set a preferred bitrate for video profile.
+ *
+ *   @param[in] preferred bitrate for video profile
+ */
 void PlayerInstanceAAMP::SetVideoBitrate(long bitrate)
 {
 	if (bitrate != 0)
@@ -1493,7 +1748,11 @@ void PlayerInstanceAAMP::SetVideoBitrate(long bitrate)
 	}
 }
 
-
+/**
+ *   @brief To get the bitrate of current audio profile.
+ *
+ *   @ret bitrate of audio profile
+ */
 long PlayerInstanceAAMP::GetAudioBitrate(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(0);
@@ -1509,27 +1768,43 @@ long PlayerInstanceAAMP::GetAudioBitrate(void)
 	return bitrate;
 }
 
-
+/**
+ *   @brief To set a preferred bitrate for audio profile.
+ *
+ *   @param[in] preferred bitrate for audio profile
+ */
 void PlayerInstanceAAMP::SetAudioBitrate(long bitrate)
 {
 	//no-op for now
 }
 
-
+/**
+ *   @brief To get video zoom mode
+ *
+ *   @ret video zoom mode
+ */
 int PlayerInstanceAAMP::GetVideoZoom(void)
 {
         ERROR_STATE_CHECK_VAL(0);
         return aamp->zoom_mode;
 }
 
-
+/**
+ *   @brief To get video mute status
+ *
+ *   @ret video mute status
+ */
 bool PlayerInstanceAAMP::GetVideoMute(void)
 {
         ERROR_STATE_CHECK_VAL(0);
         return aamp->video_muted;
 }
 
-
+/**
+ *   @brief To get the current audio volume.
+ *
+ *   @ret audio volume
+ */
 int PlayerInstanceAAMP::GetAudioVolume(void)
 {
 	ERROR_STATE_CHECK_VAL(0);
@@ -1541,14 +1816,22 @@ int PlayerInstanceAAMP::GetAudioVolume(void)
 	return aamp->audio_volume;
 }
 
-
+/**
+ *   @brief To get the current playback rate.
+ *
+ *   @ret current playback rate
+ */
 int PlayerInstanceAAMP::GetPlaybackRate(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(0);
 	return (aamp->pipeline_paused ? 0 : aamp->rate);
 }
 
-
+/**
+ *   @brief To get the available video bitrates.
+ *
+ *   @ret available video bitrates
+ */
 std::vector<long> PlayerInstanceAAMP::GetVideoBitrates(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::vector<long>());
@@ -1564,7 +1847,11 @@ std::vector<long> PlayerInstanceAAMP::GetVideoBitrates(void)
 	return bitrates;
 }
 
-
+/**
+ *   @brief To get the available manifest.
+ *
+ *   @ret available manifest
+ */
 std::string PlayerInstanceAAMP::GetManifest(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
@@ -1586,7 +1873,11 @@ std::string PlayerInstanceAAMP::GetManifest(void)
 	return "";
 }
 
-
+/**
+ *   @brief To get the available audio bitrates.
+ *
+ *   @ret available audio bitrates
+ */
 std::vector<long> PlayerInstanceAAMP::GetAudioBitrates(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::vector<long>());
@@ -1602,14 +1893,22 @@ std::vector<long> PlayerInstanceAAMP::GetAudioBitrates(void)
 	return bitrates;
 }
 
-
+/**
+ *   @brief To set the initial bitrate value.
+ *
+ *   @param[in] initial bitrate to be selected
+ */
 void PlayerInstanceAAMP::SetInitialBitrate(long bitrate)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DefaultBitrate,bitrate);
 }
 
-
+/**
+ *   @brief To get the initial bitrate value.
+ *
+ *   @ret initial bitrate value
+ */
 long PlayerInstanceAAMP::GetInitialBitrate(void)
 {
 	long bitrate;
@@ -1617,14 +1916,22 @@ long PlayerInstanceAAMP::GetInitialBitrate(void)
 	return bitrate;
 }
 
-
+/**
+ *   @brief To set the initial bitrate value for 4K assets
+ *
+ *   @param[in] initial bitrate to be selected for 4K assets
+ */
 void PlayerInstanceAAMP::SetInitialBitrate4K(long bitrate4K)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_DefaultBitrate4K,bitrate4K);
 }
 
-
+/**
+ *   @brief To get the initial bitrate value for 4K assets.
+ *
+ *   @ret initial bitrate value for 4K assets
+ */
 long PlayerInstanceAAMP::GetInitialBitrate4k(void)
 {
 	long bitrate4K;
@@ -1632,35 +1939,55 @@ long PlayerInstanceAAMP::GetInitialBitrate4k(void)
 	return bitrate4K;
 }
 
-
+/**
+ *   @brief To set the network download timeout value.
+ *
+ *   @param[in] preferred timeout value
+ */
 void PlayerInstanceAAMP::SetNetworkTimeout(double timeout)
 {
         ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_NetworkTimeout,timeout);
 }
 
-
+/**
+ *   @brief To set the manifest download timeout value.
+ *
+ *   @param[in] preferred timeout value
+ */
 void PlayerInstanceAAMP::SetManifestTimeout(double timeout)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ManifestTimeout,timeout);
 }
 
-
+/**
+ *   @brief To set the playlist download timeout value.
+ *
+ *   @param[in] preferred timeout value
+ */
 void PlayerInstanceAAMP::SetPlaylistTimeout(double timeout)
 {
         ERROR_STATE_CHECK_VOID();        
 		SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PlaylistTimeout,timeout);
 }
 
-
+/**
+ *   @brief To set the download buffer size value
+ *
+ *   @param[in] preferred download buffer size
+ */
 void PlayerInstanceAAMP::SetDownloadBufferSize(int bufferSize)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_MaxFragmentCached,bufferSize);
 }
 
-
+/**
+ *   @brief Set preferred DRM.
+ *
+ *   @param[in] drmType - preferred DRM type
+ */
 void PlayerInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1675,7 +2002,9 @@ void PlayerInstanceAAMP::SetPreferredDRM(DRMSystems drmType)
 	}
 }
 
-
+/**
+ *   @brief Set Stereo Only Playback.
+ */
 void PlayerInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();	
@@ -1696,7 +2025,9 @@ void PlayerInstanceAAMP::SetStereoOnlyPlayback(bool bValue)
 	}
 }
 
-
+/**
+ *   @brief Set Disable4K configuration flag
+ */
 void PlayerInstanceAAMP::SetDisable4K(bool bValue)
 {
         ERROR_STATE_CHECK_VOID();
@@ -1704,49 +2035,73 @@ void PlayerInstanceAAMP::SetDisable4K(bool bValue)
 }
 
 
-
+/**
+ *   @brief Set BulkTimedMetadata Reporting flag
+ */
 void PlayerInstanceAAMP::SetBulkTimedMetaReport(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_BulkTimedMetaReport,bValue);
 }
 
-
+/**
+ *   @brief Set unpaired discontinuity retune flag
+ */
 void PlayerInstanceAAMP::SetRetuneForUnpairedDiscontinuity(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RetuneForUnpairDiscontinuity,bValue);
 }
 
-
+/**
+ *   @brief Set retune configuration for gstpipeline internal data stream error.
+ */
 void PlayerInstanceAAMP::SetRetuneForGSTInternalError(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RetuneForGSTError,bValue);
 }
 
-
+/**
+ *   @brief Setting the alternate contents' (Ads/blackouts) URL.
+ *
+ *   @param[in] Adbreak's unique identifier.
+ *   @param[in] Individual Ad's id
+ *   @param[in] Ad URL
+ */
 void PlayerInstanceAAMP::SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	aamp->SetAlternateContents(adBreakId, adId, url);
 }
 
-
+/**
+ *   @brief To set the network proxy
+ *
+ *   @param[in] network proxy to use
+ */
 void PlayerInstanceAAMP::SetNetworkProxy(const char * proxy)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_NetworkProxy ,(std::string)proxy);
 }
 
-
+/**
+ *   @brief To set the proxy for license request
+ *
+ *   @param[in] proxy to use for license request
+ */
 void PlayerInstanceAAMP::SetLicenseReqProxy(const char * licenseProxy)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LicenseProxy ,(std::string)licenseProxy);
 }
 
-
+/**
+ *   @brief To set the curl stall timeout value
+ *
+ *   @param[in] curl stall timeout
+ */
 void PlayerInstanceAAMP::SetDownloadStallTimeout(long stallTimeout)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1756,7 +2111,11 @@ void PlayerInstanceAAMP::SetDownloadStallTimeout(long stallTimeout)
 	}
 }
 
-
+/**
+ *   @brief To set the curl download start timeout value
+ *
+ *   @param[in] curl download start timeout
+ */
 void PlayerInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1766,7 +2125,11 @@ void PlayerInstanceAAMP::SetDownloadStartTimeout(long startTimeout)
         }
 }
 
-
+/**
+ *   @brief To set the curl download low bandwidth timeout value
+ *
+ *   @param[in] curl download low bandwidth timeout
+ */
 void PlayerInstanceAAMP::SetDownloadLowBWTimeout(long lowBWTimeout)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1776,7 +2139,12 @@ void PlayerInstanceAAMP::SetDownloadLowBWTimeout(long lowBWTimeout)
 	}
 }
 
-
+/**
+ *   @brief Set preferred subtitle language.
+ *
+ *   @param[in]  language - Language of text track.
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -1797,46 +2165,81 @@ void PlayerInstanceAAMP::SetPreferredSubtitleLanguage(const char* language)
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_SubTitleLanguage,(std::string)language);
 }
 
-
+/**
+ *   @brief Set parallel playlist download config value.
+ *   @param[in] bValue - true if a/v playlist to be downloaded in parallel
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetParallelPlaylistDL(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PlaylistParallelFetch,bValue);
 }
 
-
+/**
+ *   @brief Set parallel playlist download config value for linear.
+ *   @param[in] bValue - true if a/v playlist to be downloaded in parallel during refresh
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetParallelPlaylistRefresh(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PlaylistParallelRefresh,bValue);
 }
 
-
+/**
+ *   @brief Set Westeros sink Configuration
+ *   @param[in] bValue - true if westeros sink enabled
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetWesterosSinkConfig(bool bValue)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_UseWesterosSink,bValue);
 }
 
-
+/**
+ *   @brief Set license caching
+ *   @param[in] bValue - true/false to enable/disable license caching
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetLicenseCaching(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_SetLicenseCaching,bValue);	
 }
 
-
+/**
+ *   @brief Set display resolution check for video profile filtering
+ *   @param[in] bValue - true/false to enable/disable profile filtering
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetOutputResolutionCheck(bool bValue)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LimitResolution,bValue);
 }
 
-
+/**
+ *   @brief Set Matching BaseUrl Config Configuration
+ *
+ *   @param[in] bValue - true if Matching BaseUrl enabled
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetMatchingBaseUrlConfig(bool bValue)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_MatchBaseUrl,bValue);
 }
 
-
+/**
+ *   @brief Configure New ABR Enable/Disable
+ *   @param[in] bValue - true if new ABR enabled
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetNewABRConfig(bool bValue)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ABRBufferCheckEnabled,bValue);
@@ -1845,13 +2248,23 @@ void PlayerInstanceAAMP::SetNewABRConfig(bool bValue)
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_HLSAVTrackSyncUsingStartTime,bValue);
 }
 
-
+/**
+ *   @brief Configure URI  parameters
+ *   @param[in] bValue -true to enable
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetPropagateUriParameters(bool bValue)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PropogateURIParam,bValue);
 }
 
-
+/**
+ *   @brief Call to optionally configure simulated per-download network latency for negative testing
+ *   @param[in] DownloadDelayInMs - extra millisecond delay added in each download
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::ApplyArtificialDownloadDelay(unsigned int DownloadDelayInMs)
 {
 	if( DownloadDelayInMs <= MAX_DOWNLOAD_DELAY_LIMIT_MS )
@@ -1860,14 +2273,24 @@ void PlayerInstanceAAMP::ApplyArtificialDownloadDelay(unsigned int DownloadDelay
 	}
 }
 
-
+/**
+ *   @brief Configure URI  parameters
+ *   @param[in] bValue -true to enable
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetSslVerifyPeerConfig(bool bValue)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_SslVerifyPeer,bValue);
 }
 
 
-
+/**
+ *   @brief Set audio track
+ *
+ *   @param[in] trackId index of audio track in available track list
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string rendition, std::string codec, std::string type, unsigned int channel)
 {
 	if(aamp)
@@ -1889,7 +2312,12 @@ void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string renditi
 	}
 }
 
-
+/**
+ *   @brief Set audio track by audio parameters like language , rendition, codec etc..
+ * 	 @param[in][optional] language, rendition, codec, channel 
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetAudioTrackInternal(std::string language,  std::string rendition, std::string type, std::string codec, unsigned int channel)
 {
 	aamp->mAudioTuple.clear();
@@ -1901,37 +2329,71 @@ void PlayerInstanceAAMP::SetAudioTrackInternal(std::string language,  std::strin
 							codec.empty()?NULL:codec.c_str());
 }
 
-
+/**
+ *   @brief Set optional preferred codec list
+ *   @param[in] codecList[] - string with array with codec list
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetPreferredCodec(const char *codecList)
 {
 	aamp->SetPreferredLanguages(NULL, NULL, NULL, codecList);
 }
 
-
+/**
+ *   @brief Set optional preferred rendition list
+ *   @param[in] renditionList - string with comma-delimited rendition list in ISO-639
+ *             from most to least preferred. Set NULL to clear current list.
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetPreferredRenditions(const char *renditionList)
 {
 	aamp->SetPreferredLanguages(NULL, renditionList, NULL, NULL);
 }
 
-
+/**
+ *   @brief Set optional preferred rendition list
+ *   @param[in] renditionList - string with comma-delimited rendition list in ISO-639
+ *             from most to least preferred. Set NULL to clear current list.
+ *
+ *   @return void
+ */
 std::string PlayerInstanceAAMP::GetPreferredAudioProperties()
 {
 	return aamp->GetPreferredAudioProperties();
 }
 
-
+/**
+ *   @brief Set optional preferred language list
+ *   @param[in] languageList - string with comma-delimited language list in ISO-639
+ *             from most to least preferred. Set NULL to clear current list.
+ *   @param[in] preferredRendition  - preferred rendition from role
+ *   @param[in] preferredType -  preferred accessibility type
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition, const char *preferredType, const char* codecList )
 {
 	aamp->SetPreferredLanguages(languageList, preferredRendition, preferredType, codecList);
 }
 
-
+/**
+ *	 @brief Get Preferred DRM.
+ *
+ *	 @return Preferred DRM type
+ */
 DRMSystems PlayerInstanceAAMP::GetPreferredDRM()
 {
 	return aamp->GetPreferredDRM();
 }
 
-
+/**
+ *   @brief Get current preferred language list
+ *
+ *   @return  const char* - current comma-delimited language list or NULL if not set
+ *
+ */
 const char* PlayerInstanceAAMP::GetPreferredLanguages()
 {
 	if(!aamp->preferredLanguagesString.empty())
@@ -1942,7 +2404,12 @@ const char* PlayerInstanceAAMP::GetPreferredLanguages()
 	return NULL;
 }
 
-
+/**
+ *   @brief Configure New AdBreaker Enable/Disable
+ *   @param[in] bValue - true if new AdBreaker enabled
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
 {	
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_NewDiscontinuity,bValue);
@@ -1950,7 +2417,11 @@ void PlayerInstanceAAMP::SetNewAdBreakerConfig(bool bValue)
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_HLSAVTrackSyncUsingStartTime,bValue);
 }
 
-
+/**
+ *   @brief Get available video tracks.
+ *
+ *   @return std::string JSON formatted list of video tracks
+ */
 std::string PlayerInstanceAAMP::GetAvailableVideoTracks()
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
@@ -1958,13 +2429,22 @@ std::string PlayerInstanceAAMP::GetAvailableVideoTracks()
 	return aamp->GetAvailableVideoTracks();
 }
 
-
+/**
+ *   @brief Set video track selection.
+ *   @param[in] bitratelist - list of bitrates used for profile selection
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetVideoTracks(std::vector<long> bitrates)
 {
 	return aamp->SetVideoTracks(bitrates);
 }
 
-
+/**
+ *   @brief Get available audio tracks.
+ *
+ *   @return std::string JSON formatted list of audio tracks
+ */
 std::string PlayerInstanceAAMP::GetAvailableAudioTracks(bool allTrack)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
@@ -1972,7 +2452,11 @@ std::string PlayerInstanceAAMP::GetAvailableAudioTracks(bool allTrack)
 	return aamp->GetAvailableAudioTracks(allTrack);
 }
 
-
+/**
+ *   @brief Get available audio tracks.
+ *
+ *   @return std::string JSON formatted list of audio tracks
+ */
 std::string PlayerInstanceAAMP::GetAudioTrackInfo()
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
@@ -1981,6 +2465,11 @@ std::string PlayerInstanceAAMP::GetAudioTrackInfo()
 }
 
 
+/**
+ *   @brief Get available text tracks.
+ *
+ *   @return std::string JSON formatted list of text tracks
+ */
 std::string PlayerInstanceAAMP::GetAvailableTextTracks()
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
@@ -1988,7 +2477,11 @@ std::string PlayerInstanceAAMP::GetAvailableTextTracks()
 	return aamp->GetAvailableTextTracks();
 }
 
-
+/*
+ *   @brief Get the video window co-ordinates
+ *
+ *   @return current video co-ordinates in x,y,w,h format
+ */
 std::string PlayerInstanceAAMP::GetVideoRectangle()
 {
 	ERROR_STATE_CHECK_VAL(std::string());
@@ -1996,13 +2489,21 @@ std::string PlayerInstanceAAMP::GetVideoRectangle()
 	return aamp->GetVideoRectangle();
 }
 
-
+/*
+ *   @brief Set the application name which has created PlayerInstanceAAMP, for logging purposes
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetAppName(std::string name)
 {
 	aamp->SetAppName(name);
 }
 
-
+/**
+ *   @brief Enable/disable the native CC rendering feature
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetNativeCCRendering(bool enable)
 {
 #ifdef AAMP_CC_ENABLED
@@ -2010,13 +2511,21 @@ void PlayerInstanceAAMP::SetNativeCCRendering(bool enable)
 #endif
 }
 
-
+/**
+ *   @brief To set the tune-event according to the player.
+ *
+ *   @param[in] preferred tune event type
+ */
 void PlayerInstanceAAMP::SetTuneEventConfig(int tuneEventType)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_TuneEventConfig,tuneEventType);
 }
 
-
+/**
+ *   @brief Set video rectangle property
+ *
+ *   @param[in] video rectangle property
+ */
 void PlayerInstanceAAMP::EnableVideoRectangle(bool rectProperty)
 {
 	if(!rectProperty)
@@ -2036,7 +2545,12 @@ void PlayerInstanceAAMP::EnableVideoRectangle(bool rectProperty)
 	}
 }
 
-
+/**
+ *   @brief Set audio track
+ *
+ *   @param[in] trackId index of audio track in available track list
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetAudioTrack(int trackId)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
@@ -2067,7 +2581,11 @@ void PlayerInstanceAAMP::SetAudioTrack(int trackId)
 	} // end of if
 }
 
-
+/**
+ *   @brief Get current audio track index
+ *
+ *   @return int - index of current audio track in available track list
+ */
 int PlayerInstanceAAMP::GetAudioTrack()
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(-1);
@@ -2076,6 +2594,12 @@ int PlayerInstanceAAMP::GetAudioTrack()
 }
 
 
+/**
+ *   @brief Set text track
+ *
+ *   @param[in] trackId index of text track in available track list
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetTextTrack(int trackId)
 {
         ERROR_OR_IDLE_STATE_CHECK_VOID();
@@ -2102,7 +2626,12 @@ void PlayerInstanceAAMP::SetTextTrack(int trackId)
 	}
 }
 
-
+/**
+ *   @brief Set text track ti internal
+ *
+ *   @param[in] trackId index of text track in available track list
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetTextTrackInternal(int trackId)
 {
 	if(aamp && aamp->mpStreamAbstractionAAMP)
@@ -2111,7 +2640,11 @@ void PlayerInstanceAAMP::SetTextTrackInternal(int trackId)
 	}
 }
 
-
+/**
+ *   @brief Get current text track index
+ *
+ *   @return int - index of current text track in available track list
+ */
 int PlayerInstanceAAMP::GetTextTrack()
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(-1);
@@ -2119,7 +2652,12 @@ int PlayerInstanceAAMP::GetTextTrack()
 	return aamp->GetTextTrack();
 }
 
-
+/**
+ *   @brief Set CC visibility on/off
+ *
+ *   @param[in] enabled true for CC on, false otherwise
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetCCStatus(bool enabled)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -2127,13 +2665,22 @@ void PlayerInstanceAAMP::SetCCStatus(bool enabled)
 	aamp->SetCCStatus(enabled);
 }
 
-
+/**
+ *   @brief Get CC visibility on/off
+ *
+ *   @return bool true(enabled) else false(disabled)
+ */
 bool PlayerInstanceAAMP::GetCCStatus(void)
 {
 	return aamp->GetCCStatus();
 }
 
-
+/**
+ *   @brief Set style options for text track rendering
+ *
+ *   @param[in] options - JSON formatted style options
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetTextStyle(const std::string &options)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -2141,7 +2688,11 @@ void PlayerInstanceAAMP::SetTextStyle(const std::string &options)
 	aamp->SetTextStyle(options);
 }
 
-
+/**
+ *   @brief Get style options for text track rendering
+ *
+ *   @return std::string - JSON formatted style options
+ */
 std::string PlayerInstanceAAMP::GetTextStyle()
 {
 	ERROR_STATE_CHECK_VAL(std::string());
@@ -2149,13 +2700,21 @@ std::string PlayerInstanceAAMP::GetTextStyle()
 	return aamp->GetTextStyle();
 }
 
-
+/**
+ * @brief Set profile ramp down limit.
+ *
+ */
 void PlayerInstanceAAMP::SetInitRampdownLimit(int limit)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_InitRampDownLimit,limit);
 }
 
-
+/**
+ *   @brief Set the CEA format for force setting
+ *
+ *   @param[in] format - 0 for 608, 1 for 708
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetCEAFormat(int format)
 {
 #ifdef AAMP_CC_ENABLED	
@@ -2163,14 +2722,22 @@ void PlayerInstanceAAMP::SetCEAFormat(int format)
 #endif
 }
 
-
+/**
+*   @brief To get the bitrate of thumbnail profile.
+*
+*   @ret bitrate of thumbnail tracks profile
+*/
 std::string PlayerInstanceAAMP::GetAvailableThumbnailTracks(void)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
 	return aamp->GetThumbnailTracks();
 }
 
-
+/**
+ *   @brief To set a preferred bitrate for thumbnail profile.
+ *
+ *   @param[in] preferred bitrate for thumbnail profile
+ */
 bool PlayerInstanceAAMP::SetThumbnailTrack(int thumbIndex)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(false);
@@ -2184,14 +2751,23 @@ bool PlayerInstanceAAMP::SetThumbnailTrack(int thumbIndex)
 	return ret;
 }
 
-
+/**
+ *   @brief To get preferred thumbnails for the duration.
+ *
+ *   @param[in] duration  for thumbnails
+ */
 std::string PlayerInstanceAAMP::GetThumbnails(double tStart, double tEnd)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VAL(std::string());
 	return aamp->GetThumbnails(tStart, tEnd);
 }
 
-
+/**
+ *   @brief Set the session Token for player
+ *
+ *   @param[in] string - sessionToken
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetSessionToken(std::string sessionToken)
 {
 	ERROR_STATE_CHECK_VOID();	
@@ -2200,35 +2776,57 @@ void PlayerInstanceAAMP::SetSessionToken(std::string sessionToken)
 	return;
 }
 
-
+/**
+ *   @brief Enable seekable range values in progress event
+ *
+ *   @param[in] enabled - true if enabled
+ */
 void PlayerInstanceAAMP::EnableSeekableRange(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_EnableSeekRange,bValue);
 }
 
-
+/**
+ *   @brief Enable video PTS reporting in progress event
+ *
+ *   @param[in] enabled - true if enabled
+ */
 void PlayerInstanceAAMP::SetReportVideoPTS(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ReportVideoPTS,bValue);
 }
 
-
+/**
+*   @brief Disable Content Restrictions - unlock
+*   @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+*   @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+*   @param[in] eventChange - disable restriction handling till next program event boundary
+*
+*   @return void
+*/
 void PlayerInstanceAAMP::DisableContentRestrictions(long grace, long time, bool eventChange)
 {
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	aamp->DisableContentRestrictions(grace, time, eventChange);
 }
 
-
+/**
+*   @brief Enable Content Restrictions - lock
+*   @return void
+*/
 void PlayerInstanceAAMP::EnableContentRestrictions()
 {
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	aamp->EnableContentRestrictions();
 }
 
-
+/**
+ *   @brief Enable/Disable async operation
+ *
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetAsyncTuneConfig(bool bValue)
 {
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_AsyncTune,bValue);
@@ -2258,14 +2856,24 @@ void PlayerInstanceAAMP::AsyncStartStop()
 	}
 }
 
-
+/**
+ *   @brief Enable/disable configuration to persist ABR profile over SAP/seek
+ *
+ *   @param[in] value - To enable/disable configuration
+ *   @return void
+ */
 void PlayerInstanceAAMP::PersistBitRateOverSeek(bool bValue)
 {
 	ERROR_STATE_CHECK_VOID();
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PersistentBitRateOverSeek,bValue);	
 }
 
-
+/**
+ *   @brief Stop playback and release resources.
+ *
+ *   @param[in]  sendStateChangeEvent - true if state change events need to be sent for Stop operation
+ *   @return void
+ */
 void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 {
 	PrivAAMPState state;
@@ -2291,7 +2899,11 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 	mConfig.RestoreConfiguration(AAMP_STREAM_SETTING, mLogObj);
 }
 
-
+/**
+ *   @brief To set preferred paused state behavior
+ *
+ *   @param[in] int behavior
+ */
 void PlayerInstanceAAMP::SetPausedBehavior(int behavior)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -2304,7 +2916,11 @@ void PlayerInstanceAAMP::SetPausedBehavior(int behavior)
 }
 
 
-
+/**
+ *   @brief To set AST based progress reporting 
+ *
+ *   @param[in] bool On/Off
+ */
 void PlayerInstanceAAMP::SetUseAbsoluteTimeline(bool configState)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -2313,6 +2929,11 @@ void PlayerInstanceAAMP::SetUseAbsoluteTimeline(bool configState)
 }
 
 
+/**
+		 *   @brief To set the repairIframes flag
+		 *
+		 *   @param[in] bool enable/disable configuration
+		 */
 void PlayerInstanceAAMP::SetRepairIframes(bool configState)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -2320,7 +2941,9 @@ void PlayerInstanceAAMP::SetRepairIframes(bool configState)
 
 }
 
-
+/**
+* @brief InitAAMPConfig - Initialize the media player session with json config
+*/
 bool PlayerInstanceAAMP::InitAAMPConfig(char *jsonStr)
 {
 	bool retVal = false;
@@ -2334,7 +2957,9 @@ bool PlayerInstanceAAMP::InitAAMPConfig(char *jsonStr)
 	return retVal;
 }
 
-
+/**
+* @brief GetAAMPConfig - Get AAMP Config as JSON String 
+*/
 std::string PlayerInstanceAAMP::GetAAMPConfig()
 {
 	std::string jsonStr;
@@ -2343,13 +2968,22 @@ std::string PlayerInstanceAAMP::GetAAMPConfig()
 }
 
 
+/**
+ *  @brief To set whether the JS playback session is from XRE or not.
+ *  @param[in] bool On/Off
+ */
 void PlayerInstanceAAMP::XRESupportedTune(bool xreSupported)
 {
         SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_XRESupportedTune,xreSupported);
 }
 
 
-
+/**
+ *   @brief Set auxiliary language
+ *
+ *   @param[in] language - auxiliary language
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetAuxiliaryLanguage(const std::string &language)
 {
 	if(mAsyncTuneEnabled)
@@ -2368,7 +3002,12 @@ void PlayerInstanceAAMP::SetAuxiliaryLanguage(const std::string &language)
 
 }
 
-
+/**
+ *   @brief Set auxiliary language - Internal function
+ *
+ *   @param[in] language - auxiliary language
+ *   @return void
+ */
 void PlayerInstanceAAMP::SetAuxiliaryLanguageInternal(const std::string &language)
 {
 	ERROR_STATE_CHECK_VOID();
@@ -2408,14 +3047,22 @@ void PlayerInstanceAAMP::SetAuxiliaryLanguageInternal(const std::string &languag
 #endif
 }
 
-
+/*
+ *   @brief Set License Custom Data
+ *
+ *   @param  customData - custom data string to be passed to the license server.
+ */
 void PlayerInstanceAAMP::SetLicenseCustomData(const char *customData)
 {
     ERROR_STATE_CHECK_VOID();
     SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CustomLicenseData,std::string(customData));
 }
 
-
+/**
+ *   @brief Get playback statistics formated for partner apps
+ *
+ *   @return json string reperesenting the stats
+ */
 std::string PlayerInstanceAAMP::GetPlaybackStats()
 {
 	std::string stats;

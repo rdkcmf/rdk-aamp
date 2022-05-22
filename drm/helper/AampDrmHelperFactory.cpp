@@ -16,12 +16,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-
-/**
- * @file AampDrmHelperFactory.cpp
- * @brief DRM Helper Engine
- */
-
 #include <algorithm>
 #include <regex>
 

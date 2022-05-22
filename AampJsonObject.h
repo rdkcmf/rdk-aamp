@@ -19,19 +19,13 @@
 #ifndef _AAMP_JSON_OBJECT_H
 #define _AAMP_JSON_OBJECT_H
 
-/**
- * @file AampJsonObject.h
- * @brief File to handle Json format 
- */
-
-
 #include <string>
 #include <vector>
 
 #include <cjson/cJSON.h>
 
-/**
- * @brief Utility class to construct a JSON string
+/*
+ * Utility class to construct a JSON string
  */
 class AampJsonObject {
 public:
@@ -43,9 +37,9 @@ public:
 
 	enum ENCODING
 	{
-		ENCODING_STRING,     /**< Bytes encoded as a string as-is */
-		ENCODING_BASE64,     /**< Bytes base64 encoded to a string */
-		ENCODING_BASE64_URL  /**< Bytes base64url encoded to a string */
+		ENCODING_STRING,	 // Bytes encoded as a string as-is
+		ENCODING_BASE64,     // Bytes base64 encoded to a string
+		ENCODING_BASE64_URL  // Bytes base64url encoded to a string
 	};
 
 	/**
@@ -167,10 +161,6 @@ private:
 	cJSON *mJsonObj;
 	AampJsonObject *mParent;
 };
-
-/**
- * @brief Handles the exception for JSON parser
- */
 
 class AampJsonParseException : public std::exception
 {

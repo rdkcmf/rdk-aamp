@@ -18,7 +18,7 @@
  */
 
 /**
- * @file videoin_shim.cpp
+ * @file fragmentcollector_VIDEOIN.cpp
  * @brief shim for dispatching UVE HDMI input playback
  */
 #include "videoin_shim.h"
@@ -44,8 +44,12 @@ using namespace WPEFramework;
 #define UHD_4K_WIDTH 3840
 #define UHD_4K_HEIGHT 2160
 #endif
-
-
+/**
+ *   @brief  Initialize a newly created object.
+ *   @note   To be implemented by sub classes
+ *   @param  tuneType to set type of object.
+ *   @retval eAAMPSTATUS_OK
+ */
 AAMPStatusType StreamAbstractionAAMP_VIDEOIN::Init(TuneType tuneType)
 {
 	AAMPLOG_WARN("%s Function not implemented",mName.c_str());
@@ -61,7 +65,12 @@ AAMPStatusType StreamAbstractionAAMP_VIDEOIN::InitHelper(TuneType tuneType)
 	return retval;
 }
 
-
+/**
+ * @brief StreamAbstractionAAMP_VIDEOIN Constructor
+ * @param aamp pointer to PrivateInstanceAAMP object associated with player
+ * @param seek_pos Seek position
+ * @param rate playback rate
+ */
 StreamAbstractionAAMP_VIDEOIN::StreamAbstractionAAMP_VIDEOIN( const std::string name, const std::string callSign, AampLogManager *logObj,  class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
                                : mName(name),
                                mRegisteredEvents(),
@@ -79,7 +88,9 @@ StreamAbstractionAAMP_VIDEOIN::StreamAbstractionAAMP_VIDEOIN( const std::string 
 #endif
 }
 
-
+/**
+ * @brief StreamAbstractionAAMP_VIDEOIN Destructor
+ */
 StreamAbstractionAAMP_VIDEOIN::~StreamAbstractionAAMP_VIDEOIN()
 {
 	AAMPLOG_WARN("%s destructor",mName.c_str());
@@ -91,12 +102,17 @@ StreamAbstractionAAMP_VIDEOIN::~StreamAbstractionAAMP_VIDEOIN()
 	mRegisteredEvents.clear();
 }
 
-
+/**
+ *   @brief  Starts streaming.
+ */
 void StreamAbstractionAAMP_VIDEOIN::Start(void)
 {
 	AAMPLOG_WARN("%s Function not implemented",mName.c_str());
 }
 
+/**
+ *   @brief  calls start on video in specified by port and method name
+ */
 
 void StreamAbstractionAAMP_VIDEOIN::StartHelper(int port, const std::string & methodName)
 {
@@ -111,7 +127,9 @@ void StreamAbstractionAAMP_VIDEOIN::StartHelper(int port, const std::string & me
 #endif
 }
 
-
+/**
+*   @brief  Stops streaming.
+*/
 void StreamAbstractionAAMP_VIDEOIN::StopHelper(const std::string & methodName)
 {
 	if( videoInputPort>=0 )
@@ -128,7 +146,9 @@ void StreamAbstractionAAMP_VIDEOIN::StopHelper(const std::string & methodName)
 	}
 }
 
-
+/**
+*   @brief  Stops streaming.
+*/
 void StreamAbstractionAAMP_VIDEOIN::Stop(bool clearChannelData)
 {
 	AAMPLOG_WARN("%s Function not implemented",mName.c_str());
@@ -154,6 +174,12 @@ bool StreamAbstractionAAMP_VIDEOIN::GetScreenResolution(int & screenWidth, int &
 #endif
 }
 
+/**
+ * @brief SetVideoRectangle sets the position coordinates (x,y) & size (w,h)
+ *
+ * @param[in] x,y - position coordinates of video rectangle
+ * @param[in] wxh - width & height of video rectangle
+ */
 
 void StreamAbstractionAAMP_VIDEOIN::SetVideoRectangle(int x, int y, int w, int h)
 {
@@ -182,13 +208,21 @@ void StreamAbstractionAAMP_VIDEOIN::SetVideoRectangle(int x, int y, int w, int h
 #endif
 }
 
-
+/**
+ * @brief Stub implementation
+ */
 void StreamAbstractionAAMP_VIDEOIN::DumpProfiles(void)
 { // STUB
 	AAMPLOG_WARN("%s Function not implemented",mName.c_str());
 }
 
-
+/**
+ * @brief Get output format of stream.
+ *
+ * @param[out]  primaryOutputFormat - format of primary track
+ * @param[out]  audioOutputFormat - format of audio track
+ * @param[out]  auxAudioOutputFormat - format of aux track
+ */
 void StreamAbstractionAAMP_VIDEOIN::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat)
 { // STUB
 	AAMPLOG_WARN("%s ",mName.c_str());
@@ -197,35 +231,57 @@ void StreamAbstractionAAMP_VIDEOIN::GetStreamFormat(StreamOutputFormat &primaryO
     //auxAudioOutputFormat = FORMAT_INVALID;
 }
 
-
+/**
+ *   @brief Return MediaTrack of requested type
+ *
+ *   @param[in]  type - track type
+ *   @retval MediaTrack pointer.
+ */
 MediaTrack* StreamAbstractionAAMP_VIDEOIN::GetMediaTrack(TrackType type)
 { // STUB
 	AAMPLOG_WARN("%s ",mName.c_str());
     return NULL;
 }
 
-
+/**
+ * @brief Get current stream position.
+ *
+ * @retval current position of stream.
+ */
 double StreamAbstractionAAMP_VIDEOIN::GetStreamPosition()
 { // STUB
 	AAMPLOG_WARN("%s ",mName.c_str());
     return 0.0;
 }
 
-
+/**
+ *   @brief Get stream information of a profile from subclass.
+ *
+ *   @param[in]  idx - profile index.
+ *   @retval stream information corresponding to index.
+ */
 StreamInfo* StreamAbstractionAAMP_VIDEOIN::GetStreamInfo(int idx)
 { // STUB
 	AAMPLOG_WARN("%s ",mName.c_str());
     return NULL;
 }
 
-
+/**
+ *   @brief  Get PTS of first sample.
+ *
+ *   @retval PTS of first sample
+ */
 double StreamAbstractionAAMP_VIDEOIN::GetFirstPTS()
 { // STUB
 	AAMPLOG_WARN("%s ",mName.c_str());
     return 0.0;
 }
 
-
+/**
+ *   @brief  Get Start time PTS of first sample.
+ *
+ *   @retval start time of first sample
+ */
 double StreamAbstractionAAMP_VIDEOIN::GetStartTimeOfFirstPTS()
 { // STUB
 	AAMPLOG_WARN("%s ",mName.c_str());
@@ -244,41 +300,58 @@ bool StreamAbstractionAAMP_VIDEOIN::IsInitialCachingSupported()
 	return false;
 }
 
-
+/**
+ * @brief Get index of profile corresponds to bandwidth
+ * @param[in] bitrate Bitrate to lookup profile
+ * @retval profile index
+ */
 int StreamAbstractionAAMP_VIDEOIN::GetBWIndex(long bitrate)
 {
 	AAMPLOG_WARN("%s ",mName.c_str());
     return 0;
 }
 
-
+/**
+ * @brief To get the available video bitrates.
+ * @ret available video bitrates
+ */
 std::vector<long> StreamAbstractionAAMP_VIDEOIN::GetVideoBitrates(void)
 { // STUB
 	AAMPLOG_WARN("%s ",mName.c_str());
     return std::vector<long>();
 }
 
-
+/*
+* @brief Gets Max Bitrate avialable for current playback.
+* @ret long MAX video bitrates
+*/
 long StreamAbstractionAAMP_VIDEOIN::GetMaxBitrate()
 { // STUB
 	AAMPLOG_WARN("%s ",mName.c_str());
     return 0;
 }
 
-
+/**
+ * @brief To get the available audio bitrates.
+ * @ret available audio bitrates
+ */
 std::vector<long> StreamAbstractionAAMP_VIDEOIN::GetAudioBitrates(void)
 { // STUB
 	AAMPLOG_WARN("%s ",mName.c_str());
     return std::vector<long>();
 }
 
-
+/**
+*   @brief  Stops injecting fragments to StreamSink.
+*/
 void StreamAbstractionAAMP_VIDEOIN::StopInjection(void)
 { // STUB - discontinuity related
 	AAMPLOG_WARN("%s ",mName.c_str());
 }
 
-
+/**
+*   @brief  Start injecting fragments to StreamSink.
+*/
 void StreamAbstractionAAMP_VIDEOIN::StartInjection(void)
 { // STUB - discontinuity related
 	AAMPLOG_WARN("%s ",mName.c_str());
@@ -286,6 +359,11 @@ void StreamAbstractionAAMP_VIDEOIN::StartInjection(void)
 
 
 
+/**
+ *   @brief  Registers  Event to input plugin and to mRegisteredEvents list for later use.
+ *   @param[in] eventName : Event name
+ *  @param[in] functionHandler : Event funciton pointer
+ */
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
 void StreamAbstractionAAMP_VIDEOIN::RegisterEvent (string eventName, std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> functionHandler)
 {
@@ -297,7 +375,9 @@ void StreamAbstractionAAMP_VIDEOIN::RegisterEvent (string eventName, std::functi
 	}
 }
 
-
+/**
+ *   @brief  Registers all Events to input plugin
+ */
 void StreamAbstractionAAMP_VIDEOIN::RegisterAllEvents ()
 {
 	std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> inputStatusChangedMethod = std::bind(&StreamAbstractionAAMP_VIDEOIN::OnInputStatusChanged, this, std::placeholders::_1);
@@ -309,7 +389,9 @@ void StreamAbstractionAAMP_VIDEOIN::RegisterAllEvents ()
 	RegisterEvent("onSignalChanged",signalChangedMethod);
 }
 
-
+/**
+ *   @brief  Gets  onSignalChanged and translates into aamp events
+ */
 void StreamAbstractionAAMP_VIDEOIN::OnInputStatusChanged(const JsonObject& parameters)
 {
 	std::string message;
@@ -334,7 +416,9 @@ void StreamAbstractionAAMP_VIDEOIN::OnInputStatusChanged(const JsonObject& param
 	}
 }
 
-
+/**
+ *   @brief  Gets  onSignalChanged and translates into aamp events
+ */
 void StreamAbstractionAAMP_VIDEOIN::OnSignalChanged (const JsonObject& parameters)
 {
 	std::string message;

@@ -32,10 +32,6 @@
 #include <string>
 #include "vlCCConstants.h"
 
-/**
- * @class AampRDKCCManager
- * @brief Handling CC operations
- */
 
 class AampRDKCCManager : public AampCCManagerBase
 {

@@ -20,11 +20,6 @@
 #ifndef AAMPLOGMANAGER_H
 #define AAMPLOGMANAGER_H
 
-/**
- * @file AampLogManager.h
- * @brief Log managed for Aamp
- */
-
 #include <vector>
 #include <memory.h>
 
@@ -94,7 +89,7 @@ enum AAMP_LogLevel
 	eLOGLEVEL_TRACE,    /**< Trace level */
 	eLOGLEVEL_INFO,     /**< Info level */
 	eLOGLEVEL_WARN,     /**< Warn level */
-	eLOGLEVEL_ERROR,    /**< Error level */
+	eLOGLEVEL_ERROR,     /**< Error level */
 	eLOGLEVEL_FATAL     /**< Fatal log level */
 };
 
@@ -103,10 +98,10 @@ enum AAMP_LogLevel
  */
 enum AAMPNetworkErrorType
 {
-	/* 0 */ AAMPNetworkErrorNone,     /**< No network Error */
-	/* 1 */ AAMPNetworkErrorHttp,     /**< HTTP error */
-	/* 2 */ AAMPNetworkErrorTimeout,  /**< Timeout Error */
-	/* 3 */ AAMPNetworkErrorCurl      /**< curl Error */
+	/* 0 */ AAMPNetworkErrorNone,
+	/* 1 */ AAMPNetworkErrorHttp,
+	/* 2 */ AAMPNetworkErrorTimeout,
+	/* 3 */ AAMPNetworkErrorCurl
 };
 
 /**
@@ -145,20 +140,20 @@ class AampLogManager
 {
 public:
 
-	bool info;           /**< Info level*/
-	bool debug;          /**< Debug logs*/
-	bool trace;          /**< Trace level*/
-	bool gst;            /**< Gstreamer logs*/
-	bool curl;           /**< Curl logs*/
-	bool progress;       /**< Download progress logs*/
-	bool failover;	     /**< server fail over logs*/
-	bool stream;         /**< Display stream contents */
-	bool curlHeader;     /**< Curl header logs*/
-	bool curlLicense;    /**< Curl logs for License request*/
-	bool logMetadata;    /**< Timed metadata logs*/
-	bool id3;	     /**< Display ID3 tag from stream logs */
+	bool info;       /**< Info level*/
+	bool debug;      /**< Debug logs*/
+	bool trace;      /**< Trace level*/
+	bool gst;        /**< Gstreamer logs*/
+	bool curl;       /**< Curl logs*/
+	bool progress;   /**< Download progress logs*/
+	bool failover;	 /**< server fail over logs*/
+	bool stream;     /**< Display stream contents */
+	bool curlHeader; /**< Curl header logs*/
+	bool curlLicense; /**< Curl logs for License request*/
+	bool logMetadata;	 /**< Timed metadata logs*/
+	bool id3;		/**< Display ID3 tag from stream logs */
 	static bool disableLogRedirection;
-	int  mPlayerId;	     /**< Store PlayerId*/
+	int  mPlayerId;	/**< Store PlayerId*/
 	/**
 	 * @brief AampLogManager constructor
 	 */
@@ -176,7 +171,7 @@ public:
 	 * @param[in] downloadTime - download time of the fragment or manifest
 	 * @param[in] downloadThresholdTimeoutMs - specified download threshold time out value
 	 * @param[in] type - media type
-	 * @return void
+	 * @retuen void
 	 */
 	void LogNetworkLatency(const char* url, int downloadTime, int downloadThresholdTimeoutMs, MediaType type);
 
@@ -187,7 +182,7 @@ public:
 	 * @param[in] errorType - it can be http or curl errors
 	 * @param[in] errorCode - it can be http error or curl error code
 	 * @param[in] type - media type
-	 * @return void
+	 * @retuen void
 	 */
 	void LogNetworkError(const char* url, AAMPNetworkErrorType errorType, int errorCode, MediaType type);
 
@@ -199,7 +194,7 @@ public:
 	 * @param[out] location - server location
 	 * @param[out] symptom - issue exhibiting scenario for error case
 	 * @param[in] type - media type
-	 * @return void
+	 * @retuen void
 	 */
 	void ParseContentUrl(const char* url, std::string& contentType, std::string& location, std::string& symptom, MediaType type);
 
@@ -208,7 +203,7 @@ public:
 	 *
 	 * @param[in] major - drm major error code
 	 * @param[in] minor - drm minor error code
-	 * @return void
+	 * @retuen void
 	 */
 	void LogDRMError(int major, int minor);
 
@@ -216,7 +211,7 @@ public:
 	 * @brief Log ABR info for triage purpose
 	 *
 	 * @param[in] pstAbrInfo - pointer to a structure which will have abr info to be logged
-	 * @return void
+	 * @retuen void
 	 */
 	void LogABRInfo(AAMPAbrInfo *pstAbrInfo);
 	/* !---------- Triage Level Logging Support ---------- */
@@ -228,24 +223,26 @@ public:
 	 * @retval true if the log level allowed for print mechanism
 	 */
 	bool isLogLevelAllowed(AAMP_LogLevel chkLevel);
+
+
 	/**
 	 * @brief Set PlayerId
 	 *
-	 * @param[in] playerId - Aamp Player Id
-	 * @return void
+	 * @param[in] newLevel - log level new value
+	 * @retuen void
 	 */
 	void setPlayerId(int playerId) { mPlayerId = playerId;}
 	/**
 	 * @brief Get PlayerId 
 	 *
-	 * @return int - playerId
+	 * @retuen int - playerId
 	 */
 	int getPlayerId() { return mPlayerId;}
 	/**
 	 * @brief Set the log level for print mechanism
 	 *
 	 * @param[in] newLevel - log level new value
-	 * @return void
+	 * @retuen void
 	 */
 	void setLogLevel(AAMP_LogLevel newLevel);
 
@@ -255,9 +252,7 @@ public:
 	void setLogAndCfgDirectory(char driveName);
 
 	/**
-	 * @brief Check curl error before log on console
-	 * @param[in] errorCode - curl error
-     	 * @return true if it is not a curl error 23 and 42, bcasue those are not a real network errors.
+	 * @brief Check curl error before log on console.
 	 */
 	bool isLogworthyErrorCode(int errorCode);
 
@@ -287,21 +282,16 @@ extern AampLogManager *mLogObj;
 /**
  * @brief Print logs to console / log file
  * @param[in] format - printf style string
- * @return void
+ * @retuen void
  */
 extern void logprintf(const char *format, ...);
-/**
- * @brief Print logs to console / log file
- * @param[in] format - printf style string
- * @return void
- */
 extern void logprintf_new(int playerId,const char* levelstr,const char* file, int line,const char *format, ...);
 
 /**
  * @brief Compactly log blobs of binary data
  *
  * @param[in] ptr to the buffer
- * @param[in] len length of buffer
+ * @param[in] size_t  length of buffer
  *
  * @return void
  */

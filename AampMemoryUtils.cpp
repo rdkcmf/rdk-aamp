@@ -28,7 +28,10 @@
 #include <glib.h>
 #include <errno.h>
 
-
+/**
+ * @brief Free memory allocated by aamp_Malloc
+ * @param[in][out] struct GrowableBuffer, this structure has ptr variable allocated by aamp.
+ */
 void aamp_Free(struct GrowableBuffer *buffer)
 {
 	if (buffer && buffer->ptr)
@@ -39,6 +42,13 @@ void aamp_Free(struct GrowableBuffer *buffer)
 }
 
 
+
+/**
+ * @brief Append data to buffer
+ * @param buffer Growable buffer object pointer
+ * @param ptr Buffer to append
+ * @param len Buffer size
+ */
 void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len)
 {
 	size_t required = buffer->len + len;
@@ -64,7 +74,12 @@ void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len
 	}
 }
 
-
+/**
+ * @brief Move data to buffer
+ * @param buffer Growable buffer object pointer
+ * @param ptr Buffer to Move
+ * @param len Buffer size
+ */
 void aamp_MoveBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len)
 {
 	/* remove parsed data from memory */
@@ -86,7 +101,10 @@ void aamp_MoveBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len)
 	}
 }
 
-
+/**
+ * @brief Append nul character to buffer
+ * @param buffer buffer in which nul to be append
+ */
 void aamp_AppendNulTerminator(struct GrowableBuffer *buffer)
 {
 	char zeros[2] = { 0, 0 }; // append two bytes, to distinguish between internal inserted 0x00's and a final 0x00 0x00
@@ -95,7 +113,12 @@ void aamp_AppendNulTerminator(struct GrowableBuffer *buffer)
 
 #ifdef USE_SECMANAGER
 
-
+/**
+ * @brief Createa share memory and provide the key
+ * @param shmPointer Pointer to the created memory
+ * @param shmLen Length of the buffer to be created
+ * @param shmKey shared memory key
+ */
 void * aamp_CreateSharedMem( size_t shmLen, key_t & shmKey)
 {
 	void *shmPointer = NULL;
@@ -141,6 +164,12 @@ void * aamp_CreateSharedMem( size_t shmLen, key_t & shmKey)
 }
 
 
+/**
+ * @brief Detatch and delete shared memory
+ * @param shmPointer Pointer to the created memory
+ * @param shmKey shared memory key
+ * @param shmLen Length of the buffer
+ */
 void aamp_CleanUpSharedMem(void* shmPointer, key_t shmKey, size_t shmLen)
 {
 	if( NULL != shmPointer && (void*)-1 != shmPointer)

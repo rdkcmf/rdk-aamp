@@ -64,98 +64,24 @@ enum ErrorCode
 	AAMPJS_GENERIC_ERROR = -3
 };
 
-/**
- * @brief Convert C string to JSString
- * @param[in] context JS execution context
- * @param[in] sz C string
- * @retval JSValue that is the converted JSString
- */
 JSValueRef aamp_CStringToJSValue(JSContextRef context, const char* sz);
-
-/**
- * @brief Convert JSString to C string
- * @param[in] context JS execution context
- * @param[in] value JSValue of JSString to be converted
- * @param[out] exception pointer to a JSValueRef in which to store an exception, if any
- * @retval converted C string
- */
 char* aamp_JSValueToCString(JSContextRef context, JSValueRef value, JSValueRef* exception);
 
-/**
- * @brief Convert JSString to JSON C string
- * @param[in] context JS execution context
- * @param[in] value JSValue of JSString to be converted
- * @param[out] exception pointer to a JSValueRef in which to store an exception, if any
- * @retval converted C string
- */
 char* aamp_JSValueToJSONCString(JSContextRef context, JSValueRef value, JSValueRef* exception);
 
-/**
- * @brief Check if a JSValue object is array or not
- * @param[in] context JS exception context
- * @param[in] value JSValue to check if array or not
- * @retval true if JSValue is an array
- */
 bool aamp_JSValueIsArray(JSContextRef context, JSValueRef value);
 
-/**
- * @brief Convert an array of JSString to an array of C strings
- * @param[in] context JS execution context
- * @param[in] arrayRef JSValue of an array of JSString
- * @retval converted array of C strings
- */
 std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JSValueRef arrayRef);
 
-/**
- * @brief Generate a JSValue object with the exception details
- * @param[in] context JS exception context
- * @param[in] error error/exception code
- * @param[in] additionalInfo additional error description
- * @retval JSValue object with exception details
- */
 JSValueRef aamp_GetException(JSContextRef context, ErrorCode error, const char *additionalInfo);
 
-/**
- * @brief Convert JS event name to AAMP event type
- * @param[in] szName JS event name
- * @retval AAMPEventType of corresponding AAMP event
- */
 AAMPEventType aamp_getEventTypeFromName(const char* szName);
 
-/**
- * @brief To dispatch a JS event
- * @param[in] context JS execution context
- * @param[in] callback function to which event has to be dispatched as an arg
- * @param[in] event the JS event to be dispatched
- */
 void aamp_dispatchEventToJS(JSContextRef context, JSObjectRef callback, JSObjectRef event);
 
-/**
- * @brief Convert JS event name to AAMP event type (AAMPMediaPlayer)
- * @param[in] szName JS event name
- * @retval AAMPEventType of corresponding AAMP event
- */
 AAMPEventType aampPlayer_getEventTypeFromName(const char* szName);
-
-/**
- * @brief Convert AAMP event type to JS event string (AAMPMediaPlayer)
- * @param[in] type AAMP event type
- * @retval JS event name corresponding to AAMP event
- */
 const char* aampPlayer_getNameFromEventType(AAMPEventType type);
 
-/**
- * @brief Create a TimedMetadata JS object with args passed.
- *        Sample input "#EXT-X-CUE:ID=eae90713-db8e,DURATION=30.063"
- *        Sample output {"time":62062,"duration":0,"name":"#EXT-X-CUE","content":"-X-CUE:ID=eae90713-db8e,DURATION=30.063","type":0,"metadata":{"ID":"eae90713-db8e","DURATION":"30.063"},"id":"eae90713-db8e"}
- * @param[in] context JS execution context
- * @param[in] timeMS time in milliseconds, mostly metadata position in playlist
- * @param[in] szName name of the metadata tag
- * @param[in] szContent metadata associated with the tag
- * @param[in] id adbreak/reservation ID if its a adbreak metadata
- * @param[in] durationMS duration of ad break if its a adbreak metadata
- * @retval JSObject of TimedMetadata generated
- */
 JSObjectRef aamp_CreateTimedMetadataJSObject(JSContextRef context, long long timeMS, const char* szName, const char* szContent, const char* id, double durationMS);
 
 #endif /* __AAMP_JSUTILS_H__ */

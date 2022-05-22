@@ -51,28 +51,15 @@
  */
 long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_TS_MS instead
 
-/**
- * @brief replace all occurrences of existingSubStringToReplace in str with replacementString
- * @param str string to be scanned/modified
- * @param existingSubStringToReplace substring to be replaced
- * @param replacementString string to be substituted
- * @retval true iff str was modified
- */
 bool replace(std::string &str, const char *existingSubStringToReplace, const char *replacementString);
 
-/**
- * @brief distinguish between absolute and relative urls
- *
- * @param[in] url - Input URL
- * @return true iff url starts with http:// or https://
- */
 bool aamp_IsAbsoluteURL( const std::string &url );
 
 /**
  * @brief Extract host string from url
  *
  * @param url - Input URL
- * @retval host of input url
+ * @retval - host of input url
  */
 std::string aamp_getHostFromURL(std::string url);
 
@@ -82,7 +69,7 @@ std::string aamp_getHostFromURL(std::string url);
  * @param[out] dst - Created URL
  * @param[in] base - Base URL
  * @param[in] uri - File path
- * @param[in] bPropagateUriParams - flag to use base uri params
+ * @param[in] propagateUriParams - flag to use base uri params
  * @retval void
  */
 void aamp_ResolveURL(std::string& dst, std::string base, const char *uri , bool bPropagateUriParams);
@@ -96,31 +83,10 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri , bool 
  */
 bool aamp_StartsWith( const char *inputStr, const char *prefix);
 
-/**
- * @brief convert blob of binary data to ascii base64-URL-encoded equivalent
- * @param src pointer to first byte of binary data to be encoded
- * @param len number of bytes to encode
- * @retval pointer to malloc'd cstring containing base64 URL encoded version of string
- * @retval NULL if insufficient memory to allocate base64-URL-encoded copy
- * @note caller responsible for freeing returned cstring
- */
 char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len);
 
-/**
- * @brief decode base64 URL encoded data to binary equivalent
- * @param src pointer to cstring containing base64-URL-encoded data
- * @param len receives byte length of returned pointer, or zero upon failure
- * @param srcLen source data length
- * @retval pointer to malloc'd memory containing decoded binary data
- * @retval NULL if insufficient memory to allocate decoded data
- * @note caller responsible for freeing returned data
- */
 unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLen);
 
-/**
- * @brief unescape uri-encoded uri parameter
- * @param uriParam string to un-escape
- */
 void aamp_DecodeUrlParameter( std::string &uriParam );
 /**
  * @brief Parse date time from ISO8601 string and return value in seconds
@@ -154,14 +120,14 @@ const char * GetDrmSystemName(DRMSystems drmSystem);
 
 /**
  * @brief Get DRM system from ID
- * @param drmSystemID - Id of the DRM system, empty string if not supported
+ * @param ID of the DRM system, empty string if not supported
  * @retval drmSystem drm system
  */
 DRMSystems GetDrmSystem(std::string drmSystemID);
 
 /**
  * @brief Get ID of DRM system
- * @param drmSystem - drm system
+ * @param drmSystem drm system
  * @retval ID of the DRM system, empty string if not supported
  */
 const char * GetDrmSystemID(DRMSystems drmSystem);
@@ -183,8 +149,8 @@ void trim(std::string& src);
 
 /**
  * @brief To get the preferred iso639mapped language code
- * @param[in] lang - Language in string format
- * @param[in] preferFormat - Preferred language foramt
+ * @param[in] lang
+ * @param[LangCodePreference] preferFormat
  * @retval[out] preferred iso639 mapped language.
  */
 std::string Getiso639map_NormalizeLanguageCode(std::string  lang, LangCodePreference preferFormat );
@@ -197,18 +163,17 @@ std::string Getiso639map_NormalizeLanguageCode(std::string  lang, LangCodePrefer
 struct timespec aamp_GetTimespec(int timeInMs);
 
 /**
- * @brief Write - file to storage
- * @param fileName - out file name
- * @param data - buffer
- * @param len - length of buffer
- * @param fileType - Media type of file
- * @param count - for manifest or playlist update
- * @param prefix - prefix name
+ * @brief Write file to storage
+ * @param fileName out file name
+ * @param data buffer
+ * @param len length of buffer
+ * @param media type of file
+ * @param count for manifest or playlist update
  */
 bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count,const char *prefix);
 /**
  * @brief Get harvest config corresponds to Media type
- * @param fileType - meida file type
+ * @param fileType meida file type
  * @return harvestType
  */
 int getHarvestConfigForMedia(MediaType fileType);
@@ -226,17 +191,16 @@ int getPseudoTrickplayRate(int rate);
 
 /**
  * @brief Get harvest path to dump the files
- * @param[in] value - harvest path
- * @return void
+ * @return harvest path
  */
 
-void getDefaultHarvestPath(std::string &value);
+void getDefaultHarvestPath(std::string &);
 
 /**
  * @brief Convert string of chars to its representative string of hex numbers
  * @param[in] str input string
  * @param[out] hexstr output hex string
- * @param[in] capital - Boolean to enable capital letter conversion flag
+ * @param[in] bool - to enable capital letter conversion flag
  */
 void stream2hex(const std::string str, std::string& hexstr, bool capital = false);
 

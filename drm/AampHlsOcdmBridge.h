@@ -20,21 +20,11 @@
 #ifndef _AAMP_HLS_OCDM_BRIDGE_H_
 #define _AAMP_HLS_OCDM_BRIDGE_H_
 
-/**
- * @file AampHlsOcdmBridge.h
- * @brief Handles OCDM bridge to validate DRM License
- */
-
 #include "HlsDrmBase.h"
 #include "AampDRMutils.h"
 #include "AampDrmSession.h"
 
 #define DECRYPT_WAIT_TIME_MS 3000
-
-/**
- * @class AampHlsOcdmBridge
- * @brief OCDM bridge to handle DRM key
- */
 
 class AampHlsOcdmBridge : public HlsDrmBase
 {

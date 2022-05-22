@@ -37,9 +37,6 @@
 namespace subtecConnector
 {
 
-/**
- * @brief Controller for CCdata
- */
 class CCDataController
 {
 public:

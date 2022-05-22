@@ -42,10 +42,6 @@ enum CCFormat
 	eCLOSEDCAPTION_FORMAT_DEFAULT
 };
 
-/**
- * @class AampCCManagerBase
- * @brief Handles closed caption operations
- */
 
 class AampCCManagerBase
 {
@@ -235,19 +231,14 @@ protected:
 	void Stop();
 
 	
-	std::string mOptions{};                /**< CC rendering styles */
-	std::string mTrack{};                  /**< CC track */
+	std::string mOptions{}; /**< CC rendering styles */
+	std::string mTrack{}; /**< CC track */
 	std::vector<TextTrackInfo> mLastTextTracks{};
-	bool mEnabled{false};                  /**< true if CC rendering enabled, false otherwise */
-	bool mTrickplayStarted{false};         /**< If a trickplay is going on or not */
-	bool mParentalCtrlLocked{false};       /**< If Parental Control lock enabled on not */
+	bool mEnabled{false}; /**< true if CC rendering enabled, false otherwise */
+	bool mTrickplayStarted{false}; /** If a trickplay is going on or not */
+	bool mParentalCtrlLocked{false}; /** If Parental Control lock enabled on not */
 	AampLogManager *mLogObj{NULL};
 };
-
-/**
- * @class AampCCManager
- * @brief Handle the CC manager instance
- */
 
 class AampCCManager
 {

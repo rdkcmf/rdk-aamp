@@ -31,7 +31,13 @@ static const char *IsoBmffProcessorTypeName[] =
     "video", "audio"
 };
 
-
+/**
+ * @brief IsoBmffProcessor constructor
+ *
+ * @param[in] aamp - PrivateInstanceAAMP pointer
+ * @param[in] trackType - track type (A/V)
+ * @param[in] peerBmffProcessor - peer instance of IsoBmffProcessor
+ */
 IsoBmffProcessor::IsoBmffProcessor(class PrivateInstanceAAMP *aamp, AampLogManager *logObj, IsoBmffProcessorType trackType, IsoBmffProcessor* peerBmffProcessor)
 	: p_aamp(aamp), type(trackType), peerProcessor(peerBmffProcessor), basePTS(0),
 	processPTSComplete(false), timeScale(0), initSegment(),
@@ -51,7 +57,9 @@ IsoBmffProcessor::IsoBmffProcessor(class PrivateInstanceAAMP *aamp, AampLogManag
 	initSegment.reserve(2);
 }
 
-
+/**
+ * @brief IsoBmffProcessor destructor
+ */
 IsoBmffProcessor::~IsoBmffProcessor()
 {
 	clearInitSegment();
@@ -59,7 +67,17 @@ IsoBmffProcessor::~IsoBmffProcessor()
 	pthread_cond_destroy(&m_cond);
 }
 
-
+/**
+ * @brief Process and send ISOBMFF fragment
+ *
+ * @param[in] segment - fragment buffer pointer
+ * @param[in] size - fragment buffer size
+ * @param[in] position - position of fragment
+ * @param[in] duration - duration of fragment
+ * @param[in] discontinuous - true if discontinuous fragment
+ * @param[out] ptsError - flag indicates if any PTS error occurred
+ * @return true if fragment was sent, false otherwise
+ */
 bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position, double duration, bool discontinuous, bool &ptsError)
 {
 	ptsError = false;
@@ -229,7 +247,11 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 	return true;
 }
 
-
+/**
+ * @brief Abort all operations
+ *
+ * @return void
+ */
 void IsoBmffProcessor::abort()
 {
 	pthread_mutex_lock(&m_mutex);
@@ -238,7 +260,11 @@ void IsoBmffProcessor::abort()
 	pthread_mutex_unlock(&m_mutex);
 }
 
-
+/**
+ * @brief Reset all variables
+ *
+ * @return void
+ */
 void IsoBmffProcessor::reset()
 {
 	clearInitSegment();
@@ -252,13 +278,25 @@ void IsoBmffProcessor::reset()
 	pthread_mutex_unlock(&m_mutex);
 }
 
-
+/**
+ * @brief Set playback rate
+ *
+ * @param[in] rate - playback rate
+ * @param[in] mode - playback mode
+ * @return void
+ */
 void IsoBmffProcessor::setRate(double rate, PlayMode mode)
 {
 	playRate = rate;
 }
 
-
+/**
+ * @brief Set base PTS and TimeScale value
+ *
+ * @param[in] pts - base PTS value
+ * @param[in] tScale - TimeScale value
+ * @return void
+ */
 void IsoBmffProcessor::setBasePTS(uint64_t pts, uint32_t tScale)
 {
 	AAMPLOG_WARN("[%s] Base PTS (%lld) and TimeScale (%ld) set",  IsoBmffProcessorTypeName[type], pts, tScale);
@@ -270,7 +308,13 @@ void IsoBmffProcessor::setBasePTS(uint64_t pts, uint32_t tScale)
 	pthread_mutex_unlock(&m_mutex);
 }
 
-
+/**
+ * @brief Cache init fragment internally
+ *
+ * @param[in] segment - buffer pointer
+ * @param[in] size - buffer size
+ * @return void
+ */
 void IsoBmffProcessor::cacheInitSegment(char *segment, size_t size)
 {
 	// Save init segment for later. Init segment will be pushed once basePTS is calculated
@@ -281,7 +325,12 @@ void IsoBmffProcessor::cacheInitSegment(char *segment, size_t size)
 	initSegment.push_back(buffer);
 }
 
-
+/**
+ * @brief Push init fragment cached earlier
+ *
+ * @param[in] position - position value
+ * @return void
+ */
 void IsoBmffProcessor::pushInitSegment(double position)
 {
 	// Push init segment now, duration = 0
@@ -299,7 +348,11 @@ void IsoBmffProcessor::pushInitSegment(double position)
 	}
 }
 
-
+/**
+ * @brief Clear init fragment cached earlier
+ *
+ * @return void
+ */
 void IsoBmffProcessor::clearInitSegment()
 {
 	if (initSegment.size() > 0)

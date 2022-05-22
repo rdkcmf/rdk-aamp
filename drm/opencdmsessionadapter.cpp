@@ -1,7 +1,3 @@
-/**
- * @file opencdmsessionadapter.cpp
- * @brief Handles operation with OCDM session to handle DRM License data
- */
 #include "config.h"
 #include "opencdmsessionadapter.h"
 #include "AampDrmHelper.h"
@@ -58,7 +54,6 @@ AAMPOCDMSessionAdapter::AAMPOCDMSessionAdapter(AampLogManager *logObj, std::shar
 	AAMPLOG_WARN("AAMPOCDMSessionAdapter :: exit ");
 }
 
-
 void AAMPOCDMSessionAdapter::initAampDRMSystem()
 {
 	logprintf("initAampDRMSystem :: enter ");
@@ -77,7 +72,6 @@ void AAMPOCDMSessionAdapter::initAampDRMSystem()
 	AAMPLOG_WARN("initAampDRMSystem :: exit ");
 }
 
-
 AAMPOCDMSessionAdapter::~AAMPOCDMSessionAdapter()
 {
 	AAMPLOG_WARN("[HHH]OCDMSessionAdapter destructor called! keySystem %s", m_keySystem.c_str());
@@ -94,7 +88,6 @@ AAMPOCDMSessionAdapter::~AAMPOCDMSessionAdapter()
 			m_pOutputProtection->Release();
 	}
 }
-
 
 void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData, std::string &customData)
@@ -155,7 +148,6 @@ void AAMPOCDMSessionAdapter::generateAampDRMSession(const uint8_t *f_pbInitData,
 	pthread_mutex_unlock(&decryptMutex);
 }
 
-
 void AAMPOCDMSessionAdapter::processOCDMChallenge(const char destUrl[], const uint8_t challenge[], const uint16_t challengeSize) {
 
 	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
@@ -190,7 +182,6 @@ void AAMPOCDMSessionAdapter::processOCDMChallenge(const char destUrl[], const ui
 	}
 }
 
-
 void AAMPOCDMSessionAdapter::keyUpdateOCDM(const uint8_t key[], const uint8_t keySize) {
 	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	if (m_pOpenCDMSession) {
@@ -209,7 +200,6 @@ void AAMPOCDMSessionAdapter::keysUpdatedOCDM() {
 	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	m_keyStatusReady.signal();
 }
-
 
 DrmData * AAMPOCDMSessionAdapter::aampGenerateKeyRequest(string& destinationURL, uint32_t timeout)
 {
@@ -356,7 +346,6 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 	return retValue;
 }
 
-
 bool AAMPOCDMSessionAdapter::waitForState(KeyState state, const uint32_t timeout)
 {
 	if (m_eKeyState == state) {
@@ -374,7 +363,6 @@ KeyState AAMPOCDMSessionAdapter::getState()
 	return m_eKeyState;
 }
 
-
 void AAMPOCDMSessionAdapter:: clearDecryptContext()
 {
 	AAMPLOG_WARN("[HHH] clearDecryptContext.");
@@ -391,12 +379,10 @@ void AAMPOCDMSessionAdapter:: clearDecryptContext()
 	m_eKeyState = KEY_INIT;
 }
 
-
 void AAMPOCDMSessionAdapter::setKeyId(const std::vector<uint8_t>& keyId)
 {
 	m_keyId = keyId;
 }
-
 
 bool AAMPOCDMSessionAdapter::verifyOutputProtection()
 {

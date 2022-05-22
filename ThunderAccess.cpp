@@ -45,9 +45,13 @@ typedef struct ThunderSecurity
 }ThunderSecurityData;
 
 ThunderSecurityData gSecurityData;
-
-
-
+/**
+ *   @brief  ThunderAccessAAMP constructor
+ *   @note   Security tocken accusition, controller object creation
+ *   @param  NA
+ *   @retval NA
+ *   @retval NA
+ */
 ThunderAccessAAMP::ThunderAccessAAMP(std::string callsign, AampLogManager *logObj)
                  : remoteObject(NULL),
                    controllerObject(NULL),
@@ -103,14 +107,26 @@ ThunderAccessAAMP::ThunderAccessAAMP(std::string callsign, AampLogManager *logOb
     }
 }
 
-
+/**
+ *   @brief  ThunderAccessAAMP destructor
+ *   @note   clean up
+ *   @param  NA
+ *   @retval NA
+ *   @retval NA
+ */
 ThunderAccessAAMP::~ThunderAccessAAMP()
 {
     SAFE_DELETE(controllerObject);
     SAFE_DELETE(remoteObject);
 }
 
-
+/**
+ *   @brief  ActivatePlugin
+ *   @note   Plugin activation and Remote object creation
+ *   @param  Plugin Callsign
+ *   @retval true on success
+ *   @retval false on failure
+ */
 bool ThunderAccessAAMP::ActivatePlugin()
 {
     bool ret = true;
@@ -139,7 +155,13 @@ bool ThunderAccessAAMP::ActivatePlugin()
     return ret;
 }
 
-
+/**
+ *   @brief  subscribeEvent
+ *   @note   Subscribe event data for the specific plugin
+ *   @param  Event name, Event handler
+ *   @retval true on success
+ *   @retval false on failure
+ */
 /*To Do: Only JSON Object can be used as parameter now*/
 bool ThunderAccessAAMP::SubscribeEvent (string eventName, std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> functionHandler)
 {
@@ -160,7 +182,13 @@ bool ThunderAccessAAMP::SubscribeEvent (string eventName, std::function<void(con
     return ret;
 }
 
-
+/**
+ *   @brief  unSubscribeEvent
+ *   @note   unSubscribe event data for the specific plugin
+ *   @param  Event name
+ *   @retval true on success
+ *   @retval false on failure
+ */
 /*To Do: Only JSON Object can be used as parameter now*/
 bool ThunderAccessAAMP::UnSubscribeEvent (string eventName)
 {
@@ -175,8 +203,13 @@ bool ThunderAccessAAMP::UnSubscribeEvent (string eventName)
     return ret;
 }
 
-
-
+/**
+ *   @brief  invokeJSONRPC
+ *   @note   Invoke JSONRPC call for the plugin
+ *   @param  Plugin method, reference to input param, result and waitTime (default = THUNDER_RPC_TIMEOUT)
+ *   @retval true on success
+ *   @retval false on failure
+ */
 bool ThunderAccessAAMP::InvokeJSONRPC(std::string method, const JsonObject &param, JsonObject &result, const uint32_t waitTime)
 {
     bool ret = true;

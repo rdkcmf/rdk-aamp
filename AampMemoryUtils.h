@@ -44,7 +44,7 @@ struct GrowableBuffer
 
 /**
  * @brief Free memory allocated by aamp_Malloc
- * @param[in] buffer struct GrowableBuffer
+ * @param[in][out] struct GrowableBuffer
  */
 void aamp_Free(struct GrowableBuffer *buffer);
 
@@ -80,6 +80,7 @@ void aamp_AppendNulTerminator(struct GrowableBuffer *buffer);
 #ifdef USE_SECMANAGER
 /**
  * @brief Creates shared memory and provides the key
+ * @param shmPointer Pointer to the created memory
  * @param shmLen Length of the buffer to be created
  * @param shmKey shared memory key
  */

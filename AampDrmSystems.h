@@ -17,11 +17,6 @@
  * limitations under the License.
 */
 
-/**
- * @file AampDrmSystems.h 
- * @brief Define DRM types
- */
-
 #ifndef AAMPDRMSYSTEMS_H
 #define AAMPDRMSYSTEMS_H
 

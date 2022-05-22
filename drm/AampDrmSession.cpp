@@ -24,7 +24,9 @@
 
 #include "AampDrmSession.h"
 
-
+/**
+ *  @brief	AampDrmSession constructor.
+ */
 AampDrmSession::AampDrmSession(AampLogManager *logObj, const string &keySystem) : mLogObj(logObj), m_keySystem(keySystem),m_OutputProtectionEnabled(false)
 #ifdef USE_SECMANAGER
 		, mSessionId(AAMP_SECMGR_INVALID_SESSION_ID)
@@ -32,12 +34,18 @@ AampDrmSession::AampDrmSession(AampLogManager *logObj, const string &keySystem) 
 {
 }
 
-
+/**
+ *  @brief	AampDrmSession destructor.
+ */
 AampDrmSession::~AampDrmSession()
 {
 }
 
-
+/**
+ *  @brief	Getter function for DRM key system.
+ *
+ *  @return	keySystem, com.microsoft.playready or com.widevine.alpha
+ */
 string AampDrmSession::getKeySystem()
 {
 	return m_keySystem;

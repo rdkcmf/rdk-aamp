@@ -34,9 +34,9 @@
  */
 enum DrmReturn
 {
-	eDRM_SUCCESS,			/**< DRM is success */
-	eDRM_ERROR,			/**< DRM Failed */
-	eDRM_KEY_ACQUSITION_TIMEOUT	/**< DRM key Acqusition timed out */
+	eDRM_SUCCESS,
+	eDRM_ERROR,
+	eDRM_KEY_ACQUSITION_TIMEOUT
 };
 
 /**
@@ -45,11 +45,11 @@ enum DrmReturn
  */
 enum DRMState
 {
-	eDRM_INITIALIZED,	/**< DRM is initialized */
-	eDRM_ACQUIRING_KEY,	/**< DRM Acquiring key in progress */
-	eDRM_KEY_ACQUIRED,	/**< DRM key is Acquired */
-	eDRM_KEY_FAILED,	/**< DRM Acquiring key is failed */
-	eDRM_KEY_FLUSH		/**< DRM key is flushed */
+	eDRM_INITIALIZED,
+	eDRM_ACQUIRING_KEY,
+	eDRM_KEY_ACQUIRED,
+	eDRM_KEY_FAILED,
+	eDRM_KEY_FLUSH
 };
 
 /**

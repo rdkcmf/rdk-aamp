@@ -53,7 +53,10 @@ static void * acquire_key(void* arg)
 	return NULL;
 }
 
-
+/**
+ * @brief Notify drm error
+ * @param drmFailure drm error type
+ */
 void AesDec::NotifyDRMError(AAMPTuneFailure drmFailure)
 {
 	//If downloads are disabled, don't send error event upstream
@@ -76,7 +79,9 @@ void AesDec::NotifyDRMError(AAMPTuneFailure drmFailure)
 }
 
 
-
+/**
+ * @brief Signal drm error
+ */
 void AesDec::SignalDrmError()
 {
 	pthread_mutex_lock(&mMutex);
@@ -86,7 +91,9 @@ void AesDec::SignalDrmError()
 }
 
 
-
+/**
+ * @brief Signal key acquired event
+ */
 void AesDec::SignalKeyAcquired()
 {
 	AAMPLOG_WARN("aamp:AesDRMListener drmState:%d moving to KeyAcquired", mDrmState);
@@ -98,7 +105,9 @@ void AesDec::SignalKeyAcquired()
 }
 
 
-
+/**
+ * @brief Acquire drm key from URI
+ */
 void AesDec::AcquireKey()
 {
 	std::string tempEffectiveUrl;
@@ -153,25 +162,50 @@ void AesDec::AcquireKey()
 }
 
 
-
+/**
+ * @brief Set DRM meta-data. Stub implementation
+ *
+ * @param aamp AAMP instance to be associated with this decryptor
+ * @param metadata - Ignored
+ *
+ * @retval eDRM_SUCCESS
+ */
 DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata,int trackType, AampLogManager *mLogObj)
 {
 	return eDRM_SUCCESS;
 }
 
-
+/**
+ * @brief AcquireKey Function to acquire key . Stub implementation
+ *
+ * @param[in] aamp       AAMP instance to be associated with this decryptor
+ * @param[in] metadata   Ignored
+ *
+ * @retval None
+ */
 void AesDec::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType, AampLogManager *mLogObj)
 {
 
 }
 
-
+/**
+ * @brief GetState Function to get current DRM State
+ *
+ *
+ * @retval DRMState
+ */
 DRMState AesDec::GetState()
 {
 	return mDrmState;
 }
 
-
+/**
+ * @brief Set information required for decryption
+ *
+ * @param aamp AAMP instance to be associated with this decryptor
+ * @param drmInfo Drm information
+ * @retval eDRM_SUCCESS on success
+ */
 DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo, AampLogManager *mLogObj)
 {
 	DrmReturn err = eDRM_ERROR;
@@ -229,7 +263,11 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 	return err;
 }
 
-
+/**
+ * @brief Wait for key acquisition completion
+ * @param[in] timeInMs timeout
+ * @param[out] err error on failure
+ */
 void AesDec::WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err )
 {
 	struct timespec ts;
@@ -244,7 +282,13 @@ void AesDec::WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err )
 }
 
 
-
+/**
+ * @brief Decrypts an encrypted buffer
+ * @param bucketType Type of bucket for profiling
+ * @param encryptedDataPtr pointer to encyrpted payload
+ * @param encryptedDataLen length in bytes of data pointed to by encryptedDataPtr
+ * @param timeInMs wait time
+ */
 DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen,int timeInMs)
 {
 	DrmReturn err = eDRM_ERROR;
@@ -307,7 +351,9 @@ DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr
 }
 
 
-
+/**
+ * @brief Release drm session
+ */
 void AesDec::Release()
 {
 	DrmReturn err = eDRM_ERROR;
@@ -342,7 +388,10 @@ void AesDec::Release()
 }
 
 
-
+/**
+ * @brief Cancel timed_wait operation drm_Decrypt
+ *
+ */
 void AesDec::CancelKeyWait()
 {
 	pthread_mutex_lock(&mMutex);
@@ -358,6 +407,10 @@ void AesDec::CancelKeyWait()
 }
 
 
+/**
+ * @brief Restore key state post cleanup of
+ * audio/video TrackState in case DRM data is persisted
+ */
 void AesDec::RestoreKeyState()
 {
 	pthread_mutex_lock(&mMutex);
@@ -371,7 +424,9 @@ void AesDec::RestoreKeyState()
 
 std::shared_ptr<AesDec> AesDec::mInstance = nullptr;
 
-
+/**
+ * @brief Get singleton instance
+ */
 std::shared_ptr<AesDec> AesDec::GetInstance()
 {
 	pthread_mutex_lock(&instanceLock);
@@ -383,7 +438,10 @@ std::shared_ptr<AesDec> AesDec::GetInstance()
 	return mInstance;
 }
 
-
+/**
+ * @brief AesDec Constructor
+ * @retval
+ */
 AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
 		mPrevDrmState(eDRM_INITIALIZED), mDrmUrl(""),
 		mCond(), mMutex(), mOpensslCtx(),
@@ -401,7 +459,9 @@ AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
 }
 
 
-
+/**
+ * @brief AesDec Destructor
+ */
 AesDec::~AesDec()
 {
 	CancelKeyWait();

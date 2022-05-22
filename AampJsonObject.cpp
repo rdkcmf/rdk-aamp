@@ -16,18 +16,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
-
-/**
- * @file AampJsonObject.cpp
- * @brief File to handle Json format object 
- */
-
 #include <vector>
 
 #include "AampJsonObject.h"
 #include "AampUtils.h"
 #include "_base64.h"
-
 
 AampJsonObject::AampJsonObject() : mParent(NULL), mJsonObj()
 {

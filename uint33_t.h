@@ -25,11 +25,6 @@
 #include <cstdint>
 #include <limits>
 
-/**
- * @struct uint33_t
- * @brief Uint with size of 33 bits
- */
-
 struct uint33_t
 {
 	uint64_t value : 33;

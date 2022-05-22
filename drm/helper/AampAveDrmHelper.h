@@ -20,20 +20,9 @@
 #ifndef AAMPAVEDRMHELPER_H
 #define AAMPAVEDRMHELPER_H
 
-/**
- * @file AampAveDrmHelper.h
- * @brief Helper functions for Aamp Ave Drm
- */
-
-
 #include "AampDrmHelper.h"
 #include <string>
 #include <vector>
-
-/**
- * @class AampAveDrmHelper
- * @brief AampAve DRM operations are handled
- */ 
 
 class AampAveDrmHelper : public AampDrmHelper
 {

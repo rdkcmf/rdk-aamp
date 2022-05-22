@@ -40,9 +40,9 @@
 enum EventPhase
 {
 	pNone = 0,
-	pCapturingPhase,  /**< Event flow is in capturing phase **/
-	pAtTarget,        /**< Event flow is in target phase **/
-	pBubblingPhase    /**< Event flow is in bubbling phase **/
+	pCapturingPhase,  /** Event flow is in capturing phase **/
+	pAtTarget,  /** Event flow is in target phase **/
+	pBubblingPhase  /** Event flow is in bubbling phase **/
 };
 
 /**
@@ -53,37 +53,13 @@ class AAMPJSEvent
 {
 
 public:
-	/**
-	 * @brief AAMPJSEvent Constructor
-	 */
+
 	AAMPJSEvent();
-	/**
-	 * @brief AAMPJSEvent Constructor
-	 * @param[in] type event type
-	 * @param[in] bubble true if event is a bubbling event
-	 * @param[in] cancelable true if event default operation can be cancelled
-	 */
 	AAMPJSEvent(const char *type, bool bubble, bool cancelable);
-	/**     
-         * @brief Copy constructor disabled
-         *
-         */
 	AAMPJSEvent(const AAMPJSEvent&) = delete;
-	/**
- 	 * @brief assignment operator disabled
- 	 *
- 	 */
 	AAMPJSEvent& operator=(const AAMPJSEvent&) = delete;
-	/**
-	 * @brief AAMPJSEvent Destructor
-	 */
 	~AAMPJSEvent();
-	/**
-	 * @brief Initialize event's properties
-	 * @param[in] type event type
-	 * @param[in] bubble true if event is a bubbling event
-	 * @param[in] cancelable true if event default operation can be cancelled
-	 */
+
 	void initEvent(const char *type, bool bubble, bool cancelable);
 
 	/**
@@ -204,32 +180,24 @@ public:
 	}
 
 private:
-	bool _bubbles;               /**< denotes if event is a bubbling event */
-	bool _cancelable;            /**< denotes if event default operation can be cancelled */
-	bool _canceled;              /**< denotes if event default operation was cancelled */
-	JSObjectRef _currentTarget;  /**< element whose event listeners triggered the event */
+	bool _bubbles;  /** denotes if event is a bubbling event **/
+	bool _cancelable;  /** denotes if event default operation can be cancelled **/
+	bool _canceled;  /** denotes if event default operation was cancelled **/
+	JSObjectRef _currentTarget;  /** element whose event listeners triggered the event **/
 	bool _defaultPrevented;
-	EventPhase _phase;           /**< phase of the event flow is currently being evaluated */
-	JSObjectRef _target;         /**< element that triggered the event */
-	double _timestamp;           /**< event timestamp */
-	const char * _typeName;      /**< event type name */
-	bool _isTrusted;             /**< denotes if event is trusted or not */
+	EventPhase _phase;  /** phase of the event flow is currently being evaluated **/
+	JSObjectRef _target;  /** element that triggered the event **/
+	double _timestamp;  /** event timestamp **/
+	const char * _typeName;  /** event type name **/
+	bool _isTrusted;  /** denotes if event is trusted or not **/
 
-	bool _stopImmediatePropagation; /**< denotes if other listeners need not be called */
-	bool _stopPropagation;       /**< denotes if further propagation of an event to be prevented */
+	bool _stopImmediatePropagation;  /** denotes if other listeners need not be called **/
+	bool _stopPropagation;  /** denotes if further propagation of an event to be prevented **/
 
-	JSContextRef _ctx;           /**< JS execution context */
+	JSContextRef _ctx;  /** JS execution context **/
 };
 #endif
 
-/**
- * @brief To create a new JS event instance
- * @param[in] ctx JS execution context
- * @param[in] type event type
- * @param[in] bubbles denotes if event support bubbling
- * @param[in] cancelable denotes if event is cancelable
- * @retval JSObject of the new instance created
- */
 JSObjectRef createNewAAMPJSEvent(JSGlobalContextRef ctx, const char *type, bool bubbles, bool cancelable);
 
 #endif // __AAMP_JSEVENT_H__
