@@ -3793,6 +3793,11 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 							effectiveUrlPtr =  const_cast<char *>(httpRespHeaders[curlInstance].data.c_str());
 						}
 					}
+					//When Fog is having tsb write error , then it will respond back with 302 with direct CDN url,In this case alone TSB should be disabled
+					if(http_code == 302)
+					{
+						mTSBEnabled = false;
+					}
 					else
 					{
 						res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
@@ -3862,9 +3867,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						if(mTsbRecordingId.empty())
 						{
 							AAMPLOG_INFO("TSB not avaialble from fog, playing from:%s ", effectiveUrl.c_str());
-							mTSBEnabled = false;
 						}
-						// updating here because, tune request can be for fog but fog may redirect to cdn in some cases
 						this->UpdateVideoEndTsbStatus(mTSBEnabled);
 					}
 
