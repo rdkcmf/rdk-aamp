@@ -1497,6 +1497,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, bitrateList()
 	, userProfileStatus(false)
 	, mApplyCachedVideoMute(false)
+	, mFirstProgress(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -1800,8 +1801,14 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 
 		ProgressEventPtr evt = std::make_shared<ProgressEvent>(duration, position, start, end, speed, videoPTS, bufferedDuration, seiTimecode.c_str());
 
-		if (trickStartUTCMS >= 0 && bProcessEvent)
+		if (trickStartUTCMS >= 0 && (bProcessEvent || mFirstProgress))
 		{
+			if (mFirstProgress)
+			{
+				mFirstProgress = false;
+				AAMPLOG_WARN("Send first progress event with position %ld", (long)(position / 1000));
+			}
+
 			if (ISCONFIGSET_PRIV(eAAMPConfig_ProgressLogging))
 			{
 				static int tick;
@@ -5402,6 +5409,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		mTuneAttempts = 1;	//Only the first attempt is xreInitiated.
 		mPlayerLoadTime = NOW_STEADY_TS_MS;
 		mLogTune = true;
+		mFirstProgress = true;
 	}
 	else
 	{

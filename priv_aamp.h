@@ -3669,6 +3669,7 @@ private:
 	bool mIsLiveStream;			// Flag to indicate stream type, keeps history if stream was live earlier.
 	bool mIsAudioContextSkipped;		// Flag to indicate Audio playcontext creation is skipped.
 	bool mLogTune;				//Guard to ensure sending tune  time info only once.
+	bool mFirstProgress;				//Log first progress event.
 	bool mTuneCompleted;
 	bool mFirstTune;			//To identify the first tune after load.
 	int mfirstTuneFmt;			//First Tune Format HLS(0) or DASH(1)

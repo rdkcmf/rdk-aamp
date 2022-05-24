@@ -822,6 +822,8 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 
 	if (eMEDIATYPE_VIDEO == type)
 	{
+		AAMPLOG_WARN("AAMPGstPlayer_OnFirstVideoFrameCallback. got First Video Frame");
+
 		// DELIA-42262: No additional checks added here, since the NotifyFirstFrame will be invoked only once
 		// in westerossink disabled case until BCOM fixes it. Also aware of NotifyFirstBufferProcessed called
 		// twice in this function, since it updates timestamp for calculating time elapsed, its trivial
@@ -859,7 +861,10 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 		}
 		PipelineSetToReady = false;
 	}
-
+	else if (eMEDIATYPE_AUDIO == type)
+	{
+		AAMPLOG_WARN("AAMPGstPlayer_OnAudioFirstFrameAudDecoder. got First Audio Frame");
+	}
 }
 
 /**
@@ -873,7 +878,6 @@ static void AAMPGstPlayer_OnFirstVideoFrameCallback(GstElement* object, guint ar
 	AAMPGstPlayer * _this)
 
 {
-	AAMPLOG_WARN("AAMPGstPlayer_OnFirstVideoFrameCallback. got First Video Frame");
 	_this->privateContext->firstVideoFrameReceived = true;
 	_this->NotifyFirstFrame(eMEDIATYPE_VIDEO);
 
@@ -908,7 +912,6 @@ static void AAMPGstPlayer_redButtonCallback(GstElement* object, guint hours, gui
 static void AAMPGstPlayer_OnAudioFirstFrameAudDecoder(GstElement* object, guint arg0, gpointer arg1,
         AAMPGstPlayer * _this)
 {
-	AAMPLOG_WARN("AAMPGstPlayer_OnAudioFirstFrameAudDecoder. got First Audio Frame");
 	_this->privateContext->firstAudioFrameReceived = true;
 	_this->NotifyFirstFrame(eMEDIATYPE_AUDIO);
 }
