@@ -5954,6 +5954,12 @@ std::string StreamAbstractionAAMP_MPD::GetLanguageForAdaptationSet(IAdaptationSe
 		if(NULL != representation)
 		{
 			lang = "und_" + representation->GetId();
+			if( lang.size() > (MAX_LANGUAGE_TAG_LENGTH-1))
+			{
+				// Lang string len  should not be more than "MAX_LANGUAGE_TAG_LENGTH" so trim from end
+				// lang is sent to metadata event where len of char array  is limited to MAX_LANGUAGE_TAG_LENGTH
+				lang = lang.substr(0,(MAX_LANGUAGE_TAG_LENGTH-1));
+			}
 		}
 	}
 	return lang;
