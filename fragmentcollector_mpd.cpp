@@ -7849,7 +7849,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(int trackIdx, bool 
 							uint64_t s1,s2;
 							sscanf(range.c_str(), "%" PRIu64 "-%" PRIu64 "", &s1,&s2);
 							char temp[128];
-							sprintf( temp, "%lu", s1-1 );
+							sprintf( temp, "%llu", s1-1 );
 							range = "0-";
 							range += temp;
 						}
