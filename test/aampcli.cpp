@@ -2507,11 +2507,11 @@ static void * run_command( void* startUrl )
 #define ATTRIB_VERTEX 0
 #define ATTRIB_TEXTURE 1
 
-typedef struct{
+typedef struct AppsinkData {
 	int width = 0;
 	int height = 0;
 	uint8_t *yuvBuffer = NULL;
-}AppsinkData;
+} AppsinkData;
 
 static AppsinkData appsinkData;
 
@@ -2978,14 +2978,12 @@ int main(int argc, char **argv)
 #endif
 	InitShaders();
 	glutDisplayFunc(glRender);
-	glutTimerFunc(40, timer, 0);
+	glutTimerFunc(40, timer, 0); // every 40ms
 	
 	glutMainLoop();
-#else
+#elif defined(__APPLE__)
 	// Render frames in video plane - default behavior
-#ifdef __APPLE__
 	createAndRunCocoaWindow();
-#endif
 #endif
 	void *value_ptr = NULL;
 	pthread_join(cmdThreadId, &value_ptr);

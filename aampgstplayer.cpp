@@ -40,8 +40,11 @@
 #include <atomic>
 
 #ifdef __APPLE__
-	#include "gst/video/videooverlay.h"
-	guintptr (*gCbgetWindowContentView)() = NULL;
+#include "gst/video/videooverlay.h"
+guintptr gContentView;
+//extern guintptr gContentView;
+//extern guintptr getWindowContentView(void);
+//	guintptr (*gCbgetWindowContentView)() = NULL;
 #endif
 
 #ifdef AAMP_MPD_DRM
@@ -1732,10 +1735,13 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 		(nullptr == _this->cbExportYUVFrame) &&
 #endif
-			gCbgetWindowContentView && gst_is_video_overlay_prepare_window_handle_message(msg))
+//			gCbgetWindowContentView &&
+					gst_is_video_overlay_prepare_window_handle_message(msg))
 		{
-			AAMPLOG_WARN("Received prepare-window-handle. Attaching video to window handle=%llu",(*gCbgetWindowContentView)());
-			gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY (GST_MESSAGE_SRC (msg)), (*gCbgetWindowContentView)());
+			AAMPLOG_WARN("Received prepare-window-handle. Attaching video to window handle=%llu",
+						 gContentView );//(*gCbgetWindowContentView)());
+			gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY (GST_MESSAGE_SRC (msg)),
+												 gContentView );//(*gCbgetWindowContentView)());
 		}
 		break;
 #endif

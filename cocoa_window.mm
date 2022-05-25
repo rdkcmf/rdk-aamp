@@ -20,10 +20,10 @@
  * @file cocoa_window.mm
  * Advanced Adaptive Media Player (AAMP)
  */
-
+#define GL_SILENCE_DEPRECATION
 #import <Cocoa/Cocoa.h>
 #import "cocoa_window.h"
-extern guintptr (*gCbgetWindowContentView)();
+#include <GLUT/glut.h>
 
 @interface VideoWindow: NSWindow <NSApplicationDelegate>
 {
@@ -75,10 +75,7 @@ static NSApplication* application;
 
 @end
 
-guintptr getWindowContentView()
-{
-    return (guintptr)[gCocoaWindow contentView];
-}
+extern guintptr gContentView;
 
 int createAndRunCocoaWindow()
 {
@@ -94,18 +91,25 @@ int createAndRunCocoaWindow()
 
     [gCocoaWindow orderFront:nil];
     [gCocoaWindow setLevel: NSNormalWindowLevel];
-    gCbgetWindowContentView = &getWindowContentView;
+	gContentView = (guintptr)[gCocoaWindow contentView];
+
     [application run];
     return 0;
 }
 
 void setSimulatorWindowTitle( const char *title )
 {
+	NSString *nsTitle = [NSString stringWithUTF8String:title];
 	if( gCocoaWindow )
 	{
-		NSString *nsTitle = [NSString stringWithUTF8String:title];
 		dispatch_async(dispatch_get_main_queue(), ^{
 			[gCocoaWindow setTitle:nsTitle];
+		});
+	}
+	else
+	{
+		dispatch_async(dispatch_get_main_queue(), ^{
+			glutSetWindowTitle( [nsTitle cStringUsingEncoding:NSASCIIStringEncoding] );
 		});
 	}
 }
