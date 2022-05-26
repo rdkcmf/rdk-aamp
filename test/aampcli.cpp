@@ -52,7 +52,10 @@
 #include <main_aamp.h>
 #include "AampConfig.h"
 #include "../StreamAbstractionAAMP.h"
-
+#ifdef USE_MAF
+#include "resize_approximation.h"  //MAF - resize approximation and HardCut detector
+#include "hardcut_detector.h"
+#endif
 #define MAX_BUFFER_LENGTH 4096
 
 #define CC_OPTION_1 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"white\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"black\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}"
@@ -66,7 +69,7 @@ static std::vector<PlayerInstanceAAMP *> mPlayerInstances;
 
 static GMainLoop *AAMPGstPlayerMainLoop = NULL;
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
-static void updateYUVFrame(uint8_t *buffer, int size, int width, int height);
+static void updateYUVFrame(uint8_t *buffer, int size, int width, int height,unsigned long clocktime);
 std::mutex appsinkData_mutex;
 #endif
 
@@ -2728,7 +2731,7 @@ void glRender(void){
 		//Rotate
 		glm::mat4 trans = glm::rotate(
 									  glm::mat4(1.0f),
-									  currentAngleOfRotation * 360,
+									  currentAngleOfRotation * 0,
 									  glm::vec3(1.0f, 1.0f, 1.0f)
 									  );
 		GLint uniTrans = glGetUniformLocation(mProgramID, "trans");
@@ -2743,8 +2746,44 @@ void glRender(void){
 	}
 }
 
-static void updateYUVFrame(uint8_t *buffer, int size, int width, int height)
+
+#ifdef USE_MAF
+void maf_event_callback( std::string s)
 {
+	std::cout << "Hardcut dectected :  " << s << std::endl;
+}
+static HardCut *maf_hardcut_ = NULL;
+static void maf_init()
+{
+	assert( !maf_hardcut_);
+	maf_hardcut_ = new HardCut(maf_event_callback);
+}
+static void maf_end()
+{
+	assert( maf_hardcut_);
+	delete maf_hardcut_;
+	maf_hardcut_ = NULL;
+}
+
+static MAF_INTER_AREA_YUV inter_area(true);
+extern void print_fbd_as_json( unsigned char fbd[192]);
+static void maf_process_one_frame( uint8_t *buffer, int size, int width, int height, unsigned long clocktime)
+{
+	// uint8_t is supposed to be the same as unsigned char
+	unsigned char fbd[192];
+	inter_area.resize( buffer, height, width,  fbd);
+	print_fbd_as_json( fbd); //uncomment for debugging purpose
+	assert( maf_hardcut_);
+    assert( sizeof(uint64_t) == sizeof(unsigned long)); // uint64_t is supposed to be identical to unsigned long
+	maf_hardcut_->process_frame( clocktime, fbd);
+}
+#endif
+
+static void updateYUVFrame(uint8_t *buffer, int size, int width, int height,unsigned long clocktime)
+{
+#ifdef USE_MAF
+	maf_process_one_frame( buffer, size, width, height, clocktime);
+#endif
 	uint8_t* frameBuf = new uint8_t[size];
 	memcpy(frameBuf, buffer, size);
 	
@@ -2938,7 +2977,9 @@ int main(int argc, char **argv)
 	printf("**************************************************************************\n");
 	
 	InitPlayerLoop(0,NULL);
-	
+#ifdef USE_MAF
+	maf_init();
+#endif
 	NewPlayerInstance();
 	
 	// Read/create virtual channel map
@@ -2984,6 +3025,9 @@ int main(int argc, char **argv)
 #elif defined(__APPLE__)
 	// Render frames in video plane - default behavior
 	createAndRunCocoaWindow();
+#endif
+#ifdef USE_MAF
+	maf_end();
 #endif
 	void *value_ptr = NULL;
 	pthread_join(cmdThreadId, &value_ptr);

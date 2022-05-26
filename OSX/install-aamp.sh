@@ -2,7 +2,7 @@
 # This script will setup basic environment and fetch aamp code
 # for a vanilla Big Sur/Monterey system to be ready for development
 #######################Default Values##################
-aamposxinstallerver="0.10"
+aamposxinstallerver="0.10-acr"
 defaultbuilddir=aamp-devenv-$(date +"%Y-%m-%d-%H-%M")
 defaultcodebranch="dev_sprint_22_1"
 defaultchannellistfile="$HOME/aampcli.csv"
@@ -73,7 +73,7 @@ install_system_packages() {
 
     #Check/Install base packages needed by aamp env
     echo "Check/Install aamp development environment base packages"
-    find_or_install_pkgs  json-glib cmake openssl libxml2 ossp-uuid cjson gnu-sed meson ninja pkg-config
+    find_or_install_pkgs  json-glib cmake openssl libxml2 ossp-uuid cjson gnu-sed meson ninja pkg-config glm freeglut3-dev
 
     git clone https://github.com/DaveGamble/cJSON.git
     cd cJSON
@@ -154,6 +154,11 @@ else
     cd $builddir
 
 fi
+
+echo "Please do make sure you have access to github comcast and code.rdkcentral.com"
+git clone git@github.comcast.com:compass-research/maf-frame-resize.git
+git clone --recursive git@github.comcast.com:compass-research/maf-hardcut-detector.git
+ 
 
 #build all aamp supporting packages under lib folder 
 mkdir -p build
@@ -270,7 +275,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 
     mkdir -p build
     
-    cd build && PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/opt/libffi/lib/pkgconfig:/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/pkgconfig:/usr/local/ssl/lib/pkgconfig:/usr/local/opt/curl/lib/pkgconfig:$PKG_CONFIG_PATH /usr/local/bin/cmake -DCMAKE_OSX_SYSROOT="/" -DCMAKE_OSX_DEPLOYMENT_TARGET="" -G Xcode ../
+    cd build && PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/opt/libffi/lib/pkgconfig:/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/pkgconfig:/usr/local/ssl/lib/pkgconfig:/usr/local/opt/curl/lib/pkgconfig:$PKG_CONFIG_PATH /usr/local/bin/cmake -DCMAKE_USE_MAF=1 -DCMAKE_OSX_SYSROOT="/" -DCMAKE_OSX_DEPLOYMENT_TARGET="" -G Xcode ../
 
     echo "Please Start XCode, open aamp/build/AAMP.xcodeproj project file"
 	

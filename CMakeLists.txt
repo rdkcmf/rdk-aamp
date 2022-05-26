@@ -59,6 +59,12 @@ else()
 	message("CMAKE_QT5WEBKIT_JSBINDINGS not set, CMAKE_WPEWEBKIT_JSBINDINGS not set")
 endif()
 
+if(CMAKE_USE_MAF)
+    message("CMAKE_USE_MAF set")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_MAF")
+endif()
+
+
 if (CMAKE_PLATFORM_UBUNTU OR CMAKE_SYSTEM_NAME STREQUAL Darwin)
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
         set(OPENGL_LIBRARIES "-framework OpenGL -framework GLUT")
@@ -68,6 +74,7 @@ else()
        pkg_check_modules(GLEW REQUIRED glew)
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 endif()
+
 
 # Mac OS X
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
@@ -222,7 +229,17 @@ if(CMAKE_PLATFORM_UBUNTU)
     STRING(REPLACE " -Werror=effc++" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 endif()
 
-set(AAMP_CLI_SOURCES test/aampcli.cpp ${AAMP_OS_SOURCES})
+if(CMAKE_USE_MAF)
+    set(MAF_SOURCES maf-frame-resize/resize_approximation.cpp
+            maf-hardcut-detector/hardcut_detector.cpp
+            maf-hardcut-detector/fbd_hc.cpp
+            maf-hardcut-detector/mini_buffer.cpp
+            maf-hardcut-detector/cld8x8/cld8x8.cpp
+            maf-hardcut-detector/json11-master/json11.cpp)
+    set(AAMP_CLI_SOURCES test/aampcli.cpp ${MAF_SOURCES} ${AAMP_OS_SOURCES})
+else()
+    set(AAMP_CLI_SOURCES test/aampcli.cpp ${AAMP_OS_SOURCES})
+endif()
 
 set(AAMP_SUBTEC_SOURCES subtec/PacketSender.cpp)
 
@@ -466,6 +483,13 @@ if (CMAKE_SUBTEC_CC_ENABLED)
     set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lsubtec_connector")
 endif()
 
+
+if(CMAKE_USE_MAF)
+    include_directories(maf-frame-resize
+                maf-hardcut-detector
+                maf-hardcut-detector/cld8x8
+                maf-hardcut-detector/json11-master)
+endif()
 
 set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} ${SEC_CONTENT_METADATA_ENABLED}")
 

@@ -301,7 +301,7 @@ const char *plugins_to_lower_rank[PLUGINS_TO_LOWER_RANK_MAX] = {
  */
 AAMPGstPlayer::AAMPGstPlayer(AampLogManager *logObj, PrivateInstanceAAMP *aamp
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
-        , std::function< void(uint8_t *, int, int, int) > exportFrames
+        , std::function< void(uint8_t *, int, int, int, GstClockTime) > exportFrames
 #endif
 	) : mLogObj(logObj), aamp(NULL) , privateContext(NULL), mBufferingLock(), mProtectionLock(), PipelineSetToReady(false), trickTeardown(false)
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
@@ -1053,9 +1053,10 @@ GstFlowReturn AAMPGstPlayer::AAMPGstPlayer_OnVideoSample(GstElement* object, AAM
 			buffer = gst_sample_get_buffer (sample);
 			if (buffer)
 			{
+                GstClockTime clocktime = GST_BUFFER_PTS(buffer);
 				if (gst_buffer_map(buffer, &map, GST_MAP_READ))
 				{
-					_this->cbExportYUVFrame(map.data, map.size, width, height);
+					_this->cbExportYUVFrame(map.data, map.size, width, height, clocktime);
 
 					gst_buffer_unmap(buffer, &map);
 				}

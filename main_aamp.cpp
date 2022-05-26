@@ -97,7 +97,7 @@ std::mutex PlayerInstanceAAMP::mPrvAampMtx;
  *   @param[in]  streamSink - custom stream sink, NULL for default.
  */
 PlayerInstanceAAMP::PlayerInstanceAAMP(StreamSink* streamSink
-	, std::function< void(uint8_t *, int, int, int) > exportFrames
+	, std::function< void(uint8_t *, int, int, int, unsigned long) > exportFrames
 	) : aamp(NULL), sp_aamp(nullptr), mInternalStreamSink(NULL), mJSBinding_DL(),mAsyncRunning(false),mConfig(),mAsyncTuneEnabled(false),mScheduler()
 {
 

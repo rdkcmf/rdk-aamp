@@ -111,7 +111,7 @@ public:
 	struct AAMPGstPlayerPriv *privateContext;
 	AAMPGstPlayer(AampLogManager *logObj, PrivateInstanceAAMP *aamp
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
-	, std::function< void(uint8_t *, int, int, int) > exportFrames = nullptr
+	, std::function< void(uint8_t *, int, int, int, GstClockTime) > exportFrames = nullptr
 #endif
 	);
 	AAMPGstPlayer(const AAMPGstPlayer&) = delete;
@@ -123,7 +123,7 @@ public:
 	void DumpDiagnostics();
 	void SignalTrickModeDiscontinuity();
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
-	std::function< void(uint8_t *, int, int, int) > cbExportYUVFrame;
+	std::function< void(uint8_t *, int, int, int, GstClockTime) > cbExportYUVFrame;
 	static GstFlowReturn AAMPGstPlayer_OnVideoSample(GstElement* object, AAMPGstPlayer * _this);
 #endif
 	void SeekStreamSink(double position, double rate);
