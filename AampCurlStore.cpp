@@ -714,7 +714,7 @@ bool CurlStore::CheckCurlStoreIsInuse ( CurlSocketStoreStruct *CurlSock )
  */
 void CurlStore::RemoveCurlSock ( void )
 {
-	unsigned long long time=-1UL;
+	unsigned long long time=aamp_GetCurrentTimeMS();
 	AAMPLOG_INFO("Before remove Curl Sock Store size:%d\n", umCurlSockDataStore.size());
 
 	CurlSockDataIter it=umCurlSockDataStore.begin();
@@ -756,14 +756,9 @@ void CurlStore::RemoveCurlSock ( void )
 	else
 	{
 		/**
-		 * Lets extend the size of curlstore, if curlstore size less than max size.
+		 * Lets extend the size of curlstore, since all entries are busy
+		 * Later it will get shrunk to user configured size.
 		 */
-		if ( umCurlSockDataStore.size() < (MAX_CURL_SOCK_STORE-1) )
-		{
-			MaxCurlSockStore = 1 + umCurlSockDataStore.size();
-		}
-
-		ShowCurlStoreData();
 	}
 
 	AAMPLOG_INFO("After remove Curl Sock Store size:%d %d\n", umCurlSockDataStore.size(), MaxCurlSockStore);
