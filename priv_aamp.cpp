@@ -10693,9 +10693,12 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				{
 					auto language = std::find_if(trackInfo.begin(), trackInfo.end(),
 								[languageList, currentPrefLanguage](AudioTrackInfo& temp)
-								{ return ((temp.language == languageList) && (temp.language != currentPrefLanguage) && (temp.isAvailable)); });
+								{ return ((temp.language == languageList) && (temp.language != currentPrefLanguage)); });
 					languagePresent = (language != end(trackInfo) || (preferredLanguagesList.size() > 1)); /* If multiple value of language is present then retune */
-					languageAvailabilityInManifest = (language != end(trackInfo) && language->isAvailable);
+					auto languageAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
+								[languageList, currentPrefLanguage](AudioTrackInfo& temp)
+								{ return ((temp.language == languageList) && (temp.language != currentPrefLanguage) && (temp.isAvailable)); });
+					languageAvailabilityInManifest = (languageAvailable != end(trackInfo) && languageAvailable->isAvailable);
 				}
 
 				// Logic to check whether the given label is present in the available tracks,
@@ -10705,9 +10708,12 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				{
 					auto label = std::find_if(trackInfo.begin(), trackInfo.end(),
 								[labelList, currentPrefLabel](AudioTrackInfo& temp)
-								{ return ((temp.label == labelList) && (temp.label != currentPrefLabel) && (temp.isAvailable)); });
+								{ return ((temp.label == labelList) && (temp.label != currentPrefLabel)); });
 					labelPresent = (label != end(trackInfo) || (preferredLabelList.size() > 1)); /* If multiple value of label is present then retune */
-					labelAvailabilityInManifest = ((label != end(trackInfo) ) && label->isAvailable);
+					auto labelAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
+								[labelList, currentPrefLabel](AudioTrackInfo& temp)
+								{ return ((temp.label == labelList) && (temp.label != currentPrefLabel) && (temp.isAvailable)); });
+					labelAvailabilityInManifest = ((labelAvailable != end(trackInfo) ) && labelAvailable->isAvailable);
 
 				}
 
@@ -10719,9 +10725,12 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				{
 					auto rendition = std::find_if(trackInfo.begin(), trackInfo.end(),
 								[preferredRendition, currentPrefRendition](AudioTrackInfo& temp)
-								{ return ((temp.rendition == preferredRendition) && (temp.rendition != currentPrefRendition) && (temp.isAvailable)); });
+								{ return ((temp.rendition == preferredRendition) && (temp.rendition != currentPrefRendition)); });
 					renditionPresent = (rendition != end(trackInfo));
-					renditionAvailabilityInManifest = ((rendition != end(trackInfo)) && rendition->isAvailable);
+					auto renditionAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
+								[preferredRendition, currentPrefRendition](AudioTrackInfo& temp)
+								{ return ((temp.rendition == preferredRendition) && (temp.rendition != currentPrefRendition) && (temp.isAvailable)); });
+					renditionAvailabilityInManifest = ((renditionAvailable != end(trackInfo)) && renditionAvailable->isAvailable);
 				}
 
 				// Logic to check whether the given accessibility is present in the available tracks,
@@ -10731,9 +10740,12 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				{
 					auto accessType = std::find_if(trackInfo.begin(), trackInfo.end(),
 								[preferredType, currentPrefAccessibility](AudioTrackInfo& temp)
-								{ return ((temp.accessibilityType == preferredType) && (temp.accessibilityType != currentPrefAccessibility) && (temp.isAvailable)); });
+								{ return ((temp.accessibilityType == preferredType) && (temp.accessibilityType != currentPrefAccessibility)); });
 					accessibilityPresent = (accessType != end(trackInfo));
-					accessibilityAvailabilityInManifest = ((accessType != end(trackInfo)) && accessType->isAvailable);
+					auto accessTypeAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
+								[preferredType, currentPrefAccessibility](AudioTrackInfo& temp)
+								{ return ((temp.accessibilityType == preferredType) && (temp.accessibilityType != currentPrefAccessibility) && (temp.isAvailable)); });
+					accessibilityAvailabilityInManifest = ((accessTypeAvailable != end(trackInfo)) && accessTypeAvailable->isAvailable);
 				}
 
 				// Logic to check whether the given codec is present in the available tracks,
@@ -10923,9 +10935,12 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 				{
 					auto language = std::find_if(trackInfo.begin(), trackInfo.end(),
 								[param, currentPrefLanguage](TextTrackInfo& temp)
-								{ return ((temp.language == param) && (temp.language != currentPrefLanguage) && (temp.isAvailable)); });
+								{ return ((temp.language == param) && (temp.language != currentPrefLanguage)); });
 					languagePresent = (language != end(trackInfo) || (preferredTextLanguagesList.size() > 1)); /* If multiple value of language is present then retune */
-					languageAvailabilityInManifest = (language != end(trackInfo) && language->isAvailable);
+					auto languageAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
+								[param, currentPrefLanguage](TextTrackInfo& temp)
+								{ return ((temp.language == param) && (temp.language != currentPrefLanguage) && (temp.isAvailable)); });
+					languageAvailabilityInManifest = (languageAvailable != end(trackInfo) && languageAvailable->isAvailable);
 				}
 			}
 
