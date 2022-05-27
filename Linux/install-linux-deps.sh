@@ -23,3 +23,15 @@ install_package libssl-dev
 install_package libxml2-dev 
 install_package pkg-config 
 install_package zlib1g-dev
+
+ver=$(grep -oP 'VERSION_ID="\K[\d.]+' /etc/os-release)
+
+if [ ${ver:0:2} -eq 20 ]; then
+	echo "No additional packages required. OS verion is $ver"
+elif [ ${ver:0:2} -eq 18 ]; then
+	echo "Two additional packages required. 0S version is $ver"
+	install_package freeglut3-dev
+	install_package libglew-dev
+else
+	echo "Please upgrade your Ubuntu version to at least 18:04 LTS. OS version is $ver"
+fi
