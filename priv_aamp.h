@@ -167,6 +167,12 @@ enum AampCurlInstance
 	eCURLINSTANCE_MAX
 };
 
+enum AampProtocolType
+{
+	eAAMP_HTTP_PROTOCOL	=	0x01,
+	eAAMP_HTTPS_PROTOCOL
+};
+
 /*
  * @brief Playback Error Type
  */
@@ -3623,6 +3629,40 @@ public:
 	 * @return int return the index number of current audio track selected
 	 */
 	int GetCurrentAudioTrackId(void);
+
+	/**
+	 *   @brief Process write callback from CURL
+	 *
+	 * @param ptr pointer to buffer containing the data
+	 * @param size size of the buffer
+	 * @param nmemb number of bytes
+	 * @param userdata CurlCallbackContext pointer
+	 * @retval size consumed or 0 if interrupted
+	 */
+	size_t HandleSSLWriteCallback ( char *ptr, size_t size, size_t nmemb, void* userdata );
+
+	/**
+	 *   @brief Process progress callback from CURL
+	 *
+	 * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
+	 * @param dltotal total bytes expected to download
+	 * @param dlnow downloaded bytes so far
+	 * @param ultotal total bytes expected to upload
+	 * @param ulnow uploaded bytes so far
+	 * @retval 
+	 */
+	int HandleSSLProgressCallback ( void *clientp, double dltotal, double dlnow, double ultotal, double ulnow );
+
+	/**
+	 *   @brief Hanlde header callback from SSL
+	 * @param ptr pointer to buffer containing the data
+	 * @param size size of the buffer
+	 * @param nmemb number of bytes
+	 * @param user_data  CurlCallbackContext pointer
+	 *
+	 * @retval
+	 */
+	size_t HandleSSLHeaderCallback ( const char *ptr, size_t size, size_t nmemb, void* userdata );
 
 private:
 
