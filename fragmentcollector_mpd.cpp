@@ -7663,12 +7663,32 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 						return ret;
 					}
 					if (modifyDefaultBW)
-					{
+					{	// Not for new tune ( for Seek / Trickplay)
 						long persistedBandwidth = aamp->GetPersistedBandwidth();
 						// XIONE-2039 If Bitrate persisted over trickplay is true, set persisted BW as default init BW
 						if (persistedBandwidth > 0 && (persistedBandwidth < defaultBitrate || aamp->IsBitRatePersistedOverSeek()))
 						{
 							defaultBitrate = persistedBandwidth;
+						}
+					}
+					else
+					{
+						// For NewTune
+						// Set Default init bitrate according to last PersistBandwidth
+						if(ISCONFIGSET(eAAMPConfig_PersistProfileAcrossTune) && !aamp->IsTSBSupported())
+						{
+							long persistbandwidth =  mAbrManager.getPersistBandwidth();
+							long TimeGap   =  aamp_GetCurrentTimeMS() - ABRManager::mPersistBandwidthUpdatedTime;
+							if(TimeGap < 10000 &&  persistbandwidth > 0)
+							{
+								AAMPLOG_WARN("PersistBitrate used as defaultBitrate. PersistBandwidth : %ld TimeGap : %ld",persistbandwidth,TimeGap);
+								defaultBitrate = persistbandwidth;
+							}
+							//Persist Bandwidth expired case or initial VOD tune case
+							else
+							{
+								AAMPLOG_WARN("PersistBandwidth : %ld TimeGap : %ld.Use defaultBitrate",persistbandwidth,TimeGap);
+							}
 						}
 					}
 				}

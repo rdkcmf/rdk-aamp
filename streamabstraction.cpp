@@ -1703,29 +1703,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(AampLogManager *logObj, PrivateInst
 	GETCONFIGVALUE(eAAMPConfig_MaxABRNWBufferRampUp,mABRMaxBuffer);
 	GETCONFIGVALUE(eAAMPConfig_MinABRNWBufferRampDown,mABRMinBuffer);
 	GETCONFIGVALUE(eAAMPConfig_ABRNWConsistency,mABRNwConsistency); 
-	// Set Default init bitrate according to last PersistBandwidth
-	if(ISCONFIGSET(eAAMPConfig_PersistProfileAcrossTune) && !aamp->IsTSBSupported())
-	{
-		long persistbandwidth =  mAbrManager.getPersistBandwidth();
-		long TimeGap   =  aamp_GetCurrentTimeMS() - ABRManager::mPersistBandwidthUpdatedTime;
-		if(TimeGap < 10000 &&  persistbandwidth > 0)
-		{
-			AAMPLOG_WARN("PersistBitrate used as defaultBitrate. PersistBandwidth : %ld TimeGap : %ld",persistbandwidth,TimeGap);
-			mAbrManager.setDefaultInitBitrate(persistbandwidth);
-		}
-		//Persist Bandwidth expired case or initial VOD tune case
-		else
-		{
-			AAMPLOG_WARN("Using defaultBitrate %ld . PersistBandwidth : %ld TimeGap : %ld",aamp->GetDefaultBitrate(),persistbandwidth,TimeGap);
-			mAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
-
-		}
-	}
-	// Set default init bitrate according to the config.
-	else
-	{
-		mAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
-	}
+	mAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
 
 
 	long ibitrate = aamp->GetIframeBitrate();
