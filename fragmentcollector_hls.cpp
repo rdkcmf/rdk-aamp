@@ -4201,6 +4201,31 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					mAbrManager.setDefaultInitBitrate(persistedBandwidth);
 				}
 			}
+			else
+			{
+				// Set Default init bitrate according to last PersistBandwidth
+				if(ISCONFIGSET(eAAMPConfig_PersistProfileAcrossTune) && !aamp->IsTSBSupported())
+				{
+					long persistbandwidth =  mAbrManager.getPersistBandwidth();
+					long TimeGap   =  aamp_GetCurrentTimeMS() - ABRManager::mPersistBandwidthUpdatedTime;
+					if(TimeGap < 10000 &&  persistbandwidth > 0)
+					{
+						AAMPLOG_WARN("PersistBitrate used as defaultBitrate. PersistBandwidth : %ld TimeGap : %ld",persistbandwidth,TimeGap);
+						mAbrManager.setDefaultInitBitrate(persistbandwidth);
+					}
+					//Persist Bandwidth expired case or initial VOD tune case
+					else
+					{
+						AAMPLOG_WARN("PersistBandwidth : %ld TimeGap : %ld.Use defaultBitrate",persistbandwidth,TimeGap);
+						mAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
+					}
+				}
+				// Set default init bitrate according to the config.
+				else
+				{
+					mAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
+				}
+			}
 
 			if(rate == AAMP_NORMAL_PLAY_RATE)
 			{
