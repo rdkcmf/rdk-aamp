@@ -287,13 +287,13 @@ typedef enum
 	eAAMPConfig_AuthToken,							/**< Session Token  */
 	eAAMPConfig_LogLevel,							/**< New Configuration to overide info/debug/trace */
 	eAAMPConfig_CustomHeaderLicense,                       			/**< custom header string data to be appended to curl License request*/
-	eAAMPConfig_PreferredAudioRendition,					/**< PreferredAudioRendition*/
-	eAAMPConfig_PreferredAudioCodec,					/**< PreferredAudioCodec*/
-	eAAMPConfig_PreferredAudioLanguage,					/**< PreferredAudioLanguage*/
-	eAAMPConfig_PreferredAudioLabel,					/**< Preferred Audio labels*/ 
-	eAAMPConfig_PreferredTextRendition,					/**< Preferred Text Rendition*/
-	eAAMPConfig_PreferredTextLanguage,					/**< Preferred Text Language*/
-	eAAMPConfig_PreferredTextLabel,						/**< Preferred Text labels*/ 
+	eAAMPConfig_PreferredAudioRendition,				/**< New Configuration to save preferred Audio rendition/role descriptor field; support only single string value*/
+	eAAMPConfig_PreferredAudioCodec,					/**< New Configuration to save preferred Audio codecs values; support comma separated multiple string values*/
+	eAAMPConfig_PreferredAudioLanguage,					/**< New Configuration to save preferred Audio languages; support comma separated multiple string values*/
+	eAAMPConfig_PreferredAudioLabel,					/**< New Configuration to save preferred Audio label field; Label is a textual description of the content. Support only single string value*/ 
+	eAAMPConfig_PreferredTextRendition,					/**< New Configuration to save preferred Text rendition/role descriptor field; support only single string value*/
+	eAAMPConfig_PreferredTextLanguage,					/**<  New Configuration to save preferred Text languages; support comma separated multiple string values*/
+	eAAMPConfig_PreferredTextLabel,						/**< New Configuration to save preferred Text label field; Label is a textual description of the content. Support only single string value*/
 	eAAMPConfig_CustomLicenseData,                          		/**< Custom Data for License Request */
 	eAAMPConfig_StringMaxValue,
 	eAAMPConfig_MaxValue

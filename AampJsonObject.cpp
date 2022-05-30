@@ -313,10 +313,10 @@ void AampJsonObject::print(std::vector<uint8_t>& data)
 	(void)data.insert(data.begin(), jsonOutputStr.begin(), jsonOutputStr.end());
 }
 
-int AampJsonObject::isArray(const std::string& name)
+bool AampJsonObject::isArray(const std::string& name)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
-	int retVal = -1;
+	bool retVal = false;
 	if (strObj)
 	{
 		retVal =  cJSON_IsArray(strObj);
@@ -324,10 +324,10 @@ int AampJsonObject::isArray(const std::string& name)
 	return retVal;
 }
 
-int AampJsonObject::isString(const std::string& name)
+bool AampJsonObject::isString(const std::string& name)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
-	int retVal = -1;
+	bool retVal = false;
 	if (strObj)
 	{
 		retVal =  cJSON_IsString(strObj);
@@ -335,10 +335,10 @@ int AampJsonObject::isString(const std::string& name)
 	return retVal;
 }
 
-int AampJsonObject::isNumber(const std::string& name)
+bool AampJsonObject::isNumber(const std::string& name)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
-	int retVal = -1;
+	bool retVal = false;
 	if (strObj)
 	{
 		retVal =  cJSON_IsNumber(strObj);
@@ -346,10 +346,10 @@ int AampJsonObject::isNumber(const std::string& name)
 	return retVal;
 }
 
-int AampJsonObject::isObject(const std::string& name)
+bool AampJsonObject::isObject(const std::string& name)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
-	int retVal = -1;
+	bool retVal = false;
 	if (strObj)
 	{
 		retVal = cJSON_IsObject(strObj);
