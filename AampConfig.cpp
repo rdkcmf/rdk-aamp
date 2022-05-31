@@ -1371,18 +1371,20 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
                 }
 		else
 		{
-
-			//Removing unnecessary spaces and newlines
-			cfg.erase(std::remove_if(cfg.begin(), cfg.end(), ::isspace),
-									 cfg.end());
+			//trim whitespace from the end of the string
+			cfg.erase(std::find_if(cfg.rbegin(), cfg.rend(), [](unsigned char ch) {return !std::isspace(ch);}).base(), cfg.end());
 			// Process commands
 			bool toggle = false;
+			int position = 0;
 			std::string key,value;
 			std::size_t delimiterPos = cfg.find("=");
 			if(delimiterPos != std::string::npos)
 			{
 				key = cfg.substr(0, delimiterPos);
+				key.erase(std::remove_if(key.begin(), key.end(), ::isspace), key.end());
 				value = cfg.substr(delimiterPos + 1);
+				position = value.find_first_not_of(' ');
+				value = value.substr(position);
 			}
 			else
 			{
