@@ -73,9 +73,11 @@ typedef struct curlstorestruct
 	CurlDataShareLock *pstShareLocks;
 
 	unsigned char aui8InUse[eCURLINSTANCE_MAX_PLUSBG];
+	unsigned int ui32BusyFds;
 	long long timestamp;
+	std::string effectivehost;
 
-	curlstorestruct():mCurlShared(NULL), pstShareLocks(NULL), timestamp(0)
+	curlstorestruct():mCurlShared(NULL), pstShareLocks(NULL), timestamp(0), effectivehost(""),ui32BusyFds(0)
 	{
 		for (int i = 0; i < eCURLINSTANCE_MAX_PLUSBG; i++)
 		{
@@ -105,8 +107,11 @@ private:
 	typedef std::unordered_map <std::string, CurlSocketStoreStruct*>::iterator CurlSockDataIter;
 	CurlSockData umCurlSockDataStore;
 
+	typedef std::unordered_map <std::string, std::string> CurlStoreUrl ;
+	typedef std::unordered_map <std::string, std::string>::iterator CurlStoreUrlIter;
+	CurlStoreUrl umCurlStoreUrl;
 protected:
-	CurlStore( ):umCurlSockDataStore(){}
+	CurlStore( ):umCurlSockDataStore(), umCurlStoreUrl(){}
 	~CurlStore( ){}
 
 public:
@@ -197,6 +202,13 @@ public:
 	 * @return bool - true if in use, false otherwise
 	 */
 	bool CheckCurlStoreIsInuse ( CurlSocketStoreStruct *CurlSock );
+
+	/**
+	 * @param[in] OldHost - Original manifest host
+	 * @param[in] NewHost - Redirected manifest host
+	 * @return bool - true if success, false otherwise
+	 */
+	bool UpdateCurlStoreHost ( std::string OldHost, std::string NewHost );
 
 	// Copy constructor and Copy assignment disabled
 	CurlStore(const CurlStore&) = delete;
