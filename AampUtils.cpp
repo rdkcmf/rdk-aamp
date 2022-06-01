@@ -242,7 +242,7 @@ bool aamp_IsAbsoluteURL( const std::string &url )
  * @param[in] url - Input URL
  * @retval - host of input url
  */
-std::string aamp_getHostFromURL(std::string url, int *protocol, int *IsRemotehost )
+std::string aamp_getHostFromURL(std::string url)
 {
 	std::string host = "";
 	try
@@ -251,15 +251,6 @@ std::string aamp_getHostFromURL(std::string url, int *protocol, int *IsRemotehos
 		if(url.rfind("http://", 0) == 0)
 		{ // starts with http://
 			start_pos = 7;
-
-			if(NULL != IsRemotehost)
-			{
-				if( std::string::npos != url.find("localhost") || \
-					std::string::npos != url.find("127.0.0.1"))
-				*IsRemotehost = 0;
-				else
-				*IsRemotehost = 1;
-			}
 		}
 		else if(url.rfind("https://", 0) == 0)
 		{ // starts with https://
@@ -272,11 +263,6 @@ std::string aamp_getHostFromURL(std::string url, int *protocol, int *IsRemotehos
 			{
 				host = url.substr(start_pos, (pos - start_pos));
 			}
-			if(NULL!=protocol)
-			{
-				*protocol = start_pos - 6;
-			}
-
 		}
 	}
 	catch(...)

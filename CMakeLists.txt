@@ -145,7 +145,6 @@ set(LIBAAMP_SOURCES iso639map.cpp
                     drm/helper/AampDrmHelper.cpp
                     AampGstUtils.cpp
 		    MediaStreamContext.cpp
-            AampCurlStore.cpp
 )
 
 if (CMAKE_WPEFRAMEWORK_REQUIRED)
@@ -565,7 +564,6 @@ install(FILES AampEvent.h AampConfig.h AampEventManager.h AampDefine.h AampEvent
   AampMemoryUtils.h AampProfiler.h AampConstants.h iso639map.h AampRfc.h AampGstUtils.h
   AampScheduler.h
   drm/AampSecManager.h
-  AampCurlStore.h
   DESTINATION include)
 
 if (CMAKE_AAMP_RFC_REQUIRED)

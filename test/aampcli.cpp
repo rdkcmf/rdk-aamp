@@ -52,8 +52,6 @@
 #include <main_aamp.h>
 #include "AampConfig.h"
 #include "../StreamAbstractionAAMP.h"
-#include "AampCurlStore.h"
-
 
 #define MAX_BUFFER_LENGTH 4096
 
@@ -1138,9 +1136,6 @@ static void ProcessCliCommand( char *cmd )
 	else if (strcmp(cmd, "status") == 0)
 	{
 		mSingleton->aamp->mStreamSink->DumpStatus();
-
-		AAMPLOG_INFO("CurlStore is %s", mSingleton->aamp->mConfig->IsConfigSet(eAAMPConfig_EnableCurlStore)? "Enabled":"Disabled");
-		CurlStore::GetCurlStoreInstance(mSingleton->aamp)->ShowCurlStoreData();
 	}
 	else if (strcmp(cmd, "live") == 0)
 	{
