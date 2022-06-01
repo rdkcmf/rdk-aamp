@@ -3289,7 +3289,10 @@ long AAMPGstPlayer::GetPositionMilliseconds(void)
 	}
 
 	// Perform gstreamer query and related operation only when pipeline is playing or if deliberately put in paused
-	if (privateContext->pipelineState != GST_STATE_PLAYING && !(privateContext->pipelineState == GST_STATE_PAUSED && privateContext->paused))
+	if (privateContext->pipelineState != GST_STATE_PLAYING &&
+		!(privateContext->pipelineState == GST_STATE_PAUSED && privateContext->paused) &&
+		// XIONE-8379 - The player should be (and probably soon will be) in the playing state so don't exit early.
+		GST_STATE_TARGET(privateContext->pipeline) != GST_STATE_PLAYING)
 	{
 		AAMPLOG_INFO("Pipeline is in %s state, returning position as %ld", gst_element_state_get_name(privateContext->pipelineState), rc);
 		return rc;

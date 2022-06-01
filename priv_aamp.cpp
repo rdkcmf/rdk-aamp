@@ -1838,8 +1838,6 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 			bProcessEvent = false;
 		}
 
-		mReportProgressPosn = position;
-
 		if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling) && mTSBEnabled)
 		{
 			// Reporting relative positions for Fog TSB with interrupt handling
@@ -1881,9 +1879,12 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 			{
 				mEventManager->SendEvent(evt);
 			}
-		}
 
-		mReportProgressTime = aamp_GetCurrentTimeMS();
+			//XIONE-8379 - these statements should be called together whenever a report is made AND ONLY when a report is made
+			//previously this was not the case and report sending could be erratic
+			mReportProgressPosn = position;
+			mReportProgressTime = aamp_GetCurrentTimeMS();
+		}
 	}
 }
 
