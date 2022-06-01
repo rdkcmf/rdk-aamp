@@ -51,8 +51,6 @@
 #include <chrono>
 //#define DEBUG_TIMELINE
 
-#include "AampCurlStore.h"
-
 #ifdef AAMP_CC_ENABLED
 #include "AampCCManager.h"
 #endif
@@ -4989,14 +4987,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 		updateVideoEndMetrics = true;
 		if (gotManifest)
 		{
-			if(ISCONFIGSET(eAAMPConfig_EnableCurlStore))
-			{
-				std::string OldHost = aamp_getHostFromURL ( aamp->mManifestUrl );
-				std::string NewHost = aamp_getHostFromURL ( manifestUrl );
-				if(NewHost!=OldHost)
-				CurlStore::GetCurlStoreInstance(aamp)->UpdateCurlStoreHost(OldHost, NewHost);;
-			}
-
 			aamp->mManifestUrl = manifestUrl;
 			aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 			if (mNetworkDownDetected)
@@ -5033,13 +5023,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateMPD(bool init)
 	else
 	{
 		gotManifest = true;
-		if(ISCONFIGSET(eAAMPConfig_EnableCurlStore))
-		{
-			std::string OldHost = aamp_getHostFromURL ( aamp->mManifestUrl );
-			std::string NewHost = aamp_getHostFromURL ( manifestUrl );
-			if(NewHost!=OldHost)
-			CurlStore::GetCurlStoreInstance(aamp)->UpdateCurlStoreHost(OldHost, NewHost);
-		}
 		aamp->mManifestUrl = manifestUrl;
 	}
 	long parseTimeMs = 0;

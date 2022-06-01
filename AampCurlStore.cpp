@@ -253,7 +253,7 @@ void CurlStore::CurlInit(void *privContext, AampCurlInstance startIdx, unsigned 
 	AampCurlStoreErrorCode CurlStoreErrCode=eCURL_STORE_HOST_NOT_AVAILABLE;
 	HostName = aamp_getHostFromURL ( aamp->mManifestUrl, &protocol, &IsRemotehost );
 
-	if (ISCONFIGSET(eAAMPConfig_EnableCurlStore) && ( IsRemotehost ) && (HostName.length()) /*&& ( eAAMP_HTTPS_PROTOCOL == protocol )*/ )
+	if (ISCONFIGSET(eAAMPConfig_EnableCurlStore) && ( IsRemotehost ) /*&& ( eAAMP_HTTPS_PROTOCOL == protocol )*/ )
 	{
 		for (unsigned int i = startIdx; i < instanceEnd; i++)
 		{
@@ -261,7 +261,7 @@ void CurlStore::CurlInit(void *privContext, AampCurlInstance startIdx, unsigned 
 		}
 		AAMPLOG_INFO("Check curl store for host:%s inst:%d-%d %p\n", HostName.c_str(), startIdx, instanceEnd, aamp->curl[startIdx] );
 		CurlStoreErrCode = GetFromCurlStoreBulk(HostName, startIdx, instanceEnd, aamp );
-		AAMPLOG_TRACE("From curl store for inst:%d-%d %p ShHdl:%p\n", startIdx, instanceEnd, aamp->curl[startIdx], aamp->mCurlShared );
+		AAMPLOG_INFO("From curl store for inst:%d-%d %p ShHdl:%p\n", startIdx, instanceEnd, aamp->curl[startIdx], aamp->mCurlShared );
 	}
 	else
 	{
@@ -323,9 +323,9 @@ void CurlStore::CurlInit(void *privContext, AampCurlInstance startIdx, unsigned 
 		}
 	}
 
-	if (ISCONFIGSET(eAAMPConfig_EnableCurlStore) && ( IsRemotehost ) && (HostName.length()) /*&& ( eAAMP_HTTPS_PROTOCOL == protocol )*/ && ( eCURL_STORE_HOST_SOCK_AVAILABLE != CurlStoreErrCode ) )
+	if (ISCONFIGSET(eAAMPConfig_EnableCurlStore) && ( IsRemotehost ) /*&& ( eAAMP_HTTPS_PROTOCOL == protocol )*/ && ( eCURL_STORE_HOST_SOCK_AVAILABLE != CurlStoreErrCode ) )
 	{
-		AAMPLOG_INFO("Save new curl handle:%p in Curlstore for inst:%d-%d", aamp->curl[startIdx], startIdx, instanceEnd );
+		AAMPLOG_INFO("Keep new curl handle:%p in Curlstore for inst:%d-%d", aamp->curl[startIdx], startIdx, instanceEnd );
 		KeepInCurlStoreBulk( HostName, startIdx, instanceEnd, aamp, true);
 	}
 }
@@ -344,7 +344,7 @@ void CurlStore::CurlTerm(void *privContext, AampCurlInstance startIdx, unsigned 
 
 	if( ISCONFIGSET(eAAMPConfig_EnableCurlStore)  && ( IsRemotehost )/*&& ( eAAMP_HTTPS_PROTOCOL == protocol )*/)
 	{
-		AAMPLOG_INFO("Free curl handle:%p in Curlstore for inst:%d-%d", aamp->curl[startIdx], startIdx, instanceEnd );
+		AAMPLOG_INFO("Keep unused curl handle:%p in Curlstore for inst:%d-%d", aamp->curl[startIdx], startIdx, instanceEnd );
 		KeepInCurlStoreBulk ( HostName, startIdx, instanceEnd, aamp, false);
 	}
 	else
@@ -422,18 +422,14 @@ AampCurlStoreErrorCode CurlStore::GetFromCurlStoreBulk ( std::string hostname, A
 				{
 					aamp->curl[loop] = CurlSock->curl[CurlFDIndex];
 					CurlSock->aui8InUse[CurlFDIndex] = true;
-					CurlSock->ui32BusyFds +=1;
 					CURL_EASY_SETOPT(aamp->curl[loop], CURLOPT_SSL_CTX_DATA, aamp);
 
 					AAMPLOG_INFO("Curl Inst %d for %s Curl hdl:%p at %d in store", loop, hostname.c_str(), aamp->curl[loop], CurlFDIndex);
 					break;
 				}
-
-				if(NULL==CurlSock->curl[CurlFDIndex])
-				break;
 			}
 
-			if ((!( CurlFDIndex < eCURLINSTANCE_MAX_PLUSBG ))|| (NULL==aamp->curl[loop]))
+			if (!( CurlFDIndex < eCURLINSTANCE_MAX_PLUSBG ))
 			{
 				AAMPLOG_WARN("Existing instances in store are busy, Let's create hdl for Curl inst:%d" , loop );
 				ret = eCURL_STORE_SOCK_NOT_AVAILABLE;
@@ -516,7 +512,6 @@ AampCurlStoreErrorCode CurlStore::GetFromCurlStore ( std::string hostname, AampC
 			{
 				*curl = CurlSock->curl[CurlFDIndex];
 				CurlSock->aui8InUse[CurlFDIndex] = true;
-				CurlSock->ui32BusyFds+=1;
 
 				AAMPLOG_INFO("Curl Inst %d for %s Curl hdl:%p at %d in store", CurlIndex, hostname.c_str(), *curl, CurlFDIndex);
 				break;
@@ -570,14 +565,13 @@ AampCurlStoreErrorCode CurlStore::GetFromCurlStore ( std::string hostname, AampC
 			}
 
 			umCurlSockDataStore[hostname]=CurlSock;
-			AAMPLOG_TRACE("Curl Inst %d for %s created, Added shared ctx %p in curlstore %p, size:%d maxsize:%d", CurlIndex, hostname.c_str(),
+			AAMPLOG_INFO("Curl Inst %d for %s created, Added shared ctx %p in curlstore %p, size:%d maxsize:%d", CurlIndex, hostname.c_str(),
 							CurlSock->mCurlShared, CurlSock, umCurlSockDataStore.size(), MaxCurlSockStore);
 		}
 
 		CurlSock->timestamp = aamp_GetCurrentTimeMS();
 		CurlSock->curl[CurlFDIndex] = *curl = curl_easy_init();
 		CurlSock->aui8InUse[CurlFDIndex] = true;
-		CurlSock->ui32BusyFds +=1;
 
 		CURL_EASY_SETOPT(*curl, CURLOPT_SHARE, CurlSock->mCurlShared);
 	}
@@ -597,16 +591,6 @@ void CurlStore::KeepInCurlStoreBulk ( std::string hostname, AampCurlInstance Cur
 	CurlSocketStoreStruct *CurlSock = NULL;
 	pthread_mutex_lock(&mCurlInstLock);
 	CurlSockDataIter it = umCurlSockDataStore.find(hostname);
-	if(it == umCurlSockDataStore.end())
-	{
-		AAMPLOG_TRACE("Check urlstore for %s", hostname.c_str());
-		CurlStoreUrlIter UrlIt = umCurlStoreUrl.find(hostname);
-		if(umCurlStoreUrl.end() != UrlIt)
-		{
-			AAMPLOG_TRACE("Urlstore has %s", UrlIt->second.c_str());
-			it = umCurlSockDataStore.find(UrlIt->second);
-		}
-	}
 
 	if(it != umCurlSockDataStore.end())
 	{
@@ -620,15 +604,7 @@ void CurlStore::KeepInCurlStoreBulk ( std::string hostname, AampCurlInstance Cur
 				{
 					CurlSock->curl[index]=aamp->curl[loop];
 					CurlSock->aui8InUse[index]=inuse;
-					if(inuse)
-					{
-						CurlSock->ui32BusyFds +=1;
-					}
-					else
-					{
-						CurlSock->ui32BusyFds -=1;
-					}
-					AAMPLOG_TRACE("Curl Inst %d for %s CurlCtx:%p stored at %d, BusyFds:%d", loop, hostname.c_str(),aamp->curl[loop], index, CurlSock->ui32BusyFds);
+					AAMPLOG_INFO("Curl Inst %d for %s CurlCtx:%p stored at %d", loop, hostname.c_str(),aamp->curl[loop], index);
 					break;
 				}
 			}
@@ -645,17 +621,6 @@ void CurlStore::KeepInCurlStoreBulk ( std::string hostname, AampCurlInstance Cur
 			// Remove not recently used handle.
 			RemoveCurlSock();
 		}
-
-		if (!CurlSock->ui32BusyFds)
-		{
-			CurlStoreUrlIter UrlIt;
-			AAMPLOG_TRACE("No fds are Busy, try remove map:%s",CurlSock->effectivehost.c_str());
-			if((CurlSock->effectivehost.length()) && ( umCurlStoreUrl.end() != (UrlIt = umCurlStoreUrl.find(CurlSock->effectivehost)) ))
-			{
-				AAMPLOG_TRACE("Removing url map entry:%s", CurlSock->effectivehost.c_str());
-				umCurlStoreUrl.erase(UrlIt);
-			}
-		}
 	}
 	else
 	{
@@ -671,27 +636,10 @@ void CurlStore::KeepInCurlStoreBulk ( std::string hostname, AampCurlInstance Cur
 		CurlSock->timestamp = aamp_GetCurrentTimeMS();
 		CurlSock->pstShareLocks = locks;
 
-		CURLSHcode sh;
-		aamp->mCurlShared = CurlSock->mCurlShared = curl_share_init();
-		sh = curl_share_setopt(CurlSock->mCurlShared, CURLSHOPT_USERDATA, (void*)locks);
-		sh = curl_share_setopt(CurlSock->mCurlShared, CURLSHOPT_LOCKFUNC, curl_lock_callback);
-		sh = curl_share_setopt(CurlSock->mCurlShared, CURLSHOPT_UNLOCKFUNC, curl_unlock_callback);
-		sh = curl_share_setopt(CurlSock->mCurlShared, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
-//		sh = curl_share_setopt(CurlSock->mCurlShared, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT);
-
-		if (ISCONFIGSET(eAAMPConfig_EnableSharedSSLSession))
-		{
-			curl_share_setopt(CurlSock->mCurlShared, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
-		}
-
 		for( int loop = (int)CurlIndex; loop < count; ++loop )
 		{
 			CurlSock->curl[loop]=aamp->curl[loop];
 			CurlSock->aui8InUse[loop]=inuse;
-			if(inuse)
-			{
-				CurlSock->ui32BusyFds +=1;
-			}
 		}
 
 		if ( umCurlSockDataStore.size() >= MaxCurlSockStore )
@@ -701,7 +649,7 @@ void CurlStore::KeepInCurlStoreBulk ( std::string hostname, AampCurlInstance Cur
 		}
 
 		umCurlSockDataStore[hostname]=CurlSock;
-		AAMPLOG_TRACE("Curl Inst %d for %s created, Added curlcontext %d in curlstore, size:%d maxsize:%d", CurlIndex, hostname.c_str(),
+		AAMPLOG_INFO("Curl Inst %d for %s created, Added curlcontext %d in curlstore, size:%d maxsize:%d", CurlIndex, hostname.c_str(),
 						CurlIndex, umCurlSockDataStore.size(), MaxCurlSockStore);
 	}
 
@@ -720,7 +668,7 @@ void CurlStore::KeepInCurlStore ( std::string hostname, AampCurlInstance CurlInd
 	if(it != umCurlSockDataStore.end())
 	{
 		int index = (int)CurlIndex;
-		AAMPLOG_TRACE("Curl Inst %d for %s available, Context:%p, Let's add to curl store", CurlIndex, hostname.c_str(),curl);
+		AAMPLOG_INFO("Curl Inst %d for %s available, Context:%p, Let's add to curl store", CurlIndex, hostname.c_str(),curl);
 		CurlSock = it->second;
 
 		for ( index = CurlIndex; index < eCURLINSTANCE_MAX_PLUSBG; index += eCURLINSTANCE_MAX )
@@ -729,13 +677,7 @@ void CurlStore::KeepInCurlStore ( std::string hostname, AampCurlInstance CurlInd
 			{
 				CurlSock->curl[index]=curl;
 				CurlSock->aui8InUse[index]=inuse;
-
-				if(inuse)
-				CurlSock->ui32BusyFds +=1;
-				else
-				CurlSock->ui32BusyFds -=1;
-
-				AAMPLOG_TRACE("Curl Inst %d for %s CurlCtx:%p stored at %d", CurlIndex, hostname.c_str(),curl, index);
+				AAMPLOG_INFO("Curl Inst %d for %s CurlCtx:%p stored at %d", CurlIndex, hostname.c_str(),curl, index);
 				break;
 			}
 		}
@@ -752,44 +694,6 @@ void CurlStore::KeepInCurlStore ( std::string hostname, AampCurlInstance CurlInd
 		AAMPLOG_INFO("Curl Inst %d for %s not available, Context:%p", CurlIndex, hostname.c_str(), curl);
 	}
 	pthread_mutex_unlock(&mCurlInstLock);
-}
-
-/**
- * @fn UpdateCurlStoreHost
- * @brief UpdateCurlStoreHost - Update redirected manifest hostname to map with original hostname
- */
-bool CurlStore::UpdateCurlStoreHost ( std::string OldHost, std::string NewHost )
-{
-	if(OldHost == NewHost)
-	{
-		AAMPLOG_TRACE("Same host, url update not required, %s", NewHost.c_str());
-		return true;
-	}
-
-	pthread_mutex_lock(&mCurlInstLock);
-	CurlStoreUrlIter It = umCurlStoreUrl.find(OldHost);
-	if(umCurlStoreUrl.end() != It )
-	{
-		umCurlStoreUrl[NewHost] = It->second;
-		AAMPLOG_TRACE("Replaced url from %s to %s for %s", It->first.c_str(), NewHost.c_str(), It->second.c_str());
-		umCurlStoreUrl.erase(It);
-	}
-	else
-	{
-		umCurlStoreUrl[NewHost] = OldHost;
-		AAMPLOG_TRACE("Added url %s for %s", NewHost.c_str(), OldHost.c_str());
-	}
-
-	CurlSockDataIter StoreIt = umCurlSockDataStore.find(OldHost);
-	if(umCurlSockDataStore.end() != StoreIt)
-	{
-		AAMPLOG_TRACE("Added effect host:%s for %s", NewHost.c_str(), OldHost.c_str());
-		CurlSocketStoreStruct *CurlSock = StoreIt->second;
-		CurlSock->effectivehost = NewHost;
-	}
-	pthread_mutex_unlock(&mCurlInstLock);
-
-	return true;
 }
 
 /**
@@ -810,12 +714,11 @@ bool CurlStore::CheckCurlStoreIsInuse ( CurlSocketStoreStruct *CurlSock )
  */
 void CurlStore::RemoveCurlSock ( void )
 {
-	unsigned long long time=aamp_GetCurrentTimeMS() + 1;
-	AAMPLOG_TRACE("Before remove Curl Sock Store size:%d\n", umCurlSockDataStore.size());
+	unsigned long long time=aamp_GetCurrentTimeMS();
+	AAMPLOG_INFO("Before remove Curl Sock Store size:%d\n", umCurlSockDataStore.size());
 
 	CurlSockDataIter it=umCurlSockDataStore.begin();
 	CurlSockDataIter RemIt=umCurlSockDataStore.end();
-	CurlStoreUrlIter UrlIt;
 
 	for(; it != umCurlSockDataStore.end(); ++it )
 	{
@@ -833,11 +736,8 @@ void CurlStore::RemoveCurlSock ( void )
 		AAMPLOG_INFO("Removing host:%s lastused:%lld", (RemIt->first).c_str(), RmCurlSock->timestamp);
 		for(int index=0; index<eCURLINSTANCE_MAX_PLUSBG; ++index)
 		{
-			if(NULL!=RmCurlSock->curl[index])
-			{
-				curl_easy_cleanup(RmCurlSock->curl[index]);
-				RmCurlSock->curl[index] = NULL;
-			}
+			curl_easy_cleanup(RmCurlSock->curl[index]);
+			RmCurlSock->curl[index] = NULL;
 		}
 
 		if(RmCurlSock->mCurlShared)
@@ -850,15 +750,6 @@ void CurlStore::RemoveCurlSock ( void )
 			pthread_mutex_destroy(&locks->mSslCurlShareMutex);
 			SAFE_DELETE(RmCurlSock->pstShareLocks);
 		}
-
-		AAMPLOG_TRACE("effecthost:%s", RmCurlSock->effectivehost.c_str());
-
-		if( RmCurlSock->effectivehost.length() && \
-			( umCurlStoreUrl.end() != (UrlIt = umCurlStoreUrl.find(RmCurlSock->effectivehost)) ) )
-		{
-			umCurlStoreUrl.erase(UrlIt);
-		}
-
 		SAFE_DELETE(RmCurlSock);
 		umCurlSockDataStore.erase(RemIt);
 	}
@@ -870,7 +761,7 @@ void CurlStore::RemoveCurlSock ( void )
 		 */
 	}
 
-	AAMPLOG_TRACE("After remove Curl Sock Store size:%d %d\n", umCurlSockDataStore.size(), MaxCurlSockStore);
+	AAMPLOG_INFO("After remove Curl Sock Store size:%d %d\n", umCurlSockDataStore.size(), MaxCurlSockStore);
 }
 
 /**
@@ -885,24 +776,12 @@ void CurlStore::ShowCurlStoreData ( void )
 	for(; it != umCurlSockDataStore.end(); ++it )
 	{
 		CurlSocketStoreStruct *CurlSock = it->second;
-		AAMPLOG_INFO("Host:%s ShHdl:%p LastUsed:%lld, Busyfds:%d", (it->first).c_str(), CurlSock->mCurlShared, CurlSock->timestamp, CurlSock->ui32BusyFds);
+		AAMPLOG_INFO("Host:%s ShHdl:%p LastUsed:%lld", (it->first).c_str(), CurlSock->mCurlShared, CurlSock->timestamp);
 		AAMPLOG_INFO("List of Curl contexts:");
 		for(int i=0; i < eCURLINSTANCE_MAX_PLUSBG;++i)
 		{
 			if(CurlSock->curl[i])
 			AAMPLOG_INFO("CurlFd:%p Inst:%d Inuse:%d", CurlSock->curl[i], i, CurlSock->aui8InUse[i]);
-		}
-	}
-
-	if(umCurlStoreUrl.size())
-	{
-		AAMPLOG_TRACE("Curl Url Map size:%d",umCurlStoreUrl.size());
-		AAMPLOG_TRACE("List of Curl URLs:");
-		CurlStoreUrlIter UrlIt = umCurlStoreUrl.begin();
-
-		for(; UrlIt != umCurlStoreUrl.end(); ++UrlIt )
-		{
-			AAMPLOG_TRACE("%s mapped to %s", UrlIt->first.c_str(), UrlIt->second.c_str());
 		}
 	}
 }

@@ -5607,7 +5607,6 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 		long bitrate;
 		int fogError;
 
-		mManifestUrl.assign(url);
 		CurlInit(eCURLINSTANCE_MANIFEST_PLAYLIST, 1, GetNetworkProxy());
 
 		bool gotManifest = GetFile(url,
