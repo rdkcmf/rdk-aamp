@@ -20,7 +20,7 @@
 #pragma once
 
 #include "subtitleParser.h"
-#include "SubtecChannel.hpp"
+#include "WebVttPacket.hpp"
 
 class WebVTTSubtecParser : public SubtitleParser
 {
@@ -40,7 +40,7 @@ public:
 	void pause(bool pause) override;
 	void mute(bool mute) override;
 protected:
-	std::unique_ptr<SubtecChannel> m_channel;
+	std::unique_ptr<WebVttChannel> m_channel;
 private:
 	std::uint64_t time_offset_ms_ = 0;
 	std::uint64_t start_ms_ = 0;

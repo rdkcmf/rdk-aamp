@@ -22,12 +22,13 @@
 
 WebVTTSubtecParser::WebVTTSubtecParser(AampLogManager *logObj, PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(logObj, aamp, type), m_channel(nullptr)
 {
-	m_channel = SubtecChannel::SubtecChannelFactory(SubtecChannel::ChannelType::WEBVTT);
-	if (!m_channel->InitComms())
+	if (!PacketSender::Instance()->Init())
 	{
-		AAMPLOG_INFO("Init failed - subtitle parsing disabled");
+		AAMPLOG_INFO("Init failed to connect to subtitle renderer - subtitle parsing disabled\n");
 		throw std::runtime_error("PacketSender init failed");
 	}
+
+	m_channel = make_unique<WebVttChannel>();
 	AAMPLOG_INFO("Sending RESET ALL");
 	m_channel->SendResetAllPacket();
 	int width = 1920, height = 1080;

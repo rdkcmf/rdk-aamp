@@ -32,10 +32,10 @@
 #include <atomic>
 
 #ifdef SUBTEC_PACKET_DEBUG
-#define AAMPLOG_WARN(...) printf
-#define AAMPLOG_INFO(...) printf
-#define AAMPLOG_TRACE(...) printf
-#define AAMPLOG_ERR(...) printf
+#define AAMPLOG_WARN printf
+#define AAMPLOG_INFO printf
+#define AAMPLOG_TRACE printf
+#define AAMPLOG_ERR printf
 #else
 #include "priv_aamp.h"
 #endif

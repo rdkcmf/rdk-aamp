@@ -2467,7 +2467,6 @@ static JSValueRef AAMP_setVideoMute(JSContextRef context, JSObjectRef function, 
 	{
 		bool muted = JSValueToBoolean(context, arguments[0]);
 		pAAMP->_aamp->SetVideoMute(muted);
-		// pAAMP->_aamp->SetSubtitleMute(muted);
 	}
 	return JSValueMakeUndefined(context);
 }

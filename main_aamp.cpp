@@ -651,7 +651,7 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 			if (AAMP_NORMAL_PLAY_RATE == rate)
 			{
 				aamp->LogPlayerPreBuffered();
-				aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mAuxFormat, aamp->mSubtitleFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus(), aamp->mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
+				aamp->mStreamSink->Configure(aamp->mVideoFormat, aamp->mAudioFormat, aamp->mAuxFormat, aamp->mpStreamAbstractionAAMP->GetESChangeStatus(), aamp->mpStreamAbstractionAAMP->GetAudioFwdToAuxStatus());
 				aamp->ResumeDownloads(); //To make sure that the playback resumes after a player switch if player was in paused state before being at background
 				aamp->mpStreamAbstractionAAMP->StartInjection();
 				aamp->mStreamSink->Stream();
@@ -1251,29 +1251,6 @@ void PlayerInstanceAAMP::SetVideoMute(bool muted)
 			aamp->mApplyCachedVideoMute = true;
 		}
 	}
-}
-
-/**
- *   @brief Enable/ Disable Video.
- *
- *   @param  muted - true to disable video, false to enable video.
- */
-void PlayerInstanceAAMP::SetSubtitleMute(bool muted)
-{
-	ERROR_STATE_CHECK_VOID();
-	
-	AAMPLOG_WARN(" mute == %s", muted?"true":"false");
-	aamp->subtitles_muted = muted;
-	aamp->AcquireStreamLock();
-	if (aamp->mpStreamAbstractionAAMP)
-	{
-		aamp->SetSubtitleMute(muted);
-	}
-	else
-	{
-		AAMPLOG_WARN("Player is in state eSTATE_IDLE, value has been cached");
-	}
-	aamp->ReleaseStreamLock();
 }
 
 /**
