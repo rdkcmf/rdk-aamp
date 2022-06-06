@@ -2,7 +2,7 @@
 # This script will setup basic environment and fetch aamp code
 # for a vanilla Big Sur/Monterey system to be ready for development
 #######################Default Values##################
-aamposxinstallerver="0.10"
+aamposxinstallerver="0.11"
 defaultbuilddir=aamp-devenv-$(date +"%Y-%m-%d-%H-%M")
 defaultcodebranch="dev_sprint_22_1"
 defaultchannellistfile="$HOME/aampcli.csv"
@@ -51,7 +51,7 @@ install_system_packages() {
         echo "Installing Homebrew, as its not available"
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     else
-        echo "Hoebrew is installed now just updating it"
+        echo "Homebrew is installed now just updating it"
         brew update
     fi
 
@@ -129,12 +129,12 @@ fi
 
 if [[ "$builddir" == "" ]]; then
 builddir=$defaultbuilddir
-if [ -d "../../aamp" ]; then
-        abs_path="$(cd "../../aamp" && pwd -P)"
+if [ -d "../aamp" ]; then
+        abs_path="$(cd "../aamp" && pwd -P)"
         while true; do
-        read -p '[!Alert!] Install script identified that the aamp folder already exists @ ../../aamp.
-        Press Y, if you want to use same aamp folder (../../aamp) for your OSX simulator build.
-        Press N, If you want to use separate build folder for aamp OSX simulator. Press (Y/N)'  yn
+        read -p '[!Alert!] Install script identified that the aamp folder already exists @ ../aamp.
+        Press Y, if you want to use same aamp folder (../aamp) for your simulator build.
+        Press N, If you want to use separate build folder for aamp simulator. Press (Y/N)'  yn
                 case $yn in
                      [Yy]* ) builddir=$abs_path; echo "using following aamp build directory $builddir"; break;;
                      [Nn]* ) builddir=${defaultbuilddir} ; echo "using following aamp build directory $PWD/$builddir"; break ;;
@@ -144,10 +144,20 @@ if [ -d "../../aamp" ]; then
 fi
 fi
 
+if [[ "$OSTYPE" == "darwin"* ]]; then
+
+    brew install git
+    brew install cmake
+
+elif [[ "$OSTYPE" == "linux"* ]]; then
+    sudo apt install git cmake
+fi
+
 if [[ ! -d "$builddir" ]]; then
     echo "Creating aamp build directory under $builddir";
     mkdir $builddir
     cd $builddir
+    
     git clone -b $codebranch https://code.rdkcentral.com/r/rdk/components/generic/aamp
     cd aamp
 else
@@ -161,33 +171,40 @@ mkdir -p build
 echo "Builddir: $builddir"
 echo "Code Branch: $codebranch"
 
-#Check if Xcode is installed 
-if xpath=$( xcode-select --print-path ) &&
-  test -d "${xpath}" && test -x "${xpath}" ; then
-  echo "Xcode already installed. Skipping."
 
-else
-  echo "Installing Xcode…"
-  xcode-select --install
-  if xpath=$( xcode-select --print-path ) &&
-        test -d "${xpath}" && test -x "${xpath}" ; then
-        echo "Xcode installed now."
-   else
-        #... isn't correctly installed
-        echo "Xcode installation not detected. Exiting $0 script." 
-        echo "Xcode installation is mandatory to use this AAMP installation automation script."
-        echo "please check your app store for Xcode or check at https://developer.apple.com/download/"
-        exit 0
-   
-   fi
-fi
 
 
 
 #Check OS=macOS
 if [[ "$OSTYPE" == "darwin"* ]]; then
+
     echo $OSTYPE
-   
+
+
+    #Check if Xcode is installed
+    if xpath=$( xcode-select --print-path ) &&
+      test -d "${xpath}" && test -x "${xpath}" ; then
+      echo "Xcode already installed. Skipping."
+
+    else
+      echo "Installing Xcode…"
+      xcode-select --install
+      if xpath=$( xcode-select --print-path ) &&
+            test -d "${xpath}" && test -x "${xpath}" ; then
+            echo "Xcode installed now."
+       else
+            #... isn't correctly installed
+            echo "Xcode installation not detected. Exiting $0 script."
+            echo "Xcode installation is mandatory to use this AAMP installation automation script."
+            echo "please check your app store for Xcode or check at https://developer.apple.com/download/"
+            exit 0
+       
+       fi
+    fi
+
+
+
+
     #cleanup old libs builds
     if [ -d "./.libs" ]; then
 	    sudo rm -rf ./.libs
@@ -323,6 +340,49 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     exit 0
 
     #print final status of the script
+elif [[ "$OSTYPE" == "linux"* ]]; then
+    
+    sudo apt install ninja-build
+    
+    cd Linux
+    #cat ../../../aampmetrics.patch > patches/aampmetrics.patch
+    sudo apt-get install freeglut3-dev build-essential
+    sudo apt-get install libglew-dev
+    sudo bash install-linux-deps.sh
+    bash install-linux.sh
+    
+    cd ../
+    echo "Building aamp-cli..."
+    if [ -d "./build" ]; then
+       sudo rm -rf ./build
+    fi
+
+    mkdir -p build
+    
+    PKG_CONFIG_PATH=$PWD/Linux/lib/pkgconfig /usr/bin/cmake --no-warn-unused-cli -DCMAKE_INSTALL_PREFIX=$PWD/Linux -DCMAKE_PLATFORM_UBUNTU=1 -DCMAKE_LIBRARY_PATH=$PWD/Linux/lib -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE -DCMAKE_BUILD_TYPE:STRING=Debug -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/gcc -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++ -S$PWD -B$PWD/build -G "Unix Makefiles"
+    
+    echo "Making aamp-cli..."
+    cd build
+    make
+    sudo make install
+    
+    if [  -f "./aamp-cli" ]; then
+        echo "****Linux AAMP Build PASSED****"
+        arr_install_status+=("Linux AAMP Build PASSED")
+        echo "Installing VSCode..."
+	    sudo snap install --classic code
+	    
+	    echo "Installing VSCode Dependencies..."
+	    code --install-extension ms-vscode.cmake-tools
+		
+	    echo "Openning VSCode Workspace..."
+	    code ../ubuntu-aamp-cli.code-workspace
+    else
+        echo "****Linux AAMP Build FAILED****"
+        arr_install_status+=("Linux AAMP Build FAILED")
+    fi
+    
+    
 else
 
         #abort the script if its not macOS
