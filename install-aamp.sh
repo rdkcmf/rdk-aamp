@@ -126,7 +126,7 @@ install_system_packages() {
         sudo installer -pkg gstreamer-1.0-devel-$defaultgstversion-universal.pkg  -target /
         rm gstreamer-1.0-devel-$defaultgstversion-universal.pkg
     fi
-    
+
  }
 
 #main/start
@@ -181,7 +181,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
         echo "Homebrew is installed now just updating it"
         brew update
     fi
-
+    
     brew install git
     brew install cmake
 
@@ -386,7 +386,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
         printf "$item ${arr_install_status[$item]} \n"
     done   
     echo ""
-    echo "********AAMP install summary end************"    
+    echo "********AAMP install summary end*************"
     #Launching aamp-cli
     
     otool -L ./Debug/aamp-cli
