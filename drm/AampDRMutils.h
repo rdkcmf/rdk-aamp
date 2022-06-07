@@ -54,10 +54,30 @@
 #define AAMP_SECMGR_INVALID_SESSION_ID (-1)
 #endif
 
+/**
+ *  @brief	Convert endianness of 16 byte block.
+ *
+ *  @param[in]	original - Pointer to source byte block.
+ *  @param[out]	guidBytes - Pointer to destination byte block.
+ *  @return	void.
+ */
 void aamp_ConvertEndianness(unsigned char *original, unsigned char *guidBytes);
-
+/**
+ *  @fn 	aamp_ExtractDataFromPssh
+ *  @param[in]	psshData - Pointer to PSSH data.
+ *  @param[in]	dataLength - Length of PSSH data.
+ *  @param[in]	startStr, endStr - Pointer to delimiter strings.
+ *  @param[in]  verStr - Pointer to version delimiter string.
+ *  @param[out]	len - Gets updated with length of content meta data.
+ *  @return	Extracted data between delimiters; NULL if not found.
+ */
 unsigned char *aamp_ExtractDataFromPssh(const char* psshData, int dataLength, const char* startStr, const char* endStr, int *len, const char* verStr);
-
+/**
+ *  @fn 	aamp_ExtractWVContentMetadataFromPssh
+ *  @param[in]	psshData - Pointer to PSSH data.
+ *  @param[in]  dataLength - pssh data length
+ *  @return	Extracted ContentMetaData.
+ */
 std::string aamp_ExtractWVContentMetadataFromPssh(const char* psshData, int dataLength);
 
 unsigned char * aamp_ExtractKeyIdFromPssh(const char* psshData, int dataLength, int *len, DRMSystems drmSystem);

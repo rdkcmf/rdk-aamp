@@ -15,7 +15,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
 /**
  * @file jsevent.cpp
@@ -38,6 +38,7 @@
 static JSClassRef AAMPJSEvent_class_ref();
 
 #ifdef JSEVENT_WITH_NATIVE_MEMORY
+
 /**
  * @brief AAMPJSEvent Constructor
  */
@@ -62,9 +63,6 @@ AAMPJSEvent::AAMPJSEvent()
 
 /**
  * @brief AAMPJSEvent Constructor
- * @param[in] type event type
- * @param[in] bubble true if event is a bubbling event
- * @param[in] cancelable true if event default operation can be cancelled
  */
 AAMPJSEvent::AAMPJSEvent(const char *type, bool bubble, bool cancelable)
 	: _bubbles(bubble)
@@ -100,12 +98,8 @@ AAMPJSEvent::~AAMPJSEvent()
 	}
 }
 
-
 /**
  * @brief Initialize event's properties
- * @param[in] type event type
- * @param[in] bubble true if event is a bubbling event
- * @param[in] cancelable true if event default operation can be cancelled
  */
 void AAMPJSEvent::initEvent(const char *type, bool bubble, bool cancelable)
 {
@@ -526,14 +520,8 @@ static const JSClassDefinition AAMPJSEvent_object_def =
 	NULL
 };
 
-/**
- * @brief To create a new JS event instance
- * @param[in] ctx JS execution context
- * @param[in] type event type
- * @param[in] bubbles denotes if event support bubbling
- * @param[in] cancelable denotes if event is cancelable
- * @retval JSObject of the new instance created
- */
+
+
 JSObjectRef createNewAAMPJSEvent(JSGlobalContextRef ctx, const char *type, bool bubbles, bool cancelable)
 {
         JSObjectRef eventObj = JSObjectMake(ctx, AAMPJSEvent_class_ref(), NULL);

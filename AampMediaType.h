@@ -17,10 +17,17 @@
  * limitations under the License.
 */
 
+/**
+ * @file AampMediaType.h
+ * @brief Media types representation
+ */
+
+
 #ifndef AAMPMEDIATYPE_H
 #define AAMPMEDIATYPE_H
 
 /**
+ * @enum MediaType
  * @brief Media types
  */
 // Please maintain the order video, audio, subtitle and aux_audio in future
@@ -47,7 +54,7 @@ enum MediaType
 	eMEDIATYPE_PLAYLIST_IFRAME,     /**< Type Iframe playlist */
 	eMEDIATYPE_INIT_IFRAME,         /**< Type IFRAME init fragment */
 	eMEDIATYPE_DSM_CC,              /**< Type digital storage media command and control (DSM-CC) */
-	eMEDIATYPE_IMAGE,		/**< Type image for thumbnail playlist */
+	eMEDIATYPE_IMAGE,	        /**< Type image for thumbnail playlist */
 	eMEDIATYPE_DEFAULT              /**< Type unknown */
 };
 

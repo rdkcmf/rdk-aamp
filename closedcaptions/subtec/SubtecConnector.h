@@ -34,6 +34,12 @@
 #define GSW_CC_COLOR(r,g,b)  ( (((r) & 0xFF) << 16) | (((g) & 0xFF) << 8) | ((b) & 0xFF) )
 
 #define GSW_MAX_CC_COLOR_NAME_LENGTH 32
+
+/**
+ * @struct gsw_CcColor
+ * @brief Structure to hold color information for CC
+ */
+
 typedef struct gsw_CcColor {
     int rgb;
     char name[GSW_MAX_CC_COLOR_NAME_LENGTH];
@@ -43,6 +49,7 @@ typedef struct gsw_CcColor {
 
 
 /**
+ * @enum gsw_CcType
  * @brief Closed Captioning type
  */
 typedef enum gsw_CcType {
@@ -53,6 +60,7 @@ typedef enum gsw_CcType {
 
 
 /**
+ * @enum gsw_CcOpacity
  * @brief Closed Captioning Opacity
  */
 typedef enum gsw_CcOpacity {
@@ -64,7 +72,10 @@ typedef enum gsw_CcOpacity {
     GSW_CC_OPACITY_MAX
 } gsw_CcOpacity;
 
-
+/**
+ * @enum gsw_CcFontSize
+ * @brief Closed caption Fontsize
+ */
 typedef enum gsw_CcFontSize {
     GSW_CC_FONT_SIZE_EMBEDDED = -1,
     GSW_CC_FONT_SIZE_SMALL,
@@ -76,27 +87,27 @@ typedef enum gsw_CcFontSize {
 
 
 static const char *CCSupportedColors_strings[] = {
-    "BLACK",                /* CCColor_BLACK,            */
-    "WHITE",                /* CCColor_WHITE,            */
-    "RED",                  /* CCColor_RED,              */
-    "GREEN",                /* CCColor_GREEN,            */
-    "BLUE",                 /* CCColor_BLUE,             */
-    "YELLOW",               /* CCColor_YELLOW,           */
-    "MAGENTA",              /* CCColor_MAGENTA,          */
-    "CYAN",                 /* CCColor_CYAN,             */
-    "AUTO",                 /* CCColor_AUTO,             */
+    "BLACK",                /**< CCColor_BLACK,            */
+    "WHITE",                /**< CCColor_WHITE,            */
+    "RED",                  /**< CCColor_RED,              */
+    "GREEN",                /**< CCColor_GREEN,            */
+    "BLUE",                 /**< CCColor_BLUE,             */
+    "YELLOW",               /**< CCColor_YELLOW,           */
+    "MAGENTA",              /**< CCColor_MAGENTA,          */
+    "CYAN",                 /**< CCColor_CYAN,             */
+    "AUTO",                 /**< CCColor_AUTO,             */
 };
 
 static unsigned long CCSupportedColors[] = {
-    0x00000000,             /* CCColor_BLACK,            */
-    0x00ffffff,             /* CCColor_WHITE,            */
-    0x00FF0000,             /* CCColor_RED,              */
-    0x0000FF00,             /* CCColor_GREEN,            */
-    0x000000FF,             /* CCColor_BLUE,             */
-    0x00FFFF00,             /* CCColor_YELLOW,           */
-    0x00FF00FF,             /* CCColor_MAGENTA,          */
-    0x0000FFFF,             /* CCColor_CYAN,             */
-    0xFF000000,             /* CCColor_AUTO,             */
+    0x00000000,             /**< CCColor_BLACK,            */
+    0x00ffffff,             /**< CCColor_WHITE,            */
+    0x00FF0000,             /**< CCColor_RED,              */
+    0x0000FF00,             /**< CCColor_GREEN,            */
+    0x000000FF,             /**< CCColor_BLUE,             */
+    0x00FFFF00,             /**< CCColor_YELLOW,           */
+    0x00FF00FF,             /**< CCColor_MAGENTA,          */
+    0x0000FFFF,             /**< CCColor_CYAN,             */
+    0xFF000000,             /**< CCColor_AUTO,             */
 };
 
 
@@ -117,6 +128,7 @@ typedef char gsw_CcFontStyle[GSW_CC_MAX_FONT_NAME_LENGTH];
 
 
 /**
+ * @enum gsw_CcTextStyle
  * @brief Closed captioning text styles.
  */
 typedef enum gsw_CcTextStyle {
@@ -128,6 +140,7 @@ typedef enum gsw_CcTextStyle {
 
 
 /**
+ * @enum gsw_CcBorderType
  * @brief Window Border type
  */
 typedef enum gsw_CcBorderType {
@@ -142,6 +155,7 @@ typedef enum gsw_CcBorderType {
 } gsw_CcBorderType;
 
 /**
+ * @enum gsw_CcEdgeType
  * @brief Font Edge type
  */
 typedef enum gsw_CcEdgeType {
@@ -156,27 +170,29 @@ typedef enum gsw_CcEdgeType {
 } gsw_CcEdgeType;
 
 /**
+ * @enum gsw_CcAttributes
  * @brief Closed Captioning Attributes
  */
 typedef struct gsw_CcAttributes {
-    gsw_CcColor charBgColor;    /* character background color */
-    gsw_CcColor charFgColor;    /* character foreground color */
-    gsw_CcColor winColor;       /* window color */
-    gsw_CcOpacity charBgOpacity;    /* background opacity */
-    gsw_CcOpacity charFgOpacity;    /* foreground opacity */
-    gsw_CcOpacity winOpacity;   /* window opacity */
-    gsw_CcFontSize fontSize;    /* font size */
-    gsw_CcFontStyle fontStyle;  /* font style */
-    gsw_CcTextStyle fontItalic; /* italicized font */
-    gsw_CcTextStyle fontUnderline;  /* underlined font */
-    gsw_CcBorderType borderType;    /* window border type */
-    gsw_CcColor borderColor;    /* window border color */
-    gsw_CcEdgeType edgeType;    /* font edge type */
-    gsw_CcColor edgeColor;      /* font edge color */
+    gsw_CcColor charBgColor;		/**< character background color */
+    gsw_CcColor charFgColor;    	/**< character foreground color */
+    gsw_CcColor winColor;       	/**< window color */
+    gsw_CcOpacity charBgOpacity;    	/**< background opacity */
+    gsw_CcOpacity charFgOpacity;    	/**< foreground opacity */
+    gsw_CcOpacity winOpacity;   	/**< window opacity */
+    gsw_CcFontSize fontSize;    	/**< font size */
+    gsw_CcFontStyle fontStyle;  	/**< font style */
+    gsw_CcTextStyle fontItalic; 	/**< italicized font */
+    gsw_CcTextStyle fontUnderline;  	/**< underlined font */
+    gsw_CcBorderType borderType;    	/**< window border type */
+    gsw_CcColor borderColor;    	/**< window border color */
+    gsw_CcEdgeType edgeType;    	/**< font edge type */
+    gsw_CcColor edgeColor;      	/**< font edge color */
 
 } gsw_CcAttributes;
 
 /**
+ * @enum gsw_CcAttribType
  * @brief type of attributes
  */
 typedef enum gsw_CcAttribType {
@@ -197,7 +213,10 @@ typedef enum gsw_CcAttribType {
     GSW_CC_ATTRIB_MAX
 } gsw_CcAttribType;
 
-
+/**
+ * @enum _CC_VL_OS_API_RESULT
+ * @brief CC API result
+ */
 typedef enum _CC_VL_OS_API_RESULT {
     CC_VL_OS_API_RESULT_SUCCESS = 0x0,
     CC_VL_OS_API_RESULT_FAILED = 0x1000000,
@@ -220,6 +239,7 @@ typedef enum _CC_VL_OS_API_RESULT {
 } CC_VL_OS_API_RESULT;
 
 /**
+ * @enum CCAnalogChannel_t
  * @brief Defines closed captioning analog channels.  Each of these channels defines
  * a different service.  For example, CC1 is the "Primary Synchronous
  * Caption Service", and CC2 is the "Secondary Synchronous Caption Service".
@@ -227,125 +247,127 @@ typedef enum _CC_VL_OS_API_RESULT {
 
 typedef enum {
 
-    CCChannel_INCLUSIVE_MINIMUM = 1000, /* Not set */
+    CCChannel_INCLUSIVE_MINIMUM = 1000, /**< Not set */
 
-    CCChannel_CC1,          /* CC1 */
+    CCChannel_CC1,          /**< CC1 */
 
-    CCChannel_CC2,          /* CC2 */
+    CCChannel_CC2,          /**< CC2 */
 
-    CCChannel_CC3,          /* CC3 */
+    CCChannel_CC3,          /**< CC3 */
 
-    CCChannel_CC4,          /* CC4 */
+    CCChannel_CC4,          /**< CC4 */
 
-    CCChannel_TEXT1,        /* Text 1 */
+    CCChannel_TEXT1,        /**< Text 1 */
 
-    CCChannel_TEXT2,        /* Text 2 */
+    CCChannel_TEXT2,        /**< Text 2 */
 
-    CCChannel_TEXT3,        /* Text 3 */
+    CCChannel_TEXT3,        /**< Text 3 */
 
-    CCChannel_TEXT4,        /* Text 4 */
+    CCChannel_TEXT4,        /**< Text 4 */
 
-    CCChannel_NONE,         /* Used to Set Digital channel to none. (Used to Disable Analog CC ) */
+    CCChannel_NONE,         /**< Used to Set Digital channel to none. (Used to Disable Analog CC ) */
 
-    CCChannel_XDS,          /* XDS */
+    CCChannel_XDS,          /**< XDS */
 
-    CCChannel_EXCLUSIVE_MAXIMUM /* Exclusive bounds check */
+    CCChannel_EXCLUSIVE_MAXIMUM /**< Exclusive bounds check */
 } CCAnalogChannel_t;
 
 typedef enum gsw_CcAnalogServices {
     GSW_CC_ANALOG_SERVICE_NONE = 0,
-    GSW_CC_ANALOG_SERVICE_CC1 = 1000, /**< Primary Caption service*/
-    GSW_CC_ANALOG_SERVICE_CC2 = 1001, /**< Secondary Caption service */
-    GSW_CC_ANALOG_SERVICE_CC3 = 1002, /**< Caption 3 */
-    GSW_CC_ANALOG_SERVICE_CC4 = 1003, /**< Caption 4 */
-    GSW_CC_ANALOG_SERVICE_T1 = 1004, /**< Text 1 */
-    GSW_CC_ANALOG_SERVICE_T2 = 1005, /**< Text 2 */
-    GSW_CC_ANALOG_SERVICE_T3 = 1006, /**< Text 3 */
-    GSW_CC_ANALOG_SERVICE_T4 = 1007 /**< Text 4 */
+    GSW_CC_ANALOG_SERVICE_CC1 = 1000,  /**< Primary Caption service*/
+    GSW_CC_ANALOG_SERVICE_CC2 = 1001,  /**< Secondary Caption service */
+    GSW_CC_ANALOG_SERVICE_CC3 = 1002,  /**< Caption 3 */
+    GSW_CC_ANALOG_SERVICE_CC4 = 1003,  /**< Caption 4 */
+    GSW_CC_ANALOG_SERVICE_T1 = 1004,   /**< Text 1 */
+    GSW_CC_ANALOG_SERVICE_T2 = 1005,   /**< Text 2 */
+    GSW_CC_ANALOG_SERVICE_T3 = 1006,   /**< Text 3 */
+    GSW_CC_ANALOG_SERVICE_T4 = 1007    /**< Text 4 */
 } gsw_CcAnalogServices;
 
-/*!
-* @brief Defines closed captioning digital channels.  Each of these channels defines
-* a different service.
-*/
+/**
+ * @enum CCDigitalChannel_t
+ * @brief Defines closed captioning digital channels.  Each of these channels defines
+ * a different service.
+ */
 typedef enum {
     CCDigitalChannel_INCLUSIVE_MINIMUM = 0, /* Not set */
-    CCDigitalChannel_DS1,   /* DS1 */
-    CCDigitalChannel_DS2,   /* DS2 */
-    CCDigitalChannel_DS3,   /* DS3 */
-    CCDigitalChannel_DS4,   /* DS4 */
-    CCDigitalChannel_DS5,   /* DS5 */
-    CCDigitalChannel_DS6,   /* DS6 */
-    CCDigitalChannel_DS7,   /* DS7 */
-    CCDigitalChannel_DS8,   /* DS8 */
-    CCDigitalChannel_DS9,   /* DS9 */
-    CCDigitalChannel_DS10,  /* DS10 */
-    CCDigitalChannel_DS11,  /* DS11 */
-    CCDigitalChannel_DS12,  /* DS12 */
-    CCDigitalChannel_DS13,  /* DS13 */
-    CCDigitalChannel_DS14,  /* DS14 */
-    CCDigitalChannel_DS15,  /* DS15 */
-    CCDigitalChannel_DS16,  /* DS16 */
-    CCDigitalChannel_DS17,  /* DS17 */
-    CCDigitalChannel_DS18,  /* DS18 */
-    CCDigitalChannel_DS19,  /* DS19 */
-    CCDigitalChannel_DS20,  /* DS20 */
-    CCDigitalChannel_DS21,  /* DS21 */
-    CCDigitalChannel_DS22,  /* DS22 */
-    CCDigitalChannel_DS23,  /* DS23 */
-    CCDigitalChannel_DS24,  /* DS24 */
-    CCDigitalChannel_DS25,  /* DS25 */
-    CCDigitalChannel_DS26,  /* DS26 */
-    CCDigitalChannel_DS27,  /* DS27 */
-    CCDigitalChannel_DS28,  /* DS28 */
-    CCDigitalChannel_DS29,  /* DS29 */
-    CCDigitalChannel_DS30,  /* DS30 */
-    CCDigitalChannel_DS31,  /* DS31 */
-    CCDigitalChannel_DS32,  /* DS32 */
-    CCDigitalChannel_DS33,  /* DS33 */
-    CCDigitalChannel_DS34,  /* DS34 */
-    CCDigitalChannel_DS35,  /* DS35 */
-    CCDigitalChannel_DS36,  /* DS36 */
-    CCDigitalChannel_DS37,  /* DS37 */
-    CCDigitalChannel_DS38,  /* DS38 */
-    CCDigitalChannel_DS39,  /* DS39 */
-    CCDigitalChannel_DS40,  /* DS40 */
-    CCDigitalChannel_DS41,  /* DS41 */
-    CCDigitalChannel_DS42,  /* DS42 */
-    CCDigitalChannel_DS43,  /* DS43 */
-    CCDigitalChannel_DS44,  /* DS44 */
-    CCDigitalChannel_DS45,  /* DS45 */
-    CCDigitalChannel_DS46,  /* DS46 */
-    CCDigitalChannel_DS47,  /* DS47 */
-    CCDigitalChannel_DS48,  /* DS48 */
-    CCDigitalChannel_DS49,  /* DS49 */
-    CCDigitalChannel_DS50,  /* DS50 */
-    CCDigitalChannel_DS51,  /* DS51 */
-    CCDigitalChannel_DS52,  /* DS52 */
-    CCDigitalChannel_DS53,  /* DS53 */
-    CCDigitalChannel_DS54,  /* DS54 */
-    CCDigitalChannel_DS55,  /* DS55 */
-    CCDigitalChannel_DS56,  /* DS56 */
-    CCDigitalChannel_DS57,  /* DS57 */
-    CCDigitalChannel_DS58,  /* DS58 */
-    CCDigitalChannel_DS59,  /* DS59 */
-    CCDigitalChannel_DS60,  /* DS60 */
-    CCDigitalChannel_DS61,  /* DS61 */
-    CCDigitalChannel_DS62,  /* DS62 */
-    CCDigitalChannel_DS63,  /* DS63 */
-    CCDigitalChannel_NONE,  /* Used to Set Digital channel to none. (Used to Disable Digital CC.) */
-    CCDigitalChannel_EXCLUSIVE_MAXIMUM  /* Exclusive bounds check */
+    CCDigitalChannel_DS1,   /**< DS1 */
+    CCDigitalChannel_DS2,   /**< DS2 */
+    CCDigitalChannel_DS3,   /**< DS3 */
+    CCDigitalChannel_DS4,   /**< DS4 */
+    CCDigitalChannel_DS5,   /**< DS5 */
+    CCDigitalChannel_DS6,   /**< DS6 */
+    CCDigitalChannel_DS7,   /**< DS7 */
+    CCDigitalChannel_DS8,   /**< DS8 */
+    CCDigitalChannel_DS9,   /**< DS9 */
+    CCDigitalChannel_DS10,  /**< DS10 */
+    CCDigitalChannel_DS11,  /**< DS11 */
+    CCDigitalChannel_DS12,  /**< DS12 */
+    CCDigitalChannel_DS13,  /**< DS13 */
+    CCDigitalChannel_DS14,  /**< DS14 */
+    CCDigitalChannel_DS15,  /**< DS15 */
+    CCDigitalChannel_DS16,  /**< DS16 */
+    CCDigitalChannel_DS17,  /**< DS17 */
+    CCDigitalChannel_DS18,  /**< DS18 */
+    CCDigitalChannel_DS19,  /**< DS19 */
+    CCDigitalChannel_DS20,  /**< DS20 */
+    CCDigitalChannel_DS21,  /**< DS21 */
+    CCDigitalChannel_DS22,  /**< DS22 */
+    CCDigitalChannel_DS23,  /**< DS23 */
+    CCDigitalChannel_DS24,  /**< DS24 */
+    CCDigitalChannel_DS25,  /**< DS25 */
+    CCDigitalChannel_DS26,  /**< DS26 */
+    CCDigitalChannel_DS27,  /**< DS27 */
+    CCDigitalChannel_DS28,  /**< DS28 */
+    CCDigitalChannel_DS29,  /**< DS29 */
+    CCDigitalChannel_DS30,  /**< DS30 */
+    CCDigitalChannel_DS31,  /**< DS31 */
+    CCDigitalChannel_DS32,  /**< DS32 */
+    CCDigitalChannel_DS33,  /**< DS33 */
+    CCDigitalChannel_DS34,  /**< DS34 */
+    CCDigitalChannel_DS35,  /**< DS35 */
+    CCDigitalChannel_DS36,  /**< DS36 */
+    CCDigitalChannel_DS37,  /**< DS37 */
+    CCDigitalChannel_DS38,  /**< DS38 */
+    CCDigitalChannel_DS39,  /**< DS39 */
+    CCDigitalChannel_DS40,  /**< DS40 */
+    CCDigitalChannel_DS41,  /**< DS41 */
+    CCDigitalChannel_DS42,  /**< DS42 */
+    CCDigitalChannel_DS43,  /**< DS43 */
+    CCDigitalChannel_DS44,  /**< DS44 */
+    CCDigitalChannel_DS45,  /**< DS45 */
+    CCDigitalChannel_DS46,  /**< DS46 */
+    CCDigitalChannel_DS47,  /**< DS47 */
+    CCDigitalChannel_DS48,  /**< DS48 */
+    CCDigitalChannel_DS49,  /**< DS49 */
+    CCDigitalChannel_DS50,  /**< DS50 */
+    CCDigitalChannel_DS51,  /**< DS51 */
+    CCDigitalChannel_DS52,  /**< DS52 */
+    CCDigitalChannel_DS53,  /**< DS53 */
+    CCDigitalChannel_DS54,  /**< DS54 */
+    CCDigitalChannel_DS55,  /**< DS55 */
+    CCDigitalChannel_DS56,  /**< DS56 */
+    CCDigitalChannel_DS57,  /**< DS57 */
+    CCDigitalChannel_DS58,  /**< DS58 */
+    CCDigitalChannel_DS59,  /**< DS59 */
+    CCDigitalChannel_DS60,  /**< DS60 */
+    CCDigitalChannel_DS61,  /**< DS61 */
+    CCDigitalChannel_DS62,  /**< DS62 */
+    CCDigitalChannel_DS63,  /**< DS63 */
+    CCDigitalChannel_NONE,  /**< Used to Set Digital channel to none. (Used to Disable Digital CC.) */
+    CCDigitalChannel_EXCLUSIVE_MAXIMUM  /**< Exclusive bounds check */
 } CCDigitalChannel_t;
 
 /**
+ * @enum CCStatus_t
  * @brief Closed Caption Status values as referred to by Applications
  */
 typedef enum {
-    CCStatus_OFF = 0,       /* Closed Caption Disabled */
+    CCStatus_OFF = 0,       /**< Closed Caption Disabled */
 
-    CCStatus_ON,            /* Closed Caption Enabled */
+    CCStatus_ON,            /**< Closed Caption Enabled */
 
-    CCStatus_ON_MUTE,       /* Closed Caption ON MUTE */
+    CCStatus_ON_MUTE,       /**< Closed Caption ON MUTE */
 
     CCStatus_EXCLUSIVE_MAXIMUM
 } CCStatus_t;

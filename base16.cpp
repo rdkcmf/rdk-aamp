@@ -29,11 +29,8 @@
 #include <stdio.h>
 
 
-
 /**
  * @brief convert binary data to hascii-encoded equivalent
- * @param src pointer to first byte of binary data to be encoded
- * @param len number of bytes to encode
  * @retval pointer to malloc'd cstring containing base16-encoded copy
  * @retval NULL if unsufficient memory to allocate base16-encoded copt
  * @note caller responsible for freeing returned cstring
@@ -63,9 +60,6 @@ char *base16_Encode(const unsigned char *src, size_t len)
 
 /**
  * @brief decode base16 encoded data to binary equivalent
- * @param srcPtr pointer to cstring containing base16-encoded data
- * @param srcLen length of srcPtr (typically caller already knows, so saves call to strlen)
- * @param len receives byte length of returned pointer, or zero upon failure
  * @retval pointer to malloc'd memory containing decoded binary data.
  * @retval NULL if insufficient memory to allocate base16-decoded data
  * @note caller responsible for freeing returned data

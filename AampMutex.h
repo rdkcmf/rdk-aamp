@@ -18,9 +18,9 @@
 */
 
 /**
-* @file AampMutex.h
-* @brief Helper class for scoped mutex lock
-*/
+ * @file AampMutex.h
+ * @brief Helper class for scoped mutex lock
+ */
 
 #ifndef _AAMP_MUTEX_H
 #define _AAMP_MUTEX_H

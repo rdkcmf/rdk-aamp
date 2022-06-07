@@ -17,14 +17,20 @@
  * limitations under the License.
 */
 
+/**
+ * @file AampEventManager.cpp
+ * @brief Event Manager operationss for Aamp
+ */
+
 #include "AampEventManager.h"
 
 
 //#define EVENT_DEBUGGING 1
 
+
 /**
- * @brief Get the idle task's source ID
- * @retval source ID
+ * @brief GetSourceID - Get the idle task's source ID
+ * @return Source Id
  */
 guint AampEventManager::GetSourceID()
 {
@@ -37,11 +43,8 @@ guint AampEventManager::GetSourceID()
 	return callbackId;
 }
 
-
 /**
- *	 @brief Default Constructor
- *
- *	 @return void
+ * @brief Default Constructor
  */
 AampEventManager::AampEventManager(AampLogManager *logObj): mIsFakeTune(false),mLogObj(logObj),
 					mAsyncTuneEnabled(false),mEventPriority(G_PRIORITY_DEFAULT_IDLE),mMutexVar(PTHREAD_MUTEX_INITIALIZER),
@@ -53,9 +56,10 @@ AampEventManager::AampEventManager(AampLogManager *logObj): mIsFakeTune(false),m
 		mEventStats[i]		=	 0;
 	}
 }
+
 /**
-* @brief Destructor Function
-*/
+ * @brief Destructor Function
+ */
 AampEventManager::~AampEventManager()
 {
 
@@ -76,8 +80,7 @@ AampEventManager::~AampEventManager()
 }
 
 /**
- * @brief FlushPendingEvents - Flush Remaining events in the queue
- * @return void
+ * @brief FlushPendingEvents - Clear all pending events from EventManager
  */
 void AampEventManager::FlushPendingEvents()
 {
@@ -118,9 +121,7 @@ void AampEventManager::FlushPendingEvents()
 
 /**
  * @brief AddListenerForAllEvents - Register one listener for all events
- * @param EventListener - listerner for events
- * @return void
- */
+ */ 
 void AampEventManager::AddListenerForAllEvents(EventListener* eventListener)
 {
 	if(eventListener != NULL)
@@ -135,8 +136,6 @@ void AampEventManager::AddListenerForAllEvents(EventListener* eventListener)
 
 /**
  * @brief RemoveListenerForAllEvents - Remove listener for all events
- * @param EventListener - listerner for events
- * @return void
  */
 void AampEventManager::RemoveListenerForAllEvents(EventListener* eventListener)
 {
@@ -151,10 +150,8 @@ void AampEventManager::RemoveListenerForAllEvents(EventListener* eventListener)
 }
 
 /**
- * @brief Add listener to aamp events
- * @param eventType type of event to subscribe
- * @param eventListener listener
- */
+ * @brief AddEventListener - Register  listener for one eventtype
+ */ 
 void AampEventManager::AddEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
 	if ((eventListener != NULL) && (eventType >= AAMP_EVENT_ALL_EVENTS) && (eventType < AAMP_MAX_NUM_EVENTS))
@@ -176,11 +173,8 @@ void AampEventManager::AddEventListener(AAMPEventType eventType, EventListener* 
 	}
 }
 
-
 /**
- * @brief Remove listener to aamp events
- * @param eventType type of event to unsubscribe
- * @param eventListener listener
+ * @brief RemoveEventListener - Remove one listener registration for one event
  */
 void AampEventManager::RemoveEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
@@ -207,10 +201,8 @@ void AampEventManager::RemoveEventListener(AAMPEventType eventType, EventListene
 }
 
 /**
- * @brief IsEventListenerAvailable - Check if any listners present for this event
- * @param AAMPEventType - Event Type
- * @return True if listner present
- */
+ * @brief IsSpecificEventListenerAvailable - Check if this particular listener present for this event
+ */ 
 bool AampEventManager::IsSpecificEventListenerAvailable(AAMPEventType eventType)
 {	
 	bool retVal=false;
@@ -223,6 +215,9 @@ bool AampEventManager::IsSpecificEventListenerAvailable(AAMPEventType eventType)
 	return retVal;
 }
 
+/**
+ * @brief IsEventListenerAvailable - Check if any listners present for this event
+ */ 
 bool AampEventManager::IsEventListenerAvailable(AAMPEventType eventType)
 {
 	bool retVal=false;
@@ -234,11 +229,10 @@ bool AampEventManager::IsEventListenerAvailable(AAMPEventType eventType)
 	pthread_mutex_unlock(&mMutexVar);
 	return retVal;
 }
+
 /**
  * @brief SetFakeTuneFlag - Some events are restricted for FakeTune
- * @param boolean - True for FakeTune
- * @return void
- */
+ */ 
 void AampEventManager::SetFakeTuneFlag(bool isFakeTuneSetting)
 {
 	pthread_mutex_lock(&mMutexVar);
@@ -246,6 +240,9 @@ void AampEventManager::SetFakeTuneFlag(bool isFakeTuneSetting)
 	pthread_mutex_unlock(&mMutexVar);
 }
 
+/**
+ * @brief SetAsyncTuneState - Flag for Async Tune
+ */ 
 void AampEventManager::SetAsyncTuneState(bool isAsyncTuneSetting)
 {
 	pthread_mutex_lock(&mMutexVar);
@@ -263,8 +260,6 @@ void AampEventManager::SetAsyncTuneState(bool isAsyncTuneSetting)
 
 /**
  * @brief SetPlayerState - Flag to update player state
- * @param PrivAAMPState - Player state
- * @return void
  */
 void AampEventManager::SetPlayerState(PrivAAMPState state)
 {
@@ -275,9 +270,7 @@ void AampEventManager::SetPlayerState(PrivAAMPState state)
 
 /**
  * @brief SendEvent - Generic function to send events
- * @param AAMPEventPtr - Event data
- * @return void
- */
+ */ 
 void AampEventManager::SendEvent(const AAMPEventPtr &eventData, AAMPEventMode eventMode)
 {
 	// If some event wants to override  to send as Sync ,then override flag to be set
@@ -323,6 +316,9 @@ void AampEventManager::SendEvent(const AAMPEventPtr &eventData, AAMPEventMode ev
 
 
 // Worker thread for handling Async Events
+/**
+ * @brief AsyncEvent - Task function for IdleEvent
+ */ 
 void AampEventManager::AsyncEvent()
 {
 	pthread_mutex_lock(&mMutexVar);
@@ -341,9 +337,8 @@ void AampEventManager::AsyncEvent()
 }
 
 /**
- * @brief Send event asynchronously to listeners
- * @param e event
- */
+ * @brief SendEventAsync - Function to send events Async
+ */ 
 void AampEventManager::SendEventAsync(const AAMPEventPtr &eventData)
 {
 	AAMPEventType eventType = eventData->getType();
@@ -368,9 +363,8 @@ void AampEventManager::SendEventAsync(const AAMPEventPtr &eventData)
 
 
 /**
- * @brief Send event synchronously to listeners
- * @param e event
- */
+ * @brief SendEventSync - Function to send events sync
+ */ 
 void AampEventManager::SendEventSync(const AAMPEventPtr &eventData)
 {
 	AAMPEventType eventType = eventData->getType();
@@ -439,10 +433,8 @@ void AampEventManager::SendEventSync(const AAMPEventPtr &eventData)
 
 }
 
-
 /**
- * @brief Set an idle callback to dispatched state
- * @param id Idle task Id
+ * @brief SetCallbackAsDispatched - Set callbackId as dispatched/done
  */
 void AampEventManager::SetCallbackAsDispatched(guint id)
 {
@@ -463,9 +455,8 @@ void AampEventManager::SetCallbackAsDispatched(guint id)
 }
 
 /**
- * @brief Set an idle callback to pending state
- * @param id Idle task Id
- */
+ * @brief SetCallbackAsPending - Set callbackId as Pending/to be done
+ */ 
 void AampEventManager::SetCallbackAsPending(guint id)
 {
 	pthread_mutex_lock(&mMutexVar);

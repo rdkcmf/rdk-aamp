@@ -146,27 +146,32 @@ void print_nop(const char *format, ...){}
 #define DEBUG_DEMUX DEBUG
 #endif
 
+/**
+ * @enum StreamType
+ * @brief Types of streams
+ */
+
 enum StreamType
 {
-	eSTREAM_TYPE_MPEG2_VIDEO = 0x02, // MPEG2 Video
-	eSTREAM_TYPE_MPEG1_AUDIO = 0x03, // MPEG1 Audio
-	eSTREAM_TYPE_MPEG2_AUDIO = 0x04, // MPEG2 Audio
-	eSTREAM_TYPE_PES_PRIVATE = 0x06, // PES packets containing private data
-	eSTREAM_TYPE_AAC_ADTS    = 0x0F, // MPEG2 AAC Audio
-	eSTREAM_TYPE_AAC_LATM    = 0x11, // MPEG4 LATM AAC Audio
-	eSTREAM_TYPE_DSM_CC      = 0x15, // ISO/IEC13818-6 DSM CC deferred association tag with ID3 metadata
-	eSTREAM_TYPE_H264        = 0x1B, // H.264 Video
-	eSTREAM_TYPE_HEVC_VIDEO  = 0x24, // HEVC video
-	eSTREAM_TYPE_ATSC_VIDEO  = 0x80, // ATSC Video
-	eSTREAM_TYPE_ATSC_AC3    = 0x81, // ATSC AC3 Audio
-	eSTREAM_TYPE_HDMV_DTS    = 0x82, // HDMV DTS Audio
-	eSTREAM_TYPE_LPCM_AUDIO  = 0x83, // LPCM Audio
-	eSTREAM_TYPE_ATSC_AC3PLUS  = 0x84, // SDDS Audio
-	eSTREAM_TYPE_DTSHD_AUDIO = 0x86, // DTS-HD Audio
-	eSTREAM_TYPE_ATSC_EAC3   = 0x87, // ATSC E-AC3 Audio
-	eSTREAM_TYPE_DTS_AUDIO   = 0x8A, // DTS Audio
-	eSTREAM_TYPE_AC3_AUDIO   = 0x91, // A52b/AC3 Audio
-	eSTREAM_TYPE_SDDS_AUDIO1 = 0x94  // SDDS Audio
+	eSTREAM_TYPE_MPEG2_VIDEO = 0x02,   /**< MPEG2 Video */
+	eSTREAM_TYPE_MPEG1_AUDIO = 0x03,   /**< MPEG1 Audio */
+	eSTREAM_TYPE_MPEG2_AUDIO = 0x04,   /**< MPEG2 Audio */
+	eSTREAM_TYPE_PES_PRIVATE = 0x06,   /**< PES packets containing private data */
+	eSTREAM_TYPE_AAC_ADTS    = 0x0F,   /**< MPEG2 AAC Audio */
+	eSTREAM_TYPE_AAC_LATM    = 0x11,   /**< MPEG4 LATM AAC Audio */
+	eSTREAM_TYPE_DSM_CC      = 0x15,   /**< ISO/IEC13818-6 DSM CC deferred association tag with ID3 metadata */
+	eSTREAM_TYPE_H264        = 0x1B,   /**< H.264 Video */
+	eSTREAM_TYPE_HEVC_VIDEO  = 0x24,   /**< HEVC video */
+	eSTREAM_TYPE_ATSC_VIDEO  = 0x80,   /**< ATSC Video */
+	eSTREAM_TYPE_ATSC_AC3    = 0x81,   /**< ATSC AC3 Audio */
+	eSTREAM_TYPE_HDMV_DTS    = 0x82,   /**< HDMV DTS Audio */
+	eSTREAM_TYPE_LPCM_AUDIO  = 0x83,   /**< LPCM Audio */
+	eSTREAM_TYPE_ATSC_AC3PLUS  = 0x84, /**< SDDS Audio */
+	eSTREAM_TYPE_DTSHD_AUDIO = 0x86,   /**< DTS-HD Audio */
+	eSTREAM_TYPE_ATSC_EAC3   = 0x87,   /**< ATSC E-AC3 Audio */
+	eSTREAM_TYPE_DTS_AUDIO   = 0x8A,   /**< DTS Audio  */
+	eSTREAM_TYPE_AC3_AUDIO   = 0x91,   /**< A52b/AC3 Audio */
+	eSTREAM_TYPE_SDDS_AUDIO1 = 0x94    /**< SDDS Audio */
 };
 
 static unsigned long long mTimeAdjust;
@@ -821,10 +826,6 @@ static StreamOutputFormat getStreamFormatForCodecType(int streamType)
 
 /**
  * @brief TSProcessor Constructor
- * @param[in] aamp Pointer to aamp associated with this TSProcessor
- * @param[in] streamOperation Operation to be done on injected data.
- * @param[in] track MediaType to be operated on. Not relavent for demux operation
- * @param[in] peerTSProcessor Peer TSProcessor used along with this in case of separate audio/video playlists
  */
 TSProcessor::TSProcessor(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,StreamOperation streamOperation, int track, TSProcessor* peerTSProcessor, TSProcessor* auxTSProcessor)
 	: m_needDiscontinuity(true),
@@ -975,12 +976,8 @@ TSProcessor::~TSProcessor()
 #define PLAY_BUFFER_SIGNATURE (('P')|(('L')<<8)|(('A')<<16)|(('Y')<<24))
 
 
-
 /**
  * @brief Insert PAT and PMT sections
- * @param[out] buffer PAT and PMT is copied to this buffer
- * @param[in] trick true on trick mode, false on normal playback
- * @param[in] bufferSize size of buffer
  * @retval length of output buffer
  */
 int TSProcessor::insertPatPmt(unsigned char *buffer, bool trick, int bufferSize)
@@ -1016,11 +1013,8 @@ int TSProcessor::insertPatPmt(unsigned char *buffer, bool trick, int bufferSize)
 	return len;
 }
 
-
 /**
  * @brief insert PCR to the packet in case of PTS restamping
- * @param[in] packet[in,out] buffer to which PCR to be inserted
- * @param[in] pid[in] pcr pid
  */
 void TSProcessor::insertPCR(unsigned char *packet, int pid)
 {
@@ -1053,8 +1047,6 @@ void TSProcessor::insertPCR(unsigned char *packet, int pid)
 
 /**
  * @brief process PMT section and update media components.
- * @param[in] section character buffer containing PMT section
- * @param[in] sectionLength length of PMT section
  * @note Call with section pointing to first byte after section_length
  */
 void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
@@ -1293,7 +1285,6 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 	m_havePMT = true;
 }
 
-
 /**
  * @brief Generate and update PAT and PMT sections
  */
@@ -1322,11 +1313,9 @@ void TSProcessor::updatePATPMT()
 	generatePATandPMT(false, &m_PatPmtPcr, &m_PatPmtPcrLen, true);
 }
 
-
 /**
  * @brief Send discontinuity packet. Not relevant for demux operations
- * @param[in] position position in seconds
- */
+ */ 
 void TSProcessor::sendDiscontinuity(double position)
 {
 
@@ -1437,7 +1426,6 @@ void TSProcessor::sendDiscontinuity(double position)
 	m_needDiscontinuity = false;
 }
 
-
 /**
  * @brief Get current time stamp in milliseconds
  * @retval time stamp in milliseconds
@@ -1456,8 +1444,6 @@ long long TSProcessor::getCurrentTime()
 
 /**
  * @brief sleep used internal by throttle logic
- * @param[in] throttleDiff time in milliseconds
- * @retval true on abort
  */
 bool TSProcessor::msleep(long long throttleDiff)
 {
@@ -1492,7 +1478,6 @@ bool TSProcessor::msleep(long long throttleDiff)
 	pthread_mutex_unlock(&m_mutex);
 	return aborted;
 }
-
 
 /**
  * @brief Blocks based on PTS. Can be used for pacing injection.
@@ -1613,12 +1598,8 @@ bool TSProcessor::throttle()
 	return aborted;
 }
 
-
 /**
  * @brief Process buffers and update internal states related to media components
- * @param[in] buffer contains TS data
- * @param[in] size lenght of the buffer
- * @param[out] insPatPmt indicates if PAT and PMT needs to inserted
  * @retval false if operation is aborted.
  */
 bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt)
@@ -2053,10 +2034,8 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 	return result;
 }
 
-
 /**
  * @brief Update internal state variables to set up throttle
- * @param[in] segmentDurationMsSigned Duration of segment
  */
 void TSProcessor::setupThrottle(int segmentDurationMsSigned)
 {
@@ -2068,15 +2047,8 @@ void TSProcessor::setupThrottle(int segmentDurationMsSigned)
 	TRACE1("segmentDurationMs %d", segmentDurationMs);
 }
 
-
 /**
  * @brief Demux TS and send elementary streams
- * @param[in] ptr buffer containing TS data
- * @param[in] len lenght of buffer
- * @param[in] position position of segment in seconds
- * @param[in] duration duration of segment in seconds
- * @param[in] discontinuous true if segment is discontinous
- * @param[in] trackToDemux media track to do the operation
  * @retval true on success, false on PTS error
  */
 bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, double duration, bool discontinuous, TrackToDemux trackToDemux)
@@ -2326,12 +2298,9 @@ void TSProcessor::flush()
 	pthread_mutex_unlock(&m_mutex);
 }
 
-
 /**
  * @brief Send queued segment
- * @param[in] basepts new base pts to be set. Valid only for eStreamOp_DEMUX_AUDIO.
- * @param[in] updatedStartPositon New start position of queued segment.
- */
+ */ 
 void TSProcessor::sendQueuedSegment(long long basepts, double updatedStartPositon)
 {
 	WARNING("PC %p basepts %lld", this, basepts);
@@ -2373,11 +2342,8 @@ void TSProcessor::sendQueuedSegment(long long basepts, double updatedStartPosito
 	pthread_mutex_unlock(&m_mutex);
 }
 
-
 /**
  * @brief set base PTS for demux operations
- * @param[in] position start position of fragment
- * @param[in] pts base pts for demux operations.
  */
 void TSProcessor::setBasePTS(double position, long long pts)
 {
@@ -2398,13 +2364,7 @@ void TSProcessor::setBasePTS(double position, long long pts)
 
 /**
  * @brief Does configured operation on the segment and injects data to sink
- * @param[in] segment Buffer containing the data segment
- * @param[in] size Specifies size of the segment in bytes.
- * @param[in] position Position of the segment in seconds
- * @param[in] duration Duration of the segment in seconds
- * @param[in] discontinuous true if fragment is discontinuous
- * @param[out] true on PTS error
- * @retval true on success
+ *        Process and send media fragment
  */
 bool TSProcessor::sendSegment(char *segment, size_t& size, double position, double duration, bool discontinuous, bool &ptsError)
 {
@@ -2591,10 +2551,6 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 
 /**
  * @brief Process ES start code
- * @param[in] buffer buffer containing start code
- * @param[in] keepScanning true to keep on scanning
- * @param[in] length size of the buffer
- * @param[in] base Not used
  */
 bool TSProcessor::processStartCode(unsigned char *buffer, bool& keepScanning, int length, int base)
 {
@@ -2864,11 +2820,8 @@ bool TSProcessor::processStartCode(unsigned char *buffer, bool& keepScanning, in
 	return result;
 }
 
-
 /**
  * @brief Updates state variables depending on interlaced
- * @param[in] packet buffer containing TS packet
- * @param[in] length length of buffer
  */
 void TSProcessor::checkIfInterlaced(unsigned char *packet, int length)
 {
@@ -3011,11 +2964,8 @@ void TSProcessor::checkIfInterlaced(unsigned char *packet, int length)
 	m_scanRemainderSize = 0;
 }
 
-
 /**
  * @brief Does PTS re-stamping
- * @param[in,out] packet TS data to re-stamp
- * @param[in] length[in] TS data size
  */
 void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 {
@@ -3374,13 +3324,10 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 }
 
 /**
-* @brief Set to the playback mode.
-*
-* @param[in] mode play mode such as PlayMode_normal, PlayMode_retimestamp_Ionly,
-* PlayMode_retimestamp_IPB, PlayMode_retimestamp_IandP or PlayMode_reverse_GOP.
-*
-* @note Not relevant for demux operations
-*/
+ * @brief Set to the playback mode.
+ *
+ * @note Not relevant for demux operations
+ */ 
 void TSProcessor::setPlayMode(PlayMode mode)
 {
 	INFO("setting playback mode to %s", (mode == PlayMode_normal) ? "PlayMode_normal" :
@@ -3390,7 +3337,6 @@ void TSProcessor::setPlayMode(PlayMode mode)
 		"PlayMode_reverse_GOP");
 	m_playModeNext = mode;
 }
-
 
 /**
  * @brief Abort TSProcessor operations and return blocking calls immediately
@@ -3418,16 +3364,11 @@ void TSProcessor::abort()
 	pthread_mutex_unlock(&m_mutex);
 }
 
-
 /**
-* @brief Set the playback rate.
-*
-* @param[in] rate play rate could be 1.0=Normal Playback, 0.0=Pause, etc
-* @param[in] mode play mode such as PlayMode_normal, PlayMode_retimestamp_Ionly,
-* PlayMode_retimestamp_IPB, PlayMode_retimestamp_IandP or PlayMode_reverse_GOP.
-*
-* @note mode is not relevant for demux operations
-*/
+ * @brief Set the playback rate.
+ *
+ * @note mode is not relevant for demux operations
+ */
 void TSProcessor::setRate(double rate, PlayMode mode)
 {
 	pthread_mutex_lock(&m_mutex);
@@ -3445,7 +3386,6 @@ void TSProcessor::setRate(double rate, PlayMode mode)
 
 /**
  * @brief Enable/ disable throttle
- * @param[in] enable true to enable throttle, false to disable
  */
 void TSProcessor::setThrottleEnable(bool enable)
 {
@@ -3453,13 +3393,8 @@ void TSProcessor::setThrottleEnable(bool enable)
 	m_throttle = enable;
 }
 
-
 /**
  * @brief generate PAT and PMT based on media components
- * @param[in] trick true on trickmode
- * @param[out] buff PAT and PMT copied to this buffer
- * @param[out] buflen Length of buff
- * @param[in] bHandleMCTrick true if audio pid is same as PCR pid
  */
 bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *buflen, bool bHandleMCTrick)
 {
@@ -3862,13 +3797,8 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 	return result;
 }
 
-
 /**
  * @brief Appends a byte to PMT buffer
- * @param[in,out] pmt buffer in which PMT is being constructed
- * @param[in,out] index current index of PMT construction.
- * @param[in] byte byte to be written at index
- * @param[in] pmtPid PID of PMT
  */
 void TSProcessor::putPmtByte(unsigned char* &pmt, int& index, unsigned char byte, int pmtPid)
 {
@@ -3901,10 +3831,9 @@ void TSProcessor::putPmtByte(unsigned char* &pmt, int& index, unsigned char byte
 //
 // From ISO 13818-1
 
+
 /**
  * @brief Read time-stamp at the point
- * @param[in] p buffer position containing time-stamp
- * @param[out] TS time-stamp
  * @retval true if time-stamp is present.
  */
 bool TSProcessor::readTimeStamp(unsigned char *p, long long& TS)
@@ -3947,12 +3876,8 @@ bool TSProcessor::readTimeStamp(unsigned char *p, long long& TS)
 	return result;
 }
 
-
 /**
  * @brief Write time-stamp to buffer
- * @param[out] p buffer to which TS to be written
- * @param[in] prefix of time-stamp
- * @param[in] TS time-stamp
  */
 void TSProcessor::writeTimeStamp(unsigned char *p, int prefix, long long TS)
 {
@@ -3963,11 +3888,9 @@ void TSProcessor::writeTimeStamp(unsigned char *p, int prefix, long long TS)
 	p[4] = ((((TS)& 0x7F) << 1) | 0x01);
 }
 
-
 /**
  * @brief Read PCR from a buffer
- * @param[in] p start of PCR data
- */
+ */ 
 long long TSProcessor::readPCR(unsigned char *p)
 {
 	long long PCR = (((long long)(p[0] & 0xFF)) << (33 - 8)) |
@@ -3978,12 +3901,8 @@ long long TSProcessor::readPCR(unsigned char *p)
 	return PCR;
 }
 
-
 /**
  * @brief Write PCR to a buffer
- * @param[out] p buffer to write PCR
- * @param[in] PCR timestamp to be written
- * @param[in] clearExtension clear PCR extension
  */
 void TSProcessor::writePCR(unsigned char *p, long long PCR, bool clearExtension)
 {
@@ -4075,12 +3994,8 @@ static unsigned char nullPFrameHeader[] =
          bitcount -= 8;                                   \
 			  		        }
 
-
 /**
  * @brief Create a Null P frame
- * @param[in] width width of P frame to be constructed
- * @param[in] height height of P frame
- * @param[out] nullPFrameLen length of constructed p frame
  * @retval Buffer containing P frame
  */
 unsigned char* TSProcessor::createNullPFrame(int width, int height, int *nullPFrameLen)
@@ -4232,8 +4147,6 @@ unsigned char* TSProcessor::createNullPFrame(int width, int height, int *nullPFr
 
 /**
  * @brief process sequence parameter set and update state variables
- * @param[in] p pointer containing SPS
- * @param[in] length size of SPS
  * @retval true if SPS is processed successfully
  */
 bool TSProcessor::processSeqParameterSet(unsigned char *p, int length)
@@ -4455,8 +4368,6 @@ bool TSProcessor::processSeqParameterSet(unsigned char *p, int length)
 
 /**
  * @brief Parse through the picture parameter set to get required items
- * @param[in] p buffer containing PPS
- * @param[in] length size of PPS
  */
 void TSProcessor::processPictureParameterSet(unsigned char *p, int length)
 {
@@ -4474,9 +4385,6 @@ void TSProcessor::processPictureParameterSet(unsigned char *p, int length)
 
 /**
  * @brief Consume all bits used by the scaling list
- * @param[in] p buffer containing scaling list
- * @param[in] mask mask
- * @param[in] size lenght of scaling list
  */
 void TSProcessor::processScalingList(unsigned char *& p, int& mask, int size)
 {
@@ -4493,12 +4401,8 @@ void TSProcessor::processScalingList(unsigned char *& p, int& mask, int size)
 	}
 }
 
-
 /**
  * @brief get bits based on mask and count
- * @param[in,out] p pointer being processed, updated internally
- * @param[in,out] mask mask to be applied
- * @param[in] bitCount Number of bits to be processed.
  * @retval value of bits
  */
 unsigned int TSProcessor::getBits(unsigned char *& p, int& mask, int bitCount)
@@ -4522,13 +4426,8 @@ unsigned int TSProcessor::getBits(unsigned char *& p, int& mask, int bitCount)
 	return bits;
 }
 
-
 /**
  * @brief Put bits based on mask and count
- * @param[in,out] p reference of buffer to which bits to be put
- * @param[in,out] mask mask to be applied
- * @param[in] bitCount count of bits to be put
- * @param[in] value bits to be put
  */
 void TSProcessor::putBits(unsigned char *& p, int& mask, int bitCount, unsigned int value)
 {
@@ -4553,12 +4452,8 @@ void TSProcessor::putBits(unsigned char *& p, int& mask, int bitCount, unsigned 
 	}
 }
 
-
 /**
  * @brief Gets unsigned EXP Golomb
- * @param[in,out] p buffer
- * @param[in,out] mask bitmask
- * @retval Unsigned EXP Golomb
  */
 unsigned int TSProcessor::getUExpGolomb(unsigned char *& p, int& mask)
 {
@@ -4589,12 +4484,8 @@ unsigned int TSProcessor::getUExpGolomb(unsigned char *& p, int& mask)
 	return codeNum;
 }
 
-
 /**
  * @brief Getss signed EXP Golomb
- * @param[in,out] p buffer
- * @param[in,out] bit mask
- * @retval signed EXP Golomb
  */
 int TSProcessor::getSExpGolomb(unsigned char *& p, int& bit)
 {
@@ -4609,9 +4500,7 @@ int TSProcessor::getSExpGolomb(unsigned char *& p, int& bit)
 
 /**
  * @brief Get audio components
- * @param[out] audioComponentsPtr pointer to audio component array
- * @param[out] count Number of audio components
- */
+ */ 
 void TSProcessor::getAudioComponents(const RecordingComponent** audioComponentsPtr, int &count)
 {
 	count = audioComponentCount;

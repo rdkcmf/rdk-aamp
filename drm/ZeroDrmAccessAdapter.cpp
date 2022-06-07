@@ -31,7 +31,9 @@
 bool ZeroDRMAccessAdapter::mInstanceAvailFlag = false;
 ZeroDRMAccessAdapter * ZeroDRMAccessAdapter::mInstance = NULL;
 
-// get current time in milliSec
+/**
+ * @brief get current time in milliSec
+ */
 long long ZeroDrmTimeCheck::drmGetCurrentTimeMS(void)
 {
 	struct timeval t;
@@ -39,7 +41,9 @@ long long ZeroDrmTimeCheck::drmGetCurrentTimeMS(void)
 	return (long long)(t.tv_sec*1e3 + t.tv_usec*1e-3);
 }
 
-// Singleton getting instance 	
+/**
+ * @brief Singleton getting instance 	
+ */
 ZeroDRMAccessAdapter * ZeroDRMAccessAdapter::getInstance()
 {
     if(!mInstanceAvailFlag)
@@ -50,7 +54,9 @@ ZeroDRMAccessAdapter * ZeroDRMAccessAdapter::getInstance()
  	return mInstance;
 }
 
-// delete instance for graceful shutdown
+/**
+ * @brief delete instance for graceful shutdown
+ */
 void ZeroDRMAccessAdapter::deleteInstance()
 {
     if(mInstanceAvailFlag)
@@ -60,7 +66,9 @@ void ZeroDRMAccessAdapter::deleteInstance()
 	}
 
 }
-// Constructor
+/**
+ * @brief Constructor
+ */
 ZeroDRMAccessAdapter::ZeroDRMAccessAdapter () 
 {
 	mCacheReUseFlag	=	true;
@@ -85,7 +93,10 @@ ZeroDRMAccessAdapter::ZeroDRMAccessAdapter ()
 	}
 #endif
 }
-// Destro
+
+/**
+ * @brief ZeroDRMAccessAdapter Destro
+ */
 ZeroDRMAccessAdapter::~ZeroDRMAccessAdapter ()
 {
 	if(mWorkerThreadStarted)
@@ -142,7 +153,11 @@ ZeroDRMAccessAdapter::~ZeroDRMAccessAdapter ()
 }
 
 ////////////////////// Public API - Initialize ZeroDrm for a new context 
-// For Async mode of operation , callback function and callback data is given in arguements ( default- NULL)
+
+/**
+ * @brief Initialize Context Info
+ *
+ */
 bool ZeroDRMAccessAdapter::zeroDrmInitialize(uint32_t &contextId , ZeroDrmStatusCallbackFnPtr fnPtr , void *callbackData)
 {
 	ZeroDrmTimeCheck t(__FUNCTION__);
@@ -174,6 +189,10 @@ bool ZeroDRMAccessAdapter::zeroDrmInitialize(uint32_t &contextId , ZeroDrmStatus
 // Public API
 //mContextList ( All Stream Context ) -->includes --> mCtxHashList ( all contentMetadata/receiptData hash vector)
 //mKeyHashTable ( Hash vs its all keyrelated structure
+
+/**
+ * @brief Finalize Context Info
+ */
 void ZeroDRMAccessAdapter::zeroDrmFinalize(const uint32_t contextId)
 {
 	ZeroDrmTimeCheck t(__FUNCTION__);
@@ -225,8 +244,11 @@ void ZeroDRMAccessAdapter::zeroDrmFinalize(const uint32_t contextId)
 	pthread_mutex_unlock( &mMutexVar );
 }
 
-// Public API 
-// Stores ContentMetadata tag information 
+
+/**
+ * @brief  Set the ContentMetadata from Maninfest 
+ *         Stores ContentMetadata tag information 
+ */
 bool ZeroDRMAccessAdapter::zeroDrmSetContentMetadata(const uint32_t contextId , const unsigned char * contentdata, size_t metadataSz)
 {
 	// Search for Metadata in already stored ContextList ,if already existing same contentMetadata, same can be reused 
@@ -313,8 +335,9 @@ bool ZeroDRMAccessAdapter::zeroDrmSetContentMetadata(const uint32_t contextId , 
 	return retVal;	
 }
 
-// Public API 
-// Stores ReceiptData tag information
+/**
+ * @brief Set the ReceiptData from Maninfest
+ */
 bool ZeroDRMAccessAdapter::zeroDrmSetReceiptMetadata(const uint32_t contextId , const unsigned char * receiptdata, size_t metadataSz)
 {
 	ZeroDrmTimeCheck t(__FUNCTION__);
@@ -395,8 +418,10 @@ bool ZeroDRMAccessAdapter::zeroDrmSetReceiptMetadata(const uint32_t contextId , 
 	return retVal;	
 }
 
-//Public API
-// Get PLayback key in Sync mode 
+/**
+ * @brief parse X-KEY tag 
+ *        Sync mode - receipt/key is processed sync mode adding wait time to this API
+ */
 bool ZeroDRMAccessAdapter::zeroDrmGetPlaybackKeySync(const uint32_t contextId , const char *sTagLine )
 {
 	ZeroDrmTimeCheck t(__FUNCTION__);
@@ -465,8 +490,11 @@ bool ZeroDRMAccessAdapter::zeroDrmGetPlaybackKeySync(const uint32_t contextId , 
 }
 
 #ifdef PLAYBACK_ASYNC_SUPPORT
-//Public API
-// Get Playback Key in Async mode - turn on this function when playback is turned On for linear
+
+/**
+ * @brief Async mode - receipt/key is processed async mode and callback is given to registered callback function
+ *                                          turn on this function when playback is turned On for linear
+ */
 bool ZeroDRMAccessAdapter::zeroDrmGetPlaybackKeyAsync(const uint32_t contextId , const char *sTagLine )
 {
 	ZeroDrmTimeCheck t(__FUNCTION__);
@@ -543,8 +571,11 @@ bool ZeroDRMAccessAdapter::zeroDrmGetPlaybackKeyAsync(const uint32_t contextId ,
 	return retVal;
 }
 #endif
-// Public API
-// Decrypt the data 
+
+/**
+ * @brief Decrypt the data
+ *
+ */
 ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmDecrypt(const uint32_t contextId,void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs , const uint32_t hashKey )
 {
 	ZeroDrmTimeCheck t(__FUNCTION__);
@@ -602,8 +633,9 @@ ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmDecrypt(const uint32_t contextId,void
 	return retVal;
 }
 
-
-// To check if Context is valid and active metadata is available 
+/**
+ * @brief To check if Context is valid and active metadata is available 
+ */
 bool ZeroDRMAccessAdapter::zeroDrmIsContextActive(const uint32_t contextId )
 {
 	ContextListIter iter = mContextList.find(contextId);
@@ -617,7 +649,10 @@ bool ZeroDRMAccessAdapter::zeroDrmIsContextActive(const uint32_t contextId )
                 return false;
 }
 
-// Store the recent Metadata information for a quick access 
+/**
+ * @brief When stream is having multiple metadata(key rotation), this function stores the latest metadata for quick access
+ *
+ */
 void ZeroDRMAccessAdapter::zeroDrmSetActiveMetadata(const uint32_t contextId , ZeroDrmMetadata *metadata)
 {
 	ContextListIter iter = mContextList.find(contextId);
@@ -628,7 +663,10 @@ void ZeroDRMAccessAdapter::zeroDrmSetActiveMetadata(const uint32_t contextId , Z
 	}
 }
 #ifdef PLAYBACK_ASYNC_SUPPORT
-// Worker thread for getting receipt and Key 
+
+/**
+ * @brief Worker Thread for getting receipt and Key 
+ */
 void ZeroDRMAccessAdapter::zeroDRMWorkerThreadTask()
 {
 	logprintf("[%s]->Starting zeroDRMWorkerThreadTask ",__FUNCTION__);	
@@ -683,7 +721,10 @@ void ZeroDRMAccessAdapter::zeroDRMWorkerThreadTask()
 }
 #endif
 
-// Private function to get DrmKey - this func is called by Async and Sync functions 
+/**
+ * @brief Get key from remote server
+ *        this func is called by Async and Sync functions 
+ */
 ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmGetKey(const uint32_t contextId ,const  uint32_t hashValue,ZeroDrmInfo &keyTag , ZeroDrmState &retState)
 {
 	ZeroDrmTimeCheck t(__FUNCTION__);
@@ -823,7 +864,10 @@ ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmGetKey(const uint32_t contextId ,cons
 	return retVal;
 }
 
-// Parse the KeyTag from Manifest and filled ZeroDRmInfo structure is returned.
+/**
+ * @brief Parse X-KEY tag from manifest
+ *                Parse the KeyTag from Manifest and filled ZeroDRmInfo structure is returned.
+ */
 bool ZeroDRMAccessAdapter::zeroDrmParseKeyTag(ZeroDrmInfo	&keyTagInfo , const char *sTagLine)
 {
 	ZeroDrmTimeCheck t(__FUNCTION__);
@@ -904,9 +948,11 @@ bool ZeroDRMAccessAdapter::zeroDrmParseKeyTag(ZeroDrmInfo	&keyTagInfo , const ch
 	return retValue;
 }
 
-// Gets the recent Metadata based on hashKey 
-// When License rotation is enabled ,based on hashkey input Metadata is picked and returned 
-// When no license rotation , hashkey = 0 and current Active Metadata is returned 
+/**
+ * @brief Get the latest stored metadata based on hashKey for quick decrypt
+ *        When License rotation is enabled ,based on hashkey input Metadata is picked and returned
+ *        When no license rotation , hashkey = 0 and current Active Metadata is returned 
+ */
 ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmGetMetadata(const uint32_t contextId,ZeroDrmMetadata **metadata,const uint32_t hashKey)
 {
 
@@ -947,7 +993,10 @@ ZeroDrmReturn ZeroDRMAccessAdapter::zeroDrmGetMetadata(const uint32_t contextId,
 	return ret;
 } 
 
-// Deletes KeyTag Information 
+/**
+ * @brief free memory of keyTag information
+ *
+ */
 void ZeroDRMAccessAdapter::zeroDrmDeleteKeyTag(ZeroDrmInfo *keyTagInfo)
 {
 	if(keyTagInfo != NULL)
@@ -965,7 +1014,10 @@ void ZeroDRMAccessAdapter::zeroDrmDeleteKeyTag(ZeroDrmInfo *keyTagInfo)
 	}
 }
 
-// Deletes Metadata memory if allocated 
+/**
+ * @brief Release Metadata memory if allocated 
+ *
+ */
 void ZeroDRMAccessAdapter::zeroDrmDeleteMetadata(ZeroDrmMetadata *metadata)
 {
 	zdebuglogprintf("[%s]-> deleting [%p]",__FUNCTION__,metadata);
@@ -984,7 +1036,10 @@ void ZeroDRMAccessAdapter::zeroDrmDeleteMetadata(ZeroDrmMetadata *metadata)
 	}
 }
 
-// Checks if ContextId is valid or not 
+/**
+ * @brief checks if user context is still active 
+ *
+ */
 bool ZeroDRMAccessAdapter::zeroDrmIsContextIdValid(const uint32_t contextId )
 {
 	if(mContextList.end() != mContextList.find(contextId))
@@ -994,8 +1049,10 @@ bool ZeroDRMAccessAdapter::zeroDrmIsContextIdValid(const uint32_t contextId )
 }
 
 
-// Temp test function , this need to be replaced with real Sha1 based hash code
-// When hash based license rotation is enabled 
+/**
+ * @brief Generate Hash for each content/receipt data,this need to be replace with sha based hash for license rotation
+ *        When hash based license rotation is enabled 
+ */
 uint32_t ZeroDRMAccessAdapter::JSHash(const unsigned char *str, size_t length)
  {
       uint32_t hash = 1315423911;
@@ -1007,6 +1064,10 @@ uint32_t ZeroDRMAccessAdapter::JSHash(const unsigned char *str, size_t length)
  }
 
 // TODO : Now for each request new traceId is generated . TraceId need to be picked from Caller App  
+/**
+ * @brief  Get traceId for drm request
+ *
+ */
 char * ZeroDRMAccessAdapter::zeroDrmGetTraceId()
 {
 	ZeroDrmTimeCheck t(__FUNCTION__);

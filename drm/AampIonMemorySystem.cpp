@@ -17,6 +17,11 @@
  * limitations under the License.
 */
 
+/**
+ * @file AampIonMemorySystem.cpp
+ * @brief Handles ION memory management segments
+ */
+
 #include "AampIonMemorySystem.h"
 
 // For Ion memory
@@ -26,12 +31,18 @@
 
 #include "AampConfig.h"
 
-
+/**
+ * @brief AampIonMemorySystem constructor
+ */
 AampIonMemorySystem::AampIonMemorySystem(AampLogManager *logObj) : AAMPMemorySystem(logObj),context_(logObj) {
 }
 
+/**
+ * @brief AampIonMemorySystem distructor
+ */
 AampIonMemorySystem::~AampIonMemorySystem() {
 }
+
 
 AampIonMemorySystem::AampIonMemoryContext::AampIonMemoryContext(AampLogManager *logObj) : fd_(0), handle_(0), mLogObj(logObj) {};
 
@@ -56,6 +67,11 @@ bool AampIonMemorySystem::AampIonMemoryContext::createBuffer(size_t len) {
 	return (ret == 0);
 }
 
+/**
+ * @class AampIonMemorySystemCloser
+ * @brief Class to handle close the ION memory
+ */
+
 class AampIonMemorySystemCloser {
 private:
 	AampIonMemorySystem::AampIonMemoryContext& context_;
@@ -77,6 +93,7 @@ public:
 AampIonMemorySystem::AampIonMemoryContext::~AampIonMemoryContext() { 
 	close();
 }
+
 void AampIonMemorySystem::AampIonMemoryContext::close() { 
 	if (handle_ != 0) {
 		int ret = ion_free(fd_, handle_);
@@ -103,7 +120,9 @@ bool AampIonMemorySystem::AampIonMemoryContext::phyAddr(unsigned long *phyAddr) 
 	return status == 0;
 }
 
-
+/**
+ * @brief Encode a block of data to send over the divide
+ */
 bool AampIonMemorySystem::encode(const uint8_t *dataIn, uint32_t dataInSz, std::vector<uint8_t>& dataOut) 
 {
 	AampIonMemorySystemCloser closer(context_);
@@ -155,6 +174,9 @@ bool AampIonMemorySystem::encode(const uint8_t *dataIn, uint32_t dataInSz, std::
 	return true;
 }
 
+/**
+ * @brief Decode from getting back
+ */
 bool AampIonMemorySystem::decode(const uint8_t * dataIn, uint32_t dataInSz, uint8_t* dataOut, uint32_t dataOutSz) 
 {
 	AampIonMemorySystemCloser closer(context_);
@@ -209,6 +231,9 @@ bool AampIonMemorySystem::decode(const uint8_t * dataIn, uint32_t dataInSz, uint
 	return true;
 }
 
+/**
+ * @brief Call this if there's an failure external to the MS and it needs to tidy up unexpectedly
+ */
 void AampIonMemorySystem::terminateEarly() {
 	AAMPLOG_WARN("closing transfer early");
 	context_.close();

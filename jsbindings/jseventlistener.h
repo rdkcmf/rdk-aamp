@@ -37,17 +37,50 @@
 class AAMP_JSEventListener : public AAMPEventObjectListener
 {
 public:
-
+	/**
+	 * @fn AddEventListener
+	 * @param[in] obj instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
 	static void AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
+	/**
+	 * @fn RemoveEventListener
+	 * @param[in] obj instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be removed as listener
+	 */
 	static void RemoveEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
-
+	/**
+	 * @fn RemoveAllEventListener
+	 * @param[in] obj instance of PrivAAMPStruct_JS
+	 */
 	static void RemoveAllEventListener(PrivAAMPStruct_JS* obj);
-
+	/**
+	 * @fn AAMP_JSEventListener
+	 * @param[in] obj instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback for the event type
+	 */
 	AAMP_JSEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback);
+	/**
+	 * @fn ~AAMP_JSEventListener
+	 */
 	~AAMP_JSEventListener();
+	/**
+         * @brief Copy constructor disabled
+         *
+         */
 	AAMP_JSEventListener(const AAMP_JSEventListener&) = delete;
+	/**
+ 	 * @brief assignment operator disabled
+  	 *
+ 	 */
 	AAMP_JSEventListener& operator=(const AAMP_JSEventListener&) = delete;
-
+	/**
+	 * @fn Event
+	 * @param[in] e AAMPEventPtr event object
+	 */
 	void Event(const AAMPEventPtr& e);
 
 	virtual void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
@@ -55,9 +88,9 @@ public:
 	}
 
 public:
-	PrivAAMPStruct_JS* p_obj;  /** JS execution context to use **/
-	AAMPEventType p_type;       /** event type **/
-	JSObjectRef p_jsCallback;   /** callback registered for event **/
+	PrivAAMPStruct_JS* p_obj;   /**< JS execution context to use */
+	AAMPEventType p_type;       /**< event type */
+	JSObjectRef p_jsCallback;   /**< callback registered for event */
 };
 
 #endif /** __AAMP_JSEVENTLISTENER__H__ **/

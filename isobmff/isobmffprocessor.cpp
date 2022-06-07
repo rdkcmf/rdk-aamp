@@ -32,11 +32,7 @@ static const char *IsoBmffProcessorTypeName[] =
 };
 
 /**
- * @brief IsoBmffProcessor constructor
- *
- * @param[in] aamp - PrivateInstanceAAMP pointer
- * @param[in] trackType - track type (A/V)
- * @param[in] peerBmffProcessor - peer instance of IsoBmffProcessor
+ *  @brief IsoBmffProcessor constructor
  */
 IsoBmffProcessor::IsoBmffProcessor(class PrivateInstanceAAMP *aamp, AampLogManager *logObj, IsoBmffProcessorType trackType, IsoBmffProcessor* peerBmffProcessor)
 	: p_aamp(aamp), type(trackType), peerProcessor(peerBmffProcessor), basePTS(0),
@@ -58,7 +54,7 @@ IsoBmffProcessor::IsoBmffProcessor(class PrivateInstanceAAMP *aamp, AampLogManag
 }
 
 /**
- * @brief IsoBmffProcessor destructor
+ *  @brief IsoBmffProcessor destructor
  */
 IsoBmffProcessor::~IsoBmffProcessor()
 {
@@ -68,15 +64,7 @@ IsoBmffProcessor::~IsoBmffProcessor()
 }
 
 /**
- * @brief Process and send ISOBMFF fragment
- *
- * @param[in] segment - fragment buffer pointer
- * @param[in] size - fragment buffer size
- * @param[in] position - position of fragment
- * @param[in] duration - duration of fragment
- * @param[in] discontinuous - true if discontinuous fragment
- * @param[out] ptsError - flag indicates if any PTS error occurred
- * @return true if fragment was sent, false otherwise
+ *  @brief Process and send ISOBMFF fragment
  */
 bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position, double duration, bool discontinuous, bool &ptsError)
 {
@@ -248,9 +236,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 }
 
 /**
- * @brief Abort all operations
- *
- * @return void
+ *  @brief Abort all operations
  */
 void IsoBmffProcessor::abort()
 {
@@ -261,9 +247,7 @@ void IsoBmffProcessor::abort()
 }
 
 /**
- * @brief Reset all variables
- *
- * @return void
+ *  @brief Reset all variables
  */
 void IsoBmffProcessor::reset()
 {
@@ -279,11 +263,7 @@ void IsoBmffProcessor::reset()
 }
 
 /**
- * @brief Set playback rate
- *
- * @param[in] rate - playback rate
- * @param[in] mode - playback mode
- * @return void
+ *  @brief Set playback rate
  */
 void IsoBmffProcessor::setRate(double rate, PlayMode mode)
 {
@@ -291,11 +271,7 @@ void IsoBmffProcessor::setRate(double rate, PlayMode mode)
 }
 
 /**
- * @brief Set base PTS and TimeScale value
- *
- * @param[in] pts - base PTS value
- * @param[in] tScale - TimeScale value
- * @return void
+ *  @brief Set base PTS and TimeScale value
  */
 void IsoBmffProcessor::setBasePTS(uint64_t pts, uint32_t tScale)
 {
@@ -309,11 +285,7 @@ void IsoBmffProcessor::setBasePTS(uint64_t pts, uint32_t tScale)
 }
 
 /**
- * @brief Cache init fragment internally
- *
- * @param[in] segment - buffer pointer
- * @param[in] size - buffer size
- * @return void
+ *  @brief Cache init fragment internally
  */
 void IsoBmffProcessor::cacheInitSegment(char *segment, size_t size)
 {
@@ -325,11 +297,9 @@ void IsoBmffProcessor::cacheInitSegment(char *segment, size_t size)
 	initSegment.push_back(buffer);
 }
 
+
 /**
- * @brief Push init fragment cached earlier
- *
- * @param[in] position - position value
- * @return void
+ *  @brief Push init fragment cached earlier
  */
 void IsoBmffProcessor::pushInitSegment(double position)
 {
@@ -349,9 +319,7 @@ void IsoBmffProcessor::pushInitSegment(double position)
 }
 
 /**
- * @brief Clear init fragment cached earlier
- *
- * @return void
+ *  @brief Clear init fragment cached earlier
  */
 void IsoBmffProcessor::clearInitSegment()
 {

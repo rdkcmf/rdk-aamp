@@ -1,7 +1,19 @@
+/**
+ * @file AampOcdmGstSessionAdapter.h
+ * @brief File holds operations on OCDM gst sessions
+ */
+
+
 #include <dlfcn.h>
 #include <mutex>
 #include <gst/gst.h>
 #include "opencdmsessionadapter.h"
+
+
+/**
+ * @class AAMPOCDMGSTSessionAdapter
+ * @brief OCDM Gstreamer session to decrypt
+ */
 
 class AAMPOCDMGSTSessionAdapter : public AAMPOCDMSessionAdapter
 {

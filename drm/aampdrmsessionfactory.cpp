@@ -18,9 +18,9 @@
 */
 
 /**
-* @file aampdrmsessionfactory.cpp
-* @brief Source file for AampDrmSessionFactory
-*/
+ * @file aampdrmsessionfactory.cpp
+ * @brief Source file for AampDrmSessionFactory
+ */
 
 #include "aampdrmsessionfactory.h"
 #if defined(USE_OPENCDM_ADAPTER)
@@ -36,10 +36,7 @@
 #include "ClearKeyDrmSession.h"
 
 /**
- *  @brief		Creates an appropriate DRM session based on the given DrmHelper
- *
- *  @param[in]	drmHelper - DrmHelper instance
- *  @return		Pointer to DrmSession.
+ *  @brief Creates an appropriate DRM session based on the given DrmHelper
  */
 AampDrmSession* AampDrmSessionFactory::GetDrmSession(AampLogManager *logObj, std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *drmCallbacks)
 {

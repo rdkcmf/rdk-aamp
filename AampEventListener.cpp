@@ -269,9 +269,8 @@ static void GenerateLegacyAAMPEvent(const AAMPEventPtr &e, AAMPEvent &event)
 }
 
 /**
- * @brief API to send event.
- *
- * @param[in] event - AAMPEventPtr object
+ * @brief API to send event to event listener
+ *        Additional processing can be done here if required
  */
 void AAMPEventListener::SendEvent(const AAMPEventPtr &event)
 {
@@ -283,8 +282,6 @@ void AAMPEventListener::SendEvent(const AAMPEventPtr &event)
 
 /**
  * @brief API to send event.
- *
- * @param[in] event - AAMPEventPtr object
  */
 void AAMPEventObjectListener::SendEvent(const AAMPEventPtr &event)
 {

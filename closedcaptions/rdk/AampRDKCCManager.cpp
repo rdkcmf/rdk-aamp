@@ -34,9 +34,9 @@
 #define CHAR_CODE_1 49
 #define CHAR_CODE_6 54
 
- /**
-  * @brief Release CC resources
-  */
+/**
+ *  @brief Release CC resources
+ */
 void AampRDKCCManager::Release(int iID)
  {
 	Stop();
@@ -49,31 +49,25 @@ void AampRDKCCManager::Release(int iID)
 	mParentalCtrlLocked = false;
  }
 
- /**
-  * @brief To start CC rendering
-  *
-  * @return void
-  */
+/**
+ *  @brief To start CC rendering
+ */
 void AampRDKCCManager::StartRendering()
  {
 	ccSetCCState(CCStatus_ON, 1);
  }
 
- /**
-  * @brief To stop CC rendering
-  *
-  * @return void
-  */
+/**
+ *  @brief To stop CC rendering
+ */
 void AampRDKCCManager::StopRendering()
  {
 	ccSetCCState(CCStatus_OFF, 1);
  }
 
- /**
-  * @brief Impl specific initialization code called once in Init() function
-  *
-  * @return 0 - success, -1 - failure
-  */
+/**
+ *  @brief Impl specific initialization code called once in Init() function
+ */
 int AampRDKCCManager::Initialize(void * handle)
  {
 	static bool initStatus = false;
@@ -101,21 +95,17 @@ int AampRDKCCManager::Initialize(void * handle)
 	return 0;
  }
 
- /**
-  * @brief set digital channel with specified id
-  *
-  * @return CC_VL_OS_API_RESULT
-  */
+/**
+ *  @brief set digital channel with specified id
+ */
 int AampRDKCCManager::SetDigitalChannel(unsigned int id)
  {
 	return ccSetDigitalChannel(id);
  }
 
- /**
-  * @brief set analog channel with specified id
-  *
-  * @return CC_VL_OS_API_RESULT
-  */
+/**
+ *  @brief set analog channel with specified id
+ */
 int AampRDKCCManager::SetAnalogChannel(unsigned int id)
  {
 	return ccSetAnalogChannel(id);

@@ -70,33 +70,79 @@ private:
 
 	AampOutputProtection* m_pOutputProtection;
 
-
+	/**
+	 * @fn initAampDRMSession
+	 */
 	void initAampDRMSession();
-
+	/**
+	 * @fn _GetPROFromInitData
+	 * @param f_pbInitData : Pointer to initdata
+	 * @param f_cbInitData : size of initdata
+	 * @param f_pibPRO : Gets updated with PRO
+	 * @param f_pcbPRO : size of PRO
+	 * @retval DRM_SUCCESS if no errors encountered
+	 */
 	int _GetPROFromInitData(const DRM_BYTE *f_pbInitData,
 			DRM_DWORD f_cbInitData, DRM_DWORD *f_pibPRO, DRM_DWORD *f_pcbPRO);
-
+	/**
+	 * @fn _ParseInitData
+	 * @param f_pbInitData : Pointer to initdata
+	 * @param f_cbInitData : size of init data
+	 * @retval DRM_SUCCESS if no errors encountered
+	 */
 	int _ParseInitData(const uint8_t *f_pbInitData, uint32_t f_cbInitData);
 
 
 public:
-
+	/**
+	 * @fn PlayReadyDRMSession
+	 */
 	PlayReadyDRMSession(AampLogManager *logObj);
-
+	/**
+	 * @fn ~PlayReadyDRMSession
+	 */
 	~PlayReadyDRMSession();
-
+	/**
+	 * @fn generateAampDRMSession
+	 * @param f_pbInitData pointer to initdata
+	 * @param f_cbInitData init data size
+	 */
 	void generateAampDRMSession(const uint8_t *f_pbInitData,
 			uint32_t f_cbInitData, std::string &customData);
-
+	/**
+	 * @fn aampGenerateKeyRequest
+	 * @param destinationURL : gets updated with license server url
+	 * @param timeout : max timeout untill which to wait for cdm key generation.
+	 * @retval Pointer to DrmData containing license request, NULL if failure.
+	 */
 	DrmData * aampGenerateKeyRequest(string& destinationURL, uint32_t timeout);
-
+	/**
+	 * @fn aampDRMProcessKey
+	 * @param key : License key from license server.
+	 * @param timeout : max timeout untill which to wait for cdm key processing.
+	 * @retval DRM_SUCCESS if no errors encountered
+	 */
 	int aampDRMProcessKey(DrmData* key, uint32_t timeout);
-
+	/**
+	 * @fn decrypt
+	 * @param f_pbIV : Initialization vector.
+	 * @param f_cbIV : Initialization vector length.
+	 * @param payloadData : Data to decrypt.
+	 * @param payloadDataSize : Size of data.
+	 * @param ppOpaqueData : pointer to opaque buffer in case of SVP.
+	 * @retval Returns 1 on success 0 on failure.
+	 */
 	int decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 			const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData);
-
+	/**
+	 * @fn getState
+	 * @retval KeyState
+	 */
 	KeyState getState();
-
+	
+	/**
+	 * @fn clearDecryptContext
+	 */
 	void clearDecryptContext();
 
 };

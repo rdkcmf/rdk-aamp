@@ -25,7 +25,7 @@
 #include "AampDrmSession.h"
 
 /**
- *  @brief	AampDrmSession constructor.
+ * @brief Constructor for AampDrmSession.
  */
 AampDrmSession::AampDrmSession(AampLogManager *logObj, const string &keySystem) : mLogObj(logObj), m_keySystem(keySystem),m_OutputProtectionEnabled(false)
 #ifdef USE_SECMANAGER
@@ -35,28 +35,32 @@ AampDrmSession::AampDrmSession(AampLogManager *logObj, const string &keySystem) 
 }
 
 /**
- *  @brief	AampDrmSession destructor.
+ * @brief Destructor for AampDrmSession..
  */
 AampDrmSession::~AampDrmSession()
 {
 }
 
 /**
- *  @brief	Getter function for DRM key system.
- *
- *  @return	keySystem, com.microsoft.playready or com.widevine.alpha
+ * @brief Get the DRM System, ie, UUID for PlayReady WideVine etc..
  */
 string AampDrmSession::getKeySystem()
 {
 	return m_keySystem;
 }
 
+/**
+ * @brief Function to decrypt GStreamer stream  buffer.
+ */
 int AampDrmSession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount, GstBuffer* subSamplesBuffer, GstCaps* caps)
 {
 	AAMPLOG_ERR("GST decrypt method not implemented");
 	return -1;
 }
 
+/**
+ * @brief Function to decrypt stream  buffer.
+ */
 int AampDrmSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV, const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData)
 {
 	AAMPLOG_ERR("Standard decrypt method not implemented");

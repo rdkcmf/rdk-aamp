@@ -148,19 +148,35 @@ private:
     dsHdcpProtocolVersion_t m_hdcpCurrentProtocol;
     GstElement*             m_gstElement;
 
-
+    /**
+     * @fn SetHDMIStatus
+     */
     void SetHDMIStatus();
-
+    /**
+     * @fn SetResolution
+     * @param width display width
+     * @param height display height
+     */
     void SetResolution(int width, int height);
 
 public:
-
+    /**
+     * @fn AampOutputProtection
+     */
     AampOutputProtection();
-
+    /**
+     * @fn ~AampOutputProtection
+     */
     virtual ~AampOutputProtection();
-
+    /**     
+     * @brief Copy constructor disabled
+     *
+     */
     AampOutputProtection(const AampOutputProtection&) = delete;
-
+    /**
+     * @brief assignment operator disabled
+     *
+     */
     AampOutputProtection& operator=(const AampOutputProtection&) = delete;
 
 #ifndef USE_OPENCDM
@@ -172,7 +188,12 @@ public:
 #ifdef USE_PLAYREADY
 
     MinOPLevelsplayReady* getPlayReadyLevels() { return & m_minOPLevels; }
-
+   /**
+    * @fn PR_OP_Callback
+    * @param f_pvOutputLevelsData : Pointer to licenses output restrictions information
+    * @param f_dwCallbackType : Type of callback
+    * @param data : Pointer passed from Drm_Reader_Bind, m_minOPLevels
+    */
     static DRM_RESULT DRM_CALL PR_OP_Callback(const DRM_VOID *f_pvOutputLevelsData,
                                               DRM_POLICY_CALLBACK_TYPE f_dwCallbackType,
                                               const DRM_VOID *data);
@@ -181,9 +202,21 @@ public:
     
 #ifdef IARM_MGR
     // IARM Callbacks
-
-    static void HDMIEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
-
+    /**
+     * @fn HDMIEventHandler
+     * @param owner Owner of the IARM mgr
+     * @param eventId IARM Event ID
+     * @param data HDMI data
+     * @param len Length of the data
+     */
+    static void HDMIEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len); 
+    /**
+     * @fn ResolutionHandler
+     * @param owner Owner of the IARM mgr
+     * @param eventId IARM Event ID
+     * @param data IARM data  
+     * @param len Length of the data
+     */
     static void ResolutionHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
 #endif //IARM_MGR
 
@@ -194,25 +227,36 @@ public:
      * @retval true if 2.2 false otherwise
      */
     bool isHDCPConnection2_2() { return m_hdcpCurrentProtocol == dsHDCP_VERSION_2X; }
-
+    /** 
+     * @fn IsSourceUHD
+     * @retval true, if source is UHD, otherwise false
+     */
     bool IsSourceUHD();
 
     /**
-     * @brief gets display resolution
-     * @param[out] int width : Display Width
-     * @param[out] int height : Display height
+     * @fn GetDisplayResolution
+     * @param[out] width : Display Width
+     * @param[out] height : Display height
      */
     void GetDisplayResolution(int &width, int &height);
 
     /**
      * @brief Set GstElement
-     * @param element
+     * @param element Gst element to set
      */
     void setGstElement(GstElement *element) { m_gstElement = element;  }
 
     // Singleton for object creation
+	
+    /**
+     * @fn GetAampOutputProcectionInstance
+     * @retval AampOutputProtection object
+     */	
     static AampOutputProtection * GetAampOutputProcectionInstance();
-
+    /**
+     * @fn IsAampOutputProcectionInstanceActive
+     * @retval true or false
+     */
     static bool IsAampOutputProcectionInstanceActive();
 
 };

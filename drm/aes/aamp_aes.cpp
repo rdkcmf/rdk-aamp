@@ -55,7 +55,6 @@ static void * acquire_key(void* arg)
 
 /**
  * @brief Notify drm error
- * @param drmFailure drm error type
  */
 void AesDec::NotifyDRMError(AAMPTuneFailure drmFailure)
 {
@@ -104,9 +103,8 @@ void AesDec::SignalKeyAcquired()
 	mpAamp->LogDrmInitComplete();
 }
 
-
 /**
- * @brief Acquire drm key from URI
+ * @brief Acquire drm key from URI 
  */
 void AesDec::AcquireKey()
 {
@@ -161,14 +159,9 @@ void AesDec::AcquireKey()
 	}
 }
 
-
 /**
  * @brief Set DRM meta-data. Stub implementation
  *
- * @param aamp AAMP instance to be associated with this decryptor
- * @param metadata - Ignored
- *
- * @retval eDRM_SUCCESS
  */
 DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata,int trackType, AampLogManager *mLogObj)
 {
@@ -177,11 +170,6 @@ DrmReturn AesDec::SetMetaData( PrivateInstanceAAMP *aamp, void* metadata,int tra
 
 /**
  * @brief AcquireKey Function to acquire key . Stub implementation
- *
- * @param[in] aamp       AAMP instance to be associated with this decryptor
- * @param[in] metadata   Ignored
- *
- * @retval None
  */
 void AesDec::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType, AampLogManager *mLogObj)
 {
@@ -191,8 +179,6 @@ void AesDec::AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int tra
 /**
  * @brief GetState Function to get current DRM State
  *
- *
- * @retval DRMState
  */
 DRMState AesDec::GetState()
 {
@@ -202,9 +188,6 @@ DRMState AesDec::GetState()
 /**
  * @brief Set information required for decryption
  *
- * @param aamp AAMP instance to be associated with this decryptor
- * @param drmInfo Drm information
- * @retval eDRM_SUCCESS on success
  */
 DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo, AampLogManager *mLogObj)
 {
@@ -265,8 +248,6 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 
 /**
  * @brief Wait for key acquisition completion
- * @param[in] timeInMs timeout
- * @param[out] err error on failure
  */
 void AesDec::WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err )
 {
@@ -281,13 +262,8 @@ void AesDec::WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err )
 	}
 }
 
-
 /**
  * @brief Decrypts an encrypted buffer
- * @param bucketType Type of bucket for profiling
- * @param encryptedDataPtr pointer to encyrpted payload
- * @param encryptedDataLen length in bytes of data pointed to by encryptedDataPtr
- * @param timeInMs wait time
  */
 DrmReturn AesDec::Decrypt( ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen,int timeInMs)
 {
@@ -387,7 +363,6 @@ void AesDec::Release()
 	pthread_mutex_unlock(&mMutex);
 }
 
-
 /**
  * @brief Cancel timed_wait operation drm_Decrypt
  *
@@ -405,7 +380,6 @@ void AesDec::CancelKeyWait()
 	pthread_cond_broadcast(&mCond);
 	pthread_mutex_unlock(&mMutex);
 }
-
 
 /**
  * @brief Restore key state post cleanup of
@@ -440,7 +414,7 @@ std::shared_ptr<AesDec> AesDec::GetInstance()
 
 /**
  * @brief AesDec Constructor
- * @retval
+ * 
  */
 AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
 		mPrevDrmState(eDRM_INITIALIZED), mDrmUrl(""),

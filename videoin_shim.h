@@ -42,38 +42,153 @@ using namespace std;
 class StreamAbstractionAAMP_VIDEOIN : public StreamAbstractionAAMP
 {
 public:
+    /**
+     * @fn StreamAbstractionAAMP_VIDEOIN
+     * @param aamp pointer to PrivateInstanceAAMP object associated with player
+     * @param seekpos Seek position
+     * @param rate playback rate
+     */
     StreamAbstractionAAMP_VIDEOIN(const std::string name, const std::string callSign, AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+    /**
+     * @fn ~StreamAbstractionAAMP_VIDEOIN
+     */
     ~StreamAbstractionAAMP_VIDEOIN();
+    /**     
+     * @brief Copy constructor disabled
+     *
+     */
     StreamAbstractionAAMP_VIDEOIN(const StreamAbstractionAAMP_VIDEOIN&) = delete;
+    /**
+     * @brief assignment operator disabled
+     *
+     */
     StreamAbstractionAAMP_VIDEOIN& operator=(const StreamAbstractionAAMP_VIDEOIN&) = delete;
+    /**
+     * @brief Stub implementation
+     */
     void DumpProfiles(void) override;
+    /**
+     *   @fn Start
+     */
     void Start() override;
+    /**
+     *   @fn Stop
+     */ 
     void Stop(bool clearChannelData) override;
+    /**
+     * @fn SetVideoRectangle
+     * 
+     * @param[in] x,y - position coordinates of video rectangle
+     * @param[in] w,h - width & height of video rectangle
+     */
     void SetVideoRectangle(int x, int y, int w, int h) override;
+   /**
+     *   @fn Init
+     *   @note   To be implemented by sub classes
+     *   @param  tuneType to set type of object.
+     *   @retval eAAMPSTATUS_OK
+     */
     AAMPStatusType Init(TuneType tuneType) override;
+   /**
+     * @fn GetStreamFormat
+     *
+     * @param[out]  primaryOutputFormat - format of primary track
+     * @param[out]  audioOutputFormat - format of audio track
+     * @param[out]  auxAudioOutputFormat - format of aux track
+     */
     void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat) override;
+    /**
+     * @fn GetStreamPosition
+     *
+     * @retval current position of stream. 
+     */
     double GetStreamPosition() override;
+    /**
+     *   @fn GetMediaTrack
+     *   @param[in] type - track type
+     *   @retval MediaTrack pointer.
+     */
     MediaTrack* GetMediaTrack(TrackType type) override;
+    /**
+     *   @fn GetFirstPTS
+     *
+     *   @retval PTS of first sample
+     */
     double GetFirstPTS() override;
+    /**
+     *   @fn GetStartTimeOfFirstPTS 
+     *   
+     *   @retval start time of first sample
+     */
     double GetStartTimeOfFirstPTS() override;
+    /**
+     * @fn GetBufferedDuration
+     */
     double GetBufferedDuration() override;
+    /**
+     * @fn IsInitialCachingSupported
+     * @return true if yes 
+     */
     bool IsInitialCachingSupported() override;
+    /**
+     * @fn GetBWIndex
+     * @param[in] bitrate Bitrate to lookup profile
+     * @retval profile index
+     */
     int GetBWIndex(long bitrate) override;
+    /**
+     * @fn GetVideoBitrates
+     * @return available video bitrates
+     */
     std::vector<long> GetVideoBitrates(void) override;
+    /**
+     * @fn GetAudioBitrates
+     * @return available audio bitrates
+     */
     std::vector<long> GetAudioBitrates(void) override;
+    /**
+     * @fn GetMaxBitrate
+     * @return long MAX video bitrates
+     */
     long GetMaxBitrate(void) override;
+    /**
+     *   @fn StopInjection
+     */
     void StopInjection(void) override;
+    /**
+     *   @fn StartInjection
+     */
     void StartInjection(void) override;
     void SeekPosUpdate(double) { };
 protected:
+    /**
+     *   @fn GetStreamInfo
+     *
+     *   @param[in]  idx - profile index.
+     *   @retval stream information corresponding to index.
+     */
     StreamInfo* GetStreamInfo(int idx) override;
     AAMPStatusType InitHelper(TuneType tuneType);
+    /**
+     *   @fn StartHelper
+     */
     void StartHelper(int port, const std::string & methodName);
+    /**
+     *   @fn StopHelper
+     */
     void StopHelper(const std::string & methodName) ;
     bool mTuned;
 
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+    /**
+     *   @fn RegisterEvent
+     *   @param[in] eventName : Event name
+     *   @param[in] functionHandler : Event funciton pointer
+     */
     void RegisterEvent (string eventName, std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> functionHandler);
+    /**
+     *   @fn RegisterAllEvents
+     */
     void RegisterAllEvents ();
 #endif
 
@@ -81,8 +196,17 @@ private:
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
     ThunderAccessAAMP thunderAccessObj;
     ThunderAccessAAMP thunderRDKShellObj;
-    /*Event Handler*/
+    
+    /**
+     *  @fn OnInputStatusChanged
+     *  @return void
+     */
     void OnInputStatusChanged(const JsonObject& parameters);
+    /** 
+     *  @fn OnSignalChanged
+     *  @param parameters Json object 
+     *  @return void
+     */
     void OnSignalChanged(const JsonObject& parameters);
 #endif
     bool GetScreenResolution(int & screenWidth, int & screenHeight);

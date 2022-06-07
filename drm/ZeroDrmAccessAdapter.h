@@ -55,13 +55,20 @@
 #define ZERO_DRM_REQMETADATA_SZ 2
 #define ZERO_DRM_KEY_CACHE_LIFETIME	1800000 // 30min of lifetime 
 
+/**
+ * @enum ZeroDrmMethod
+ * @brief DRM Method 1 - AES128 
+ */
 typedef enum
 {
 	eZERO_METHOD_NONE,
-	eZERO_METHOD_AES_128, // encrypted using Advanced Encryption Standard 128-bit key and PKCS7 padding
+	eZERO_METHOD_AES_128, /**< encrypted using Advanced Encryption Standard 128-bit key and PKCS7 padding */
 } ZeroDrmMethod;
 
-
+/**
+ * @enum ZeroDrmState
+ * @brief DRM state
+ */
 typedef enum
 {
 	eZERO_DRM_STATE_INITIALIZED,
@@ -74,6 +81,10 @@ typedef enum
 	eZERO_DRM_STATE_INVALID,
 } ZeroDrmState;
 
+/**
+ * @enum ZeroDrmReturn
+ * @brief DRM status
+ */
 typedef enum
 {
 	eZERO_DRM_STATUS_SUCCESS,
@@ -90,6 +101,10 @@ typedef enum
 
 typedef void (*ZeroDrmStatusCallbackFnPtr)(ZeroDrmState drmState , int errRet , void *callbackData);
 
+/**
+ * @struct ZeroDrmInfo
+ * @brief DRM Info
+ */
 typedef struct
 { 
 	// from EXT-X-XCAL-CONTENTMETADATA
@@ -101,6 +116,10 @@ typedef struct
 	//	unsigned char *encryptedRotationKey;
 }ZeroDrmInfo;
 
+/**
+ * @struct ZeroDrmMetadata
+ * @brief Drm Meta data information
+ */
 typedef struct 
 { 
 	// from EXT-X-XCAL-CONTENTMETADATA
@@ -121,6 +140,10 @@ typedef struct
 	bool mbFirstCheck;
 }ZeroDrmMetadata;
 
+/**
+ * @struct ZDrmContextData
+ * @brief DRM context data
+ */
 typedef struct
 {
 	uint32_t mZDrmContext;
@@ -131,6 +154,10 @@ typedef struct
 	bool bZDrmMetadataRead;
 }ZDrmContextData;
 
+/**
+ * @class ZeroDRMContextData
+ * @brief class to hold DRM context data operations
+ */
 class ZeroDRMContextData
 {
 public :
@@ -188,7 +215,10 @@ private:
 	long long mStartTime;
 };
 
-// data for interfacing with thread function 
+/**
+ * @struct ZeroDrmWorkerData
+ * @brief data for interfacing with thread function
+ */
 typedef struct 
 {
 	uint32_t ctxId; 
@@ -196,34 +226,63 @@ typedef struct
 	ZeroDrmInfo keyTag;
 }ZeroDrmWorkerData;
 
-
+/**
+ * @class ZeroDRMAccessAdapter
+ * @brief DRM Licenseoperations
+ */
 class ZeroDRMAccessAdapter
 {
 public :
 	static ZeroDRMAccessAdapter *getInstance();
 	static void deleteInstance();
 	
-	//Initialize Context Info 
+	/**
+	 * @fn zeroDrmInitialize 
+	 *
+	 */
 	bool zeroDrmInitialize(uint32_t &contextId , ZeroDrmStatusCallbackFnPtr fnPtr=NULL, void *callbackData=NULL);
-	// Finalize Context Info
+	/**
+	 * @fn zeroDrmFinalize
+	 *
+	 */
 	void zeroDrmFinalize(const uint32_t contextId);
-	// Set the ContentMetadata from Maninfest 
+	/**
+	 * @fn zeroDrmSetContentMetadata
+	 */
 	bool zeroDrmSetContentMetadata(const uint32_t contextId , const unsigned char * metadata, size_t metadataSz);
-	// Set the ReceiptData from Maninfest
+	/**
+	 * @fn zeroDrmSetReceiptMetadata
+	 */
 	bool zeroDrmSetReceiptMetadata(const uint32_t contextId , const unsigned char * metadata, size_t metadataSz);
-	// Decrypt the data 
+	/**
+	 * @fn zeroDrmDecrypt
+	 */
 	ZeroDrmReturn zeroDrmDecrypt(const uint32_t contextId,void *encryptedDataPtr, size_t encryptedDataLen,int timeInMs = 3000,const uint32_t hashKey=0);
-	// get last error code
+	/**
+	 * @brief get last error code
+	 *
+	 */
 	int getZeroDRMLastError()  { return mDrmLastError;}
+	/**
+	 * @fn zeroDrmIsContextActive
+	 *
+	 */
 	bool zeroDrmIsContextActive(const uint32_t contextId );
-	// parse X-KEY tag 
-	// Sync mode - receipt/key is processed sync mode adding wait time to this API
+
+	/**
+	 * @fn zeroDrmGetPlaybackKeySync
+	 */
 	bool zeroDrmGetPlaybackKeySync(const uint32_t contextId , const char *sTagLine );
 #ifdef PLAYBACK_ASYNC_SUPPORT
-	// Async mode - receipt/key is processed async mode and callback is given to registered callback function
+	/**
+	 * @fn zeroDrmGetPlaybackKeyAsync
+	 */
 	bool zeroDrmGetPlaybackKeyAsync(const uint32_t contextId , const char *sTagLine);
 #endif
-	// Function to set the caching flag - This can be called to disable key caching in adapter
+	/**
+	 * @brief Function to set the caching flag - This can be called to disable key caching in adapter
+	 *
+	 */
 	void zeroDrmSetCacheReUseFlag(bool flag) { mCacheReUseFlag = flag; }	
 private :
 	int	mDrmLastError;	
@@ -253,30 +312,64 @@ private :
 	bool mCacheReUseFlag;
 private:	
 	// private functions
+	/**
+	 * @fn ZeroDRMAccessAdapter 
+	 *
+	 */
 	ZeroDRMAccessAdapter();
+	/**
+	 * @fn ~ZeroDRMAccessAdapter
+	 *
+	 */
 	~ZeroDRMAccessAdapter ();
-	// Get traceId for drm request
+	/**
+	 * @fn zeroDrmGetTraceId
+	 */
 	char *zeroDrmGetTraceId();
-	// Generate Hash for each content/receipt data,this need to be replace with sha based hash for license rotation
+	/**
+	 * @fn JSHash
+	 */ 
 	uint32_t JSHash(const unsigned char *str, size_t length);
-	// Parse X-KEY tag from manifest
+	/**
+	 * @fn zeroDrmParseKeyTag
+	 */
 	bool zeroDrmParseKeyTag(ZeroDrmInfo	&keyTag , const char *sTagLine);
-	// Worker Thread
+	/**
+	 * @fn zeroDRMWorkerThreadTask 
+	 *
+	 */
 	void zeroDRMWorkerThreadTask();
-	// Release Metadata memory
+	/**
+	 * @fn zeroDrmDeleteMetadata
+	 *
+	 */ 
 	void zeroDrmDeleteMetadata(ZeroDrmMetadata *metadata);
-	// Get key from remote server
+	/**
+	 * @fn zeroDrmGetKey
+	 */
 	ZeroDrmReturn zeroDrmGetKey(const uint32_t contextId  , const uint32_t hashValue,ZeroDrmInfo &keyTag, ZeroDrmState   &retState);
-	// free memory of keyTag information
+	/**
+	 * @fn zeroDrmDeleteKeyTag
+	 */ 
 	void zeroDrmDeleteKeyTag(ZeroDrmInfo *keyTagInfo);
-	// When stream is having multiple metadata(key rotation), this function stores the latest metadata for quick access
+	/**
+	 * @fn zeroDrmSetActiveMetadata
+	 */
 	void zeroDrmSetActiveMetadata(const uint32_t contextId , ZeroDrmMetadata *metadata);
-	// Get the latest stored metadata for quick decrypt
+	/**
+	 * @fn zeroDrmGetMetadata
+	 */ 
 	ZeroDrmReturn zeroDrmGetMetadata(const uint32_t contextId,ZeroDrmMetadata **metadata,const uint32_t hashKey);
-	// checks if user context is still active 
+	/**
+	 * @fn zeroDrmIsContextIdValid 
+	 *
+	 */
 	bool zeroDrmIsContextIdValid(const uint32_t contextId );
 #ifdef PLAYBACK_ASYNC_SUPPORT
-	// Thread entry function for Async mode processing 
+	/**
+	 * @brief Thread entry function for Async mode processing 
+	 *
+	 */
 	static void * ThreadEntryFunction(void * This) {((ZeroDRMAccessAdapter *)This)->zeroDRMWorkerThreadTask(); return NULL;}
 #endif
 	inline uint8_t getHexFromChar(char c)

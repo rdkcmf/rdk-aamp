@@ -32,8 +32,7 @@
 #include <closedcaptions/subtec/SubtecConnector.h>
 
 /**
- * @brief Impl specific initialization code called before each public interface call
- * @return void
+ *  @brief Impl specific initialization code called before each public interface call
  */
 void AampSubtecCCManager::EnsureInitialized()
 {
@@ -42,9 +41,8 @@ void AampSubtecCCManager::EnsureInitialized()
 }
 
 /**
-	* @brief Impl specific initialization code for HAL
-	* @return void
-*/
+ *  @brief Impl specific initialization code for HAL
+ */
 void AampSubtecCCManager::EnsureHALInitialized()
 {
 	if(not mHALInitialized)
@@ -62,9 +60,8 @@ void AampSubtecCCManager::EnsureHALInitialized()
 };
 
 /**
-	* @brief Impl specific initialization code for Communication with renderer
-	* @return void
-	*/
+ *  @brief Impl specific initialization code for Communication with rendered
+ */
 void AampSubtecCCManager::EnsureRendererCommsInitialized()
 {
 	if(not mRendererInitialized)
@@ -82,9 +79,7 @@ void AampSubtecCCManager::EnsureRendererCommsInitialized()
 };
 
 /**
- * @brief Gets Handle or ID
- *
- * @return int -  unique ID
+ *  @brief Gets Handle or ID, Every client using subtec must call GetId  in the begining , save id, which is required for Release funciton.
  */
 int AampSubtecCCManager::GetId()
 {
@@ -95,7 +90,7 @@ int AampSubtecCCManager::GetId()
 }
 
 /**
- * @brief Release CC resources
+ *  @brief Release CC resources
  */
 void AampSubtecCCManager::Release(int id)
 {
@@ -124,9 +119,7 @@ void AampSubtecCCManager::Release(int id)
 }
 
 /**
- * @brief To start CC rendering
- *
- * @return void
+ *  @brief To start CC rendering
  */
 void AampSubtecCCManager::StartRendering()
 {
@@ -134,9 +127,7 @@ void AampSubtecCCManager::StartRendering()
 }
 
 /**
- * @brief To stop CC rendering
- *
- * @return void
+ *  @brief To stop CC rendering
  */
 void AampSubtecCCManager::StopRendering()
 {
@@ -144,9 +135,7 @@ void AampSubtecCCManager::StopRendering()
 }
 
 /**
- * @brief set digital channel with specified id
- *
- * @return CC_VL_OS_API_RESULT
+ *  @brief set digital channel with specified id
  */
 int AampSubtecCCManager::SetDigitalChannel(unsigned int id)
 {
@@ -156,9 +145,7 @@ int AampSubtecCCManager::SetDigitalChannel(unsigned int id)
 }
 
 /**
- * @brief set analog channel with specified id
- *
- * @return CC_VL_OS_API_RESULT
+ *  @brief set analog channel with specified id
  */
 int AampSubtecCCManager::SetAnalogChannel(unsigned int id)
 {
@@ -168,9 +155,7 @@ int AampSubtecCCManager::SetAnalogChannel(unsigned int id)
 }
 
 /**
- * @brief ensure mEnabled is consistent with renderer state
- *
- * @return void
+ *  @brief ensure mRendering is consistent with renderer state
  */
 void AampSubtecCCManager::EnsureRendererStateConsistency()
 {
@@ -187,8 +172,8 @@ void AampSubtecCCManager::EnsureRendererStateConsistency()
 }
 
 /**
- * @brief Constructor
-*/
+ *  @brief Constructor
+ */
 AampSubtecCCManager::AampSubtecCCManager()
 {
  	// Some of the apps don’t call set track  and as default CC is not set, CC doesn’t work. 

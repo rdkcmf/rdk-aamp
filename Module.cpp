@@ -16,6 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
+/**
+ * @file Module.cpp
+ * @brief Declaration of module name aamp
+ */
+
 #include "Module.h"
 
 #include <core/core.h>

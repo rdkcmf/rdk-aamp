@@ -17,6 +17,10 @@
  * limitations under the License.
 */
 
+/**
+ * @file  uint33_t.h
+ * @brief Custom int variable to handle 33 bit
+ */
 
 #ifndef _UINT33_T_H
 #define _UINT33_T_H
@@ -25,6 +29,10 @@
 #include <cstdint>
 #include <limits>
 
+/**
+ * @struct uint33_t
+ * @brief Uint with size of 33 bits
+ */
 struct uint33_t
 {
 	uint64_t value : 33;

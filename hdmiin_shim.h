@@ -41,20 +41,63 @@ using namespace std;
 class StreamAbstractionAAMP_HDMIIN : public StreamAbstractionAAMP_VIDEOIN
 {
 public:
+    /**
+     * @fn StreamAbstractionAAMP_HDMIIN
+     * @param aamp pointer to PrivateInstanceAAMP object associated with player
+     * @param seekpos Seek position
+     * @param rate playback rate
+     */	
     StreamAbstractionAAMP_HDMIIN(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+    /**
+     * @fn ~StreamAbstractionAAMP_HDMIIN 
+     */    
     ~StreamAbstractionAAMP_HDMIIN();
+    /**
+     * @brief Copy constructor disabled
+     *
+     */
     StreamAbstractionAAMP_HDMIIN(const StreamAbstractionAAMP_HDMIIN&) = delete;
+    /**
+     * @brief assignment operator disabled
+     *
+     */
     StreamAbstractionAAMP_HDMIIN& operator=(const StreamAbstractionAAMP_HDMIIN&) = delete;
+    /**
+     *   @fn Init
+     *   @param  tuneType to set type of object.
+     *   @retval eAAMPSTATUS_OK
+     */
     AAMPStatusType Init(TuneType tuneType) override;
+    /**
+     *   @fn Start
+     */
     void Start() override;
+    /**
+     *   @fn Stop
+     */
     void Stop(bool clearChannelData) override;
+    /**
+     * @fn GetAvailableVideoTracks
+     */
     std::vector<StreamInfo*> GetAvailableVideoTracks(void) override;
+    /**
+     * @fn GetAvailableThumbnailTracks
+     */
     std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
+    /**
+     * @fn SetThumbnailTrack
+     */
     bool SetThumbnailTrack(int) override;
+    /**
+     * @fn GetThumbnailRangeData
+     */
     std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 private:
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
     /*Event Handler*/
+    /**
+     *   @fn OnVideoStreamInfoUpdate
+     */
     void OnVideoStreamInfoUpdate(const JsonObject& parameters);
 #endif
 };

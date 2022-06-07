@@ -17,10 +17,16 @@
  * limitations under the License.
 */
 
+/**
+ * @file AampDrmSystems.h 
+ * @brief Define DRM types
+ */
+
 #ifndef AAMPDRMSYSTEMS_H
 #define AAMPDRMSYSTEMS_H
 
 /**
+ * @enum DRMSystems
  * @brief DRM system types
  * @note these are now deprecated in favor of DrmHelpers, don't expand this
  */

@@ -57,8 +57,6 @@ static void* BufferHealthMonitor(void* user_data)
 
 /**
  * @brief Get string corresponding to buffer status.
- *
- * @return string representation of buffer status
  */
 const char* MediaTrack::GetBufferHealthStatusString(BufferHealthStatus status)
 {
@@ -102,9 +100,7 @@ BufferHealthStatus MediaTrack::GetBufferStatus()
     return bStatus;
 }
 
-/**
- * @brief Monitors buffer health of track
- */
+
 void MediaTrack::MonitorBufferHealth()
 {
 	int  bufferHealthMonitorDelay,bufferHealthMonitorInterval;
@@ -177,7 +173,7 @@ void MediaTrack::MonitorBufferHealth()
 }
 
 /**
- * @brief Updates internal state after a fragment inject
+ * @brief Update segment cache and inject buffer to gstreamer
  */
 void MediaTrack::UpdateTSAfterInject()
 {
@@ -204,7 +200,7 @@ void MediaTrack::UpdateTSAfterInject()
 }
 
 /**
- * @brief Updates internal state after a fragment inject
+ * @brief Update segment cache and inject buffer to gstreamer
  */
 void MediaTrack::UpdateTSAfterChunkInject()
 {
@@ -227,12 +223,9 @@ void MediaTrack::UpdateTSAfterChunkInject()
 	pthread_mutex_unlock(&mutex);
 }
 
-
 /**
- * @brief Receives cached fragment and injects to sink.
- *
- * @param[in] cachedFragmentChunk - contains fragment  Chunk to be processed and injected
- * @param[out] fragmentChunkDiscarded - true if fragment is discarded.
+ * @brief  To be implemented by derived classes to receive cached fragment Chunk
+ *         Receives cached fragment and injects to sink.
  */
 void MediaTrack::InjectFragmentChunkInternal(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration)
 {
@@ -242,7 +235,7 @@ void MediaTrack::InjectFragmentChunkInternal(MediaType mediaType, GrowableBuffer
 } // InjectFragmentChunkInternal
 
 /**
- * @brief Updates internal state after a fragment fetch
+ *  @brief Updates internal state after a fragment fetch
  */
 void MediaTrack::UpdateTSAfterFetch()
 {
@@ -318,7 +311,7 @@ void MediaTrack::UpdateTSAfterFetch()
 }
 
 /**
- * @brief Updates internal state after a fragment fetch
+ *  @brief Updates internal state after a fragment fetch
  */
 void MediaTrack::UpdateTSAfterChunkFetch()
 {
@@ -346,8 +339,6 @@ void MediaTrack::UpdateTSAfterChunkFetch()
 /**
  * @brief Wait until a free fragment is available.
  * @note To be called before fragment fetch by subclasses
- * @param timeoutMs - timeout in milliseconds. -1 for infinite wait
- * @retval true if fragment available, false on abort.
  */
 bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 {
@@ -454,8 +445,7 @@ bool MediaTrack::WaitForFreeFragmentAvailable( int timeoutMs)
 }
 
 /**
- * @brief Wait until a cached fragment is available.
- * @retval true if fragment available, false on abort.
+ *  @brief Wait till cached fragment available
  */
 bool MediaTrack::WaitForCachedFragmentAvailable()
 {
@@ -487,8 +477,7 @@ bool MediaTrack::WaitForCachedFragmentAvailable()
 }
 
 /**
- * @brief Wait until a cached fragment chunk is Injected.
- * @retval true if fragment chunk injected , false on abort.
+ *  @brief Wait until a cached fragment chunk is Injected.
  */
 bool MediaTrack::WaitForCachedFragmentChunkInjected(int timeoutMs)
 {
@@ -541,8 +530,7 @@ bool MediaTrack::WaitForCachedFragmentChunkInjected(int timeoutMs)
 }
 
 /**
- * @brief Wait until a cached fragment chunk is available.
- * @retval true if fragment available, false on abort.
+ *  @brief Wait till cached fragment chunk available
  */
 bool MediaTrack::WaitForCachedFragmentChunkAvailable()
 {
@@ -606,8 +594,7 @@ bool MediaTrack::WaitForCachedFragmentChunkAvailable()
 }
 
 /**
- * @brief Aborts wait for fragment.
- * @param[in] immediate Indicates immediate abort as in a seek/ stop
+ *  @brief Abort the waiting for cached fragments and free fragment slot
  */
 void MediaTrack::AbortWaitForCachedAndFreeFragment(bool immediate)
 {
@@ -642,7 +629,7 @@ void MediaTrack::AbortWaitForCachedAndFreeFragment(bool immediate)
 
 
 /**
- * @brief Aborts wait for cached fragment.
+ * @brief Abort the waiting for cached fragments immediately
  */
 void MediaTrack::AbortWaitForCachedFragment()
 {
@@ -669,7 +656,7 @@ void MediaTrack::AbortWaitForCachedFragment()
 }
 
 /**
- * @brief Process next cached fragment chunk
+ *  @brief Process next cached fragment chunk
  */
 bool MediaTrack::ProcessFragmentChunk()
 {
@@ -896,7 +883,7 @@ bool MediaTrack::ProcessFragmentChunk()
 }
 
 /**
- * @brief Inject next cached fragment
+ *  @brief Inject fragment Chunk into the gstreamer
  */
 bool MediaTrack::InjectFragmentChunk()
 {
@@ -918,7 +905,7 @@ bool MediaTrack::InjectFragmentChunk()
 }
 
 /**
- * @brief Inject next cached fragment
+ *  @brief Inject fragment into the gstreamer
  */
 bool MediaTrack::InjectFragment()
 {
@@ -1164,7 +1151,7 @@ static void *FragmentChunkInjector(void *arg)
 
 
 /**
- * @brief Starts inject loop of track
+ *  @brief Start fragment injector loop
  */
 void MediaTrack::StartInjectLoop()
 {
@@ -1183,7 +1170,7 @@ void MediaTrack::StartInjectLoop()
 }
 
 /**
- * @brief Starts inject loop of track
+ *  @brief Start fragment Chunk injector loop
  */
 void MediaTrack::StartInjectChunkLoop()
 {
@@ -1202,7 +1189,7 @@ void MediaTrack::StartInjectChunkLoop()
 }
 
 /**
- * @brief Injection loop - use internally by injection logic
+ *  @brief Injection loop - use internally by injection logic
  */
 void MediaTrack::RunInjectLoop()
 {
@@ -1269,7 +1256,8 @@ void MediaTrack::RunInjectLoop()
 }
 
 /**
- * @brief Injection loop - use internally by injection logic
+ * @brief Run fragment injector loop.
+ *        Injection loop - use internally by injection logic
  */
 void MediaTrack::RunInjectChunkLoop()
 {
@@ -1290,7 +1278,7 @@ void MediaTrack::RunInjectChunkLoop()
 }
 
 /**
- * @brief Stop inject loop of track
+ *  @brief Stop fragment injector loop
  */
 void MediaTrack::StopInjectLoop()
 {
@@ -1312,7 +1300,7 @@ void MediaTrack::StopInjectLoop()
 }
 
 /**
- * @brief Stop inject chunk loop of track
+ * @brief Stop fragment chunk injector loop of track
  */
 void MediaTrack::StopInjectChunkLoop()
 {
@@ -1334,8 +1322,7 @@ void MediaTrack::StopInjectChunkLoop()
 }
 
 /**
- * @brief Check if a track is enabled
- * @retval true if enabled, false if disabled
+ *  @brief Check if a track is enabled
  */
 bool MediaTrack::Enabled()
 {
@@ -1344,9 +1331,7 @@ bool MediaTrack::Enabled()
 
 
 /**
- * @brief Get buffer to fetch and cache next fragment.
- * @param[in] initialize true to initialize the fragment.
- * @retval Pointer to fragment buffer.
+ *  @brief Get buffer to store the downloaded fragment content to cache next fragment
  */
 CachedFragment* MediaTrack::GetFetchBuffer(bool initialize)
 {
@@ -1364,9 +1349,7 @@ CachedFragment* MediaTrack::GetFetchBuffer(bool initialize)
 }
 
 /**
- * @brief Get buffer to fetch chunk and cache next fragment chunk
- * @param[in] initialize true to initialize the fragment chunk
- * @retval Pointer to fragment chunk buffer.
+ *  @brief Get buffer to fetch and cache next fragment chunk
  */
 CachedFragmentChunk* MediaTrack::GetFetchChunkBuffer(bool initialize)
 {
@@ -1393,8 +1376,7 @@ CachedFragmentChunk* MediaTrack::GetFetchChunkBuffer(bool initialize)
 }
 
 /**
- * @brief Set current bandwidth of track
- * @param bandwidthBps bandwidth in bits per second
+ *  @brief Set current bandwidth of track
  */
 void MediaTrack::SetCurrentBandWidth(int bandwidthBps)
 {
@@ -1402,9 +1384,7 @@ void MediaTrack::SetCurrentBandWidth(int bandwidthBps)
 }
 
 /**
- * @brief Get profile index for TsbBandwidth
- * @param bandwidth - bandwidth to identify profile index from list
- * @retval profile index of the current bandwidth
+ *  @brief Get profile index for TsbBandwidth
  */
 int MediaTrack::GetProfileIndexForBW(long mTsbBandwidth)
 {
@@ -1412,8 +1392,7 @@ int MediaTrack::GetProfileIndexForBW(long mTsbBandwidth)
 }
 
 /**
- * @brief Get current bandwidth of track
- * @return bandwidth in bytes per second
+ *  @brief Get current bandwidth in bps
  */
 int MediaTrack::GetCurrentBandWidth()
 {
@@ -1421,10 +1400,9 @@ int MediaTrack::GetCurrentBandWidth()
 }
 
 /**
- *   @brief Flushes all media fragments and resets all relevant counters
- * 			Only intended for use on subtitle streams
- *
- *   @return void
+ *  @brief Flushes all cached fragments
+ *         Flushes all media fragments and resets all relevant counters
+ *                 Only intended for use on subtitle streams
  */
 void MediaTrack::FlushFragments()
 {
@@ -1442,10 +1420,8 @@ void MediaTrack::FlushFragments()
 }
 
 /**
-* @brief Cleans all cached fragment Chunks and unparsed buffer
-*
-* @return void
-*/
+ *  @brief Cleans all cached fragment Chunks and unparsed buffer
+ */
 void MediaTrack::CleanChunkCache()
 {
 	pthread_mutex_lock(&mutex);
@@ -1468,9 +1444,7 @@ void MediaTrack::CleanChunkCache()
 }
 
 /**
- * @brief Flushes all cached fragment Chunks
- *
- * @return void
+ *  @brief Flushes all cached fragment Chunks
  */
 void MediaTrack::FlushFragmentChunks()
 {
@@ -1495,11 +1469,9 @@ void MediaTrack::FlushFragmentChunks()
 	pthread_mutex_unlock(&mutex);
 }
 
+
 /**
- * @brief MediaTrack Constructor
- * @param type Type of track
- * @param aamp Pointer to associated aamp instance
- * @param name Name of the track
+ *  @brief MediaTrack Constructor
  */
 MediaTrack::MediaTrack(AampLogManager *logObj, TrackType type, PrivateInstanceAAMP* aamp, const char* name) :
 		eosReached(false), enabled(false), numberOfFragmentsCached(0), numberOfFragmentChunksCached(0), fragmentIdxToInject(0), fragmentChunkIdxToInject(0),
@@ -1536,8 +1508,9 @@ fragmentIdxToFetch(0), fragmentChunkIdxToFetch(0), abort(false), fragmentInjecto
 	pthread_mutex_init(&mutex, NULL);
 }
 
+
 /**
- * @brief MediaTrack Destructor
+ *  @brief MediaTrack Destructor
  */
 MediaTrack::~MediaTrack()
 {
@@ -1589,8 +1562,7 @@ MediaTrack::~MediaTrack()
 }
 
 /**
- *   @brief Unblocks track if caught up with video or downloads are stopped
- *
+ *  @brief Unblock track if caught up with video or downloads are stopped
  */
 void StreamAbstractionAAMP::ReassessAndResumeAudioTrack(bool abort)
 {
@@ -1628,8 +1600,8 @@ void StreamAbstractionAAMP::ReassessAndResumeAudioTrack(bool abort)
 
 
 /**
- *   @brief Waits track injection until caught up with video track.
- *   Used internally by injection logic
+ * @brief Blocks aux track injection until caught up with video track.
+ *        Used internally by injection logic
  */
 void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 {
@@ -1674,8 +1646,7 @@ void StreamAbstractionAAMP::WaitForVideoTrackCatchup()
 
 
 /**
- * @brief StreamAbstractionAAMP Constructor
- * @param[in] aamp pointer to PrivateInstanceAAMP object associated with stream
+ * @brief StreamAbstractionAAMP constructor.
  */
 StreamAbstractionAAMP::StreamAbstractionAAMP(AampLogManager *logObj, PrivateInstanceAAMP* aamp):
 		trickplayMode(false), currentProfileIndex(0), mCurrentBandwidth(0),currentAudioProfileIndex(-1),currentTextTrackProfileIndex(-1),
@@ -1725,7 +1696,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(AampLogManager *logObj, PrivateInst
 
 
 /**
- * @brief StreamAbstractionAAMP Destructor
+ *  @brief StreamAbstractionAAMP destructor.
  */
 StreamAbstractionAAMP::~StreamAbstractionAAMP()
 {
@@ -1741,10 +1712,7 @@ StreamAbstractionAAMP::~StreamAbstractionAAMP()
 }
 
 /**
- * @brief Get the last video fragment parsed time.
- *
- *	 @param None
- *	 @return Last video fragment parsed time.
+ *  @brief Get the last video fragment parsed time.
  */
 double StreamAbstractionAAMP::LastVideoFragParsedTimeMS(void)
 {
@@ -1752,10 +1720,7 @@ double StreamAbstractionAAMP::LastVideoFragParsedTimeMS(void)
 }
 
 /**
- *   @brief Get the desired profile to start fetching.
- *
- *   @param getMidProfile
- *   @retval profile index to be used for the track.
+ *  @brief Get the desired profile to start fetching.
  */
 int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
 {
@@ -1795,9 +1760,7 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
 
 /**
  *   @brief Notify bitrate updates to application.
- *   Used internally by injection logic
- *
- *   @param[in]  profileIndex - profile index of last injected fragment.
+ *          Used internally by injection logic
  */
 void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo, double position)
 {
@@ -1833,16 +1796,17 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamIn
 	}
 }
 
+/**
+ *  @brief Check if Initial Fragment Caching is supported
+ */
 bool StreamAbstractionAAMP::IsInitialCachingSupported()
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	return (video && video->enabled);
 }
+
 /**
- *	 @brief Function to update stream info of current fetched fragment
- *
- *	 @param[in]  profileIndex - profile index of current fetched fragment
- *	 @param[out]  cacheFragStreamInfo - stream info of current fetched fragment
+ *  @brief Function to update stream info of current fetched fragment
  */
 void StreamAbstractionAAMP::UpdateStreamInfoBitrateData(int profileIndex, StreamInfo &cacheFragStreamInfo)
 {
@@ -1859,8 +1823,9 @@ void StreamAbstractionAAMP::UpdateStreamInfoBitrateData(int profileIndex, Stream
 	}
 }
 
+
 /**
- * @brief Update profile state based on bandwidth of fragments downloaded
+ *  @brief Update profile state based on bandwidth of fragments downloaded.
  */
 void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 {
@@ -1891,7 +1856,7 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 }
 
 /**
- * @brief Update ramp down profile reason on fragments download failure
+ *  @brief Update rampdown profile on network failure
  */
 void StreamAbstractionAAMP::UpdateRampdownProfileReason(void)
 {
@@ -1899,7 +1864,7 @@ void StreamAbstractionAAMP::UpdateRampdownProfileReason(void)
 }
 
 /**
- * @brief GetDesiredProfileOnBuffer - Get the new profile corrected based on buffer availability
+ *  @brief Get Desired Profile based on Buffer availability
  */
 void StreamAbstractionAAMP::GetDesiredProfileOnBuffer(int currProfileIndex, int &newProfileIndex)
 {
@@ -1935,6 +1900,9 @@ void StreamAbstractionAAMP::GetDesiredProfileOnBuffer(int currProfileIndex, int 
 	}
 }
 
+/**
+ *  @brief Get Desired Profile on steady state
+ */
 void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex, int &newProfileIndex, long nwBandwidth)
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
@@ -1994,9 +1962,8 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 	}
 }
 
-
 /**
- * @brief ConfigureTimeoutOnBuffer - Configure timeout of next download based on buffer
+ *  @brief Configure download timeouts based on buffer
  */
 void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 {
@@ -2048,8 +2015,7 @@ void StreamAbstractionAAMP::ConfigureTimeoutOnBuffer()
 }
 
 /**
- * @brief Get desired profile based on cached duration
- * @retval index of desired profile based on cached duration
+ *  @brief Get desired profile based on cached duration
  */
 int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 {
@@ -2116,10 +2082,7 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 
 
 /**
- * @brief Rampdown profile
- *
- * @param[in] http_error
- * @retval true on profile change
+ *  @brief Rampdown profile
  */
 bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 {
@@ -2197,10 +2160,7 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 }
 
 /**
- *	 @brief Check whether the current profile is lowest.
- *
- *	 @param currentProfileIndex - current profile index to be checked.
- *	 @return true if the given profile index is lowest.
+ *  @brief Check whether the current profile is lowest.
  */
 bool StreamAbstractionAAMP::IsLowestProfile(int currentProfileIndex)
 {
@@ -2222,10 +2182,7 @@ bool StreamAbstractionAAMP::IsLowestProfile(int currentProfileIndex)
 }
 
 /**
- * @brief Convert custom curl errors to original
- *
- * @param[in] http_error - Error code
- * @return error code
+ *  @brief Convert custom curl errors to original
  */
 long StreamAbstractionAAMP::getOriginalCurlError(long http_error)
 {
@@ -2249,10 +2206,7 @@ long StreamAbstractionAAMP::getOriginalCurlError(long http_error)
 
 
 /**
- *   @brief Check for ramdown profile.
- *
- *   @param http_error
- *   @retval true if rampdown needed in the case of fragment not available in higher profile.
+ *  @brief Check for ramdown profile.
  */
 bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 {
@@ -2301,9 +2255,8 @@ bool StreamAbstractionAAMP::CheckForRampDownProfile(long http_error)
 	return retValue;
 }
 
-
 /**
- *   @brief Checks and update profile based on bandwidth.
+ *  @brief Checks and update profile based on bandwidth.
  */
 void StreamAbstractionAAMP::CheckForProfileChange(void)
 {
@@ -2353,22 +2306,18 @@ void StreamAbstractionAAMP::CheckForProfileChange(void)
 	}
 }
 
-
 /**
- *   @brief Get iframe track index.
- *   This shall be called only after UpdateIframeTracks() is done
- *
- *   @retval iframe track index.
+ *  @brief Get iframe track index.
+ *         This shall be called only after UpdateIframeTracks() is done
  */
 int StreamAbstractionAAMP::GetIframeTrack()
 {
 	return mAbrManager.getDesiredIframeProfile();
 }
 
-
 /**
  *   @brief Update iframe tracks.
- *   Subclasses shall invoke this after StreamInfo is populated .
+ *          Subclasses shall invoke this after StreamInfo is populated .
  */
 void StreamAbstractionAAMP::UpdateIframeTracks()
 {
@@ -2377,9 +2326,7 @@ void StreamAbstractionAAMP::UpdateIframeTracks()
 
 
 /**
- *   @brief Function called when playback is paused to update related flags.
- *
- *   @param[in] paused - true if playback paused, otherwise false.
+ *  @brief Function called when playback is paused to update related flags.
  */
 void StreamAbstractionAAMP::NotifyPlaybackPaused(bool paused)
 {
@@ -2407,9 +2354,7 @@ void StreamAbstractionAAMP::NotifyPlaybackPaused(bool paused)
 
 
 /**
- *   @brief Check if player caches are running dry.
- *
- *   @return true if player caches are running dry, false otherwise.
+ *  @brief Check if player caches are running dry.
  */
 bool StreamAbstractionAAMP::CheckIfPlayerRunningDry()
 {
@@ -2430,11 +2375,8 @@ bool StreamAbstractionAAMP::CheckIfPlayerRunningDry()
 	return false;
 }
 
-
 /**
- * @brief Update profile state based on cached fragments
- *
- * @return true if profile was changed, false otherwise
+ *  @brief Update profile based on fragment cache.
  */
 bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 {
@@ -2477,11 +2419,8 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 	return retVal;
 }
 
-
 /**
- *   @brief Check if playback has stalled and update related flags.
- *
- *   @param[in] fragmentParsed - true if next fragment was parsed, otherwise false
+ *  @brief Check if playback has stalled and update related flags.
  */
 void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed)
 {
@@ -2526,8 +2465,9 @@ void StreamAbstractionAAMP::CheckForPlaybackStall(bool fragmentParsed)
 	}
 }
 
+
 /**
- *   @brief MediaTracks shall call this to notify first fragment is injected.
+ *  @brief MediaTracks shall call this to notify first fragment is injected.
  */
 void StreamAbstractionAAMP::NotifyFirstFragmentInjected()
 {
@@ -2540,9 +2480,7 @@ void StreamAbstractionAAMP::NotifyFirstFragmentInjected()
 }
 
 /**
- *   @brief Get elapsed time of play-back.
- *
- *   @return elapsed time.
+ *  @brief Get elapsed time of play-back.
  */
 double StreamAbstractionAAMP::GetElapsedTime()
 {
@@ -2562,9 +2500,7 @@ double StreamAbstractionAAMP::GetElapsedTime()
 }
 
 /**
- *   @brief Get the bitrate of current video profile selected.
- *
- *   @return bitrate of current video profile.
+ *  @brief Get the bitrate of current video profile selected.
  */
 long StreamAbstractionAAMP::GetVideoBitrate(void)
 {
@@ -2572,11 +2508,8 @@ long StreamAbstractionAAMP::GetVideoBitrate(void)
 	return ((video && video->enabled) ? (video->GetCurrentBandWidth()) : 0);
 }
 
-
 /**
- *   @brief Get the bitrate of current audio profile selected.
- *
- *   @return bitrate of current audio profile.
+ *  @brief Get the bitrate of current audio profile selected.
  */
 long StreamAbstractionAAMP::GetAudioBitrate(void)
 {
@@ -2586,9 +2519,7 @@ long StreamAbstractionAAMP::GetAudioBitrate(void)
 
 
 /**
- *   @brief Check if current stream is muxed
- *
- *   @return true if current stream is muxed
+ *  @brief Check if current stream is muxed
  */
 bool StreamAbstractionAAMP::IsMuxedStream()
 {
@@ -2609,7 +2540,7 @@ bool StreamAbstractionAAMP::IsMuxedStream()
 
 /**
  *   @brief Waits subtitle track injection until caught up with muxed/audio track.
- *   Used internally by injection logic
+ *          Used internally by injection logic
  */
 void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 {
@@ -2663,10 +2594,8 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 	pthread_mutex_unlock(&mLock);
 }
 
-
 /**
- *   @brief Unblocks subtitle track injection if downloads are stopped
- *
+ *  @brief Unblock subtitle track injector if downloads are stopped
  */
 void StreamAbstractionAAMP::AbortWaitForAudioTrackCatchup(bool force)
 {
@@ -2685,6 +2614,9 @@ void StreamAbstractionAAMP::AbortWaitForAudioTrackCatchup(bool force)
 	}
 }
 
+/**
+ *  @brief Send a MUTE/UNMUTE packet to the subtitle renderer
+ */
 void StreamAbstractionAAMP::MuteSubtitles(bool mute)
 {
 	MediaTrack *subtitle = GetMediaTrack(eTRACK_SUBTITLE);
@@ -2695,9 +2627,7 @@ void StreamAbstractionAAMP::MuteSubtitles(bool mute)
 }
 
 /**
- *   @brief Checks if streamer reached end of stream
- *
- *   @return true if end of stream reached, false otherwise
+ *  @brief Checks if streamer reached end of stream
  */
 bool StreamAbstractionAAMP::IsEOSReached()
 {
@@ -2723,10 +2653,8 @@ bool StreamAbstractionAAMP::IsEOSReached()
 	return eos;
 }
 
-/*
- *   @brief Function to returns last injected fragment position
- *
- *   @return double last injected fragment position in seconds
+/**
+ *  @brief Function to returns last injected fragment position
  */
 double StreamAbstractionAAMP::GetLastInjectedFragmentPosition()
 {
@@ -2742,10 +2670,7 @@ double StreamAbstractionAAMP::GetLastInjectedFragmentPosition()
 }
 
 /**
- * @brief To check for discontinuity in future fragments.
- *
- * @param[out] cachedDuration - cached fragment duration in seconds
- * @return bool - true if discontinuity present, false otherwise
+ *  @brief To check for discontinuity in future fragments.
  */
 bool MediaTrack::CheckForFutureDiscontinuity(double &cachedDuration)
 {
@@ -2778,6 +2703,9 @@ bool MediaTrack::CheckForFutureDiscontinuity(double &cachedDuration)
 	return ret;
 }
 
+/**
+ *  @brief Called if sink buffer is full
+ */
 void MediaTrack::OnSinkBufferFull()
 {
 	//check if we should stop initial caching here
@@ -2810,9 +2738,7 @@ void MediaTrack::OnSinkBufferFull()
 }
 
 /**
- *   @brief Function to process discontinuity.
- *
- *   @param[in] type - track type.
+ *  @brief Function to process discontinuity.
  */
 bool StreamAbstractionAAMP::ProcessDiscontinuity(TrackType type)
 {
@@ -2922,7 +2848,7 @@ bool StreamAbstractionAAMP::ProcessDiscontinuity(TrackType type)
 }
 
 /**
- * @brief Function to abort any wait for discontinuity by injector theads.
+ *  @brief Function to abort any wait for discontinuity by injector theads.
  */
 void StreamAbstractionAAMP::AbortWaitForDiscontinuity()
 {
@@ -2932,11 +2858,8 @@ void StreamAbstractionAAMP::AbortWaitForDiscontinuity()
 	pthread_mutex_unlock(&mStateLock);
 }
 
-
 /**
- *   @brief Function to check if any media tracks are stalled on discontinuity.
- *
- *   @param[in] type - track type.
+ *  @brief Function to check if any media tracks are stalled on discontinuity.
  */
 void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 {
@@ -3040,9 +2963,9 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 		pthread_mutex_unlock(&mStateLock);
 	}
 }
+
 /**
- *   @brief Check for ramp down limit reached by player
- *   @return true if limit reached, false otherwise
+ *  @brief Check for ramp down limit reached by player
  */
 bool StreamAbstractionAAMP::CheckForRampDownLimitReached()
 {
@@ -3059,9 +2982,7 @@ bool StreamAbstractionAAMP::CheckForRampDownLimitReached()
 }
 
 /**
- *   @brief Get buffered video duration in seconds
- *
- *   @return duration of currently buffered video in seconds
+ *  @brief Get buffered video duration in seconds
  */
 double StreamAbstractionAAMP::GetBufferedVideoDurationSec()
 {
@@ -3075,9 +2996,7 @@ double StreamAbstractionAAMP::GetBufferedVideoDurationSec()
 }
 
 /**
- *   @brief Get current audio track
- *
- *   @return int - index of current audio track
+ *  @brief Get current audio track information
  */
 bool StreamAbstractionAAMP::GetCurrentAudioTrack(AudioTrackInfo &audioTrack)
 {
@@ -3100,8 +3019,6 @@ bool StreamAbstractionAAMP::GetCurrentAudioTrack(AudioTrackInfo &audioTrack)
 
 /**
  *   @brief Get current text track
- *
- *   @return int - index of current audio track
  */
 bool StreamAbstractionAAMP::GetCurrentTextTrack(TextTrackInfo &textTrack)
 {
@@ -3123,8 +3040,6 @@ bool StreamAbstractionAAMP::GetCurrentTextTrack(TextTrackInfo &textTrack)
 
 /**
  *   @brief Get current audio track
- *
- *   @return int - index of current audio track
  */
 int StreamAbstractionAAMP::GetAudioTrack()
 {
@@ -3143,9 +3058,7 @@ int StreamAbstractionAAMP::GetAudioTrack()
 }
 
 /**
- *   @brief Get current text track
- *
- *   @return int - index of current text track
+ *  @brief Get current text track
  */
 int StreamAbstractionAAMP::GetTextTrack()
 {
@@ -3164,9 +3077,7 @@ int StreamAbstractionAAMP::GetTextTrack()
 }
 
 /**
- *   @brief Refresh subtitle track
- *
- *   @return void
+ *  @brief Refresh subtitle track
  */
 void StreamAbstractionAAMP::RefreshSubtitles()
 {
@@ -3180,10 +3091,6 @@ void StreamAbstractionAAMP::RefreshSubtitles()
 }
 
 
-/**
- *   @brief Waits aux track injection until caught up with video track.
- *   Used internally by injection logic
- */
 void StreamAbstractionAAMP::WaitForVideoTrackCatchupForAux()
 {
 	MediaTrack *aux = GetMediaTrack(eTRACK_AUX_AUDIO);

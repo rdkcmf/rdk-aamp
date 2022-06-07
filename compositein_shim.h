@@ -41,17 +41,67 @@ using namespace std;
 class StreamAbstractionAAMP_COMPOSITEIN : public StreamAbstractionAAMP_VIDEOIN
 {
 public:
+    /**
+     * @fn StreamAbstractionAAMP_COMPOSITEIN
+     * @param aamp pointer to PrivateInstanceAAMP object associated with player
+     * @param seekpos Seek position
+     * @param rate playback rate
+     */
     StreamAbstractionAAMP_COMPOSITEIN(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seekpos, float rate);
+    /**
+     * @fn ~StreamAbstractionAAMP_COMPOSITEIN
+     */
     ~StreamAbstractionAAMP_COMPOSITEIN();
+    /**
+     * @brief Copy constructor disabled
+     *
+     */
     StreamAbstractionAAMP_COMPOSITEIN(const StreamAbstractionAAMP_COMPOSITEIN&) = delete;
+    /**
+     * @brief assignment operator disabled
+     *
+     */
     StreamAbstractionAAMP_COMPOSITEIN& operator=(const StreamAbstractionAAMP_COMPOSITEIN&) = delete;
+    /**
+     *   @brief  Initialize a newly created object.
+     *   @param  tuneType to set type of object.
+     *   @retval eAAMPSTATUS_OK
+     */
     AAMPStatusType Init(TuneType tuneType) override;
+    /**
+     *   @fn Start
+     */
     void Start() override;
+    /**
+     * @fn Stop
+     */
     void Stop(bool clearChannelData) override;
+    /**
+     * @fn GetAvailableVideoTracks
+     */
     std::vector<StreamInfo*> GetAvailableVideoTracks(void) override;
+    /**
+     * @fn GetAvailableThumbnailTracks
+     * @return available thunbnail tracks.
+     */
     std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
+    /**
+     * @fn SetThumbnailTrack
+     * @return True/False to set.
+     */
     bool SetThumbnailTrack(int) override;
-    std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
+    /***************************************************************************
+     * @fn GetThumbnailRangeData
+     *
+     * @param tStart start duration of thumbnail data.
+     * @param tEnd end duration of thumbnail data.
+     * @param baseurl base url of thumbnail images.
+     * @param raw_w absolute width of the thumbnail spritesheet.
+     * @param raw_h absolute height of the thumbnail spritesheet.
+     * @param width width of each thumbnail tile.
+     * @param height height of each thumbnail tile.
+     ***************************************************************************/
+    std::vector<ThumbnailData> GetThumbnailRangeData(double tStart, double tEnd, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height) override;
 };
 
 #endif // COMPOSITEIN_SHIM_H_

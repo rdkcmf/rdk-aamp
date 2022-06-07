@@ -35,24 +35,29 @@
 #include <closedcaptions/subtec/SubtecConnector.h>
 
 
+/**
+ * @class AampSubtecCCManager
+ * @brief Handling Subtec CC operation
+ */
+
 class AampSubtecCCManager : public AampCCManagerBase
 {
 public:
 
 	/**
-	 * @brief Release CC resources
+	 * @fn Release
 	 * @param[in] id -  returned from GetId function
 	 */
 	void Release(int iID) override;
 
 	/**
-	* @brief Gets Handle or ID, Every client using subtec must call GetId  in the begining , save id, which is required for Release funciton.
-	* @return int -  unique ID
-	*/
+	 * @fn GetId
+	 * @return int -  unique ID
+	 */
 	virtual int GetId();
 
 	/**
-	 * @brief Constructor
+	 * @fn AampSubtecCCManager
 	 */
 	AampSubtecCCManager();
 
@@ -66,52 +71,52 @@ public:
 
 private:
 	/**
-	 * @brief To start CC rendering
+	 * @fn StartRendering
 	 *
 	 * @return void
 	 */
 	void StartRendering() override;
 
 	/**
-	 * @brief To stop CC rendering
+	 * @fn StopRendering
 	 *
 	 * @return void
 	 */
 	void StopRendering() override;
 
 	/**
-	 * @brief Impl specific initialization code called before each public interface call
+	 * @fn EnsureInitialized
 	 * @return void
 	 */
 	void EnsureInitialized() override;
 
 	/**
-	 * @brief Impl specific initialization code for HAL
+	 * @fn EnsureHALInitialized
 	 * @return void
 	 */
 	void EnsureHALInitialized() override;
 
 	/**
-	 * @brief Impl specific initialization code for Communication with renderer
+	 * @fn EnsureRendererCommsInitialized
 	 * @return void
 	 */
 	void EnsureRendererCommsInitialized() override;
 
 	/**
-	 * @brief set digital channel with specified id
+	 * @fn SetDigitalChannel
 	 *
 	 * @return CC_VL_OS_API_RESULT
 	 */
 	int SetDigitalChannel(unsigned int id) override;
 	/**
-	 * @brief set analog channel with specified id
+	 * @fn SetAnalogChannel
 	 *
 	 * @return CC_VL_OS_API_RESULT
 	 */
 	int SetAnalogChannel(unsigned int id) override;
 
 	/**
-	 * @brief ensure mRendering is consistent with renderer state
+	 * @fn EnsureRendererStateConsistency
 	 *
 	 * @return void
 	 */

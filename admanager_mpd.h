@@ -47,14 +47,14 @@ class CDAIObjectMPD: public CDAIObject
 public:
 
 	/**
-	* @brief CDAIObjectMPD Constructor
-	*
+	 * @fn CDAIObjectMPD
+	 *
 	 * @param[in] aamp - Pointer to PrivateInstanceAAMP
-	*/
+	 */
 	CDAIObjectMPD(AampLogManager *logObj, PrivateInstanceAAMP* aamp);
 
 	/**
-	 * @brief CDAIObjectMPD destructor.
+	 * @fn ~CDAIObjectMPD
 	 */
 	virtual ~CDAIObjectMPD();
 
@@ -79,7 +79,7 @@ public:
 	}
 
 	/**
-	 *   @brief Setting the alternate contents' (Ads/blackouts) URL
+	 *   @fn SetAlternateContents 
 	 *
 	 *   @param[in] periodId - Adbreak's unique identifier; the first period id
 	 *   @param[in] adId - Individual Ad's id
@@ -296,15 +296,15 @@ public:
 	AdState                                        mAdState;            /**< Current state of the CDAI state machine */
 
 	/**
-	* @brief PrivateCDAIObjectMPD constructor
-	*
-	* @param[in] aamp - Pointer to PrivateInstanceAAMP
-	*/
+	 * @fn PrivateCDAIObjectMPD
+	 *
+	 * @param[in] aamp - Pointer to PrivateInstanceAAMP
+	 */
 	PrivateCDAIObjectMPD(AampLogManager* logObj, PrivateInstanceAAMP* aamp);
 
 	/**
-	* @brief PrivateCDAIObjectMPD destructor
-	*/
+	 * @fn ~PrivateCDAIObjectMPD
+	 */
 	~PrivateCDAIObjectMPD();
 
 	/**
@@ -318,9 +318,9 @@ public:
 	PrivateCDAIObjectMPD& operator= (const PrivateCDAIObjectMPD&) = delete;
 
 	/**
-	 * @brief Setting the alternate contents' (Ads/blackouts) URL
+	 * @fn SetAlternateContents
 	 *
-	 * @param[in] adBreakId - Adbreak's unique identifier.
+	 * @param[in] periodId - Adbreak's unique identifier.
 	 * @param[in] adId - Individual Ad's id
 	 * @param[in] url - Ad URL
 	 * @param[in] startMS - Ad start time in milliseconds
@@ -329,30 +329,29 @@ public:
 	void SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url,  uint64_t startMS, uint32_t breakdur=0);
 
 	/**
-	 *   @brief Method for fullfilling the Ad
+	 * @fn FulFillAdObject
 	 */
 	void FulFillAdObject();
 
 	/**
-	 * @brief Method for downloading and parsing Ad's MPD
+	 * @fn GetAdMPD
 	 *
 	 * @param[in]  url - Ad manifest's URL
 	 * @param[out] finalManifest - Is final MPD or the final MPD should be downloaded later
 	 * @param[in]  tryFog - Attempt to download from FOG or not
 	 *
-	 * @return Pointer to the MPD object
 	 */
-	MPD*  GetAdMPD(std::string &url, bool &finalManifest, bool tryFog = false);
+	MPD* GetAdMPD(std::string &url, bool &finalManifest, bool tryFog = false);
 
 	/**
-	 * @brief Method to insert period into period map
+	 * @fn InsertToPeriodMap
 	 *
 	 * @param[in]  period - Pointer of the period to be inserted
 	 */
 	void InsertToPeriodMap(IPeriod *period);
 
 	/**
-	 * @brief Method to check the existence of period in the period map
+	 * @fn isPeriodExist
 	 *
 	 * @param[in]  periodId - Period id to be checked.
 	 * @return true or false
@@ -368,29 +367,29 @@ public:
 	inline bool isAdBreakObjectExist(const std::string &adBrkId);
 
 	/**
-	 * @brief Method to remove expired periods from the period map
+	 * @fn PrunePeriodMaps
 	 *
 	 * @param[in]  newPeriodIds - Period ids from the latest manifest
 	 */
 	void PrunePeriodMaps(std::vector<std::string> &newPeriodIds);
 
 	/**
-	 * @brief Method to reset the state of the CDAI state machine
+	 * @fn ResetState
 	 */
 	void ResetState();
 
 	/**
-	 * @brief Method to clear the maps in the CDAI object
+	 * @fn ClearMaps
 	 */
 	void ClearMaps();
 
 	/**
-	 * @brief Method to create a bidirectional between the ads and the underlying content periods
+	 * @fn PlaceAds
 	 */
 	void  PlaceAds(dash::mpd::IMPD *mpd);
 
 	/**
-	 * @brief Checking to see if a period is the begining of the Adbreak or not.
+	 * @fn CheckForAdStart
 	 *
 	 * @param[in]  rate - Playback rate
 	 * @param[in]  periodId - Period id to be checked
@@ -398,12 +397,11 @@ public:
 	 * @param[out] breakId - Id of the Adbreak, if the period & offset falls in an Adbreak
 	 * @param[out] adOffset - Offset of the Ad for that point of the period
 	 *
-	 * @return Ad index, if the period has an ad over it. Else -1
 	 */
 	int CheckForAdStart(const float &rate, bool init, const std::string &periodId, double offSet, std::string &breakId, double &adOffset);
 
 	/**
-	 * @brief Checking to see if the position in a period corresponds to an end of Ad playback or not
+	 * @fn CheckForAdTerminate
 	 *
 	 * @param[in]  fragmentTime - Current offset in the period
 	 *
@@ -412,7 +410,7 @@ public:
 	bool CheckForAdTerminate(double fragmentTime);
 
 	/**
-	 * @brief Checking to see if a period has Adbreak
+	 * @fn isPeriodInAdbreak
 	 *
 	 * @param[in]  periodId - Period id
 	 *

@@ -18,7 +18,7 @@
 */
 
 /**
- * @file ClearKeySession.h
+ * @file ClearKeyDrmSession.h
  * @brief Header file for ClearKeySession
  */
 
@@ -36,7 +36,7 @@
 using namespace std;
 
 /**
- * @class AAMPOCDMSession
+ * @class ClearKeySession
  * @brief Open CDM DRM session
  */
 class ClearKeySession : public AampDrmSession
@@ -51,6 +51,9 @@ private:
 	size_t m_keyLen;
 	unsigned char* m_keyId;
 	size_t m_keyIdLen;
+	/**
+	 * @fn initAampDRMSession
+	 */
 	void initAampDRMSession();
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 	EVP_CIPHER_CTX *mOpensslCtx;
@@ -60,22 +63,27 @@ private:
 public:
 
 	/**
-	 * @brief ClearKeySession Constructor
+	 * @fn ClearKeySession
 	 */
 	ClearKeySession(AampLogManager *logObj);
 
 	/**
-	 * @brief ClearKeySession Destructor
+	 * @fn ~ClearKeySession
 	 */
 	~ClearKeySession();
-
+	/**     
+     	 * @brief Copy constructor disabled
+     	 *
+     	 */
 	ClearKeySession(const ClearKeySession&) = delete;
-
+	/**
+ 	 * @brief assignment operator disabled
+	 *
+ 	 */
 	ClearKeySession& operator=(const ClearKeySession&) = delete;
 
 	/**
-	 * @brief Create drm session with given init data
-	 *        state will be KEY_INIT on success KEY_ERROR if failed
+	 * @fn generateAampDRMSession
 	 * @param f_pbInitData pointer to initdata
 	 * @param f_cbInitData init data size
 	 */
@@ -83,8 +91,7 @@ public:
 			uint32_t f_cbInitData, std::string &customData);
 
 	/**
-	 * @brief Generate key request from DRM session
-	 *        Caller function should free the returned memory.
+	 * @fn aampGenerateKeyRequest
 	 * @param destinationURL : gets updated with license server url
 	 * @param timeout: max timeout untill which to wait for cdm key generation.
 	 * @retval Pointer to DrmData containing license request, NULL if failure.
@@ -92,22 +99,22 @@ public:
 	DrmData * aampGenerateKeyRequest(string& destinationURL, uint32_t timeout);
 
 	/**
-	 * @brief Updates the received key to DRM session
+	 * @fn aampDRMProcessKey
 	 * @param key : License key from license server.
 	 * @param timeout: max timeout untill which to wait for cdm processing.
-	 * @retval 1 if no errors encountered
+	 * @retval DRM_SUCCESS(1) if no errors encountered
 	 */
 	int aampDRMProcessKey(DrmData* key, uint32_t timeout);
 
 	/**
-	 * @brief SetKid for this session.
-	 * @param keyId
-	 * @param keyID Len
+	 * @fn setKeyId
+	 * @param keyId Clear key ID
+	 * @param keyIDLen key length
 	 */
 	void setKeyId(const char* keyId, int32_t keyIDLen);
 
 	/**
-	 * @brief Function to decrypt stream.
+	 * @fn decrypt
 	 * @param f_pbIV : Initialization vector.
 	 * @param f_cbIV : Initialization vector length.
 	 * @param payloadData : Data to decrypt.
@@ -120,7 +127,7 @@ public:
 
 	//If OCDM_ADAPTOR is in use below decrypt funtion wil be invoked from plugin
 	/**
-	 * @brief Function to decrypt stream  buffer.
+	 * @fn decrypt
 	 * @param keyIDBuffer : keyID Buffer.
 	 * @param ivBuffer : Initialization vector buffer.
 	 * @param buffer : Data to decrypt.
@@ -132,14 +139,13 @@ public:
 				GstBuffer* subSamplesBuffer, GstCaps* caps);
 
 	/**
-	 * @brief Get the current state of DRM Session.
+	 * @fn getState
 	 * @retval KeyState
 	 */
 	KeyState getState();
 
 	/**
-	 * @brief Clear the current session context
-	 *        So that new init data can be bound.
+	 * @fn clearDecryptContext
 	 */
 	void clearDecryptContext();
 };

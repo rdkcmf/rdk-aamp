@@ -91,8 +91,8 @@ extern void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
 
 #define UseProgramDateTimeIfAvailable() (ISCONFIGSET(eAAMPConfig_HLSAVTrackSyncUsingStartTime) || aamp->mIsVSS)
 /**
-* \struct	FormatMap
-* \brief	FormatMap structure for stream codec/format information
+* @struct	FormatMap
+* @brief	FormatMap structure for stream codec/format information
 */
 struct FormatMap
 {
@@ -305,7 +305,7 @@ static bool SubStringMatch(const char *srcStart, const char *srcFin, const char 
  * @param valuePtr[in] quoted string, or string starting with NONE - not nul-terminated; note that valuePtr may be modified in place
  * @param fin[in] pointer to first character past end of string
  * @return char * read-only NUL-terminated string; will normally point to memory within valuePtr
- */
+ **************************************************************************/
 static const char * GetAttributeValueString(char *valuePtr, char *fin)
 {
 	const char *rc = NULL;
@@ -830,14 +830,9 @@ void static setupStreamInfo(struct HlsStreamInfo * streamInfo, int streamNo)
 	streamInfo->resolution.framerate = DEFAULT_STREAM_FRAMERATE;
 }
 
-/***************************************************************************
-* @fn ParseMainManifest
-* @brief Function to parse main manifest
-*
-* @param ptr[in] Manifest file content string
-*
-* @return AAMPStatusType
-***************************************************************************/
+/**
+ *  @brief Function to parse main manifest
+ */
 AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 {
 	int vProfileCount, iFrameCount , lineNum;
@@ -1123,12 +1118,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 }
 
 
-/***************************************************************************
-* @fn GetFragmentUriFromIndex
-* @brief Function to get fragment URI from index count
-*
-* @return string fragment URI pointer
-***************************************************************************/
+/**
+ * @brief Function to get fragment URI from index count 
+ */
 char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 {
 	char * uri = NULL;
@@ -1311,12 +1303,9 @@ char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 	return uri;
 }
 
-/***************************************************************************
-* @fn GetNextFragmentUriFromPlaylist
-* @brief Function to get next fragment URI from playlist based on playtarget
-* @param ignoreDiscontinuity Ignore discontinuity
-* @return string fragment URI pointer
-***************************************************************************/
+/**
+ * @brief Function to get next fragment URI from playlist based on playtarget
+ */
 char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 {
 	char *ptr = fragmentURI;
@@ -1672,13 +1661,10 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 	return rc;
 }
 
-
-/***************************************************************************
-* @fn FindMediaForSequenceNumber
-* @brief Get fragment tag based on media sequence number
-*
-* @return string fragment tag line pointer
-***************************************************************************/
+/**
+ * @brief Get fragment tag based on media sequence number
+ *        Function to find the media sequence after refresh for continuity
+ */
 char *TrackState::FindMediaForSequenceNumber()
 {
 	char *ptr = playlist.ptr;
@@ -1739,14 +1725,11 @@ char *TrackState::FindMediaForSequenceNumber()
 	}
 	return NULL;
 }
-/***************************************************************************
-* @fn FetchFragmentHelper
-* @brief Helper function to download fragment
-*
-* @param http_error[out] http error string
-* @param decryption_error[out] decryption error
-* @return bool true on success else false
-***************************************************************************/
+
+
+/**
+ * @brief Helper function to download fragment
+ */
 bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, bool & bKeyChanged, int * fogError, double &downloadTime)
 {
 #ifdef TRACE
@@ -2017,12 +2000,11 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 		}
 		return true;
 }
-/***************************************************************************
-* @fn FetchFragment
-* @brief Function to fetch fragment
-*
-* @return void
-***************************************************************************/
+
+
+/**
+ * @brief Function to Fetch the fragment and inject for playback
+ */ 
 void TrackState::FetchFragment()
 {
 	int timeoutMs = -1;
@@ -2174,14 +2156,10 @@ void TrackState::FetchFragment()
 		UpdateTSAfterFetch();
 	}
 }
-/***************************************************************************
-* @fn InjectFragmentInternal
-* @brief Injected decrypted fragment for playback
-*
-* @param cachedFragment[in] CachedFragment structure
-* @param fragmentDiscarded[out] bool to indicate fragment successfully injected
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Injected decrypted fragment for playback
+ */
 void TrackState::InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded)
 {
 	if(!ISCONFIGSET(eAAMPConfig_SuppressDecode))
@@ -2258,12 +2236,10 @@ static void DumpIndex(TrackState *trackState)
 	}
 }
 #endif
-/***************************************************************************
-* @fn FlushIndex
-* @brief Function to flush all stored data before refresh and stop
-*
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Function to flush all stored data before refresh and stop
+ */
 void TrackState::FlushIndex()
 {
 	aamp_Free(&index);
@@ -2316,10 +2292,10 @@ void TrackState::FlushIndex()
 	mInitFragmentInfo = NULL;
 }
 
-/***************************************************************************
-* @fn ComputeDeferredKeyRequestTime
-* @brief Function to compute Deferred key request time for VSS Stream Meta data
-***************************************************************************/
+
+/**
+ *  @brief Function to compute Deferred key request time for VSS Stream Meta data
+ */
 void TrackState::ComputeDeferredKeyRequestTime()
 {
 	// This function will be called only if special tag -X-X1-LIN is present to differ the Key acquisition
@@ -2387,10 +2363,10 @@ void TrackState::ComputeDeferredKeyRequestTime()
 	}
 }
 
-/***************************************************************************
-* @fn ProcessDrmMetadata
-* @brief Process Drm Metadata after indexing
-***************************************************************************/
+
+/**
+ * @brief Process Drm Metadata after indexing
+ */
 void TrackState::ProcessDrmMetadata()
 {
 
@@ -2411,10 +2387,9 @@ void TrackState::ProcessDrmMetadata()
 	}
 }
 
-/***************************************************************************
-* @fn InitiateDRMKeyAcquisition
-* @brief Function to initiate key request for all Meta data
-***************************************************************************/
+/**
+ * @brief Function to initiate key request for all Meta data
+ */
 void TrackState::InitiateDRMKeyAcquisition(int indexPosn)
 {
 	// WARNING :: Dont put optimization condition here to check if MetaAvailable or KeyAvailable.
@@ -2466,11 +2441,10 @@ void TrackState::InitiateDRMKeyAcquisition(int indexPosn)
 	}
 }
 
-/***************************************************************************
-* @fn SetDrmContext
-* @brief Function to set DRM Context when KeyTag changes
-* @return None
-***************************************************************************/
+
+/**
+ * @brief Function to set DRM Context when KeyTag changes
+ */
 void TrackState::SetDrmContext()
 {
 	// Set the appropriate DrmContext for Decryption
@@ -2574,12 +2548,10 @@ static size_t FindLineLength(const char* ptr)
 	return len;
 }
 
-/***************************************************************************
-* @fn IndexPlaylist
-* @brief Function to parse playlist
-*
-* @return double total duration from playlist
-***************************************************************************/
+
+/**
+ * @brief Function to to handle parse and indexing of individual tracks
+ */
 void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 {
 	double totalDuration = 0.0;
@@ -3014,13 +2986,9 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 	pthread_mutex_unlock(&mPlaylistMutex);
 }
 
-/***************************************************************************
-* @fn ABRProfileChanged
-* @brief Function to handle Profile change after ABR
-*
-* @return void
-***************************************************************************/
-
+/**
+ *  @brief Function to handle Profile change after ABR
+ */
 void TrackState::ABRProfileChanged()
 {
 	// If not live, reset play position since sequence number doesn't ensure the fragments
@@ -3046,12 +3014,10 @@ void TrackState::ABRProfileChanged()
 	pthread_mutex_unlock(&mutex);
 
 }
-/***************************************************************************
-* @fn RefreshPlaylist
-* @brief Function to redownload playlist after refresh interval .
-*
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Function to redownload playlist after refresh interval .
+ */
 void TrackState::RefreshPlaylist(void)
 {
 	GrowableBuffer tempBuff;
@@ -3210,13 +3176,9 @@ void TrackState::RefreshPlaylist(void)
 	}
 }
 
-/***************************************************************************
-* @fn FilterAudioCodecBasedOnConfig
-* @brief Function to filter the audio codec based on the configuration
-*
-* @param[in] audioFormat Audio codec type
-* @return bool false if the audio codec type is allowed to process
-***************************************************************************/
+/**
+ * @brief Function to filter the audio codec based on the configuration
+ */
 bool StreamAbstractionAAMP_HLS::FilterAudioCodecBasedOnConfig(StreamOutputFormat audioFormat)
 {
 	bool ignoreProfile = false;
@@ -3256,12 +3218,9 @@ bool StreamAbstractionAAMP_HLS::FilterAudioCodecBasedOnConfig(StreamOutputFormat
 	return ignoreProfile;
 }
 
-/***************************************************************************
-* @fn GetBestAudioTrackByLanguage
-* @brief Function to get best audio track based on the profile availability and language setting.
-*
-* @return int index of the audio track selected
-***************************************************************************/
+/**
+ * @brief Function to get best audio track based on the profile availability and language setting.
+ */
 int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 {
 	int bestTrack = -1;
@@ -3318,14 +3277,9 @@ int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 	return bestTrack;
 }
 
-/***************************************************************************
-* @fn GetPlaylistURI
-* @brief Function to get playlist URI based on media selection
-*
-* @param trackType[in] Track type
-* @param format[in] stream output type
-* @return string playlist URI
-***************************************************************************/
+/**
+ *  @brief Function to get playlist URI based on media selection
+ */
 const char *StreamAbstractionAAMP_HLS::GetPlaylistURI(TrackType trackType, StreamOutputFormat* format)
 {
 	const char *playlistURI = NULL;
@@ -3480,12 +3434,12 @@ static StreamOutputFormat GetFormatFromFragmentExtension(TrackState *trackState)
 	return format;
 }
 
-/***************************************************************************
-* @fn IsLive
-* @brief Function to check if both tracks in demuxed HLS are in live mode
-*
-* @return True if both or any track in live mode
-***************************************************************************/
+
+/**
+ * @brief Function to check if both tracks in demuxed HLS are in live mode
+ *        Function to check for live status comparing both playlist(audio&video)
+ *        Kept public as its called from outside StreamAbstraction class
+ */
 bool StreamAbstractionAAMP_HLS::IsLive()
 {
 	// Check for both the tracks if its in Live state
@@ -3503,12 +3457,10 @@ bool StreamAbstractionAAMP_HLS::IsLive()
 	return retValIsLive;
 }
 
-/***************************************************************************
-* @fn CheckDiscontinuityAroundPlaytarget
-* @brief Function to update play target based on audio video exact discontinuity positions.
-*
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Function to update play target based on audio video exact discontinuity positions.
+ */
 void StreamAbstractionAAMP_HLS::CheckDiscontinuityAroundPlaytarget(void)
 {
 	TrackState *audio = trackState[eMEDIATYPE_AUDIO];
@@ -3539,13 +3491,9 @@ void StreamAbstractionAAMP_HLS::CheckDiscontinuityAroundPlaytarget(void)
 	}
 }
 
-
-/***************************************************************************
-* @fn SyncTracksForDiscontinuity
-* @brief Function to synchronize time between audio & video for VOD stream
-*
-* @return eAAMPSTATUS_OK on success
-***************************************************************************/
+/**
+ * @brief Function to synchronize time between audio & video for VOD stream with discontinuities and uneven track length
+ */
 AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 {
 	TrackState *audio = trackState[eMEDIATYPE_AUDIO];
@@ -3746,12 +3694,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 	return retVal;
 }
 
-/***************************************************************************
-* @fn SyncTracks
-* @brief Function to synchronize time between A/V for Live/Event assets
-* @param useProgramDateTimeIfAvailable use program date time tag to sync if available
-* @return eAAMPSTATUS_OK on success
-***************************************************************************/
+/**
+ * @brief Function to synchronize time between A/V for Live/Event assets
+ */
 AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 {
 	bool useProgramDateTimeIfAvailable = UseProgramDateTimeIfAvailable();
@@ -4059,6 +4004,10 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 	return retval;
 }
 
+
+/**
+ * @brief Function to get the language code
+ */
 std::string StreamAbstractionAAMP_HLS::GetLanguageCode(int iMedia)
 {
 	std::string lang = this->mediaInfo[iMedia].language;
@@ -4066,13 +4015,9 @@ std::string StreamAbstractionAAMP_HLS::GetLanguageCode(int iMedia)
 	return lang;
 }
 
-/***************************************************************************
-* @fn Init
-* @brief Function to initialize member variables,download main manifest and parse
-*
-* @param tuneType[in] Tune type
-* @return bool true on success
-***************************************************************************/
+/**
+ *  @brief Function to initialize member variables,download main manifest and parse
+ */
 AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 {
 	AAMPStatusType retval = eAAMPSTATUS_GENERIC_ERROR;
@@ -5352,14 +5297,9 @@ static void * CachePlaylistThreadFunction(void * This)
 	return NULL;
 }
 
-
-
-/***************************************************************************
-* @fn PreCachePlaylist
-* @brief Function to PreCache Playlist 
-*
-* @return none
-***************************************************************************/
+/**
+ * @brief Function to initiate precaching of playlist
+ */
 void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 {
 	// DELIA-41566 [PEACOCK] temporary hack required to work around Adobe SSAI session lifecycle problem
@@ -5405,13 +5345,9 @@ void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 }
 
 
-
-/***************************************************************************
-* @fn GetFirstPTS
-* @brief Function to return first PTS
-*
-* @return double PTS value
-***************************************************************************/
+/**
+ *  @brief Function to return first PTS
+ */
 double StreamAbstractionAAMP_HLS::GetFirstPTS()
 {
 	double pts = 0.0;
@@ -5436,6 +5372,10 @@ double StreamAbstractionAAMP_HLS::GetFirstPTS()
 	return pts;
 }
 
+
+/**
+ * @brief Function to get the buffer duration of stream
+ */
 double StreamAbstractionAAMP_HLS::GetBufferedDuration()
 {
 	TrackState *video = trackState[eTRACK_VIDEO];
@@ -5447,18 +5387,20 @@ double StreamAbstractionAAMP_HLS::GetBufferedDuration()
 	return retval;
 }
 
+
+/**
+ * @brief Function to retune buffered duration
+ */
 double TrackState::GetBufferedDuration()
 {
 	return (playTargetBufferCalc - (aamp->GetPositionMs() / 1000));
 }
 
-/***************************************************************************
-* @fn SwitchSubtitleTrack
-* @brief Flushes out all old segments and sets up new playlist
-*        Used to switch subtitle tracks without restarting the pipeline
-*
-* @return void
-***************************************************************************/
+
+/**
+ *  @brief Flushes out all old segments and sets up new playlist
+ *         Used to switch subtitle tracks without restarting the pipeline
+ */
 void TrackState::SwitchSubtitleTrack()
 {
 	if (eTRACK_SUBTITLE == type && mSubtitleParser)
@@ -5481,12 +5423,10 @@ void TrackState::SwitchSubtitleTrack()
 	}
 }
 
-/***************************************************************************
-* @fn RunFetchLoop
-* @brief Fragment collector thread execution function to download fragments
-*
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Fragment collector thread execution function to download fragments
+ */
 void TrackState::RunFetchLoop()
 {
 	bool skipFetchFragment = false;
@@ -5686,6 +5626,8 @@ void TrackState::RunFetchLoop()
 	}
 	AAMPLOG_WARN("fragment collector done. track %s", name);
 }
+
+
 /***************************************************************************
 * @fn FragmentCollector
 * @brief Fragment collector thread function
@@ -5693,7 +5635,6 @@ void TrackState::RunFetchLoop()
 * @param arg[in] TrackState pointer
 * @return void
 ***************************************************************************/
-
 static void *FragmentCollector(void *arg)
 {
 	TrackState *track = (TrackState *)arg;
@@ -5704,15 +5645,10 @@ static void *FragmentCollector(void *arg)
 	track->RunFetchLoop();
 	return NULL;
 }
-/***************************************************************************
-* @fn StreamAbstractionAAMP_HLS
-* @brief Constructor function
-*
-* @param aamp[in] PrivateInstanceAAMP pointer
-* @param seekpos[in] Seek position
-* @param rate[in] Rate of playback
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Constructor function 
+ */
 StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seekpos, float rate) : StreamAbstractionAAMP(logObj, aamp),
 	rate(rate), maxIntervalBtwPlaylistUpdateMs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS), mainManifest(), allowsCache(false), seekPosition(seekpos), mTrickPlayFPS(),
 	enableThrottle(false), firstFragmentDecrypted(false), mStartTimestampZero(false), mNumberOfTracks(0), midSeekPtsOffset(0),
@@ -5741,16 +5677,11 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(AampLogManager *logObj, cla
 	memset(streamInfo, 0, sizeof(*streamInfo));
 
 }
-/***************************************************************************
-* @fn TrackState
-* @brief TrackState Constructor
-*
-* @param type[in] Type of the track
-* @param parent[in] StreamAbstractionAAMP_HLS instance
-* @param aamp[in] PrivateInstanceAAMP pointer
-* @param name[in] Name of the track
-* @return void
-***************************************************************************/
+
+
+/**
+ * @brief TrackState Constructor
+ */
 TrackState::TrackState(AampLogManager *logObj, TrackType type, StreamAbstractionAAMP_HLS* parent, PrivateInstanceAAMP* aamp, const char* name) :
 		MediaTrack(logObj, type, aamp, name),
 		indexCount(0), currentIdx(0), indexFirstMediaSequenceNumber(0), fragmentURI(NULL), lastPlaylistDownloadTimeMS(0),
@@ -5789,12 +5720,11 @@ TrackState::TrackState(AampLogManager *logObj, TrackType type, StreamAbstraction
 	mProgramDateTime = aamp->mProgramDateTime;
 	AAMPLOG_INFO("Restore PDT (%f) ",mProgramDateTime);
 }
-/***************************************************************************
-* @fn ~TrackState
-* @brief Destructor function
-*
-* @return void
-***************************************************************************/
+
+
+/**
+ *  @brief Destructor function
+ */
 TrackState::~TrackState()
 {
 	aamp_Free(&playlist);
@@ -5822,12 +5752,11 @@ TrackState::~TrackState()
 	pthread_mutex_destroy(&mTrackDrmMutex);
 	
 }
-/***************************************************************************
-* @fn Stop
-* @brief Function to stop track download/playback
-*
-* @return void
-***************************************************************************/
+
+
+/**
+ * @brief Function to stop track download/playback
+ */
 void TrackState::Stop(bool clearDRM)
 {
 	AbortWaitForCachedAndFreeFragment(true);
@@ -5869,12 +5798,11 @@ void TrackState::Stop(bool clearDRM)
 		mDrm->Release();
 	}
 }
-/***************************************************************************
-* @fn ~StreamAbstractionAAMP_HLS
-* @brief Destructor function for StreamAbstractionAAMP_HLS
-*
-* @return void
-***************************************************************************/
+
+
+/**
+ * @brief Destructor function for StreamAbstractionAAMP_HLS
+ */
 StreamAbstractionAAMP_HLS::~StreamAbstractionAAMP_HLS()
 {
 	/*Exit from ongoing  http fetch, drm operation,throttle. Mark fragment collector exit*/
@@ -5891,12 +5819,10 @@ StreamAbstractionAAMP_HLS::~StreamAbstractionAAMP_HLS()
 	aamp->CurlTerm(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT);
 	aamp->SyncEnd();
 }
-/***************************************************************************
-* @fn Start
-* @brief Function to create threads for track donwload
-*
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Function to create threads for track donwload
+ */
 void TrackState::Start(void)
 {
 	if(playContext)
@@ -5917,12 +5843,11 @@ void TrackState::Start(void)
 		StartInjectLoop();
 	}
 }
-/***************************************************************************
-* @fn Start
-* @brief Function to start track initiaziation
-*
-* @return void
-***************************************************************************/
+
+
+/**
+ * @brief Function to start track initiaziation
+ */
 void StreamAbstractionAAMP_HLS::Start(void)
 {
 #ifdef AAMP_HLS_DRM 
@@ -5937,13 +5862,12 @@ void StreamAbstractionAAMP_HLS::Start(void)
 		}
 	}
 }
-/***************************************************************************
-* @fn Stop
-* @brief Function to stop the HLS streaming
-*
-* @param clearChannelData[in] flag indicating to full stop or temporary stop
-* @return void
-***************************************************************************/
+
+
+/**
+ *  @brief Function to stop the HLS streaming
+ *         Function to handle stop processing of all tracks within stream
+ */
 void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 {
 	aamp->DisableDownloads();
@@ -6008,12 +5932,11 @@ void StreamAbstractionAAMP_HLS::Stop(bool clearChannelData)
 		aamp->EnableDownloads();
 	}
 }
-/***************************************************************************
-* @fn DumpProfiles
-* @brief Function to log debug information on Stream/Media information
-*
-* @return void
-***************************************************************************/
+
+
+/**
+ * @brief Function to log all debug information on Stream/Media information
+ */
 void StreamAbstractionAAMP_HLS::DumpProfiles(void)
 {
 	int profileCount = mProfileCount;
@@ -6068,13 +5991,7 @@ void StreamAbstractionAAMP_HLS::DumpProfiles(void)
 }
 
 /***************************************************************************
-* @fn GetStreamFormat
 * @brief Function to get stream format
-*
-* @param primaryOutputFormat[out] video format
-* @param audioOutputFormat[out] audio format
-* @param audioOutputFormat[out] auxiliary audio format
-* @return void
 ***************************************************************************/
 void StreamAbstractionAAMP_HLS::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat)
 {
@@ -6083,10 +6000,7 @@ void StreamAbstractionAAMP_HLS::GetStreamFormat(StreamOutputFormat &primaryOutpu
 	auxOutputFormat = trackState[eMEDIATYPE_AUX_AUDIO]->streamOutputFormat;
 }
 /***************************************************************************
-* @fn GetVideoBitrates
 * @brief Function to get available video bitrates
-*
-* @return available video bitrates
 ***************************************************************************/
 std::vector<long> StreamAbstractionAAMP_HLS::GetVideoBitrates(void)
 {
@@ -6106,12 +6020,10 @@ std::vector<long> StreamAbstractionAAMP_HLS::GetVideoBitrates(void)
 	}
 	return bitrates;
 }
-/***************************************************************************
-* @fn GetAudioBitrates
-* @brief Function to get available audio bitrates
-*
-* @return available audio bitrates
-***************************************************************************/
+
+/**
+ * @brief Function to get available audio bitrates
+ */
 std::vector<long> StreamAbstractionAAMP_HLS::GetAudioBitrates(void)
 {
 	//TODO: Impl audio bitrate getter
@@ -6134,12 +6046,10 @@ static bool isThumbnailStream( const struct HlsStreamInfo *streamInfo )
 	return ret;
 }
 
-/***************************************************************************
-* @fn GetAvailableThumbnailTracks
-* @brief Function to get available thumbnail tracks
-*
-* @return vector of available thumbnail tracks.
-***************************************************************************/
+
+/**
+ * @brief Function to get available thumbnail tracks
+ */
 std::vector<StreamInfo*> StreamAbstractionAAMP_HLS::GetAvailableThumbnailTracks(void)
 {
 	std::vector<StreamInfo*> thumbnailTracks;
@@ -6200,13 +6110,10 @@ static std::vector<TileInfo> IndexThumbnails( char *ptr )
 	return rc;
 }
 
-/***************************************************************************
-* @fn SetThumbnailTrack
-* @brief Function to set thumbnail track for processing
-*
-* @param thumbnail index value indicating the track to select
-* @return bool true on success.
-***************************************************************************/
+
+/**
+ * @brief Function to set thumbnail track for processing
+ */
 bool StreamAbstractionAAMP_HLS::SetThumbnailTrack( int thumbIndex )
 {
 	bool rc = false;
@@ -6251,19 +6158,10 @@ bool StreamAbstractionAAMP_HLS::SetThumbnailTrack( int thumbIndex )
 	return rc;
 }
 
-/***************************************************************************
-* @fn GetThumbnailRangeData
-* @brief Function to fetch the thumbnail data.
-*
-* @param tStart start duration of thumbnail data.
-* @param tEnd end duration of thumbnail data.
-* @param *baseurl base url of thumbnail images.
-* @param *raw_w absolute width of the thumbnail spritesheet.
-* @param *raw_h absolute height of the thumbnail spritesheet.
-* @param *width width of each thumbnail tile.
-* @param *height height of each thumbnail tile.
-* @return Updated vector of available thumbnail data.
-***************************************************************************/
+
+/**
+ * @brief Function to fetch the thumbnail data.
+ */
 std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(double tStart, double tEnd, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
 {
 	std::vector<ThumbnailData> data;
@@ -6330,14 +6228,10 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(doub
 	return data;
 }
 
-/***************************************************************************
-* @fn NotifyFirstVideoPTS
-* @brief Function to notify first video pts value from tsprocessor
-*
-* @param pts[in] base pts
-* @param timeScale[in] time scale
-* @return none
-***************************************************************************/
+/**
+ *  @brief Function to notify first video pts value from tsprocessor/demux
+ *         Kept public as its called from outside StreamAbstraction class
+ */
 void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale)
 {
 	mFirstPTS = ((double)pts / (double)timeScale);
@@ -6345,7 +6239,6 @@ void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsi
 
 /**
  * @brief Signal start of subtitle renderering - should be sent at start of video presentation
- * 
  */
 void StreamAbstractionAAMP_HLS::StartSubtitleParser()
 {
@@ -6360,7 +6253,6 @@ void StreamAbstractionAAMP_HLS::StartSubtitleParser()
 
 /**
  * @brief Set subtitle pause state
- *
  */
 void StreamAbstractionAAMP_HLS::PauseSubtitleParser(bool pause)
 {
@@ -6372,14 +6264,10 @@ void StreamAbstractionAAMP_HLS::PauseSubtitleParser(bool pause)
 	}
 }
 
-/***************************************************************************
-* @fn DrmDecrypt
-* @brief Function to decrypt the fragment for playback
-*
-* @param cachedFragment[in] CachedFragment struction pointer
-* @param bucketTypeFragmentDecrypt[in] ProfilerBucketType enum
-* @return bool true if successfully decrypted
-***************************************************************************/
+
+/**
+ * @brief Function to decrypt the fragment for playback
+ */
 DrmReturn TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucketType bucketTypeFragmentDecrypt)
 {
 		DrmReturn drmReturn = eDRM_ERROR;
@@ -6413,13 +6301,9 @@ DrmReturn TrackState::DrmDecrypt( CachedFragment * cachedFragment, ProfilerBucke
 		return drmReturn;
 }
 
-/***************************************************************************
-* @fn CreateInitVectorByMediaSeqNo
-* @brief Function to create init vector using current media sequence number
-*
-* @param ui32Seqno[in] Current fragment's sequence number
-* @return bool true if successfully created, false otherwise.
-***************************************************************************/
+/**
+ * @brief Function to create init vector using current media sequence number
+ */
 bool TrackState::CreateInitVectorByMediaSeqNo ( unsigned int ui32Seqno )
 {
 	unsigned char *pui8IV=NULL;
@@ -6458,34 +6342,25 @@ bool TrackState::CreateInitVectorByMediaSeqNo ( unsigned int ui32Seqno )
 	return true;
 }
 
-/***************************************************************************
-* @fn GetContext
-* @brief Function to get current StreamAbstractionAAMP instance value
-*
-* @return StreamAbstractionAAMP instance
-***************************************************************************/
+/**
+ * @brief Function to get current StreamAbstractionAAMP instance value
+ */
 StreamAbstractionAAMP* TrackState::GetContext()
 {
 	return context;
 }
-/***************************************************************************
-* @fn GetMediaTrack
-* @brief Function to get Media information for track type
-*
-* @param type[in] TrackType input
-* @return MediaTrack structure pointer
-***************************************************************************/
+
+/**
+ * @brief Function to get Media information for track type
+ */
 MediaTrack* StreamAbstractionAAMP_HLS::GetMediaTrack(TrackType type)
 {
 	return trackState[(int)type];
 }
-/***************************************************************************
-* @fn UpdateDrmCMSha1Hash
-* @brief Function to Update SHA1 Id for DRM Metadata
-*
-* @param ptr[in] ShaID string from DRM attribute
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Function to Update SHA1 Id for DRM Metadata
+ */
 void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 {
 	bool drmDataChanged = false;
@@ -6597,13 +6472,11 @@ void TrackState::UpdateDrmCMSha1Hash(const char *ptr)
 		}
 	}
 }
-/***************************************************************************
-* @fn UpdateDrmIV
-* @brief Function to update IV from DRM
-*
-* @param ptr[in] IV string from DRM attribute
-* @return void
-***************************************************************************/
+
+
+/**
+ * @brief Function to update IV from DRM
+ */
 void TrackState::UpdateDrmIV(const char *ptr)
 {
 	size_t len;
@@ -6631,13 +6504,11 @@ void TrackState::UpdateDrmIV(const char *ptr)
 	mDrmInfo.iv = iv;
 	AAMPLOG_TRACE(" [%s] Exit mDrmInfo.iv %p", name, mDrmInfo.iv);
 }
-/***************************************************************************
-* @fn FetchPlaylist
-* @brief Function to fetch playlist file
-*
-* @return void
-***************************************************************************/
 
+
+/**
+ * @brief Function to fetch playlist file
+ */
 void TrackState::FetchPlaylist()
 {
 
@@ -6690,14 +6561,9 @@ void TrackState::FetchPlaylist()
 
 }
 
-
-/***************************************************************************
-* @fn GetBWIndex
-* @brief Function to get bandwidth index corresponding to bitrate
-*
-* @param bitrate Bitrate in bits per second
-* @return bandwidth index
-***************************************************************************/
+/**
+ * @brief Function to get bandwidth index corresponding to bitrate
+ */
 int StreamAbstractionAAMP_HLS::GetBWIndex(long bitrate)
 {
 	int topBWIndex = 0;
@@ -6715,14 +6581,10 @@ int StreamAbstractionAAMP_HLS::GetBWIndex(long bitrate)
 	return topBWIndex;
 }
 
-/***************************************************************************
-* @fn GetNextFragmentPeriodInfo
-* @brief Function to get next playback position from start, to handle discontinuity
-*
-* @param periodIdx[out] Period Index
-* @param offsetFromPeriodStart[out] Offset value
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Function to get next playback position from start, to handle discontinuity
+ */
 void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPeriodStart, int &fragmentIdx)
 {
 	const IndexNode *index = (IndexNode *) this->index.ptr;
@@ -6777,13 +6639,11 @@ void TrackState::GetNextFragmentPeriodInfo(int &periodIdx, double &offsetFromPer
 		AAMPLOG_WARN("TrackState: [%s] idxNode NULL", name);
 	}
 }
-/***************************************************************************
-* @fn GetPeriodStartPosition
-* @brief Function to get Period start position for given period index,to handle discontinuity
-*
-* @param periodIdx[in] Period Index
-* @return void
-***************************************************************************/
+
+
+/**
+ * @brief Function to get Period start position for given period index,to handle discontinuity
+ */
 double TrackState::GetPeriodStartPosition(int periodIdx)
 {
 	double offset = 0;
@@ -6815,24 +6675,20 @@ double TrackState::GetPeriodStartPosition(int periodIdx)
 	}
 	return offset;
 }
-/***************************************************************************
-* @fn GetNumberOfPeriods
-* @brief Function to return number of periods stored in playlist
-*
-* @return int number of periods
-***************************************************************************/
+
+
+/**
+ * @brief Function to return number of periods stored in playlist
+ */
 int TrackState::GetNumberOfPeriods()
 {
 	return mDiscontinuityIndexCount;
 }
 
-/***************************************************************************
-* @fn HasDiscontinuityAroundPosition
-* @brief Check if discontinuity present around given position
-* @param[in] position Position to check for discontinuity
-* @param[out] diffBetweenDiscontinuities discontinuity position minus input position
-* @return true if discontinuity present around given position
-***************************************************************************/
+
+/**
+ * @brief Check if discontinuity present around given position
+ */
 bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscontinuityDateTime, double &diffBetweenDiscontinuities, double playPosition,double inputCulledSec,double inputProgramDateTime)
 {
 	bool discontinuityFound = false;
@@ -7094,12 +6950,10 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 	return discontinuityFound;
 }
 
-/***************************************************************************
-* @fn FetchInitFragment
-* @brief Function to fetch init fragment
-*
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Function to fetch init fragment
+ */
 void TrackState::FetchInitFragment()
 {
 	int timeoutMs = -1;
@@ -7197,10 +7051,10 @@ void TrackState::FetchInitFragment()
 
 }
 
-/***************************************************************************
-* @brief Helper to fetch init fragment for fragmented mp4 format
-* @return true if success
-***************************************************************************/
+
+/**
+ * @brief Helper to fetch init fragment for fragmented mp4 format
+ */
 bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncryptedHeader)
 {
 	bool ret = false;
@@ -7355,12 +7209,9 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 	return ret;
 }
 
-/***************************************************************************
-* @fn StopInjection
-* @brief Function to stop fragment injection
-*
-* @return void
-***************************************************************************/
+/**
+ * @brief Function to stop fragment injection
+ */
 void StreamAbstractionAAMP_HLS::StopInjection(void)
 {
 	//invoked at times of discontinuity. Audio injection loop might have already exited here
@@ -7376,12 +7227,10 @@ void StreamAbstractionAAMP_HLS::StopInjection(void)
 	}
 }
 
-/***************************************************************************
-* @fn StopInjection
-* @brief Function to stop fragment injection
-*
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Stop fragment injection
+ */
 void TrackState::StopInjection()
 {
 	AbortWaitForCachedFragment();
@@ -7393,12 +7242,10 @@ void TrackState::StopInjection()
 	StopInjectLoop();
 }
 
-/***************************************************************************
-* @fn StartInjection
-* @brief starts fragment injection
-*
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Function to start fragment injection
+ */
 void TrackState::StartInjection()
 {
 	aamp->ResumeTrackInjection((MediaType) type);
@@ -7409,12 +7256,10 @@ void TrackState::StartInjection()
 	StartInjectLoop();
 }
 
-/***************************************************************************
-* @fn StartInjection
-* @brief Function to start fragment injection
-*
-* @return void
-***************************************************************************/
+
+/**
+ * @brief starts fragment injection
+ */
 void StreamAbstractionAAMP_HLS::StartInjection(void)
 {
 	mTrackState = eDISCONTIUITY_FREE;
@@ -7428,12 +7273,9 @@ void StreamAbstractionAAMP_HLS::StartInjection(void)
 	}
 }
 
-/***************************************************************************
-* @fn StopWaitForPlaylistRefresh
-* @brief Stop wait for playlist refresh
-*
-* @return void
-***************************************************************************/
+/**
+ * @brief Stop wait for playlist refresh
+ */
 void TrackState::StopWaitForPlaylistRefresh()
 {
 	AAMPLOG_WARN("track [%s]", name);
@@ -7442,13 +7284,10 @@ void TrackState::StopWaitForPlaylistRefresh()
 	pthread_mutex_unlock(&mPlaylistMutex);
 }
 
-/***************************************************************************
-* @fn CancelDrmOperation
-* @brief Cancel all DRM operations
-*
-* @param[in] clearDRM flag indicating if DRM resources to be freed or not
-* @return void
-***************************************************************************/
+
+/**
+ * @brief Cancel all DRM operations
+ */
 void TrackState::CancelDrmOperation(bool clearDRM)
 {
 	//Calling mDrm is required for AES encrypted assets which doesn't have AveDrmManager
@@ -7468,12 +7307,9 @@ void TrackState::CancelDrmOperation(bool clearDRM)
 	}
 }
 
-/***************************************************************************
-* @fn RestoreDrmState
-* @brief Restore DRM states
-*
-* @return void
-***************************************************************************/
+/**
+ * @brief Restore DRM states
+ */
 void TrackState::RestoreDrmState()
 {
 	if (mDrm)
@@ -7482,12 +7318,9 @@ void TrackState::RestoreDrmState()
 	}
 }
 
-/***************************************************************************
-* @fn FindTimedMetadata
-* @brief Function to search playlist for subscribed tags
-*
-* @return void
-***************************************************************************/
+/**
+ *  @brief Function to search playlist for subscribed tags
+ */
 void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 {
 	double totalDuration = 0.0;
@@ -7535,12 +7368,9 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 	AAMPLOG_TRACE(" Exit");
 }
 
-/***************************************************************************
-* @fn ConfigureAudioTrack
-* @brief Function to select the audio track and update AudioProfileIndex
-*
-* @return void
-***************************************************************************/
+/**
+ * @brief Function to select the audio track and update AudioProfileIndex
+ */
 void StreamAbstractionAAMP_HLS::ConfigureAudioTrack()
 {
 	//AudioTrackInfo track = aamp->GetPreferredAudioTrack();
@@ -7557,12 +7387,9 @@ void StreamAbstractionAAMP_HLS::ConfigureAudioTrack()
 	AAMPLOG_WARN("Audio profileIndex selected :%d", currentAudioProfileIndex);
 }
 
-/***************************************************************************
-* @fn ConfigureVideoProfiles
-* @brief Function to select the best match video profiles based on audio and filters
-*
-* @return void
-***************************************************************************/
+/**
+ * @brief Function to select the best match video profiles based on audio and filters
+ */
 void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 {
 	std::string audiogroupId ;
@@ -8015,15 +7842,9 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 	}
 }
 
-
-
-
-/***************************************************************************
-* @fn ConfigureTextTrack
-* @brief Function to select the text track and update TextTrackProfileIndex
-*
-* @return void
-***************************************************************************/
+/**
+ * @brief Function to select the text track and update TextTrackProfileIndex
+ */
 void StreamAbstractionAAMP_HLS::ConfigureTextTrack()
 {
 	TextTrackInfo track = aamp->GetPreferredTextTrack();
@@ -8041,12 +7862,11 @@ void StreamAbstractionAAMP_HLS::ConfigureTextTrack()
 	}
 	AAMPLOG_WARN("TextTrack Selected :%d", currentTextTrackProfileIndex);
 }
-/***************************************************************************
-* @fn PopulateAudioAndTextTracks
-* @brief Function to populate available audio and text tracks info from manifest
-*
-* @return void
-***************************************************************************/
+
+
+/**
+ * @brief Function to populate available audio and text tracks info from manifest
+ */
 void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 {
 	if (mMediaCount > 0 && mProfileCount > 0)
@@ -8096,25 +7916,17 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 
 }
 
-/***************************************************************************
-* @fn SeekPosUpdate
-* @brief Function to update seek position
-*
-* @param ptr[in] seek position time
-***************************************************************************/
+/**
+ * @brief Function to update seek position
+ */
 void StreamAbstractionAAMP_HLS::SeekPosUpdate(double secondsRelativeToTuneTime)
 {
 	seekPosition = secondsRelativeToTuneTime;
 }
 
-/***************************************************************************
-* @fn GetMediaIndexForLanguage
-* @brief Function to get matching mediaInfo index for a language and track type
-*
-* @param[in] lang language
-* @param[in] type track type
-* @return int mediaInfo index of track with matching language
-***************************************************************************/
+/**
+ * @brief Function to get matching mediaInfo index for a language and track type
+ */
 int StreamAbstractionAAMP_HLS::GetMediaIndexForLanguage(std::string lang, TrackType type)
 {
 	int index = -1;
@@ -8151,13 +7963,9 @@ int StreamAbstractionAAMP_HLS::GetMediaIndexForLanguage(std::string lang, TrackT
 	return index;
 }
 
-/***************************************************************************
-* @fn GetStreamOutputFormatForAudio
-* @brief Function to get output format for audio track
-*
-* @param[in] type track type
-* @return StreamOutputFormat for the audio codec selected
-***************************************************************************/
+/**
+ * @brief Function to get output format for audio track
+ */
 StreamOutputFormat StreamAbstractionAAMP_HLS::GetStreamOutputFormatForTrack(TrackType type)
 {
 	StreamOutputFormat format = FORMAT_UNKNOWN;
@@ -8186,10 +7994,8 @@ StreamOutputFormat StreamAbstractionAAMP_HLS::GetStreamOutputFormatForTrack(Trac
 }
 
 /***************************************************************************
-* @fn GetAvailableVideoTracks
 * @brief Function to get available video tracks
 *
-* @return list of available video tracks.
 ***************************************************************************/
 std::vector<StreamInfo*> StreamAbstractionAAMP_HLS::GetAvailableVideoTracks(void)
 {
@@ -8205,11 +8011,8 @@ std::vector<StreamInfo*> StreamAbstractionAAMP_HLS::GetAvailableVideoTracks(void
 }
 
 /***************************************************************************
-* @fn GetStreamInfo
 * @brief Function to get streamInfo for the profileIndex
 *
-* @param[in] int profileIndex
-* @return StreamInfo for the index
 ***************************************************************************/
 StreamInfo * StreamAbstractionAAMP_HLS::GetStreamInfo(int idx)
 {

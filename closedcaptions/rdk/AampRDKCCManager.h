@@ -32,13 +32,16 @@
 #include <string>
 #include "vlCCConstants.h"
 
-
+/**
+ * @class AampRDKCCManager
+ * @brief Handling CC operations
+ */
 class AampRDKCCManager : public AampCCManagerBase
 {
 public:
 
 	/**
-	 * @brief Release CC resources
+	 * @fn Release
 	 */
 	void Release(int iID) override;
 
@@ -57,35 +60,35 @@ public:
 
 private:
 	/**
-	 * @brief To start CC rendering
+	 * @fn StartRendering
 	 *
 	 * @return void
 	 */
 	void StartRendering() override;
 
 	/**
-	 * @brief To stop CC rendering
+	 * @fn StopRendering
 	 *
 	 * @return void
 	 */
 	void StopRendering() override;
 
 	/**
-	 * @brief Impl specific initialization code called once in Init() function
+	 * @fn Initialize
 	 *
 	 * @return 0 - success, -1 - failure
 	 */
 	int Initialize(void *handle) override;
 
 	/**
-	 * @brief set digital channel with specified id
+	 * @fn SetDigitalChannel
 	 *
 	 * @return CC_VL_OS_API_RESULT
 	 */
 	int SetDigitalChannel(unsigned int id) override;
 
 	/**
-	 * @brief set analog channel with specified id
+	 * @fn SetAnalogChannel
 	 *
 	 * @return CC_VL_OS_API_RESULT
 	 */

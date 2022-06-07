@@ -30,6 +30,11 @@
 #include <signal.h>
 #include <assert.h>
 
+/**
+ * @struct StreamWriteCallbackContext
+ * @brief Write call back functions for streamer
+ */
+
 struct StreamWriteCallbackContext
 {
     bool sentTunedEvent;
@@ -75,10 +80,11 @@ http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp
  */
 
 /**
+ * @fn StreamWriteCallback
  * @param ptr
  * @param size always 1, per curl documentation
- * @param nmemnb number of bytes advertised in this callback
- * @param user app-specific context
+ * @param nmemb number of bytes advertised in this callback
+ * @param userdata app-specific context
  */
 static size_t StreamWriteCallback( void *ptr, size_t size, size_t nmemb, void *userdata )
 {
@@ -113,6 +119,7 @@ static size_t StreamWriteCallback( void *ptr, size_t size, size_t nmemb, void *u
    return nmemb;
 }
 
+
 void StreamAbstractionAAMP_PROGRESSIVE::StreamFile( const char *uri, long *http_error )
 { // TODO: move to main_aamp
 
@@ -142,8 +149,9 @@ void StreamAbstractionAAMP_PROGRESSIVE::StreamFile( const char *uri, long *http_
         curl_easy_cleanup(curl);
     }
 }
+
 /**
-  * TODO: harvest chunks from large mp3/mp4
+ * @brief harvest chunks from large mp3/mp4
  */
 void StreamAbstractionAAMP_PROGRESSIVE::FetcherLoop()
 {
@@ -170,7 +178,7 @@ void StreamAbstractionAAMP_PROGRESSIVE::FetcherLoop()
 /**
  * @brief Fragment collector thread
  * @param arg Pointer to StreamAbstractionAAMP_PROGRESSIVE object
- * @retval NULL
+ * @retval void
  */
 static void * FragmentCollector(void *arg)
 {
@@ -183,12 +191,9 @@ static void * FragmentCollector(void *arg)
     return NULL;
 }
 
+
 /**
- *   @brief  Initialize a newly created object.
- *   @note   To be implemented by sub classes
- *   @param  tuneType to set type of object.
- *   @retval true on success
- *   @retval false on failure
+ *  @brief  Initialize a newly created object.
  */
 AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
 {
@@ -205,13 +210,7 @@ AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
     return retval;
 }
 
-/**
- *   @brief  Initialize a newly created object.
- *   @note   To be implemented by sub classes
- *   @param  tuneType to set type of object.
- *   @retval true on success
- *   @retval false on failure
- */
+
 /*
 AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
 {
@@ -224,9 +223,6 @@ AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
 
 /**
  * @brief StreamAbstractionAAMP_PROGRESSIVE Constructor
- * @param aamp pointer to PrivateInstanceAAMP object associated with player
- * @param seek_pos Seek position
- * @param rate playback rate
  */
 StreamAbstractionAAMP_PROGRESSIVE::StreamAbstractionAAMP_PROGRESSIVE(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(logObj, aamp),
 fragmentCollectorThreadStarted(false), fragmentCollectorThreadID(0), seekPosition(seek_pos)
@@ -242,7 +238,7 @@ StreamAbstractionAAMP_PROGRESSIVE::~StreamAbstractionAAMP_PROGRESSIVE()
 }
 
 /**
- *   @brief  Starts streaming.
+ * @brief  Starts streaming.
  */
 void StreamAbstractionAAMP_PROGRESSIVE::Start(void)
 {
@@ -251,8 +247,8 @@ void StreamAbstractionAAMP_PROGRESSIVE::Start(void)
 }
 
 /**
-*   @brief  Stops streaming.
-*/
+ * @brief  Stops streaming.
+ */
 void StreamAbstractionAAMP_PROGRESSIVE::Stop(bool clearChannelData)
 {
     if(fragmentCollectorThreadStarted)
@@ -279,10 +275,6 @@ void StreamAbstractionAAMP_PROGRESSIVE::DumpProfiles(void)
 
 /**
  * @brief Get output format of stream.
- *
- * @param[out]  primaryOutputFormat - format of primary track
- * @param[out]  audioOutputFormat - format of audio track
- * @param[out]  auxAudioOutputFormat - format of aux audio track
  */
 void StreamAbstractionAAMP_PROGRESSIVE::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat)
 {
@@ -292,10 +284,7 @@ void StreamAbstractionAAMP_PROGRESSIVE::GetStreamFormat(StreamOutputFormat &prim
 }
 
 /**
- *   @brief Return MediaTrack of requested type
- *
- *   @param[in]  type - track type
- *   @retval MediaTrack pointer.
+ *  @brief Return MediaTrack of requested type
  */
 MediaTrack* StreamAbstractionAAMP_PROGRESSIVE::GetMediaTrack(TrackType type)
 {
@@ -303,9 +292,7 @@ MediaTrack* StreamAbstractionAAMP_PROGRESSIVE::GetMediaTrack(TrackType type)
 }
 
 /**
- * @brief Get current stream position.
- *
- * @retval current position of stream.
+ *  @brief Get current stream position.
  */
 double StreamAbstractionAAMP_PROGRESSIVE::GetStreamPosition()
 {
@@ -313,10 +300,7 @@ double StreamAbstractionAAMP_PROGRESSIVE::GetStreamPosition()
 }
 
 /**
- *   @brief Get stream information of a profile from subclass.
- *
- *   @param[in]  idx - profile index.
- *   @retval stream information corresponding to index.
+ *  @brief Get stream information of a profile from subclass.
  */
 StreamInfo* StreamAbstractionAAMP_PROGRESSIVE::GetStreamInfo(int idx)
 {
@@ -324,9 +308,7 @@ StreamInfo* StreamAbstractionAAMP_PROGRESSIVE::GetStreamInfo(int idx)
 }
 
 /**
- *   @brief  Get PTS of first sample.
- *
- *   @retval PTS of first sample
+ *  @brief  Get PTS of first sample.
  */
 double StreamAbstractionAAMP_PROGRESSIVE::GetFirstPTS()
 {
@@ -334,29 +316,32 @@ double StreamAbstractionAAMP_PROGRESSIVE::GetFirstPTS()
 }
 
 /**
- *   @brief  Get Start time PTS of first sample.
- *
- *   @retval start time of first sample
+ *  @brief  Get Start time PTS of first sample.
  */
 double StreamAbstractionAAMP_PROGRESSIVE::GetStartTimeOfFirstPTS()
 {
     return 0.0;
 }
 
+/**
+ *  @brief Get the Buffered duration
+ */
 double StreamAbstractionAAMP_PROGRESSIVE::GetBufferedDuration()
 {
 	return -1.0;
 }
 
+/**
+ *  @brief check whether initial caching data supported
+ *
+ */
 bool StreamAbstractionAAMP_PROGRESSIVE::IsInitialCachingSupported()
 {
 	return false;
 }
 
 /**
- * @brief Get index of profile corresponds to bandwidth
- * @param[in] bitrate Bitrate to lookup profile
- * @retval profile index
+ *  @brief Get index of profile corresponds to bandwidth
  */
 int StreamAbstractionAAMP_PROGRESSIVE::GetBWIndex(long bitrate)
 {
@@ -364,26 +349,23 @@ int StreamAbstractionAAMP_PROGRESSIVE::GetBWIndex(long bitrate)
 }
 
 /**
- * @brief To get the available video bitrates.
- * @ret available video bitrates
+ *  @brief To get the available video bitrates.
  */
 std::vector<long> StreamAbstractionAAMP_PROGRESSIVE::GetVideoBitrates(void)
 { // STUB
     return std::vector<long>();
 }
 
-/*
-* @brief Gets Max Bitrate avialable for current playback.
-* @ret long MAX video bitrates
-*/
+/**
+ *  @brief Gets Max Bitrate avialable for current playback.
+ */
 long StreamAbstractionAAMP_PROGRESSIVE::GetMaxBitrate()
 { // STUB
     return 0;
 }
 
 /**
- * @brief To get the available audio bitrates.
- * @ret available audio bitrates
+ *  @brief To get the available audio bitrates.
  */
 std::vector<long> StreamAbstractionAAMP_PROGRESSIVE::GetAudioBitrates(void)
 { // STUB
@@ -391,8 +373,7 @@ std::vector<long> StreamAbstractionAAMP_PROGRESSIVE::GetAudioBitrates(void)
 }
 
 /**
- * @brief To get the available video tracks.
- * @ret available video tracks.
+ *  @brief To get the available video tracks.
  */
 std::vector<StreamInfo*> StreamAbstractionAAMP_PROGRESSIVE::GetAvailableVideoTracks(void)
 { // STUB
@@ -400,8 +381,7 @@ std::vector<StreamInfo*> StreamAbstractionAAMP_PROGRESSIVE::GetAvailableVideoTra
 }
 
 /**
- * @brief To get the available thumbnail tracks.
- * @ret available thumbnail tracks.
+ *  @brief To get the available thumbnail tracks.
  */
 std::vector<StreamInfo*> StreamAbstractionAAMP_PROGRESSIVE::GetAvailableThumbnailTracks(void)
 { // STUB
@@ -409,11 +389,7 @@ std::vector<StreamInfo*> StreamAbstractionAAMP_PROGRESSIVE::GetAvailableThumbnai
 }
 
 /**
- * @fn SetThumbnailTrack
- * @brief Function to set thumbnail track for processing
- *
- * @param thumbnail index value indicating the track to select
- * @return bool true on success.
+ *  @brief Function to set thumbnail track for processing
  */
 bool StreamAbstractionAAMP_PROGRESSIVE::SetThumbnailTrack(int thumbnailIndex)
 {
@@ -421,21 +397,22 @@ bool StreamAbstractionAAMP_PROGRESSIVE::SetThumbnailTrack(int thumbnailIndex)
 	return false;
 }
 
+
 std::vector<ThumbnailData> StreamAbstractionAAMP_PROGRESSIVE::GetThumbnailRangeData(double start, double end, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
 {
 	return std::vector<ThumbnailData>();
 }
 
 /**
-*   @brief  Stops injecting fragments to StreamSink.
-*/
+ *  @brief  Stops injecting fragments to StreamSink.
+ */
 void StreamAbstractionAAMP_PROGRESSIVE::StopInjection(void)
 { // STUB - discontinuity related
 }
 
 /**
-*   @brief  Start injecting fragments to StreamSink.
-*/
+ *  @brief  Start injecting fragments to StreamSink.
+ */
 void StreamAbstractionAAMP_PROGRESSIVE::StartInjection(void)
 { // STUB - discontinuity related
 }

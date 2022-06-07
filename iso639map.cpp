@@ -17,6 +17,11 @@
 * limitations under the License.
 */
 
+/**
+ * @file iso639map.cpp
+ * @brief ISO639 is a standard with representation of names for languages 
+ */
+
 #include "iso639map.h"
 #include <cstdlib>
 #include <string.h>

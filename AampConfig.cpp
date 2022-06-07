@@ -16,6 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
+/**
+ * @file AampConfig.cpp
+ * @brief Configuration related Functionality for AAMP
+ */
+ 
 #include "AampConfig.h"
 #include "_base64.h"
 #include "base16.h"
@@ -79,22 +85,22 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"harvestCountLimit",eAAMPConfig_HarvestCountLimit,{.iMinValue=-1},{.iMaxValue=-1}},
 	{"harvestConfig",eAAMPConfig_HarvestConfig,{.iMinValue=-1},{.iMaxValue=-1}},
 	{"harvestPath",eAAMPConfig_HarvestPath,-1,-1},
-	{"forceEC3",eAAMPConfig_ForceEC3,-1,-1},										// Complete
-	{"disableEC3",eAAMPConfig_DisableEC3,-1,-1},									// Complete
-	{"disableATMOS",eAAMPConfig_DisableATMOS,-1,-1},								// Complete
+	{"forceEC3",eAAMPConfig_ForceEC3,-1,-1},						// Complete
+	{"disableEC3",eAAMPConfig_DisableEC3,-1,-1},						// Complete
+	{"disableATMOS",eAAMPConfig_DisableATMOS,-1,-1},					// Complete
 	{"disableAC4",eAAMPConfig_DisableAC4,-1,-1},
-	{"stereoOnly",eAAMPConfig_StereoOnly,-1,-1},									// Complete
+	{"stereoOnly",eAAMPConfig_StereoOnly,-1,-1},						// Complete
 	{"descriptiveTrackName",eAAMPConfig_DescriptiveTrackName,-1,-1},
 	{"offset",eAAMPConfig_PlaybackOffset,{.dMinValue = -1},{.dMaxValue = -1}},
 	{"cdvrLiveOffset",eAAMPConfig_CDVRLiveOffset,{.dMinValue = 0},{.dMaxValue=50}},
 	{"liveOffset",eAAMPConfig_LiveOffset,{.dMinValue = 0},{.dMaxValue=50}},
 	{"disablePlaylistIndexEvent",eAAMPConfig_DisablePlaylistIndexEvent,-1,-1},		// Complete
-	{"enableSubscribedTags",eAAMPConfig_EnableSubscribedTags,-1,-1},				// Complete
+	{"enableSubscribedTags",eAAMPConfig_EnableSubscribedTags,-1,-1},			// Complete
 	{"networkTimeout",eAAMPConfig_NetworkTimeout,{.dMinValue = -1},{.dMaxValue=-1}},
 	{"manifestTimeout",eAAMPConfig_ManifestTimeout,{.dMinValue = -1},{.dMaxValue=-1}},
 	{"playlistTimeout",eAAMPConfig_PlaylistTimeout,{.dMinValue = -1},{.dMaxValue=-1}},
-	{"dashIgnoreBaseUrlIfSlash",eAAMPConfig_DASHIgnoreBaseURLIfSlash,-1,-1},	// Complete
-	{"licenseAnonymousRequest",eAAMPConfig_AnonymousLicenseRequest,-1,-1},		// Complete
+	{"dashIgnoreBaseUrlIfSlash",eAAMPConfig_DASHIgnoreBaseURLIfSlash,-1,-1},		// Complete
+	{"licenseAnonymousRequest",eAAMPConfig_AnonymousLicenseRequest,-1,-1},			// Complete
 	{"useLinearSimulator",eAAMPConfig_EnableLinearSimulator,-1,-1},
 	{"info",eAAMPConfig_InfoLogging,-1,-1},
 	{"failover",eAAMPConfig_FailoverLogging,-1,-1},
@@ -281,8 +287,6 @@ AampConfig::AampConfig():mAampLookupTable(),mChannelOverrideMap(),logging(),mAam
 
 /**
  * @brief AampConfig Copy Constructor function 
- *
- * @return New Config instance with copied values
  */
 AampConfig& AampConfig::operator=(const AampConfig& rhs) 
 {
@@ -312,6 +316,7 @@ AampConfig& AampConfig::operator=(const AampConfig& rhs)
 	return *this;
 }
 
+
 void AampConfig::Initialize()
 {
 	// Player Default Configuration
@@ -322,7 +327,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_PreservePipeline].value			=	false;
 	bAampCfgValue[eAAMPConfig_DemuxAudioHLSTrack].value			=	true;
 	bAampCfgValue[eAAMPConfig_DemuxVideoHLSTrack].value			=	true;
-	bAampCfgValue[eAAMPConfig_Throttle].value					=	false;
+	bAampCfgValue[eAAMPConfig_Throttle].value				=	false;
 	bAampCfgValue[eAAMPConfig_DemuxAudioBeforeVideo].value			=	false;
 	bAampCfgValue[eAAMPConfig_DemuxHLSVideoTsTrackTM].value			=	true;
 	bAampCfgValue[eAAMPConfig_ForceEC3].value				=	false;
@@ -550,16 +555,15 @@ LangCodePreference AampConfig::GetLanguageCodePreference()
 	return (LangCodePreference)iAampCfgValue[eAAMPConfig_LanguageCodePreference-eAAMPConfig_IntStartValue].value;
 }
 #endif
+
+
 std::string AampConfig::GetUserAgentString()
 {
 	return std::string(sAampCfgValue[eAAMPConfig_UserAgent-eAAMPConfig_StringStartValue].value + " " + AAMP_USERAGENT_SUFFIX);
 }
 
 /**
- * @brief IsConfigSet - Gets the boolean configuration value
- *
- * @param[in] cfg - Configuration enum
- * @return true / false
+ * @brief Gets the boolean configuration value
  */
 bool AampConfig::IsConfigSet(AAMPConfigSettings cfg)
 {
@@ -574,8 +578,6 @@ bool AampConfig::IsConfigSet(AAMPConfigSettings cfg)
 /**
  * @brief GetConfigValue - Gets configuration for integer data type
  *
- * @param[in] cfg - configuration enum
- * @param[out] value - configuration value
  * @return true - if valid return
  */
 bool AampConfig::GetConfigValue(AAMPConfigSettings cfg , int &value)
@@ -592,7 +594,6 @@ bool AampConfig::GetConfigValue(AAMPConfigSettings cfg , int &value)
 /**
  * @brief GetConfigOwner - Gets configuration Owner
  *
- * @param[in] cfg - configuration enum
  * @return ConfigPriority - owner of the config
  */
 ConfigPriority AampConfig::GetConfigOwner(AAMPConfigSettings cfg)
@@ -629,8 +630,6 @@ ConfigPriority AampConfig::GetConfigOwner(AAMPConfigSettings cfg)
 /**
  * @brief GetConfigValue - Gets configuration for long data type
  *
- * @param[in] cfg - configuration enum
- * @param[out] value - configuration value
  * @return true - if valid return
  */
 bool AampConfig::GetConfigValue(AAMPConfigSettings cfg, long &value)
@@ -647,8 +646,6 @@ bool AampConfig::GetConfigValue(AAMPConfigSettings cfg, long &value)
 /**
  * @brief GetConfigValue - Gets configuration for double data type
  *
- * @param[in] cfg - configuration enum
- * @param[out] value - configuration value
  * @return true - if valid return
  */
 bool AampConfig::GetConfigValue(AAMPConfigSettings cfg, double &value)
@@ -662,13 +659,9 @@ bool AampConfig::GetConfigValue(AAMPConfigSettings cfg, double &value)
 	return ret;
 }
 
-
-
 /**
  * @brief GetConfigValue - Gets configuration for string data type
  *
- * @param[in] cfg - configuration enum
- * @param[out] value - configuration value
  * @return true - if valid return
  */
 bool AampConfig::GetConfigValue(AAMPConfigSettings cfg, std::string &value)
@@ -681,11 +674,10 @@ bool AampConfig::GetConfigValue(AAMPConfigSettings cfg, std::string &value)
 	}
 	return ret;
 }
+
 /**
  * @brief GetChannelOverride - Gets channel override url for channel Name
  *
- * @param[in] chName - channel name to search
- * @param[out] chOverride - URI
  * @return true - if valid return
  */
 const char * AampConfig::GetChannelOverride(const std::string manifestUrl)
@@ -707,8 +699,6 @@ const char * AampConfig::GetChannelOverride(const std::string manifestUrl)
 /**
  * @brief GetChannelLicenseOverride - Gets channel License override url for channel Url
  *
- * @param[in] chUrl - channel Url to search
- * @param[out] chLicenseOverride - license URI
  * @return true - if valid return
  */
 const char * AampConfig::GetChannelLicenseOverride(const std::string manifestUrl)
@@ -733,9 +723,7 @@ const char * AampConfig::GetChannelLicenseOverride(const std::string manifestUrl
 /**
  * @brief ToggleConfigValue - Toggle Boolean configuration
  *
- * @param[in] owner  - ownership of new set call
- * @param[in] cfg	- Configuration enum to set
- * @return None
+ * @return void
  */
 void AampConfig::ToggleConfigValue(ConfigPriority owner, AAMPConfigSettings cfg )
 {
@@ -755,10 +743,7 @@ void AampConfig::ToggleConfigValue(ConfigPriority owner, AAMPConfigSettings cfg 
 /**
  * @brief SetConfigValue - Set function to set bool/int/long data type configuration
  *
- * @param[in] owner  - ownership of new set call
- * @param[in] cfg	- Configuration enum to set
- * @param[in] value   - value to set
- * @return None
+ * @return void
  */
 template<typename T>
 void AampConfig::SetConfigValue(ConfigPriority owner, AAMPConfigSettings cfg ,const T &value)
@@ -797,14 +782,10 @@ void AampConfig::SetConfigValue(ConfigPriority owner, AAMPConfigSettings cfg ,co
 	}
 }
 
-
 /**
  * @brief SetConfigValue - Set function to set string data type configuration
  *
- * @param[in] owner  - ownership of new set call
- * @param[in] cfg	- Configuration enum to set
- * @param[in] value   - string value to set
- * @return None
+ * @return void
  */
 template <>
 void AampConfig::SetConfigValue(ConfigPriority owner, AAMPConfigSettings cfg , const std::string &value)
@@ -822,8 +803,6 @@ void AampConfig::SetConfigValue(ConfigPriority owner, AAMPConfigSettings cfg , c
 /**
  * @brief ProcessConfigJson - Function to parse and process json configuration string
  *
- * @param[in] cfg - json string
- * @param[in] owner   - Owner who is setting the value
  * @return bool - true on success
  */
 bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner )
@@ -992,11 +971,11 @@ bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner 
 	}
 	return retval;
 }
+
 /**
  * @brief CustomArrayRead - Function to Read Custom JSON Array
- * * @param[in] customArray - input string where custom config json will be stored
- * * @param[in] owner - ownership of configs will be stored
- **/
+ * @return void
+ */
 void AampConfig::CustomArrayRead( cJSON *customArray,ConfigPriority owner )
 {
 	std::string keyname;
@@ -1066,11 +1045,8 @@ void AampConfig::CustomArrayRead( cJSON *customArray,ConfigPriority owner )
 }
 		
 /**
- * @brief CustomSearch - Function to apply custom settings
+ * @brief CustomSearch - Function to apply custom search
  *
- * @param[in] str  - input string where url name will be stored
- * @param[in] int  - input int variable where playerId will be stored
- * @param[in] str  - input string where appname will be stored
  */
 bool AampConfig::CustomSearch( std::string url, int playerId , std::string appname)
 {
@@ -1212,15 +1188,9 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 	return found;
 }
 
-
-
-
-
-
 /**
  * @brief GetAampConfigJSONStr - Function to Complete Config as JSON str
  *
- * @param[in] str  - input string where config json will be stored
  * @return true
  */
 bool AampConfig::GetAampConfigJSONStr(std::string &str)
@@ -1264,9 +1234,7 @@ bool AampConfig::GetAampConfigJSONStr(std::string &str)
 /**
  * @brief GetDeveloperConfigData - Function to parse and process configuration text
  *
- * @param[in] key - key string to parse
- * @param[in] value - value read from input string 
- * @return None
+ * @return true if parse successfully
  */
 bool AampConfig::GetDeveloperConfigData(std::string &key,std::string &value)
 {
@@ -1280,14 +1248,10 @@ bool AampConfig::GetDeveloperConfigData(std::string &key,std::string &value)
 	return retval;
 }
 
-
-
 /**
  * @brief ProcessConfigText - Function to parse and process configuration text
  *
- * @param[in] cfg - config text ( new line separated)
- * @param[in] owner   - Owner who is setting the value
- * @return None
+ * @return true if config process success
  */
 bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 {
@@ -1462,8 +1426,9 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 /**
  * @brief ReadAampCfgJsonFile - Function to parse and process configuration file in json format
  *
- * @return None
+ * @return true if read successfully
  */
+
 bool AampConfig::ReadAampCfgJsonFile()
 {
 	bool retVal=false;
@@ -1511,11 +1476,9 @@ bool AampConfig::ReadAampCfgJsonFile()
 	return retVal;
 }
 
-
 /**
  * @brief ReadAampCfgTxtFile - Function to parse and process configuration file in text format
  *
- * @return None
  */
 bool AampConfig::ReadAampCfgTxtFile()
 {
@@ -1566,9 +1529,7 @@ bool AampConfig::ReadAampCfgTxtFile()
 /**
  * @brief ReadOperatorConfiguration - Reads Operator configuration from RFC and env variables
  *
- * @return None
  */
-
 void AampConfig::ReadOperatorConfiguration()
 {
 #ifdef IARM_MGR
@@ -1666,11 +1627,9 @@ void AampConfig::ReadOperatorConfiguration()
 	}
 }
 
-
 /**
  * @brief ConfigureLogSettings - This function configures log settings for LogManager instance
  *
- * @return None
  */
 void AampConfig::ConfigureLogSettings()
 {
@@ -1721,28 +1680,24 @@ void AampConfig::ConfigureLogSettings()
 
 /**
  * @brief ShowOperatorSetConfiguration - List all operator configured settings
- *
- * @return None
  */
 void AampConfig::ShowOperatorSetConfiguration()
 {
 	////////////////// AAMP Config (Operator Set) //////////
 	ShowConfiguration(AAMP_OPERATOR_SETTING);
 }
+
 /**
  * @brief ShowAppSetConfiguration - List all Application configured settings
- *
- * @return None
  */
 void AampConfig::ShowAppSetConfiguration()
 {
 	////////////////// AAMP Config (Application Set) //////////
 	ShowConfiguration(AAMP_APPLICATION_SETTING);
 }
+
 /**
  * @brief ShowStreamSetConfiguration - List all stream configured settings
- *
- * @return None
  */
 void AampConfig::ShowStreamSetConfiguration()
 {
@@ -1750,30 +1705,29 @@ void AampConfig::ShowStreamSetConfiguration()
 	ShowConfiguration(AAMP_STREAM_SETTING);
 
 }
+
 /**
  * @brief ShowDefaultAampConfiguration - List all AAMP Default settings
  *
- * @return None
  */
 void AampConfig::ShowDefaultAampConfiguration()
 {
 	///////////////// AAMP Default Configuration  /////////
 	ShowConfiguration(AAMP_DEFAULT_SETTING);
 }
+
 /**
  * @brief ShowDevCfgConfiguration - List all developer configured settings
- *
- * @return None
  */
 void AampConfig::ShowDevCfgConfiguration()
 {
 	////////////////// AAMP Cfg Override Configuration  //////////
 	ShowConfiguration(AAMP_DEV_CFG_SETTING);
 }
+
 /**
  * @brief ShowAAMPConfiguration - Show all settings for every owner
  *
- * @return None
  */
 void AampConfig::ShowAAMPConfiguration()
 {
@@ -1810,8 +1764,6 @@ DRMSystems AampConfig::GetPreferredDRM()
 
 /**
  * @brief DoCustomSetting - Function to do override , to avoid complexity with multiple configs
- *
- * @return None
  */
 void AampConfig::DoCustomSetting(ConfigPriority owner)
 {
@@ -1864,14 +1816,8 @@ void AampConfig::DoCustomSetting(ConfigPriority owner)
 	ConfigureLogSettings();
 }
 
-
 /**
  * @brief SetValue - Function to store the configuration and ownership based on priority set
- *
- * @param[in] setting - Config variable to set
- * @param[in] newowner - New owner value
- * @param[in] value - Value to set
- * @return None
  */
 template<class J,class K>
 void AampConfig::SetValue(J &setting, ConfigPriority newowner, const K &value, std::string cfgName)
@@ -1898,8 +1844,6 @@ void AampConfig::SetValue(J &setting, ConfigPriority newowner, const K &value, s
 /**
  * @brief GetConfigName - Function to get configuration name for enum from lookup table
  *
- * @param[in] cfg  - configuration enum
- * @return string - configuration name
  */
 std::string AampConfig::GetConfigName(AAMPConfigSettings cfg )
 {
@@ -1916,6 +1860,7 @@ std::string AampConfig::GetConfigName(AAMPConfigSettings cfg )
 	}
 	return keyname;
 }
+
 
 template<typename T>
 bool AampConfig::ValidateRange(std::string key, T& value)
@@ -1959,8 +1904,6 @@ bool AampConfig::ValidateRange(std::string key, T& value)
 /**
  * @brief RestoreConfiguration - Function is restore last configuration value from current ownership
  *
- * @param[in] owner - Owner value for reverting
- * @return None
  */
 void AampConfig::RestoreConfiguration(ConfigPriority owner, AampLogManager *mLogObj)
 {
@@ -2039,9 +1982,6 @@ void AampConfig::RestoreConfiguration(ConfigPriority owner, AampLogManager *mLog
 
 /**
  * @brief ShowConfiguration - Function to list configration values based on the owner
- *
- * @param[in] owner - Owner value for listing
- * @return None
  */
 void AampConfig::ShowConfiguration(ConfigPriority owner)
 {
@@ -2110,10 +2050,6 @@ void AampConfig::ShowConfiguration(ConfigPriority owner)
 
 /**
  * @brief ReadNumericHelper - Parse helper function
- *
- * @param[in] valStr - string input to convert
- * @param[out] value - coverted output
- * @return true on success
  */
 template<typename T>
 bool AampConfig::ReadNumericHelper(std::string valStr, T& value)
@@ -2141,11 +2077,10 @@ bool AampConfig::ReadNumericHelper(std::string valStr, T& value)
 }
 
 #ifdef IARM_MGR
+
 /**
  * @brief GetTR181AAMPConfig
  *
- * @param[in] paramName - Parameter Name to parse
- * @param[in] configLen
  * @return config value
  */
 char * AampConfig::GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen)
@@ -2188,6 +2123,7 @@ char * AampConfig::GetTR181AAMPConfig(const char * paramName, size_t & iConfigLe
 #endif
 
 #ifdef UNIT_TEST_ENABLED
+
 int main()
 {
 	AampConfig var1,var2;

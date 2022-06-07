@@ -17,6 +17,11 @@
  * limitations under the License.
 */
 
+/**
+ * @file AampSharedMemorySystem.cpp
+ * @brief Handles the functionalities for shared memory Aamp DRM
+ */
+
 #include "AampSharedMemorySystem.h"
 
 // For shared memory
@@ -26,12 +31,21 @@
 
 #include "AampConfig.h"
 
+/**
+ * @brief AampSharedMemorySystem constructor
+ */
 AampSharedMemorySystem::AampSharedMemorySystem(AamplOgManager *logObj): AAMPMemorySystem(logObj) {
 }
 
+/**
+ * @brief AampSharedMemorySystem Destructor
+ */
 AampSharedMemorySystem::~AampSharedMemorySystem() {
 }
 
+/**
+ * @brief Encode a block of data to send over the divide
+ */
 bool AampSharedMemorySystem::encode(const uint8_t *dataIn, uint32_t dataInSz, std::vector<uint8_t>& dataOut) 
 {
 	int shmHandle = shm_open(AAMP_SHARED_MEMORY_NAME.c_str(), AAMP_SHARED_MEMORY_CREATE_OFLAGS, AAMP_SHARED_MEMORY_MODE);
@@ -82,6 +96,9 @@ bool AampSharedMemorySystem::encode(const uint8_t *dataIn, uint32_t dataInSz, st
 	return true;
 }
 
+/**
+ * @brief Decode from getting back
+ */
 bool AampSharedMemorySystem::decode(const uint8_t * dataIn, uint32_t dataInSz, uint8_t* dataOut, uint32_t dataOutSz) 
 {
 	int shmHandle = shm_open(AAMP_SHARED_MEMORY_NAME.c_str(), AAMP_SHARED_MEMORY_READ_OFLAGS, AAMP_SHARED_MEMORY_MODE);

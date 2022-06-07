@@ -17,8 +17,9 @@
  * limitations under the License.
 */
 
-/* Playready Session management
- *
+/**
+ * @file opencdmsession.cpp
+ * @brief Playready Session management
  */
 #include "config.h"
 #include "opencdmsession.h"
@@ -34,6 +35,8 @@
 
 #include <sys/time.h>
 #define USEC_PER_SEC   1000000
+
+
 static inline uint64_t GetCurrentTimeStampInUSec()
 {
 	   struct timeval  timeStamp;
@@ -46,6 +49,8 @@ static inline uint64_t GetCurrentTimeStampInUSec()
 
 	   return retVal;
 }
+
+
 static inline uint64_t GetCurrentTimeStampInMSec()
 {
 	   return GetCurrentTimeStampInUSec() / 1000;
@@ -73,14 +78,16 @@ struct DecryptStats
 };
 #endif // LOG_DECRYPT_STATS
 #define SEC_SIZE size_t
+
+
 void LogPerformanceExt(const char* strFunc, uint64_t msStart, uint64_t msEnd, SEC_SIZE nDataSize)
 {
     bool        bThreshold  = false;
     uint64_t    delta       = msEnd - msStart;
-    uint32_t    nRateMin    = 1000;     // Bytes/ms
+    uint32_t    nRateMin    = 1000;     /**< Bytes/ms */
     uint32_t    nRestart    = 5;
     uint32_t    nDataMin    = 1000;
-    uint32_t    nTimeMin    = 5; // Can not be < 1 to protect against divide by 0 error
+    uint32_t    nTimeMin    = 5;        /**< Can not be < 1 to protect against divide by 0 error */
 
 #ifdef LOG_DECRYPT_STATS
     {
@@ -137,6 +144,10 @@ void LogPerformanceExt(const char* strFunc, uint64_t msStart, uint64_t msEnd, SE
 #ifdef USE_SAGE_SVP
 #include "b_secbuf.h"
 
+/**
+ * @struct Rpc_Secbuf_Info
+ * @brief Sec Buffer
+ */
 struct Rpc_Secbuf_Info {
 	uint8_t *ptr;
 	uint32_t type;
@@ -167,6 +178,7 @@ AAMPOCDMSession::AAMPOCDMSession(AampLogManager *logObj, const string& keySystem
 
 }
 
+
 void AAMPOCDMSession::initAampDRMSession()
 {
 
@@ -177,6 +189,7 @@ void AAMPOCDMSession::initAampDRMSession()
 	m_pOpencdm->SelectKeySystem(m_keySystem);
 
 }
+
 
 void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData, std::string &customData)
@@ -199,6 +212,7 @@ void AAMPOCDMSession::generateAampDRMSession(const uint8_t *f_pbInitData,
 #endif
 	pthread_mutex_unlock(&decryptMutex);
 }
+
 
 AAMPOCDMSession::~AAMPOCDMSession()
 {
@@ -379,6 +393,7 @@ int AAMPOCDMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 	return retvalue;
 }
 
+
 int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 		const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData)
 {
@@ -450,10 +465,12 @@ int AAMPOCDMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 
 }
 
+
 KeyState AAMPOCDMSession::getState()
 {
 	return m_eKeyState;
 }
+
 
 void AAMPOCDMSession:: clearDecryptContext()
 {

@@ -16,6 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
+/**
+ * @file AampDrmHelper.cpp
+ * @brief Implemented Aamp DRM helper function
+ */
+
 #include <algorithm>
 #include <regex>
 

@@ -33,6 +33,7 @@
 #define SHMGET_RETRY_MAX 10
 #endif
 /**
+ * @struct GrowableBuffer
  * @brief Structure of GrowableBuffer
  */
 struct GrowableBuffer
@@ -43,8 +44,8 @@ struct GrowableBuffer
 };
 
 /**
- * @brief Free memory allocated by aamp_Malloc
- * @param[in][out] struct GrowableBuffer
+ * @fn aamp_Free
+ * @param[in] buffer struct GrowableBuffer
  */
 void aamp_Free(struct GrowableBuffer *buffer);
 
@@ -56,7 +57,7 @@ void aamp_Free(struct GrowableBuffer *buffer);
 void aamp_Malloc(struct GrowableBuffer *buffer, size_t len);
 
 /**
- * @brief Append data to buffer
+ * @fn aamp_AppendBytes
  * @param buffer Growable buffer object pointer
  * @param ptr Buffer to append
  * @param len Buffer size
@@ -64,7 +65,7 @@ void aamp_Malloc(struct GrowableBuffer *buffer, size_t len);
 void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len);
 
 /**
- * @brief Move data to buffer
+ * @fn aamp_MoveBytes
  * @param buffer Growable buffer object pointer
  * @param ptr Buffer to Move
  * @param len Buffer size
@@ -72,21 +73,20 @@ void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len
 void aamp_MoveBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len);
 
 /**
- * @brief Append nul character to buffer
+ * @fn aamp_AppendNulTerminator
  * @param buffer buffer in which nul to be append
  */
 void aamp_AppendNulTerminator(struct GrowableBuffer *buffer);
 
 #ifdef USE_SECMANAGER
 /**
- * @brief Creates shared memory and provides the key
- * @param shmPointer Pointer to the created memory
+ * @fn aamp_CreateSharedMem
  * @param shmLen Length of the buffer to be created
  * @param shmKey shared memory key
  */
 void * aamp_CreateSharedMem( size_t shmLen, key_t & shmKey);
 /**
- * @brief Detatch and delete shared memory
+ * @fn aamp_CleanUpSharedMem
  * @param shmPointer Pointer to the created memory
  * @param shmKey shared memory key
  * @param shmLen Length of the buffer

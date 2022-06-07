@@ -47,6 +47,7 @@
 #define OPEN_SSL_CONTEXT &mOpensslCtx
 #endif
 
+
 /**
  * @brief ClearKeySession Constructor
  */
@@ -81,10 +82,7 @@ void ClearKeySession::initAampDRMSession()
 
 /**
  * @brief SetKid for this session.
- * @param keyId
- * @param keyID Len
  */
-
 void ClearKeySession::setKeyId(const char* keyId, int32_t keyIDLen)
 {
 	if (m_keyId != NULL)
@@ -97,8 +95,8 @@ void ClearKeySession::setKeyId(const char* keyId, int32_t keyIDLen)
 }
 
 /**
- *  @brief		Extract the keyId from PSSH data.
- *  			Different procedures are used for PlayReady and WideVine.
+ *  @brief	Extract the keyId from PSSH data.
+ *  		Different procedures are used for PlayReady and WideVine.
  *
  *  @param[in]	psshData - Pointer to PSSH data.
  *  @param[in]	dataLength - Length of PSSH data.
@@ -135,8 +133,6 @@ static unsigned char * extractKeyIdFromPssh(const char* psshData, int dataLength
 /**
  * @brief Create drm session with given init data
  *        state will be KEY_INIT on success KEY_ERROR if failed
- * @param f_pbInitData pointer to initdata
- * @param f_cbInitData init data size
  */
 void ClearKeySession::generateAampDRMSession(const uint8_t *f_pbInitData,
 		uint32_t f_cbInitData, std::string &customData)
@@ -178,7 +174,6 @@ void ClearKeySession::generateAampDRMSession(const uint8_t *f_pbInitData,
 /**
  * @brief ClearKeySession Destructor
  */
-
 ClearKeySession::~ClearKeySession()
 {
 	pthread_mutex_destroy(&decryptMutex);
@@ -207,9 +202,6 @@ ClearKeySession::~ClearKeySession()
 /**
  * @brief Generate key request from DRM session
  *        Caller function should free the returned memory.
- * @param destinationURL : gets updated with license server url
- * @param timeout: max timeout untill which to wait for cdm key generation.
- * @retval Pointer to DrmData containing license request, NULL if failure.
  */
 DrmData * ClearKeySession::aampGenerateKeyRequest(string& destinationURL, uint32_t timeout)
 {
@@ -252,9 +244,6 @@ DrmData * ClearKeySession::aampGenerateKeyRequest(string& destinationURL, uint32
 
 /**
  * @brief Updates the received key to DRM session
- * @param key : License key from license server.
- * @param timeout: max timeout untill which to wait for cdm processing.
- * @retval DRM_SUCCESS if no errors encountered
  */
 int ClearKeySession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 {
@@ -353,13 +342,7 @@ int ClearKeySession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 }
 
 /**
- * @brief Function to decrypt stream  buffer.
- * @param keyIDBuffer : keyID Buffer.
- * @param ivBuffer : Initialization vector buffer.
- * @param buffer : Data to decrypt.
- * @param subSampleCount : subSampleCount in buffer
- * @param subSamplesBuffer : sub Samples Buffer.
- * @retval Returns 0 on success.
+ * @brief Function to decrypt stream.
  */
 int ClearKeySession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuffer* buffer, unsigned subSampleCount,
                 GstBuffer* subSamplesBuffer, GstCaps* caps)
@@ -515,15 +498,8 @@ int ClearKeySession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuf
 	return retVal;
 }
 
-
 /**
  * @brief Function to decrypt stream  buffer.
- * @param f_pbIV : Initialization vector.
- * @param f_cbIV : Initialization vector length.
- * @param payloadData : Data to decrypt.
- * @param payloadDataSize : Size of data.
- * @param ppOpaqueData : pointer to opaque buffer in case of SVP.
- * @retval Returns 0 on success.
  */
 int ClearKeySession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 		const uint8_t *payloadData, uint32_t payloadDataSize, uint8_t **ppOpaqueData=NULL)
@@ -613,10 +589,8 @@ int ClearKeySession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
 	return status;
 }
 
-
 /**
  * @brief Get the current state of DRM Session.
- * @retval KeyState
  */
 KeyState ClearKeySession::getState()
 {

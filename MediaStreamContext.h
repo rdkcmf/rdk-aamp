@@ -20,6 +20,11 @@
 #ifndef MEDIASTREAMCONTEXT_H
 #define MEDIASTREAMCONTEXT_H
 
+/**
+ * @file MediaStreamContext.h
+ * @brief Handles operations for Media stream context
+ */
+
 #include "StreamAbstractionAAMP.h"
 #include "fragmentcollector_mpd.h"
 
@@ -33,7 +38,7 @@ public:
     /**
      * @brief MediaStreamContext Constructor
      * @param type Type of track
-     * @param context  MPD collector context
+     * @param ctx context  MPD collector context
      * @param aamp Pointer to associated aamp instance
      * @param name Name of the track
      */
@@ -82,7 +87,7 @@ public:
     }
 
     /**
-     * @brief Receives cached fragment and injects to sink.
+     * @fn InjectFragmentInternal
      *
      * @param[in] cachedFragment - contains fragment to be processed and injected
      * @param[out] fragmentDiscarded - true if fragment is discarded.
@@ -90,7 +95,7 @@ public:
     void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded);
 
     /**
-     * @brief Fetch and cache a fragment
+     * @fn CacheFragment
      * @param fragmentUrl url of fragment
      * @param curlInstance curl instance to be used to fetch
      * @param position position of fragment in seconds
@@ -98,7 +103,7 @@ public:
      * @param range byte range
      * @param initSegment true if fragment is init fragment
      * @param discontinuity true if fragment is discontinuous
-     * @param  playingAd flag if playing Ad
+     * @param playingAd flag if playing Ad
      * @param pto unscaled pto value from mpd
      * @param scale timeScale value from mpd
      * @retval true on success
@@ -106,28 +111,32 @@ public:
     bool CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false, bool playingAd = false, double pto = 0, uint32_t scale = 0);
 
     /**
-     * @brief Cache Fragment Chunk
-     * @param MediaType type of cached media
-     * @param char* CURL provided chunk data
-     * @param size_t CURL provided chunk data size
-     * @param fragmentUrl url of fragment
+     * @fn CacheFragmentChunk
+     * @param actualType MediaType type of cached media
+     * @param ptr CURL provided chunk data
+     * @param size CURL provided chunk data size
+     * @param remoteUrl url of fragment
      */
     bool CacheFragmentChunk(MediaType actualType, char *ptr, size_t size, std::string remoteUrl);
 
     /**
-     * @brief Listener to ABR profile change
+     * @fn ABRProfileChanged
      */
     void ABRProfileChanged(void);
-
+    /**
+     * @fn GetBufferedDuration
+     */
     double GetBufferedDuration();
 
     /**
-     * @brief Notify discontinuity during trick-mode as PTS re-stamping is done in sink
+     * @fn SignalTrickModeDiscontinuity
+     * @return void
      */
     void SignalTrickModeDiscontinuity();
 
     /**
-     * @brief Returns if the end of track reached.
+     * @fn IsAtEndOfTrack
+     * @return true - If yes
      */
     bool IsAtEndOfTrack();
 

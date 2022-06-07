@@ -19,7 +19,7 @@
 
 /**
  * @file AampRfc.h
- * @brief
+ * @brief Aamp RFC header files
  */
 #ifndef _AAMP_RFC_H
 #define _AAMP_RFC_H
@@ -27,29 +27,25 @@
 #ifdef AAMP_RFC_ENABLED
 namespace RFCSettings{ 
     /**
-     * @brief   Fetch License Request Header AcceptValue from RFC
-     * @param   None
+     * @fn getLHRAcceptValue
      * @retval  std::string host value
      */
     std::string getLHRAcceptValue();
 
     /**
-     * @brief   Fetch License Request Header ContentType from RFC
-     * @param   None
+     * @fn getLRHContentType   
      * @retval  std::string host value
      */
     std::string getLRHContentType();
 
     /**
-     * @brief   get the scheme id uri for dai streams
-     * @param   None
+     * @fn getSchemeIdUriDaiStream
      * @retval  std::string scheme id uri
      */
     std::string getSchemeIdUriDaiStream();
 
     /**
-     * @brief   get the scheme id uri for vss streams
-     * @param   None
+     * @fn getSchemeIdUriVssStream
      * @retval  std::string scheme id uri
      */
     std::string getSchemeIdUriVssStream();
