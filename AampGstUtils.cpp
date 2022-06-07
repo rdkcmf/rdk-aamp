@@ -85,6 +85,8 @@ GstCaps* GetGstCaps(StreamOutputFormat format)
                                        "alignment", G_TYPE_STRING, "au",
                                        "stream-format", G_TYPE_STRING, "avc",
                                        NULL);
+#elif (defined(REALTEKCE))
+			caps = gst_caps_new_simple ("video/x-h264", "enable-fastplayback", G_TYPE_STRING, "true", NULL);
 #else
 			caps = gst_caps_new_simple ("video/x-h264", NULL, NULL);
 #endif
@@ -95,6 +97,8 @@ GstCaps* GetGstCaps(StreamOutputFormat format)
 					"alignment", G_TYPE_STRING, "au",
 					"stream-format", G_TYPE_STRING, "hev1",
 					NULL);
+#elif (defined(REALTEKCE))
+			caps = gst_caps_new_simple ("video/x-h265", "enable-fastplayback", G_TYPE_STRING, "true", NULL);
 #else
 			caps = gst_caps_new_simple ("video/x-h265", NULL, NULL);
 #endif
