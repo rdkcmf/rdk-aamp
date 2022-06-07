@@ -36,6 +36,13 @@
 class AampDrmSessionFactory
 {
 public:
+	
+	/**
+	 *  @fn  	GetDrmSession
+	 *
+	 *  @param[in]	drmHelper - DrmHelper instance
+	 *  @return		Pointer to DrmSession.
+	 */
 	static AampDrmSession* GetDrmSession(AampLogManager *logObj, std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *drmCallbacks);
 };
 #endif

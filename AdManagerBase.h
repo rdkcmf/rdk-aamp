@@ -29,6 +29,7 @@
 #include "priv_aamp.h"
 
 /**
+ * @enum AdState
  * @brief Ad playback states
  */
 enum class AdState
@@ -50,6 +51,7 @@ static constexpr const char *ADSTATE_STR[] =
 };
 
 /**
+ * @class CDAIObject
  * @brief Base class for the client side DAI object
  */
 class CDAIObject

@@ -18,7 +18,7 @@
 */
 
 /**
- * @file aamp_events.cpp
+ * @file AampEvent.cpp
  * @brief Implementation of AAMPEventObject and derived class.
  */
 
@@ -42,14 +42,8 @@ AAMPEventType AAMPEventObject::getType() const
 	return mType;
 }
 
-/*
+/**
  * @brief MediaErrorEvent Constructor
- *
- * @param[in] evtType     - Event type
- * @param[in] failure     - Failure type
- * @param[in] code        - Error code
- * @param[in] desc        - Error description
- * @param[in] shouldRetry - Retry or not
  */
 MediaErrorEvent::MediaErrorEvent(AAMPTuneFailure failure, int code, const std::string &desc, bool shouldRetry):
 		AAMPEventObject(AAMP_EVENT_TUNE_FAILED), mFailure(failure), mCode(code),
@@ -98,10 +92,8 @@ bool MediaErrorEvent::shouldRetry() const
 	return mShouldRetry;
 }
 
-/*
+/**
  * @brief SpeedChangedEvent Constructor
- *
- * @param[in]  rate - New speed
  */
 SpeedChangedEvent::SpeedChangedEvent(int rate):
 		AAMPEventObject(AAMP_EVENT_SPEED_CHANGED), mRate(rate)
@@ -119,16 +111,9 @@ int SpeedChangedEvent::getRate() const
 	return mRate;
 }
 
-/*
+/**
  * @brief ProgressEvent Constructor
  *
- * @param[in]  duration - Duration of Asset
- * @param[in]  position - Current Position
- * @param[in]  start    - Start Position
- * @param[in]  end      - End Position
- * @param[in]  speed    - Current Speed
- * @param[in]  pts      - Video PTS
- * @param[in]  bufferedDuration - buffered duration
  */
 ProgressEvent::ProgressEvent(double duration, double position, double start, double end, float speed, long long pts, double bufferedDuration, std::string seiTimecode):
 		AAMPEventObject(AAMP_EVENT_PROGRESS), mDuration(duration),
@@ -211,16 +196,16 @@ double ProgressEvent::getBufferedDuration() const
 }
 
 /**
-* @brief Get SEI Timecode Information
-*
-* @return SEI Timecode
-*/
+ * @brief Get SEI Time Code information
+ *
+ * @return SEI Time Code
+ */
 const char* ProgressEvent::getSEITimeCode() const
 {
 	return mSEITimecode.c_str();
 }
 
-/*
+/**
  * @brief CCHandleEvent Constructor
  *
  * @param[in] handle - Handle to close caption
@@ -241,15 +226,8 @@ unsigned long CCHandleEvent::getCCHandle() const
 	return mHandle;
 }
 
-/*
+/**
  * @brief MediaMetadataEvent Constructor
- *
- * @param[in] duration   - Duration of Media Metadata
- * @param[in] width      - Video width
- * @param[in] height     - Video height
- * @param[in] hasDrm     - Drm enablement status
- * @param[in] isLive     - Is Live
- * @param[in] DrmType    - Current DRM Type
  */
 MediaMetadataEvent::MediaMetadataEvent(long duration, int width, int height, bool hasDrm, bool isLive, const std::string &DrmType, double programStartTime):
 		AAMPEventObject(AAMP_EVENT_MEDIA_METADATA), mDuration(duration),
@@ -283,9 +261,6 @@ double MediaMetadataEvent::getProgramStartTime() const
 
 /**
  * @brief Add a supported language
- *
- * @param[in] lang - Supported language
- * @return void
  */
 void MediaMetadataEvent::addLanguage(const std::string &lang)
 {
@@ -314,9 +289,6 @@ int MediaMetadataEvent::getLanguagesCount() const
 
 /**
  * @brief Add a supported bitrate
- *
- * @param[in] bitrate - Supported bitrate
- * @return void
  */
 void MediaMetadataEvent::addBitrate(long bitrate)
 {
@@ -375,9 +347,6 @@ bool MediaMetadataEvent::hasDrm() const
 
 /**
  * @brief Add a supported speed
- *
- * @param[in] speed - Supported speed
- * @return void
  */
 void MediaMetadataEvent::addSupportedSpeed(int speed)
 {
@@ -409,6 +378,7 @@ int MediaMetadataEvent::getSupportedSpeedCount() const
  *
  * @return isLive
  */
+
 bool MediaMetadataEvent::isLive() const
 {
 	return mIsLive;
@@ -424,6 +394,9 @@ const std::string &MediaMetadataEvent::getDrmType() const
 	return mDrmType;
 }
 
+/**
+ * @brief Sets additional metadata for video
+ */
 void MediaMetadataEvent::SetVideoMetaData(float frameRate,VideoScanType videoScanType,int aspectRatioWidth,int  aspectRatioHeight, const std::string &  videoCodec, const std::string  & strHdrType, const std::string & strPCRating, int ssi)
 {
 	this->mFrameRate = frameRate;
@@ -437,6 +410,11 @@ void MediaMetadataEvent::SetVideoMetaData(float frameRate,VideoScanType videoSca
 	return;
 }
 
+/**
+ * @brief Get Bitrates
+ *
+ * @return Vector of supported bitrates
+ */
 void MediaMetadataEvent::SetAudioMetaData(const std::string &audioCodec,const std::string &mixType,bool  isAtmos  )
 {
 	mAudioCodec = audioCodec;
@@ -445,22 +423,8 @@ void MediaMetadataEvent::SetAudioMetaData(const std::string &audioCodec,const st
 	return;
 }
 
-/*
+/**
  * @brief BitrateChangeEvent Constructor
- *
- * @param[in] time       - Time of bitrate change
- * @param[in] bitrate    - New bitrate
- * @param[in] desc       - Reason of change
- * @param[in] width      - Video width
- * @param[in] height     - Video height
- * @param[in] frameRate  - Framerate
- * @param[in] position   - Position
- * @param[in] cappedProfile - Restricted profile status
- * @param[in] displayWidth - Output display width
- * @param[in] displayHeight - Output display height
- * @param[in] videoScanType - Video Scan Type
- * @param[in] aspectRatioWidth - Aspect Ratio Width
- * @param[in] aspectRatioHeight - Aspect Ratio Height
  */
 BitrateChangeEvent::BitrateChangeEvent(int time, long bitrate, const std::string &desc, int width, int height, double frameRate, double position, bool cappedProfile, int displayWidth, int displayHeight, VideoScanType videoScanType, int aspectRatioWidth, int aspectRatioHeight):
 		AAMPEventObject(AAMP_EVENT_BITRATE_CHANGED), mTime(time),
@@ -541,9 +505,9 @@ double BitrateChangeEvent::getPosition() const
 }
 
 /**
- * @brief Get Profile capped status
+ * @brief Get Capped Profile status
  *
- * @return true or false
+ * @return profile filterting restricted status
  */
 bool BitrateChangeEvent::getCappedProfileStatus() const
 {
@@ -551,9 +515,9 @@ bool BitrateChangeEvent::getCappedProfileStatus() const
 }
 
 /**
- * @brief Get output tv display Width
+ * @brief Get display width
  *
- * @return Display width
+ * @return output display tv width
  */
 int BitrateChangeEvent::getDisplayWidth() const
 {
@@ -563,7 +527,7 @@ int BitrateChangeEvent::getDisplayWidth() const
 /**
  * @brief Get output tv display Height
  *
- * @return Displat height
+ * @return output display tv height
  */
 int BitrateChangeEvent::getDisplayHeight() const
 {
@@ -573,7 +537,7 @@ int BitrateChangeEvent::getDisplayHeight() const
 /**
  * @brief Get Video Scan Type
  *
- * @return Video Scan Type
+ * @return output video scan type
  */
 VideoScanType BitrateChangeEvent::getScanType() const
 {
@@ -583,7 +547,7 @@ VideoScanType BitrateChangeEvent::getScanType() const
 /**
  * @brief Get Aspect Ratio Width
  *
- * @return Aspect Ratio Width
+ * @return output aspect ratio width
  */
 int BitrateChangeEvent::getAspectRatioWidth() const
 {
@@ -593,21 +557,15 @@ int BitrateChangeEvent::getAspectRatioWidth() const
 /**
  * @brief Get Aspect Ratio Height
  *
- * @return Aspect Ratio Height
+ * @return output Aspect Ratio Height
  */
 int BitrateChangeEvent::getAspectRatioHeight() const
 {
         return mAspectRatioHeight;
 }
 
-/*
+/**
  * @brief TimedMetadataEvent Constructor
- *
- * @param[in] name      - TimedMetadata name
- * @param[in] id        - TimedMetadata id
- * @param[in] time      - Time of event
- * @param[in] duration   - Duration of event
- * @param[in] content   - Content field of the TimedMetadata
  */
 TimedMetadataEvent::TimedMetadataEvent(const std::string &name, const std::string &id, double time, double duration, const std::string &content):
 		AAMPEventObject(AAMP_EVENT_TIMED_METADATA), mName(name), mId(id),
@@ -666,10 +624,8 @@ const std::string &TimedMetadataEvent::getContent() const
 	return mContent;
 }
 
-/*
+/**
  * @brief BulkTimedMetadataEvent Constructor
- *
- * @param[in] content - metadata serialized in JSON format
  */
 BulkTimedMetadataEvent::BulkTimedMetadataEvent(const std::string &content):
 		AAMPEventObject(AAMP_EVENT_BULK_TIMED_METADATA), mContent(content)
@@ -687,10 +643,8 @@ const std::string &BulkTimedMetadataEvent::getContent() const
 	return mContent;
 }
 
-/*
+/**
  * @brief StateChangedEvent Constructor
- *
- * @param[in] state - New player state
  */
 StateChangedEvent::StateChangedEvent(PrivAAMPState state):
 		AAMPEventObject(AAMP_EVENT_STATE_CHANGED), mState(state)
@@ -708,7 +662,7 @@ PrivAAMPState StateChangedEvent::getState() const
 	return mState;
 }
 
-/*
+/**
  * @brief SupportedSpeedsChangedEvent Constructor
  */
 SupportedSpeedsChangedEvent::SupportedSpeedsChangedEvent():
@@ -719,9 +673,6 @@ SupportedSpeedsChangedEvent::SupportedSpeedsChangedEvent():
 
 /**
  * @brief Add a Supported Speed
- *
- * @param[in] speed - Speed
- * @return void
  */
 void SupportedSpeedsChangedEvent::addSupportedSpeed(int speed)
 {
@@ -748,10 +699,8 @@ int SupportedSpeedsChangedEvent::getSupportedSpeedCount() const
 	return mSupportedSpeeds.size();
 }
 
-/*
+/**
  * @brief SeekedEvent Constructor
- *
- * @param[in] positionMS - seeked position in milliseconds
  */
 SeekedEvent::SeekedEvent(double positionMS):
 		AAMPEventObject(AAMP_EVENT_SEEKED), mPosition(positionMS)
@@ -769,10 +718,8 @@ double SeekedEvent::getPosition() const
 	return mPosition;
 }
 
-/*
+/**
  * @brief TuneProfilingEvent Constructor
- *
- * @param[in] profilingData - tune profiling data
  */
 TuneProfilingEvent::TuneProfilingEvent(std::string &profilingData):
 		AAMPEventObject(AAMP_EVENT_TUNE_PROFILING), mProfilingData(profilingData)
@@ -790,10 +737,8 @@ const std::string &TuneProfilingEvent::getProfilingData() const
 	return mProfilingData;
 }
 
-/*
+/**
  * @brief BufferingChangedEvent Constructor
- *
- * @param[in] buffering - Buffering status
  */
 BufferingChangedEvent::BufferingChangedEvent(bool buffering):
 		AAMPEventObject(AAMP_EVENT_BUFFERING_CHANGED), mBuffering(buffering)
@@ -811,13 +756,8 @@ bool BufferingChangedEvent::buffering() const
 	return mBuffering;
 }
 
-/*
+/**
  * @brief DrmMetaDataEvent Constructor
- *
- * @param[in] failure      - Failure type
- * @param[in] accessStatus - Access status
- * @param[in] statusValue  - Access status value
- * @param[in] responseCode - Response code
  */
 DrmMetaDataEvent::DrmMetaDataEvent(AAMPTuneFailure failure, const std::string &accessStatus, int statusValue, long responseCode, bool secclientErr):
 		AAMPEventObject(AAMP_EVENT_DRM_METADATA), mFailure(failure), mAccessStatus(accessStatus),
@@ -838,9 +778,6 @@ AAMPTuneFailure DrmMetaDataEvent::getFailure() const
 
 /**
  * @brief Set Failure type
- *
- * @param[in] failure - Failure type
- * @return void
  */
 void DrmMetaDataEvent::setFailure(AAMPTuneFailure failure)
 {
@@ -859,9 +796,6 @@ const std::string &DrmMetaDataEvent::getAccessStatus() const
 
 /**
  * @brief Set Access Status
- *
- * @param[in] status - Access status
- * @return void
  */
 void DrmMetaDataEvent::setAccessStatus(const std::string &status)
 {
@@ -880,9 +814,6 @@ int DrmMetaDataEvent::getAccessStatusValue() const
 
 /**
  * @brief Set Access Status Value
- *
- * @param[in] value - Access status value
- * @return void
  */
 void DrmMetaDataEvent::setAccessStatusValue(int value)
 {
@@ -900,7 +831,7 @@ long DrmMetaDataEvent::getResponseCode() const
 }
 
 /**
- * @brief Get Secmanager response code (in the format class code:reason code)
+ * @brief Get Response Code
  *
  * @return Response code
  */
@@ -911,9 +842,6 @@ long DrmMetaDataEvent::getSecManagerReasonCode() const
 
 /**
  * @brief Set Response Code
- *
- * @param[in] code - Response code
- * @return void
  */
 void DrmMetaDataEvent::setResponseCode(long code)
 {
@@ -921,9 +849,7 @@ void DrmMetaDataEvent::setResponseCode(long code)
 }
 
 /**
- * @brief Get Secmanager response code 
- * @param[string] code - secmanager reason code
- * @return Response code
+ * @brief Set Secmanager response code
  */
 void DrmMetaDataEvent::setSecManagerReasonCode(long code)
 {
@@ -931,9 +857,9 @@ void DrmMetaDataEvent::setSecManagerReasonCode(long code)
 }
 
 /**
- * @brief get secclient error
+ * @brief Get secclient error status
  *
- * @return get secclient error (true/false)
+ * @return secclient error (true/false)
  */
 bool DrmMetaDataEvent::getSecclientError() const
 {
@@ -941,10 +867,7 @@ bool DrmMetaDataEvent::getSecclientError() const
 }
 
 /**
- * @brief Update secclient error
- *
- * @param[in] secClientError status (true/false)
- * @return void
+ * @brief Set secclient error status
  */
 void DrmMetaDataEvent::setSecclientError(bool secClientError)
 {
@@ -953,9 +876,6 @@ void DrmMetaDataEvent::setSecclientError(bool secClientError)
 
 /**
  * @brief AnomalyReportEvent Constructor
- *
- * @param[in]  severity - Severity of message
- * @param[in]  msg      - Anomaly message
  */
 AnomalyReportEvent::AnomalyReportEvent(int severity, const std::string &msg):
 		AAMPEventObject(AAMP_EVENT_REPORT_ANOMALY), mSeverity(severity), mMsg(msg)
@@ -983,10 +903,8 @@ const std::string &AnomalyReportEvent::getMessage() const
 	return mMsg;
 }
 
-/*
+/**
  * @brief WebVttCueEvent Constructor
- *
- * @param[in] cueData - Pointer to VTT cue data
  */
 WebVttCueEvent::WebVttCueEvent(VTTCue* cueData):
 		AAMPEventObject(AAMP_EVENT_WEBVTT_CUE_DATA), mCueData(cueData)
@@ -1004,13 +922,8 @@ VTTCue* WebVttCueEvent::getCueData() const
 	return mCueData;
 }
 
-/*
+/**
  * @brief AdResolvedEvent Constructor
- *
- * @param[in] resolveStatus - Ad resolve status
- * @param[in] adId          - Identifier of the Ad
- * @param[in] startMS       - Start position of Ad (relative to reservation start)
- * @param[in] durationMs    - Duration of the Ad in MS
  */
 AdResolvedEvent::AdResolvedEvent(bool resolveStatus, const std::string &adId, uint64_t startMS, uint64_t durationMs):
 		AAMPEventObject(AAMP_EVENT_AD_RESOLVED), mResolveStatus(resolveStatus), mAdId(adId),
@@ -1059,12 +972,8 @@ uint64_t AdResolvedEvent::getDuration() const
 	return mDurationMs;
 }
 
-/*
+/**
  * @brief AdReservationEvent Constructor
- *
- * @param[in] evtType  - Event Type
- * @param[in] breakId  - Unique identifier of Ad reservation.
- * @param[in] position - Postion of reservation in content's PTS
  */
 AdReservationEvent::AdReservationEvent(AAMPEventType evtType, const std::string &breakId, uint64_t position):
 		AAMPEventObject(evtType), mAdBreakId(breakId), mPosition(position)
@@ -1092,15 +1001,8 @@ uint64_t AdReservationEvent::getPosition() const
 	return mPosition;
 }
 
-/*
+/**
  * @brief AdPlacementEvent Constructor
- *
- * @param[in] evtType   - Event Type
- * @param[in] adId      - Ad Id
- * @param[in] position  - Ad's position (in channel's PTS)
- * @param[in] offset    - Ad's start offset
- * @param[in] duration  - Ad's duration in MS
- * @param[in] errorCode - Error code, in case of placement error
  */
 AdPlacementEvent::AdPlacementEvent(AAMPEventType evtType, const std::string &adId, uint32_t position, uint32_t offset, uint32_t duration, int errorCode):
 		AAMPEventObject(evtType), mAdId(adId), mPosition(position),
@@ -1161,10 +1063,6 @@ int AdPlacementEvent::getErrorCode() const
 
 /**
  * @brief MetricsDataEvent Constructor
- *
- * @param[in]  dataType - Data type
- * @param[in]  uuid     - unique identifier
- * @param[in]  data     - Metrics data
  */
 MetricsDataEvent::MetricsDataEvent(MetricsDataType dataType, const std::string &uuid, const std::string &data):
 		AAMPEventObject(AAMP_EVENT_REPORT_METRICS_DATA), mMetricsDataType(dataType),
@@ -1203,14 +1101,8 @@ const std::string &MetricsDataEvent::getMetricsData() const
 	return mMetricsData;
 }
 
-/*
+/**
  * @brief ID3MetadataEvent Constructor
- *
- * @param[in] metadata - ID3 metadata
- * @param[in] timeScale - timeScale od ID3 data
- * @param[in] presentationTime - PTS value
- * @param[in] eventDuration - eventDuration
- * @param[in] id - id of ID3 data
  */
 ID3MetadataEvent::ID3MetadataEvent(const std::vector<uint8_t> &metadata, const std::string &schIDUri, std::string &id3Value, uint32_t timeScale, uint64_t presentationTime, uint32_t eventDuration, uint32_t id, uint64_t timestampOffset):
 		AAMPEventObject(AAMP_EVENT_ID3_METADATA), mMetadata(metadata), mId(id), mTimeScale(timeScale), mSchemeIdUri(schIDUri), mValue(id3Value), mEventDuration(eventDuration), mPresentationTime(presentationTime), mTimestampOffset(timestampOffset)
@@ -1308,11 +1200,9 @@ const std::string& ID3MetadataEvent::getValue() const
 	return mValue;
 }
 
-/*
-* @brief DrmMessageEvent Constructor
-*
-* @param[in] msg - DRM message
-*/
+/**
+ * @brief DrmMessageEvent Constructor
+ */
 DrmMessageEvent::DrmMessageEvent(const std::string &msg):
 		AAMPEventObject(AAMP_EVENT_DRM_MESSAGE), mMessage(msg)
 {
@@ -1329,11 +1219,8 @@ const std::string &DrmMessageEvent::getMessage() const
 	return mMessage;
 }
 
-
-/*
+/**
  * @brief ContentGapEvent Constructor
- * @param[in] time      - Time of event
- * @param[in] duration   - Duration of event
  */
 ContentGapEvent::ContentGapEvent(double time, double duration):
 		AAMPEventObject(AAMP_EVENT_CONTENT_GAP)
@@ -1362,11 +1249,8 @@ double ContentGapEvent::getDuration() const
 	return mDuration;
 }
 
-
-/*
+/**
  * @brief HTTPResponseHeaderEvent Constructor
- * @param[in] header      - HTTP header name
- * @param[in] response   - HTTP header response value
  */
 HTTPResponseHeaderEvent::HTTPResponseHeaderEvent(const std::string &header, const std::string &response):
 		AAMPEventObject(AAMP_EVENT_HTTP_RESPONSE_HEADER)
@@ -1378,7 +1262,7 @@ HTTPResponseHeaderEvent::HTTPResponseHeaderEvent(const std::string &header, cons
 /**
  * @brief Get HTTP Response Header Name
  *
- * @return HTTP response header name
+ * @return HTTP Response Header name string
  */
 const std::string &HTTPResponseHeaderEvent::getHeader() const
 {
@@ -1386,9 +1270,9 @@ const std::string &HTTPResponseHeaderEvent::getHeader() const
 }
 
 /**
- * @brief Get Get HTTP Response Header value
+ * @brief Get HTTP Response Header response
  *
- * @return HTTP response header value
+ * @return HTTP Response Header response string
  */
 const std::string &HTTPResponseHeaderEvent::getResponse() const
 {

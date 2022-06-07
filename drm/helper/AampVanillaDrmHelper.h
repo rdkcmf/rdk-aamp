@@ -17,12 +17,22 @@
  * limitations under the License.
 */
 
+/**
+ * @file AampVanillaDrmHelper.h
+ * @brief Handles the operation foe Vanilla DRM
+ */
+
 #ifndef AAMPVANILLADRMHELPER_H
 #define AAMPVANILLADRMHELPER_H
 
 #include "AampDrmHelper.h"
 #include <string>
 #include <vector>
+
+/**
+ *  @class AampVanillaDrmHelper
+ *  @brief Handles the operation foe Vanilla DRM
+ */
 
 class AampVanillaDrmHelper : public AampDrmHelper
 {

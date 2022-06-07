@@ -52,7 +52,7 @@ struct PrivAAMPStruct_JS {
 };
 
 /**
- *   @brief  Load aamp JS bindings.
+ *   @fn aamp_LoadJS
  *
  *   @param[in]  context - JS Core context.
  *   @param[in]  playerInstanceAAMP - AAMP instance. NULL creates new aamp instance.
@@ -60,7 +60,7 @@ struct PrivAAMPStruct_JS {
 void aamp_LoadJS(void* context, void* playerInstanceAAMP);
 
 /**
- *   @brief  Unload aamp JS bindings.
+ *   @fn aamp_UnloadJS
  *
  *   @param[in]  context - JS Core context.
  */

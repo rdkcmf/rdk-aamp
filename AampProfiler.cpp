@@ -43,13 +43,7 @@ ProfileEventAAMP::ProfileEventAAMP():
 }
 
 /**
- * @brief Get tune time events in JSON format
- *
- * @param[out] outSS - Output JSON string
- * @param[in] streamType - Stream type
- * @param[in] url - Tune URL
- * @param[in] success - Tune success/failure
- * @return void
+ *  @brief Get tune time events in JSON format
  */
 void ProfileEventAAMP::getTuneEventsJSON(std::string &outStr, const std::string &streamType, const char *url, bool success)
 {
@@ -95,9 +89,7 @@ void ProfileEventAAMP::getTuneEventsJSON(std::string &outStr, const std::string 
 }
 
 /**
- * @brief Profiler method to perform tune begin related operations.
- *
- * @return void
+ *  @brief Profiler method to perform tune begin related operations.
  */
 void ProfileEventAAMP::TuneBegin(void)
 { // start tune
@@ -117,55 +109,50 @@ void ProfileEventAAMP::TuneBegin(void)
  * @brief Logging performance metrics after successful tune completion. Metrics starts with IP_AAMP_TUNETIME
  *
  * <h4>Format of IP_AAMP_TUNETIME:</h4>
- * version,	// version for this protocol, initially zero<br>
- * build,		// incremented when there are significant player changes/optimizations<br>
- * tunestartUtcMs,	// when tune logically started from AAMP perspective<br>
+ * version,                       // version for this protocol, initially zero<br>
+ * build,                         // incremented when there are significant player changes/optimizations<br>
+ * tunestartUtcMs,                // when tune logically started from AAMP perspective<br>
  * <br>
- * ManifestDownloadStartTime,  // offset in milliseconds from tunestart when main manifest begins download<br>
- * ManifestDownloadTotalTime,  // time (ms) taken for main manifest download, relative to ManifestDownloadStartTime<br>
- * ManifestDownloadFailCount,  // if >0 ManifestDownloadTotalTime spans multiple download attempts<br>
+ * ManifestDownloadStartTime,     // offset in milliseconds from tunestart when main manifest begins download<br>
+ * ManifestDownloadTotalTime,     // time (ms) taken for main manifest download, relative to ManifestDownloadStartTime<br>
+ * ManifestDownloadFailCount,     // if >0 ManifestDownloadTotalTime spans multiple download attempts<br>
  * <br>
- * PlaylistDownloadStartTime,  // offset in milliseconds from tunestart when playlist subManifest begins download<br>
- * PlaylistDownloadTotalTime,  // time (ms) taken for playlist subManifest download, relative to PlaylistDownloadStartTime<br>
- * PlaylistDownloadFailCount,  // if >0 otherwise PlaylistDownloadTotalTime spans multiple download attempts<br>
+ * PlaylistDownloadStartTime,     // offset in milliseconds from tunestart when playlist subManifest begins download<br>
+ * PlaylistDownloadTotalTime,     // time (ms) taken for playlist subManifest download, relative to PlaylistDownloadStartTime<br>
+ * PlaylistDownloadFailCount,     // if >0 otherwise PlaylistDownloadTotalTime spans multiple download attempts<br>
  * <br>
  * InitFragmentDownloadStartTime, // offset in milliseconds from tunestart when init fragment begins download<br>
  * InitFragmentDownloadTotalTime, // time (ms) taken for fragment download, relative to InitFragmentDownloadStartTime<br>
  * InitFragmentDownloadFailCount, // if >0 InitFragmentDownloadTotalTime spans multiple download attempts<br>
  * <br>
- * Fragment1DownloadStartTime, // offset in milliseconds from tunestart when fragment begins download<br>
- * Fragment1DownloadTotalTime, // time (ms) taken for fragment download, relative to Fragment1DownloadStartTime<br>
- * Fragment1DownloadFailCount, // if >0 Fragment1DownloadTotalTime spans multiple download attempts<br>
- * Fragment1Bandwidth,	    	// intrinsic bitrate of downloaded fragment<br>
+ * Fragment1DownloadStartTime,    // offset in milliseconds from tunestart when fragment begins download<br>
+ * Fragment1DownloadTotalTime,    // time (ms) taken for fragment download, relative to Fragment1DownloadStartTime<br>
+ * Fragment1DownloadFailCount,    // if >0 Fragment1DownloadTotalTime spans multiple download attempts<br>
+ * Fragment1Bandwidth,            // intrinsic bitrate of downloaded fragment<br>
  * <br>
- * drmLicenseRequestStart,	    // offset in milliseconds from tunestart<br>
- * drmLicenseRequestTotalTime, // time (ms) for license acquisition relative to drmLicenseRequestStart<br>
- * drmFailErrorCode,           // nonzero if drm license acquisition failed during tuning<br>
+ * drmLicenseRequestStart,        // offset in milliseconds from tunestart<br>
+ * drmLicenseRequestTotalTime,    // time (ms) for license acquisition relative to drmLicenseRequestStart<br>
+ * drmFailErrorCode,              // nonzero if drm license acquisition failed during tuning<br>
  * <br>
- * LAPreProcDuration,	    	// License acquisition pre-processing duration in ms<br>
- * LANetworkDuration, 			// License acquisition network duration in ms<br>
- * LAPostProcDuration,         // License acquisition post-processing duration in ms<br>
+ * LAPreProcDuration,             // License acquisition pre-processing duration in ms<br>
+ * LANetworkDuration,             // License acquisition network duration in ms<br>
+ * LAPostProcDuration,            // License acquisition post-processing duration in ms<br>
  * <br>
- * VideoDecryptDuration,		// Video fragment decrypt duration in ms<br>
- * AudioDecryptDuration,		// Audio fragment decrypt duration in ms<br>
+ * VideoDecryptDuration,          // Video fragment decrypt duration in ms<br>
+ * AudioDecryptDuration,          // Audio fragment decrypt duration in ms<br>
  * <br>
- * gstStart,	// offset in ms from tunestart when pipeline creation/setup begins<br>
- * gstFirstFrame,  // offset in ms from tunestart when first frame of video is decoded/presented<br>
+ * gstStart,                      // offset in ms from tunestart when pipeline creation/setup begins<br>
+ * gstFirstFrame,                 // offset in ms from tunestart when first frame of video is decoded/presented<br>
+ * contentType,                   //Playback Mode. Values: CDVR, VOD, LINEAR, IVOD, EAS, CAMERA, DVR, MDVR, IPDVR, PPV<br>
+ * streamType,                    //Stream Type. Values: 10-HLS/Clear, 11-HLS/Consec, 12-HLS/Access, 13-HLS/Vanilla AES, 20-DASH/Clear, 21-DASH/WV, 22-DASH/PR<br>
+ * firstTune                      //First tune after reboot/crash<br>
+ * Prebuffered                    //If the Player was in preBuffer(BG) mode)<br>
+ * PreBufferedTime                //Player spend Time in BG<br> 
+ * success                        //Tune status
+ * contentType                    //Content Type. Eg: LINEAR, VOD, etc
+ * streamType                     //Stream Type. Eg: HLS, DASH, etc
+ * firstTune                      //Is it a first tune after reboot/crash.
  * <br>
- * contentType, 	//Playback Mode. Values: CDVR, VOD, LINEAR, IVOD, EAS, CAMERA, DVR, MDVR, IPDVR, PPV<br>
- * streamType, 	//Stream Type. Values: 10-HLS/Clear, 11-HLS/Consec, 12-HLS/Access, 13-HLS/Vanilla AES, 20-DASH/Clear, 21-DASH/WV, 22-DASH/PR<br>
- * firstTune		//First tune after reboot/crash<br>
- * Prebuffered		//If the Player was in preBuffer(BG) mode)<br>
- * PreBufferedTime		//Player spend Time in BG<br>
- * mTimedMetadataStartTime    // Timedmetadata reporting offset time in milliseconds from tunestart 
- * mTSBEnabled                // Flag to indicate TSB  enabled or not
- * @param[in] success - Tune status
- * @param[in] contentType - Content Type. Eg: LINEAR, VOD, etc
- * @param[in] streamType - Stream Type. Eg: HLS, DASH, etc
- * @param[in] firstTune - Is it a first tune after reboot/crash.
- * @param[in] durationSeconds - Asset duration in seconds
- * @param[in] interfaceWifi - Active connection is Wifi or Ethernet.
- * @return void
  */
 void ProfileEventAAMP::TuneEnd(TuneEndMetrics &mTuneEndMetrics,std::string appName, std::string playerActiveMode, int playerId, bool playerPreBuffered, unsigned int durationSeconds, bool interfaceWifi,std::string failureReason)
 {
@@ -252,16 +239,7 @@ void ProfileEventAAMP::TuneEnd(TuneEndMetrics &mTuneEndMetrics,std::string appNa
 }
 
 /**
- * @brief Method converting the AAMP style tune performance data to IP_EX_TUNETIME style data
- *
- * @param[in] success - Tune status
- * @param[in] tuneRetries - Number of tune attempts
- * @param[in] playerLoadTime - Time at which the first tune request reached the AAMP player
- * @param[in] streamType - Type of stream. eg: HLS, DASH, etc
- * @param[in] isLive  - Live channel or not
- * @param[in] durationinSec - Asset duration in seconds
- * @param[out] TuneTimeInfoStr - Formatted output string
- * @return void
+ *  @brief Method converting the AAMP style tune performance data to IP_EX_TUNETIME style data
  */
 void ProfileEventAAMP::GetClassicTuneTimeInfo(bool success, int tuneRetries, int firstTuneType, long long playerLoadTime, int streamType, bool isLive,unsigned int durationinSec, char *TuneTimeInfoStr)
 {
@@ -317,9 +295,6 @@ void ProfileEventAAMP::GetClassicTuneTimeInfo(bool success, int tuneRetries, int
 
 /**
  * @brief Marking the beginning of a bucket
- *
- * @param[in] type - Bucket type
- * @return void
  */
 void ProfileEventAAMP::ProfileBegin(ProfilerBucketType type)
 {
@@ -333,11 +308,7 @@ void ProfileEventAAMP::ProfileBegin(ProfilerBucketType type)
 }
 
 /**
- * @brief Marking error while executing a bucket
- *
- * @param[in] type - Bucket type
- * @param[in] result - Error code
- * @return void
+ *  @brief Marking error while executing a bucket
  */
 void ProfileEventAAMP::ProfileError(ProfilerBucketType type, int result)
 {
@@ -351,10 +322,7 @@ void ProfileEventAAMP::ProfileError(ProfilerBucketType type, int result)
 }
 
 /**
- * @brief Marking the end of a bucket
- *
- * @param[in] type - Bucket type
- * @return void
+ *  @brief Marking the end of a bucket
  */
 void ProfileEventAAMP::ProfileEnd(ProfilerBucketType type)
 {
@@ -383,10 +351,7 @@ void ProfileEventAAMP::ProfileEnd(ProfilerBucketType type)
 }
 
 /**
- * @brief Method to mark the end of a bucket, for which beginning is not marked
- *
- * @param[in] type - Bucket type
- * @return void
+ *  @brief Method to mark the end of a bucket, for which beginning is not marked
  */
 void ProfileEventAAMP::ProfilePerformed(ProfilerBucketType type)
 {
@@ -395,11 +360,7 @@ void ProfileEventAAMP::ProfilePerformed(ProfilerBucketType type)
 }
 
 /**
- * @brief Method to set Failure code and Bucket Type used
- *
- * @param[in] type - tune Fail Code
- * @param[in] type - Bucket type
- * @return void
+ *  @brief Method to set Failure code and Bucket Type used for microevents
  */
 void ProfileEventAAMP::SetTuneFailCode(int tuneFailCode, ProfilerBucketType failBucketType)
 {

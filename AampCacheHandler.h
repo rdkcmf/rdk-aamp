@@ -17,6 +17,11 @@
  * limitations under the License.
 */
 
+/**
+ * @file AampCacheHandler.h
+ * @brief Cache handler for AAMP
+ */
+ 
 #ifndef __AAMP_CACHE_HANDLER_H__
 #define __AAMP_CACHE_HANDLER_H__
 
@@ -97,6 +102,10 @@ typedef struct initfragtrackstruct
 	}
 }InitFragTrackStruct;
 
+/**
+ * @class AampCacheHandler
+ * @brief Handles Aamp Cahe operations
+ */
 
 class AampCacheHandler
 {
@@ -124,22 +133,22 @@ private:
 	CacheTrackQueue umCacheTrackQ;
 	pthread_mutex_t mInitFragMutex;
 	bool bInitFragCache;
-	int MaxInitCacheSlot;						/* Max no of init fragment per track*/
+	int MaxInitCacheSlot;						/**< Max no of init fragment per track */
 
 private:
 
 	/**
-	* @brief Initialization Function
+	* @fn Init
 	*/
 	void Init();
 
 	/**
-	* @brief Clear Cache Handler. Exit clean up thread.
+	* @fn ClearCacheHandler
 	*/
 	void ClearCacheHandler();
 
 	/**
-	 *	 @brief Async Cache Cleanup task
+	 *	 @fn AsyncCacheCleanUpTask
 	 *
 	 *	 @return void
 	 */
@@ -151,13 +160,12 @@ private:
 	 */
 	static void * AampCacheThreadFunction(void * This) {((AampCacheHandler *)This)->AsyncCacheCleanUpTask(); return NULL;}
 	/**
-	 *	 @brief Clear playlist cache
-	 *
+	 *	 @fn ClearPlaylistCache
 	 *	 @return void
 	 */
 	void ClearPlaylistCache();
 	/**
-	 *   @brief AllocatePlaylistCacheSlot Freeup Playlist cache for new playlist caching
+	 *   @fn AllocatePlaylistCacheSlot
 	 *   @param[in] fileType - Indicate the type of playlist to store/remove
 	 *   @param[in] newLen  - Size required to store new playlist
 	 *
@@ -166,15 +174,14 @@ private:
 	bool AllocatePlaylistCacheSlot(MediaType fileType,size_t newLen);
 
 	/**
-	 *	 @brief Clear init fragment cache & track queue table
+	 *   @fn ClearInitFragCache
 	 *
-	 *	 @return void
+	 *   @return void
 	 */
 	void ClearInitFragCache();
 
 	/**
-	 *   @brief Removes very first inserted entry ( and duplicate entry, if present)  of given filetype
-	 *   from fragment cache table in FIFO order, also removes the corresponding url from track queue.
+	 *   @fn RemoveInitFragCacheEntry
 	 * 
 	 *   @param fileType type of file format to be removed from cache table
 	 * 
@@ -185,46 +192,44 @@ private:
 public:
 
 	/**
-	 *	 @brief Default Constructor
+	 *	 @fn AampCacheHandler
 	 *
 	 *	 @return void
 	 */
 	AampCacheHandler(AampLogManager *logObj);
 
 	/**
-	* @brief Destructor Function
+	*        @fn ~AampCacheHandler
 	*/
 	~AampCacheHandler();
 
 	/**
-	 *	 @brief Start playlist caching
+	 *	 @fn StartPlaylistCache
 	 *
 	 *	 @return void
 	 */
 	void StartPlaylistCache();
 	/**
-	 *	 @brief Stop playlist caching
+	 *	 @fn StopPlaylistCache
 	 *
 	 *	 @return void
 	 */
 	void StopPlaylistCache();
 
 	/**
-	 *   @brief Insert playlist into cache
-	 *
+	 *   @fn InsertToPlaylistCache
 	 *   @param[in] url - URL
 	 *   @param[in] buffer - Pointer to growable buffer
 	 *   @param[in] effectiveUrl - Final URL
 	 *   @param[in] trackLiveStatus - Live Status of the track inserted
 	 *   @param[in] fileType - Type of the file inserted
-     *
+     	 *
 	 *   @return void
 	 */
 	void InsertToPlaylistCache(const std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,bool trackLiveStatus,MediaType fileType=eMEDIATYPE_DEFAULT);
 
 	/**
-	 *   @brief Retrieve playlist from cache
-	 *
+	 *   @fn RetrieveFromPlaylistCache
 	 *   @param[in] url - URL
 	 *   @param[out] buffer - Pointer to growable buffer
 	 *   @param[out] effectiveUrl - Final URL
@@ -233,39 +238,39 @@ public:
 	bool RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, std::string& effectiveUrl);
 
 	/**
-	*   @brief SetMaxPlaylistCacheSize - Set Max Cache Size
-	*
-	*   @param[in] cacheSz- CacheSize
-	*   @return None
-	*/
-	void SetMaxPlaylistCacheSize(int);
+	 *   @fn SetMaxPlaylistCacheSize
+	 *
+	 *   @param[in] maxPlaylistCacheSz - CacheSize
+	 *   @return None
+	 */
+	void SetMaxPlaylistCacheSize(int maxPlaylistCacheSz);
 	/**
-	*   @brief GetMaxPlaylistCacheSize - Get present CacheSize
-	*
-	*   @return int - maxCacheSize
-	*/
+	 *   @brief GetMaxPlaylistCacheSiz   @fn RetrieveFromPlaylistCache - Get present CacheSize
+	 *
+	 *   @return int - maxCacheSize
+	 */
 	int  GetMaxPlaylistCacheSize() { return mMaxPlaylistCacheSize; }
 	/**
-	*   @brief IsUrlCached - Check if URL is already cached
-	*
-	*   @return bool - true if file found, else false
-	*/
+  	 *   @fn IsUrlCached 
+	 *
+	 *   @return bool - true if file found, else false
+	 */
 	bool IsUrlCached(std::string);
 
 	/**
-	 *   @brief Insert init fragment into cache table
+	 *   @fn InsertToInitFragCache
 	 *
 	 *   @param[in] url - URL
 	 *   @param[in] buffer - Pointer to growable buffer
 	 *   @param[in] effectiveUrl - Final URL
 	 *   @param[in] fileType - Type of the file inserted
-     *
+     	 *
 	 *   @return void
 	 */
 	void InsertToInitFragCache(const std::string url, const GrowableBuffer* buffer, std::string effectiveUrl,MediaType fileType);
 
 	/**
-	 *   @brief Retrieve init fragment from cache
+	 *   @fn RetrieveFromInitFragCache
 	 *
 	 *   @param[in] url - URL
 	 *   @param[out] buffer - Pointer to growable buffer
@@ -276,13 +281,13 @@ public:
 	bool RetrieveFromInitFragCache(const std::string url, GrowableBuffer* buffer, std::string& effectiveUrl);
 
 	/**
-	*   @brief SetMaxInitFragCacheSize - Set Max Cache Size
+	*   @fn SetMaxInitFragCacheSize
 	*
-	*   @param[in] cacheSz- CacheSize
+	*   @param[in] maxInitFragCacheSz - CacheSize
 	*
 	*   @return None
 	*/
-	void SetMaxInitFragCacheSize( int );
+	void SetMaxInitFragCacheSize( int maxInitFragCacheSz);
 
 	/**
 	*   @brief GetMaxPlaylistCacheSize - Get present CacheSize
@@ -291,8 +296,15 @@ public:
 	*/
 	int  GetMaxInitFragCacheSize() { return MaxInitCacheSlot; }
 
-	// Copy constructor and Copy assignment disabled 
+        /**
+         * @brief Copy constructor disabled
+         *
+         */
 	AampCacheHandler(const AampCacheHandler&) = delete;
+	/**
+         * @brief assignment operator disabled
+         *
+         */
 	AampCacheHandler& operator=(const AampCacheHandler&) = delete;
 };
 

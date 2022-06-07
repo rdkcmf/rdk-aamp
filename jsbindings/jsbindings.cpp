@@ -48,7 +48,7 @@ extern "C"
 
 	/**
 	 * @brief Get the global JS execution context
-	 * @param[in] JS execution context
+	 * @param[in] JSContextRef JS execution context
 	 * @retval global execution context
 	 */
 	JS_EXPORT JSGlobalContextRef JSContextGetGlobalContext(JSContextRef);
@@ -556,7 +556,7 @@ static void Event_init(JSContextRef ctx, JSObjectRef thisObject)
 
 /**
  * @brief Callback invoked when an object of Event is finalized
- * @param[in] thisObj JSObject being finalized
+ * @param[in] thisObject JSObject being finalized
  */
 static void Event_finalize(JSObjectRef thisObject)
 {
@@ -573,11 +573,11 @@ static JSClassRef Event_class_ref();
 
 /**
  * @brief callback invoked when Event is used along with 'new'
- * @param[in] context JS execution context
+ * @param[in] ctx JS execution context
  * @param[in] constructor JSObject that is the constructor being called
  * @param[in] argumentCount number of args
  * @param[in] arguments[] JSValue array of args
- * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ * @param[out] execption pointer to a JSValueRef in which to return an exception, if any
  * @retval JSObject that is the constructor's return value
  */
 static JSObjectRef Event_constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef* execption)
@@ -638,9 +638,9 @@ public:
 
 	/**
 	 * @brief AAMP_JSListener Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
+     * @param[in] aamp instance of AAMP_JS
+     * @param[in] type event type
+     * @param[in] jsCallback callback to be registered as listener
 	 */
 	AAMP_JSListener(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback)
 		: _aamp(aamp)
@@ -736,9 +736,9 @@ public:
 
 	/**
 	 * @brief AAMP_JSListener_Progress Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
+     	 * @param[in] aamp instance of AAMP_JS
+     	 * @param[in] type event type
+    	 * @param[in] jsCallback callback to be registered as listener
 	 */
 	AAMP_JSListener_Progress(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
@@ -800,9 +800,9 @@ public:
 
 	/**
 	 * @brief AAMP_JSListener_BitRateChanged Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
+     	 * @param[in] aamp instance of AAMP_JS
+    	 * @param[in] type event type
+    	 * @param[in] jsCallback callback to be registered as listener
 	 */
 	AAMP_JSListener_BitRateChanged(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
@@ -950,8 +950,8 @@ public:
 
 
 /**
- * @class AAMP_JSListener_DRMMetaData
- * @brief
+ * @class AAMP_JSListener_DRMMetadata
+ * @brief Class handles JS Listener for DRM meta data operation
  */
 class AAMP_JSListener_DRMMetadata : public AAMP_JSListener
 {
@@ -959,19 +959,19 @@ public:
 
         /**
          * @brief AAMP_JSListener_DRMMetadata Constructor
-         * @param aamp
-         * @param type
-         * @param jsCallback
+         * @param aamp instance of Aamp_JS
+         * @param type AampEvent type
+         * @param jsCallback callback to be registered as listener
          */
         AAMP_JSListener_DRMMetadata(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
         {
         }
 
         /**
-         * @brief
-         * @param e
-         * @param context
-         * @param eventObj
+         * @brief set the aamp event properties
+         * @param e Aamp Event pointer
+         * @param context JS execution context
+         * @param eventObj JS object reference
          * @retval None
          */
         void setEventProperties(const AAMPEventPtr& e, JSContextRef context, JSObjectRef eventObj)
@@ -995,7 +995,7 @@ public:
 
 /**
  * @class AAMP_JSListener_AnomalyReport
- * @brief
+ * @brief AAMP_JSListener_AnomalyReport to receive anomalyreport
  */
 class AAMP_JSListener_AnomalyReport : public AAMP_JSListener
 {
@@ -1003,9 +1003,9 @@ public:
 
         /**
          * @brief AAMP_JSListener_DRMMetadata Constructor
-         * @param aamp
-         * @param type
-         * @param jsCallback
+         * @param aamp  Aamp_JS
+         * @param type AampEvent type
+         * @param jsCallback callback to be registered as listener
          */
         AAMP_JSListener_AnomalyReport(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
         {
@@ -1013,10 +1013,10 @@ public:
 
         /**
          * @brief
-         * @param e
-         * @param context
-         * @param eventObj
-         * @retval None
+         * @param e Aamp Event pointer
+         * @param context JS execution context
+         * @param eventObj JS object reference
+         * @retval void
          */
         void setEventProperties(const AAMPEventPtr& e, JSContextRef context, JSObjectRef eventObj)
         {
@@ -1038,8 +1038,8 @@ public:
 };
 
 /**
- * @class AAMP_JSListener_AnomalyReport
- * @brief
+ * @class AAMP_JSListener_MetricsData 
+ * @brief AAMP_JSListener_MetricsData to receive aamp metrics
  */
 class AAMP_JSListener_MetricsData : public AAMP_JSListener
 {
@@ -1047,19 +1047,19 @@ public:
 
         /**
          * @brief AAMP_JSListener_DRMMetadata Constructor
-         * @param aamp
-         * @param type
-         * @param jsCallback
+         * @param aamp instance of AAMP_JS
+         * @param type AampEvent type
+         * @param jsCallback callback to be registered as listener
          */
 	AAMP_JSListener_MetricsData(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
         {
         }
 
         /**
-         * @brief
-         * @param e
-         * @param context
-         * @param eventObj
+         * @brief Set the Aamp Event properties
+         * @param e Aamp Event pointer
+         * @param context JS execution context
+         * @param eventObj JS event object
          * @retval None
          */
         void setEventProperties(const AAMPEventPtr& e, JSContextRef context, JSObjectRef eventObj)
@@ -1215,12 +1215,12 @@ class AAMP_JSListener_BulkTimedMetadata : public AAMP_JSListener
 {
 public:
 
-        /**
-         * @brief AAMP_JSListener_TimedMetadata Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
-         */
+       /**
+        * @brief AAMP_JSListener_TimedMetadata Constructor
+        * @param[in] aamp instance of AAMP_JS
+        * @param[in] type event type
+        * @param[in] jsCallback callback to be registered as listener
+        */
 	AAMP_JSListener_BulkTimedMetadata(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
 	}
@@ -1503,12 +1503,12 @@ class AAMP_JSListener_AdReservationEnd : public AAMP_JSListener
 {
 public:
 
-        /**
-         * @brief AAMP_JSListener_AdReservationEnd Constructor
-         * @param[in] aamp instance of AAMP_JS
-         * @param[in] type event type
-         * @param[in] jsCallback callback to be registered as listener
-         */
+       /**
+        * @brief AAMP_JSListener_AdReservationEnd Constructor
+        * @param[in] aamp instance of AAMP_JS
+        * @param[in] type event type
+        * @param[in] jsCallback callback to be registered as listener
+        */
 	AAMP_JSListener_AdReservationEnd(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
 	{
 	}
@@ -1635,7 +1635,7 @@ public:
 
 	/**
 	 * @brief Set JS event properties
-         *
+	 *
 	 * @param[in] e         AAMP event object
 	 * @param[in] context   JS execution context
 	 * @param[out] eventObj JS event object
@@ -1876,7 +1876,7 @@ static JSValueRef AAMP_addEventListener(JSContextRef context, JSObjectRef functi
 
 /**
  * @brief Adds a JS function as listener for a particular event
- * @param[in] jsObj instance of AAMP_JS
+ * @param[in] aamp jsObj instance of AAMP_JS
  * @param[in] type event type
  * @param[in] jsCallback callback to be registered as listener
  */
@@ -3991,7 +3991,7 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 
 /**
  * @brief Callback invoked when an object of AAMP is finalized
- * @param[in] thisObj JSObject being finalized
+ * @param[in] thisObject JSObject being finalized
  */
 static void AAMP_finalize(JSObjectRef thisObject)
 {
@@ -4282,7 +4282,7 @@ static void EventType_init(JSContextRef ctx, JSObjectRef thisObject)
 
 /**
  * @brief Callback invoked when an object of EventType is finalized
- * @param[in] thisObj JSObject being finalized
+ * @param[in] thisObject JSObject being finalized
  */
 static void EventType_finalize(JSObjectRef thisObject)
 {
@@ -4344,11 +4344,7 @@ JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context)
 
 
 /**
- *   @brief  Loads AAMP JS object into JS execution context
- *
- *   @param[in]  context - JS execution context
- *   @param[in]  playerInstanceAAMP - Instance of PlayerInstanceAAMP, if to be re-used
- *   @return void
+ *   @brief  Load aamp JS bindings.
  */
 void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 {
@@ -4399,12 +4395,9 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 	JSStringRelease(str);
 }
 
-
 /**
- *   @brief  Removes the AAMP instance from JS context
+ * @brief  Unload aamp JS bindings.
  *
- *   @param[in]  context - JS execution context
- *   @return void
  */
 void aamp_UnloadJS(void* context)
 {

@@ -51,6 +51,9 @@
 
 typedef std::function<void (void *)> AsyncTask;
 
+/**
+ * @brief Async task operations
+ */
 struct AsyncTaskObj
 {
 	AsyncTask mTask;
@@ -84,19 +87,19 @@ class AampScheduler
 {
 public:
 	/**
-	 * @brief AampScheduler Constructor
+	 * @fn AampScheduler
 	 */
 	AampScheduler();
 
 	AampScheduler(const AampScheduler&) = delete;
 	AampScheduler& operator=(const AampScheduler&) = delete;
 	/**
-	 * @brief AampScheduler Destructor
+	 * @fn ~AampScheduler
 	 */
 	virtual ~AampScheduler();
 
 	/**
-	 * @brief To schedule a task to be executed later
+	 * @fn ScheduleTask
 	 *
 	 * @param[in] obj - object to be scheduled
 	 * @return int - scheduled task id
@@ -104,14 +107,14 @@ public:
 	int ScheduleTask(AsyncTaskObj obj);
 
 	/**
-	 * @brief To remove all scheduled tasks and prevent further tasks from scheduling
+	 * @fn RemoveAllTasks
 	 *
 	 * @return void
 	 */
 	void RemoveAllTasks();
 
 	/**
-	 * @brief To remove a scheduled tasks with ID
+	 * @fn RemoveTask
 	 *
 	 * @param[in] id - ID of task to be removed
 	 * @return bool true if removed, false otherwise
@@ -119,41 +122,41 @@ public:
 	bool RemoveTask(int id);
 
 	/**
-	 * @brief To start scheduler thread
+	 * @fn StartScheduler
 	 *
 	 * @return void
 	 */
 	void StartScheduler();
 
 	/**
-	 * @brief To stop scheduler and associated resources
+	 * @fn StopScheduler
 	 *
 	 * @return void
 	 */
 	void StopScheduler();
 
 	/**
-	 * @brief To acquire execution lock for synchronisation purposes
+	 * @fn SuspendScheduler
 	 *
 	 * @return void
 	 */
 	void SuspendScheduler();
 
 	/**
-	 * @brief To release execution lock
+	 * @fn ResumeScheduler
 	 *
 	 * @return void
 	 */
 	void ResumeScheduler();
 
 	/**
-	 * @brief To enable scheduler to queue new tasks
+	 * @fn EnableScheduleTask
 	 *
 	 * @return void
 	 */
 	void EnableScheduleTask();
 	/**
-	 * @brief To player state to Scheduler
+	 * @fn SetState
 	 *
 	 * @return void
 	 */
@@ -172,23 +175,23 @@ protected:
 #endif
 
 	/**
-	 * @brief Executes scheduled tasks - invoked by thread
+	 * @fn ExecuteAsyncTask
 	 *
 	 * @return void
 	 */
 	void ExecuteAsyncTask();
 
-	std::deque<AsyncTaskObj> mTaskQueue;	// Queue for storing scheduled tasks
-	std::mutex mQMutex;			// Mutex for accessing mTaskQueue
-	std::condition_variable mQCond;		// To notify when a task is queued in mTaskQueue
-	bool mSchedulerRunning;			// Flag denotes if scheduler thread is running
-	std::thread mSchedulerThread;		// Scheduler thread
-	std::mutex mExMutex;			// Execution mutex for synchronization
-	std::unique_lock<std::mutex> mExLock;	// Lock to be used by SuspendScheduler and ResumeScheduler
-	int mNextTaskId;			// counter that holds ID value of next task to be scheduled
-	int mCurrentTaskId;			// ID of current executed task
-	bool mLockOut;				// flag indicates if the queue is locked out or not
-	PrivAAMPState mState;		// Player State
+	std::deque<AsyncTaskObj> mTaskQueue;	/**< Queue for storing scheduled tasks */
+	std::mutex mQMutex;			/**< Mutex for accessing mTaskQueue */
+	std::condition_variable mQCond;		/**< To notify when a task is queued in mTaskQueue */
+	bool mSchedulerRunning;			/**< Flag denotes if scheduler thread is running */
+	std::thread mSchedulerThread;		/**< Scheduler thread */
+	std::mutex mExMutex;			/**< Execution mutex for synchronization */
+	std::unique_lock<std::mutex> mExLock;	/**< Lock to be used by SuspendScheduler and ResumeScheduler */
+	int mNextTaskId;			/**< counter that holds ID value of next task to be scheduled */
+	int mCurrentTaskId;			/**< ID of current executed task */
+	bool mLockOut;				/**< flag indicates if the queue is locked out or not */
+	PrivAAMPState mState;		        /**< Player State */
 };
 
 #endif /* __AAMP_SCHEDULER_H__ */

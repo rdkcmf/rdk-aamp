@@ -20,6 +20,12 @@
 #ifndef iso639map_hpp
 #define iso639map_hpp
 
+/**
+ * @file iso639map.h
+ * @brief ISO639 is a standard with representation of names for languages 
+ */
+
+
 #include <stdio.h>
 #include "main_aamp.h"
 

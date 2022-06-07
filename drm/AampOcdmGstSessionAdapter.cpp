@@ -1,3 +1,8 @@
+/**
+ * @file AampOcdmGstSessionAdapter.cpp
+ * @brief File holds operations on OCDM gst sessions
+ */
+
 #include <sys/time.h>
 #include "AampOcdmGstSessionAdapter.h"
 
@@ -156,7 +161,7 @@ class BitStreamState
 };
 
 /**
- * 
+ * @brief Extract SEI
  */
 void AAMPOCDMGSTSessionAdapter::ExtractSEI( GstBuffer *buffer)
 {
@@ -263,7 +268,7 @@ void AAMPOCDMGSTSessionAdapter::ExtractSEI( GstBuffer *buffer)
 #endif
 
 /**
- * 
+ * @brief decrypt the data
  */
 int AAMPOCDMGSTSessionAdapter::decrypt(GstBuffer *keyIDBuffer, GstBuffer *ivBuffer, GstBuffer *buffer, unsigned subSampleCount, GstBuffer *subSamplesBuffer, GstCaps* caps)
 {

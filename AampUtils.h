@@ -45,58 +45,82 @@
 #define SAFE_DELETE_ARRAY(ptr) { delete [] ptr; ptr = NULL; }
 
 /**
- * @brief Get current time from epoch is milliseconds
+ * @fn aamp_GetCurrentTimeMS
  *
- * @retval - current time in milliseconds
  */
 long long aamp_GetCurrentTimeMS(void); //TODO: Use NOW_STEADY_TS_MS/NOW_SYSTEM_TS_MS instead
 
+/**
+ * @fn replace
+ * @param str string to be scanned/modified
+ * @param existingSubStringToReplace substring to be replaced
+ * @param replacementString string to be substituted
+ * @retval true iff str was modified
+ */
 bool replace(std::string &str, const char *existingSubStringToReplace, const char *replacementString);
 
+/**
+ * @fn aamp_IsAbsoluteURL
+ *
+ * @param[in] url - Input URL
+ */
 bool aamp_IsAbsoluteURL( const std::string &url );
 
 /**
- * @brief Extract host string from url
+ * @fn aamp_getHostFromURL
  *
  * @param url - Input URL
- * @retval - host of input url
+ * @retval host of input url
  */
 std::string aamp_getHostFromURL(std::string url);
 
 /**
- * @brief Create file URL from the base and file path
+ * @fn aamp_ResolveURL
  *
  * @param[out] dst - Created URL
  * @param[in] base - Base URL
  * @param[in] uri - File path
- * @param[in] propagateUriParams - flag to use base uri params
+ * @param[in] bPropagateUriParams - flag to use base uri params
  * @retval void
  */
 void aamp_ResolveURL(std::string& dst, std::string base, const char *uri , bool bPropagateUriParams);
 
 /**
- * @brief Check if string start with a prefix
+ * @fn aamp_StartsWith
  *
  * @param[in] inputStr - Input string
  * @param[in] prefix - substring to be searched
- * @retval TRUE if substring is found in bigstring
  */
 bool aamp_StartsWith( const char *inputStr, const char *prefix);
 
+/**
+ * @fn aamp_Base64_URL_Encode
+ * @param src pointer to first byte of binary data to be encoded
+ * @param len number of bytes to encode
+ */
 char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len);
 
+/**
+ * @fn aamp_Base64_URL_Decode
+ * @param src pointer to cstring containing base64-URL-encoded data
+ * @param len receives byte length of returned pointer, or zero upon failure
+ * @param srcLen source data length
+ */
 unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLen);
 
+/**
+ * @brief unescape uri-encoded uri parameter
+ * @param uriParam string to un-escape
+ */
 void aamp_DecodeUrlParameter( std::string &uriParam );
 /**
- * @brief Parse date time from ISO8601 string and return value in seconds
+ * @fn ISO8601DateTimeToUTCSeconds
  * @param ptr ISO8601 string
- * @retval durationMs duration in milliseconds
  */
 double ISO8601DateTimeToUTCSeconds(const char *ptr);
 
 /**
- * @brief aamp_PostJsonRPC posts JSONRPC data
+ * @fn aamp_PostJsonRPC
  * @param[in] id string containing player id
  * @param[in] method string containing JSON method
  * @param[in] params string containing params:value pair list
@@ -104,108 +128,102 @@ double ISO8601DateTimeToUTCSeconds(const char *ptr);
 std::string aamp_PostJsonRPC( std::string id, std::string method, std::string params );
 
 /**
- * @brief Get time to defer DRM acquisition
+ * @fn aamp_GetDeferTimeMs
  *
  * @param  maxTimeSeconds Maximum time allowed for deferred license acquisition
- * @return Time in MS to defer DRM acquisition
  */
 int aamp_GetDeferTimeMs(long maxTimeSeconds);
 
 /**
- * @brief Get name of DRM system
+ * @fn GetDrmSystemName
  * @param drmSystem drm system
- * @retval Name of the DRM system, empty string if not supported
  */
 const char * GetDrmSystemName(DRMSystems drmSystem);
 
 /**
- * @brief Get DRM system from ID
- * @param ID of the DRM system, empty string if not supported
- * @retval drmSystem drm system
+ * @fn GetDrmSystem
+ * @param drmSystemID - Id of the DRM system, empty string if not supported
  */
 DRMSystems GetDrmSystem(std::string drmSystemID);
 
 /**
- * @brief Get ID of DRM system
- * @param drmSystem drm system
- * @retval ID of the DRM system, empty string if not supported
+ * @fn GetDrmSystemID
+ * @param drmSystem - drm system
  */
 const char * GetDrmSystemID(DRMSystems drmSystem);
 
 /**
- * @brief Encode URL
+ * @fn UrlEncode
  *
  * @param[in] inStr - Input URL
  * @param[out] outStr - Encoded URL
- * @return Encoding status
  */
 void UrlEncode(std::string inStr, std::string &outStr);
 
 /**
- * @brief Trim a string
+ * @fn trim
  * @param[in][out] src Buffer containing string
  */
 void trim(std::string& src);
 
 /**
- * @brief To get the preferred iso639mapped language code
- * @param[in] lang
- * @param[LangCodePreference] preferFormat
- * @retval[out] preferred iso639 mapped language.
+ * @fn Getiso639map_NormalizeLanguageCode 
+ * @param[in] lang - Language in string format
+ * @param[in] preferFormat - Preferred language foramt
  */
 std::string Getiso639map_NormalizeLanguageCode(std::string  lang, LangCodePreference preferFormat );
 
 /**
- * @brief To get the timespec
+ * @fn aamp_GetTimespec
  * @param[in] timeInMs 
- * @retval[out] timespec.
  */
 struct timespec aamp_GetTimespec(int timeInMs);
 
 /**
- * @brief Write file to storage
- * @param fileName out file name
- * @param data buffer
- * @param len length of buffer
- * @param media type of file
- * @param count for manifest or playlist update
+ * @fn aamp_WriteFile
+ * @param fileName - out file name
+ * @param data - buffer
+ * @param len - length of buffer
+ * @param fileType - Media type of file
+ * @param count - for manifest or playlist update
+ * @param prefix - prefix name
  */
 bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaType &fileType, unsigned int count,const char *prefix);
 /**
- * @brief Get harvest config corresponds to Media type
- * @param fileType meida file type
- * @return harvestType
+ * @fn getHarvestConfigForMedia
+ * @param fileType - meida file type
  */
 int getHarvestConfigForMedia(MediaType fileType);
 /**
- * @brief Get compatible trickplay for 6s cadense of iframe track from the given rates
+ * @fn getWorkingTrickplayRate
  * @param rate input rate
  */
 int getWorkingTrickplayRate(int rate);
 
 /**
- * @brief Get reverse map the working rates to the rates given by platform player
+ * @fn getPseudoTrickplayRate 
  * @param rate working rate
  */
 int getPseudoTrickplayRate(int rate);
 
 /**
- * @brief Get harvest path to dump the files
- * @return harvest path
+ * @fn getDefaultHarvestPath
+ * @param[in] value - harvest path
+ * @return void
  */
 
-void getDefaultHarvestPath(std::string &);
+void getDefaultHarvestPath(std::string &value);
 
 /**
- * @brief Convert string of chars to its representative string of hex numbers
+ * @fn stream2hex
  * @param[in] str input string
  * @param[out] hexstr output hex string
- * @param[in] bool - to enable capital letter conversion flag
+ * @param[in] capital - Boolean to enable capital letter conversion flag
  */
 void stream2hex(const std::string str, std::string& hexstr, bool capital = false);
 
 /**
- * @brief Sleep for given milliseconds
+ * @fn mssleep
  * @param milliseconds Time to sleep
  */
 void mssleep(int milliseconds);

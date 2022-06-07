@@ -28,8 +28,6 @@
 
 /**
  * @brief Parse format to generate GstCaps
- * @param[in] format stream format to generate caps
- * @retval GstCaps for the input format
  */
 GstCaps* GetGstCaps(StreamOutputFormat format)
 {

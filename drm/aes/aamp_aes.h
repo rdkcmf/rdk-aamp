@@ -20,6 +20,11 @@
 #ifndef _AAMP_AES_H_
 #define _AAMP_AES_H_
 
+/**
+ * @file aamp_aes.h
+ * @brief HLS AES drm decryptor
+ */
+
 #include <stddef.h> // for size_t
 #include "HlsDrmBase.h"
 #include "drm.h"
@@ -33,23 +38,95 @@
 class AesDec : public HlsDrmBase
 {
 public:
+	/**
+	 * @fn GetInstance
+	 */
 	static std::shared_ptr<AesDec> GetInstance();
+	/**
+	 * @fn SetMetaData
+	 *
+	 * @param aamp AAMP instance to be associated with this decryptor
+	 * @param metadata - Ignored
+	 *
+	 * @retval eDRM_SUCCESS
+	 */
 	DrmReturn SetMetaData( PrivateInstanceAAMP *aamp, void* metadata,int trackType, AampLogManager *logObj=NULL);
+	/**
+	 * @fn GetState
+	 * @retval DRMState
+	 */
 	DRMState GetState();
+	/**
+	 * @fn AcquireKey
+	 *
+	 * @param[in] aamp       AAMP instance to be associated with this decryptor
+	 * @param[in] metadata   Ignored
+	 *
+	 * @retval None
+	 */
 	void AcquireKey( class PrivateInstanceAAMP *aamp, void *metadata,int trackType, AampLogManager *logObj=NULL);
+	/**
+	 * @fn SetDecryptInfo
+	 *
+	 * @param aamp AAMP instance to be associated with this decryptor
+	 * @param drmInfo Drm information
+	 * @retval eDRM_SUCCESS on success
+	 */
 	DrmReturn SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInfo *drmInfo, AampLogManager *logObj=NULL);
+	/**
+	 * @fn Decrypt
+	 * @param bucketType Type of bucket for profiling
+	 * @param encryptedDataPtr pointer to encyrpted payload
+	 * @param encryptedDataLen length in bytes of data pointed to by encryptedDataPtr
+	 * @param timeInMs wait time
+	 */
 	DrmReturn Decrypt(ProfilerBucketType bucketType, void *encryptedDataPtr, size_t encryptedDataLen, int timeInMs);
+	/**
+	 * @fn Release
+	 */
 	void Release();
+	/**
+	 * @fn CancelKeyWait
+	 *
+	 */
 	void CancelKeyWait();
+	/**
+	 * @fn RestoreKeyState
+	 */
 	void RestoreKeyState();
 
 	/*Functions to support internal operations*/
+	/**
+	 * @brief Acquire drm key from URI
+	 */
 	void AcquireKey();
+	/**
+	 * @fn SignalKeyAcquired
+	 */
 	void SignalKeyAcquired();
+	/**
+	 * @fn NotifyDRMError
+	 * @param drmFailure drm error type
+	 */
 	void NotifyDRMError(AAMPTuneFailure drmFailure);
+	/**
+     	 * @fn SignalDrmError 
+         */
 	void SignalDrmError();
+	/**
+	 * @fn WaitForKeyAcquireCompleteUnlocked
+	 * @param[in] timeInMs timeout
+	 * @param[out] err error on failure
+	 */
 	void WaitForKeyAcquireCompleteUnlocked(int timeInMs, DrmReturn &err);
+	/**
+	 * @fn AesDec
+	 * 
+	 */
 	AesDec();
+	/**
+	 * @fn ~AesDec
+	 */
 	~AesDec();
 	AesDec(const AesDec&) = delete;
 	AesDec& operator=(const AesDec&) = delete;

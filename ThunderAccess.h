@@ -41,21 +41,68 @@ using namespace WPEFramework;
 class ThunderAccessAAMP
 {
 public:
+    /**
+     *   @fn ThunderAccessAAMP
+     *   @note   Security tocken accusition, controller object creation
+     */
     ThunderAccessAAMP(std::string callsign, AampLogManager *logObj=NULL);
+	
+    /**
+     *   @fn ~ThunderAccessAAMP
+     *   @note   clean up
+     */
     ~ThunderAccessAAMP();
-    // Copy constructor and Copy assignment disabled
+   
+    /**
+     *   @brief  ThunderAccessAAMP copy constructor disabled
+     */
     ThunderAccessAAMP(const ThunderAccessAAMP&) = delete;
+
+    /**
+     *   @brief  ThunderAccessAAMP assignment disabled
+     */
     ThunderAccessAAMP& operator=(const ThunderAccessAAMP&) = delete;
 
+    /**
+     *   @brief  ActivatePlugin
+     *   @note   Plugin activation and Remote object creation
+     *   @param  Plugin Callsign
+     *   @retval true on success
+     *   @retval false on failure
+     */
     bool ActivatePlugin();
+	
+    /**
+     *   @fn InvokeJSONRPC
+     *   @note   Invoke JSONRPC call for the plugin
+     *   @param  method,param,result,  method,waitTime reference to input param, result and waitTime (default = THUNDER_RPC_TIMEOUT)
+     *   @retval true on success
+     *   @retval false on failure
+     */
     bool InvokeJSONRPC(std::string method, const JsonObject &param, JsonObject &result, const uint32_t waitTime = THUNDER_RPC_TIMEOUT);
+	
+    /**
+     *   @fn SubscribeEvent
+     *   @note   Subscribe event data for the specific plugin
+     *   @param  eventName,functionHandler Event name, Event handler
+     *   @retval true on success
+     *   @retval false on failure
+     */
     bool SubscribeEvent (string eventName, std::function<void(const WPEFramework::Core::JSON::VariantContainer&)> functionHandler);
+	
+    /**
+     *   @fn UnSubscribeEvent
+     *   @note   unSubscribe event data for the specific plugin
+     *   @param  eventName Event name
+     *   @retval true on success
+     *   @retval false on failure
+     */
     bool UnSubscribeEvent (string eventName);
 
 private:
-    /*The Remote object connected to specific Plugin*/
+    /**< The Remote object connected to specific Plugin*/
     JSONRPC::LinkType<Core::JSON::IElement> *remoteObject;
-    /*The Remote object connected to controller Plugin*/
+    /**< The Remote object connected to controller Plugin*/
     JSONRPC::LinkType<Core::JSON::IElement> *controllerObject;
     std::string pluginCallsign;
     AampLogManager *mLogObj;

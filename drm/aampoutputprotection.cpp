@@ -35,12 +35,12 @@
 #define DEBUG_FUNC
 #endif
 
-/* Static local variables */
+/**< Static local variables */
 AampOutputProtection* s_pAampOP = NULL;
 
-#define DISPLAY_WIDTH_UNKNOWN       -1  // Parsing failed for getResolution().getName();
-#define DISPLAY_HEIGHT_UNKNOWN      -1  // Parsing failed for getResolution().getName();
-#define DISPLAY_RESOLUTION_NA        0   // Resolution not available yet or not connected to HDMI
+#define DISPLAY_WIDTH_UNKNOWN       -1  /**< Parsing failed for getResolution().getName(); */
+#define DISPLAY_HEIGHT_UNKNOWN      -1  /**< Parsing failed for getResolution().getName(); */
+#define DISPLAY_RESOLUTION_NA        0  /**< Resolution not available yet or not connected to HDMI */
 
 
 /**
@@ -96,9 +96,8 @@ AampOutputProtection::~AampOutputProtection()
 }
 
 
-/**
+/** 
  * @brief Check if source is UHD using video decoder dimensions
- * @retval true, if source is UHD, otherwise false
  */
 bool AampOutputProtection::IsSourceUHD()
 {
@@ -247,8 +246,6 @@ void AampOutputProtection::SetHDMIStatus()
 
 /**
  * @brief Set values of resolution member variable
- * @param width
- * @param height
  */
 void AampOutputProtection::SetResolution(int width, int height)
 {
@@ -258,16 +255,14 @@ void AampOutputProtection::SetResolution(int width, int height)
     m_displayHeight  = height;
 }
 
-    /**
-     * @brief gets display resolution
-     * @param[out] int width : Display Width
-     * @param[out] int height : Display height
-     */
-    void AampOutputProtection::GetDisplayResolution(int &width, int &height)
-    {
-        width   = m_displayWidth;
-        height  = m_displayHeight;
-    }
+/**
+ * @brief gets display resolution
+ */
+void AampOutputProtection::GetDisplayResolution(int &width, int &height)
+{
+    width   = m_displayWidth;
+    height  = m_displayHeight;
+}
 
 #ifndef USE_OPENCDM
 #if defined(USE_PLAYREADY)    
@@ -275,11 +270,9 @@ void AampOutputProtection::SetResolution(int width, int height)
 // Note that it is only used by the (non-OCDM) PlayReadyDRMSession class.
 
 // Pleayrady OP Callback
+
 /**
  * @brief Pleayrady OP Callback to ensure HDCP compliance
- * @param f_pvOutputLevelsData : Pointer to licenses output restrictions information
- * @param f_dwCallbackType : Type of callback
- * @param data : Pointer passed from Drm_Reader_Bind, m_minOPLevels
  * @retval DRM_SUCCESS if no errors encountered
  */
 DRM_RESULT DRM_CALL AampOutputProtection::PR_OP_Callback(const DRM_VOID *f_pvOutputLevelsData,
@@ -350,12 +343,9 @@ DRM_RESULT DRM_CALL AampOutputProtection::PR_OP_Callback(const DRM_VOID *f_pvOut
 #endif
 
 #ifdef IARM_MGR
+
 /**
  * @brief IARM event handler for HDCP and HDMI hot plug events
- * @param owner
- * @param eventId
- * @param data
- * @param len
  */
 void AampOutputProtection::HDMIEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
 {
@@ -398,10 +388,6 @@ void AampOutputProtection::HDMIEventHandler(const char *owner, IARM_EventId_t ev
 
 /**
  * @brief IARM event handler for resolution changes
- * @param owner
- * @param eventId
- * @param data
- * @param len
  */
 void AampOutputProtection::ResolutionHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
 {
@@ -438,7 +424,6 @@ void AampOutputProtection::ResolutionHandler(const char *owner, IARM_EventId_t e
 
 /**
  * @brief Check if  AampOutputProcectionInstance active
- * @retval true or false
  */
 bool AampOutputProtection::IsAampOutputProcectionInstanceActive()
 {
@@ -452,7 +437,6 @@ bool AampOutputProtection::IsAampOutputProcectionInstanceActive()
 
 /**
  * @brief Singleton for object creation
- * @retval AampOutputProtection object
  */
 AampOutputProtection * AampOutputProtection::GetAampOutputProcectionInstance()
 {

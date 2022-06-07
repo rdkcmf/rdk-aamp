@@ -393,11 +393,9 @@ static int getOpacity(std::string input, gsw_CcOpacity *opacityOut)
 	return 0;
 }
 
+
 /**
- * @brief Set CC styles for rendering
- *
- * @param[in] options - rendering style options
- * @return int - 0 on success, -1 on failure
+ *  @brief Set CC styles for rendering
  */
 int AampCCManagerBase::SetStyle(const std::string &options)
 try
@@ -548,11 +546,8 @@ catch(const AampJsonParseException& e)
 	return -1;
 }
 
-
 /**
- * @brief To stop CC rendering
- *
- * @return void
+ *  @brief To stop CC rendering
  */
 void AampCCManagerBase::Stop()
 {
@@ -561,6 +556,9 @@ void AampCCManagerBase::Stop()
 	StopRendering();
 }
 
+/**
+ *  @brief To start CC rendering
+ */
 void AampCCManagerBase::Start()
 {
 	EnsureInitialized();
@@ -568,6 +566,9 @@ void AampCCManagerBase::Start()
 	StartRendering();
 }
 
+/**
+ *  @brief Initialize CC resource.
+ */
 int AampCCManagerBase::Init(void *handle)
 {
 	if (handle == NULL)
@@ -596,6 +597,9 @@ int AampCCManagerBase::Init(void *handle)
 	return 0;
 }
 
+/**
+ *  @brief To enable/disable CC when trickplay starts/ends
+ */
 void AampCCManagerBase::SetTrickplayStatus(bool on)
 {
 	AAMPLOG_WARN("AampCCManagerBase::trickplay status(%d)", on);
@@ -613,10 +617,7 @@ void AampCCManagerBase::SetTrickplayStatus(bool on)
 }
 
 /**
- * @brief Set Parental Control Status
- *
- * @param[in] locked - lock status
- * @return
+ *  @brief To enable/disable CC when parental control locked/unlocked
  */
 void AampCCManagerBase::SetParentalControlStatus(bool locked)
 {
@@ -639,10 +640,7 @@ void AampCCManagerBase::SetParentalControlStatus(bool locked)
 }
 
 /**
- * @brief Set CC track
- *
- * @param[in] track - CC track to be selected
- * @return int - 0 on success, -1 on failure
+ *  @brief Set CC track
  */
 int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 {
@@ -735,9 +733,7 @@ int AampCCManagerBase::SetTrack(const std::string &track, const CCFormat format)
 }
 
 /**
- * @brief To restore cc state after new tune
- *
- * @return void
+ *  @brief To restore cc state after new tune
  */
 void AampCCManagerBase::RestoreCC()
 {
@@ -748,10 +744,7 @@ void AampCCManagerBase::RestoreCC()
 }
 
 /**
- * @brief Enable/disable CC rendering
- *
- * @param[in] enable - true to enable CC rendering
- * @return int - 0 on success, -1 on failure
+ *  @brief Enable/disable CC rendering
  */
 int AampCCManagerBase::SetStatus(bool enable)
 {
@@ -782,9 +775,7 @@ int AampCCManagerBase::SetStatus(bool enable)
 AampCCManagerBase *AampCCManager::mInstance = NULL;
 
 /**
- * @brief Get the singleton instance
- *
- * @return AampCCManager - singleton instance
+ *  @brief Get the singleton instance
  */
 AampCCManagerBase *AampCCManager::GetInstance()
 {
@@ -802,9 +793,7 @@ AampCCManagerBase *AampCCManager::GetInstance()
 }
 
 /**
- * @brief Destroy instance
- *
- * @return void
+ *  @brief Destroy instance
  */
 void AampCCManager::DestroyInstance()
 {

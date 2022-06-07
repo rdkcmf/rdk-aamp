@@ -32,6 +32,10 @@
 #error "No memory model for interchange"
 #endif
 
+/**
+ * @class AampVgdrmHelper
+ * @brief Handles the operation for Vg DRM 
+ */
 class AampVgdrmHelper : public AampDrmHelper
 {
 public:
@@ -82,6 +86,10 @@ private:
 #endif
 };
 
+/**
+ * @class AampVgdrmHelperFactory 
+ * @brief Helps to operate Vg DRM
+ */
 class AampVgdrmHelperFactory : public AampDrmHelperFactory
 {
 	std::shared_ptr<AampDrmHelper> createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj=NULL) const;

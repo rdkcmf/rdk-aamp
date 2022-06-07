@@ -156,7 +156,7 @@ static bool activeInterfaceWifi = false;
 static char previousInterface[20] = {'\0'};
 
 /**
- * @struct CurlCallbackContext
+ * @struct CurlCbContextSyncTime 
  * @brief context during curl callbacks
  */
 struct CurlCbContextSyncTime
@@ -344,7 +344,7 @@ static guint aamp_GetSourceID()
 /**
  * @brief Idle task to resume aamp
  * @param ptr pointer to PrivateInstanceAAMP object
- * @retval 
+ * @retval True/False
  */
 static gboolean PrivateInstanceAAMP_Resume(gpointer ptr)
 {
@@ -702,7 +702,7 @@ static bool IsActiveStreamingInterfaceWifi (void)
 
 /**
 * @brief helper function to avoid dependency on unsafe sscanf while reading strings
-* @param bufPtr pointer to CString buffer to scan
+* @param buf pointer to CString buffer to scan
 * @param prefixPtr - prefix string to match in bufPtr
 * @param valueCopyPtr receives allocated copy of string following prefix (skipping delimiting whitesace) if prefix found
 * @retval 0 if prefix not present or error
@@ -863,7 +863,7 @@ static size_t write_callback(char *ptr, size_t size, size_t nmemb, void *userdat
 
 /**
  * @brief function to print header response during download failure and latency.
- * @param type current media type
+ * @param fileType current media type
  */
 static void print_headerResponse(std::vector<std::string> &allResponseHeadersForErrorLogging, MediaType fileType)
 {
@@ -887,7 +887,7 @@ static void print_headerResponse(std::vector<std::string> &allResponseHeadersFor
  * @param size size of the buffer
  * @param nmemb number of bytes
  * @param user_data  CurlCallbackContext pointer
- * @retval
+ * @retval len
  */
 static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *user_data)
 {
@@ -1041,8 +1041,8 @@ static size_t header_callback(const char *ptr, size_t size, size_t nmemb, void *
 
 /**
  * @brief Convert to string and add suffix k, M, G
- * @param bytes Speed
- * @param ptr String buffer
+ * @param bps bytes Speed
+ * @param str ptr String buffer
  * @retval ptr Converted String buffer
  */
 char* ConvertSpeedToStr(long bps, char *str)
@@ -1067,7 +1067,7 @@ char* ConvertSpeedToStr(long bps, char *str)
 
 /**
  * @brief Check if it is Good to capture speed sample
- * @param long Time Diff
+ * @param time_diff Time Diff
  * @retval bool Good to Estimate
  */
 bool IsGoodToEstimate(long time_diff) {
@@ -1077,11 +1077,11 @@ bool IsGoodToEstimate(long time_diff) {
 
 /**
  * @brief Get Current Content Download Speed
- * @param ptr aamp context
- * @param enum File Type
- * @param bool Download start flag
- * @param long Download start time
- * @param double current downloaded bytes
+ * @param aamp ptr aamp context
+ * @param fileType File Type
+ * @param bDownloadStart Download start flag
+ * @param start Download start time
+ * @param dlnow current downloaded bytes
  * @retval bps bits per second
  */
 long getCurrentContentDownloadSpeed(PrivateInstanceAAMP *aamp,
@@ -1170,7 +1170,7 @@ long getCurrentContentDownloadSpeed(PrivateInstanceAAMP *aamp,
  * @param dlnow downloaded bytes so far
  * @param ultotal total bytes expected to upload
  * @param ulnow uploaded bytes so far
- * @retval
+ * @retval For failure it will return -1
  */
 static int progress_callback(
 	void *clientp, // app-specific as optionally set with CURLOPT_PROGRESSDATA
@@ -1352,7 +1352,7 @@ CURLcode ssl_callback(CURL *curl, void *ssl_ctx, void *user_ptr)
  * @brief
  * @param curl ptr to CURL instance
  * @param data curl data lock
- * @param acess curl access lock
+ * @param access curl access lock
  * @param user_ptr CurlCallbackContext pointer
  * @retval void
  */
@@ -1369,7 +1369,7 @@ static void curl_lock_callback(CURL *curl, curl_lock_data data, curl_lock_access
  * @brief
  * @param curl ptr to CURL instance
  * @param data curl data lock
- * @param acess curl access lock
+ * @param access curl access lock
  * @param user_ptr CurlCallbackContext pointer
  * @retval void
  */
@@ -1671,8 +1671,8 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 }
 
 /**
-* @brief wait for Discontinuity handling complete
-*/
+ * @brief wait for Discontinuity handling complete
+ */
 void PrivateInstanceAAMP::WaitForDiscontinuityProcessToComplete(void)
 {
 	pthread_mutex_lock(&mDiscoCompleteLock);
@@ -1681,8 +1681,8 @@ void PrivateInstanceAAMP::WaitForDiscontinuityProcessToComplete(void)
 }
 
 /**
-* @brief unblock wait for Discontinuity handling complete
-*/
+ * @brief unblock wait for Discontinuity handling complete
+ */
 void PrivateInstanceAAMP::UnblockWaitForDiscontinuityProcessToComplete(void)
 {
 	mIsPeriodChangeMarked = false;
@@ -1693,7 +1693,7 @@ void PrivateInstanceAAMP::UnblockWaitForDiscontinuityProcessToComplete(void)
 }
 
 /**
- * @brief Lock aamp mutex
+ *   @brief GStreamer operation start
  */
 void PrivateInstanceAAMP::SyncBegin(void)
 {
@@ -1701,7 +1701,8 @@ void PrivateInstanceAAMP::SyncBegin(void)
 }
 
 /**
- * @brief Unlock aamp mutex
+ * @brief GStreamer operation end
+ *
  */
 void PrivateInstanceAAMP::SyncEnd(void)
 {
@@ -1709,9 +1710,7 @@ void PrivateInstanceAAMP::SyncEnd(void)
 }
 
 /**
- *   @brief Report progress event
- *   @param[in]  bool - Flag to include base PTS
- *   @return long long - Video PTS
+ * @brief Report progress event
  */
 long long PrivateInstanceAAMP::GetVideoPTS(bool bAddVideoBasePTS)
 {
@@ -1856,10 +1855,9 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 	}
 }
 
- /*
- * @brief Report Ad progress event to listeners
- *
- * Sending Ad progress percentage to JSPP
+/**
+ *   @brief Report Ad progress event to listeners
+ *          Sending Ad progress percentage to JSPP
  */
 void PrivateInstanceAAMP::ReportAdProgress(bool sync)
 {
@@ -1886,13 +1884,8 @@ void PrivateInstanceAAMP::ReportAdProgress(bool sync)
 	}
 }
 
-
 /**
- * @brief Update duration of stream.
- *
- * Called from fragmentcollector_hls::IndexPlaylist to update TSB duration
- *
- * @param[in] seconds Duration in seconds
+ * @brief Update playlist duration
  */
 void PrivateInstanceAAMP::UpdateDuration(double seconds)
 {
@@ -1901,8 +1894,7 @@ void PrivateInstanceAAMP::UpdateDuration(double seconds)
 }
 
 /**
- * @brief Update culling state in case of TSB
- * @param culledSecs culled duration in seconds
+ * @brief Update playlist culling
  */
 void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 {
@@ -2042,8 +2034,6 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 
 /**
  * @brief Add listener to aamp events
- * @param eventType type of event to subscribe
- * @param eventListener listener
  */
 void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
@@ -2052,9 +2042,7 @@ void PrivateInstanceAAMP::AddEventListener(AAMPEventType eventType, EventListene
 
 
 /**
- * @brief Remove listener to aamp events
- * @param eventType type of event to unsubscribe
- * @param eventListener listener
+ * @brief Deregister event lister, Remove listener to aamp events
  */
 void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, EventListener* eventListener)
 {
@@ -2062,8 +2050,7 @@ void PrivateInstanceAAMP::RemoveEventListener(AAMPEventType eventType, EventList
 }
 
 /**
- * @brief Check if IsEventListenerAvailable for any event
- * @param eventType
+ * @brief IsEventListenerAvailable Check if Event is registered
  */
 bool PrivateInstanceAAMP::IsEventListenerAvailable(AAMPEventType eventType)
 {
@@ -2072,8 +2059,6 @@ bool PrivateInstanceAAMP::IsEventListenerAvailable(AAMPEventType eventType)
 
 /**
  * @brief Handles DRM errors and sends events to application if required.
- * @param[in] event aamp event struck which holds the error details and error code(http, curl or secclient).
- * @param[in] isRetryEnabled drm retry enabled
  */
 void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRetryEnabled)
 {
@@ -2135,8 +2120,6 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRe
 
 /**
  * @brief Handles download errors and sends events to application if required.
- * @param tuneFailure Reason of error
- * @param error_code HTTP error code/ CURLcode
  */
 void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure, long error_code)
 {
@@ -2198,11 +2181,6 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure, lo
 
 /**
  * @brief Sends Anomaly Error/warning messages
- *
- * @param[in] type - severity of message
- * @param[in] format - format string
- * args [in]  - multiple arguments based on format
- * @return void
  */
 void PrivateInstanceAAMP::SendAnomalyEvent(AAMPAnomalyMessageType type, const char* format, ...)
 {
@@ -2226,8 +2204,7 @@ void PrivateInstanceAAMP::SendAnomalyEvent(AAMPAnomalyMessageType type, const ch
 
 
 /**
- * @brief Update playlist refresh interval
- * @param maxIntervalSecs refresh interval in seconds
+ *   @brief  Update playlist refresh interval
  */
 void PrivateInstanceAAMP::UpdateRefreshPlaylistInterval(float maxIntervalSecs)
 {
@@ -2235,12 +2212,8 @@ void PrivateInstanceAAMP::UpdateRefreshPlaylistInterval(float maxIntervalSecs)
 	maxRefreshPlaylistIntervalSecs = maxIntervalSecs;
 }
 
-
 /**
  * @brief Sends UnderFlow Event messages
- *
- * @param[in] bufferingStopped- Flag to indicate buffering stopped.Underflow = True
- * @return void
  */
 void PrivateInstanceAAMP::SendBufferChangeEvent(bool bufferingStopped)
 {
@@ -2256,11 +2229,7 @@ void PrivateInstanceAAMP::SendBufferChangeEvent(bool bufferingStopped)
 }
 
 /**
- * @brief To change the the gstreamer pipeline to pause/play
- *
- * @param[in] pause- true for pause and false for play
- * @param[in] forceStopGstreamerPreBuffering - true for disabling bufferinprogress
- * @return true on success
+ * @brief To change the the gstreamer pipeline to pause/play 
  */
 bool PrivateInstanceAAMP::PausePipeline(bool pause, bool forceStopGstreamerPreBuffering)
 {
@@ -2275,8 +2244,6 @@ bool PrivateInstanceAAMP::PausePipeline(bool pause, bool forceStopGstreamerPreBu
 /**
  * @brief Handles errors and sends events to application if required.
  * For download failures, use SendDownloadErrorEvent instead.
- * @param tuneFailure Reason of error
- * @param description Optional description of error
  */
 void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char * description, bool isRetryEnabled)
 {
@@ -2351,12 +2318,8 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 	}
 }
 
-
 /**
- * @brief Send event  to listeners
- * @param eventData event
- * @param bForceSyncEvent Flag to Send event synchronously
- * @param e event
+ * @brief Send event to listeners
  */
 void PrivateInstanceAAMP::SendEvent(AAMPEventPtr eventData, AAMPEventMode eventMode)
 {
@@ -2364,12 +2327,7 @@ void PrivateInstanceAAMP::SendEvent(AAMPEventPtr eventData, AAMPEventMode eventM
 }
 
 /**
- * @brief Notify bitrate change event to listeners
- * @param bitrate new bitrate
- * @param reason reason for bitrate change
- * @param width new width in pixels
- * @param height new height in pixels
- * @param GetBWIndex get bandwidth index - used for logging
+ * @brief Notify bit rate change event to listeners
  */
 void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeReason reason, int width, int height, double frameRate, double position, bool GetBWIndex, VideoScanType scantype, int aspectRatioWidth, int aspectRatioHeight)
 {
@@ -2413,9 +2371,7 @@ void PrivateInstanceAAMP::NotifyBitRateChangeEvent(int bitrate, BitrateChangeRea
 
 
 /**
- * @brief Notify rate change event to listeners
- * @param rate new speed
- * @param changeState true if state change to be done, false otherwise (default = true)
+ * @brief Notify speed change event to listeners
  */
 void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 {
@@ -2464,7 +2420,6 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 
 /**
  * @brief Send DRM metadata event
- * @param e DRM metadata event
  */
 void PrivateInstanceAAMP::SendDRMMetaData(DrmMetaDataEventPtr e)
 {
@@ -2473,9 +2428,7 @@ void PrivateInstanceAAMP::SendDRMMetaData(DrmMetaDataEventPtr e)
 }
 
 /**
- * @brief Check if discontinuity processing is pending
- *
- * @retval true if discontinuity processing is pending
+ *   @brief Check if discontinuity processing is pending 
  */
 bool PrivateInstanceAAMP::IsDiscontinuityProcessPending()
 {
@@ -2485,9 +2438,9 @@ bool PrivateInstanceAAMP::IsDiscontinuityProcessPending()
 }
 
 /**
- * @brief Process pending discontinuity and continue playback of stream after discontinuity
+ *   @brief Process pending discontinuity and continue playback of stream after discontinuity
  *
- * @return true if pending discontinuity was processed successful, false if interrupted
+ *   @return true if pending discontinuity was processed successful, false if interrupted
  */
 bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 {
@@ -2619,9 +2572,8 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 /**
  * @brief Get the Current Audio Track Id 
  * Currently it is implimented for AC4 track selection only
- * 
  * @return int return the index number of current audio track selected
- */
+ */ 
 int PrivateInstanceAAMP::GetCurrentAudioTrackId()
 {
 	int trackId = -1;
@@ -2719,7 +2671,7 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 }
 
 /**
- * @brief Notify entering live event to listeners
+ * @brief Notify when entering live point to listeners
  */
 void PrivateInstanceAAMP::NotifyOnEnteringLive()
 {
@@ -2826,10 +2778,7 @@ void PrivateInstanceAAMP::AdditionalTuneFailLogEntries()
 }
 
 /**
-* @brief Profiler for failure Tunes
- *
- * @param[in] Fail - Tune fail status
- * @return void
+ * @brief Profiler for failure tune
  */
 void PrivateInstanceAAMP::TuneFail(bool fail)
 {
@@ -2856,7 +2805,7 @@ void PrivateInstanceAAMP::TuneFail(bool fail)
 }
 
 /**
- * @brief Notify tune end for profiling/logging
+ *  @brief Notify tune end for profiling/logging
  */
 void PrivateInstanceAAMP::LogTuneComplete(void)
 {
@@ -2918,7 +2867,7 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 }
 
 /**
- * @brief Notifies profiler that first frame is presented
+ *  @brief Notifies profiler that first frame is presented
  */
 void PrivateInstanceAAMP::LogFirstFrame(void)
 {
@@ -2926,7 +2875,7 @@ void PrivateInstanceAAMP::LogFirstFrame(void)
 }
 
 /**
- * @brief Notifies profiler that player state from background to foreground i.e prebuffred
+ *  @brief Profile Player changed from background to foreground i.e prebuffred
  */
 void PrivateInstanceAAMP::LogPlayerPreBuffered(void)
 {
@@ -2934,7 +2883,7 @@ void PrivateInstanceAAMP::LogPlayerPreBuffered(void)
 }
 
 /**
- * @brief Notifies profiler that drm initialization is complete
+ *   @brief Notifies profiler that drm initialization is complete 
  */
 void PrivateInstanceAAMP::LogDrmInitComplete(void)
 {
@@ -2942,8 +2891,7 @@ void PrivateInstanceAAMP::LogDrmInitComplete(void)
 }
 
 /**
- * @brief Notifies profiler that decryption has started
- * @param bucketType profiler bucket type
+ *   @brief Notifies profiler that decryption has started
  */
 void PrivateInstanceAAMP::LogDrmDecryptBegin(ProfilerBucketType bucketType)
 {
@@ -2951,8 +2899,7 @@ void PrivateInstanceAAMP::LogDrmDecryptBegin(ProfilerBucketType bucketType)
 }
 
 /**
- * @brief Notifies profiler that decryption has ended
- * @param bucketType profiler bucket type
+ *   @brief Notifies profiler that decryption has ended
  */
 void PrivateInstanceAAMP::LogDrmDecryptEnd(ProfilerBucketType bucketType)
 {
@@ -2993,7 +2940,6 @@ void PrivateInstanceAAMP::ResumeDownloads()
 /**
  * @brief Stop downloads for a track.
  * Called from StreamSink to control flow
- * @param type media type of the track
  */
 void PrivateInstanceAAMP::StopTrackDownloads(MediaType type)
 { // called from gstreamer main event loop
@@ -3017,7 +2963,6 @@ void PrivateInstanceAAMP::StopTrackDownloads(MediaType type)
 /**
  * @brief Resume downloads for a track.
  * Called from StreamSink to control flow
- * @param type media type of the track
  */
 void PrivateInstanceAAMP::ResumeTrackDownloads(MediaType type)
 { // called from gstreamer main event loop
@@ -3039,10 +2984,7 @@ void PrivateInstanceAAMP::ResumeTrackDownloads(MediaType type)
 }
 
 /**
- * @brief block until gstreamer indicates pipeline wants more data
- * @param cb callback called periodically, if non-null
- * @param periodMs delay between callbacks
- * @param track track index
+ *  @brief Block the injector thread until the gstreanmer needs buffer/more data.
  */
 void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int periodMs, int track)
 { // called from FragmentCollector thread; blocks until gstreamer wants data
@@ -3070,9 +3012,7 @@ void PrivateInstanceAAMP::BlockUntilGstreamerWantsData(void(*cb)(void), int peri
 }
 
 /**
- * @brief Initialize curl instances
- * @param startIdx start index
- * @param instanceCount count of instances
+ * @brief Curl initialization function
  */
 void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int instanceCount, std::string proxyName)
 {
@@ -3143,8 +3083,7 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 
 
 /**
- * @brief Store language list of stream
- * @param langlist Array of languges
+ * @brief Storing audio language list
  */
 void PrivateInstanceAAMP::StoreLanguageList(const std::set<std::string> &langlist)
 {
@@ -3169,11 +3108,8 @@ void PrivateInstanceAAMP::StoreLanguageList(const std::set<std::string> &langlis
 	}
 }
 
-
 /**
- * @brief Check if audio language is supported
- * @param checkLanguage language string to be checked
- * @retval true if supported, false if not supported
+ * @brief Checking whether audio language supported
  */
 bool PrivateInstanceAAMP::IsAudioLanguageSupported (const char *checkLanguage)
 {
@@ -3199,9 +3135,7 @@ bool PrivateInstanceAAMP::IsAudioLanguageSupported (const char *checkLanguage)
 }
 
 /**
- * @brief Set curl timeout (CURLOPT_TIMEOUT)
- * @param timeout maximum time  in seconds curl request is allowed to take
- * @param instance index of instance to which timeout to be set
+ * @brief Set curl timeout(CURLOPT_TIMEOUT)
  */
 void PrivateInstanceAAMP::SetCurlTimeout(long timeoutMS, AampCurlInstance instance)
 {
@@ -3219,9 +3153,7 @@ void PrivateInstanceAAMP::SetCurlTimeout(long timeoutMS, AampCurlInstance instan
 }
 
 /**
- * @brief Terminate curl instances
- * @param startIdx start index
- * @param instanceCount count of instances
+ * @brief Terminate curl contexts
  */
 void PrivateInstanceAAMP::CurlTerm(AampCurlInstance startIdx, unsigned int instanceCount)
 {
@@ -3239,11 +3171,9 @@ void PrivateInstanceAAMP::CurlTerm(AampCurlInstance startIdx, unsigned int insta
 }
 
 /**
- * @brief GetPlaylistCurlInstance - Function to return the curl instance for playlist download
+ * @brief GetPlaylistCurlInstance -  Function to return the curl instance for playlist download
  * Considers parallel download to decide the curl instance 
- * @param MediaType - Playlist type 
- * @param Init/Refresh - When playlist download is done 
- * @retval AampCurlInstance - Curl instance for playlist download
+ * @return AampCurlInstance - curl instance for download
  */
 AampCurlInstance PrivateInstanceAAMP::GetPlaylistCurlInstance(MediaType type, bool isInitialDownload)
 {
@@ -3283,11 +3213,8 @@ AampCurlInstance PrivateInstanceAAMP::GetPlaylistCurlInstance(MediaType type, bo
 }
 
 /**
- * @brief called when tuning - reset artificially
- * low for quicker tune times
- * @param bitsPerSecond
- * @param trickPlay
- * @param profile
+ * @brief Reset bandwidth value
+ * Artificially resetting the bandwidth. Low for quicker tune times
  */
 void PrivateInstanceAAMP::ResetCurrentlyAvailableBandwidth(long bitsPerSecond , bool trickPlay,int profile)
 {
@@ -3300,9 +3227,9 @@ void PrivateInstanceAAMP::ResetCurrentlyAvailableBandwidth(long bitsPerSecond , 
 }
 
 /**
- * @brief estimate currently available bandwidth, 
+ * @brief Get the current network bandwidth
  * using most recently recorded 3 samples
- * @retval currently available bandwidth
+ * @return Available bandwidth in bps
  */
 long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 {
@@ -3404,8 +3331,8 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 }
 
 /**
- * @brief Get MediaType as String
- */
+ * @brief get Media Type in string
+ */ 
 const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
 {
 	switch(fileType)
@@ -3440,6 +3367,10 @@ const char* PrivateInstanceAAMP::MediaTypeString(MediaType fileType)
 			return "Unknown";
 	}
 }
+
+/**
+ * @brief Download a file from the server
+ */
 bool PrivateInstanceAAMP::GetNetworkTime(enum UtcTiming timingType, const std::string& remoteUrl, long *http_error, CurlRequest request)
 {
     bool ret = false;
@@ -3527,17 +3458,7 @@ bool PrivateInstanceAAMP::GetNetworkTime(enum UtcTiming timingType, const std::s
 }
 
 /**
- * @brief Fetch a file from CDN
- * @param remoteUrl url of the file
- * @param[out] buffer pointer to buffer abstraction
- * @param[out] effectiveUrl last effective URL
- * @param http_error error code in case of failure
- * @param range http range
- * @param curlInstance instance to be used to fetch
- * @param resetBuffer true to reset buffer before fetch
- * @param fileType media type of the file
- * @param fragmentDurationSeconds to know the current fragment length in case fragment fetch
- * @retval true if success
+ * @brief Download a file from the CDN
  */
 bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *buffer, std::string& effectiveUrl,
 				long * http_error, double *downloadTime, const char *range, unsigned int curlInstance, 
@@ -4384,8 +4305,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 /**
  * @brief Download VideoEnd Session statistics from fog
  *
- * @param[out] buffer - Pointer to the output buffer
- * @return pointer to tsbSessionEnd data from fog
+ * @return string tsbSessionEnd data from fog
  */
 char * PrivateInstanceAAMP::GetOnVideoEndSessionStatData()
 {
@@ -4434,15 +4354,8 @@ char * PrivateInstanceAAMP::GetOnVideoEndSessionStatData()
 	return ret;
 }
 
-
 /**
  * @brief Perform custom curl request
- *
- * @param[in] remoteUrl - File URL
- * @param[out] buffer - Pointer to the output buffer
- * @param[out] http_error - HTTP error code
- * @param[in] CurlRequest - request type
- * @return bool status
  */
 bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, GrowableBuffer* buffer, long *http_error, CurlRequest request, std::string pData)
 {
@@ -4517,10 +4430,8 @@ bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, Growa
 	return ret;
 }
 
-
 /**
- * @brief Executes tear down sequence
- * @param newTune true if operation is a new tune
+ * @brief Terminate the stream
  */
 void PrivateInstanceAAMP::TeardownStream(bool newTune)
 {
@@ -4633,7 +4544,7 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 }
 
 /**
- * @brief Setup pipe session with application
+ * @brief Establish PIPE session with Receiver
  */
 bool PrivateInstanceAAMP::SetupPipeSession()
 {
@@ -4686,7 +4597,7 @@ bool PrivateInstanceAAMP::SetupPipeSession()
 
 
 /**
- * @brief Close pipe session with application
+ * @brief Close PIPE session with Receiver
  */
 void PrivateInstanceAAMP::ClosePipeSession()
 {
@@ -4697,11 +4608,8 @@ void PrivateInstanceAAMP::ClosePipeSession()
 	}
 }
                             
-
 /**
- * @brief Send message to application using pipe session
- * @param str message
- * @param nToWrite message size
+ * @brief Send messages to Receiver over PIPE
  */
 void PrivateInstanceAAMP::SendMessageOverPipe(const char *str,int nToWrite)
 {
@@ -4723,6 +4631,9 @@ void PrivateInstanceAAMP::SendMessageOverPipe(const char *str,int nToWrite)
 	}
 }
 
+/**
+ * @brief Send message to reciever over PIPE
+ */
 void PrivateInstanceAAMP::SendMessage2Receiver(AAMP2ReceiverMsgType type, const char *data)
 {
 #ifdef CREATE_PIPE_SESSION_TO_XRE
@@ -4743,9 +4654,9 @@ void PrivateInstanceAAMP::SendMessage2Receiver(AAMP2ReceiverMsgType type, const 
 }
 
 /**
- * @brief Common tune operations used on Tune, Seek, SetRate etc
- * @param tuneType type of tune
- */
+ * @brief The helper function which perform tuning
+ *        Common tune operations used on Tune, Seek, SetRate etc
+ */        
 void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 {
 	bool newTune;
@@ -5177,11 +5088,7 @@ void PrivateInstanceAAMP::ReloadTSB()
 }
 
 /**
- * @brief Tune to a URL.
- *
- * @param  mainManifestUrl - HTTP/HTTPS url to be played.
- * @param[in] autoPlay - Start playback immediately or not
- * @param  contentType - content Type.
+ * @brief Tune API
  */
 void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *pTraceID,bool audioDecoderStreamSync)
 {
@@ -5601,11 +5508,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		this->mTraceUUID = "unknown";
 	}
 }
+
 /**
-         *   @brief Get Language preference from aamp.cfg.
-         *
-         *   @return enum type
-         */
+ *  @brief Get Language preference from aamp.cfg.
+ */
 LangCodePreference PrivateInstanceAAMP::GetLangCodePreference()
 {
 	int langCodePreference;
@@ -5614,8 +5520,7 @@ LangCodePreference PrivateInstanceAAMP::GetLangCodePreference()
 }
 
 /**
- *   @brief Assign the correct mediaFormat by parsing the url
- *   @param[in]  manifest url
+ *  @brief Get Mediaformat types by parsing the url
  */
 MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 {
@@ -5764,8 +5669,6 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 /**
  *   @brief Check if AAMP is in stalled state after it pushed EOS to
  *   notify discontinuity
- *
- *   @param[in]  mediaType stream type
  */
 void PrivateInstanceAAMP::CheckForDiscontinuityStall(MediaType mediaType)
 {
@@ -5796,9 +5699,7 @@ void PrivateInstanceAAMP::CheckForDiscontinuityStall(MediaType mediaType)
 }
 
 /**
- *   @brief return service zone, extracted from locator &sz URI parameter
- *   @param  url - stream url with vss service zone info as query string
- *   @return std::string
+ * @brief updates mServiceZone (service zone) member with string extracted from locator &sz URI parameter
  */
 void PrivateInstanceAAMP::ExtractServiceZone(std::string url)
 {
@@ -5827,6 +5728,9 @@ void PrivateInstanceAAMP::ExtractServiceZone(std::string url)
 	}
 }
 
+/**
+ *  @brief Set Content Type
+ */
 std::string PrivateInstanceAAMP::GetContentTypString()
 {
     std::string strRet;
@@ -5907,6 +5811,9 @@ std::string PrivateInstanceAAMP::GetContentTypString()
     return strRet;
 }
 
+/**
+ * @brief Notify about sink buffer full
+ */
 void PrivateInstanceAAMP::NotifySinkBufferFull(MediaType type)
 {
 	if(type != eMEDIATYPE_VIDEO)
@@ -5921,10 +5828,7 @@ void PrivateInstanceAAMP::NotifySinkBufferFull(MediaType type)
 }
 
 /**
- * @brief set a content type
- * @param[in] cType - content type 
- * @param[in] mainManifestUrl - main manifest URL
- * @retval none
+ * @brief Set Content Type
  */
 void PrivateInstanceAAMP::SetContentType(const char *cType)
 {
@@ -5997,7 +5901,6 @@ void PrivateInstanceAAMP::SetContentType(const char *cType)
 
 /**
  * @brief Get Content Type
- * @return ContentType
  */
 ContentType PrivateInstanceAAMP::GetContentType() const
 {
@@ -6005,9 +5908,10 @@ ContentType PrivateInstanceAAMP::GetContentType() const
 }
 
 /**
- * @brief Extract DRM init data
- * @return url url
- * retval a tuple of url and DRM init data
+ *   @brief Extract DRM init data from the provided URL
+ *          If present, the init data will be removed from the returned URL
+ *          and provided as a separate string
+ *   @return tuple containing the modified URL and DRM init data
  */
 const std::tuple<std::string, std::string> PrivateInstanceAAMP::ExtractDrmInitData(const char *url)
 {
@@ -6042,9 +5946,7 @@ const std::tuple<std::string, std::string> PrivateInstanceAAMP::ExtractDrmInitDa
 }
 
 /**
- *   @brief Check if current stream is muxed
- *
- *   @return true if current stream is muxed
+ *   @brief Check if autoplay enabled for current stream
  */
 bool PrivateInstanceAAMP::IsPlayEnabled()
 {
@@ -6052,7 +5954,7 @@ bool PrivateInstanceAAMP::IsPlayEnabled()
 }
 
 /**
- * @brief Soft-realease player.
+ * @brief Soft stop the player instance.
  *
  */
 void PrivateInstanceAAMP::detach()
@@ -6083,7 +5985,6 @@ void PrivateInstanceAAMP::detach()
 
 /**
  * @brief Get AampCacheHandler instance
- * @retval AampCacheHandler instance
  */
 AampCacheHandler * PrivateInstanceAAMP::getAampCacheHandler()
 {
@@ -6092,7 +5993,6 @@ AampCacheHandler * PrivateInstanceAAMP::getAampCacheHandler()
 
 /**
  * @brief Get maximum bitrate value.
- * @return maximum bitrate value
  */
 long PrivateInstanceAAMP::GetMaximumBitrate()
 {
@@ -6103,7 +6003,6 @@ long PrivateInstanceAAMP::GetMaximumBitrate()
 
 /**
  * @brief Get minimum bitrate value.
- * @return minimum bitrate value
  */
 long PrivateInstanceAAMP::GetMinimumBitrate()
 {
@@ -6112,10 +6011,8 @@ long PrivateInstanceAAMP::GetMinimumBitrate()
 	return lMinBitrate;
 }
 
-
 /**
- * @brief Get Default bitrate value.
- * @return default bitrate value
+ * @brief Get default bitrate value.
  */
 long PrivateInstanceAAMP::GetDefaultBitrate()
 {
@@ -6126,7 +6023,6 @@ long PrivateInstanceAAMP::GetDefaultBitrate()
 
 /**
  * @brief Get Default bitrate for 4K
- * @return default bitrate 4K value
  */
 long PrivateInstanceAAMP::GetDefaultBitrate4K()
 {
@@ -6137,7 +6033,6 @@ long PrivateInstanceAAMP::GetDefaultBitrate4K()
 
 /**
  * @brief Get Default Iframe bitrate value.
- * @return default iframe bitrate value
  */
 long PrivateInstanceAAMP::GetIframeBitrate()
 {
@@ -6148,7 +6043,6 @@ long PrivateInstanceAAMP::GetIframeBitrate()
 
 /**
  * @brief Get Default Iframe bitrate 4K value.
- * @return default iframe bitrate 4K value
  */
 long PrivateInstanceAAMP::GetIframeBitrate4K()
 {
@@ -6159,13 +6053,6 @@ long PrivateInstanceAAMP::GetIframeBitrate4K()
 
 /**
  * @brief Fetch a file from CDN and update profiler
- * @param bucketType type of profiler bucket
- * @param fragmentUrl URL of the file
- * @param[out] len length of buffer
- * @param curlInstance instance to be used to fetch
- * @param range http range
- * @param fileType media type of the file
- * @retval buffer containing file, free using aamp_Free
  */
 char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, size_t *len, unsigned int curlInstance, const char *range, long * http_code, double *downloadTime, MediaType fileType,int * fogError)
 {
@@ -6186,14 +6073,6 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::stri
 
 /**
  * @brief Fetch a file from CDN and update profiler
- * @param bucketType type of profiler bucket
- * @param fragmentUrl URL of the file
- * @param[out] fragment pointer to buffer abstraction
- * @param curlInstance instance to be used to fetch
- * @param range http range
- * @param fileType media type of the file
- * @param http_code http code
- * @retval true on success, false on failure
  */
 bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl,std::string& effectiveUrl, struct GrowableBuffer *fragment, 
 					unsigned int curlInstance, const char *range, MediaType fileType,long * http_code, double *downloadTime, long *bitrate,int * fogError, double fragmentDurationSeconds)
@@ -6214,12 +6093,7 @@ bool PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::strin
 }
 
 /**
- * @brief Push a media fragment to sink
- * @param mediaType type of buffer
- * @param ptr buffer containing fragment
- * @param len length of buffer
- * @param fragmentTime PTS of fragment in seconds
- * @param fragmentDuration duration of fragment in seconds
+ * @brief Push fragment to the gstreamer
  */
 void PrivateInstanceAAMP::PushFragment(MediaType mediaType, char *ptr, size_t len, double fragmentTime, double fragmentDuration)
 {
@@ -6230,12 +6104,7 @@ void PrivateInstanceAAMP::PushFragment(MediaType mediaType, char *ptr, size_t le
 }
 
 /**
- * @brief Push a media fragment to sink
- * @note Takes ownership of buffer
- * @param mediaType type of fragment
- * @param buffer contains data
- * @param fragmentTime PTS of fragment in seconds
- * @param fragmentDuration duration of fragment in seconds
+ * @brief Push fragment to the gstreamer
  */
 void PrivateInstanceAAMP::PushFragment(MediaType mediaType, GrowableBuffer* buffer, double fragmentTime, double fragmentDuration)
 {
@@ -6246,8 +6115,7 @@ void PrivateInstanceAAMP::PushFragment(MediaType mediaType, GrowableBuffer* buff
 }
 
 /**
- * @brief Notifies EOS to sink
- * @param mediaType Type of media
+ * @brief End of stream reached
  */
 void PrivateInstanceAAMP::EndOfStreamReached(MediaType mediaType)
 {
@@ -6277,7 +6145,6 @@ void PrivateInstanceAAMP::EndOfStreamReached(MediaType mediaType)
 
 /**
  * @brief Get seek base position
- * @retval seek base position
  */
 double PrivateInstanceAAMP::GetSeekBase(void)
 {
@@ -6285,9 +6152,7 @@ double PrivateInstanceAAMP::GetSeekBase(void)
 }
 
 /**
- *   @brief Get current drm
- *
- *   @return current drm
+ * @brief Get current drm
  */
 std::shared_ptr<AampDrmHelper> PrivateInstanceAAMP::GetCurrentDRM(void)
 {
@@ -6295,9 +6160,7 @@ std::shared_ptr<AampDrmHelper> PrivateInstanceAAMP::GetCurrentDRM(void)
 }
 
 /**
- *   @brief Get available thumbnail tracks.
- *
- *   @return string of available thumbnail tracks.
+ *    @brief Get available thumbnail tracks.
  */
 std::string PrivateInstanceAAMP::GetThumbnailTracks()
 {
@@ -6341,9 +6204,7 @@ std::string PrivateInstanceAAMP::GetThumbnailTracks()
 }
 
 /**
- *   @brief Get thumbnail data.
- *
- *   @return string thumbnail tile information.
+ *  @brief Get the Thumbnail Tile data.
  */
 std::string PrivateInstanceAAMP::GetThumbnails(double tStart, double tEnd)
 {
@@ -6398,6 +6259,7 @@ std::string PrivateInstanceAAMP::GetThumbnails(double tStart, double tEnd)
 	return rc;
 }
 
+
 TunedEventConfig PrivateInstanceAAMP::GetTuneEventConfig(bool isLive)
 {
 	int tunedEventConfig;
@@ -6406,9 +6268,7 @@ TunedEventConfig PrivateInstanceAAMP::GetTuneEventConfig(bool isLive)
 }
 
 /**
- *   @brief to Update the preferred audio codec, rendition and languages list
- *
- *   @return void
+ * @brief to update the preferredaudio codec, rendition and languages  list
  */
 void PrivateInstanceAAMP::UpdatePreferredAudioList()
 {
@@ -6470,10 +6330,7 @@ void PrivateInstanceAAMP::UpdatePreferredAudioList()
 }
 
 /**
- *   @brief Set Async Tune Configuration
- *   @param[in] bValue - true if async tune enabled
- *
- *   @return void
+ *  @brief Set async tune configuration for EventPriority
  */
 void PrivateInstanceAAMP::SetEventPriorityAsyncTune(bool bValue)
 {
@@ -6488,21 +6345,15 @@ void PrivateInstanceAAMP::SetEventPriorityAsyncTune(bool bValue)
 }
 
 /**
- *   @brief Get Async Tune configuration
- *
- *   @return bool - true if config set 
+ * @brief Get async tune configuration
  */
 bool PrivateInstanceAAMP::GetAsyncTuneConfig()
 {
         return mAsyncTuneEnabled;
 }
+
 /**
- *   @brief Update video rectangle.
- *
- *   @param  x - horizontal start position.
- *   @param  y - vertical start position.
- *   @param  w - width.
- *   @param  h - height.
+ * @brief Set video rectangle
  */
 void PrivateInstanceAAMP::UpdateVideoRectangle (int x, int y, int w, int h)
 {
@@ -6513,13 +6364,9 @@ void PrivateInstanceAAMP::UpdateVideoRectangle (int x, int y, int w, int h)
 	mApplyVideoRect = true;
 	AAMPLOG_INFO("Backup VideoRectangle x:%d y:%d w:%d h:%d", x, y, w, h);
 }
+
 /**
- *   @brief Set video rectangle.
- *
- *   @param  x - horizontal start position.
- *   @param  y - vertical start position.
- *   @param  w - width.
- *   @param  h - height.
+ * @brief Set video rectangle
  */
 void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
@@ -6546,8 +6393,6 @@ void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 }
 /**
  *   @brief Set video zoom.
- *
- *   @param  zoom - zoom mode.
  */
 void PrivateInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 {
@@ -6556,8 +6401,6 @@ void PrivateInstanceAAMP::SetVideoZoom(VideoZoomMode zoom)
 
 /**
  *   @brief Enable/ Disable Video.
- *
- *   @param  muted - true to disable video, false to enable video.
  */
 void PrivateInstanceAAMP::SetVideoMute(bool muted)
 {
@@ -6587,8 +6430,7 @@ void PrivateInstanceAAMP::DisableDownloads(void)
 }
 
 /**
- * @brief Check if downloads are enabled
- * @retval true if downloads are enabled
+ * @brief Check if track can inject data into GStreamer.
  */
 bool PrivateInstanceAAMP::DownloadsAreEnabled(void)
 {
@@ -6596,7 +6438,8 @@ bool PrivateInstanceAAMP::DownloadsAreEnabled(void)
 }
 
 /**
- * @brief Enable downloads
+ * @brief Enable downloads after aamp_DisableDownloads.
+ * Called after stopping fragment collector thread
  */
 void PrivateInstanceAAMP::EnableDownloads()
 {
@@ -6607,7 +6450,6 @@ void PrivateInstanceAAMP::EnableDownloads()
 
 /**
  * @brief Sleep until timeout is reached or interrupted
- * @param timeInMs timeout in milliseconds
  */
 void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
 {
@@ -6634,8 +6476,7 @@ void PrivateInstanceAAMP::InterruptableMsSleep(int timeInMs)
 }
 
 /**
- * @brief Get stream duration
- * @retval duration is milliseconds
+ * @brief Get asset duration in milliseconds
  */
 long long PrivateInstanceAAMP::GetDurationMs()
 {
@@ -6652,9 +6493,9 @@ long long PrivateInstanceAAMP::GetDurationMs()
 }
 
 /**
- * @brief Get stream duration for Video Tag based playback
- * Mainly when aamp is used as plugin
- * @retval duration is milliseconds
+ *   @brief Get asset duration in milliseconds
+ *   For VIDEO TAG Based playback, mainly when
+ *   aamp is used as plugin
  */
 long long PrivateInstanceAAMP::DurationFromStartOfPlaybackMs()
 {
@@ -6679,16 +6520,15 @@ long long PrivateInstanceAAMP::DurationFromStartOfPlaybackMs()
 }
 
 /**
- * @brief Get current stream position
- * @retval current stream position in ms
+ *   @brief Get current stream position
  */
 long long PrivateInstanceAAMP::GetPositionMs()
 {
 	return (prevPositionMiliseconds!=-1) ? prevPositionMiliseconds : GetPositionMilliseconds();
 }
+
 /**
- * @brief Get current stream position
- * @retval current stream position in ms
+ * @brief Get current stream playback position in milliseconds
  */
 long long PrivateInstanceAAMP::GetPositionMilliseconds()
 {
@@ -6748,13 +6588,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 }
 
 /**
- * @brief Sends media buffer to sink
- * @param mediaType type of media
- * @param ptr buffer containing media data
- * @param len length of buffer
- * @param fpts pts in seconds
- * @param fdts dts in seconds
- * @param fDuration duration of buffer
+ * @brief  API to send audio/video stream into the sink.
  */
 void PrivateInstanceAAMP::SendStreamCopy(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration)
 {
@@ -6763,14 +6597,7 @@ void PrivateInstanceAAMP::SendStreamCopy(MediaType mediaType, const void *ptr, s
 }
 
 /**
- * @brief Sends media buffer to sink
- * @note  Ownership of buffer is transferred.
- * @param mediaType type of media
- * @param buffer - media data
- * @param fpts pts in seconds
- * @param fdts dts in seconds
- * @param fDuration duration of buffer
- * @param[in] initFragment flag for buffer type (init, data)
+ * @brief  API to send audio/video stream into the sink.
  */
 void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration, bool initFragment)
 {
@@ -6779,8 +6606,7 @@ void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer
 }
 
 /**
- * @brief Set stream sink
- * @param streamSink pointer of sink object
+ * @brief Setting the stream sink
  */
 void PrivateInstanceAAMP::SetStreamSink(StreamSink* streamSink)
 {
@@ -6788,8 +6614,7 @@ void PrivateInstanceAAMP::SetStreamSink(StreamSink* streamSink)
 }
 
 /**
- * @brief Check if stream is live
- * @retval true if stream is live, false if not
+ * @brief Checking if the stream is live or not
  */
 bool PrivateInstanceAAMP::IsLive()
 {
@@ -6807,7 +6632,6 @@ bool PrivateInstanceAAMP::IsAudioPlayContextCreationSkipped()
 
 /**
  * @brief Check if stream is live
- * @retval true if stream is live, false if not
  */
 bool PrivateInstanceAAMP::IsLiveStream()
 {
@@ -6958,7 +6782,6 @@ void PrivateInstanceAAMP::Stop()
 
 /**
  * @brief SaveTimedMetadata Function to store Metadata for bulk reporting during Initialization 
- *
  */
 void PrivateInstanceAAMP::SaveTimedMetadata(long long timeMilliseconds, const char* szName, const char* szContent, int nb, const char* id, double durationMS)
 {
@@ -6968,7 +6791,6 @@ void PrivateInstanceAAMP::SaveTimedMetadata(long long timeMilliseconds, const ch
 
 /**
  * @brief SaveNewTimedMetadata Function to store Metadata and reporting event one by one after DRM Initialization
- *
  */
 void PrivateInstanceAAMP::SaveNewTimedMetadata(long long timeMilliseconds, const char* szName, const char* szContent, int nb, const char* id, double durationMS)
 {
@@ -6977,8 +6799,7 @@ void PrivateInstanceAAMP::SaveNewTimedMetadata(long long timeMilliseconds, const
 }
 
 /**
- *@brief ReportTimedMetadata Function to send timedMetadata
- *
+ * @brief Report timed metadata Function to send timedMetadata 
  */
 void PrivateInstanceAAMP::ReportTimedMetadata(bool init)
 {
@@ -6999,9 +6820,9 @@ void PrivateInstanceAAMP::ReportTimedMetadata(bool init)
 		mTimedMetadataDuration = (NOW_STEADY_TS_MS - mTimedMetadataStartTime);
 	}	
 }
+
 /**
- * @brief ReportBulkTimedMetadata Function to send bulk timedMetadata in json format 
- *
+ * @brief Report bulk timedMetadata Function to send bulk timedMetadata in json format 
  */
 void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 {
@@ -7047,15 +6868,7 @@ void PrivateInstanceAAMP::ReportBulkTimedMetadata()
 }
 
 /**
- * @brief Report TimedMetadata events
- * szName should be the tag name and szContent should be tag value, excluding delimiter ":"
- * @param timeMilliseconds time in milliseconds
- * @param szName name of metadata
- * @param szContent  metadata content
- * @param id - Identifier of the TimedMetadata
- * @param bSyncCall - Sync or Async Event
- * @param durationMS - Duration in milliseconds
- * @param nb unused
+ * @brief Report timed metadata Function to send timedMetadata events
  */
 void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const char *szName, const char *szContent, int nb, bool bSyncCall, const char *id, double durationMS)
 {
@@ -7134,10 +6947,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(long long timeMilliseconds, const 
 
 
 /**
- * @brief Report contentGap events
- * @param timeMilliseconds time in milliseconds
- * @param id - Identifier of the TimedMetadata
- * @param durationMS - Duration in milliseconds
+ * @brief Report content gap events
  */
 void PrivateInstanceAAMP::ReportContentGap(long long timeMilliseconds, std::string id, double durationMS)
 {
@@ -7213,7 +7023,8 @@ void PrivateInstanceAAMP::ReportContentGap(long long timeMilliseconds, std::stri
 }
 
 /**
- * @brief Sends CC handle event to listeners when first frame receives or video_dec handle rests
+ *   @brief Initialize CC after first frame received
+ *          Sends CC handle event to listeners when first frame receives or video_dec handle rests
  */
 void PrivateInstanceAAMP::InitializeCC()
 {
@@ -7252,7 +7063,7 @@ void PrivateInstanceAAMP::InitializeCC()
 
 
 /**
- * @brief Notify first frame is displayed. Sends CC handle event to listeners.
+ *  @brief Notify first frame is displayed. Sends CC handle event to listeners.
  */
 void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 {
@@ -7286,11 +7097,8 @@ void PrivateInstanceAAMP::NotifyFirstFrameReceived()
 }
 
 /**
- * @brief Signal discontinuity of track.
- * Called from StreamAbstractionAAMP to signal discontinuity
- * @param track MediaType of the track
- * @param setDiscontinuityFlag if true then no need to call mStreamSink->Discontinuity(), set only the discontinuity processing flag.
- * @retval true if discontinuity is handled.
+ *   @brief Signal discontinuity of track.
+ *   Called from StreamAbstractionAAMP to signal discontinuity
  */
 bool PrivateInstanceAAMP::Discontinuity(MediaType track, bool setDiscontinuityFlag)
 {
@@ -7316,8 +7124,6 @@ bool PrivateInstanceAAMP::Discontinuity(MediaType track, bool setDiscontinuityFl
 
 /**
  * @brief Schedules retune or discontinuity processing based on state.
- * @param errorType type of playback error
- * @param trackType media type
  */
 void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType trackType)
 {
@@ -7489,8 +7295,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 }
 
 /**
- * @brief Sets aamp state
- * @param state state to be set
+ * @brief Set player state
  */
 void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 {
@@ -7528,8 +7333,7 @@ void PrivateInstanceAAMP::SetState(PrivAAMPState state)
 }
 
 /**
- * @brief Get aamp state
- * @param[out] state current state of aamp
+ * @brief Get player state
  */
 void PrivateInstanceAAMP::GetState(PrivAAMPState& state)
 {
@@ -7539,12 +7343,8 @@ void PrivateInstanceAAMP::GetState(PrivAAMPState& state)
 }
 
 /**
- * @brief Add high priority idle task
- *
- * @note task shall return 0 to be removed, 1 to be repeated
- *
- * @param[in] task task function pointer
- * @param[in] arg passed as parameter during idle task execution
+ *  @brief Add high priority idle task to the gstreamer
+ *  @note task shall return 0 to be removed, 1 to be repeated
  */
 gint PrivateInstanceAAMP::AddHighIdleTask(IdleTask task, void* arg,DestroyTask dtask)
 {
@@ -7553,9 +7353,7 @@ gint PrivateInstanceAAMP::AddHighIdleTask(IdleTask task, void* arg,DestroyTask d
 }
 
 /**
- * @brief Check if sink cache is empty
- * @param mediaType type of track
- * @retval true if sink cache is empty
+ *   @brief Check sink cache empty
  */
 bool PrivateInstanceAAMP::IsSinkCacheEmpty(MediaType mediaType)
 {
@@ -7571,7 +7369,7 @@ void PrivateInstanceAAMP::ResetEOSSignalledFlag()
 }
 
 /**
- * @brief Notification on completing fragment caching
+ * @brief Notify fragment caching complete
  */
 void PrivateInstanceAAMP::NotifyFragmentCachingComplete()
 {
@@ -7593,7 +7391,6 @@ void PrivateInstanceAAMP::NotifyFragmentCachingComplete()
 
 /**
  * @brief Send tuned event to listeners if required
- * @retval true if event is scheduled, false if discarded
  */
 bool PrivateInstanceAAMP::SendTunedEvent(bool isSynchronous)
 {
@@ -7617,8 +7414,6 @@ bool PrivateInstanceAAMP::SendTunedEvent(bool isSynchronous)
 
 /**
  *   @brief Send VideoEndEvent
- *
- *   @return success or failure
  */
 bool PrivateInstanceAAMP::SendVideoEndEvent()
 {
@@ -7681,13 +7476,8 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 	return ret;
 }
 
-/**   @brief updates  profile Resolution to VideoStat object
- *
- *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
- *   @param[in]  bitrate - bitrate ( bits per sec )
- *   @param[in]  width - Frame width
- *   @param[in]  Height - Frame Height
- *   @return void
+/**
+ * @brief updates profile Resolution to VideoStat object
  */
 void PrivateInstanceAAMP::UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height)
 {
@@ -7707,13 +7497,7 @@ void PrivateInstanceAAMP::UpdateVideoEndProfileResolution(MediaType mediaType, l
 }
 
 /**
- *   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
- *
- *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
- *   @param[in]  bitrate - bitrate ( bits per sec )
- *   @param[in]  curlOrHTTPErrorCode - download curl or http error
- *   @param[in]  strUrl :  URL in case of faulures
- *   @return void
+ *  @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
  */
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, double curlDownloadTime)
 {
@@ -7723,8 +7507,6 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 /**
  *   @brief updates time shift buffer status
  *
- *   @param[in]  btsbAvailable - true if TSB supported
- *   @return void
  */
 void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 {
@@ -7740,10 +7522,7 @@ void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 }   
 
 /**
- *   @brief updates profile capped status
- *
- *   @param[in] void
- *   @return  void
+ * @brief updates profile capped status
  */
 void PrivateInstanceAAMP::UpdateProfileCappedStatus(void)
 {
@@ -7758,14 +7537,7 @@ void PrivateInstanceAAMP::UpdateProfileCappedStatus(void)
 }
 
 /**
- *   @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
- *
- *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
- *   @param[in]  bitrate - bitrate ( bits per sec )
- *   @param[in]  curlOrHTTPErrorCode - download curl or http error
- *   @param[in]  strUrl :  URL in case of faulures
- *   @param[in] manifestData : Manifest info to be updated to partner apps
- *   @return void
+ * @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
  */
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, double curlDownloadTime, bool keyChanged, bool isEncrypted, ManifestData * manifestData)
 {
@@ -7951,10 +7723,7 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 }
 
 /**
- *   @brief updates abr metrics to VideoStat object,
- *
- *   @param[in]  AAMPAbrInfo - abr info
- *   @return void
+ * @brief updates abr metrics to VideoStat object,
  */
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
 {
@@ -7988,14 +7757,7 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
 }
 
 /**
- *   @brief updates download metrics to VideoEnd object,
- *
- *   @param[in]  mediaType - MediaType ( Manifest/Audio/Video etc )
- *   @param[in]  bitrate - bitrate
- *   @param[in]  curlOrHTTPErrorCode - download curl or http error
- *   @param[in]  strUrl :  URL in case of faulures
- *   @param[in] manifestData : Manifest info to be updated to partner apps
- *   @return void
+ * @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
  */
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double curlDownloadTime, ManifestData * manifestData )
 {
@@ -8004,8 +7766,6 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 
 /**
  *   @brief Check if fragment caching is required
- *
- *   @return true if required or ongoing, false if not needed
  */
 bool PrivateInstanceAAMP::IsFragmentCachingRequired()
 {
@@ -8014,9 +7774,7 @@ bool PrivateInstanceAAMP::IsFragmentCachingRequired()
 }
 
 /**
- * @brief Get video display's width and height
- * @param width
- * @param height
+ * @brief Get player video size
  */
 void PrivateInstanceAAMP::GetPlayerVideoSize(int &width, int &height)
 {
@@ -8024,8 +7782,7 @@ void PrivateInstanceAAMP::GetPlayerVideoSize(int &width, int &height)
 }
 
 /**
- * @brief Set an idle callback to dispatched state
- * @param id Idle task Id
+ * @brief Set an idle callback as event dispatched state
  */
 void PrivateInstanceAAMP::SetCallbackAsDispatched(guint id)
 {
@@ -8045,8 +7802,7 @@ void PrivateInstanceAAMP::SetCallbackAsDispatched(guint id)
 }
 
 /**
- * @brief Set an idle callback to pending state
- * @param id Idle task Id
+ *   @brief Set an idle callback as event pending state
  */
 void PrivateInstanceAAMP::SetCallbackAsPending(guint id)
 {
@@ -8066,11 +7822,7 @@ void PrivateInstanceAAMP::SetCallbackAsPending(guint id)
 }
 
 /**
- *   @brief Add/Remove a custom HTTP header and value.
- *
- *   @param  headerName - Name of custom HTTP header
- *   @param  headerValue - Value to be pased along with HTTP header.
- *   @param  isLicenseHeader - true, if header is to be used for a license request.
+ * @brief Add/Remove a custom HTTP header and value.
  */
 void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vector<std::string> headerValue, bool isLicenseHeader)
 {
@@ -8105,8 +7857,7 @@ void PrivateInstanceAAMP::AddCustomHTTPHeader(std::string headerName, std::vecto
 }
 
 /**
- *   @brief UpdateLiveOffset live offset [Sec]
- *
+ *  @brief UpdateLiveOffset live offset [Sec]
  */
 void PrivateInstanceAAMP::UpdateLiveOffset()
 {
@@ -8133,6 +7884,9 @@ void PrivateInstanceAAMP::SendStalledErrorEvent()
 	SendErrorEvent(AAMP_TUNE_PLAYBACK_STALLED, description);
 }
 
+/**
+ * @brief Sets up the timestamp sync for subtitle renderer
+ */
 void PrivateInstanceAAMP::UpdateSubtitleTimestamp()
 {
 	if (mpStreamAbstractionAAMP)
@@ -8142,7 +7896,7 @@ void PrivateInstanceAAMP::UpdateSubtitleTimestamp()
 }
 
 /**
- * @brief Set subtitle pause state
+ * @brief pause/un-pause subtitles
  * 
  */
 void PrivateInstanceAAMP::PauseSubtitleParser(bool pause)
@@ -8154,7 +7908,7 @@ void PrivateInstanceAAMP::PauseSubtitleParser(bool pause)
 }
 
 /**
- * @brief Notifiy first buffer is processed
+ * @brief Notify if first buffer processed by gstreamer
  */
 void PrivateInstanceAAMP::NotifyFirstBufferProcessed()
 {
@@ -8203,14 +7957,7 @@ void PrivateInstanceAAMP::ResetTrickStartUTCTime()
 }
 
 /**
- * @brief Get current stream type
- * @retval 10 - HLS/Clear
- * @retval 11 - HLS/Consec
- * @retval 12 - HLS/Access
- * @retval 13 - HLS/Vanilla AES
- * @retval 20 - DASH/Clear
- * @retval 21 - DASH/WV
- * @retval 22 - DASH/PR
+ * @brief Get stream type
  */
 int PrivateInstanceAAMP::getStreamType()
 {
@@ -8255,12 +8002,10 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatTypeEnum() const
 }
 
 #if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
+
 /**
- * @brief GetMoneyTraceString - Extracts / Generates MoneyTrace string
- * @param[out] customHeader - Generated moneytrace is stored
- *
- * @retval None
-*/
+ * @brief Extracts / Generates MoneyTrace string
+ */
 void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader) const
 {
 	char moneytracebuf[512];
@@ -8312,7 +8057,7 @@ void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader) const
 #endif /* USE_SECCLIENT || USE_SECMANAGER */
 
 /**
- * @brief Send tuned event if configured to sent after decryption
+ * @brief Notify the decryption completion of the fist fragment.
  */
 void PrivateInstanceAAMP::NotifyFirstFragmentDecrypted()
 {
@@ -8330,9 +8075,7 @@ void PrivateInstanceAAMP::NotifyFirstFragmentDecrypted()
 }
 
 /**
- *   @brief  Get PTS of first sample.
- *
- *   @return PTS of first sample
+ * @brief  Get PTS of first sample.
  */
 double PrivateInstanceAAMP::GetFirstPTS()
 {
@@ -8341,9 +8084,7 @@ double PrivateInstanceAAMP::GetFirstPTS()
 }
 
 /**
- *   @brief Check if Live Adjust is required for current content. ( For "vod/ivod/ip-dvr/cdvr/eas", Live Adjust is not required ).
- *
- *   @return False if the content is either vod/ivod/cdvr/ip-dvr/eas
+ * @brief Check if Live Adjust is required for current content. ( For "vod/ivod/ip-dvr/cdvr/eas", Live Adjust is not required ).
  */
 bool PrivateInstanceAAMP::IsLiveAdjustRequired()
 {
@@ -8371,8 +8112,7 @@ bool PrivateInstanceAAMP::IsLiveAdjustRequired()
 }
 
 /**
- *@brief Generate http header response event
- *
+ * @brief Generate http header response event
  */
 void PrivateInstanceAAMP::SendHTTPHeaderResponse()
 {
@@ -8384,7 +8124,7 @@ void PrivateInstanceAAMP::SendHTTPHeaderResponse()
 }
 
 /**
- *   @brief  Generate media metadata event based on processed attribute values.
+ * @brief  Generate media metadata event based on parsed attribute values.
  *
  */
 void PrivateInstanceAAMP::SendMediaMetadataEvent(void)
@@ -8449,9 +8189,7 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(void)
 }
 
 /**
- *   @brief  Generate supported speeds changed event based on arg passed.
- *
- *   @param[in] isIframeTrackPresent - indicates if iframe tracks are available in asset
+ * @brief  Generate supported speeds changed event based on arg passed.
  */
 void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPresent)
 {
@@ -8479,9 +8217,7 @@ void PrivateInstanceAAMP::SendSupportedSpeedsChangedEvent(bool isIframeTrackPres
 }
 
 /**
- *   @brief  Generate Blocked  event based on args passed.
- *
- *   @param[in] reason          - Blocked Reason
+ * @brief Generate Blocked event based on args passed.
  */
 void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 {
@@ -8499,11 +8235,7 @@ void PrivateInstanceAAMP::SendBlockedEvent(const std::string & reason)
 }
 
 /**
- *   @brief  Generate WatermarkSessionUpdate event based on args passed.
- *
- *   @param[in] sessionHandle - Handle used to track and manage session
- *   @param[in] status - Status of the watermark session
- *   @param[in] system - Watermarking protection provider
+ * @brief  Generate WatermarkSessionUpdate event based on args passed.
  */
 void PrivateInstanceAAMP::SendWatermarkSessionUpdateEvent(uint32_t sessionHandle, uint32_t status, const std::string &system)
 {
@@ -8512,9 +8244,7 @@ void PrivateInstanceAAMP::SendWatermarkSessionUpdateEvent(uint32_t sessionHandle
 }
 
 /**
- *   @brief To check if tune operation completed
- *
- *   @retval true if completed
+ * @brief  Check if tune completed or not.
  */
 bool PrivateInstanceAAMP::IsTuneCompleted()
 {
@@ -8522,9 +8252,7 @@ bool PrivateInstanceAAMP::IsTuneCompleted()
 }
 
 /**
- *   @brief Get Preferred DRM.
- *
- *   @return Preferred DRM type
+ * @brief Get Preferred DRM.
  */
 DRMSystems PrivateInstanceAAMP::GetPreferredDRM()
 {
@@ -8534,11 +8262,7 @@ DRMSystems PrivateInstanceAAMP::GetPreferredDRM()
 }
 
 /**
- *   @brief Notification from the stream abstraction that a new SCTE35 event is found.
- *
- *   @param[in] Adbreak's unique identifier.
- *   @param[in] Break start time in milli seconds.
- *   @param[in] EventBreakInfo object.
+ * @brief Notification from the stream abstraction that a new SCTE35 event is found.
  */
 void PrivateInstanceAAMP::FoundEventBreak(const std::string &adBreakId, uint64_t startMS, EventBreakInfo brInfo)
 {
@@ -8553,11 +8277,7 @@ void PrivateInstanceAAMP::FoundEventBreak(const std::string &adBreakId, uint64_t
 }
 
 /**
- *   @brief Setting the alternate contents' (Ads/blackouts) URLs
- *
- *   @param[in] Adbreak's unique identifier.
- *   @param[in] Individual Ad's id
- *   @param[in] Ad URL
+ *  @brief Setting the alternate contents' (Ads/blackouts) URL
  */
 void PrivateInstanceAAMP::SetAlternateContents(const std::string &adBreakId, const std::string &adId, const std::string &url)
 {
@@ -8573,12 +8293,7 @@ void PrivateInstanceAAMP::SetAlternateContents(const std::string &adBreakId, con
 }
 
 /**
- *   @brief Send status of Ad manifest downloading & parsing
- *
- *   @param[in] Ad's unique identifier.
- *   @param[in] Manifest status (success/Failure)
- *   @param[in] Ad playback start time in milliseconds
- *   @param[in] Ad's duration in milliseconds
+ * @brief Send status of Ad manifest downloading & parsing
  */
 void PrivateInstanceAAMP::SendAdResolvedEvent(const std::string &adId, bool status, uint64_t startMS, uint64_t durationMs)
 {
@@ -8591,7 +8306,7 @@ void PrivateInstanceAAMP::SendAdResolvedEvent(const std::string &adId, bool stat
 }
 
 /**
- *   @brief Deliver pending Ad events to JSPP
+ * @brief Deliver all pending Ad events to JSPP
  */
 void PrivateInstanceAAMP::DeliverAdEvents(bool immediate)
 {
@@ -8626,12 +8341,7 @@ void PrivateInstanceAAMP::DeliverAdEvents(bool immediate)
 }
 
 /**
- *   @brief Send Ad reservation event
- *
- *   @param[in] type - Event type
- *   @param[in] adBreakId - Reservation Id
- *   @param[in] position - Event position in terms of channel's timeline
- *   @param[in] immediate - Send it immediate or not
+ * @brief Send Ad reservation event
  */
 void PrivateInstanceAAMP::SendAdReservationEvent(AAMPEventType type, const std::string &adBreakId, uint64_t position, bool immediate)
 {
@@ -8656,15 +8366,7 @@ void PrivateInstanceAAMP::SendAdReservationEvent(AAMPEventType type, const std::
 }
 
 /**
- *   @brief Send Ad placement event
- *
- *   @param[in] type - Event type
- *   @param[in] adId - Placement Id
- *   @param[in] position - Event position wrt to the corresponding adbreak start
- *   @param[in] adOffset - Offset point of the current ad
- *   @param[in] adDuration - Duration of the current ad
- *   @param[in] immediate - Send it immediate or not
- *   @param[in] error_code - Error code (in case of placment error)
+ * @brief Send Ad placement event
  */
 void PrivateInstanceAAMP::SendAdPlacementEvent(AAMPEventType type, const std::string &adId, uint32_t position, uint32_t adOffset, uint32_t adDuration, bool immediate, long error_code)
 {
@@ -8689,9 +8391,7 @@ void PrivateInstanceAAMP::SendAdPlacementEvent(AAMPEventType type, const std::st
 }
 
 /**
- *   @brief Get stream type
- *
- *   @retval stream type as string
+ *  @brief Get stream type as printable format
  */
 std::string PrivateInstanceAAMP::getStreamTypeString()
 {
@@ -8710,10 +8410,7 @@ std::string PrivateInstanceAAMP::getStreamTypeString()
 }
 
 /**
- *   @brief Get the profile bucket for a media type
- *
- *   @param[in] fileType - media type
- *   @retval profile bucket for the media type
+ * @brief Convert media file type to profiler bucket type
  */
 ProfilerBucketType PrivateInstanceAAMP::mediaType2Bucket(MediaType fileType)
 {
@@ -8767,8 +8464,7 @@ ProfilerBucketType PrivateInstanceAAMP::mediaType2Bucket(MediaType fileType)
 }
 
 /**
- *   @brief Sets Recorded URL from Manifest received form XRE.
- *   @param[in] isrecordedUrl - flag to check for recordedurl in Manifest
+ * @brief Sets Recorded URL from Manifest received form XRE
  */
 void PrivateInstanceAAMP::SetTunedManifestUrl(bool isrecordedUrl)
 {
@@ -8783,8 +8479,7 @@ void PrivateInstanceAAMP::SetTunedManifestUrl(bool isrecordedUrl)
 }
 
 /**
- *   @brief Gets Recorded URL from Manifest received form XRE.
- *   @param[out] manifestUrl - for VOD and recordedUrl for FOG enabled
+ * @brief Gets Recorded URL from Manifest received form XRE.
  */
 const char* PrivateInstanceAAMP::GetTunedManifestUrl()
 {
@@ -8793,9 +8488,7 @@ const char* PrivateInstanceAAMP::GetTunedManifestUrl()
 }
 
 /**
- *   @brief Get network proxy
- *
- *   @retval network proxy
+ *  @brief To get the network proxy
  */
 std::string PrivateInstanceAAMP::GetNetworkProxy()
 {
@@ -8805,9 +8498,7 @@ std::string PrivateInstanceAAMP::GetNetworkProxy()
 }
 
 /**
- *   @brief Get License proxy
- *
- *   @retval License proxy
+ * @brief To get the proxy for license request
  */
 std::string PrivateInstanceAAMP::GetLicenseReqProxy()
 {
@@ -8818,9 +8509,7 @@ std::string PrivateInstanceAAMP::GetLicenseReqProxy()
 
 
 /**
- *   @brief Signal trick mode discontinuity to stream sink
- *
- *   @return void
+ * @brief Signal trick mode discontinuity to stream sink
  */
 void PrivateInstanceAAMP::SignalTrickModeDiscontinuity()
 {
@@ -8832,8 +8521,6 @@ void PrivateInstanceAAMP::SignalTrickModeDiscontinuity()
 
 /**
  *   @brief Check if current stream is muxed
- *
- *   @return true if current stream is muxed
  */
 bool PrivateInstanceAAMP::IsMuxedStream()
 {
@@ -8848,9 +8535,6 @@ bool PrivateInstanceAAMP::IsMuxedStream()
 /**
  * @brief Stop injection for a track.
  * Called from StopInjection
- *
- * @param[in] Media type
- * @return void
  */
 void PrivateInstanceAAMP::StopTrackInjection(MediaType type)
 {
@@ -8873,9 +8557,6 @@ void PrivateInstanceAAMP::StopTrackInjection(MediaType type)
 /**
  * @brief Resume injection for a track.
  * Called from StartInjection
- *
- * @param[in] Media type
- * @return void
  */
 void PrivateInstanceAAMP::ResumeTrackInjection(MediaType type)
 {
@@ -8896,10 +8577,7 @@ void PrivateInstanceAAMP::ResumeTrackInjection(MediaType type)
 }
 
 /**
- *   @brief Receives first video PTS of the current playback
- *
- *   @param[in]  pts - pts value
- *   @param[in]  timeScale - time scale (default 90000)
+ * @brief Receives first video PTS of the current playback
  */
 void PrivateInstanceAAMP::NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale)
 {
@@ -8910,9 +8588,7 @@ void PrivateInstanceAAMP::NotifyFirstVideoPTS(unsigned long long pts, unsigned l
 }
 
 /**
- *   @brief Notifies base PTS of the HLS video playback
- *
- *   @param[in]  pts - base pts value
+ * @brief Notifies base PTS of the HLS video playback
  */
 void PrivateInstanceAAMP::NotifyVideoBasePTS(unsigned long long basepts, unsigned long timeScale)
 {
@@ -8921,9 +8597,7 @@ void PrivateInstanceAAMP::NotifyVideoBasePTS(unsigned long long basepts, unsigne
 }
 
 /**
- *   @brief To send webvtt cue as an event
- *
- *   @param[in]  cue - vtt cue object
+ * @brief To send webvtt cue as an event
  */
 void PrivateInstanceAAMP::SendVTTCueDataAsEvent(VTTCue* cue)
 {
@@ -8936,9 +8610,7 @@ void PrivateInstanceAAMP::SendVTTCueDataAsEvent(VTTCue* cue)
 }
 
 /**
- *   @brief To check if subtitles are enabled
- *
- *   @return bool - true if subtitles are enabled
+ * @brief To check if subtitles are enabled
  */
 bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 {
@@ -8948,9 +8620,7 @@ bool PrivateInstanceAAMP::IsSubtitleEnabled(void)
 }
 
 /**
- *   @brief To check if JavaScript cue listeners are registered
- *
- *   @return bool - true if listeners are registered
+ * @brief To check if JavaScript cue listeners are registered
  */
 bool PrivateInstanceAAMP::WebVTTCueListenersRegistered(void)
 {
@@ -8958,9 +8628,7 @@ bool PrivateInstanceAAMP::WebVTTCueListenersRegistered(void)
 }
 
 /**
- *   @brief To get any custom license HTTP headers that was set by application
- *
- *   @param[out] headers - map of headers
+ * @brief To get any custom license HTTP headers that was set by application
  */
 void PrivateInstanceAAMP::GetCustomLicenseHeaders(std::unordered_map<std::string, std::vector<std::string>>& customHeaders)
 {
@@ -8968,10 +8636,7 @@ void PrivateInstanceAAMP::GetCustomLicenseHeaders(std::unordered_map<std::string
 }
 
 /**
- *   @brief Sends an ID3 metadata event.
- *
- *   @param[in] data pointer to ID3 metadata.
- *   @param[in] length length of ID3 metadata.
+ * @brief Sends an ID3 metadata event.
  */
 void PrivateInstanceAAMP::SendId3MetadataEvent(Id3CallbackData* id3Metadata)
 {
@@ -9013,12 +8678,9 @@ void PrivateInstanceAAMP::SendId3MetadataEvent(Id3CallbackData* id3Metadata)
 	mEventManager->SendEvent(e,AAMP_EVENT_ASYNC_MODE);
 	}
 }
+
 /**
- *   @brief Sending a flushing seek to stream sink with given position
- *
- *   @param[in] position - position value to seek to
- *   @param[in] rate - playback rate
- *   @return void
+ * @brief Sending a flushing seek to stream sink with given position
  */
 void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
 {
@@ -9040,9 +8702,7 @@ void PrivateInstanceAAMP::FlushStreamSink(double position, double rate)
 }
 
 /**
- *   @brief PreCachePlaylistDownloadTask Thread function for PreCaching Playlist 
- *
- *   @return void
+ * @brief PreCachePlaylistDownloadTask Thread function for PreCaching Playlist 
  */
 void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 {
@@ -9118,10 +8778,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 }
 
 /**
- *   @brief SetPreCacheDownloadList - Function to assign the PreCaching file list
- *   @param[in] Playlist Download list  
- *
- *   @return void
+ * @brief SetPreCacheDownloadList - Function to assign the PreCaching file list
  */
 void PrivateInstanceAAMP::SetPreCacheDownloadList(PreCacheUrlList &dnldListInput)
 {
@@ -9184,8 +8841,6 @@ std::string PrivateInstanceAAMP::GetPreferredTextProperties()
 
 /**
  *   @brief get the current audio preference set by user
- *
- *   @return json string with preference data
  */
 std::string PrivateInstanceAAMP::GetPreferredAudioProperties()
 {
@@ -9236,9 +8891,7 @@ std::string PrivateInstanceAAMP::GetPreferredAudioProperties()
 }
 
 /**
- *   @brief Get available video tracks.
- *
- *   @return std::string JSON formatted string of available video tracks
+ * @brief Get available video tracks.
  */
 std::string PrivateInstanceAAMP::GetAvailableVideoTracks()
 {
@@ -9302,10 +8955,7 @@ std::string PrivateInstanceAAMP::GetAvailableVideoTracks()
 }
 
 /**
- *   @brief Set birate for video tracks selection.
- *
- *   @param[in] long - bitrate list
- *   @return none
+ * @brief  set birate for video tracks selection
  */
 void PrivateInstanceAAMP::SetVideoTracks(std::vector<long> bitrateList)
 {
@@ -9331,9 +8981,7 @@ void PrivateInstanceAAMP::SetVideoTracks(std::vector<long> bitrateList)
 }
 
 /**
- *   @brief Get available audio tracks.
- *
- *   @return std::string JSON formatted string of available audio tracks
+ * @brief Get available audio tracks.
  */
 std::string PrivateInstanceAAMP::GetAvailableAudioTracks(bool allTrack)
 {
@@ -9437,8 +9085,6 @@ std::string PrivateInstanceAAMP::GetAvailableAudioTracks(bool allTrack)
 
 /**
  *   @brief Get available text tracks.
- *
- *   @return const char* JSON formatted string of available text tracks
  */
 std::string PrivateInstanceAAMP::GetAvailableTextTracks(bool allTrack)
 {
@@ -9544,40 +9190,31 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks(bool allTrack)
 }
 
 /*
- *   @brief Get the video window co-ordinates
- *
- *   @return current video co-ordinates in x,y,w,h format
+ * @brief Get the video window co-ordinates
  */
 std::string PrivateInstanceAAMP::GetVideoRectangle()
 {
 	return mStreamSink->GetVideoRectangle();
 }
 
-/*
- *   @brief Set the application name which has created PlayerInstanceAAMP, for logging purposes
- *
- *   @return void
+/**
+ * @brief Set the application name which has created PlayerInstanceAAMP, for logging purposes
  */
 void PrivateInstanceAAMP::SetAppName(std::string name)
 {
 	mAppName = name;
 }
 
-
-/*
+/**
  *   @brief Get the application name
- *
- *   @return string application name
  */
 std::string PrivateInstanceAAMP::GetAppName()
 {
 	return mAppName;
 }
 
-/*
- *   @brief Set DRM message event
- *
- *   @return payload message payload
+/**
+ * @brief DRM individualization callback
  */
 void PrivateInstanceAAMP::individualization(const std::string& payload)
 {
@@ -9586,9 +9223,7 @@ void PrivateInstanceAAMP::individualization(const std::string& payload)
 }
 
 /**
- *   @brief Get current initial buffer duration in seconds
- *
- *   @return void
+ * @brief Get current initial buffer duration in seconds
  */
 int PrivateInstanceAAMP::GetInitialBufferDuration()
 {
@@ -9599,8 +9234,6 @@ int PrivateInstanceAAMP::GetInitialBufferDuration()
 /**
  *   @brief Check if First Video Frame Displayed Notification
  *          is required.
- *
- *   @return bool - true if required
  */
 bool PrivateInstanceAAMP::IsFirstVideoFrameDisplayedRequired()
 {
@@ -9609,8 +9242,6 @@ bool PrivateInstanceAAMP::IsFirstVideoFrameDisplayedRequired()
 
 /**
  *   @brief Notify First Video Frame was displayed
- *
- *   @return void
  */
 void PrivateInstanceAAMP::NotifyFirstVideoFrameDisplayed()
 {
@@ -9665,9 +9296,7 @@ void PrivateInstanceAAMP::NotifyFirstVideoFrameDisplayed()
 }
 
 /**
- *   @brief Set eSTATE_BUFFERING if required
- *
- *   @return bool - true if has been set
+ * @brief Set eSTATE_BUFFERING if required
  */
 bool PrivateInstanceAAMP::SetStateBufferingIfRequired()
 {
@@ -9699,11 +9328,7 @@ bool PrivateInstanceAAMP::SetStateBufferingIfRequired()
 }
 
 /**
- * @brief Check if track can inject data into GStreamer.
- * Called from MonitorBufferHealth
- *
- * @param[in] Media type
- * @return bool true if track can inject data, false otherwise
+ * @brief Check to media track downloads are enabled
  */
 bool PrivateInstanceAAMP::TrackDownloadsAreEnabled(MediaType type)
 {
@@ -9725,10 +9350,6 @@ bool PrivateInstanceAAMP::TrackDownloadsAreEnabled(MediaType type)
 
 /**
  * @brief Stop buffering in AAMP and un-pause pipeline.
- * Called from MonitorBufferHealth
- *
- * @param[in] forceStop - stop buffering forcefully
- * @return void
  */
 void PrivateInstanceAAMP::StopBuffering(bool forceStop)
 {
@@ -9737,9 +9358,6 @@ void PrivateInstanceAAMP::StopBuffering(bool forceStop)
 
 /**
  * @brief Get license server url for a drm type
- *
- * @param[in] type DRM type
- * @return license server url
  */
 std::string PrivateInstanceAAMP::GetLicenseServerUrlForDrm(DRMSystems type)
 {
@@ -9765,9 +9383,7 @@ std::string PrivateInstanceAAMP::GetLicenseServerUrlForDrm(DRMSystems type)
 }
 
 /**
- *   @brief Get current audio track index
- *
- *   @return int - index of current audio track in available track list
+ * @brief Get current audio track index
  */
 int PrivateInstanceAAMP::GetAudioTrack()
 {
@@ -9782,9 +9398,7 @@ int PrivateInstanceAAMP::GetAudioTrack()
 }
 
 /**
- *   @brief Get available audio tracks.
- *
- *   @return std::string JSON formatted string of available audio tracks
+ * @brief Get current audio track index
  */
 std::string PrivateInstanceAAMP::GetAudioTrackInfo()
 {
@@ -9883,6 +9497,9 @@ std::string PrivateInstanceAAMP::GetAudioTrackInfo()
 	return track;
 }
 
+/**
+ * @brief Get current audio track index
+ */
 std::string PrivateInstanceAAMP::GetTextTrackInfo()
 {
 	std::string track;
@@ -9965,10 +9582,7 @@ std::string PrivateInstanceAAMP::GetTextTrackInfo()
 #define MUTE_SUBTITLES_TRACKID (-1)
 
 /**
- *   @brief Set text track
- *
- *   @param[in] trackId index of text track in available track list
- *   @return void
+ * @brief Set text track
  */
 void PrivateInstanceAAMP::SetTextTrack(int trackId)
 {
@@ -10046,13 +9660,11 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 	}
 }
 
-/**
- *   @brief Switch the subtitle track following a change to the 
- * 			preferredTextTrack
- *
- *   @return void
- */
 
+/**
+ * @brief Switch the subtitle track following a change to the 
+ *                      preferredTextTrack
+ */
 void PrivateInstanceAAMP::RefreshSubtitles()
 {
 	if (mpStreamAbstractionAAMP)
@@ -10062,9 +9674,7 @@ void PrivateInstanceAAMP::RefreshSubtitles()
 }
 
 /**
- *   @brief Get current text track index
- *
- *   @return int - index of current text track in available track list
+ * @brief Get current text track index
  */
 int PrivateInstanceAAMP::GetTextTrack()
 {
@@ -10096,10 +9706,7 @@ int PrivateInstanceAAMP::GetTextTrack()
 }
 
 /**
- *   @brief Set CC visibility on/off
- *
- *   @param[in] enabled true for CC on, false otherwise
- *   @return void
+ * @brief Set CC visibility on/off
  */
 void PrivateInstanceAAMP::SetCCStatus(bool enabled)
 {
@@ -10116,9 +9723,7 @@ void PrivateInstanceAAMP::SetCCStatus(bool enabled)
 }
 
 /**
- *   @brief Get CC visibility on/off
- *
- *   @return bool-true/false(CC- ON/OFF)
+ * @brief Get CC visibility on/off
  */
 bool PrivateInstanceAAMP::GetCCStatus(void)
 {
@@ -10126,9 +9731,7 @@ bool PrivateInstanceAAMP::GetCCStatus(void)
 }
 
 /**
- *   @brief Function to notify available audio tracks changed
- *
- *   @return void
+ * @brief Function to notify available audio tracks changed
  */
 void PrivateInstanceAAMP::NotifyAudioTracksChanged()
 {
@@ -10136,9 +9739,7 @@ void PrivateInstanceAAMP::NotifyAudioTracksChanged()
 }
 
 /**
- *   @brief Function to notify available text tracks changed
- *
- *   @return void
+ * @brief Function to notify available text tracks changed
  */
 void PrivateInstanceAAMP::NotifyTextTracksChanged()
 {
@@ -10146,10 +9747,8 @@ void PrivateInstanceAAMP::NotifyTextTracksChanged()
 }
 
 /**
- *   @brief Set style options for text track rendering
+ * @brief Set style options for text track rendering
  *
- *   @param[in] options - JSON formatted style options
- *   @return void
  */
 void PrivateInstanceAAMP::SetTextStyle(const std::string &options)
 {
@@ -10161,9 +9760,7 @@ void PrivateInstanceAAMP::SetTextStyle(const std::string &options)
 }
 
 /**
- *   @brief Get style options for text track rendering
- *
- *   @return std::string - JSON formatted style options
+ * @brief Get style options for text track rendering
  */
 std::string PrivateInstanceAAMP::GetTextStyle()
 {
@@ -10177,9 +9774,7 @@ std::string PrivateInstanceAAMP::GetTextStyle()
 }
 
 /**
- *   @brief Check if any active PrivateInstanceAAMP available
- *
- *   @return bool true if available
+ * @brief Check if any active PrivateInstanceAAMP available
  */
 bool PrivateInstanceAAMP::IsActiveInstancePresent()
 {
@@ -10187,9 +9782,7 @@ bool PrivateInstanceAAMP::IsActiveInstancePresent()
 }
 
 /**
- *   @brief Set discontinuity ignored flag for given track
- *
- *   @return void
+ *  @brief Set discontinuity ignored flag for given track
  */
 void PrivateInstanceAAMP::SetTrackDiscontinuityIgnoredStatus(MediaType track)
 {
@@ -10197,9 +9790,7 @@ void PrivateInstanceAAMP::SetTrackDiscontinuityIgnoredStatus(MediaType track)
 }
 
 /**
- *   @brief Check whether the given track discontinuity ignored earlier.
- *
- *   @return true - if the discontinuity already ignored.
+ *  @brief Check whether the given track discontinuity ignored earlier.
  */
 bool PrivateInstanceAAMP::IsDiscontinuityIgnoredForOtherTrack(MediaType track)
 {
@@ -10207,9 +9798,7 @@ bool PrivateInstanceAAMP::IsDiscontinuityIgnoredForOtherTrack(MediaType track)
 }
 
 /**
- *   @brief Reset discontinuity ignored flag for audio and video tracks
- *
- *   @return void
+ *  @brief Reset discontinuity ignored flag for audio and video tracks
  */
 void PrivateInstanceAAMP::ResetTrackDiscontinuityIgnoredStatus(void)
 {
@@ -10218,12 +9807,7 @@ void PrivateInstanceAAMP::ResetTrackDiscontinuityIgnoredStatus(void)
 }
 
 /**
- *   @brief Set stream format for audio/video tracks
- *
- *   @param[in] videoFormat - video stream format
- *   @param[in] audioFormat - audio stream format
- *   @param[in] auxFormat - aux stream format
- *   @return void
+ * @brief Set stream format for audio/video tracks
  */
 void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat)
 {
@@ -10272,13 +9856,8 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 }
 
 /**
-*   @brief Disable Content Restrictions - unlock
-*   @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
-*   @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
-*   @param[in] eventChange - disable restriction handling till next program event boundary
-*
-*   @return void
-*/
+ *  @brief Disable Content Restrictions - unlock
+ */
 void PrivateInstanceAAMP::DisableContentRestrictions(long grace, long time, bool eventChange)
 {
 	AcquireStreamLock();
@@ -10296,9 +9875,8 @@ void PrivateInstanceAAMP::DisableContentRestrictions(long grace, long time, bool
 }
 
 /**
-*   @brief Enable Content Restrictions - lock
-*   @return void
-*/
+ *  @brief Enable Content Restrictions - lock
+ */
 void PrivateInstanceAAMP::EnableContentRestrictions()
 {
 	AcquireStreamLock();
@@ -10311,11 +9889,7 @@ void PrivateInstanceAAMP::EnableContentRestrictions()
 
 
 /**
- *   @brief Add async task to scheduler
- *
- *   @param[in] task - Task
- *   @param[in] arg - Data
- *   @return int - task id
+ *  @brief Add async task to scheduler
  */
 int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg, std::string taskName)
 {
@@ -10336,10 +9910,7 @@ int PrivateInstanceAAMP::ScheduleAsyncTask(IdleTask task, void *arg, std::string
 }
 
 /**
- *   @brief Remove async task scheduled earlier
- *
- *   @param[in] id - task id
- *   @return bool - true if removed, false otherwise
+ * @brief Remove async task scheduled earlier
  */
 bool PrivateInstanceAAMP::RemoveAsyncTask(int taskId)
 {
@@ -10357,9 +9928,7 @@ bool PrivateInstanceAAMP::RemoveAsyncTask(int taskId)
 
 
 /**
- *	 @brief acquire streamsink lock
- *
- *	 @return void
+ *  @brief acquire streamsink lock
  */
 void PrivateInstanceAAMP::AcquireStreamLock()
 {
@@ -10367,9 +9936,8 @@ void PrivateInstanceAAMP::AcquireStreamLock()
 }
 
 /**
- *   @brief try to acquire streamsink lock
+ * @brief try to acquire streamsink lock
  *
- *    @return True if it could I acquire it seccessfully else false
  */
 bool PrivateInstanceAAMP::TryStreamLock()
 {
@@ -10377,9 +9945,8 @@ bool PrivateInstanceAAMP::TryStreamLock()
 }
 
 /**
- *	 @brief release streamsink lock
+ * @brief release streamsink lock
  *
- *	 @return void
  */
 void PrivateInstanceAAMP::ReleaseStreamLock()
 {
@@ -10387,9 +9954,7 @@ void PrivateInstanceAAMP::ReleaseStreamLock()
 }
 
 /**
- *   @brief To check if auxiliary audio is enabled
- *
- *   @return bool - true if aux audio is enabled
+ * @brief To check if auxiliary audio is enabled
  */
 bool PrivateInstanceAAMP::IsAuxiliaryAudioEnabled(void)
 {
@@ -10397,9 +9962,8 @@ bool PrivateInstanceAAMP::IsAuxiliaryAudioEnabled(void)
 }
 
 /**
- *   @brief Check if discontinuity processed in all tracks
+ * @brief Check if discontinuity processed in all tracks
  *
- *   @return true if discontinuity processed in all track
  */
 bool PrivateInstanceAAMP::DiscontinuitySeenInAllTracks()
 {
@@ -10414,8 +9978,6 @@ bool PrivateInstanceAAMP::DiscontinuitySeenInAllTracks()
 
 /**
  *   @brief Check if discontinuity processed in any track
- *
- *   @return true if discontinuity processed in any track
  */
 bool PrivateInstanceAAMP::DiscontinuitySeenInAnyTracks()
 {
@@ -10429,9 +9991,7 @@ bool PrivateInstanceAAMP::DiscontinuitySeenInAnyTracks()
 }
 
 /**
- *   @brief Reset discontinuity flag for all tracks
- *
- *   @return void
+ * @brief Reset discontinuity flag for all tracks
  */
 void PrivateInstanceAAMP::ResetDiscontinuityInTracks()
 {
@@ -10441,13 +10001,7 @@ void PrivateInstanceAAMP::ResetDiscontinuityInTracks()
 }
 
 /**
- *   @brief set preferred Audio Language properties like language, rendition, type and codec
- *   @param - languageList
- *   @param - preferredRendition
- *   @param - preferredType
- *   @param - codecList
- *   @param - labelList
- *   @return void
+ *  @brief set preferred Audio Language properties like language, rendition, type and codec
  */
 void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition, const char *preferredType, const char *codecList, const char *labelList )
 {
@@ -10781,11 +10335,8 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 	}
 }
 
-/*
- *   @brief Set Preferred Text Language
- *
- *   @param[in] param - Preferred Text properties as json or single langauge
- *   @return void
+/**
+ *  @brief Set Preferred Text Language
  */
 void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 {
@@ -10962,6 +10513,10 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 }
 
 #define WV_KID_WORKAROUND "SkyStoreDE="
+
+/**
+ * @brief get the SkyDE Store workaround
+ */
 bool PrivateInstanceAAMP::IsWideVineKIDWorkaround(std::string url)
 {
 	bool enable = false;
@@ -10977,13 +10532,10 @@ bool PrivateInstanceAAMP::IsWideVineKIDWorkaround(std::string url)
 }
 
 //#define ENABLE_DUMP 1 //uncomment this to enable dumping of PSSH Data
+
 /**
  * @brief Replace KeyID from PsshData
- * @param initialization data input 
- * @param initialization data input size
- * @param [out] output data size
- * @retval Output data pointer 
- */
+ */ 
 unsigned char* PrivateInstanceAAMP::ReplaceKeyIDPsshData(const unsigned char *InputData, const size_t InputDataLength,  size_t & OutputDataLength)
 {
 	unsigned char *OutpuData = NULL;
@@ -11046,10 +10598,6 @@ unsigned char* PrivateInstanceAAMP::ReplaceKeyIDPsshData(const unsigned char *In
 
 /**
  * @brief Check if segment starts with an ID3 section
- *
- * @param[in] data pointer to segment buffer
- * @param[in] length length of segment buffer
- * @retval true if segment has an ID3 section
  */
 bool PrivateInstanceAAMP::hasId3Header(const uint8_t* data, uint32_t length)
 {
@@ -11066,10 +10614,6 @@ bool PrivateInstanceAAMP::hasId3Header(const uint8_t* data, uint32_t length)
 
 /**
  * @brief Process the ID3 metadata from segment
- *
- * @param[in] segment - fragment
- * @param[in] size - fragment size
- * @param[in] type - MediaType
  */
 void PrivateInstanceAAMP::ProcessID3Metadata(char *segment, size_t size, MediaType type, uint64_t timeStampOffset)
 {
@@ -11109,17 +10653,6 @@ void PrivateInstanceAAMP::ProcessID3Metadata(char *segment, size_t size, MediaTy
 
 /**
  * @brief Report ID3 metadata events
- *
- * @param[in] ptr - ID3 metadata pointer
- * @param[in] len - Metadata length
- * @param[in] schemeIdURI - schemeID URI
- * @param[in] value - value from id3 metadata
- * @param[in] presTime - presentationTime
- * @param[in] id3ID - id from id3 metadata
- * @param[in] eventDur - event duration
- * @param[in] tScale - timeScale
- * @param[in] tStampOffset - timeStampOffset
- * @return void
  */
 void PrivateInstanceAAMP::ReportID3Metadata(MediaType mediaType, const uint8_t* ptr, uint32_t len, const char* schemeIdURI, const char* id3Value, uint64_t presTime, uint32_t id3ID, uint32_t eventDur, uint32_t tScale, uint64_t tStampOffset)
 {
@@ -11138,8 +10671,7 @@ void PrivateInstanceAAMP::ReportID3Metadata(MediaType mediaType, const uint8_t* 
 
 /**
  * @brief Flush last saved ID3 metadata
- * @return void
- */
+ */ 
 void PrivateInstanceAAMP::FlushLastId3Data(MediaType mediaType)
 {
 	if(lastId3Data[mediaType])
@@ -11151,19 +10683,15 @@ void PrivateInstanceAAMP::FlushLastId3Data(MediaType mediaType)
 }
 
 /**
- *     @brief GetPauseOnFirstVideoFrameDisp
- *     @return bool
+ * @brief GetPauseOnFirstVideoFrameDisplay
  */
 bool PrivateInstanceAAMP::GetPauseOnFirstVideoFrameDisp(void)
 {
     return mPauseOnFirstVideoFrameDisp;
 }
 
-/**
- *   @brief Sets  Low Latency Service Data
- *
- *   @param[in]  AampLLDashServiceData - Low Latency Service Data from MPD
- *   @return void
+/** 
+ * @brief Sets  Low Latency Service Data
  */
 void PrivateInstanceAAMP::SetLLDashServiceData(AampLLDashServiceData &stAampLLDashServiceData)
 {
@@ -11171,9 +10699,7 @@ void PrivateInstanceAAMP::SetLLDashServiceData(AampLLDashServiceData &stAampLLDa
 }
 
 /**
- *   @brief Gets  Low Latency Service Data
- *
- *   @return AampLLDashServiceData*
+ * @brief Gets Low Latency Service Data
  */
 AampLLDashServiceData*  PrivateInstanceAAMP::GetLLDashServiceData(void)
 {
@@ -11181,10 +10707,7 @@ AampLLDashServiceData*  PrivateInstanceAAMP::GetLLDashServiceData(void)
 }
 
 /**
- *   @brief Sets  Low Video TimeScale
- *
- *   @param[in]  uint32_t - vidTimeScale
- *   @return void
+ * @brief Sets Low Video TimeScale
  */
 void PrivateInstanceAAMP::SetVidTimeScale(uint32_t vidTimeScale)
 {
@@ -11192,9 +10715,7 @@ void PrivateInstanceAAMP::SetVidTimeScale(uint32_t vidTimeScale)
 }
 
 /**
- *   @brief Gets  Video TimeScale
- *
- *   @return uint32_t
+ * @brief Gets Video TimeScale
  */
 uint32_t  PrivateInstanceAAMP::GetVidTimeScale(void)
 {
@@ -11202,10 +10723,7 @@ uint32_t  PrivateInstanceAAMP::GetVidTimeScale(void)
 }
 
 /**
- *   @brief Sets  Low Audio TimeScale
- *
- *   @param[in]  uint32_t - vidTimeScale
- *   @return void
+ * @brief Sets Low Audio TimeScale
  */
 void PrivateInstanceAAMP::SetAudTimeScale(uint32_t audTimeScale)
 {
@@ -11213,9 +10731,7 @@ void PrivateInstanceAAMP::SetAudTimeScale(uint32_t audTimeScale)
 }
 
 /**
- *   @brief Gets  Audio TimeScale
- *
- *   @return uint32_t
+ * @brief Gets Audio TimeScale
  */
 uint32_t  PrivateInstanceAAMP::GetAudTimeScale(void)
 {
@@ -11223,10 +10739,7 @@ uint32_t  PrivateInstanceAAMP::GetAudTimeScale(void)
 }
 
 /**
- *   @brief Sets  Speed Cache
- *
- *   @param[in]  struct SpeedCache - Speed Cache
- *   @return void
+ * @brief Sets Speed Cache
  */
 void PrivateInstanceAAMP::SetLLDashSpeedCache(struct SpeedCache &speedCache)
 {
@@ -11234,29 +10747,21 @@ void PrivateInstanceAAMP::SetLLDashSpeedCache(struct SpeedCache &speedCache)
 }
 
 /**
- *   @brief Gets  Speed Cache
- *
- *   @return struct SpeedCache*
+ * @brief Gets Speed Cache
  */
 struct SpeedCache* PrivateInstanceAAMP::GetLLDashSpeedCache()
 {
     return &speedCache;
 }
 
-/**
- *     @brief Get LiveOffset Request flag Status
- *
- *     @return bool
- */
+
 bool PrivateInstanceAAMP::GetLiveOffsetAppRequest()
 {
     return mLiveOffsetAppRequest;
 }
 
 /**
- *     @brief Set LiveOffset Request Status
- *     @param[in]  bool - flag
- *     @return void
+ * @brief set LiveOffset Request flag Status
  */
 void PrivateInstanceAAMP::SetLiveOffsetAppRequest(bool LiveOffsetAppRequest)
 {
@@ -11264,8 +10769,7 @@ void PrivateInstanceAAMP::SetLiveOffsetAppRequest(bool LiveOffsetAppRequest)
 }
 
 /**
- *     @brief Get Low Latency ABR Start Status
- *     @return bool
+ *  @brief Get Low Latency ABR Start Status
  */
 bool PrivateInstanceAAMP::GetLowLatencyStartABR()
 {
@@ -11273,18 +10777,15 @@ bool PrivateInstanceAAMP::GetLowLatencyStartABR()
 }
 
 /**
- *     @brief Set Low Latency ABR Start Status
- *     @param[in]  bool - flag
- *     @return void
- */
+ *  @brief Set Low Latency ABR Start Status
+ */     
 void PrivateInstanceAAMP::SetLowLatencyStartABR(bool bStart)
 {
     bLowLatencyStartABR = bStart;
 }
 
 /**
- *     @brief Get Low Latency Service Configuration Status
- *     @return bool
+ *  @brief Get Low Latency Service Configuration Status
  */
 bool PrivateInstanceAAMP::GetLowLatencyServiceConfigured()
 {
@@ -11292,9 +10793,7 @@ bool PrivateInstanceAAMP::GetLowLatencyServiceConfigured()
 }
 
 /**
- *     @brief Set Low Latency Service Configuration Status
- *     @param[in]  bool - flag
- *     @return void
+ *  @brief Set Low Latency Service Configuration Status
  */
 void PrivateInstanceAAMP::SetLowLatencyServiceConfigured(bool bConfig)
 {
@@ -11302,9 +10801,7 @@ void PrivateInstanceAAMP::SetLowLatencyServiceConfigured(bool bConfig)
 }
 
 /**
- *     @brief Get Utc Time
- *
- *     @return bool
+ *  @brief Get Utc Time
  */
 time_t PrivateInstanceAAMP::GetUtcTime()
 {
@@ -11312,9 +10809,7 @@ time_t PrivateInstanceAAMP::GetUtcTime()
 }
 
 /**
- *     @brief Set Utc Time
- *     @param[in]  bool - flag
- *     @return void
+ *  @brief Set Utc Time
  */
 void PrivateInstanceAAMP::SetUtcTime(time_t time)
 {
@@ -11322,9 +10817,7 @@ void PrivateInstanceAAMP::SetUtcTime(time_t time)
 }
 
 /**
- *     @brief Get Current Latency
- *
- *     @return long
+ *  @brief Get Current Latency
  */
 long PrivateInstanceAAMP::GetCurrentLatency()
 {
@@ -11332,9 +10825,7 @@ long PrivateInstanceAAMP::GetCurrentLatency()
 }
 
 /**
- *     @brief Set Current Latency
- *     @param[in]  long
- *     @return void
+ * @brief Set Current Latency
  */
 void PrivateInstanceAAMP::SetCurrentLatency(long currentLatency)
 {
@@ -11342,10 +10833,8 @@ void PrivateInstanceAAMP::SetCurrentLatency(long currentLatency)
 }
 
 /**
-*     @brief Get Media Stream Context
-*     @param[in]  MediaType
-*     @return MediaStreamContext*
-*/
+ *     @brief Get Media Stream Context
+ */
 MediaStreamContext* PrivateInstanceAAMP::GetMediaStreamContext(MediaType type)
 {
     if(mpStreamAbstractionAAMP &&
@@ -11361,8 +10850,7 @@ MediaStreamContext* PrivateInstanceAAMP::GetMediaStreamContext(MediaType type)
 }
 
 /**
- *     @brief GetPeriodDurationTimeValue
- *     @return double
+ *  @brief GetPeriodDurationTimeValue
  */
 double PrivateInstanceAAMP::GetPeriodDurationTimeValue(void)
 {
@@ -11370,8 +10858,7 @@ double PrivateInstanceAAMP::GetPeriodDurationTimeValue(void)
 }
 
 /**
- *     @brief GetPeriodStartTimeValue
- *     @return double
+ *  @brief GetPeriodStartTimeValue
  */
 double PrivateInstanceAAMP::GetPeriodStartTimeValue(void)
 {
@@ -11379,8 +10866,7 @@ double PrivateInstanceAAMP::GetPeriodStartTimeValue(void)
 }
 
 /**
- *     @brief GetPeriodScaledPtoStartTime
- *     @return double
+ *  @brief GetPeriodScaledPtoStartTime
  */
 double PrivateInstanceAAMP::GetPeriodScaledPtoStartTime(void)
 {
@@ -11388,8 +10874,7 @@ double PrivateInstanceAAMP::GetPeriodScaledPtoStartTime(void)
 }
 
 /**
- *     @brief Get playback stats for the session so far
- *     @return the json string represenign the playback stats
+ *  @brief Get playback stats for the session so far
  */
 std::string PrivateInstanceAAMP::GetPlaybackStats()
 {
@@ -11441,7 +10926,6 @@ std::string PrivateInstanceAAMP::GetPlaybackStats()
 
 /**
 * @brief LoadFogConfig - Load needed player Config to Fog
-* @return long http error code
 */
 long PrivateInstanceAAMP::LoadFogConfig()
 {
@@ -11598,8 +11082,6 @@ long PrivateInstanceAAMP::LoadFogConfig()
 
 /**
  * @brief Get License Custom Data
- *
- * @return CustomData String
  */
 std::string PrivateInstanceAAMP::GetLicenseCustomData()
 {

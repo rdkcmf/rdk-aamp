@@ -16,11 +16,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
+
+/**
+ * @file AampDrmHelper.cpp
+ * @brief Drm Helper file to handle DRM operation
+ */
+
 #include <algorithm>
 #include <regex>
 
 #include "AampDrmHelper.h"
 
+/**
+ * @brief Compare against another helper instance
+ */
 bool AampDrmHelper::compare(std::shared_ptr<AampDrmHelper> other)
 {
 	if (other == nullptr) return false;

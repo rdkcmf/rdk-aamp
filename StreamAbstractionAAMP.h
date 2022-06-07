@@ -52,8 +52,8 @@ typedef enum
  */
 struct StreamResolution
 {
-	int width;      /**< Width in pixels*/
-	int height;     /**< Height in pixels*/
+	int width;        /**< Width in pixels*/
+	int height;       /**< Height in pixels*/
 	double framerate; /**< Frame Rate */
 };
 
@@ -62,13 +62,13 @@ struct StreamResolution
  */
 struct StreamInfo
 {
-	bool enabled;					/**< indicates if the streamInfo profile is enabled */
+	bool enabled;			/**< indicates if the streamInfo profile is enabled */
 	bool isIframeTrack;             /**< indicates if the stream is iframe stream*/
-	bool validity;			/**< indicates profile validity against user configured profile range */
-	const char *codecs;		/**< Codec String */
+	bool validity;		        /**< indicates profile validity against user configured profile range */
+	const char *codecs;	        /**< Codec String */
 	long bandwidthBitsPerSecond;    /**< Bandwidth of the stream bps*/
 	StreamResolution resolution;    /**< Resolution of the stream*/
-	BitrateChangeReason reason;	/**< Reason for bitrate change*/
+	BitrateChangeReason reason;     /**< Reason for bitrate change*/
 };
 
 /**
@@ -77,9 +77,9 @@ struct StreamInfo
 */
 struct TileInfo
 {
-	int numRows; /**< Number of Rows from Tile Inf */
-	int numCols; /**< Number of Cols from Tile Inf */
-	double posterDuration; /**< Duration of each Tile in Spritesheet */
+	int numRows; 		/**< Number of Rows from Tile Inf */
+	int numCols; 		/**< Number of Cols from Tile Inf */
+	double posterDuration; 	/**< Duration of each Tile in Spritesheet */
 
 	double tileSetDuration; /**<Duration of whole Tile set */
 	double startTime;
@@ -95,14 +95,14 @@ struct CachedFragment
 	GrowableBuffer fragment;    /**< Buffer to keep fragment content */
 	double position;            /**< Position in the playlist */
 	double duration;            /**< Fragment duration */
-	bool initFragment;	        /**< Is init frgment */
+	bool initFragment;	    /**< Is init frgment */
 	bool discontinuity;         /**< PTS discontinuity status */
 	int profileIndex;           /**< Profile index; Updated internally */
 #ifdef AAMP_DEBUG_INJECT
-	std::string uri;   /**< Fragment url */
+	std::string uri;            /**< Fragment url */
 #endif
 	StreamInfo cacheFragStreamInfo; /**< Bitrate info of the fragment */
-	MediaType   type;           /**< MediaType info of the fragment */
+	MediaType   type;               /**< MediaType info of the fragment */
 };
 
 /**
@@ -111,8 +111,8 @@ struct CachedFragment
  */
 struct CachedFragmentChunk
 {
-	GrowableBuffer fragmentChunk;    /**< Buffer to keep fragment content */
-	MediaType   type; /**< MediaType info of the fragment */
+	GrowableBuffer fragmentChunk;   /**< Buffer to keep fragment content */
+	MediaType   type; 		/**< MediaType info of the fragment */
 };
 
 /**
@@ -135,12 +135,15 @@ enum BufferHealthStatus
 	BUFFER_STATUS_RED     /**< Failed state, where buffers have run dry, and player experiences underrun/stalled video */
 };
 
+/**
+ * @brief Media Disconutinuity state
+ */
 typedef enum
 {
-	eDISCONTIUITY_FREE = 0,
-	eDISCONTINUIY_IN_VIDEO = 1,
-	eDISCONTINUIY_IN_AUDIO = 2,
-	eDISCONTINUIY_IN_BOTH = 3
+	eDISCONTIUITY_FREE = 0,       /**< No Discontinuity */
+	eDISCONTINUIY_IN_VIDEO = 1,   /**< Discontinuity in Video */
+	eDISCONTINUIY_IN_AUDIO = 2,   /**< Discontinuity in audio */
+	eDISCONTINUIY_IN_BOTH = 3     /**< Discontinuity in Both Audio and Video */
 } MediaTrackDiscontinuityState;
 
 /**
@@ -151,7 +154,7 @@ class MediaTrack
 public:
 
 	/**
-	 * @brief MediaTrack Constructor
+	 * @fn MediaTrack
 	 *
 	 * @param[in] type - Media track type
 	 * @param[in] aamp - Pointer to PrivateInstanceAAMP
@@ -160,7 +163,7 @@ public:
 	MediaTrack(AampLogManager *logObj, TrackType type, PrivateInstanceAAMP* aamp, const char* name);
 
 	/**
-	 * @brief MediaTrack Destructor
+	 * @fn ~MediaTrack
 	 */
 	virtual ~MediaTrack();
 
@@ -175,58 +178,56 @@ public:
 	MediaTrack& operator=(const MediaTrack&) = delete;
 
 	/**
-	 * @brief Start fragment injector loop
+	 * @fn StartInjectLoop
 	 *
 	 * @return void
 	 */
 	void StartInjectLoop();
 
 	/**
-	* @brief Start fragment Chunk injector loop
-	*
-	* @return void
-	*/
+	 * @fn StartInjectChunkLoop
+	 *
+	 * @return void
+	 */
 	void StartInjectChunkLoop();
 
 	/**
-	 * @brief Stop fragment injector loop
+	 * @fn StopInjectLoop
 	 *
 	 * @return void
 	 */
 	void StopInjectLoop();
 
 	/**
-	* @brief Stop fragment chunk injector loop
-	*
-	* @return void
-	*/
+ 	 * @fn StopInjectChunkLoop
+ 	 *
+	 * @return void
+	 */
 	void StopInjectChunkLoop();
 
 	/**
-	 * @brief Status of media track
-	 *
-	 * @return Enabled/Disabled
+	 * @fn Enabled
+	 * @retval true if enabled, false if disabled
 	 */
 	bool Enabled();
 
 	/**
-	 * @brief Inject fragment into the gstreamer
+	 * @fn InjectFragment
 	 *
 	 * @return Success/Failure
 	 */
 	bool InjectFragment();
 
 	/**
-	* @brief Process next cached fragment chunk
-	*/
-
+	 * @fn ProcessFragmentChunk
+	 */
 	bool ProcessFragmentChunk();
 
 	/**
-	* @brief Inject fragment Chunk into the gstreamer
-	*
-	* @return Success/Failure
-	*/
+	 * @fn InjectFragmentChunk
+	 *
+	 * @return Success/Failure
+	 */
 	bool InjectFragmentChunk();
 
 	/**
@@ -244,45 +245,44 @@ public:
 	double GetTotalInjectedChunkDuration() { return totalInjectedChunksDuration; };
 
 	/**
-	 * @brief Run fragment injector loop.
+	 * @fn RunInjectLoop
 	 *
 	 * @return void
 	 */
 	void RunInjectLoop();
 
 	/**
-	* @brief Run fragment injector loop.
-	*
-	* @return void
-	*/
+ 	 * @fn RunInjectChunkLoop
+	 *
+	 * @return void
+	 */
 	void RunInjectChunkLoop();
 
 	/**
-	 * @brief Update cache after fragment fetch
+	 * @fn UpdateTSAfterFetch
 	 *
 	 * @return void
 	 */
 	void UpdateTSAfterFetch();
 
 	/**
-	* @brief Update cache after fragment chunk fetch
-	*
-	* @return void
-	*/
+	 * @fn UpdateTSAfterChunkFetch
+	 *
+	 * @return void
+	 */
 	void UpdateTSAfterChunkFetch();
 
 	/**
-	 * @brief Wait till fragments available
-	 *
-	 * @param[in] timeoutMs - Timeout in milliseconds. Default - infinite
-	 * @return Fragment available or not.
+	 * @fn WaitForFreeFragmentAvailable 
+	 * @param timeoutMs - timeout in milliseconds. -1 for infinite wait
+	 * @retval true if fragment available, false on abort.
 	 */
 	bool WaitForFreeFragmentAvailable( int timeoutMs = -1);
 
 	/**
-	 * @brief Abort the waiting for cached fragments and free fragment slot
+	 * @fn AbortWaitForCachedAndFreeFragment
 	 *
-	 * @param[in] immediate - Forced or lazy abort
+	 * @param[in] immediate - Forced or lazy abort as in a seek/ stop
 	 * @return void
 	 */
 	void AbortWaitForCachedAndFreeFragment(bool immediate);
@@ -303,7 +303,7 @@ public:
 	int GetTotalFragmentsFetched(){ return totalFragmentsDownloaded; }
 
 	/**
-	 * @brief Get buffer to store the downloaded fragment content
+	 * @fn GetFetchBuffer
 	 *
 	 * @param[in] initialize - Buffer to to initialized or not
 	 * @return Fragment cache buffer
@@ -311,29 +311,29 @@ public:
 	CachedFragment* GetFetchBuffer(bool initialize);
 
 	/**
-	* @brief Get buffer to fetch and cache next fragment chunk
-	* @param[in] initialize true to initialize the fragment chunk
-	* @retval Pointer to fragment chunk buffer.
-	*/
+	 * @fn GetFetchChunkBuffer
+	 * @param[in] initialize true to initialize the fragment chunk
+	 * @retval Pointer to fragment chunk buffer.
+	 */
 	CachedFragmentChunk* GetFetchChunkBuffer(bool initialize);
 
 	/**
-	 * @brief Set current bandwidth
+	 * @fn SetCurrentBandWidth
 	 *
 	 * @param[in] bandwidthBps - Bandwidth in bps
 	 * @return void
 	 */
 	void SetCurrentBandWidth(int bandwidthBps);
 
-       /**
-       * @brief Get profile index for TsbBandwidth
-       * @param bandwidth - bandwidth to identify profile index from list
-       * @retval profile index of the current bandwidth
-       */
-       int GetProfileIndexForBW(long mTsbBandwidth);
+        /**
+         * @fn GetProfileIndexForBW
+         * @param mTsbBandwidth - bandwidth to identify profile index from list
+         * @retval profile index of the current bandwidth
+         */
+        int GetProfileIndexForBW(long mTsbBandwidth);
 
 	/**
-	 * @brief Get current bandwidth in bps
+	 * @fn GetCurrentBandWidth
 	 *
 	 * @return Bandwidth in bps
 	 */
@@ -346,13 +346,12 @@ public:
 	 */
 	double GetTotalFetchedDuration() { return totalFetchedDuration; };
 
-    /**
-     * @brief Get total duration of fetched fragments
-     *
-     * @return Total duration in seconds
-     */
-    double GetTotalInjectedChunksDuration() { return totalInjectedChunksDuration; };
-
+        /**
+     	 * @brief Get total duration of fetched fragments
+      	 *
+     	 * @return Total duration in seconds
+     	 */
+    	 double GetTotalInjectedChunksDuration() { return totalInjectedChunksDuration; };
 
 	/**
 	 * @brief Check if discontinuity is being processed
@@ -366,10 +365,10 @@ public:
 	void ScheduleBufferHealthMonitor();
 
 	/**
-	* @brief Get buffer Status of track
-	*
-	* @return BufferHealthStatus
-	*/
+	 * @fn GetBufferStatus
+	 *
+	 * @return BufferHealthStatus
+	 */
 	BufferHealthStatus GetBufferStatus();
 
 	/**
@@ -380,7 +379,7 @@ public:
 	BufferHealthStatus GetBufferHealthStatus() { return bufferStatus; };
 
 	/**
-	 * @brief Abort the waiting for cached fragments immediately
+	 * @fn AbortWaitForCachedFragment
 	 *
 	 * @return void
 	 */
@@ -399,7 +398,7 @@ public:
 	virtual bool IsAtEndOfTrack() { return eosReached;}
 
 	/**
-	 * @brief To check for discontinuity in future fragments.
+	 * @fn CheckForFutureDiscontinuity
 	 *
 	 * @param[out] cacheDuration - cached fragment duration in seconds
 	 * @return bool - true if discontinuity present, false otherwise
@@ -407,66 +406,65 @@ public:
 	bool CheckForFutureDiscontinuity(double &cacheDuration);
 
 	/**
-	* @brief Called if sink buffer is full
-	*
-	* @return void
-	*/
+	 * @fn OnSinkBufferFull
+	 *
+	 * @return void
+	 */
 	void OnSinkBufferFull();
 
 	/**
-	 * @brief Flushes all cached fragments
-	 *
+	 * @fn FlushFragments
 	 * @return void
 	 */
 	void FlushFragments();
 
 	/**
-	* @brief Cleans all cached fragment Chunks and unparsed buffer
-	*
-	* @return void
-	*/
+	 * @fn CleanChunkCache
+	 *
+	 * @return void
+	 */
 	void CleanChunkCache();
 	/**
-	* @brief Flushes all cached fragment Chunks
-	*
-	* @return void
-	*/
+	 * @fn FlushFragmentChunks
+	 *
+	 * @return void
+	 */
 	void FlushFragmentChunks();
 
 protected:
 
 	/**
-	 * @brief Update segment cache and inject buffer to gstreamer
+	 * @fn UpdateTSAfterInject
 	 *
 	 * @return void
 	 */
 	void UpdateTSAfterInject();
 
 	/**
-	* @brief Update segment cache and inject buffer to gstreamer
-	*
-	* @return void
-	*/
+	 * @brief Update segment cache and inject buffer to gstreamer
+	 *
+	 * @return void
+	 */
 	void UpdateTSAfterChunkInject();
 
 	/**
-	 * @brief Wait till cached fragment available
+	 * @fn WaitForCachedFragmentAvailable
 	 *
 	 * @return TRUE if fragment available, FALSE if aborted/fragment not available.
 	 */
 	bool WaitForCachedFragmentAvailable();
 
 	/**
-	* @brief Wait until a cached fragment chunk is Injected.
-	* @retval true if fragment chunk injected , false on abort.
-	*/
+	 * @fn WaitForCachedFragmentChunkInjected
+	 * @retval true if fragment chunk injected , false on abort.
+	 */
 	bool WaitForCachedFragmentChunkInjected(int timeoutMs = -1);
 
 	/**
-	* @brief Wait till cached fragment chunk available
-	*
-	* @return TRUE if fragment chunk available, FALSE if aborted/fragment chunk not available.
-	*/
+	 * @fn WaitForCachedFragmentChunkAvailable 
+	 *
+	 * @return TRUE if fragment chunk available, FALSE if aborted/fragment chunk not available.
+	 */
 	bool WaitForCachedFragmentChunkAvailable();
 
 	/**
@@ -486,12 +484,11 @@ protected:
 	virtual void InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded) = 0;
 
 	/**
-	* @brief To be implemented by derived classes to receive cached fragment Chunk
-	*
-	* @param[in] cachedFragmentChunk - contains fragment to be processed and injected
-	* @param[out] fragmentChunkDiscarded - true if fragment is discarded.
-	* @return void
-	*/
+	 * @fn InjectFragmentChunkInternal
+	 * @param[in] cachedFragmentChunk - contains fragment to be processed and injected
+	 * @param[out] fragmentChunkDiscarded - true if fragment is discarded.
+	 * @return void
+	 */
 	void InjectFragmentChunkInternal(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration);
 
 
@@ -505,6 +502,11 @@ protected:
 	virtual void SignalTrickModeDiscontinuity(){};
 
 private:
+	/**
+	 * @fn GetBufferHealthStatusString
+	 *
+	 * @return string representation of buffer status
+	 */
 	static const char* GetBufferHealthStatusString(BufferHealthStatus status);
 
 public:
@@ -532,42 +534,42 @@ protected:
 	PrivateInstanceAAMP* aamp;          /**< Pointer to the PrivateInstanceAAMP*/
 	CachedFragment *cachedFragment;     /**< storage for currently-downloaded fragment */
 	CachedFragmentChunk cachedFragmentChunks[DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK];
-	GrowableBuffer unparsedBufferChunk;    /**< Buffer to keep fragment content */
-	GrowableBuffer parsedBufferChunk;    /**< Buffer to keep fragment content */
+	GrowableBuffer unparsedBufferChunk; /**< Buffer to keep fragment content */
+	GrowableBuffer parsedBufferChunk;   /**< Buffer to keep fragment content */
 	bool abort;                         /**< Abort all operations if flag is set*/
 	pthread_mutex_t mutex;              /**< protection of track variables accessed from multiple threads */
 	bool ptsError;                      /**< flag to indicate if last injected fragment has ptsError */
 	bool abortInject;                   /**< Abort inject operations if flag is set*/
-	bool abortInjectChunk;                   /**< Abort inject operations if flag is set*/
+	bool abortInjectChunk;              /**< Abort inject operations if flag is set*/
 	bool cleanChunkCache;
 	bool cleanChunkCacheInitiated;
 private:
-	pthread_cond_t fragmentFetched;     /**< Signaled after a fragment is fetched*/
-	pthread_cond_t fragmentInjected;    /**< Signaled after a fragment is injected*/
-	pthread_t fragmentInjectorThreadID; /**< Fragment injector thread id*/
-	pthread_cond_t fragmentChunkInjected;/**< Signaled after a fragment is injected*/
-	pthread_t fragmentChunkInjectorThreadID; /**< Fragment injector thread id*/
-	pthread_t bufferMonitorThreadID;    /**< Buffer Monitor thread id */
-	int totalFragmentsDownloaded;       /**< Total fragments downloaded since start by track*/
-	int totalFragmentChunksDownloaded;       /**< Total fragments downloaded since start by track*/
-	bool fragmentInjectorThreadStarted; /**< Fragment injector's thread started or not*/
-	bool fragmentChunkInjectorThreadStarted; /**< Fragment Chunk injector's thread started or not*/
-	bool bufferMonitorThreadStarted;    /**< Buffer Monitor thread started or not */
-	double totalInjectedDuration;       /**< Total fragment injected duration*/
-	double totalInjectedChunksDuration;  /**< Total fragment injected chunk duration*/
-	int currentInitialCacheDurationSeconds;    /**< Current cached fragments duration before playing*/
-	bool sinkBufferIsFull;                /**< True if sink buffer is full and do not want new fragments*/
-	bool cachingCompleted;              /**< Fragment caching completed or not*/
-	int fragmentIdxToInject;            /**< Write position */
-	int fragmentChunkIdxToInject;       /**< Write position */
-	int fragmentIdxToFetch;             /**< Read position */
-	int fragmentChunkIdxToFetch;        /**< Read position */
-	int bandwidthBitsPerSecond;        /**< Bandwidth of last selected profile*/
-	double totalFetchedDuration;        /**< Total fragment fetched duration*/
+	pthread_cond_t fragmentFetched;     	/**< Signaled after a fragment is fetched*/
+	pthread_cond_t fragmentInjected;    	/**< Signaled after a fragment is injected*/
+	pthread_t fragmentInjectorThreadID;  	/**< Fragment injector thread id*/
+	pthread_cond_t fragmentChunkInjected;	/**< Signaled after a fragment is injected*/
+	pthread_t fragmentChunkInjectorThreadID;/**< Fragment injector thread id*/
+	pthread_t bufferMonitorThreadID;    	/**< Buffer Monitor thread id */
+	int totalFragmentsDownloaded;       	/**< Total fragments downloaded since start by track*/
+	int totalFragmentChunksDownloaded;      /**< Total fragments downloaded since start by track*/
+	bool fragmentInjectorThreadStarted; 	/**< Fragment injector's thread started or not*/
+	bool fragmentChunkInjectorThreadStarted;/**< Fragment Chunk injector's thread started or not*/
+	bool bufferMonitorThreadStarted;    	/**< Buffer Monitor thread started or not */
+	double totalInjectedDuration;       	/**< Total fragment injected duration*/
+	double totalInjectedChunksDuration;  	/**< Total fragment injected chunk duration*/
+	int currentInitialCacheDurationSeconds; /**< Current cached fragments duration before playing*/
+	bool sinkBufferIsFull;                	/**< True if sink buffer is full and do not want new fragments*/
+	bool cachingCompleted;              	/**< Fragment caching completed or not*/
+	int fragmentIdxToInject;            	/**< Write position */
+	int fragmentChunkIdxToInject;       	/**< Write position */
+	int fragmentIdxToFetch;             	/**< Read position */
+	int fragmentChunkIdxToFetch;        	/**< Read position */
+	int bandwidthBitsPerSecond;        	/**< Bandwidth of last selected profile*/
+	double totalFetchedDuration;        	/**< Total fragment fetched duration*/
 	bool discontinuityProcessed;
 
-	BufferHealthStatus bufferStatus;     /**< Buffer status of the track*/
-	BufferHealthStatus prevBufferStatus; /**< Previous buffer status of the track*/
+	BufferHealthStatus bufferStatus;     	/**< Buffer status of the track*/
+	BufferHealthStatus prevBufferStatus; 	/**< Previous buffer status of the track*/
 };
 
 /**
@@ -577,23 +579,24 @@ class StreamAbstractionAAMP
 {
 public:
 	/**
-	 * @brief StreamAbstractionAAMP constructor.
+	 * @fn StreamAbstractionAAMP
+	 * @param[in] aamp pointer to PrivateInstanceAAMP object associated with stream
 	 */
 	StreamAbstractionAAMP(AampLogManager *logObj, PrivateInstanceAAMP* aamp);
 
 	/**
-	 * @brief StreamAbstractionAAMP destructor.
+	 * @fn ~StreamAbstractionAAMP
 	 */
 	virtual ~StreamAbstractionAAMP();
 
 	/**
-	* @brief StreamAbstractionAAMP Copy Constructor
-	*/
+	 * @brief StreamAbstractionAAMP Copy Constructor
+	 */
 	StreamAbstractionAAMP(const StreamAbstractionAAMP&) = delete;
 
 	/**
-	* @brief StreamAbstractionAAMP assignment operator overloading
-	*/
+	 * @brief StreamAbstractionAAMP assignment operator overloading
+	 */
 	StreamAbstractionAAMP& operator=(const StreamAbstractionAAMP&) = delete;
 
 	/**
@@ -675,7 +678,7 @@ public:
 	void WaitForVideoTrackCatchup();
 
 	/**
-	 *   @brief Unblock track if caught up with video or downloads are stopped
+	 *   @fn ReassessAndResumeAudioTrack
 	 *
 	 *   @return void
 	 */
@@ -699,7 +702,6 @@ public:
 	/**
 	 *   @brief Set elementary stream type change status for reconfigure the pipeline.
 	 *
-	 *   @param[in]  None
 	 *   @return void
 	 */
 	void SetESChangeStatus(void){mAudiostateChangeCount++; mESChangeStatus = true;}
@@ -707,7 +709,6 @@ public:
 	/**
 	 *   @brief Reset elementary stream type change status once the pipeline reconfigured.
 	 *
-	 *   @param[in]  None
 	 *   @return void
 	 */
 	void ResetESChangeStatus(void){
@@ -720,7 +721,6 @@ public:
 	/**
 	 *   @brief Get elementary stream type change status for reconfigure the pipeline..
 	 *
-	 *   @param[in]  None
 	 *   @retval mESChangeStatus flag value ( true or false )
 	 */
 	bool GetESChangeStatus(void){ return mESChangeStatus;}
@@ -729,14 +729,14 @@ public:
 
 	AampLogManager *mLogObj;
 	/**
-	 * @brief Rampdown profile
+	 *   @fn RampDownProfile
 	 *
-	 * @param[in] http_error
-	 * @return True, if ramp down successful. Else false
-	 */
+	 *   @param[in] http_error - Http error code
+	 *   @return True, if ramp down successful. Else false
+	 */ 
 	bool RampDownProfile(long http_error);
 	/**
-	 *   @brief Get Desired Profile based on Buffer availability
+	 *   @fn GetDesiredProfileOnBuffer
 	 *
 	 *   @param [in] currProfileIndex
 	 *   @param [in] newProfileIndex
@@ -744,7 +744,7 @@ public:
 	 */
 	void GetDesiredProfileOnBuffer(int currProfileIndex, int &newProfileIndex);
 	/**
-	 *   @brief Get Desired Profile on steady state 
+	 *   @fn GetDesiredProfileOnSteadyState 
 	 *
 	 *   @param [in] currProfileIndex
 	 *   @param [in] newProfileIndex
@@ -753,7 +753,7 @@ public:
 	 */
 	void GetDesiredProfileOnSteadyState(int currProfileIndex, int &newProfileIndex, long nwBandwidth);
 	/**
-	 *   @brief Configure download timeouts based on buffer
+	 *   @fn ConfigureTimeoutOnBuffer
 	 *
 	 *   @return None.
 	 */        
@@ -765,8 +765,8 @@ public:
 	 */                
 	virtual double GetBufferedDuration (void) = 0;
 
-    /**
-	 *   @brief Check whether the current profile is lowest.
+    	/**
+	 *   @fn IsLowestProfile
 	 *
 	 *   @param currentProfileIndex - current profile index to be checked.
 	 *   @return true if the given profile index is lowest.
@@ -774,73 +774,66 @@ public:
 	bool IsLowestProfile(int currentProfileIndex);
 	
 	/**
-	* @brief Convert custom curl errors to original
-	*
-	* @param[in] http_error - Error code
-	* @return error code
-	*/
+	 *   @fn getOriginalCurlError
+	 *
+	 *   @param[in] http_error - Error code
+	 *   @return error code
+	 */
 	long getOriginalCurlError(long http_error);
 
-    /**
-	 *   @brief Check for ramdown profile.
+    	/**
+	 *   @fn CheckForRampDownProfile
 	 *
-	 *   @param http_error
+	 *   @param http_error - Http error code
 	 *   @return true if rampdown needed in the case of fragment not available in higher profile.
 	 */
 	bool CheckForRampDownProfile(long http_error);
 
 	/**
-	 *   @brief Checks and update profile based on bandwidth.
+	 *   @fn CheckForProfileChange
 	 *
-	 *   @param None
 	 *   @return void
 	 */
 	void CheckForProfileChange(void);
 
 	/**
-	 *   @brief Get iframe track index.
-	 *   This shall be called only after UpdateIframeTracks() is done
+	 *   @fn GetIframeTrack
 	 *
-	 *   @param None
 	 *   @return iframe track index.
 	 */
 	int GetIframeTrack();
 
 	/**
-	 *   @brief Update iframe tracks.
-	 *   Subclasses shall invoke this after StreamInfo is populated .
+	 *   @fn UpdateIframeTracks
 	 *
-	 *   @param None
 	 *   @return void
 	 */
 	void UpdateIframeTracks();
 
 	/**
-	 *   @brief Get the last video fragment parsed time.
+	 *   @fn LastVideoFragParsedTimeMS
 	 *
-	 *   @param None
 	 *   @return Last video fragment parsed time.
 	 */
 	double LastVideoFragParsedTimeMS(void);
 
 	/**
-	 *   @brief Get the desired profile to start fetching.
+	 *   @fn GetDesiredProfile
 	 *
-	 *   @param getMidProfile
+	 *   @param getMidProfile - Get the middle profile(True/False)
 	 *   @return profile index to be used for the track.
 	 */
 	int GetDesiredProfile(bool getMidProfile);
 
 	/**
-	 *   @brief Update rampdown profile on network failure
+	 *   @fn UpdateRampdownProfileReason
 	 *
-	 *   @param None
 	 *   @return void
 	 */
 	void UpdateRampdownProfileReason(void);
 
 	/**
-	 *   @brief Notify bitrate updates to application.
+	 *   @fn NotifyBitRateUpdate
 	 *   Used internally by injection logic
 	 *
 	 *   @param[in]  profileIndex - profile index of last injected fragment.
@@ -850,7 +843,7 @@ public:
 	void NotifyBitRateUpdate(int profileIndex, const StreamInfo &cacheFragStreamInfo, double position);
 	
 	/**
-	 *   @brief Check if Initial Fragment Caching is supported
+	 *   @fn IsInitialCachingSupported
 	 *
 	 *   @return true if is supported
 	 */
@@ -864,7 +857,7 @@ public:
 	bool IsStreamerAtLivePoint() { return mIsAtLivePoint; }
 
 	/**
-	 *   @brief Informs streamer that playback was paused.
+	 *   @fn NotifyPlaybackPaused
 	 *
 	 *   @param[in] paused - true, if playback was paused
 	 *   @return void
@@ -872,35 +865,44 @@ public:
 	virtual void NotifyPlaybackPaused(bool paused);
 
 	/**
-	 *   @brief Check if player caches are running dry.
+	 *   @fn CheckIfPlayerRunningDry
 	 *
 	 *   @return true if player caches are dry, false otherwise.
 	 */
 	bool CheckIfPlayerRunningDry(void);
 
 	/**
-	 *   @brief Check if playback has stalled and update related flags.
+	 *   @fn CheckForPlaybackStall
 	 *
 	 *   @param[in] fragmentParsed - true if next fragment was parsed, otherwise false
 	 */
 	void CheckForPlaybackStall(bool fragmentParsed);
-
+	
+	/**
+	 *   @fn NotifyFirstFragmentInjected
+	 *   @return void
+	 */
 	void NotifyFirstFragmentInjected(void);
-
+	
+	/**
+	 *   @fn GetElapsedTime
+	 *
+	 *   @return elapsed time.
+	 */
 	double GetElapsedTime();
 
 	virtual double GetFirstPeriodStartTime() { return 0; }
 	virtual double GetFirstPeriodDynamicStartTime() { return 0; }
 	virtual uint32_t GetCurrPeriodTimeScale()  { return 0; }
 	/**
-	 *   @brief Check for ramp down limit reached by player
+	 *   @fn CheckForRampDownLimitReached
 	 *   @return true if limit reached, false otherwise
 	 */
 	bool CheckForRampDownLimitReached();
 	bool trickplayMode;                     /**< trick play flag to be updated by subclasses*/
 	int currentProfileIndex;                /**< current Video profile index of the track*/
 	int currentAudioProfileIndex;           /**< current Audio profile index of the track*/
-	int currentTextTrackProfileIndex;        /**< current SubTitle profile index of the track*/
+	int currentTextTrackProfileIndex;       /**< current SubTitle profile index of the track*/
 	int profileIdxForBandwidthNotification; /**< internal - profile index for bandwidth change notification*/
 	bool hasDrm;                            /**< denotes if the current asset is DRM protected*/
 
@@ -908,10 +910,10 @@ public:
 
 	bool mIsPlaybackStalled;                /**< flag that denotes if playback was stalled or not*/
 	bool mNetworkDownDetected;              /**< Network down status indicator */
-	bool mCheckForRampdown;			/**< flag to indicate if rampdown is attempted or not */
+	bool mCheckForRampdown;		        /**< flag to indicate if rampdown is attempted or not */
 	TuneType mTuneType;                     /**< Tune type of current playback, initialize by derived classes on Init()*/
-	int mRampDownCount;			/**< Total number of rampdowns */
-	double mProgramStartTime;		/**< Indicate program start time or availability start time */
+	int mRampDownCount;		        /**< Total number of rampdowns */
+	double mProgramStartTime;	        /**< Indicate program start time or availability start time */
 
 
 	/**
@@ -949,7 +951,7 @@ public:
 
        /**
        * @brief Get profile index for TsbBandwidth
-       * @param bandwidth - bandwidth to identify profile index from list
+       * @param mTsbBandwidth - bandwidth to identify profile index from list
        * @retval profile index of the current bandwidth
        */
        virtual int GetProfileIndexForBandwidth(long mTsbBandwidth) {
@@ -970,16 +972,15 @@ public:
 		return mAbrManager.getBandwidthOfProfile(mAbrManager.getMaxBandwidthProfile());
 	}
 
-
 	/**
-	 *   @brief Get the bitrate of current video profile selected.
+	 *   @fn GetVideoBitrate
 	 *
 	 *   @return bitrate of current video profile.
 	 */
 	long GetVideoBitrate(void);
 
 	/**
-	 *   @brief Get the bitrate of current audio profile selected.
+	 *   @fn GetAudioBitrate
 	 *
 	 *   @return bitrate of current audio profile.
 	 */
@@ -988,10 +989,9 @@ public:
 	/**
 	 *   @brief Set a preferred bitrate for video.
 	 *
-	 *   @param[in] preferred bitrate.
+	 *   @param[in] bitrate preferred bitrate.
 	 */
 	void SetVideoBitrate(long bitrate);
-
 
 	/**
 	 *   @brief Get available video bitrates.
@@ -1025,7 +1025,7 @@ public:
 	virtual void StartInjection(void) = 0;
 
 	/**
-	 *   @brief Check if current stream is muxed
+	 *   @fn IsMuxedStream
 	 *
 	 *   @return true if current stream is muxed
 	 */
@@ -1054,16 +1054,14 @@ public:
 	virtual void PauseSubtitleParser(bool pause) { };
 
 	/**
-	 *   @brief Waits subtitle track injection until caught up with audio track.
-	 *          Used internally by injection logic
+	 *   @fn WaitForAudioTrackCatchup
 	 *
-	 *   @param None
 	 *   @return void
 	 */
 	void WaitForAudioTrackCatchup(void);
 
 	/**
-	 *   @brief Unblock subtitle track injector if downloads are stopped
+	 *   @fn AbortWaitForAudioTrackCatchup
 	 *
 	 *   @return void
 	 */
@@ -1077,7 +1075,7 @@ public:
 	virtual void SetCDAIObject(CDAIObject *cdaiObj) {};
 
 	/**
-	 *   @brief Checks if streamer reached end of stream
+	 *   @fn IsEOSReached
 	 *
 	 *   @return true if end of stream reached, false otherwise
 	 */
@@ -1100,45 +1098,46 @@ public:
 	/**
 	*   @brief Update seek position when player is initialized
 	*
-	*   @param[in] seekposition time.
+	*   @param[in] secondsRelativeToTuneTime seekposition time.
 	*/
 	virtual void SeekPosUpdate(double secondsRelativeToTuneTime) = 0;
 
-	/*
-	 *   @brief Function to returns last injected fragment position
+	/**
+	 *   @fn GetLastInjectedFragmentPosition
 	 *
 	 *   @return double last injected fragment position in seconds
 	 */
 	double GetLastInjectedFragmentPosition();
 
 	/**
-	 *   @brief Function to process discontinuity.
+	 *   @fn ProcessDiscontinuity
 	 *
 	 *   @param[in] type - track type.
 	 */
 	bool ProcessDiscontinuity(TrackType type);
 
 	/**
-	 *   @brief Function to abort any wait for discontinuity by injector theads.
+	 *   @fn AbortWaitForDiscontinuity
+	 *   @return void
 	 */
 	void AbortWaitForDiscontinuity();
 
 	/**
-	 *   @brief Function to check if any media tracks are stalled on discontinuity.
+	 *   @fn CheckForMediaTrackInjectionStall
 	 *
 	 *   @param[in] type - track type.
 	 */
 	void CheckForMediaTrackInjectionStall(TrackType type);
 
 	/**
-	 *   @brief Get buffered video duration in seconds
+	 *   @fn GetBufferedVideoDurationSec
 	 *
 	 *   @return duration of currently buffered video in seconds
 	 */
 	double GetBufferedVideoDurationSec();
 
 	/**
-	 *   @brief Function to update stream info of current fetched fragment
+	 *   @fn UpdateStreamInfoBitrateData
 	 *
 	 *   @param[in]  profileIndex - profile index of current fetched fragment
 	 *   @param[out]  cacheFragStreamInfo - stream info of current fetched fragment
@@ -1146,37 +1145,37 @@ public:
 	void UpdateStreamInfoBitrateData(int profileIndex, StreamInfo &cacheFragStreamInfo);
 
 	/**
-	 *   @brief Get current audio track
+	 *   @fn GetAudioTrack
 	 *
 	 *   @return int - index of current audio track
 	 */
 	virtual int GetAudioTrack();
 
 	/**
-	 *   @brief Get current audio track information
+	 *   @fn GetCurrentAudioTrack
 	 *
-	 *   @param [out] AudioTrack - current audio track
+	 *   @param[out] audioTrack - current audio track
 	 *   @return found or not 
 	 */
 	virtual bool GetCurrentAudioTrack(AudioTrackInfo &audioTrack);
 
 	/**
-	 *   @brief Get current text track information
+	 *   @fn GetCurrentTextTrack
 	 *
-	 *   @param [out] TextTrack - current text track
+	 *   @param[out] TextTrack - current text track
 	 *   @return found or not 
 	 */
 	virtual bool GetCurrentTextTrack(TextTrackInfo &textTrack);
 
 	/**
-	 *   @brief Get current text track
+	 *   @fn GetTextTrack
 	 *
 	 *   @return int - index of current text track
 	 */
 	int GetTextTrack();
 
 	/**
-	 *   @brief Refresh subtitle track
+	 *   @fn RefreshSubtitles
 	 *
 	 *   @return void
 	 */
@@ -1186,117 +1185,107 @@ public:
 	 * @brief setVideoRectangle sets the position coordinates (x,y) & size (w,h) for OTA streams only
 	 *
 	 * @param[in] x,y - position coordinates of video rectangle
-	 * @param[in] wxh - width & height of video rectangle
+	 * @param[in] w,h - width & height of video rectangle
 	 */
 	virtual void SetVideoRectangle(int x, int y, int w, int h) {}
 
 	virtual std::vector<StreamInfo*> GetAvailableVideoTracks(void) = 0;
 
         /**
-         *   @brief Get available thumbnail bitrates.
-         *
-         *   @return available thumbnail bitrates.
-         */
-        virtual std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) = 0;
+     	 *   @brief Get available thumbnail bitrates.
+     	 *
+     	 *   @return available thumbnail bitrates.
+     	 */
+    	virtual std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) = 0;
 
-        /**
-         *   @brief Set thumbnail bitrate.
-         *
-         *   @return none.
-         */
+    	/**
+     	 *   @brief Set thumbnail bitrate.
+    	 *
+     	 *   @return none.
+     	 */
 	virtual bool SetThumbnailTrack(int) = 0;
 
-        /**
-         *   @brief Get thumbnail data for duration value.
-         *
-         *   @return thumbnail data.
-         */
+    	/**
+     	 *   @brief Get thumbnail data for duration value.
+     	 *
+     	 *   @return thumbnail data.
+     	 */
 	virtual std::vector<ThumbnailData> GetThumbnailRangeData(double, double, std::string*, int*, int*, int*, int*) = 0;
 	
-        /**
-          * @brief SetAudioTrack set the audio track using index value. [currently for OTA]
-          *
-          * @param[in]
-          * @param[in]
-          */
-        virtual void SetAudioTrack (int index) {}
+    	/**
+     	 * @brief SetAudioTrack set the audio track using index value. [currently for OTA]
+     	 *
+     	 * @param[in] index -  Index of audio track
+     	 * @return void
+     	 */
+    	virtual void SetAudioTrack (int index) {}
 
-        /**
-          * @brief SetAudioTrackByLanguage set the audio language. [currently for OTA]
-          *
-          * @param[in] lang Language to be set
-          * @param[in]
-          */
-        virtual void SetAudioTrackByLanguage(const char* lang) {}
+    	/**
+     	 * @brief SetAudioTrackByLanguage set the audio language. [currently for OTA]
+     	 *
+     	 * @param[in] lang Language to be set
+     	 * @param[in]
+     	 */
+    	virtual void SetAudioTrackByLanguage(const char* lang) {}
 
-        /**
-          * @brief SetPreferredAudioLanguages set the preferred audio languages and rendition. [currently for OTA]
-          *
-          * @param[in]
-          * @param[in]
-          */
-        virtual void SetPreferredAudioLanguages() {}
+    	/**
+     	 * @brief SetPreferredAudioLanguages set the preferred audio languages and rendition. [currently for OTA]
+     	 *
+     	 * @param[in]
+     	 * @param[in]
+     	 */
+    	virtual void SetPreferredAudioLanguages() {}
 
 	/**
-          * @brief Send a MUTE/UNMUTE packet to the subtitle renderer
-          *
-          * @param[in] mute mute/unmute
-	  * @param[in] mute mute/unmute
-          */
+     	 * @fn MuteSubtitles
+     	 *
+     	 * @param[in] mute mute/unmute
+     	 */
 	void MuteSubtitles(bool mute);
 
-		/**
-	 * @brief Blocks aux track injection until caught up with video track.
-	 *        Used internally by injection logic
+	/**
+	 * @fn WaitForVideoTrackCatchupForAux
 	 *
-	 * @param None
 	 * @return void
 	 */
 	void WaitForVideoTrackCatchupForAux();
 
 	/**
-         *       @brief Set Content Restrictions
-         *       @param[in] restrictions - restrictions to be applied
-         *
-         *       @return void
-         */
+     	 *   @brief Set Content Restrictions
+     	 *   @param[in] restrictions - restrictions to be applied
+     	 *
+     	 *   @return void
+     	 */
 	virtual void ApplyContentRestrictions(std::vector<std::string> restrictions){};
 
-	/**
-         *       @brief Disable Content Restrictions - unlock
-         *       @param[in] secondsRelativeToCurrentTime -time till which the channel need to be kept unlocked
-         *
-         *       @return void
-         */
 	
-        /**
-	 *       @brief Disable Content Restrictions - unlock
-	 *       @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
-	 *       @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
-	 *       @param[in] eventChange - disable restriction handling till next program event boundary
-	 *
-	 *       @return void
+    	/**
+	 *   @brief Disable Content Restrictions - unlock
+	 *   @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
+	 *   @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
+	 *   @param[in] eventChange - disable restriction handling till next program event boundary
+	 *   @return void
 	 */
 	virtual void DisableContentRestrictions(long grace, long time, bool eventChange){};
 
 	/**
-         *       @brief Enable Content Restrictions - lock
-         *       @return void
-         */
+     	 *   @brief Enable Content Restrictions - lock
+     	 *   @return void
+     	 */
 	virtual void EnableContentRestrictions(){};
 
 	/**
-	 * @brief Get audio forward to aux pipeline status
+	 *   @brief Get audio forward to aux pipeline status
 	 *
-	 * @return bool true if audio buffers are to be forwarded
+	 *   @return bool true if audio buffers are to be forwarded
 	 */
 	bool GetAudioFwdToAuxStatus() { return mFwdAudioToAux; }
 
 	/**
-	 * @brief Set audio forward to aux pipeline status
+	 *   @brief Set audio forward to aux pipeline status
 	 *
-	 * @param[in] status - enabled/disabled
-	 * @return void
+	 *   @param[in] status - enabled/disabled
+	 *   @return void
 	 */
 	void SetAudioFwdToAuxStatus(bool status) { mFwdAudioToAux = status; }
 
@@ -1312,23 +1301,23 @@ protected:
 private:
 
 	/**
-	 * @brief Get desired profile based on cache
+	 *   @fn GetDesiredProfileBasedOnCache
 	 *
-	 * @return Profile index
+	 *   @return Profile index based on cached duration
 	 */
 	int GetDesiredProfileBasedOnCache(void);
 
 	/**
-	 * @brief Update profile based on fragments downloaded.
+	 *   @fn UpdateProfileBasedOnFragmentDownloaded
 	 *
-	 * @return void
+	 *   @return void
 	 */
 	void UpdateProfileBasedOnFragmentDownloaded(void);
 
 	/**
-	 * @brief Update profile based on fragment cache.
+	 *   @fn UpdateProfileBasedOnFragmentCache
 	 *
-	 * @return bool
+	 *   @return true if profile was changed, false otherwise
 	 */
 	bool UpdateProfileBasedOnFragmentCache(void);
 
@@ -1345,10 +1334,10 @@ private:
 	int mABRHighBufferCounter;	    /**< ABR High buffer counter */
 	int mABRLowBufferCounter;	    /**< ABR Low Buffer counter */
 	int mMaxBufferCountCheck;
-	int mABRMaxBuffer;			/**< ABR ramp up buffer*/
-	int mABRCacheLength;			/**< ABR cache length*/
-	int mABRMinBuffer;			/**< ABR ramp down buffer*/
-	int mABRNwConsistency;			/**< ABR Network consistency*/
+	int mABRMaxBuffer;	            /**< ABR ramp up buffer*/
+	int mABRCacheLength;		    /**< ABR cache length*/
+	int mABRMinBuffer;		    /**< ABR ramp down buffer*/
+	int mABRNwConsistency;		    /**< ABR Network consistency*/
 	bool mESChangeStatus;               /**< flag value which is used to call pipeline configuration if the audio type changed in mid stream */
 	unsigned int mAudiostateChangeCount;/**< variable to know how many times player need to reconfigure the pipeline for audio type change*/
 	double mLastVideoFragParsedTimeMS;  /**< timestamp when last video fragment was parsed */
@@ -1359,7 +1348,7 @@ private:
 	long long mLastPausedTimeStamp;     /**< stores timestamp of last pause operation */
 	pthread_mutex_t mStateLock;         /**< lock for A/V track discontinuity injection*/
 	pthread_cond_t mStateCond;          /**< condition for A/V track discontinuity injection*/
-	int mRampDownLimit;		/**< stores ramp down limit value */
+	int mRampDownLimit;                 /**< stores ramp down limit value */
 	BitrateChangeReason mBitrateReason; /**< holds the reason for last bitrate change */
 protected:
 	ABRManager mAbrManager;                       /**< Pointer to abr manager*/

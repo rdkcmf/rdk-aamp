@@ -16,11 +16,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
+/**
+ * @file AampJsonObject.cpp
+ * @brief File to handle Json format object 
+ */
+
 #include <vector>
 
 #include "AampJsonObject.h"
 #include "AampUtils.h"
 #include "_base64.h"
+
+
 
 AampJsonObject::AampJsonObject() : mParent(NULL), mJsonObj()
 {
@@ -45,6 +53,9 @@ AampJsonObject::~AampJsonObject()
 	}
 }
 
+/**
+ *  @brief Add a string value
+ */
 bool AampJsonObject::add(const std::string& name, const std::string& value, const ENCODING encoding)
 {
 	bool res = false;
@@ -61,6 +72,9 @@ bool AampJsonObject::add(const std::string& name, const std::string& value, cons
 	return res;
 }
 
+/**
+ *  @brief Add a vector of string values as a JSON array
+ */
 bool AampJsonObject::add(const std::string& name, const std::vector<std::string>& values)
 {
 	cJSON* arr = cJSON_CreateArray();
@@ -71,6 +85,9 @@ bool AampJsonObject::add(const std::string& name, const std::vector<std::string>
 	return add(name, arr);
 }
 
+/**
+ *  @brief Add the provided bytes after encoding in the specified encoding
+ */
 bool AampJsonObject::add(const std::string& name, const std::vector<uint8_t>& values, const ENCODING encoding)
 {
 	bool res = false;
@@ -114,6 +131,9 @@ bool AampJsonObject::add(const std::string& name, const std::vector<uint8_t>& va
 	return res;
 }
 
+/**
+ *  @brief Add a vector of #AampJsonObject as a JSON array
+ */
 bool AampJsonObject::add(const std::string& name, AampJsonObject& value)
 {
 	cJSON_AddItemToObject(mJsonObj, name.c_str(), value.mJsonObj);
@@ -121,6 +141,9 @@ bool AampJsonObject::add(const std::string& name, AampJsonObject& value)
 	return true;
 }
 
+/**
+ *  @brief Add a vector of string values as a JSON array
+ */
 bool AampJsonObject::add(const std::string& name, std::vector<AampJsonObject*>& values)
 {
 	cJSON *arr = cJSON_CreateArray();
@@ -132,6 +155,9 @@ bool AampJsonObject::add(const std::string& name, std::vector<AampJsonObject*>& 
 	return add(name, arr);
 }
 
+/**
+ *  @brief Add a cJSON value
+ */
 bool AampJsonObject::add(const std::string& name, cJSON *value)
 {
 	if (NULL == value)
@@ -143,30 +169,45 @@ bool AampJsonObject::add(const std::string& name, cJSON *value)
 }
 
 
+/**
+ *  @brief Add a bool value
+ */
 bool AampJsonObject::add(const std::string& name, bool value)
 {
 	cJSON_AddItemToObject(mJsonObj, name.c_str(), cJSON_CreateBool(value));
 	return true;
 }
 
+/**
+ *  @brief Add a int value
+ */
 bool AampJsonObject::add(const std::string& name, int value)
 {
 	cJSON_AddItemToObject(mJsonObj, name.c_str(), cJSON_CreateNumber(value));
 	return true;
 }
 
+/**
+ *  @brief Add a double value
+ */
 bool AampJsonObject::add(const std::string& name, double value)
 {
 	cJSON_AddItemToObject(mJsonObj, name.c_str(), cJSON_CreateNumber(value));
 	return true;
 }
 
+/**
+ *  @brief Add a long value
+ */
 bool AampJsonObject::add(const std::string& name, long value)
 {
 	cJSON_AddItemToObject(mJsonObj, name.c_str(), cJSON_CreateNumber(value));
 	return true;
 }
 
+/**
+ * @brief Set cJSON value
+ */
 bool AampJsonObject::set(AampJsonObject *parent, cJSON *object)
 {
 	this->mParent = parent;
@@ -175,6 +216,9 @@ bool AampJsonObject::set(AampJsonObject *parent, cJSON *object)
 	return true;
 }
 
+/**
+ *  @brief Get the AampJson object from json data within the Json data
+ */
 bool AampJsonObject::get(const std::string& name, AampJsonObject &value)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
@@ -186,6 +230,9 @@ bool AampJsonObject::get(const std::string& name, AampJsonObject &value)
 	return retValue;
 }
 
+/**
+ *  @brief Get a string value
+ */
 bool AampJsonObject::get(const std::string& name, std::string& value)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
@@ -202,6 +249,9 @@ bool AampJsonObject::get(const std::string& name, std::string& value)
 	return false;
 }
 
+/**
+ *  @brief Get a int value from a JSON data
+ */
 bool AampJsonObject::get(const std::string& name, int& value)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
@@ -217,6 +267,9 @@ bool AampJsonObject::get(const std::string& name, int& value)
 	return retValue;
 }
 
+/**
+ * @brief Get a string value
+ */
 bool AampJsonObject::get(const std::string& name, std::vector<std::string>& values)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
@@ -234,6 +287,9 @@ bool AampJsonObject::get(const std::string& name, std::vector<std::string>& valu
 	return retVal;
 }
 
+/**
+ * @brief Get a string value as a vector of bytes
+ */
 bool AampJsonObject::get(const std::string& name, std::vector<uint8_t>& values, const ENCODING encoding)
 {
 	bool res = false;
@@ -283,6 +339,9 @@ bool AampJsonObject::get(const std::string& name, std::vector<uint8_t>& values, 
 	return res;
 }
 
+/**
+ *  @brief Print the constructed JSON to a string
+ */
 std::string AampJsonObject::print()
 {
 	char *jsonString = cJSON_Print(mJsonObj);
@@ -295,6 +354,9 @@ std::string AampJsonObject::print()
 	return "";
 }
 
+/**
+ *  @brief Print the constructed JSON to a string
+ */
 std::string AampJsonObject::print_UnFormatted()
 {
 	char *jsonString = cJSON_PrintUnformatted(mJsonObj);
@@ -307,12 +369,18 @@ std::string AampJsonObject::print_UnFormatted()
 	return "";
 }
 
+/**
+ *  @brief Print the constructed JSON into the provided vector
+ */
 void AampJsonObject::print(std::vector<uint8_t>& data)
 {
 	std::string jsonOutputStr = print();
 	(void)data.insert(data.begin(), jsonOutputStr.begin(), jsonOutputStr.end());
 }
 
+/**
+ *  @brief Check whether the value is Array or not
+ */
 bool AampJsonObject::isArray(const std::string& name)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
@@ -324,6 +392,9 @@ bool AampJsonObject::isArray(const std::string& name)
 	return retVal;
 }
 
+/**
+ * @brief Check whether the value is String or not
+ */
 bool AampJsonObject::isString(const std::string& name)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
@@ -335,6 +406,9 @@ bool AampJsonObject::isString(const std::string& name)
 	return retVal;
 }
 
+/**
+ * @brief Check whether the value is Number or not
+ */
 bool AampJsonObject::isNumber(const std::string& name)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
@@ -346,6 +420,9 @@ bool AampJsonObject::isNumber(const std::string& name)
 	return retVal;
 }
 
+/**
+ * @brief Check whether the value is Object or not
+ */
 bool AampJsonObject::isObject(const std::string& name)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());

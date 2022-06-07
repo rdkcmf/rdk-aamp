@@ -17,16 +17,18 @@
  * limitations under the License.
 */
 
+/**
+ * @file MediaStreamContext.cpp
+ * @brief Handles operations on Media streams
+ */
+
 #include "MediaStreamContext.h"
 #include "AampMemoryUtils.h"
 #include "isobmff/isobmffbuffer.h"
 #include "AampCacheHandler.h"
 
 /**
- * @brief Receives cached fragment and injects to sink.
- *
- * @param[in] cachedFragment - contains fragment to be processed and injected
- * @param[out] fragmentDiscarded - true if fragment is discarded.
+ *  @brief Receives cached fragment and injects to sink.
  */
 void MediaStreamContext::InjectFragmentInternal(CachedFragment* cachedFragment, bool &fragmentDiscarded)
 {
@@ -46,19 +48,9 @@ void MediaStreamContext::InjectFragmentInternal(CachedFragment* cachedFragment, 
     fragmentDiscarded = false;
 } // InjectFragmentInternal
 
+
 /**
- * @brief Fetch and cache a fragment
- * @param fragmentUrl url of fragment
- * @param curlInstance curl instance to be used to fetch
- * @param position position of fragment in seconds
- * @param duration duration of fragment in seconds
- * @param range byte range
- * @param initSegment true if fragment is init fragment
- * @param discontinuity true if fragment is discontinuous
- * @param playingAd flag if playing Ad
- * @param pto unscaled pto value from mpd
- * @param scale timeScale value from mpd
- * @retval true on success
+ *  @brief Fetch and cache a fragment
  */
 bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range, bool initSegment, bool discontinuity
     , bool playingAd, double pto, uint32_t scale)
@@ -285,6 +277,9 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
     return ret;
 }
 
+/**
+ *  @brief Cache Fragment Chunk
+ */
 bool MediaStreamContext::CacheFragmentChunk(MediaType actualType, char *ptr, size_t size, std::string remoteUrl)
 {
     AAMPLOG_TRACE("[%s] Chunk Buffer Length %d Remote URL %s", name, size, remoteUrl.c_str());
@@ -315,8 +310,9 @@ bool MediaStreamContext::CacheFragmentChunk(MediaType actualType, char *ptr, siz
     return ret;
 }
 
+
 /**
- * @brief Listener to ABR profile change
+ *  @brief Listener to ABR profile change
  */
 void MediaStreamContext::ABRProfileChanged(void)
 {
@@ -364,6 +360,9 @@ void MediaStreamContext::ABRProfileChanged(void)
 
 }
 
+/**
+ * @brief Get duration of buffer
+ */
 double MediaStreamContext::GetBufferedDuration()
 {
     double position = aamp->GetPositionMs() / 1000.00;
@@ -381,7 +380,6 @@ double MediaStreamContext::GetBufferedDuration()
         return downloadedDuration;
     }
 }
-
 
 /**
  * @brief Notify discontinuity during trick-mode as PTS re-stamping is done in sink

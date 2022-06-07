@@ -17,6 +17,12 @@
  * limitations under the License.
 */
 
+
+/**
+ * @file AampHlsDrmSessionManager.cpp
+ * @brief Operations for HLS DRM 
+ */
+
 #include "AampHlsDrmSessionManager.h"
 #include "AampDRMSessionManager.h"
 #include "AampDrmHelper.h"
@@ -24,17 +30,27 @@
 
 using namespace std;
 
+/**
+ * @brief getInstance Get DRM instance
+ *        Get an instance of the Hls DRM Session Manager
+ */
 AampHlsDrmSessionManager& AampHlsDrmSessionManager::getInstance()
 {
 	static AampHlsDrmSessionManager instance;
 	return instance;
 }
 
+/**
+ * @brief Check stream is DRM supported
+ */
 bool AampHlsDrmSessionManager::isDrmSupported(const struct DrmInfo& drmInfo) const
 {
 	return AampDrmHelperEngine::getInstance().hasDRM(drmInfo);
 }
 
+/**
+ * @brief createSession create session for DRM
+ */
 std::shared_ptr<HlsDrmBase> AampHlsDrmSessionManager::createSession(PrivateInstanceAAMP* aampInstance, const struct DrmInfo& drmInfo,MediaType streamType, AampLogManager *mLogObj)
 {
 	std::shared_ptr<HlsDrmBase> bridge = nullptr;

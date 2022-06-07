@@ -27,6 +27,11 @@
 
 #include "AampEvent.h"
 
+/**
+ * @class EventListener
+ * @brief Class for sed event to Listener
+ */
+
 class EventListener
 {
 public:
@@ -45,6 +50,7 @@ public:
 };
 
 /**
+ * @class AAMPEventListener
  * @brief Class for AAMP event listening [LEGACY]
  * TODO: Deprecate later, AAMPEventObjectListener will be used in future
  */
@@ -52,7 +58,7 @@ class AAMPEventListener : public EventListener
 {
 public:
 	/**
-	 * @brief API to send event.
+	 * @fn SendEvent
 	 *
 	 * @param[in] event - AAMPEventPtr object
 	 */
@@ -73,6 +79,7 @@ public:
 };
 
 /**
+ * @class AAMPEventObjectListener
  * @brief Class for AAMP event listening
  * Uses shared_ptr for event objects for better memory management
  * New AAMP integration layers should use this event listener for event processing
@@ -81,7 +88,7 @@ class AAMPEventObjectListener : public EventListener
 {
 public:
 	/**
-	 * @brief API to send event.
+	 * @fn SendEvent
 	 *
 	 * @param[in] event - AAMPEventPtr object
 	 */

@@ -1,6 +1,10 @@
 #ifndef OpenCDMSessionAdapter_h
 #define OpenCDMSessionAdapter_h
 
+/**
+ * @file opencdmsessionadapter.h
+ * @brief Handles operation with OCDM session to handle DRM License data
+ */
 
 #include "AampDrmSession.h"
 #include "aampoutputprotection.h"
@@ -13,8 +17,8 @@
 using namespace std;
 
 /**
- * @class AAMPOCDMSessionAdapter
- * @brief Open CDM DRM session
+ * @class Event
+ * @brief class to DRM Event handle
  */
 
 class Event {
@@ -71,6 +75,10 @@ public:
         }
 };
 
+/**
+ * @class AAMPOCDMSessionAdapter
+ * @brief Open CDM DRM session
+ */ 
 class AAMPOCDMSessionAdapter : public AampDrmSession
 {
 protected:
@@ -116,12 +124,12 @@ private:
 	void initAampDRMSystem();
 
 public:
-    AAMPOCDMSessionAdapter(AampLogManager *logObj, std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *callbacks = nullptr);
+    	AAMPOCDMSessionAdapter(AampLogManager *logObj, std::shared_ptr<AampDrmHelper> drmHelper, AampDrmCallbacks *callbacks = nullptr);
 	~AAMPOCDMSessionAdapter();
-    AAMPOCDMSessionAdapter(const AAMPOCDMSessionAdapter&) = delete;
+    	AAMPOCDMSessionAdapter(const AAMPOCDMSessionAdapter&) = delete;
 	AAMPOCDMSessionAdapter& operator=(const AAMPOCDMSessionAdapter&) = delete;
 	void generateAampDRMSession(const uint8_t *f_pbInitData,
-			uint32_t f_cbInitData, std::string &customData);
+	uint32_t f_cbInitData, std::string &customData);
 	DrmData * aampGenerateKeyRequest(string& destinationURL, uint32_t timeout);
 	int aampDRMProcessKey(DrmData* key, uint32_t timeout);
 	KeyState getState();

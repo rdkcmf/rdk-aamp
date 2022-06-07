@@ -142,8 +142,8 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 }
 
 /**
-*   @brief  reads metadata properties from player status object and return true if any of data is changed
-*/
+ *  @brief  reads metadata properties from player status object and return true if any of data is changed
+ */
 bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 {
 	bool isDataChanged = false;
@@ -272,6 +272,7 @@ bool StreamAbstractionAAMP_OTA::PopulateMetaData(const JsonObject& playerData)
 	return isDataChanged;
 }
 
+
 void StreamAbstractionAAMP_OTA::SendMediaMetadataEvent()
 {
 	if(aamp->IsEventListenerAvailable(AAMP_EVENT_MEDIA_METADATA))
@@ -291,11 +292,7 @@ void StreamAbstractionAAMP_OTA::SendMediaMetadataEvent()
 #endif
 
 /**
- *   @brief  Initialize a newly created object.
- *   @note   To be implemented by sub classes
- *   @param  tuneType to set type of object.
- *   @retval true on success
- *   @retval false on failure
+ *  @brief  Initialize a newly created object.
  */
 AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 {
@@ -334,10 +331,7 @@ AAMPStatusType StreamAbstractionAAMP_OTA::Init(TuneType tuneType)
 }
 
 /**
- * @brief StreamAbstractionAAMP_OTA Constructor
- * @param aamp pointer to PrivateInstanceAAMP object associated with player
- * @param seek_pos Seek position
- * @param rate playback rate
+ *  @brief StreamAbstractionAAMP_OTA Constructor
  */
 StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
                           : StreamAbstractionAAMP(logObj, aamp)
@@ -356,7 +350,7 @@ StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(AampLogManager *logObj, cla
 }
 
 /**
- * @brief StreamAbstractionAAMP_OTA Destructor
+ * @brief StreamAbstractionAAMP_OTA Distructor
  */
 StreamAbstractionAAMP_OTA::~StreamAbstractionAAMP_OTA()
 {
@@ -391,7 +385,7 @@ StreamAbstractionAAMP_OTA::~StreamAbstractionAAMP_OTA()
 }
 
 /**
- *   @brief  Starts streaming.
+ *  @brief  Starts streaming.
  */
 void StreamAbstractionAAMP_OTA::Start(void)
 {
@@ -482,8 +476,8 @@ void StreamAbstractionAAMP_OTA::Start(void)
 }
 
 /**
-*   @brief  Stops streaming.
-*/
+ *  @brief  Stops streaming.
+ */
 void StreamAbstractionAAMP_OTA::Stop(bool clearChannelData)
 {
 	/*StreamAbstractionAAMP::Stop is being called twice
@@ -510,6 +504,7 @@ void StreamAbstractionAAMP_OTA::Stop(bool clearChannelData)
 }
 
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+
 bool StreamAbstractionAAMP_OTA::GetScreenResolution(int & screenWidth, int & screenHeight)
 {
 	 JsonObject param;
@@ -529,9 +524,6 @@ bool StreamAbstractionAAMP_OTA::GetScreenResolution(int & screenWidth, int & scr
 
 /**
  * @brief SetVideoRectangle sets the position coordinates (x,y) & size (w,h)
- *
- * @param[in] x,y - position coordinates of video rectangle
- * @param[in] wxh - width & height of video rectangle
  */
 void StreamAbstractionAAMP_OTA::SetVideoRectangle(int x, int y, int w, int h)
 {
@@ -566,11 +558,8 @@ void StreamAbstractionAAMP_OTA::SetVideoRectangle(int x, int y, int w, int h)
 }
 
 /**
- * @brief NotifyAudioTrackChange To notify audio track change.Currently not used
- * as mediaplayer does not have support yet.
- *
- * @param[in] tracks - updated audio track info
- * @param[in]
+ *  @brief NotifyAudioTrackChange To notify audio track change.Currently not used
+ *        as mediaplayer does not have support yet.
  */
 void StreamAbstractionAAMP_OTA::NotifyAudioTrackChange(const std::vector<AudioTrackInfo> &tracks)
 {
@@ -582,9 +571,7 @@ void StreamAbstractionAAMP_OTA::NotifyAudioTrackChange(const std::vector<AudioTr
 }
 
 /**
- *   @brief Get the list of available audio tracks
- *
- *   @return std::vector<AudioTrackInfo> List of available audio tracks
+ *  @brief Get the list of available audio tracks
  */
 std::vector<AudioTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableAudioTracks(bool allTrack)
 {
@@ -595,9 +582,7 @@ std::vector<AudioTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableAudioTracks
 }
 
 /**
- *   @brief Get current audio track
- *
- *   @return int - index of current audio track
+ *  @brief Get current audio track
  */
 int StreamAbstractionAAMP_OTA::GetAudioTrack()
 {
@@ -619,9 +604,7 @@ int StreamAbstractionAAMP_OTA::GetAudioTrack()
 }
 
 /**
- *   @brief Get current audio track
- *
- *   @return int - index of current audio track
+ *  @brief Get current audio track
  */
 bool StreamAbstractionAAMP_OTA::GetCurrentAudioTrack(AudioTrackInfo &audioTrack)
 {
@@ -646,9 +629,6 @@ bool StreamAbstractionAAMP_OTA::GetCurrentAudioTrack(AudioTrackInfo &audioTrack)
 
 /**
  * @brief SetPreferredAudioLanguages set the preferred audio language list
- *
- * @param[in]
- * @param[in]
  */
 void StreamAbstractionAAMP_OTA::SetPreferredAudioLanguages()
 {
@@ -706,10 +686,7 @@ void StreamAbstractionAAMP_OTA::SetPreferredAudioLanguages()
 }
 
 /**
- * @brief SetAudioTrackByLanguage set the audio language
- *
- * @param[in] lang : Audio Language to be set
- * @param[in]
+ *  @brief SetAudioTrackByLanguage set the audio language
  */
 void StreamAbstractionAAMP_OTA::SetAudioTrackByLanguage(const char* lang)
 {
@@ -742,11 +719,9 @@ void StreamAbstractionAAMP_OTA::SetAudioTrackByLanguage(const char* lang)
     return;
 #endif
 }
+
 /**
- * @brief GetAudioTracks get the available audio tracks for the selected service / media
- *
- * @param[in]
- * @param[in]
+ *  @brief GetAudioTracks get the available audio tracks for the selected service / media
  */
 void StreamAbstractionAAMP_OTA::GetAudioTracks()
 {
@@ -806,11 +781,9 @@ void StreamAbstractionAAMP_OTA::GetAudioTracks()
 #endif
 }
 
+
 /**
- * @brief GetAudioTrackInternal get the primary key for the selected audio
- *
- * @param[in]
- * @param[in]
+ *  @brief GetAudioTrackInternal get the primary key for the selected audio
  */
 int StreamAbstractionAAMP_OTA::GetAudioTrackInternal()
 {
@@ -830,10 +803,7 @@ int StreamAbstractionAAMP_OTA::GetAudioTrackInternal()
 }
 
 /**
- * @brief SetAudioTrack sets a specific audio track
- *
- * @param[in] Index of the audio track.
- * @param[in]
+ *  @brief SetAudioTrack sets a specific audio track
  */
 void StreamAbstractionAAMP_OTA::SetAudioTrack(int trackId)
 {
@@ -856,8 +826,6 @@ void StreamAbstractionAAMP_OTA::SetAudioTrack(int trackId)
 
 /**
  *   @brief Get the list of available text tracks
- *
- *   @return std::vector<TextTrackInfo> List of available text tracks
  */
 std::vector<TextTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableTextTracks(bool all)
 {
@@ -870,9 +838,6 @@ std::vector<TextTrackInfo> & StreamAbstractionAAMP_OTA::GetAvailableTextTracks(b
 
 /**
  * @brief GetTextTracks get the available text tracks for the selected service / media
- *
- * @param[in]
- * @param[in]
  */
 void StreamAbstractionAAMP_OTA::GetTextTracks()
 {
@@ -994,11 +959,7 @@ void StreamAbstractionAAMP_OTA::GetTextTracks()
 }
 
 /**
- * @brief Disable Restrictions (unlock) till seconds mentioned
- *
- * @param[in] grace - seconds from current time, grace period, grace = -1 will allow an unlimited grace period
- * @param[in] time - seconds from current time,time till which the channel need to be kept unlocked
- * @param[in] eventChange - disable restriction handling till next program event boundary
+ *  @brief Disable Restrictions (unlock) till seconds mentioned
  */
 void StreamAbstractionAAMP_OTA::DisableContentRestrictions(long grace, long time, bool eventChange)
 {
@@ -1030,10 +991,7 @@ void StreamAbstractionAAMP_OTA::DisableContentRestrictions(long grace, long time
 }
 
 /**
- * @brief Enable Content Restriction (lock)
- *
- * @param[in]
- * @param[in]
+ *  @brief Enable Content Restriction (lock)
  */
 void StreamAbstractionAAMP_OTA::EnableContentRestrictions()
 {
@@ -1057,10 +1015,6 @@ void StreamAbstractionAAMP_OTA::DumpProfiles(void)
 
 /**
  * @brief Get output format of stream.
- *
- * @param[out]  primaryOutputFormat - format of primary track
- * @param[out]  audioOutputFormat - format of audio track
- * @param[out]  auxAudioOutputFormat - format of aux audio track
  */
 void StreamAbstractionAAMP_OTA::GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxAudioOutputFormat)
 {
@@ -1071,9 +1025,6 @@ void StreamAbstractionAAMP_OTA::GetStreamFormat(StreamOutputFormat &primaryOutpu
 
 /**
  *   @brief Return MediaTrack of requested type
- *
- *   @param[in]  type - track type
- *   @retval MediaTrack pointer.
  */
 MediaTrack* StreamAbstractionAAMP_OTA::GetMediaTrack(TrackType type)
 { // STUB
@@ -1082,8 +1033,6 @@ MediaTrack* StreamAbstractionAAMP_OTA::GetMediaTrack(TrackType type)
 
 /**
  * @brief Get current stream position.
- *
- * @retval current position of stream.
  */
 double StreamAbstractionAAMP_OTA::GetStreamPosition()
 { // STUB
@@ -1092,9 +1041,6 @@ double StreamAbstractionAAMP_OTA::GetStreamPosition()
 
 /**
  *   @brief Get stream information of a profile from subclass.
- *
- *   @param[in]  idx - profile index.
- *   @retval stream information corresponding to index.
  */
 StreamInfo* StreamAbstractionAAMP_OTA::GetStreamInfo(int idx)
 { // STUB
@@ -1103,8 +1049,6 @@ StreamInfo* StreamAbstractionAAMP_OTA::GetStreamInfo(int idx)
 
 /**
  *   @brief  Get PTS of first sample.
- *
- *   @retval PTS of first sample
  */
 double StreamAbstractionAAMP_OTA::GetFirstPTS()
 { // STUB
@@ -1113,28 +1057,30 @@ double StreamAbstractionAAMP_OTA::GetFirstPTS()
 
 /**
  *   @brief  Get Start time PTS of first sample.
- *
- *   @retval start time of first sample
  */
 double StreamAbstractionAAMP_OTA::GetStartTimeOfFirstPTS()
 { // STUB
     return 0.0;
 }
 
+/**
+ *  @brief Get the Buffered time
+ */
 double StreamAbstractionAAMP_OTA::GetBufferedDuration()
 { // STUB
 	return -1.0;
 }
 
+/**
+ *  @brief Check if initial Caching is supports
+ */
 bool StreamAbstractionAAMP_OTA::IsInitialCachingSupported()
 { // STUB
 	return false;
 }
 
 /**
- * @brief Get index of profile corresponds to bandwidth
- * @param[in] bitrate Bitrate to lookup profile
- * @retval profile index
+ *  @brief Get index of profile corresponds to bandwidth
  */
 int StreamAbstractionAAMP_OTA::GetBWIndex(long bitrate)
 { // STUB
@@ -1142,26 +1088,23 @@ int StreamAbstractionAAMP_OTA::GetBWIndex(long bitrate)
 }
 
 /**
- * @brief To get the available video bitrates.
- * @ret available video bitrates
+ *  @brief To get the available video bitrates.
  */
 std::vector<long> StreamAbstractionAAMP_OTA::GetVideoBitrates(void)
 { // STUB
     return std::vector<long>();
 }
 
-/*
-* @brief Gets Max Bitrate avialable for current playback.
-* @ret long MAX video bitrates
-*/
+/**
+ *  @brief Gets Max Bitrate avialable for current playback.
+ */
 long StreamAbstractionAAMP_OTA::GetMaxBitrate()
 { // STUB
     return 0;
 }
 
 /**
- * @brief To get the available audio bitrates.
- * @ret available audio bitrates
+ *  @brief To get the available audio bitrates.
  */
 std::vector<long> StreamAbstractionAAMP_OTA::GetAudioBitrates(void)
 { // STUB
@@ -1169,8 +1112,7 @@ std::vector<long> StreamAbstractionAAMP_OTA::GetAudioBitrates(void)
 }
 
 /**
- * @brief To get the available video tracks.
- * @ret available video tracks
+ *  @brief To get the available video tracks.
  */
 std::vector<StreamInfo*> StreamAbstractionAAMP_OTA::GetAvailableVideoTracks(void)
 { // STUB
@@ -1178,8 +1120,7 @@ std::vector<StreamInfo*> StreamAbstractionAAMP_OTA::GetAvailableVideoTracks(void
 }
 
 /**
- * @brief To get the available thumbnail tracks.
- * @ret available thumbnail tracks
+ *  @brief To get the available thumbnail tracks.
  */
 std::vector<StreamInfo*> StreamAbstractionAAMP_OTA::GetAvailableThumbnailTracks(void)
 { // STUB
@@ -1187,11 +1128,7 @@ std::vector<StreamInfo*> StreamAbstractionAAMP_OTA::GetAvailableThumbnailTracks(
 }
 
 /**
- * @fn SetThumbnailTrack
- * @brief Function to set thumbnail track for processing
- *
- * @param thumbnail index value indicating the track to select
- * @return bool true on success.
+ *  @brief Function to set thumbnail track for processing
  */
 bool StreamAbstractionAAMP_OTA::SetThumbnailTrack(int thumbnailIndex)
 {
@@ -1200,8 +1137,7 @@ bool StreamAbstractionAAMP_OTA::SetThumbnailTrack(int thumbnailIndex)
 }
 
 /**
- * @brief To get the available thumbnail tracks.
- * @ret available thumbnail tracks
+ *  @brief To get the available thumbnail tracks.
  */
 std::vector<ThumbnailData> StreamAbstractionAAMP_OTA::GetThumbnailRangeData(double start, double end, std::string *baseurl, int *raw_w, int *raw_h, int *width, int *height)
 {
@@ -1209,15 +1145,15 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_OTA::GetThumbnailRangeData(doub
 }
 
 /**
-*   @brief  Stops injecting fragments to StreamSink.
-*/
+ *  @brief  Stops injecting fragments to StreamSink.
+ */
 void StreamAbstractionAAMP_OTA::StopInjection(void)
 { // STUB - discontinuity related
 }
 
 /**
-*   @brief  Start injecting fragments to StreamSink.
-*/
+ *  @brief  Start injecting fragments to StreamSink.
+ */
 void StreamAbstractionAAMP_OTA::StartInjection(void)
 { // STUB - discontinuity related
 }

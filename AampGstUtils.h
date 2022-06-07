@@ -29,7 +29,7 @@
 #include "main_aamp.h"
 
 /**
- * @brief Parse format to generate GstCaps
+ * @fn GetGstCaps
  * @param[in] format stream format to generate caps
  * @retval GstCaps for the input format
  */

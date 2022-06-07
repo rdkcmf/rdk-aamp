@@ -33,6 +33,7 @@
 #include "AampLogManager.h"
 
 /**
+ * @enum CCFormat
  * @brief Different CC formats
  */
 enum CCFormat
@@ -42,12 +43,16 @@ enum CCFormat
 	eCLOSEDCAPTION_FORMAT_DEFAULT
 };
 
+/**
+ * @class AampCCManagerBase
+ * @brief Handles closed caption operations
+ */
 
 class AampCCManagerBase
 {
 public:
 	/**
-	 * @brief Initialize CC resource.
+	 * @fn Init
 	 *
 	 * @param[in] handle - decoder handle
 	 * @return int - 0 on sucess, -1 on failure
@@ -55,9 +60,9 @@ public:
 	int Init(void *handle);
 
 	/**
-	* @brief Gets Handle or ID, Every client using subtec must call GetId  in the begining , save id, which is required for Release funciton.
-	* @return int -  unique ID
-	*/
+	 * @brief Gets Handle or ID, Every client using subtec must call GetId  in the begining , save id, which is required for Release funciton.
+	 * @return int -  unique ID
+	 */
 	virtual int GetId() { return 0; };
 
 	/**
@@ -67,7 +72,7 @@ public:
 	virtual void Release(int iID) = 0;
 
 	/**
-	 * @brief Enable/disable CC rendering
+	 * @fn SetStatus
 	 *
 	 * @param[in] enable - true to enable CC rendering
 	 * @return int - 0 on success, -1 on failure
@@ -89,7 +94,7 @@ public:
 	const std::string &GetTrack() { return mTrack; }
 
 	/**
-	 * @brief Set CC track
+	 * @fn SetTrack
 	 *
 	 * @param[in] track - CC track to be selected
 	 * @param[in] format - force track to 608/708 or default
@@ -98,7 +103,7 @@ public:
 	int SetTrack(const std::string &track, const CCFormat format = eCLOSEDCAPTION_FORMAT_DEFAULT);
 
 	/**
-	 * @brief Set CC styles for rendering
+	 * @fn SetStyle
 	 *
 	 * @param[in] options - rendering style options
 	 * @return int - 0 on success, -1 on failure
@@ -114,7 +119,7 @@ public:
 	const std::string &GetStyle() { return mOptions; }
 
 	/**
-	 * @brief To enable/disable CC when trickplay starts/ends
+	 * @fn SetTrickplayStatus
 	 *
 	 * @param[in] enable - true when trickplay starts, false otherwise
 	 * @return void
@@ -122,7 +127,7 @@ public:
 	void SetTrickplayStatus(bool enable);
 
 	/**
-	 * @brief To enable/disable CC when parental control locked/unlocked
+	 * @fn SetParentalControlStatus
 	 *
 	 * @param[in] locked - true when parental control lock enabled, false otherwise
 	 * @return void
@@ -130,7 +135,7 @@ public:
 	void SetParentalControlStatus(bool locked);
 
 	/**
-	 * @brief To restore cc state after new tune
+	 * @fn RestoreCC 
 	 *
 	 * @return void
 	 */
@@ -217,41 +222,46 @@ protected:
 	virtual bool CheckCCHandle() const {return true;}
 
 	/**
-	 * @brief To start CC rendering
+	 * @fn Start
 	 *
 	 * @return void
 	 */
 	void Start();
 
 	/**
-	 * @brief To stop CC rendering
+	 * @fn Stop
 	 *
 	 * @return void
 	 */
 	void Stop();
 
 	
-	std::string mOptions{}; /**< CC rendering styles */
-	std::string mTrack{}; /**< CC track */
+	std::string mOptions{};                /**< CC rendering styles */
+	std::string mTrack{};                  /**< CC track */
 	std::vector<TextTrackInfo> mLastTextTracks{};
-	bool mEnabled{false}; /**< true if CC rendering enabled, false otherwise */
-	bool mTrickplayStarted{false}; /** If a trickplay is going on or not */
-	bool mParentalCtrlLocked{false}; /** If Parental Control lock enabled on not */
+	bool mEnabled{false};                  /**< true if CC rendering enabled, false otherwise */
+	bool mTrickplayStarted{false};         /**< If a trickplay is going on or not */
+	bool mParentalCtrlLocked{false};       /**< If Parental Control lock enabled on not */
 	AampLogManager *mLogObj{NULL};
 };
+
+/**
+ * @class AampCCManager
+ * @brief Handle the CC manager instance
+ */
 
 class AampCCManager
 {
 public:
 	/**
-	 * @brief Get the singleton instance
+	 * @fn GetInstance
 	 *
 	 * @return AampCCManager - singleton instance
 	 */
 	static AampCCManagerBase * GetInstance();
 
 	/**
-	 * @brief Destroy instance
+	 * @fn DestroyInstance
 	 *
 	 * @return void
 	 */

@@ -19,9 +19,9 @@
 
 
 /**
-* @file AampDRMSessionManager.cpp
-* @brief Source file for DrmSessionManager.
-*/
+ * @file AampDRMSessionManager.cpp
+ * @brief Source file for DrmSessionManager.
+ */
 
 #include "AampDRMSessionManager.h"
 #include "priv_aamp.h"
@@ -105,7 +105,7 @@ static string getFormattedLicenseServerURL(string url)
 #endif
 
 /**
- *  @brief      AampDRMSessionManager constructor.
+ *  @brief AampDRMSessionManager constructor.
  */
 AampDRMSessionManager::AampDRMSessionManager(AampLogManager *logObj, int maxDrmSessions) : drmSessionContexts(NULL),
 		cachedKeyIDs(NULL), accessToken(NULL),
@@ -134,7 +134,7 @@ AampDRMSessionManager::AampDRMSessionManager(AampLogManager *logObj, int maxDrmS
 }
 
 /**
- *  @brief      AampDRMSessionManager Destructor.
+ *  @brief AampDRMSessionManager Destructor.
  */
 AampDRMSessionManager::~AampDRMSessionManager()
 {
@@ -146,9 +146,7 @@ AampDRMSessionManager::~AampDRMSessionManager()
 }
 
 /**
- *  @brief		Clean up the memory used by session variables.
- *
- *  @return		void.
+ *  @brief  Clean up the memory used by session variables.
  */
 void AampDRMSessionManager::clearSessionData()
 {
@@ -178,9 +176,7 @@ void AampDRMSessionManager::clearSessionData()
 }
 
 /**
- * @brief	Set Session manager state
- * @param	state
- * @return	void.
+ * @brief Set Session manager state
  */
 void AampDRMSessionManager::setSessionMgrState(SessionMgrState state)
 {
@@ -188,9 +184,7 @@ void AampDRMSessionManager::setSessionMgrState(SessionMgrState state)
 }
 
 /**
- * @brief	Get Session manager state
- * @param	void
- * @return	state.
+ * @brief Get Session manager state
  */
 SessionMgrState AampDRMSessionManager::getSessionMgrState()
 {
@@ -198,27 +192,21 @@ SessionMgrState AampDRMSessionManager::getSessionMgrState()
 }
 
 /**
- * @brief	Set Session abort flag
- * @param	bool flag
- * @return	void.
+ * @brief Set Session abort flag
  */
 void AampDRMSessionManager::setCurlAbort(bool isAbort){
 	curlSessionAbort = isAbort;
 }
 
 /**
- * @brief	Get Session abort flag
- * @param	void
- * @return	bool flag.
+ * @brief Get Session abort flag
  */
 bool AampDRMSessionManager::getCurlAbort(){
 	return curlSessionAbort;
 }
 
 /**
- * @brief	Get Session abort flag
- * @param	void
- * @return	bool flag.
+ * @brief Get Session abort flag
  */
 void AampDRMSessionManager::setLicenseRequestAbort(bool isAbort)
 {
@@ -227,9 +215,7 @@ void AampDRMSessionManager::setLicenseRequestAbort(bool isAbort)
 }
 
 /**
- * @brief	Clean up the failed keyIds.
- *
- * @return	void.
+ * @brief Clean up the failed keyIds.
  */
 void AampDRMSessionManager::clearFailedKeyIds()
 {
@@ -251,9 +237,7 @@ void AampDRMSessionManager::clearFailedKeyIds()
 }
 
 /**
- *  @brief		Clean up the memory for accessToken.
- *
- *  @return		void.
+ *  @brief Clean up the memory for accessToken.
  */
 void AampDRMSessionManager::clearAccessToken()
 {
@@ -266,10 +250,7 @@ void AampDRMSessionManager::clearAccessToken()
 }
 
 /**
- * @brief	Clean up the Session Data if license key acquisition failed or if LicenseCaching is false.
- *
- * @param forceClearSession clear the drm session irrespective of failed keys if LicenseCaching is false.
- * @return	void.
+ * @brief Clean up the Session Data if license key acquisition failed or if LicenseCaching is false.
  */
 void AampDRMSessionManager::clearDrmSession(bool forceClearSession)
 {
@@ -295,6 +276,7 @@ void AampDRMSessionManager::clearDrmSession(bool forceClearSession)
 	}
 }
 
+
 void AampDRMSessionManager::setVideoWindowSize(int width, int height)
 {
 #ifdef USE_SECMANAGER
@@ -306,6 +288,7 @@ void AampDRMSessionManager::setVideoWindowSize(int width, int height)
 	}
 #endif
 }
+
 
 void AampDRMSessionManager::setPlaybackSpeedState(int speed, double position, bool delayNeeded)
 {
@@ -319,15 +302,7 @@ void AampDRMSessionManager::setPlaybackSpeedState(int speed, double position, bo
 #endif
 }
 
-/**
- * @brief
- * @param clientp app-specific as optionally set with CURLOPT_PROGRESSDATA
- * @param dltotal total bytes expected to download
- * @param dlnow downloaded bytes so far
- * @param ultotal total bytes expected to upload
- * @param ulnow uploaded bytes so far
- * @retval
- */
+
 int AampDRMSessionManager::progress_callback(
 	void *clientp, // app-specific as optionally set with CURLOPT_PROGRESSDATA
 	double dltotal, // total bytes expected to download
@@ -350,13 +325,8 @@ int AampDRMSessionManager::progress_callback(
 }
 
 /**
- *  @brief		Curl write callback, used to get the curl o/p
- *  			from DRM license, accessToken curl requests.
- *
- *  @param[in]	ptr - Pointer to received data.
- *  @param[in]	size, nmemb - Size of received data (size * nmemb).
- *  @param[out]	userdata - Pointer to buffer where the received data is copied.
- *  @return		returns the number of bytes processed.
+ *  @brief  Curl write callback, used to get the curl o/p
+ *          from DRM license, accessToken curl requests.
  */
 size_t AampDRMSessionManager::write_callback(char *ptr, size_t size,
 		size_t nmemb, void *userdata)
@@ -388,11 +358,11 @@ size_t AampDRMSessionManager::write_callback(char *ptr, size_t size,
 }
 
 /**
- *  @brief		Extract substring between (excluding) two string delimiters.
+ *  @brief	Extract substring between (excluding) two string delimiters.
  *
  *  @param[in]	parentStr - Parent string from which substring is extracted.
  *  @param[in]	startStr, endStr - String delimiters.
- *  @return		Returns the extracted substring; Empty string if delimiters not found.
+ *  @return	Returns the extracted substring; Empty string if delimiters not found.
  */
 string _extractSubstring(string parentStr, string startStr, string endStr)
 {
@@ -411,12 +381,7 @@ string _extractSubstring(string parentStr, string startStr, string endStr)
 }
 
 /**
- *  @brief		Get the accessToken from authService.
- *
- *  @param[out]	tokenLen - Gets updated with accessToken length.
- *  @return		Pointer to accessToken.
- *  @note		AccessToken memory is dynamically allocated, deallocation
- *				should be handled at the caller side.
+ *  @brief Get the accessToken from authService.
  */
 const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_code , bool bSslPeerVerify)
 {
@@ -510,10 +475,7 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 }
 
 /**
- *  @brief		Get DRM license key from DRM server.
- *  @param[in]	keyIdArray - key Id extracted from pssh data
- *  @return		bool - true if key is not cached/cached with no failure,
- * 				false if keyId is already marked as failed.
+ *  @brief Get DRM license key from DRM server.
  */
 bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
 {
@@ -536,6 +498,7 @@ bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
 
 
 #if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
+
 DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &licenseRequest, std::shared_ptr<AampDrmHelper> drmHelper,
 		const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance, int32_t *httpCode, int32_t *httpExtStatusCode, DrmMetaDataEventPtr eventHandle)
 {
@@ -690,19 +653,9 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	return licenseResponse;
 }
 #endif
+
 /**
- *  @brief		Get DRM license key from DRM server.
- *
- *  @param[in]	licenseRequest - License request details (URL, headers etc.)
- *  @param[out]	httpCode - Gets updated with http error; default -1.
- *  @param[in]	isContentMetadataAvailable - Flag to indicate whether MSO specific headers
- *  			are to be used.
- *  @param[in]	licenseProxy - Proxy to use for license requests.
- *  @return		Structure holding DRM license key and it's length; NULL and 0 if request fails
- *  @note		Memory for license key is dynamically allocated, deallocation
- *				should be handled at the caller side.
- *			customHeader ownership should be taken up by getLicense function
- *
+ *  @brief Get DRM license key from DRM server.
  */
 DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		int32_t *httpCode, MediaType streamType, PrivateInstanceAAMP* aamp, bool isContentMetadataAvailable, std::string licenseProxy)
@@ -902,24 +855,12 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 }
 
 /**
- *  @brief		Creates and/or returns the DRM session corresponding to keyId (Present in initDataPtr)
- *  			AampDRMSession manager has two static AampDrmSession objects.
- *  			This method will return the existing DRM session pointer if any one of these static
- *  			DRM session objects are created against requested keyId. Binds the oldest DRM Session
- *  			with new keyId if no matching keyId is found in existing sessions.
- *
- *  @param[in]	systemId - UUID of the DRM system.
- *  @param[in]	initDataPtr - Pointer to PSSH data.
- *  @param[in]	dataLength - Length of PSSH data.
- *  @param[in]	streamType - Whether audio or video.
- *  @param[in]	contentMetadataPtr - Pointer to content meta data, when content meta data
- *  			is already extracted during manifest parsing. Used when content meta data
- *  			is available as part of another PSSH header, like DRM Agnostic PSSH
- *  			header.
- *  @param[in]	aamp - Pointer to PrivateInstanceAAMP, for DRM related profiling.
- *  @param[out]	error_code - Gets updated with proper error code, if session creation fails.
- *  			No NULL checks are done for error_code, caller should pass a valid pointer.
- *  @return		Pointer to DrmSession for the given PSSH data; NULL if session creation/mapping fails.
+ *  @brief      Creates and/or returns the DRM session corresponding to keyId (Present in initDataPtr)
+ *              AampDRMSession manager has two static AampDrmSession objects.
+ *              This method will return the existing DRM session pointer if any one of these static
+ *              DRM session objects are created against requested keyId. Binds the oldest DRM Session
+ *              with new keyId if no matching keyId is found in existing sessions.
+ *  @return     Pointer to DrmSession for the given PSSH data; NULL if session creation/mapping fails.
  */
 AampDrmSession * AampDRMSessionManager::createDrmSession(
 		const char* systemId, MediaFormat mediaFormat, const unsigned char * initDataPtr,
@@ -965,8 +906,7 @@ AampDrmSession * AampDRMSessionManager::createDrmSession(
 }
 
 /**
- * Create DrmSession by using the AampDrmHelper object
- * @return AampdrmSession
+ *  @brief Create DrmSession by using the AampDrmHelper object
  */
 AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance, MediaType streamType)
 {
@@ -1052,9 +992,8 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 }
 
 /**
- * Create a DRM Session using the Drm Helper
- * Determine a slot in the drmSession Contexts which can be used
- * @return index to the selected drmSessionContext which has been selected
+ * @brief Create a DRM Session using the Drm Helper
+ *        Determine a slot in the drmSession Contexts which can be used
  */
 KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int &selectedSlot, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance, bool isPrimarySession)
 {
@@ -1267,7 +1206,7 @@ KeyState AampDRMSessionManager::getDrmSession(std::shared_ptr<AampDrmHelper> drm
 }
 
 /**
- * Initialize the Drm System with InitData(PSSH)
+ * @brief Initialize the Drm System with InitData(PSSH)
  */
 KeyState AampDRMSessionManager::initializeDrmSession(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, DrmMetaDataEventPtr eventHandle,  PrivateInstanceAAMP* aampInstance)
 {
@@ -1300,7 +1239,7 @@ KeyState AampDRMSessionManager::initializeDrmSession(std::shared_ptr<AampDrmHelp
 }
 
 /**
- * sent license challenge to the DRM server and provide the respone to CDM
+ * @brief sent license challenge to the DRM server and provide the respone to CDM
  */
 KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
 		DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance, MediaType streamType)
@@ -1458,6 +1397,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 	return code;
 }
 
+
 KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError, int32_t httpResponseCode, int32_t httpExtendedStatusCode, shared_ptr<DrmData> licenseResponse, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aamp)
 {
 	if (!drmHelper->isExternalLicense())
@@ -1564,6 +1504,7 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 	return processLicenseResponse(drmHelper, sessionSlot, cdmError, licenseResponse, eventHandle, aamp);
 }
 
+
 KeyState AampDRMSessionManager::processLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
 		shared_ptr<DrmData> licenseResponse, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance)
 {
@@ -1609,7 +1550,7 @@ KeyState AampDRMSessionManager::processLicenseResponse(std::shared_ptr<AampDrmHe
 }
 
 /**
- * Configure the Drm license server parameters for URL/proxy and custom http request headers
+ * @brief Configure the Drm license server parameters for URL/proxy and custom http request headers
  */
 bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<AampDrmHelper> drmHelper, AampLicenseRequest &licenseRequest,
 		std::string &licenseServerProxy, const AampChallengeInfo& challengeInfo, PrivateInstanceAAMP* aampInstance)
@@ -1659,7 +1600,9 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 	return isContentMetadataAvailable;
 }
 
-
+/**
+ * @brief Resethe current seesion ID
+ */
 void AampDRMSessionManager::notifyCleanup()
 {
 #ifdef USE_SECMANAGER
@@ -1675,7 +1618,7 @@ void AampDRMSessionManager::notifyCleanup()
 
 /**
  *  @brief		Function to release the DrmSession if it running
- *  @param[out]	private aamp instance
+ *  @param[out]	aamp private aamp instance
  *  @return		None.
  */
 void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp){
@@ -1695,9 +1638,9 @@ void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp){
 }
 
 /**
- *  @brief		Function to spawn the DrmSession Thread based on the
+ *  @brief	Function to spawn the DrmSession Thread based on the
  *              preferred drm set.  
- *  @param[out]	private aamp instance
+ *  @param[out]	drmData private aamp instance
  *  @return		None.
  */
 int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData)
@@ -1734,7 +1677,7 @@ int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* 
 }
 
 /**
- *  @brief		Thread function to create DRM Session which would be invoked in thread from
+ *  @brief	Thread function to create DRM Session which would be invoked in thread from
  *              HLS , PlayReady or from pipeline  
  *
  *  @param[out]	arg - DrmSessionParams structure with filled data

@@ -26,8 +26,9 @@
 #include "priv_aamp.h" //Required for AAMPLOG_WARN1
 #include <string.h>
 
+
 /**
- * @brief IsoBmffBuffer destructor
+ *  @brief IsoBmffBuffer destructor
  */
 IsoBmffBuffer::~IsoBmffBuffer()
 {
@@ -41,11 +42,7 @@ IsoBmffBuffer::~IsoBmffBuffer()
 }
 
 /**
- * @brief Set buffer
- *
- * @param[in] buf - buffer pointer
- * @param[in] sz - buffer size
- * @return void
+ *  @brief Set buffer
  */
 void IsoBmffBuffer::setBuffer(uint8_t *buf, size_t sz)
 {
@@ -54,9 +51,7 @@ void IsoBmffBuffer::setBuffer(uint8_t *buf, size_t sz)
 }
 
 /**
- * @brief Parse ISOBMFF boxes from buffer
- *
- * @return true if parse was successful. false otherwise
+ *  @brief Parse ISOBMFF boxes from buffer
  */
 bool IsoBmffBuffer::parseBuffer(bool correctBoxSize)
 {
@@ -76,10 +71,7 @@ bool IsoBmffBuffer::parseBuffer(bool correctBoxSize)
 }
 
 /**
- * @brief Get mdat buffer handle and size from parsed buffer
- * @param[out] uint8_t * - mdat buffer pointer
- * @param[out] size_t - size of mdat buffer
- * @return true if mdat buffer is available. false otherwise
+ *  @brief Get mdat buffer handle and size from parsed buffer
  */
 bool IsoBmffBuffer::parseMdatBox(uint8_t *buf, size_t &size)
 {
@@ -89,13 +81,7 @@ bool IsoBmffBuffer::parseMdatBox(uint8_t *buf, size_t &size)
 #define BOX_HEADER_SIZE 8
 
 /**
- * @brief parse ISOBMFF boxes of a type in a parsed buffer
- *
- * @param[in] boxes - ISOBMFF boxes
- * @param[in] const char * - box name to get
- * @param[out] uint8_t * - mdat buffer pointer
- * @param[out] size_t - size of mdat buffer
- * @return bool
+ *  @brief parse ISOBMFF boxes of a type in a parsed buffer
  */
 bool IsoBmffBuffer::parseBoxInternal(const std::vector<Box*> *boxes, const char *name, uint8_t *buf, size_t &size)
 {
@@ -115,9 +101,7 @@ bool IsoBmffBuffer::parseBoxInternal(const std::vector<Box*> *boxes, const char 
 }
 
 /**
- * @brief Get mdat buffer size
- * @param[out] size_t - size of mdat buffer
- * @return true if buffer size available. false otherwise
+ *  @brief Get mdat buffer size
  */
 bool IsoBmffBuffer::getMdatBoxSize(size_t &size)
 {
@@ -125,12 +109,7 @@ bool IsoBmffBuffer::getMdatBoxSize(size_t &size)
 }
 
 /**
- * @brief get ISOBMFF box size of a type
- *
- * @param[in] boxes - ISOBMFF boxes
- * @param[in] const char * - box name to get
- * @param[out] size_t - size of mdat buffer
- * @return bool
+ *  @brief get ISOBMFF box size of a type
  */
 bool IsoBmffBuffer::getBoxSizeInternal(const std::vector<Box*> *boxes, const char *name, size_t &size)
 {
@@ -147,13 +126,7 @@ bool IsoBmffBuffer::getBoxSizeInternal(const std::vector<Box*> *boxes, const cha
 }
 
 /**
- * @brief Restamp PTS in a buffer
- *
- * @param[in] offset - pts offset
- * @param[in] basePts - base PTS
- * @param[in] segment - buffer pointer
- * @param[in] bufSz - buffer size
- * @return void
+ *  @brief Restamp PTS in a buffer
  */
 void IsoBmffBuffer::restampPTS(uint64_t offset, uint64_t basePts, uint8_t *segment, uint32_t bufSz)
 {
@@ -196,9 +169,7 @@ void IsoBmffBuffer::restampPTS(uint64_t offset, uint64_t basePts, uint8_t *segme
 }
 
 /**
- * @brief Release ISOBMFF boxes parsed
- *
- * @return void
+ *  @brief Release ISOBMFF boxes parsed
  */
 void IsoBmffBuffer::destroyBoxes()
 {
@@ -212,11 +183,7 @@ void IsoBmffBuffer::destroyBoxes()
 }
 
 /**
- * @brief Get first PTS of buffer
- *
- * @param[in] boxes - ISOBMFF boxes
- * @param[out] pts - pts value
- * @return true if parse was successful. false otherwise
+ *  @brief Get first PTS of buffer
  */
 bool IsoBmffBuffer::getFirstPTSInternal(const std::vector<Box*> *boxes, uint64_t &pts)
 {
@@ -239,11 +206,7 @@ bool IsoBmffBuffer::getFirstPTSInternal(const std::vector<Box*> *boxes, uint64_t
 }
 
 /**
- * @brief Get track_id of the stream by traversing the boxes recursively
- *
- * @param[in] boxes - ISOBMFF boxes
- * @param[out] track_id - trak_id value
- * @return true if parse was successful. false otherwise
+ *  @brief Get track id from trak box
  */
 bool IsoBmffBuffer::getTrackIdInternal(const std::vector<Box*> *boxes, uint32_t &track_id)
 {
@@ -270,10 +233,7 @@ bool IsoBmffBuffer::getTrackIdInternal(const std::vector<Box*> *boxes, uint32_t 
 }
 
 /**
- * @brief Get first PTS of buffer
- *
- * @param[out] pts - pts value
- * @return true if parse was successful. false otherwise
+ *  @brief Get first PTS of buffer
  */
 bool IsoBmffBuffer::getFirstPTS(uint64_t &pts)
 {
@@ -281,8 +241,7 @@ bool IsoBmffBuffer::getFirstPTS(uint64_t &pts)
 }
 
 /**
- * @brief Print PTS of buffer
- * @return tvoid
+ *  @brief Print PTS of buffer
  */
 void IsoBmffBuffer::PrintPTS(void)
 {
@@ -290,24 +249,15 @@ void IsoBmffBuffer::PrintPTS(void)
 }
 
 /**
- * @brief Get track_d iof the stream
- *
- * @param[out] track_id - track id
- * @return true if parse was successful. false otherwise
+ *  @brief Get track_id from the trak box
  */
 bool IsoBmffBuffer::getTrack_id(uint32_t &track_id)
 {
 	return getTrackIdInternal(&boxes, track_id);
 }
 
-
 /**
- * @brief Get TimeScale value of buffer
- *
- * @param[in] boxes - ISOBMFF boxes
- * @param[out] timeScale - TimeScale value
- * @param[out] foundMdhd - flag indicates if MDHD box was seen
- * @return true if parse was successful. false otherwise
+ *  @brief Get TimeScale value of buffer
  */
 bool IsoBmffBuffer::getTimeScaleInternal(const std::vector<Box*> *boxes, uint32_t &timeScale, bool &foundMdhd)
 {
@@ -335,10 +285,7 @@ bool IsoBmffBuffer::getTimeScaleInternal(const std::vector<Box*> *boxes, uint32_
 }
 
 /**
- * @brief Get TimeScale value of buffer
- *
- * @param[out] timeScale - TimeScale value
- * @return true if parse was successful. false otherwise
+ *  @brief Get TimeScale value of buffer
  */
 bool IsoBmffBuffer::getTimeScale(uint32_t &timeScale)
 {
@@ -347,10 +294,7 @@ bool IsoBmffBuffer::getTimeScale(uint32_t &timeScale)
 }
 
 /**
- * @brief Print ISOBMFF boxes
- *
- * @param[in] boxes - ISOBMFF boxes
- * @return void
+ *  @brief Print ISOBMFF boxes
  */
 void IsoBmffBuffer::printBoxesInternal(const std::vector<Box*> *boxes)
 {
@@ -379,11 +323,8 @@ void IsoBmffBuffer::printBoxesInternal(const std::vector<Box*> *boxes)
 }
 
 
-
 /**
- * @brief Print ISOBMFF boxes
- *
- * @return void
+ *  @brief Print ISOBMFF boxes
  */
 void IsoBmffBuffer::printBoxes()
 {
@@ -391,9 +332,7 @@ void IsoBmffBuffer::printBoxes()
 }
  
 /**
- * @brief Check if buffer is an initialization segment
- *
- * @return true if buffer is an initialization segment. false otherwise
+ *  @brief Check if buffer is an initialization segment
  */
 bool IsoBmffBuffer::isInitSegment()
 {
@@ -411,19 +350,7 @@ bool IsoBmffBuffer::isInitSegment()
 }
 
 /**
- * @brief Get emsg informations
- *
- * @param[in] boxes - ISOBMFF boxes
- * @param[out] message - messageData pointer
- * @param[out] messageLen - messageLen value
- * @param[out] schemeIdUri - schemeIdUri
- * @param[out] value - value of Id3
- * @param[out] presTime - Presentation time
- * @param[out] timeScale - timeScale of ID3 metadata
- * @param[out] eventDuration - eventDuration value
- * @param[out] id - ID of metadata
- * @param[out] foundEmsg - flag indicates if EMSG box was seen
- * @return true if parse was successful. false otherwise
+ *  @brief Get emsg informations
  */
 bool IsoBmffBuffer::getEMSGInfoInternal(const std::vector<Box*> *boxes, uint8_t* &message, uint32_t &messageLen, uint8_t* &schemeIdUri, uint8_t* &value, uint64_t &presTime, uint32_t &timeScale, uint32_t &eventDuration, uint32_t &id, bool &foundEmsg)
 {
@@ -448,19 +375,8 @@ bool IsoBmffBuffer::getEMSGInfoInternal(const std::vector<Box*> *boxes, uint8_t*
 	return ret;
 }
 
-
 /**
- * @brief Get information from EMSG box
- *
- * @param[out] message - messageData from EMSG
- * @param[out] messageLen - messageLen
- * @param[out] schemeIdUri - schemeIdUri
- * @param[out] value - value of Id3
- * @param[out] presTime - Presentation time
- * @param[out] timeScale - timeScale of ID3 metadata
- * @param[out] eventDuration - eventDuration value
- * @param[out] id - ID of metadata
- * @return true if parse was successful. false otherwise
+ *  @brief Get information from EMSG box
  */
 bool IsoBmffBuffer::getEMSGData(uint8_t* &message, uint32_t &messageLen, uint8_t* &schemeIdUri, uint8_t* &value, uint64_t &presTime, uint32_t &timeScale, uint32_t &eventDuration, uint32_t &id)
 {
@@ -469,12 +385,7 @@ bool IsoBmffBuffer::getEMSGData(uint8_t* &message, uint32_t &messageLen, uint8_t
 }
 
 /**
- * @brief get ISOBMFF box list of a type in a parsed buffer
- *
- * @param[in] boxes - ISOBMFF boxes
- * @param[in] const char * - box name to get
- * @param[out] size_t - size of mdat buffer
- * @return bool
+ *  @brief get ISOBMFF box list of a type in a parsed buffer
  */
 bool IsoBmffBuffer::getBoxesInternal(const std::vector<Box*> *boxes, const char *name, std::vector<Box*> *pBoxes)
 {
@@ -497,9 +408,7 @@ bool IsoBmffBuffer::getBoxesInternal(const std::vector<Box*> *boxes, const char 
 }
 
 /**
- * @brief Check mdat buffer count in parsed buffer
- * @param[out] size_t - mdat box count
- * @return true if mdat count available. false otherwise
+ *  @brief Check mdat buffer count in parsed buffer
  */
 bool IsoBmffBuffer::getMdatBoxCount(size_t &count)
 {
@@ -512,8 +421,6 @@ bool IsoBmffBuffer::getMdatBoxCount(size_t &count)
 
 /**
  * @brief Print ISOBMFF mdat boxes in parsed buffer
- *
- * @return void
  */
 void IsoBmffBuffer::printMdatBoxes()
 {
@@ -525,9 +432,6 @@ void IsoBmffBuffer::printMdatBoxes()
 
 /**
  * @brief Get list of box handle in parsed bufferr using name
- * @param[in] const char * - box name to get
- * @param[out] std::vector<Box*> - List of box handles of a type in a parsed buffer
- * @return true if Box found. false otherwise
  */
 bool IsoBmffBuffer::getTypeOfBoxes(const char *name, std::vector<Box*> &stBoxes)
 {
@@ -537,9 +441,7 @@ bool IsoBmffBuffer::getTypeOfBoxes(const char *name, std::vector<Box*> &stBoxes)
 }
 
 /**
- * @brief Get list of box handles in a parsed buffer
- *
- * @return Box handle if Chunk box found in a parsed buffer. NULL otherwise
+ *  @brief Get list of box handles in a parsed buffer
  */
 Box* IsoBmffBuffer::getChunkedfBox() const
 {
@@ -547,9 +449,7 @@ Box* IsoBmffBuffer::getChunkedfBox() const
 }
 
 /**
- * @brief Get list of box handles in a parsed buffer
- *
- * @return Box handle list if Box found at index given. NULL otherwise
+ *  @brief Get list of box handles in a parsed buffer
  */
 std::vector<Box*> *IsoBmffBuffer::getParsedBoxes()
 {
@@ -557,10 +457,7 @@ std::vector<Box*> *IsoBmffBuffer::getParsedBoxes()
 }
 
 /**
- * @brief Get box handle in parsed bufferr using name
- * @param[in] const char * - box name to get
- * @param[out] size_t - index of box in a parsed buffer
- * @return Box handle if Box found at index given. NULL otherwise
+ *  @brief Get box handle in parsed bufferr using name
  */
 Box*  IsoBmffBuffer::getBox(const char *name, size_t &index)
 {
@@ -580,9 +477,7 @@ Box*  IsoBmffBuffer::getBox(const char *name, size_t &index)
 }
 
 /**
- * @brief Get box handle in parsed bufferr using index
- * @param[out] size_t - index of box in a parsed buffer
- * @return Box handle if Box found at index given. NULL otherwise
+ *  @brief Get box handle in parsed bufferr using index
  */
 Box* IsoBmffBuffer::getBoxAtIndex(size_t index)
 {
@@ -592,11 +487,9 @@ Box* IsoBmffBuffer::getBoxAtIndex(size_t index)
         return NULL;
 }
 
+
 /**
- * @brief Print ISOBMFF box PTS
- *
- * @param[in] boxes - ISOBMFF boxes
- * @return void
+ *  @brief Print ISOBMFF box PTS
  */
 void IsoBmffBuffer::printPTSInternal(const std::vector<Box*> *boxes)
 {
@@ -617,10 +510,7 @@ void IsoBmffBuffer::printPTSInternal(const std::vector<Box*> *boxes)
 }
 
 /**
- * @brief Get ISOBMFF box Sample Duration
- *
- * @param[in] boxes - ISOBMFF boxes
- * @return uint64_t - duration  value
+ *  @brief Get ISOBMFF box Sample Duration
  */
 uint64_t IsoBmffBuffer::getSampleDurationInernal(const std::vector<Box*> *boxes)
 {
@@ -654,11 +544,7 @@ uint64_t IsoBmffBuffer::getSampleDurationInernal(const std::vector<Box*> *boxes)
 }
 
 /**
- * @brief Get ISOBMFF box Sample Duration
- *
- * @param[in] box - ISOBMFF box
- * @param[in] uint64_t* -  duration to get
- * @return void
+ *  @brief Get ISOBMFF box Sample Duration
  */
 void IsoBmffBuffer::getSampleDuration(Box *box, uint64_t &fduration)
 {
@@ -669,10 +555,7 @@ void IsoBmffBuffer::getSampleDuration(Box *box, uint64_t &fduration)
 }
 
 /**
- * @brief Get ISOBMFF box PTS
- *
- * @param[in] boxes - ISOBMFF boxes
- * @return uint64_t - PTS value
+ *  @brief Get ISOBMFF box PTS
  */
 uint64_t IsoBmffBuffer::getPtsInternal(const std::vector<Box*> *boxes)
 {
@@ -698,11 +581,7 @@ uint64_t IsoBmffBuffer::getPtsInternal(const std::vector<Box*> *boxes)
 }
 
 /**
- * @brief Get ISOBMFF box PTS
- *
- * @param[in] boxe - ISOBMFF box
- * @param[in] uint64_t* -  PTS to get
- * @return void
+ *  @brief Get ISOBMFF box PTS
  */
 void IsoBmffBuffer::getPts(Box *box, uint64_t &fpts)
 {

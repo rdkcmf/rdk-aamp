@@ -58,6 +58,7 @@ namespace
     }
 }
 
+
 CCDataController* CCDataController::Instance()
 {
     static CCDataController instance;

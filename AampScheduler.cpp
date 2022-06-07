@@ -23,6 +23,7 @@
  */
 
 #include "AampScheduler.h"
+
 /**
  * @brief AampScheduler Constructor
  */
@@ -47,8 +48,6 @@ AampScheduler::~AampScheduler()
 
 /**
  * @brief To start scheduler thread
- *
- * @return void
  */
 void AampScheduler::StartScheduler()
 {
@@ -61,9 +60,6 @@ void AampScheduler::StartScheduler()
 
 /**
  * @brief To schedule a task to be executed later
- *
- * @param[in] obj - object to be scheduled
- * @return void
  */
 int AampScheduler::ScheduleTask(AsyncTaskObj obj)
 {
@@ -102,8 +98,6 @@ int AampScheduler::ScheduleTask(AsyncTaskObj obj)
 
 /**
  * @brief Executes scheduled tasks - invoked by thread
- *
- * @return void
  */
 void AampScheduler::ExecuteAsyncTask()
 {
@@ -151,8 +145,6 @@ void AampScheduler::ExecuteAsyncTask()
 
 /**
  * @brief To remove all scheduled tasks and prevent further tasks from scheduling
- *
- * @return void
  */
 void AampScheduler::RemoveAllTasks()
 {
@@ -166,8 +158,6 @@ void AampScheduler::RemoveAllTasks()
 
 /**
  * @brief To stop scheduler and associated resources
- *
- * @return void
  */
 void AampScheduler::StopScheduler()
 {
@@ -183,8 +173,6 @@ void AampScheduler::StopScheduler()
 
 /**
  * @brief To acquire execution lock for synchronisation purposes
- *
- * @return void
  */
 void AampScheduler::SuspendScheduler()
 {
@@ -194,9 +182,7 @@ void AampScheduler::SuspendScheduler()
 }
 
 /**
- * @brief To remove all scheduled tasks
- *
- * @return void
+ * @brief To release execution lock
  */
 void AampScheduler::ResumeScheduler()
 {
@@ -207,9 +193,6 @@ void AampScheduler::ResumeScheduler()
 
 /**
  * @brief To remove a scheduled tasks with ID
- *
- * @param[in] id - ID of task to be removed
- * @return bool true if removed, false otherwise
  */
 bool AampScheduler::RemoveTask(int id)
 {
@@ -237,8 +220,6 @@ bool AampScheduler::RemoveTask(int id)
 
 /**
  * @brief To enable scheduler to queue new tasks
- *
- * @return void
  */
 void AampScheduler::EnableScheduleTask()
 {
@@ -247,9 +228,7 @@ void AampScheduler::EnableScheduleTask()
 }
 
 /**
- * @brief To Set the state of the player
- *
- * @return void
+ * @brief To player state to Scheduler
  */
 void AampScheduler::SetState(PrivAAMPState sstate)
 {
@@ -258,12 +237,14 @@ void AampScheduler::SetState(PrivAAMPState sstate)
 
 #ifdef __UNIT_TESTING__
 
+
 void printTask(const char *str)
 {
     AAMPLOG_WARN("Inside task function :%s\n",str);
     int seconds = rand() % 10 + 1;
     sleep(seconds);
 }
+
 
 void AddTask(AampScheduler &mScheduler, std::string str )
 {
@@ -273,6 +254,8 @@ void AddTask(AampScheduler &mScheduler, std::string str )
 					}, (void *) nullptr, __FUNCTION__));
 
 }
+
+
 void task1(void *inst) {
     std::string input="Task1";
     AampScheduler *mScheduler = (AampScheduler *)inst;
@@ -298,6 +281,7 @@ void task2(void *inst) {
 					}, (void *) nullptr, __FUNCTION__));
 
 }
+
 int main()
 {
     AAMPLOG_WARN("Testing the Player Scheduler Class\n");

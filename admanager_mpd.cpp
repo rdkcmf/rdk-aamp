@@ -40,19 +40,25 @@ static void *AdFulfillThreadEntry(void *arg)
     return NULL;
 }
 
-
+/**
+ * @brief CDAIObjectMPD Constructor
+ */
 CDAIObjectMPD::CDAIObjectMPD(AampLogManager *logObj, PrivateInstanceAAMP* aamp): CDAIObject(logObj, aamp), mPrivObj(new PrivateCDAIObjectMPD(logObj, aamp))
 {
 
 }
 
+/**
+ * @brief CDAIObjectMPD destructor.
+ */
 CDAIObjectMPD::~CDAIObjectMPD()
 {
 	SAFE_DELETE(mPrivObj);
 }
 
 /**
- * @}
+ * @brief Setting the alternate contents' (Ads/blackouts) URL
+ *
  */
 void CDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url,  uint64_t startMS, uint32_t breakdur)
 {
@@ -60,13 +66,18 @@ void CDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std:
 }
 
 
-
+/**
+ * @brief PrivateCDAIObjectMPD constructor
+ */
 PrivateCDAIObjectMPD::PrivateCDAIObjectMPD(AampLogManager* logObj, PrivateInstanceAAMP* aamp) : mLogObj(logObj),mAamp(aamp),mDaiMtx(), mIsFogTSB(false), mAdBreaks(), mPeriodMap(), mCurPlayingBreakId(), mAdObjThreadID(0), mAdFailed(false), mCurAds(nullptr),
 					mCurAdIdx(-1), mContentSeekOffset(0), mAdState(AdState::OUTSIDE_ADBREAK),mPlacementObj(), mAdFulfillObj()
 {
 	mAamp->CurlInit(eCURLINSTANCE_DAI,1,mAamp->GetNetworkProxy());
 }
 
+/**
+ * @brief PrivateCDAIObjectMPD destructor
+ */
 PrivateCDAIObjectMPD::~PrivateCDAIObjectMPD()
 {
 	if(mAdObjThreadID)
@@ -81,6 +92,9 @@ PrivateCDAIObjectMPD::~PrivateCDAIObjectMPD()
 	mAamp->CurlTerm(eCURLINSTANCE_DAI);
 }
 
+/**
+ * @brief Method to insert period into period map
+ */
 void PrivateCDAIObjectMPD::InsertToPeriodMap(IPeriod * period)
 {
 	const std::string &prdId = period->GetId();
@@ -90,17 +104,25 @@ void PrivateCDAIObjectMPD::InsertToPeriodMap(IPeriod * period)
 	}
 }
 
+/**
+ * @brief Method to check the existence of period in the period map
+ */
 bool PrivateCDAIObjectMPD::isPeriodExist(const std::string &periodId)
 {
 	return (mPeriodMap.end() != mPeriodMap.find(periodId))?true:false;
 }
 
+/**
+ * @brief Method to check the existence of Adbreak object in the AdbreakObject map
+ */
 inline bool PrivateCDAIObjectMPD::isAdBreakObjectExist(const std::string &adBrkId)
 {
 	return (mAdBreaks.end() != mAdBreaks.find(adBrkId))?true:false;
 }
 
-
+/**
+ * @brief Method to remove expired periods from the period map
+ */
 void PrivateCDAIObjectMPD::PrunePeriodMaps(std::vector<std::string> &newPeriodIds)
 {
 	//Erase all adbreaks other than new adbreaks
@@ -130,6 +152,9 @@ void PrivateCDAIObjectMPD::PrunePeriodMaps(std::vector<std::string> &newPeriodId
 	}
 }
 
+/**
+ * @brief Method to reset the state of the CDAI state machine
+ */
 void PrivateCDAIObjectMPD::ResetState()
 {
 	 //TODO: Vinod, maybe we can move these playback state variables to PrivateStreamAbstractionMPD
@@ -143,6 +168,9 @@ void PrivateCDAIObjectMPD::ResetState()
 	 mAdState = AdState::OUTSIDE_ADBREAK;
 }
 
+/**
+ * @brief Method to clear the maps in the CDAI object
+ */
 void PrivateCDAIObjectMPD::ClearMaps()
 {
 	std::unordered_map<std::string, AdBreakObject> tmpMap;
@@ -159,6 +187,9 @@ void PrivateCDAIObjectMPD::ClearMaps()
 	mPeriodMap.clear();
 }
 
+/**
+ * @brief Method to create a bidirectional between the ads and the underlying content periods
+ */
 void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 {
 	bool placed = false;
@@ -376,6 +407,11 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 	}
 }
 
+/**
+ * @brief Checking to see if a period is the begining of the Adbreak or not.
+ *
+ * @return Ad index, if the period has an ad over it. Else -1
+ */
 int PrivateCDAIObjectMPD::CheckForAdStart(const float &rate, bool init, const std::string &periodId, double offSet, std::string &breakId, double &adOffset)
 {
 	int adIdx = -1;
@@ -445,6 +481,9 @@ int PrivateCDAIObjectMPD::CheckForAdStart(const float &rate, bool init, const st
 	return adIdx;
 }
 
+/**
+ * @brief Checking to see if the position in a period corresponds to an end of Ad playback or not
+ */
 bool PrivateCDAIObjectMPD::CheckForAdTerminate(double currOffset)
 {
 	uint64_t fragOffset = (uint64_t)(currOffset * 1000);
@@ -456,17 +495,18 @@ bool PrivateCDAIObjectMPD::CheckForAdTerminate(double currOffset)
 	return false;
 }
 
+/**
+ * @brief Checking to see if a period has Adbreak
+ */
 bool PrivateCDAIObjectMPD::isPeriodInAdbreak(const std::string &periodId)
 {
 	return !(mPeriodMap[periodId].adBreakId.empty());
 }
 
-
-
 /**
- * @brief Get libdash xml Node for Ad period
- * @param[in] manifestUrl url of the Ad
- * @retval libdash xml Node corresponding to Ad period
+ * @brief Method for downloading and parsing Ad's MPD
+ *
+ * @return Pointer to the MPD object
  */
 MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifest, bool tryFog)
 {
@@ -626,6 +666,9 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 	return adMpd;
 }
 
+/**
+ * @brief Method for fullfilling the Ad
+ */
 void PrivateCDAIObjectMPD::FulFillAdObject()
 {
 	bool adStatus = false;
@@ -693,6 +736,9 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 	mAamp->SendAdResolvedEvent(mAdFulfillObj.adId, adStatus, startMS, durationMs);
 }
 
+/**
+ * @brief Setting the alternate contents' (Ads/blackouts) URL
+ */
 void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std::string &adId, const std::string &url,  uint64_t startMS, uint32_t breakdur)
 {
 	if("" == adId || "" == url)

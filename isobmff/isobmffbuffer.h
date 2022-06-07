@@ -31,7 +31,9 @@
 #include <string>
 #include <cstdint>
 #include "AampLogManager.h"
+
 /**
+ * @class IsoBmffBuffer
  * @brief Class for ISO BMFF Buffer
  */
 class IsoBmffBuffer
@@ -44,7 +46,7 @@ private:
 	size_t mdatCount;
 	AampLogManager *mLogObj;
 	/**
-	 * @brief Get first PTS of buffer
+	 * @fn getFirstPTSInternal
 	 *
 	 * @param[in] boxes - ISOBMFF boxes
 	 * @param[out] pts - pts value
@@ -53,7 +55,7 @@ private:
 	bool getFirstPTSInternal(const std::vector<Box*> *boxes, uint64_t &pts);
         
 	/**
-	 * @brief Get track id from trak box
+	 * @fn getTrackIdInternal
 	 *
 	 * @param[in] boxes - ISOBMFF boxes
 	 * @param[out] track_id - track_id
@@ -62,7 +64,7 @@ private:
 	bool getTrackIdInternal (const std::vector<Box*> *boxes, uint32_t &track_id);
 
 	/**
-	 * @brief Get TimeScale value of buffer
+	 * @fn getTimeScaleInternal
 	 *
 	 * @param[in] boxes - ISOBMFF boxes
 	 * @param[out] timeScale - TimeScale value
@@ -72,43 +74,43 @@ private:
 	bool getTimeScaleInternal(const std::vector<Box*> *boxes, uint32_t &timeScale, bool &foundMdhd);
 
 	/**
-	 * @brief Print ISOBMFF boxes
+	 * @fn printBoxesInternal
 	 *
 	 * @param[in] boxes - ISOBMFF boxes
 	 * @return void
 	 */
 	void printBoxesInternal(const std::vector<Box*> *boxes);
 
-    /**
-     * @brief parse ISOBMFF boxes of a type in a parsed buffer
-     *
-     * @param[in] boxes - ISOBMFF boxes
-     * @param[in] const char * - box name to get
-     * @param[out] uint8_t * - mdat buffer pointer
-     * @param[out] size_t - size of mdat buffer
-     * @return bool
-     */
+        /**
+         * @fn parseBoxInternal
+         *
+     	 * @param[in] boxes - ISOBMFF boxes
+     	 * @param[in] name - box name to get
+     	 * @param[out] buf - mdat buffer pointer
+     	 * @param[out] size - size of mdat buffer
+     	 * @return bool
+     	 */
 	bool parseBoxInternal(const std::vector<Box*> *boxes, const char *name, uint8_t *buf, size_t &size);
 
-    /**
-     * @brief get ISOBMFF box size of a type
-     *
-     * @param[in] boxes - ISOBMFF boxes
-     * @param[in] const char * - box name to get
-     * @param[out] size_t - size of mdat buffer
-     * @return bool
-     */
+        /**
+     	 * @fn getBoxSizeInternal
+     	 *
+     	 * @param[in] boxes - ISOBMFF boxes
+     	 * @param[in] name - box name to get
+     	 * @param[out] size - size of mdat buffer
+     	 * @return bool
+     	 */
 	bool getBoxSizeInternal(const std::vector<Box*> *boxes, const char *name, size_t &size);
 
-    /**
-     * @brief get ISOBMFF box list of a type in a parsed buffer
-     *
-     * @param[in] boxes - ISOBMFF boxes
-     * @param[in] const char * - box name to get
-     * @param[out] size_t - size of mdat buffer
-     * @return bool
-     */
-    bool getBoxesInternal(const std::vector<Box*> *boxes, const char *name, std::vector<Box*> *pBoxes);
+    	/**
+    	 * @fn getBoxesInternal
+    	 *
+    	 * @param[in] boxes - ISOBMFF boxes
+    	 * @param[in] name - box name to get
+    	 * @param[out] pBoxes - size of mdat buffer
+    	 * @return bool
+    	 */
+    	bool getBoxesInternal(const std::vector<Box*> *boxes, const char *name, std::vector<Box*> *pBoxes);
 
 public:
 	/**
@@ -120,7 +122,7 @@ public:
 	}
 
 	/**
-	 * @brief IsoBmffBuffer destructor
+	 * @fn ~IsoBmffBuffer
 	 */
 	~IsoBmffBuffer();
 
@@ -128,7 +130,7 @@ public:
 	IsoBmffBuffer& operator=(const IsoBmffBuffer&) = delete;
 
 	/**
-	 * @brief Set buffer
+	 * @fn setBuffer
 	 *
 	 * @param[in] buf - buffer pointer
 	 * @param[in] sz - buffer size
@@ -137,14 +139,14 @@ public:
 	void setBuffer(uint8_t *buf, size_t sz);
 
 	/**
-	 * @brief Parse ISOBMFF boxes from buffer
+	 * @fn parseBuffer
 	 *
 	 * @return true if parse was successful. false otherwise
 	 */
 	bool parseBuffer(bool correctBoxSize = false);
 
 	/**
-	 * @brief Restamp PTS in a buffer
+	 * @fn restampPTS
 	 *
 	 * @param[in] offset - pts offset
 	 * @param[in] basePts - base pts
@@ -155,7 +157,7 @@ public:
 	void restampPTS(uint64_t offset, uint64_t basePts, uint8_t *segment, uint32_t bufSz);
 
 	/**
-	 * @brief Get first PTS of buffer
+	 * @fn getFirstPTS
 	 *
 	 * @param[out] pts - pts value
 	 * @return true if parse was successful. false otherwise
@@ -163,7 +165,7 @@ public:
 	bool getFirstPTS(uint64_t &pts);
 	
 	/**
-	 * @brief Get track_id from the trak box
+	 * @fn getTrack_id
 	 *
 	 * @param[out] track_id - track-id
 	 * @return true if parse was successful. false otherwise
@@ -171,13 +173,13 @@ public:
 	bool getTrack_id(uint32_t &track_id);
 
 	/**
-	 * @brief Print PTS of buffer
+	 * @fn PrintPTS
 	 * @return tvoid
 	 */
 	void PrintPTS(void);
 
 	/**
-	 * @brief Get TimeScale value of buffer
+	 * @fn getTimeScale
 	 *
 	 * @param[out] timeScale - TimeScale value
 	 * @return true if parse was successful. false otherwise
@@ -185,43 +187,43 @@ public:
 	bool getTimeScale(uint32_t &timeScale);
 
 	/**
-	 * @brief Release ISOBMFF boxes parsed
+	 * @fn destroyBoxes
 	 *
 	 * @return void
 	 */
 	void destroyBoxes();
 
 	/**
-	 * @brief Print ISOBMFF boxes
+	 * @fn printBoxes
 	 *
 	 * @return void
 	 */
 	void printBoxes();
 
 	/**
-	 * @brief Check if buffer is an initialization segment
+	 * @fn isInitSegment
 	 *
 	 * @return true if buffer is an initialization segment. false otherwise
 	 */
 	bool isInitSegment();
 
 	/**
-	* @brief Get mdat buffer handle and size from parsed buffer
-	* @param[out] uint8_t * - mdat buffer pointer
-	* @param[out] size_t - size of mdat buffer
-	* @return true if mdat buffer is available. false otherwise
-	*/
+ 	 * @fn parseMdatBox
+	 * @param[out] buf - mdat buffer pointer
+	 * @param[out] size - size of mdat buffer
+	 * @return true if mdat buffer is available. false otherwise
+	 */
 	bool parseMdatBox(uint8_t *buf, size_t &size);
 
 	/**
-	* @brief Get mdat buffer size
-	* @param[out] size_t - size of mdat buffer
-	* @return true if buffer size available. false otherwise
-	*/
+	 * @fn getMdatBoxSize
+	 * @param[out] size - size of mdat buffer
+	 * @return true if buffer size available. false otherwise
+	 */
 	bool getMdatBoxSize(size_t &size);
 
 	/**
-	 * @brief Get information from EMSG box
+	 * @fn getEMSGData
 	 *
 	 * @param[out] message - messageData from EMSG
 	 * @param[out] messageLen - messageLen
@@ -236,7 +238,7 @@ public:
 	bool getEMSGData(uint8_t* &message, uint32_t &messageLen, uint8_t* &schemeIdUri, uint8_t* &value, uint64_t &presTime, uint32_t &timeScale, uint32_t &eventDuration, uint32_t &id);
 
 	/**
-	 * @brief Get emsg informations
+	 * @fn getEMSGInfoInternal
 	 *
 	 * @param[in] boxes - ISOBMFF boxes
 	 * @param[out] message - messageData pointer
@@ -253,96 +255,96 @@ public:
 	bool getEMSGInfoInternal(const std::vector<Box*> *boxes, uint8_t* &message, uint32_t &messageLen, uint8_t* &schemeIdUri, uint8_t* &value, uint64_t &presTime, uint32_t &timeScale, uint32_t &eventDuration, uint32_t &id, bool &foundEmsg);
 	
 	/**
-	* @brief Check mdat buffer count in parsed buffer
-	* @param[out] size_t - mdat box count
-	* @return true if mdat count available. false otherwise
-	*/
+	 * @fn getMdatBoxCount
+	 * @param[out] count - mdat box count
+	 * @return true if mdat count available. false otherwise
+	 */
 	bool getMdatBoxCount(size_t &count);
 
 	/**
-	* @brief Print ISOBMFF mdat boxes in parsed buffer
-	*
-	* @return void
-	*/
+ 	 * @fn printMdatBoxes
+	 *
+	 * @return void
+	 */
 	void printMdatBoxes();
 
 	/**
-	* @brief Get list of box handle in parsed bufferr using name
-	* @param[in] const char * - box name to get
-	* @param[out] std::vector<Box*> - List of box handles of a type in a parsed buffer
-	* @return true if Box found. false otherwise
-	*/
+	 * @fn getTypeOfBoxes
+	 * @param[in] name - box name to get
+	 * @param[out] stBoxes - List of box handles of a type in a parsed buffer
+	 * @return true if Box found. false otherwise
+	 */
 	bool getTypeOfBoxes(const char *name, std::vector<Box*> &stBoxes);
 
 	/**
-	* @brief Get list of box handles in a parsed buffer
-	*
-	* @return Box handle if Chunk box found in a parsed buffer. NULL otherwise
-	*/
+	 * @fn getChunkedfBox
+	 *
+	 * @return Box handle if Chunk box found in a parsed buffer. NULL otherwise
+	 */
 	Box* getChunkedfBox() const;
 
 	/**
-	* @brief Get list of box handles in a parsed buffer
-	*
-	* @return Box handle list if Box found at index given. NULL otherwise
-	*/
+	 * @fn getParsedBoxes
+	 *
+	 * @return Box handle list if Box found at index given. NULL otherwise
+	 */
 	std::vector<Box*> *getParsedBoxes();
 
 	/**
-	* @brief Get box handle in parsed bufferr using name
-	* @param[in] const char * - box name to get
-	* @param[out] size_t - index of box in a parsed buffer
-	* @return Box handle if Box found at index given. NULL otherwise
-	*/
+	 * @fn getBox
+	 * @param[in] name - box name to get
+	 * @param[out] index - index of box in a parsed buffer
+	 * @return Box handle if Box found at index given. NULL otherwise
+	 */
 	Box* getBox(const char *name, size_t &index);
 
 	/**
-	* @brief Get box handle in parsed bufferr using index
-	* @param[out] size_t - index of box in a parsed buffer
-	* @return Box handle if Box found at index given. NULL otherwise
-	*/
+	 * @fn getBoxAtIndex
+	 * @param[out] index - index of box in a parsed buffer
+	 * @return Box handle if Box found at index given. NULL otherwise
+	 */
 	Box* getBoxAtIndex(size_t index);
 
 	/**
-	* @brief Print ISOBMFF box PTS
-	*
-	* @param[in] boxes - ISOBMFF boxes
-	* @return void
-	*/
+	 * @fn printPTSInternal
+	 *
+	 * @param[in] boxes - ISOBMFF boxes
+	 * @return void
+	 */
 	void printPTSInternal(const std::vector<Box*> *boxes);
 
 	/**
-	* @brief Get ISOBMFF box Sample Duration
-	*
-	* @param[in] box - ISOBMFF box
-	* @param[in] uint64_t* -  duration to get
-	* @return void
-	*/
+	 * @fn getSampleDuration
+	 *
+	 * @param[in] box - ISOBMFF box
+	 * @param[in] fduration -  duration to get
+	 * @return void
+	 */
 	void getSampleDuration(Box *box, uint64_t &fduration);
 
 	/**
-	* @brief Get ISOBMFF box Sample Duration
-	*
-	* @param[in] boxes - ISOBMFF boxes
-	* @return uint64_t - duration  value
-	*/
+	 * @fn getSampleDurationInernal
+	 *
+	 * @param[in] boxes - ISOBMFF boxes
+	 * @return uint64_t - duration  value
+	 */
 	uint64_t getSampleDurationInernal(const std::vector<Box*> *boxes);
 
 	/**
-	* @brief Get ISOBMFF box PTS
-	*
-	* @param[in] boxe - ISOBMFF box
-	* @param[in] uint64_t* -  PTS to get
-	* @return void
-	*/
+	 * @fn getPts
+	 *
+	 * @param[in] box - ISOBMFF box
+	 * @param[in] fpts -  PTS to get
+	 * @return void
+	 */
 	void getPts(Box *box, uint64_t &fpts);
 
 	/**
-	* @brief Get ISOBMFF box PTS
-	*
-	* @param[in] boxes - ISOBMFF boxes
-	* @return uint64_t - PTS value
-	*/
+ 	 * @fn getPtsInternal
+	 *
+	 * @param[in] boxes - ISOBMFF boxes
+	 * @return uint64_t - PTS value
+	 */
 	uint64_t getPtsInternal(const std::vector<Box*> *boxes);
 };
 

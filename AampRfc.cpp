@@ -33,7 +33,7 @@ namespace RFCSettings
 {
 
 #define AAMP_RFC_CALLERID        "aamp"
-#define AAMP_LRH_AcceptValue_RFC_PARAM           "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.LRHAcceptValue" /*LRH stand for License Request Header */
+#define AAMP_LRH_AcceptValue_RFC_PARAM           "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.LRHAcceptValue" /**< LRH stand for License Request Header */
 #define AAMP_LRH_ContentType_RFC_PARAM           "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.LRHContentType"
 #define AAMP_SCHEME_ID_URI_VSS_STREAM      "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.SchemeIdUriVssStream"
 #define AAMP_SCHEME_ID_URI_DAI_STREAM      "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.SchemeIdUriDaiStream"
@@ -61,27 +61,20 @@ namespace RFCSettings
 
     /**
      * @brief   Fetch License Request Header AcceptValue from RFC
-     * @param   None
-     * @retval  std::string host value
      */
     std::string getLHRAcceptValue(){
         return getRFCValue(AAMP_LRH_AcceptValue_RFC_PARAM);
     }
-
+    
     /**
      * @brief   Fetch License Request Header ContentType from RFC
-     * @param   None
-     * @retval  std::string host value
      */
     std::string getLRHContentType(){
         return getRFCValue(AAMP_LRH_ContentType_RFC_PARAM);
     }
 
-
     /**
      * @brief   get the scheme id uri for dai streams
-     * @param   None
-     * @retval  std::string scheme id uri
      */
     std::string getSchemeIdUriDaiStream(){
         return getRFCValue(AAMP_SCHEME_ID_URI_DAI_STREAM);
@@ -89,8 +82,6 @@ namespace RFCSettings
 
     /**
      * @brief   get the scheme id uri for vss streams
-     * @param   None
-     * @retval  std::string scheme id uri
      */
     std::string getSchemeIdUriVssStream(){
         return getRFCValue(AAMP_SCHEME_ID_URI_VSS_STREAM);

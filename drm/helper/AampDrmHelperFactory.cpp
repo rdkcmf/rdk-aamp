@@ -16,6 +16,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
 */
+
+/**
+ * @file AampDrmHelperFactory.cpp
+ * @brief DRM Helper Engine
+ */
+
 #include <algorithm>
 #include <regex>
 
@@ -24,13 +30,20 @@
 /* DRM Helper Engine */
 
 /* Might want to consider double checked here */
+
+/**
+ * @brief Get an instance of the DRM Helper Engine
+ */
 AampDrmHelperEngine& AampDrmHelperEngine::getInstance()
 {
 	static AampDrmHelperEngine instance;
 	return instance;
 }
 
-// Consider a mutex for these
+// Consider a mutex for thesie
+/**
+ * @brief Register a Helper Factory
+ */
 void AampDrmHelperEngine::registerFactory(AampDrmHelperFactory* factory)
 {
 	factories.push_back(factory);
@@ -38,6 +51,9 @@ void AampDrmHelperEngine::registerFactory(AampDrmHelperFactory* factory)
 			  [](AampDrmHelperFactory* a, AampDrmHelperFactory* b) { return (a->getWeighting() < b->getWeighting()); });
 }
 
+/**
+ * @brief Get the supported OCDM system IDs
+ */
 void AampDrmHelperEngine::getSystemIds(std::vector<std::string>& ids) const
 {
 	ids.clear();
@@ -47,6 +63,9 @@ void AampDrmHelperEngine::getSystemIds(std::vector<std::string>& ids) const
 	}
 }
 
+/**
+ * @brief Build a helper class to support the identified DRM
+ */
 std::shared_ptr<AampDrmHelper> AampDrmHelperEngine::createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj) const
 {
 	for (auto helper : factories)
@@ -61,12 +80,18 @@ std::shared_ptr<AampDrmHelper> AampDrmHelperEngine::createHelper(const struct Dr
 }
 
 /* DRM Helper Factory */
-
+/**
+ * @brief AampDrmHelperFactory constructor
+ */
 AampDrmHelperFactory::AampDrmHelperFactory(int weighting) : mWeighting(weighting)
 {
 	AampDrmHelperEngine::getInstance().registerFactory(this);
 }
 
+/**
+ * @brief Determines whether the helper engine has a DRM helper available for the
+ * specified DrmInfo
+ */
 bool AampDrmHelperEngine::hasDRM(const struct DrmInfo& drmInfo) const
 {
 	for (auto helper : factories)

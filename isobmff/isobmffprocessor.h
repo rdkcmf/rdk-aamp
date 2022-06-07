@@ -31,6 +31,7 @@
 #include <pthread.h>
 
 /**
+ * @enum IsoBmffProcessorType
  * @brief ISOBMFF Processor types
  */
 enum IsoBmffProcessorType
@@ -40,6 +41,7 @@ enum IsoBmffProcessorType
 };
 
 /**
+ * @class IsoBmffProcessor
  * @brief Class for ISO BMFF Fragment Processor
  */
 class IsoBmffProcessor : public MediaProcessor
@@ -47,7 +49,7 @@ class IsoBmffProcessor : public MediaProcessor
 
 public:
 	/**
-	 * @brief IsoBmffProcessor constructor
+	 * @fn IsoBmffProcessor
 	 *
 	 * @param[in] aamp - PrivateInstanceAAMP pointer
 	 * @param[in] trackType - track type (A/V)
@@ -56,7 +58,7 @@ public:
 	IsoBmffProcessor(class PrivateInstanceAAMP *aamp, AampLogManager *logObj=NULL, IsoBmffProcessorType trackType = eBMFFPROCESSOR_TYPE_VIDEO, IsoBmffProcessor* peerBmffProcessor = NULL);
 
 	/**
-	 * @brief IsoBmffProcessor destructor
+	 * @fn ~IsoBmffProcessor
 	 */
 	~IsoBmffProcessor();
 
@@ -80,7 +82,7 @@ public:
 	void setFrameRateForTM (int frameRate) override { };
 
 	/**
-	 * @brief Process and send ISOBMFF fragment
+	 * @fn sendSegment
 	 *
 	 * @param[in] segment - fragment buffer pointer
 	 * @param[in] size - fragment buffer size
@@ -93,21 +95,21 @@ public:
 	bool sendSegment(char *segment, size_t& size, double position, double duration, bool discontinuous, bool &ptsError) override;
 
 	/**
-	 * @brief Abort all operations
+	 * @fn abort
 	 *
 	 * @return void
 	 */
 	void abort() override;
 
 	/**
-	 * @brief Reset all variables
+	 * @fn reset
 	 *
 	 * @return void
 	 */
 	void reset() override;
 
 	/**
-	 * @brief Set playback rate
+	 * @fn setRate
 	 *
 	 * @param[in] rate - playback rate
 	 * @param[in] mode - playback mode
@@ -126,7 +128,7 @@ private:
 	void setPeerProcessor(IsoBmffProcessor *processor) { peerProcessor = processor; }
 
 	/**
-	 * @brief Set base PTS and TimeScale value
+	 * @fn setBasePTS
 	 *
 	 * @param[in] pts - base PTS value
 	 * @param[in] tScale - TimeScale value
@@ -135,7 +137,7 @@ private:
 	void setBasePTS(uint64_t pts, uint32_t tScale);
 
 	/**
-	 * @brief Cache init fragment internally
+	 * @fn cacheInitSegment
 	 *
 	 * @param[in] segment - buffer pointer
 	 * @param[in] size - buffer size
@@ -144,7 +146,7 @@ private:
 	void cacheInitSegment(char *segment, size_t size);
 
 	/**
-	 * @brief Push init fragment cached earlier
+	 * @fn pushInitSegment
 	 *
 	 * @param[in] position - position value
 	 * @return void
@@ -152,7 +154,7 @@ private:
 	void pushInitSegment(double position);
 
 	/**
-	 * @brief Clear init fragment cached earlier
+	 * @fn clearInitSegment
 	 *
 	 * @return void
 	 */

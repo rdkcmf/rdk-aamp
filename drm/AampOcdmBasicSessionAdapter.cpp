@@ -1,3 +1,8 @@
+/**
+ * @file AampOcdmBasicSessionAdapter.cpp
+ * @brief Handles operations on OCDM session
+ */
+
 #include "AampOcdmBasicSessionAdapter.h"
 #include "AampMutex.h"
 

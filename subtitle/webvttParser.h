@@ -71,18 +71,18 @@ public:
 	virtual void updateTimestamp(unsigned long long positionMs) {}
 
 protected:
-	unsigned long long mStartPTS;   //start/base PTS for current period
-	unsigned long long mPtsOffset;  //offset between cue local time and MPEG time
-	double mStartPos;               //position of first fragment in playlist
-	double mCurrentPos;             //current fragment position in playlist
-	bool mReset;                    //true if waiting for first fragment after processing a discontinuity or at start
+	unsigned long long mStartPTS;   /**< start/base PTS for current period */
+	unsigned long long mPtsOffset;  /**< offset between cue local time and MPEG time */
+	double mStartPos;               /**< position of first fragment in playlist */
+	double mCurrentPos;             /**< current fragment position in playlist */
+	bool mReset;                    /**< true if waiting for first fragment after processing a discontinuity or at start */
 
-	CueTimeStamp lastCue;           //holds timestamp of last parsed cue
+	CueTimeStamp lastCue;           /**< holds timestamp of last parsed cue */
 
-	std::queue<VTTCue*> mVttQueue;  //queue for storing parsed cues
-	guint mVttQueueIdleTaskId;      //task id for handler that sends cues upstream
-	pthread_mutex_t mVttQueueMutex; //mutex for synchronising queue access
-	double mProgressOffset;         //offset value in progress event compared to playlist position
+	std::queue<VTTCue*> mVttQueue;  /**< queue for storing parsed cues */
+	guint mVttQueueIdleTaskId;      /**< task id for handler that sends cues upstream */
+	pthread_mutex_t mVttQueueMutex; /**< mutex for synchronising queue access */
+	double mProgressOffset;         /**< offset value in progress event compared to playlist position */
 
 };
 

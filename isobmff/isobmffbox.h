@@ -49,10 +49,28 @@
 #define READ_FLAGS(buf) \
 		(buf[0] << 16) | (buf[1] << 8) | buf[2]; buf+=3;
 
+/**
+ * @fn ReadUint64
+ *
+ * @param[in] buf - buffer pointer
+ * @return bytes read from buffer
+ */
 uint64_t ReadUint64(uint8_t *buf);
 
+/**
+ * @fn WriteUint64
+ *
+ * @param[in] dst - buffer pointer
+ * @param[in] val - value to write
+ * @return void
+ */
 void WriteUint64(uint8_t *dst, uint64_t val);
 
+/**
+ * @fn ReadCStringLen
+ * @param[in] buffer Buffer to read
+ * @param[in] bufferLen String length
+ */
 uint32_t ReadCStringLen(const uint8_t* buffer, uint32_t bufferLen);
 
 #define READ_BMDT64(buf) \
@@ -66,14 +84,15 @@ uint32_t ReadCStringLen(const uint8_t* buffer, uint32_t bufferLen);
 
 
 /**
+ * @class Box
  * @brief Base Class for ISO BMFF Box
  */
 class Box
 {
 private:
-	uint32_t offset;	//Offset from the beginning of the segment
-	uint32_t size;		//Box Size
-	char type[5]; 		//Box Type Including \0
+	uint32_t offset;	/**< Offset from the beginning of the segment */
+	uint32_t size;		/**< Box Size */
+	char type[5]; 		/**< Box Type Including \0 */
 
 /*TODO: Handle special cases separately */
 public:
@@ -98,7 +117,7 @@ public:
 	static constexpr const char *PRFT = "prft";
 
 	/**
-	 * @brief Box constructor
+	 * @fn Box
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] btype - box type
@@ -114,7 +133,7 @@ public:
 	}
 
 	/**
-	 * @brief Set box's offset from the beginning of the buffer
+	 * @fn setOffset
 	 *
 	 * @param[in] os - offset
 	 * @return void
@@ -122,49 +141,48 @@ public:
 	void setOffset(uint32_t os);
 
 	/**
-	 * @brief Get box offset
-	 *
+	 * @fn getOffset
+	 * 
 	 * @return offset of box
 	 */
 	uint32_t getOffset() const;
 
 	/**
-	 * @brief To check if box has any child boxes
-	 *
+	 * @fn hasChildren
 	 * @return true if this box has other boxes as children
 	 */
 	virtual bool hasChildren();
 
 	/**
-	 * @brief Get children of this box
+	 * @fn getChildren
 	 *
 	 * @return array of child boxes
 	 */
 	virtual const std::vector<Box*> *getChildren();
 
 	/**
-	 * @brief Get box size
+	 * @fn getSize
 	 *
 	 * @return box size
 	 */
 	uint32_t getSize() const;
 
 	/**
-	 * @brief Get box type
+	 * @fn getType
 	 *
 	 * @return box type
 	 */
 	const char *getType();
 
-    /**
-    * @brief Get box type
-    *
-    * @return box type if parsed. "unknown" otherwise
-    */
-    const char *getBoxType() const;
+        /**
+         * @fn getBoxType
+         *
+         * @return box type if parsed. "unknown" otherwise
+         */
+        const char *getBoxType() const;
 
 	/**
-	 * @brief Static function to construct a Box object
+	 * @fn constructBox
 	 *
 	 * @param[in] hdr - pointer to box
 	 * @param[in] maxSz - box size
@@ -175,6 +193,7 @@ public:
 
 
 /**
+ * @class GenericContainerBox
  * @brief Class for ISO BMFF Box container
  * Eg: MOOV, MOOF, TRAK, MDIA
  */
@@ -185,7 +204,7 @@ private:
 
 public:
 	/**
-	 * @brief GenericContainerBox constructor
+	 * @fn GenericContainerBox
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] btype - box type
@@ -193,12 +212,12 @@ public:
 	GenericContainerBox(uint32_t sz, const char btype[4]);
 
 	/**
-	 * @brief GenericContainerBox destructor
+	 * @fn ~GenericContainerBox
 	 */
 	virtual ~GenericContainerBox();
 
 	/**
-	 * @brief Add a box as a child box
+	 * @fn addChildren
 	 *
 	 * @param[in] box - child box object
 	 * @return void
@@ -206,21 +225,21 @@ public:
 	void addChildren(Box *box);
 
 	/**
-	 * @brief To check if box has any child boxes
+	 * @fn hasChildren
 	 *
 	 * @return true if this box has other boxes as children
 	 */
 	bool hasChildren() override;
 
 	/**
-	 * @brief Get children of this box
+	 * @fn getChildren
 	 *
 	 * @return array of child boxes
 	 */
 	const std::vector<Box*> *getChildren() override;
 
 	/**
-	 * @brief Static function to construct a GenericContainerBox object
+	 * @fn constructContainer
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] btype - box type
@@ -231,6 +250,7 @@ public:
 };
 
 /**
+ * @class TrakBox
  * @brief Class for ISO BMFF TRAK container
  */
 class TrakBox : public GenericContainerBox
@@ -247,7 +267,7 @@ public:
 	{
 	}
 	/**
-	 * @brief Static function to construct a trak container object
+	 * @fn constructTrakBox
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] ptr - pointer to box
@@ -263,6 +283,7 @@ public:
 	uint32_t getTrack_Id() { return track_id; }
 };
 /**
+ * @class FullBox
  * @brief Class for single ISO BMFF Box
  * Eg: FTYP, MDHD, MVHD, TFDT
  */
@@ -274,7 +295,7 @@ protected:
 
 public:
 	/**
-	 * @brief FullBox constructor
+	 * @fn FullBox
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] btype - box type
@@ -286,6 +307,7 @@ public:
 
 
 /**
+ * @class MvhdBox
  * @brief Class for ISO BMFF MVHD Box
  */
 class MvhdBox : public FullBox
@@ -295,7 +317,7 @@ private:
 
 public:
 	/**
-	 * @brief MvhdBox constructor
+	 * @fn MvhdBox
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] tScale - TimeScale value
@@ -303,15 +325,14 @@ public:
 	MvhdBox(uint32_t sz, uint32_t tScale);
 
 	/**
-	 * @brief MvhdBox constructor
-	 *
+	 * @fn MvhdBox
 	 * @param[in] fbox - box object
 	 * @param[in] tScale - TimeScale value
 	 */
 	MvhdBox(FullBox &fbox, uint32_t tScale);
 
 	/**
-	 * @brief Set TimeScale value
+	 * @fn setTimeScale
 	 *
 	 * @param[in] tScale - TimeScale value
 	 * @return void
@@ -319,14 +340,14 @@ public:
 	void setTimeScale(uint32_t tScale);
 
 	/**
-	 * @brief Get TimeScale value
+	 * @fn getTimeScale
 	 *
 	 * @return TimeScale value
 	 */
 	uint32_t getTimeScale();
 
 	/**
-	 * @brief Static function to construct a MvhdBox object
+	 * @fn constructMvhdBox
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] ptr - pointer to box
@@ -337,6 +358,7 @@ public:
 
 
 /**
+ * @class MdhdBox
  * @brief Class for ISO BMFF MDHD Box
  */
 class MdhdBox : public FullBox
@@ -346,7 +368,7 @@ private:
 
 public:
 	/**
-	 * @brief MdhdBox constructor
+	 * @fn MdhdBox
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] tScale - TimeScale value
@@ -354,7 +376,7 @@ public:
 	MdhdBox(uint32_t sz, uint32_t tScale);
 
 	/**
-	 * @brief MdhdBox constructor
+	 * @fn MdhdBox
 	 *
 	 * @param[in] fbox - box object
 	 * @param[in] tScale - TimeScale value
@@ -362,7 +384,7 @@ public:
 	MdhdBox(FullBox &fbox, uint32_t tScale);
 
 	/**
-	 * @brief Set TimeScale value
+	 * @fn setTimeScale
 	 *
 	 * @param[in] tScale - TimeScale value
 	 * @return void
@@ -370,14 +392,14 @@ public:
 	void setTimeScale(uint32_t tScale);
 
 	/**
-	 * @brief Get TimeScale value
+	 * @fn getTimeScale
 	 *
 	 * @return TimeScale value
 	 */
 	uint32_t getTimeScale();
 
 	/**
-	 * @brief Static function to construct a MdhdBox object
+	 * @fn constructMdhdBox
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] ptr - pointer to box
@@ -388,6 +410,7 @@ public:
 
 
 /**
+ * @class TfdtBox
  * @brief Class for ISO BMFF TFDT Box
  */
 class TfdtBox : public FullBox
@@ -397,7 +420,7 @@ private:
 
 public:
 	/**
-	 * @brief TfdtBox constructor
+	 * @fn TfdtBox
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] mdt - BaseMediaDecodeTime value
@@ -405,7 +428,7 @@ public:
 	TfdtBox(uint32_t sz, uint64_t mdt);
 
 	/**
-	 * @brief TfdtBox constructor
+	 * @fn TfdtBox
 	 *
 	 * @param[in] fbox - box object
 	 * @param[in] mdt - BaseMediaDecodeTime value
@@ -413,7 +436,7 @@ public:
 	TfdtBox(FullBox &fbox, uint64_t mdt);
 
 	/**
-	 * @brief Set BaseMediaDecodeTime value
+	 * @fn setBaseMDT
 	 *
 	 * @param[in] mdt - BaseMediaDecodeTime value
 	 * @return void
@@ -421,14 +444,14 @@ public:
 	void setBaseMDT(uint64_t mdt);
 
 	/**
-	 * @brief Get BaseMediaDecodeTime value
+	 * @fn getBaseMDT
 	 *
 	 * @return BaseMediaDecodeTime value
 	 */
 	uint64_t getBaseMDT();
 
 	/**
-	 * @brief Static function to construct a TfdtBox object
+	 * @fn constructTfdtBox
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] ptr - pointer to box
@@ -438,6 +461,7 @@ public:
 };
 
 /**
+ * @class EmsgBox
  * @brief Class for ISO BMFF EMSG Box
  */
 class EmsgBox : public FullBox
@@ -456,7 +480,7 @@ private:
 
 public:
 	/**
-	 * @brief EmsgBox constructor
+	 * @fn EmsgBox
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] tScale - TimeScale value
@@ -466,7 +490,7 @@ public:
 	EmsgBox(uint32_t sz, uint32_t tScale, uint32_t evtDur, uint32_t _id);
 
 	/**
-	 * @brief EmsgBox constructor
+	 * @fn EmsgBox
 	 *
 	 * @param[in] fbox - box object
 	 * @param[in] tScale - TimeScale value
@@ -478,7 +502,7 @@ public:
 	EmsgBox(FullBox &fbox, uint32_t tScale, uint32_t evtDur, uint32_t _id, uint64_t presTime, uint32_t presTimeDelta);
 
 	/**
-	 * @brief EmsgBox dtor
+	 * @fn ~EmsgBox
 	 */
 	~EmsgBox();
 
@@ -493,7 +517,7 @@ public:
 	EmsgBox& operator=(const EmsgBox&) = delete;
 
 	/**
-	 * @brief Set TimeScale value
+	 * @fn setTimeScale
 	 *
 	 * @param[in] tScale - TimeScale value
 	 * @return void
@@ -501,14 +525,14 @@ public:
 	void setTimeScale(uint32_t tScale);
 
 	/**
-	 * @brief Get schemeIdUri
+	 * @fn getTimeScale
 	 *
 	 * @return TimeScale value
 	 */
 	uint32_t getTimeScale();
 
 	/**
-	 * @brief Set eventDuration value
+	 * @fn setEventDuration
 	 *
 	 * @param[in] evtDur - eventDuration value
 	 * @return void
@@ -516,14 +540,14 @@ public:
 	void setEventDuration(uint32_t evtDur);
 
 	/**
-	 * @brief Get eventDuration
+	 * @fn getEventDuration
 	 *
 	 * @return eventDuration value
 	 */
 	uint32_t getEventDuration();
 
 	/**
-	 * @brief Set id
+	 * @fn setId
 	 *
 	 * @param[in] _id - id
 	 * @return void
@@ -531,14 +555,14 @@ public:
 	void setId(uint32_t _id);
 
 	/**
-	 * @brief Get id
+	 * @fn getId
 	 *
 	 * @return id value
 	 */
 	uint32_t getId();
 
 	/**
-	 * @brief Set presentationTimeDelta
+	 * @fn setPresentationTimeDelta
 	 *
 	 * @param[in] presTimeDelta - presTimeDelta
 	 * @return void
@@ -546,14 +570,14 @@ public:
 	void setPresentationTimeDelta(uint32_t presTimeDelta);
 
 	/**
-	 * @brief Get presentationTimeDelta
+	 * @fn getPresentationTimeDelta
 	 *
 	 * @return presentationTimeDelta value
 	 */
 	uint32_t getPresentationTimeDelta();
 
 	/**
-	 * @brief Set presentationTime
+	 * @fn setPresentationTime
 	 *
 	 * @param[in] presTime - presTime
 	 * @return void
@@ -561,14 +585,14 @@ public:
 	void setPresentationTime(uint64_t presTime);
 
 	/**
-	 * @brief Get presentationTime
+	 * @fn getPresentationTime
 	 *
 	 * @return presentationTime value
 	 */
 	uint64_t getPresentationTime();
 
 	/**
-	 * @brief Set schemeIdUri
+	 * @fn setSchemeIdUri
 	 *
 	 * @param[in] schemeIdUri - schemeIdUri pointer
 	 * @return void
@@ -576,14 +600,14 @@ public:
 	void setSchemeIdUri(uint8_t* schemeIdURI);
 
 	/**
-	 * @brief Get schemeIdUri
+	 * @fn getSchemeIdUri
 	 *
 	 * @return schemeIdUri value
 	 */
 	uint8_t* getSchemeIdUri();
 
 	/**
-	 * @brief Set value
+	 * @fn setValue
 	 *
 	 * @param[in] value - value pointer
 	 * @return void
@@ -591,14 +615,14 @@ public:
 	void setValue(uint8_t* schemeIdValue);
 
 	/**
-	 * @brief Get value
+	 * @fn getValue
 	 *
 	 * @return schemeIdUri value
 	 */
 	uint8_t* getValue();
 
 	/**
-	 * @brief Set Message
+	 * @fn setMessage
 	 *
 	 * @param[in] message - Message pointer
 	 * @param[in] len - Message length
@@ -607,21 +631,21 @@ public:
 	void setMessage(uint8_t* message, uint32_t len);
 
 	/**
-	 * @brief Get Message
+	 * @fn getMessage
 	 *
 	 * @return messageData
 	 */
 	uint8_t* getMessage();
 
 	/**
-	 * @brief Get Message length
+	 * @fn getMessageLen
 	 *
 	 * @return messageLen
 	 */
 	uint32_t getMessageLen();
 
 	/**
-	 * @brief Static function to construct a EmsgBox object
+	 * @fn constructEmsgBox
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] ptr - pointer to box
@@ -631,6 +655,7 @@ public:
 };
 
 /**
+ * @class TrunBox
  * @brief Class for ISO BMFF TRUN Box
  */
 class TrunBox : public FullBox
@@ -648,47 +673,48 @@ public:
 	uint32_t sample_composition_time_offset;
 	};
 	/**
-	* @brief TrunBox constructor
-	*
-	* @param[in] sz - box size
-	* @param[in] mdt - sampleDuration value
-	*/
+ 	 * @fn TrunBox
+ 	 *
+	 * @param[in] sz - box size
+	 * @param[in] mdt - sampleDuration value
+	 */
 	TrunBox(uint32_t sz, uint64_t sampleDuration);
 
 	/**
-	* @brief TrunBox constructor
-	*
-	* @param[in] fbox - box object
-	* @param[in] mdt - BaseMediaDecodeTime value
-	*/
+	 * @fn TrunBox
+	 *
+	 * @param[in] fbox - box object
+	 * @param[in] mdt - BaseMediaDecodeTime value
+	 */
 	TrunBox(FullBox &fbox, uint64_t sampleDuration);
 
 	/**
-	* @brief Set SampleDuration value
-	*
-	* @param[in] sampleDuration - Sample Duration value
-	* @return void
-	*/
+	 * @fn setSampleDuration
+	 *
+	 * @param[in] sampleDuration - Sample Duration value
+	 * @return void
+	 */
 	void setSampleDuration(uint64_t sampleDuration);
 
 	/**
-	* @brief Get sampleDuration value
-	*
-	* @return sampleDuration value
-	*/
+	 * @fn getSampleDuration
+	 *
+	 * @return sampleDuration value
+	 */
 	uint64_t getSampleDuration();
 
 	/**
-	* @brief Static function to construct a TrunBox object
-	*
-	* @param[in] sz - box size
-	* @param[in] ptr - pointer to box
-	* @return newly constructed TrunBox object
-	*/
+	 * @fn constructTrunBox
+	 *
+	 * @param[in] sz - box size
+	 * @param[in] ptr - pointer to box
+	 * @return newly constructed TrunBox object
+	 */
 	static TrunBox* constructTrunBox(uint32_t sz, uint8_t *ptr);
 };
 
 /**
+ * @class TfhdBox
  * @brief Class for ISO BMFF TFHD Box
  */
 class TfhdBox : public FullBox
@@ -698,7 +724,7 @@ private:
 
 public:
     /**
-     * @brief TfhdBox constructor
+     * @fn TfhdBox
      *
      * @param[in] sz - box size
      * @param[in] sample_duration - Sample Duration value
@@ -706,7 +732,7 @@ public:
     TfhdBox(uint32_t sz, uint64_t sample_duration);
 
     /**
-     * @brief TfhdBox constructor
+     * @fn TfhdBox
      *
      * @param[in] fbox - box object
      * @param[in] sample_duration - Sample Duration value
@@ -714,7 +740,7 @@ public:
     TfhdBox(FullBox &fbox, uint64_t sample_duration);
 
     /**
-     * @brief Set Sample Duration value
+     * @fn setSampleDuration
      *
      * @param[in] sample_duration - SampleDuration value
      * @return void
@@ -722,14 +748,14 @@ public:
     void setSampleDuration(uint64_t sample_duration);
 
     /**
-     * @brief Get SampleDuration value
+     * @fn getSampleDuration
      *
      * @return SampleDuration value
      */
     uint64_t getSampleDuration();
 
     /**
-     * @brief Static function to construct a TfdtBox object
+     * @fn constructTfhdBox
      *
      * @param[in] sz - box size
      * @param[in] ptr - pointer to box
@@ -739,6 +765,7 @@ public:
 };
 
 /**
+ * @class PrftBox
  * @brief Class for ISO BMFF TFHD Box
  */
 class PrftBox : public FullBox
@@ -750,7 +777,7 @@ private:
 
 public:
     /**
-     * @brief PrftBox constructor
+     * @fn PrftBox
      *
      * @param[in] sz - box size
      * @param[in] trackId - media time
@@ -760,7 +787,7 @@ public:
     PrftBox(uint32_t sz, uint32_t trackId, uint64_t ntpTs, uint64_t mediaTime);
 
     /**
-     * @brief PrftBox constructor
+     * @fn PrftBox
      *
      * @param[in] fbox - box object
      * @param[in] trackId - media time
@@ -770,7 +797,7 @@ public:
     PrftBox(FullBox &fbox, uint32_t trackId, uint64_t ntpTs, uint64_t mediaTime);
 
     /**
-     * @brief Set Track Id value
+     * @fn setTrackId
      *
      * @param[in] trackId - Track Id value
      * @return void
@@ -778,14 +805,14 @@ public:
     void setTrackId(uint32_t trackId);
 
     /**
-     * @brief Get Track id value
+     * @fn getTrackId
      *
      * @return track_id value
      */
     uint32_t getTrackId();
 
     /**
-     * @brief Set NTP Ts value
+     * @fn setNtpTs
      *
      * @param[in] ntpTs - ntp timestamp value
      * @return void
@@ -793,14 +820,14 @@ public:
     void setNtpTs(uint64_t ntpTs);
 
     /**
-     * @brief Get ntp Timestamp value
+     * @fn getNtpTs
      *
      * @return ntp_ts value
      */
     uint64_t getNtpTs();
 
     /**
-     * @brief Set Sample Duration value
+     * @fn setMediaTime
      *
      * @param[in] mediaTime - metia time value
      * @return void
@@ -808,14 +835,14 @@ public:
     void setMediaTime(uint64_t mediaTime);
 
     /**
-     * @brief Get SampleDuration value
+     * @fn getMediaTime
      *
      * @return media_time value
      */
     uint64_t getMediaTime();
 
     /**
-     * @brief Static function to construct a PrftBox object
+     * @fn constructPrftBox
      *
      * @param[in] sz - box size
      * @param[in] ptr - pointer to box
