@@ -4575,9 +4575,10 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		}
 		if (waitForDiscontinuityProcessing)
 		{
-			//wait for discont tune operation to finish before proceeding with stop
+			//wait for discontinuity tune operation to finish before proceeding with stop
 			if (mDiscontinuityTuneOperationInProgress)
 			{
+				AAMPLOG_WARN("TeardownStream invoked while mDiscontinuityTuneOperationInProgress set. Wait until the Discontinuity Tune operation to complete!!");
 				pthread_cond_wait(&mCondDiscontinuity, &mLock);
 			}
 			else
@@ -4588,10 +4589,18 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		}
 	}
 	// Maybe mDiscontinuityTuneOperationId is 0, ProcessPendingDiscontinuity can be invoked from NotifyEOSReached too
-	else if (mProgressReportFromProcessDiscontinuity)
+	else if (mProgressReportFromProcessDiscontinuity || mDiscontinuityTuneOperationInProgress)
 	{
-		AAMPLOG_WARN("TeardownStream invoked while mProgressReportFromProcessDiscontinuity set!");
-		mDiscontinuityTuneOperationInProgress = false;
+		if(mDiscontinuityTuneOperationInProgress)
+		{
+			AAMPLOG_WARN("TeardownStream invoked while mDiscontinuityTuneOperationInProgress set. Wait until the pending discontinuity tune operation to complete !!");
+			pthread_cond_wait(&mCondDiscontinuity, &mLock);
+		}
+		else
+		{
+			AAMPLOG_WARN("TeardownStream invoked while mProgressReportFromProcessDiscontinuity set!");
+			mDiscontinuityTuneOperationInProgress = false;
+		}
 	}
 
 	//reset discontinuity related flags
