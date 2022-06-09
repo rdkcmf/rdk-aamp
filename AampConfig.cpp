@@ -447,7 +447,7 @@ void AampConfig::Initialize()
 #else
 	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	false;
 #endif
-	bAampCfgValue[eAAMPConfig_PersistProfileAcrossTune].value       =       true;
+	bAampCfgValue[eAAMPConfig_PersistProfileAcrossTune].value       =       false;
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_ABRCacheLife-eAAMPConfig_IntStartValue].value			=	DEFAULT_ABR_CACHE_LIFE;
