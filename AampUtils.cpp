@@ -147,7 +147,7 @@ void aamp_ResolveURL(std::string& dst, std::string base, const char *uri , bool 
 			basePtr++;
 		}
 
-		if( uri[0]!='/' )
+		if( uri[0]!='/' && uri[0]!='\0' )
 		{
 			for(;;)
 			{
