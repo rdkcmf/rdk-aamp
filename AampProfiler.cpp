@@ -228,7 +228,7 @@ void ProfileEventAAMP::TuneEnd(TuneEndMetrics &mTuneEndMetrics,std::string appNa
 		bucketDuration(PROFILE_BUCKET_LA_PREPROC), licenseAcqNWTime, bucketDuration(PROFILE_BUCKET_LA_POSTPROC),
 		bucketDuration(PROFILE_BUCKET_DECRYPT_VIDEO),bucketDuration(PROFILE_BUCKET_DECRYPT_AUDIO),
 
-		buckets[PROFILE_BUCKET_FIRST_BUFFER].tStart, // gstPlaying: offset in ms from tunestart when pipeline first fed data
+		(playerPreBuffered && mTuneEndMetrics.success > 0) ? buckets[PROFILE_BUCKET_FIRST_BUFFER].tStart - buckets[PROFILE_BUCKET_PLAYER_PRE_BUFFERED].tStart : buckets[PROFILE_BUCKET_FIRST_BUFFER].tStart, // gstPlaying: offset in ms from tunestart when pipeline first fed data
 		(playerPreBuffered && mTuneEndMetrics.success > 0) ? buckets[PROFILE_BUCKET_FIRST_FRAME].tStart - buckets[PROFILE_BUCKET_PLAYER_PRE_BUFFERED].tStart : buckets[PROFILE_BUCKET_FIRST_FRAME].tStart,  // gstFirstFrame: offset in ms from tunestart when first frame of video is decoded/presented
 		mTuneEndMetrics.contentType,mTuneEndMetrics.streamType,mTuneEndMetrics.mFirstTune,
 		playerPreBuffered,playerPreBuffered ? buckets[PROFILE_BUCKET_PLAYER_PRE_BUFFERED].tStart : 0,
