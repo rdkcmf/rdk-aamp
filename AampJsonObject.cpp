@@ -160,6 +160,25 @@ bool AampJsonObject::add(const std::string& name, long value)
 	return true;
 }
 
+bool AampJsonObject::set(AampJsonObject *parent, cJSON *object)
+{
+	this->mParent = parent;
+	this->mJsonObj = object;
+	/**< return true always to match the template */
+	return true;
+}
+
+bool AampJsonObject::get(const std::string& name, AampJsonObject &value)
+{
+	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
+	bool retValue = false;
+	if (strObj)
+	{
+		retValue = value.set(this, strObj);
+	}
+	return retValue;
+}
+
 bool AampJsonObject::get(const std::string& name, std::string& value)
 {
 	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
@@ -174,6 +193,38 @@ bool AampJsonObject::get(const std::string& name, std::string& value)
 		}
 	}
 	return false;
+}
+
+bool AampJsonObject::get(const std::string& name, int& value)
+{
+	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
+	bool retValue = false;
+	if (strObj)
+	{
+		/**< time being commented due to unsupport in cJSON current version; and assuming value is 1
+		 * Required version  1.7.13 **/
+		//retValue = cJSON_GetNumberValue(strObj);
+		value =  (int)strObj->valuedouble;
+		retValue = true;
+	}
+	return retValue;
+}
+
+bool AampJsonObject::get(const std::string& name, std::vector<std::string>& values)
+{
+	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
+	cJSON *object = NULL;
+	bool retVal = false;
+	cJSON_ArrayForEach(object, strObj)
+	{
+		char *strValue = cJSON_GetStringValue(object);
+		if (strValue)
+		{
+			values.push_back(std::string(strValue));
+			retVal = true;
+		}
+	}
+	return retVal;
 }
 
 bool AampJsonObject::get(const std::string& name, std::vector<uint8_t>& values, const ENCODING encoding)
@@ -253,4 +304,48 @@ void AampJsonObject::print(std::vector<uint8_t>& data)
 {
 	std::string jsonOutputStr = print();
 	(void)data.insert(data.begin(), jsonOutputStr.begin(), jsonOutputStr.end());
+}
+
+bool AampJsonObject::isArray(const std::string& name)
+{
+	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
+	bool retVal = false;
+	if (strObj)
+	{
+		retVal =  cJSON_IsArray(strObj);
+	}
+	return retVal;
+}
+
+bool AampJsonObject::isString(const std::string& name)
+{
+	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
+	bool retVal = false;
+	if (strObj)
+	{
+		retVal =  cJSON_IsString(strObj);
+	}
+	return retVal;
+}
+
+bool AampJsonObject::isNumber(const std::string& name)
+{
+	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
+	bool retVal = false;
+	if (strObj)
+	{
+		retVal =  cJSON_IsNumber(strObj);
+	}
+	return retVal;
+}
+
+bool AampJsonObject::isObject(const std::string& name)
+{
+	cJSON *strObj = cJSON_GetObjectItem(mJsonObj, name.c_str());
+	bool retVal = false;
+	if (strObj)
+	{
+		retVal = cJSON_IsObject(strObj);
+	}
+	return retVal;
 }

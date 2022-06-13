@@ -1692,6 +1692,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(AampLogManager *logObj, PrivateInst
 		mAudioTrackIndex(), mTextTrackIndex(),
 		mAuxCond(), mFwdAudioToAux(false), mLogObj(logObj)
 		, mAudioTracksAll()
+		, mTextTracksAll()
 {
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
 	AAMPLOG_TRACE("StreamAbstractionAAMP");
@@ -3118,6 +3119,29 @@ bool StreamAbstractionAAMP::GetCurrentAudioTrack(AudioTrackInfo &audioTrack)
 	return bFound;
 }
 
+
+/**
+ *   @brief Get current text track
+ *
+ *   @return int - index of current audio track
+ */
+bool StreamAbstractionAAMP::GetCurrentTextTrack(TextTrackInfo &textTrack)
+{
+	int index = -1;
+	bool bFound = false;
+	if (!mTextTrackIndex.empty())
+	{
+		for (auto it = mTextTracks.begin(); it != mTextTracks.end(); it++)
+		{
+			if (it->index == mTextTrackIndex)
+			{
+				textTrack = *it;
+				bFound = true;
+			}
+		}
+	}
+	return bFound;
+}
 
 /**
  *   @brief Get current audio track

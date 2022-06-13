@@ -55,6 +55,7 @@
 #include <atomic>
 #include <memory>
 #include <inttypes.h>
+#include <type_traits>
 #include "AampRfc.h"
 #include "AampEventManager.h"
 
@@ -776,14 +777,23 @@ public:
 	char mLanguageList[MAX_LANGUAGE_COUNT][MAX_LANGUAGE_TAG_LENGTH]; // list of languages in stream
 	int mCurrentLanguageIndex; // Index of current selected lang in mLanguageList, this is used for VideoStat event data collection
 	int  mMaxLanguageCount;
-	std::string preferredLanguagesString; // unparsed string with preferred languages in format "lang1,lang2,.."
-	std::vector<std::string> preferredLanguagesList; // list of preferred languages from most-preferred to the least
-	std::string preferredRenditionString; // unparsed string with preferred renditions in format "rendition1,rendition2,.."
-	std::vector<std::string> preferredRenditionList; // list of preferred rendition from most-preferred to the least
-	std::string preferredTypeString; // unparsed string with preferred accessibility type
-	std::string preferredCodecString; // unparsed string with preferred codecs in format "codec1,codec2,.."
-	std::vector<std::string> preferredCodecList; //String array to store codec preference
-	AudioTrackTuple mAudioTuple;
+	std::string preferredLanguagesString;   	 /**< unparsed string with preferred languages in format "lang1,lang2,.." */
+	std::vector<std::string> preferredLanguagesList; /**< list of preferred languages from most-preferred to the least */
+	std::string preferredRenditionString; 		 /**< unparsed string with preferred renditions in format "rendition1,rendition2,.." */
+	std::vector<std::string> preferredRenditionList; /**< list of preferred rendition from most-preferred to the least */
+	std::string preferredLabelsString; 		 /**< unparsed string with preferred labels in format "lang1,lang2,.." */
+	std::vector<std::string> preferredLabelList; 	 /**< list of preferred labels from most-preferred to the least */
+	std::string preferredTypeString; 		 /**< unparsed string with preferred accessibility type */
+	std::string preferredCodecString; 		 /**< unparsed string with preferred codecs in format "codec1,codec2,.." */
+	std::vector<std::string> preferredCodecList;  	 /**<String array to store codec preference */
+	std::string preferredTextLanguagesString; 	 /**< unparsed string with preferred languages in format "lang1,lang2,.." */
+	std::vector<std::string> preferredTextLanguagesList; /**< list of preferred text languages from most-preferred to the least*/
+	std::string preferredTextRenditionString; 	 /**< String value for rendition */
+	std::string preferredTextTypeString; 		 /**< String value for text type */
+	std::string preferredTextLabelString; 		 /**< String value for text type */
+	Accessibility  preferredTextAccessibilityNode; 	 /**< Preferred Accessibility Node for Text */
+	Accessibility  preferredAudioAccessibilityNode;  /**< Preferred Accessibility Node for Audio  */
+	AudioTrackTuple mAudioTuple;			 /**< Depricated **/
 	VideoZoomMode zoom_mode;
 	bool video_muted;
 	bool subtitles_muted;
@@ -2214,6 +2224,13 @@ public:
 	std::string GetPreferredAudioProperties();
 
 	/**
+	 *   @brief Get preferred text properties
+	 *
+	 *   @return json string
+	 */
+	std::string GetPreferredTextProperties();
+
+	/**
 	 *   @brief Set DRM type
 	 *
 	 *   @param[in] drm - New DRM type
@@ -2829,7 +2846,16 @@ public:
 	 *
 	 *   @return std::string JSON formatted list of text tracks
 	 */
-	std::string GetAvailableTextTracks();
+	std::string GetAvailableTextTracks(bool alltrack=false);
+
+	/**
+	 * @fn SetPreferredTextLanguages
+	 * 
+	 * @brief set preferred Audio Language properties like language, rendition, type, codec, and Label
+	 * @param - language list
+	 * @return void
+	 */
+	void SetPreferredTextLanguages(const char *param );
 
 	/*
 	 *   @brief Get the video window co-ordinates
@@ -3089,6 +3115,13 @@ public:
 	int GetTextTrack();
 
 	/**
+	 *   @brief Get current audio track index
+	 *
+	 *   @return int - index of current audio track in available track list
+	 */
+	std::string GetTextTrackInfo();
+
+	/**
 	 *   @brief Set CC visibility on/off
 	 *
 	 *   @param[in] enabled - true for CC on, false otherwise
@@ -3267,10 +3300,12 @@ public:
 	 *   @param[in] languageList - string with comma-delimited language list in ISO-639
 	 *             from most to least preferred. Set NULL to clear current list.
 	 *   @param[in] preferredRendition  - preferred rendition from role
-         *   @param[in] preferredType -  preferred accessibility type
+     	 *   @param[in] preferredType -  preferred accessibility type
+	 *   @param[in] codecList  - preferred codec list
+	 *   @param[in] labelList  - preferred label list
 	 *   @return void
 	 */
-	void SetPreferredLanguages(const char *languageList, const char *preferredRendition, const char *preferredType, const char *codecList );
+	void SetPreferredLanguages(const char *languageList, const char *preferredRendition, const char *preferredType, const char *codecList, const char *labelList );
 
 	/**
 	 *   @brief Set the scheduler instance to schedule tasks
