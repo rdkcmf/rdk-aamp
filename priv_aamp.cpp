@@ -9618,13 +9618,12 @@ std::string PrivateInstanceAAMP::GetTextTrackInfo()
 	return track;
 }
 
-#define MUTE_SUBTITLES_TRACKID (-1)
-
 /**
  * @brief Set text track
  */
 void PrivateInstanceAAMP::SetTextTrack(int trackId)
 {
+	AAMPLOG_INFO("trackId: %d", trackId);
 	if (mpStreamAbstractionAAMP)
 	{
 		// Passing in -1 as the track ID mutes subs
