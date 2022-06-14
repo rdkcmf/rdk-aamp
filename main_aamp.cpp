@@ -2607,7 +2607,8 @@ void PlayerInstanceAAMP::SetTextTrack(int trackId)
 	{
 
 		std::vector<TextTrackInfo> tracks = aamp->mpStreamAbstractionAAMP->GetAvailableTextTracks();
-		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
+		AAMPLOG_INFO("trackId: %d tracks size %d", trackId, tracks.size());
+		if (!tracks.empty() && (MUTE_SUBTITLES_TRACKID == trackId || (trackId >= 0 && trackId < tracks.size())))
 		{
 			if (mAsyncTuneEnabled)
 			{

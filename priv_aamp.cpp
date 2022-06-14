@@ -9666,8 +9666,6 @@ std::string PrivateInstanceAAMP::GetAudioTrackInfo()
 	return track;
 }
 
-#define MUTE_SUBTITLES_TRACKID (-1)
-
 /**
  *   @brief Set text track
  *
@@ -9676,6 +9674,7 @@ std::string PrivateInstanceAAMP::GetAudioTrackInfo()
  */
 void PrivateInstanceAAMP::SetTextTrack(int trackId)
 {
+	AAMPLOG_INFO("trackId: %d", trackId);
 	if (mpStreamAbstractionAAMP)
 	{
 		// Passing in -1 as the track ID mutes subs
