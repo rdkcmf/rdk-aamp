@@ -135,6 +135,8 @@ static const char *mMediaFormatName[] =
 #define STRBGPLAYER "BACKGROUND"
 #define STRFGPLAYER "FOREGROUND"
 
+#define MUTE_SUBTITLES_TRACKID (-1)
+
 
 /**
  * @brief Structure of X-Start HLS Tag
