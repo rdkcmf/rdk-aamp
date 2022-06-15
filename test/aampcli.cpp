@@ -21,6 +21,7 @@
  * @file aampcli.cpp
  * @brief Stand alone AAMP player with command line interface.
  */
+ #include <bits/stdc++.h>
 #include "AampDefine.h"
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 #ifdef __APPLE__
@@ -42,6 +43,7 @@
 #endif
 #include <stdlib.h>
 #include <stddef.h>
+#include <math.h>
 #include <errno.h>
 #include <list>
 #include <sstream>
@@ -57,7 +59,8 @@
 #include "hardcut_detector.h"
 #endif
 #define MAX_BUFFER_LENGTH 4096
-
+#define OAR_NoOfSymbols 320
+using namespace std;
 #define CC_OPTION_1 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"white\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"black\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}"
 #define CC_OPTION_2 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"yellow\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"yellow\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"cyan\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":true}"
 #define CC_OPTION_3 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"large\",\"windowFillColor\":\"blue\",\"fontStyle\":\"default\",\"textForegroundColor\":\"red\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"white\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}"
@@ -73,6 +76,7 @@ static void updateYUVFrame(uint8_t *buffer, int size, int width, int height,unsi
 std::mutex appsinkData_mutex;
 #endif
 
+void GetFrameslicelevel(uint8_t *buffer,int *slice_level,int pixelspersym);
 /**
  * @enum AAMPGetTypes
  * @brief Define the enum values of get types
@@ -2676,6 +2680,52 @@ void InitShaders()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
+typedef struct OAR_WaterMark {
+int run_in: 4;
+int reserved1: 2;
+int consortium_key: 2;
+int random: 2;
+int type: 4;
+unsigned short publisher_id;
+unsigned char publisher_key;
+unsigned char crc;
+union {
+     unsigned char reserved2[64]; // For type 0
+     unsigned char undefined[64]; // for type 1
+     struct {
+           unsigned char preroll[16];
+           unsigned char duration1[8];
+           unsigned char adpod_id[40];
+     }type_2;
+     struct {
+           unsigned char time_in_ad[16];
+           unsigned char duration2[8];
+           unsigned char watermark[40];
+    } type_3;
+};
+unsigned char ECC[24]; // Reed Solomon ECC
+}OAR_WTERMARK;
+struct
+{
+    const char *name;
+    int bits;
+} mOAR_Fields[] =
+{
+    {"run_in", 4},
+    {"reserved1",2},
+    {"consortium_key",2},
+    {"random",2},
+    {"type",4},
+    {"publisher_id",16},
+    {"publisher_key",8},
+    {"crc",8},
+    { "preroll",16*8},
+    { "duration",8*8},
+    { "apod_id",40*8},
+    { "ECC",24*8}
+};
+
+	static int frame = 0;
 void glRender(void){
 	/** Input in I420 (YUV420) format.
 	 * Buffer structure:
@@ -2692,6 +2742,16 @@ void glRender(void){
 	int pixel_w = 0;
 	int pixel_h = 0;
 	uint8_t *yuvBuffer = NULL;
+	char path[256];
+	bool matched = false;
+	int slice_level = 0;
+	int bytecount = 1;
+        int sampleCount = 0;
+        int sum = 0;
+	int bit = 7;
+	int ll = 0;
+	int pixelspersym = 0;
+	FILE *f;
 	unsigned char *yPlane, *uPlane, *vPlane;
 	
 	{
@@ -2715,6 +2775,63 @@ void glRender(void){
 		glBindTexture(GL_TEXTURE_2D, id_y);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, pixel_w, pixel_h, 0, GL_RED, GL_UNSIGNED_BYTE, yPlane);
 		glUniform1i(textureUniformY, 0);
+
+		pixelspersym = pixel_w/OAR_NoOfSymbols;
+		GetFrameslicelevel(yPlane,&slice_level,pixelspersym);
+		for( int row = 0; row < 1 /*2*/; row++ )
+		{ // top line
+			bitset<8> bset1;
+			for( int i=0; i<pixel_w; i++)
+			{
+				int offs = row*pixel_w+i;
+				int y = yPlane[offs];
+				sum += y;
+				sampleCount++;
+				if( sampleCount >= 6 )
+				{
+					sum = sum/6;
+					if(sum > slice_level)
+					{
+						bset1[bit]=1;
+					}
+					else {
+						bset1[bit]=0;
+					}
+					if(bit == 0)
+					{
+						bit = 8;
+						if(bytecount == 1) {
+							int val = bset1.to_ulong();
+							if((val & 0xFC) == 0x30) { // check for the 1st byte matching to run-in 0011 reserved 00
+								matched = true;
+								sprintf( path, "LAR/y-%04d.txt", frame );
+								f = fopen( path, "wb" );
+							}
+							bytecount++;
+						}
+						if(matched)
+						{
+							if(f) {
+								fprintf( f, "0x%02x,",bset1.to_ulong());
+								ll++;
+								if(ll == 14)  //14- byte payload and 26 byte ECC
+									fprintf( f, "\n" );
+							}
+						}
+					}
+					bit--;
+					sampleCount = 0;
+					sum = 0;
+				}
+			}
+
+			if(matched) {
+				fprintf( f, "\n" );
+				fclose( f );
+				matched = false;
+			}
+		}
+		frame++;
 		
 		//U
 		glActiveTexture(GL_TEXTURE1);
@@ -2774,10 +2891,49 @@ static void maf_process_one_frame( uint8_t *buffer, int size, int width, int hei
 	inter_area.resize( buffer, height, width,  fbd);
 	print_fbd_as_json( fbd); //uncomment for debugging purpose
 	assert( maf_hardcut_);
-    assert( sizeof(uint64_t) == sizeof(unsigned long)); // uint64_t is supposed to be identical to unsigned long
+	assert( sizeof(uint64_t) == sizeof(unsigned long)); // uint64_t is supposed to be identical to unsigned long
 	maf_hardcut_->process_frame( clocktime, fbd);
 }
 #endif
+
+
+void GetFrameslicelevel(uint8_t *buffer,int *slice_level,int pixelspersym)
+{
+	int sym[OAR_NoOfSymbols] = {0};
+	int bins[OAR_NoOfSymbols] = {0};
+	int j = 0,m = 0,peak = 0 ,low_peak = 0 ,n = 0;
+	float sum = 0.0;
+
+	for( int row = 0; row < OAR_NoOfSymbols; row++ )  /* Number of sumbols per line as per OAR Spec - 320 */
+	{
+		sum = 0;
+		for(int i = 0; i < 6; i++ )
+		{
+			sum = sum+buffer[(row*6)+i];
+		}
+		sym[row] = round(sum/6);  //average of 6 samples
+	}
+
+	for (j = 0; j < OAR_NoOfSymbols ; j++) { // for each symbol count the number of occurences
+		n = sym[j];
+		bins[n]++;
+	}
+	/*Determine the peak value having the highest number of occurences */
+	for (j=40; j<100; j++) {
+		if (bins[j] > m) {
+			m = bins[j];
+			peak = j;
+		}
+	}
+	m = 0;
+	for(j = 0;j<20;j++) {
+		if (bins[j] > m) {
+			m = bins[j];
+			low_peak = j;
+		}
+	}
+	*slice_level = round((low_peak+peak)/2.0);
+}
 
 static void updateYUVFrame(uint8_t *buffer, int size, int width, int height,unsigned long clocktime)
 {
@@ -2786,7 +2942,7 @@ static void updateYUVFrame(uint8_t *buffer, int size, int width, int height,unsi
 #endif
 	uint8_t* frameBuf = new uint8_t[size];
 	memcpy(frameBuf, buffer, size);
-	
+
 	{
 		std::lock_guard<std::mutex> lock(appsinkData_mutex);
 		if(appsinkData.yuvBuffer)
@@ -3017,6 +3173,16 @@ int main(int argc, char **argv)
 #ifndef __APPLE__
 	glewInit();
 #endif
+	std::string dirpath = std::string("LAR");
+	DIR *d = opendir(dirpath.c_str());
+	if (!d)
+	{
+		mkdir(dirpath.c_str(), 0777);
+	}
+	else
+	{
+		closedir(d);
+	}
 	InitShaders();
 	glutDisplayFunc(glRender);
 	glutTimerFunc(40, timer, 0); // every 40ms
