@@ -3469,6 +3469,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 	if (audio->GetNumberOfPeriods() != video->GetNumberOfPeriods())
 	{
 		AAMPLOG_WARN("WARNING audio's number of period %d video number of period: %d", audio->GetNumberOfPeriods(), video->GetNumberOfPeriods());
+		return eAAMPSTATUS_INVALID_PLAYLIST_ERROR;
 	}
 
 	if (video->playTarget !=0)
@@ -4892,7 +4893,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			TrackState *other = audio->enabled ? audio : aux;
 			if (!aamp->IsLive())
 			{
-				SyncTracksForDiscontinuity();
+				retval = SyncTracksForDiscontinuity();
+				if (eAAMPSTATUS_OK != retval)
+				{
+					return retval;
+				}
 			}
 			else
 			{
@@ -4901,9 +4906,13 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					bool syncDone = false;
 					if (!liveAdjust && video->mDiscontinuityIndexCount && (video->mDiscontinuityIndexCount == other->mDiscontinuityIndexCount))
 					{
-						if (eAAMPSTATUS_OK == SyncTracksForDiscontinuity())
+						retval = SyncTracksForDiscontinuity();
+						if (eAAMPSTATUS_OK == retval)
 						{
 							syncDone = true;
+						}else
+						{
+							return retval;
 						}
 					}
 				}
@@ -4994,7 +5003,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					if (liveAdjust)
 					{
-						SyncTracksForDiscontinuity();
+						retval = SyncTracksForDiscontinuity();
+						if (eAAMPSTATUS_OK != retval)
+						{
+							return retval;
+						}
 					}
 					float videoPrevDiscontinuity = 0;
 					float audioPrevDiscontinuity = 0;
