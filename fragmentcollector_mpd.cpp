@@ -3148,7 +3148,12 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 			for(int i=0; i < node.size(); i++)
 			{
 				std::string tagName = node.at(i)->GetName();
-				if (tagName.find("pssh") != std::string::npos)
+				/**< PSSH Data can be represented in <mspr:pro> tag also in PR 
+				 * reference : https://docs.microsoft.com/en-us/playready/specifications/mpeg-dash-playready#2-playready-dash-content-protection-scheme
+				*/
+				/*** TODO: Enable the condition after OCDM support added  */
+				/** if ((tagName.find("pssh") != std::string::npos) || (tagName.find("mspr:pro") != std::string::npos))*/
+				if (tagName.find("pssh") != std::string::npos) 
 				{
 					string psshData = node.at(i)->GetText();
 					data = base64_Decode(psshData.c_str(), &dataLength);
@@ -3161,6 +3166,15 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 							data = NULL;
 						}
 					}
+					else
+					{
+						/**< Time being giving priority to cenc:ppsh if it is present */
+						break;
+					}
+				}
+				else if (tagName.find("mspr:pro") != std::string::npos)
+				{
+					AAMPLOG_WARN("Unsupported  PSSH data format - MSPR found in manifest");
 				}
 			}
 		}
@@ -3360,6 +3374,7 @@ void StreamAbstractionAAMP_MPD::ProcessContentProtection(IAdaptationSet * adapta
 		{
 			AAMPLOG_ERR("(%s) pthread_create failed for CreateDRMSession : error code %d, %s", getMediaTypeName(mediaType), errno, strerror(errno));
 		}
+		AAMPLOG_INFO("Current DRM Selected is %s", drmHelper->friendlyName().c_str());
 	}
 	else if (!drmHelper)
 	{

@@ -10072,7 +10072,6 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 	}
 	catch(const std::exception& e)
 	{
-		AAMPLOG_INFO("REMOVE: Exception Recieved While processing : %s", languageList);
 		isJson = false;
 		/**<Nothing to do exclude it*/
 	}
