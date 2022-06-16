@@ -1752,13 +1752,15 @@ bool AAMPGstPlayer::CreatePipeline()
 {
 	FN_TRACE( __FUNCTION__ );
 	bool ret = false;
-	AAMPLOG_WARN("Creating gstreamer pipeline");
 
 	if (privateContext->pipeline || privateContext->bus)
 	{
 		DestroyPipeline();
 	}
 
+	/*DELIA-56028 - Each "Creating gstreamer pipeline" should be paired with one, subsequent "Destroying gstreamer pipeline" log entry.
+	"Creating gstreamer pipeline" is intentionally placed after the DestroyPipeline() call above to maintain this sequence*/
+	AAMPLOG_WARN("Creating gstreamer pipeline");
 	privateContext->pipeline = gst_pipeline_new("AAMPGstPlayerPipeline");
 	if (privateContext->pipeline)
 	{
@@ -1805,6 +1807,9 @@ void AAMPGstPlayer::DestroyPipeline()
 	FN_TRACE( __FUNCTION__ );
 	if (privateContext->pipeline)
 	{
+		/*DELIA-56028 - "Destroying gstreamer pipeline" should only be logged when there is a pipeline to destroy
+		  and each "Destroying gstreamer pipeline" log entry should have one, prior "Creating gstreamer pipeline" log entry*/
+		AAMPLOG_WARN("Destroying gstreamer pipeline");
 		gst_object_unref(privateContext->pipeline);
 		privateContext->pipeline = NULL;
 	}
@@ -1827,8 +1832,6 @@ void AAMPGstPlayer::DestroyPipeline()
 
 	//video decoder handle will change with new pipeline
 	privateContext->decoderHandleNotified = false;
-
-	AAMPLOG_WARN("Destroying gstreamer pipeline");
 }
 
 /**
