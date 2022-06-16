@@ -63,12 +63,16 @@ public:
 
 	AampPlayReadyHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj) : AampDrmHelper(drmInfo, logObj), FRIENDLY_NAME("PlayReady"), CODEC_TYPE(2),
 		PLAYREADY_DECODED_KEY_ID_LEN(16u), PLAYREADY_KEY_ID_LEN(37u), mPsshStr(),
-		mInitData(), mKeyID(), mContentMetaData()
+		mInitData(), mKeyID(), mContentMetaData(), mStrInitDataFormated()
 	{}
 
 	~AampPlayReadyHelper() {}
 
 private:
+	std::string extractMetaData();
+	std::string extrackKeyID();
+	std::string findSubstr(std::string &data, std::string start, std::string end); /**< move to utiles */
+	
 	static const std::string PLAYREADY_OCDM_ID;
 	const size_t PLAYREADY_DECODED_KEY_ID_LEN; // Expected size of base64 decoded key ID from the PSSH
 	const size_t PLAYREADY_KEY_ID_LEN; // PlayReady ID key length. A NULL character is included at the end
@@ -79,6 +83,7 @@ private:
 	std::vector<uint8_t> mInitData;
 	std::vector<uint8_t> mKeyID;
 	std::string mContentMetaData;
+	std::string mStrInitDataFormated;           /**< String init data after clean up*/
 };
 
 /**
