@@ -1731,6 +1731,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 		assert (fragmentURI);
 		http_error = 0;
 		bool bSegmentRepeated = false;
+		pthread_mutex_lock(&mPlaylistMutex);
 		if (context->trickplayMode && ABRManager::INVALID_PROFILE != context->GetIframeTrack())
 		{
 			// Note :: only for IFrames , there is a possibility of same segment getting downloaded again 
@@ -1799,6 +1800,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			std::string fragmentUrl;
 			CachedFragment* cachedFragment = GetFetchBuffer(true);
 			aamp_ResolveURL(fragmentUrl, mEffectiveUrl, fragmentURI , ISCONFIGSET(eAAMPConfig_PropogateURIParam));
+			pthread_mutex_unlock(&mPlaylistMutex);
 			AAMPLOG_TRACE("Got next fragment url %s fragmentEncrypted %d discontinuity %d mDrmMethod %d", fragmentUrl.c_str(), fragmentEncrypted, (int)discontinuity, mDrmMethod);
 
 			aamp->profiler.ProfileBegin(mediaTrackBucketTypes[type]);
@@ -1924,14 +1926,14 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 						}
 					}
 
-					AAMPLOG_TRACE(" [%s] uri %s - calling  DrmDecrypt()",name, fragmentURI);
+					AAMPLOG_TRACE(" [%s] uri %s - calling  DrmDecrypt()",name, fragmentUrl.c_str());
 					DrmReturn drmReturn = DrmDecrypt(cachedFragment, mediaTrackDecryptBucketTypes[type]);
 
 					if(eDRM_SUCCESS != drmReturn)
 					{
 						if (aamp->DownloadsAreEnabled())
 						{
-							AAMPLOG_WARN("FetchFragmentHelper : drm_Decrypt failed. fragmentURI %s - RetryCount %d", fragmentURI, segDrmDecryptFailCount);
+							AAMPLOG_WARN("FetchFragmentHelper : drm_Decrypt failed. fragmentURL %s - RetryCount %d", fragmentUrl.c_str(), segDrmDecryptFailCount);
 							if (eDRM_KEY_ACQUSITION_TIMEOUT == drmReturn)
 							{
 								decryption_error = true;
@@ -1958,7 +1960,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 #ifdef TRACE
 					else
 					{
-						AAMPLOG_WARN("aamp: hls - eMETHOD_AES_128 not set for %s", fragmentURI);
+						AAMPLOG_WARN("aamp: hls - eMETHOD_AES_128 not set for %s", fragmentUrl.c_str());
 					}
 #endif
 					segDrmDecryptFailCount = 0; /* Resetting the retry count in the case of decryption success */
@@ -1971,7 +1973,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			}
 			else if(!cachedFragment->fragment.len)
 			{
-				AAMPLOG_WARN("fragment. len zero for %s", fragmentURI);
+				AAMPLOG_WARN("fragment. len zero for %s", fragmentUrl.c_str());
 			}
 		}
 		else
@@ -1988,6 +1990,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 				// if real problem exists, underflow will eventually be detected/reported
 				AAMPLOG_INFO("FetchFragmentHelper : fragmentURI %s playTarget(%f), playlistPosition(%f)", fragmentURI, playTarget, playlistPosition);
 			}
+			pthread_mutex_unlock(&mPlaylistMutex);
 			return ret;
 		}
 		return true;
@@ -2547,7 +2550,6 @@ static size_t FindLineLength(const char* ptr)
 void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 {
 	double totalDuration = 0.0;
-	pthread_mutex_lock(&mPlaylistMutex);
 	double prevProgramDateTime = mProgramDateTime;
 	long long commonPlayPosition = nextMediaSequenceNumber - 1; 
 	double prevSecondsBeforePlayPoint; 
@@ -2574,8 +2576,6 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 		    AAMPLOG_ERR("ERROR: Invalid Playlist DATA:%s ", temp);
 		    aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
 		    mDuration = totalDuration;
-		    pthread_cond_signal(&mPlaylistIndexed);
-		    pthread_mutex_unlock(&mPlaylistMutex);
 		    return;
 		}
 		DrmMetadataNode drmMetadataNode;
@@ -2972,10 +2972,6 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 	{
 		AAMPLOG_WARN("DISCONTINUITY in track[%d]%s",type,discStr.c_str());
 	}
-	
-
-	pthread_cond_signal(&mPlaylistIndexed);
-	pthread_mutex_unlock(&mPlaylistMutex);
 }
 
 /**
@@ -3038,6 +3034,7 @@ void TrackState::ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error)
 			context->mNetworkDownDetected = false;
 		}
 
+		pthread_mutex_lock(&mPlaylistMutex);
 		// Free previous playlist buffer and load with new one
 		aamp_Free(&playlist);
 		playlist.avail = newPlaylist.avail;
@@ -3083,6 +3080,8 @@ void TrackState::ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error)
 			}
 			manifestDLFailCount = 0;
 		}
+		pthread_cond_signal(&mPlaylistIndexed);
+		pthread_mutex_unlock(&mPlaylistMutex);
 	}
 	else
 	{
@@ -6848,6 +6847,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 	bool ret = false;
 	std::istringstream initFragmentUrlStream;
 
+	pthread_mutex_lock(&mPlaylistMutex);
 	// If the first init fragment is of a clear fragment, we push an encrypted fragment's
 	// init data first to let qtdemux know we will need decryptor plugins
 	AAMPLOG_TRACE("TrackState::[%s] fragmentEncrypted-%d mFirstEncInitFragmentInfo-%s", name, fragmentEncrypted, mFirstEncInitFragmentInfo);
@@ -6863,6 +6863,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 	}
 	std::string line;
 	std::getline(initFragmentUrlStream, line);
+	pthread_mutex_unlock(&mPlaylistMutex);
 	if (!line.empty())
 	{
 		const char *range = NULL;
@@ -7124,7 +7125,6 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 	double totalDuration = 0.0;
 	if (ISCONFIGSET(eAAMPConfig_EnableSubscribedTags) && (eTRACK_VIDEO == type))
 	{
-		pthread_mutex_lock(&mPlaylistMutex);
 		if (playlist.ptr)
 		{
 			char *ptr = GetNextLineStart(playlist.ptr);
@@ -7161,7 +7161,6 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 				ptr=GetNextLineStart(ptr);
 			}
 		}
-		pthread_mutex_unlock(&mPlaylistMutex);
 	}
 	AAMPLOG_TRACE(" Exit");
 }
