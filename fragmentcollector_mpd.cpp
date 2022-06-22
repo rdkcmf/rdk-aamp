@@ -1870,6 +1870,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					pMediaStreamContext->fragmentDescriptor.Number = pMediaStreamContext->lastSegmentNumber;
 				}
 				uint64_t lastSegmentNumberBackup = pMediaStreamContext->fragmentDescriptor.Number;
+				mFreshManifest = false;
 				ReleasePlaylistLock();
 				retval = FetchFragment(pMediaStreamContext, media, fragmentDuration, false, curlInstance, false, pto, scale);
 				double positionInPeriod = 0;
@@ -1928,6 +1929,14 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				}
 				else if(retval == true)
 				{
+					if (rate > 0)
+					{
+						lastSegmentNumberBackup++;
+					}
+					else
+					{
+						lastSegmentNumberBackup--;
+					}
 					// Manifest changed while succesful fragment download, save te backup number as lastSegmentNumber
 					pMediaStreamContext->lastSegmentNumber = lastSegmentNumberBackup;
 				}
@@ -9636,7 +9645,7 @@ StreamAbstractionAAMP_MPD::~StreamAbstractionAAMP_MPD()
 		}
 	}
 
-	aamp->CurlTerm(eCURLINSTANCE_VIDEO, AAMP_TRACK_COUNT);
+	aamp->CurlTerm(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT);
 	memset(aamp->GetLLDashServiceData(),0x00,sizeof(AampLLDashServiceData));
 	aamp->SetLowLatencyServiceConfigured(false);
 	aamp->SyncEnd();
