@@ -267,7 +267,9 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"allowPageHeaders",eAAMPConfig_AllowPageHeaders,-1,-1},
 	{"customLicenseData",eAAMPConfig_CustomLicenseData,-1,-1},
 	{"suppressDecode",eAAMPConfig_SuppressDecode,-1,-1},
-	{"persistProfileAcrossTune",eAAMPConfig_PersistProfileAcrossTune,-1,-1}
+	{"persistHighNetworkBandwidth",eAAMPConfig_PersistHighNetworkBandwidth,-1,-1},
+	{"persistLowNetworkBandwidth",eAAMPConfig_PersistLowNetworkBandwidth,-1,-1}
+
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -448,7 +450,8 @@ void AampConfig::Initialize()
 #else
 	bAampCfgValue[eAAMPConfig_UseSecManager].value			=	false;
 #endif
-	bAampCfgValue[eAAMPConfig_PersistProfileAcrossTune].value       =       false;
+	bAampCfgValue[eAAMPConfig_PersistHighNetworkBandwidth].value    =       false;
+	bAampCfgValue[eAAMPConfig_PersistLowNetworkBandwidth].value     =       true;
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_ABRCacheLife-eAAMPConfig_IntStartValue].value			=	DEFAULT_ABR_CACHE_LIFE;

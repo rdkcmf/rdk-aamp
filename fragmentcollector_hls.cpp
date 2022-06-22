@@ -4157,26 +4157,29 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			else
 			{
 				// Set Default init bitrate according to last PersistBandwidth
-				if(ISCONFIGSET(eAAMPConfig_PersistProfileAcrossTune) && !aamp->IsTSBSupported())
+				if((ISCONFIGSET(eAAMPConfig_PersistLowNetworkBandwidth)|| ISCONFIGSET(eAAMPConfig_PersistHighNetworkBandwidth)) && !aamp->IsTSBSupported())
 				{
 					long persistbandwidth =  mAbrManager.getPersistBandwidth();
 					long TimeGap   =  aamp_GetCurrentTimeMS() - ABRManager::mPersistBandwidthUpdatedTime;
-					if(TimeGap < 10000 &&  persistbandwidth > 0)
+					//If current Network bandwidth is lower than current default bitrate ,use persistbw as default bandwidth when peristLowNetworkConfig exist
+					if(ISCONFIGSET(eAAMPConfig_PersistLowNetworkBandwidth) && TimeGap < 10000 &&  persistbandwidth < aamp->GetDefaultBitrate() && persistbandwidth > 0)
 					{
 						AAMPLOG_WARN("PersistBitrate used as defaultBitrate. PersistBandwidth : %ld TimeGap : %ld",persistbandwidth,TimeGap);
 						mAbrManager.setDefaultInitBitrate(persistbandwidth);
 					}
-					//Persist Bandwidth expired case or initial VOD tune case
+					//If current Network bandwidth is higher than current default bitrate and if config for PersistHighBandwidth is true , then network bandwidth will be applied as default bitrate for tune
+					else if(ISCONFIGSET(eAAMPConfig_PersistHighNetworkBandwidth) && TimeGap < 10000 && persistbandwidth > 0)
+					{
+						AAMPLOG_WARN("PersistBitrate used as defaultBitrate. PersistBandwidth : %ld TimeGap : %ld",persistbandwidth,TimeGap);
+						mAbrManager.setDefaultInitBitrate(persistbandwidth);
+					}
+					//set default bitrate
 					else
 					{
-						AAMPLOG_WARN("PersistBandwidth : %ld TimeGap : %ld.Use defaultBitrate",persistbandwidth,TimeGap);
+						AAMPLOG_WARN("Using defaultBitrate %ld . PersistBandwidth : %ld TimeGap : %ld",aamp->GetDefaultBitrate(),persistbandwidth,TimeGap);
 						mAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
+
 					}
-				}
-				// Set default init bitrate according to the config.
-				else
-				{
-					mAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
 				}
 			}
 

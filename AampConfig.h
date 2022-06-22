@@ -193,7 +193,8 @@ typedef enum
  	eAAMPConfig_XRESupportedTune,						/**< Enable/Disable XRE supported tune*/
 	eAAMPConfig_AllowPageHeaders,						/**< Allow page http headers*/
 	eAAMPConfig_SuppressDecode,						/**< To Suppress Decode of segments for playback . Test only Downloader */
-	eAAMPConfig_PersistProfileAcrossTune,                                   /**< Flag to enable Persist Network Bandwidth across Tunes */
+	 eAAMPConfig_PersistHighNetworkBandwidth,                                /** Flag to enable Persist High Network Bandwidth across Tunes */
+	 eAAMPConfig_PersistLowNetworkBandwidth,                                 /** Flag to enable Persist Low Network Bandwidth across Tunes */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
