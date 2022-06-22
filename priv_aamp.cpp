@@ -3303,7 +3303,7 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 			mAvailableBandwidth = ret;
 			//Store the PersistBandwidth and UpdatedTime on ABRManager
 			//Bitrate Update only for foreground player
-			if(ISCONFIGSET_PRIV(eAAMPConfig_PersistProfileAcrossTune))
+			if(ISCONFIGSET_PRIV(eAAMPConfig_PersistLowNetworkBandwidth)||ISCONFIGSET_PRIV(eAAMPConfig_PersistHighNetworkBandwidth))
 			{
 				if(mAvailableBandwidth  > 0 && mbPlayEnabled)
 				{
@@ -11018,9 +11018,11 @@ long PrivateInstanceAAMP::LoadFogConfig()
 	//disableAC4
 	jsondata.add("disableAC4", ISCONFIGSET_PRIV(eAAMPConfig_DisableAC4));
 
-	//persistProfileAcrossTune
-	jsondata.add("persistProfileAcrossTune", ISCONFIGSET_PRIV(eAAMPConfig_PersistProfileAcrossTune));
+	//persistLowNetworkBandwidth
+	jsondata.add("persistLowNetworkBandwidth", ISCONFIGSET_PRIV(eAAMPConfig_PersistLowNetworkBandwidth));
 
+	//persistHighNetworkBandwidth
+	jsondata.add("persistHighNetworkBandwidth", ISCONFIGSET_PRIV(eAAMPConfig_PersistHighNetworkBandwidth));
 	/*
 	 * Audio and subtitle preference
 	 * Disabled this for XRE supported TSB linear
