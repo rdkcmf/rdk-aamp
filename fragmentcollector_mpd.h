@@ -724,6 +724,7 @@ private:
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
 	double seekPosition;
+	bool mUnSupportedDRMFlag;
 	float rate;
 	std::thread *fragmentCollectorThreadID;
 	pthread_t createDRMSessionThreadID;

@@ -311,6 +311,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	,mProfileCount(0)
 	,playlistMutex(), mIterPeriodIndex(0), mNumberOfPeriods(0)
 	,mUpperBoundaryPeriod(0), mLowerBoundaryPeriod(0), playlistDownloaderThreadStarted(false), mFreshManifest(false)
+	,mUnSupportedDRMFlag(false)
 {
         FN_TRACE_F_MPD( __FUNCTION__ );
 	this->aamp = aamp;
@@ -3241,11 +3242,12 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 				dataLength = outDataLen;
 			}
 		}
-	
+		mUnSupportedDRMFlag=false;	
 		// Try and create a DRM helper
 		if (!AampDrmHelperEngine::getInstance().hasDRM(drmInfo))
 		{
 			AAMPLOG_WARN("(%s) Failed to locate DRM helper for UUID %s", getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
+			mUnSupportedDRMFlag=true;
 			/** Preferred DRM configured and it is failed hhen exit here */
 			if(aamp->isPreferredDRMConfigured && (GetPreferredDrmUUID() == drmInfo.systemUUID) && !aamp->mIsWVKIDWorkaround){
 				AAMPLOG_ERR("(%s) Preffered DRM Failed to locate with UUID %s", getMediaTypeName(mediaType), drmInfo.systemUUID.c_str());
@@ -4912,6 +4914,12 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 	{
 		AAMPLOG_ERR("StreamAbstractionAAMP_MPD: corrupt/invalid manifest");
 		retval = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
+	}
+	if(mUnSupportedDRMFlag)
+	{
+		AAMPLOG_ERR("StreamAbstractionAAMP_MPD: UNSUPPORTED_DRM type");
+		retval = eAAMPSTATUS_UNSUPPORTED_DRM_ERROR;
+		return retval;
 	}
 	if (ret == eAAMPSTATUS_OK)
 	{
