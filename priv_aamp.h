@@ -222,8 +222,7 @@ enum AAMPStatusType
 	eAAMPSTATUS_PLAYLIST_PLAYBACK,			/**< Playlist play back happening */ 
 	eAAMPSTATUS_SEEK_RANGE_ERROR,			/**< Seek position range invalid */
 	eAAMPSTATUS_TRACKS_SYNCHRONISATION_ERROR,	/**< Audio video track synchronisation Error */
-	eAAMPSTATUS_UNSUPPORTED_DRM_ERROR,		/**< Unsupported DRM */
-	eAAMPSTATUS_INVALID_PLAYLIST_ERROR		/**< Playlist discontinuity mismatch*/
+	eAAMPSTATUS_UNSUPPORTED_DRM_ERROR		/**< Unsupported DRM */
 };
 
 
