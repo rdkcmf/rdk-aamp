@@ -853,6 +853,13 @@ public:
          *
          *************************************************************************/
 	StreamOutputFormat GetStreamOutputFormatForAudio(void);
+	/****************************************************************************
+	 *   @brief Change muxed audio track index
+	 *
+	 *   @param[in] string index
+	 *   @return void
+	 ****************************************************************************/
+	void ChangeMuxedAudioTrackIndex(std::string& index);
 
 protected:
 	/***************************************************************************

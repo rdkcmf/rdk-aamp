@@ -1289,6 +1289,30 @@ public:
 	 */
 	void SetAudioFwdToAuxStatus(bool status) { mFwdAudioToAux = status; }
 
+	/**
+	 *   @brief Set AudioTrack info from Muxed stream
+	 *
+	 *   @param[in] string index
+	 *   @return void
+	 */
+	virtual void SetAudioTrackInfoFromMuxedStream(std::vector<AudioTrackInfo>& vector);
+
+	/**
+	 *   @brief Set current audio track index
+	 *
+	 *   @param[in] string index
+	 *   @return void
+	 */
+	void SetCurrentAudioTrackIndex(std::string& index) { mAudioTrackIndex = index; }
+
+	/**
+	 *   @brief Change muxed audio track index
+	 *
+	 *   @param[in] string index
+	 *   @return void
+	 */
+	virtual void ChangeMuxedAudioTrackIndex(std::string& index){};
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.

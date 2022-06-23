@@ -90,96 +90,6 @@ extern void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
 #endif 
 
 #define UseProgramDateTimeIfAvailable() (ISCONFIGSET(eAAMPConfig_HLSAVTrackSyncUsingStartTime) || aamp->mIsVSS)
-/**
-* @struct	FormatMap
-* @brief	FormatMap structure for stream codec/format information
-*/
-struct FormatMap
-{
-	const char* codec;
-	StreamOutputFormat format;
-};
-
-/// Variable initialization for various audio formats
-static const FormatMap mAudioFormatMap[] =
-{
-	{ "mp4a.40.2", FORMAT_AUDIO_ES_AAC },
-	{ "mp4a.40.5", FORMAT_AUDIO_ES_AAC },
-	{ "ac-3", FORMAT_AUDIO_ES_AC3 },
-	{ "mp4a.a5", FORMAT_AUDIO_ES_AC3 },
-	{ "ac-4.02.01.01", FORMAT_AUDIO_ES_AC4 },
-	{ "ac-4.02.01.02", FORMAT_AUDIO_ES_AC4 },
-	{ "ec-3", FORMAT_AUDIO_ES_EC3 },
-	{ "ec+3", FORMAT_AUDIO_ES_ATMOS },
-	{ "eac3", FORMAT_AUDIO_ES_EC3 }
-};
-#define AAMP_AUDIO_FORMAT_MAP_LEN ARRAY_SIZE(mAudioFormatMap)
-
-/// Variable initialization for various video formats 
-static const FormatMap * GetAudioFormatForCodec( const char *codecs )
-{
-	if( codecs )
-	{
-		for( int i=0; i<AAMP_AUDIO_FORMAT_MAP_LEN; i++ )
-		{
-			if( strstr( codecs, mAudioFormatMap[i].codec) )
-			{
-				return &mAudioFormatMap[i];
-			}
-		}
-	}
-	return NULL;
-}
-
-/***************************************************************************
-* @fn GetAudioFormatStringForCodec
-* @brief Function to get audio codec string from the map.
-*
-* @param[in] input Audio codec type
-* @return Audio codec string
-***************************************************************************/
-static const char * GetAudioFormatStringForCodec ( StreamOutputFormat input)
-{
-	const char *codec = "UNKNOWN";
-	if(input < FORMAT_UNKNOWN)
-	{
-		for( int i=0; i<AAMP_AUDIO_FORMAT_MAP_LEN; i++ )
-		{
-			if(mAudioFormatMap[i].format == input )
-			{
-				codec =  mAudioFormatMap[i].codec;
-				break;
-			}
-		}
-	}
-	return codec;
-}
-
-
-/// Variable initialization for various video formats
-static const FormatMap mVideoFormatMap[] =
-{
-	{ "avc1.", FORMAT_VIDEO_ES_H264 },
-	{ "hvc1.", FORMAT_VIDEO_ES_HEVC },
-	{ "hev1.", FORMAT_VIDEO_ES_HEVC },
-	{ "mpeg2v", FORMAT_VIDEO_ES_MPEG2 }//For testing.
-};
-#define AAMP_VIDEO_FORMAT_MAP_LEN ARRAY_SIZE(mVideoFormatMap)
-
-static const FormatMap * GetVideoFormatForCodec( const char *codecs )
-{
-	if( codecs )
-	{
-		for( int i=0; i<AAMP_VIDEO_FORMAT_MAP_LEN; i++ )
-		{
-			if( strstr( codecs, mVideoFormatMap[i].codec) )
-			{
-				return &mVideoFormatMap[i];
-			}
-		}
-	}
-	return NULL;
-}
 
 /// Variable initialization for media profiler buckets
 static const ProfilerBucketType mediaTrackBucketTypes[AAMP_TRACK_COUNT] =
@@ -4719,6 +4629,14 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 							{
 								AAMPLOG_WARN("StreamAbstractionAAMP_HLS: Configure audio TS track demuxing");
 								ts->playContext = new TSProcessor(mLogObj, aamp, eStreamOp_DEMUX_AUDIO);
+								if(ts->playContext)
+								{
+									if (currentAudioProfileIndex >= 0 )
+									{
+										std::string groupId = mediaInfo[currentAudioProfileIndex].group_id;
+										ts->playContext->SetAudioGroupId(groupId);
+									}
+								}
 							}							
 							else
 							{
@@ -4802,7 +4720,15 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						}
 						AAMPLOG_WARN("StreamAbstractionAAMP_HLS::Init : Configure video TS track demuxing demuxOp %d", demuxOp);
 						ts->playContext = new TSProcessor(mLogObj, aamp, demuxOp, eMEDIATYPE_VIDEO, static_cast<TSProcessor*> (trackState[eMEDIATYPE_AUDIO]->playContext), static_cast<TSProcessor*> (trackState[eMEDIATYPE_AUX_AUDIO]->playContext));
-						ts->playContext->setThrottleEnable(this->enableThrottle);
+						if(ts->playContext)
+						{
+							ts->playContext->setThrottleEnable(this->enableThrottle);
+							if (currentAudioProfileIndex >= 0 )
+							{
+								std::string groupId = mediaInfo[currentAudioProfileIndex].group_id;
+								ts->playContext->SetAudioGroupId(groupId);
+							}
+						}
 						if (this->rate == AAMP_NORMAL_PLAY_RATE)
 						{
 							ts->playContext->setRate(this->rate, PlayMode_normal);
@@ -7954,6 +7880,28 @@ StreamInfo * StreamAbstractionAAMP_HLS::GetStreamInfo(int idx)
 	}
 
 	return &streamInfo[userData];
+}
+
+
+/****************************************************************************
+ *   @brief Change muxed audio track index
+ *
+ *   @param[in] string index
+ *   @return void
+****************************************************************************/
+void StreamAbstractionAAMP_HLS::ChangeMuxedAudioTrackIndex(std::string& index)
+{
+	std::string muxPrefix = "mux-";
+        std::string trackIndex = index.substr(muxPrefix.size());
+        unsigned char indexNum = (unsigned char) stoi(trackIndex);
+	if(trackState[eMEDIATYPE_AUDIO] && trackState[eMEDIATYPE_AUDIO]->playContext)
+	{
+		trackState[eMEDIATYPE_AUDIO]->playContext->ChangeMuxedAudioTrack(indexNum);
+	}
+	else if(trackState[eMEDIATYPE_VIDEO] && trackState[eMEDIATYPE_VIDEO]->playContext && IsMuxedStream())
+	{
+		trackState[eMEDIATYPE_VIDEO]->playContext->ChangeMuxedAudioTrack(indexNum);
+	}
 }
 
 /**

@@ -162,6 +162,37 @@ class TSProcessor : public MediaProcessor
        */
       void flush();
 
+      /**
+       * @fn Change Muxed Audio Track
+       * @param[in] AudioTrackIndex
+       */
+      void ChangeMuxedAudioTrack(unsigned char index);
+
+      /**
+       * @fn Select Audio Track
+       * @param[out] bestTrackIndex
+       */
+      int SelectAudioIndexToPlay();
+
+      /**
+       * @brief Function to filter the audio codec based on the configuration
+       * @param[in] audioFormat
+       * @param[out] bool ignoreProfile - true/false
+       */
+      bool FilterAudioCodecBasedOnConfig(StreamOutputFormat audioFormat);
+
+      /**
+       * @brief Function to get the language code
+       * @param[in] string - language
+       */
+      void GetLanguageCode(std::string& lang);
+
+      /**
+       * @brief Function to set the group-ID
+       * @param[in] string - id
+       */
+      void SetAudioGroupId(std::string& id);
+
    protected:
       /**
        * @fn getAudioComponents
@@ -534,6 +565,7 @@ class TSProcessor : public MediaProcessor
       TSProcessor* m_auxTSProcessor;
       bool m_auxiliaryAudio;
       AampLogManager *mLogObj;
+      std::string m_audioGroupId;
 };
 
 #endif

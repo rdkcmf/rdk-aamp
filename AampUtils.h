@@ -45,6 +45,43 @@
 #define SAFE_DELETE_ARRAY(ptr) { delete [] ptr; ptr = NULL; }
 
 /**
+* @struct	FormatMap
+* @brief	FormatMap structure for stream codec/format information
+*/
+struct FormatMap
+{
+	const char* codec;
+	StreamOutputFormat format;
+};
+
+/*
+* @fn GetAudioFormatStringForCodec
+* @brief Function to get audio codec string from the map.
+*
+* @param[in] input Audio codec type
+* @return Audio codec string
+*/
+const char * GetAudioFormatStringForCodec ( StreamOutputFormat input);
+
+/*
+* @fn GetAudioFormatForCodec
+* @brief Function to get audio codec from the map.
+*
+* @param[in] Audio codec string
+* @return Audio codec map
+*/
+const FormatMap * GetAudioFormatForCodec( const char *codecs );
+
+/*
+* @fn GetVideoFormatForCodec
+* @brief Function to get video codec from the map.
+*
+* @param[in] Video codec string
+* @return Video codec map
+*/
+const FormatMap * GetVideoFormatForCodec( const char *codecs );
+
+/**
  * @fn aamp_GetCurrentTimeMS
  *
  */

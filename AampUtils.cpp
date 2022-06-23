@@ -55,6 +55,35 @@
 #define RAND_STRING_LEN (MAC_STRING_LEN + 2*URAND_STRING_LEN)
 #define MAX_BUFF_LENGTH 4096 
 
+/*
+ * Variable initialization for various audio formats
+ */
+const FormatMap mAudioFormatMap[] =
+{
+	{ "mp4a.40.2", FORMAT_AUDIO_ES_AAC },
+	{ "mp4a.40.5", FORMAT_AUDIO_ES_AAC },
+	{ "ac-3", FORMAT_AUDIO_ES_AC3 },
+	{ "mp4a.a5", FORMAT_AUDIO_ES_AC3 },
+	{ "ac-4.02.01.01", FORMAT_AUDIO_ES_AC4 },
+	{ "ac-4.02.01.02", FORMAT_AUDIO_ES_AC4 },
+	{ "ec-3", FORMAT_AUDIO_ES_EC3 },
+	{ "ec+3", FORMAT_AUDIO_ES_ATMOS },
+	{ "eac3", FORMAT_AUDIO_ES_EC3 }
+};
+#define AAMP_AUDIO_FORMAT_MAP_LEN ARRAY_SIZE(mAudioFormatMap)
+
+/*
+ * Variable initialization for various video formats
+ */
+const FormatMap mVideoFormatMap[] =
+{
+	{ "avc1.", FORMAT_VIDEO_ES_H264 },
+	{ "hvc1.", FORMAT_VIDEO_ES_HEVC },
+	{ "hev1.", FORMAT_VIDEO_ES_HEVC },
+	{ "mpeg2v", FORMAT_VIDEO_ES_MPEG2 }//For testing.
+};
+#define AAMP_VIDEO_FORMAT_MAP_LEN ARRAY_SIZE(mVideoFormatMap)
+
 /**
  * @brief Get current time from epoch is milliseconds
  *
@@ -973,6 +1002,74 @@ void mssleep(int milliseconds)
 		req.tv_nsec = (milliseconds % 1000) * 1000000;
 		nanosleep(&req, &rem);
 	}
+}
+
+/*
+* @fn GetAudioFormatStringForCodec
+* @brief Function to get audio codec string from the map.
+*
+* @param[in] input Audio codec type
+* @return Audio codec string
+*/
+const char * GetAudioFormatStringForCodec ( StreamOutputFormat input)
+{
+	const char *codec = "UNKNOWN";
+	if(input < FORMAT_UNKNOWN)
+	{
+		for( int i=0; i<AAMP_AUDIO_FORMAT_MAP_LEN; i++ )
+		{
+			if(mAudioFormatMap[i].format == input )
+			{
+				codec =  mAudioFormatMap[i].codec;
+				break;
+			}
+		}
+	}
+	return codec;
+}
+
+/*
+* @fn GetAudioFormatForCodec
+* @brief Function to get audio codec from the map.
+*
+* @param[in] Audio codec string
+* @return Audio codec map
+*/
+const FormatMap * GetAudioFormatForCodec( const char *codecs )
+{
+	if( codecs )
+	{
+		for( int i=0; i<AAMP_AUDIO_FORMAT_MAP_LEN; i++ )
+		{
+			if( strstr( codecs, mAudioFormatMap[i].codec) )
+			{
+				return &mAudioFormatMap[i];
+			}
+		}
+	}
+	return NULL;
+}
+
+/*
+* @fn GetVideoFormatForCodec
+* @brief Function to get video codec from the map.
+*
+* @param[in] Video codec string
+* @return Video codec map
+*/
+const FormatMap * GetVideoFormatForCodec( const char *codecs )
+{
+	if( codecs )
+	{
+		for( int i=0; i<AAMP_VIDEO_FORMAT_MAP_LEN; i++ )
+		{
+			if( strstr( codecs, mVideoFormatMap[i].codec) )
+			{
+				return &mVideoFormatMap[i];
+			}
+		}
+	}
+	return NULL;
 }
 
 /**
