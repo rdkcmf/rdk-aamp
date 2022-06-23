@@ -193,8 +193,9 @@ typedef enum
 	eAAMPConfig_GstSubtecEnabled,								/**< Force Gstreamer subtec */
 	eAAMPConfig_AllowPageHeaders,						/**< Allow page http headers*/
 	eAAMPConfig_SuppressDecode,						/**< To Suppress Decode of segments for playback . Test only Downloader */
-	 eAAMPConfig_PersistHighNetworkBandwidth,                                /** Flag to enable Persist High Network Bandwidth across Tunes */
-	 eAAMPConfig_PersistLowNetworkBandwidth,                                 /** Flag to enable Persist Low Network Bandwidth across Tunes */
+	eAAMPConfig_PersistHighNetworkBandwidth,				/** Flag to enable Persist High Network Bandwidth across Tunes */
+	eAAMPConfig_PersistLowNetworkBandwidth,					/** Flag to enable Persist Low Network Bandwidth across Tunes */
+	eAAMPConfig_ChangeTrackWithoutRetune,					/**< Flag to enable audio track change without disturbing video pipeline */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,

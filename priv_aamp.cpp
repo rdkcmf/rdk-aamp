@@ -10241,6 +10241,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			bool renditionAvailabilityInManifest = false;
 			bool accessibilityAvailabilityInManifest = false;
 			bool labelAvailabilityInManifest = false;
+			std::string trackIndexStr;
 
 			if (trackIndex >= 0)
 			{
@@ -10264,6 +10265,10 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 								[languageList, currentPrefLanguage](AudioTrackInfo& temp)
 								{ return ((temp.language == languageList) && (temp.language != currentPrefLanguage) && (temp.isAvailable)); });
 					languageAvailabilityInManifest = (languageAvailable != end(trackInfo) && languageAvailable->isAvailable);
+					if(languagePresent)
+					{
+						trackIndexStr = language->index;
+					}
 				}
 
 				// Logic to check whether the given label is present in the available tracks,
@@ -10335,24 +10340,31 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			}
 			else if (languagePresent || renditionPresent || accessibilityPresent || codecPresent || labelPresent) // call the tune only if there is a change in the language, rendition or accessibility.
 			{
-				discardEnteringLiveEvt = true;
-
-				seek_pos_seconds = GetPositionMilliseconds()/1000.0;
-				mOffsetFromTunetimeForSAPWorkaround = (double)(aamp_GetCurrentTimeMS() / 1000) - mLiveOffset;
-				mLanguageChangeInProgress = true;
-				AcquireStreamLock();
-				TeardownStream(false);
-				if(IsTSBSupported() &&
-				 ((languagePresent && !languageAvailabilityInManifest) ||
-				 (renditionPresent && !renditionAvailabilityInManifest) ||
-				 (accessibilityPresent && !accessibilityAvailabilityInManifest) ||
-				 (labelPresent && !labelAvailabilityInManifest)))
+				if(!ISCONFIGSET_PRIV(eAAMPConfig_ChangeTrackWithoutRetune))
 				{
-					ReloadTSB();
+					discardEnteringLiveEvt = true;
+
+					seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+					mOffsetFromTunetimeForSAPWorkaround = (double)(aamp_GetCurrentTimeMS() / 1000) - mLiveOffset;
+					mLanguageChangeInProgress = true;
+					AcquireStreamLock();
+					TeardownStream(false);
+					if(IsTSBSupported() &&
+					 ((languagePresent && !languageAvailabilityInManifest) ||
+					 (renditionPresent && !renditionAvailabilityInManifest) ||
+					 (accessibilityPresent && !accessibilityAvailabilityInManifest) ||
+					 (labelPresent && !labelAvailabilityInManifest)))
+					{
+						ReloadTSB();
+					}
+					TuneHelper(eTUNETYPE_SEEK);
+					discardEnteringLiveEvt = false;
+					ReleaseStreamLock();
 				}
-				TuneHelper(eTUNETYPE_SEEK);
-				discardEnteringLiveEvt = false;
-				ReleaseStreamLock();
+				else if(!trackIndexStr.empty())
+				{
+					mpStreamAbstractionAAMP->ChangeMuxedAudioTrackIndex(trackIndexStr);
+				}
 			}
 		}
 	}

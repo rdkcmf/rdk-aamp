@@ -31,8 +31,10 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include "priv_aamp.h"
+#include "StreamAbstractionAAMP.h"
 
 #include "tsprocessor.h"
+#include "AampUtils.h"
 
 
 /**
@@ -860,6 +862,7 @@ TSProcessor::TSProcessor(AampLogManager *logObj, class PrivateInstanceAAMP *aamp
 	, m_auxTSProcessor(auxTSProcessor)
 	, m_auxiliaryAudio(false)
 	, mLogObj(logObj)
+	,m_audioGroupId()
 {
 	INFO("constructor - %p", this);
 
@@ -1237,8 +1240,39 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 	}
 	if (audioComponentCount > 0)
 	{
-		NOTICE( "[%p] found %d audio pids in program %d with pcr pid %d audio pid %d",
-			this, audioComponentCount, m_program, pcrPid, audioComponents[0].pid);
+		std::vector<AudioTrackInfo> audioTracks;
+		for(int i=0; i< audioComponentCount; i++)
+		{
+			std::string index = "mux-" + std::to_string(i);
+			std::string language = Getiso639map_NormalizeLanguageCode(audioComponents[i].associatedLanguage,aamp->GetLangCodePreference());
+			std::string group_id = m_audioGroupId;
+			std::string name = "pid-" + std::to_string(audioComponents[i].pid);
+			std::string characteristics = "muxed-audio";
+			StreamOutputFormat streamtype = getStreamFormatForCodecType(audioComponents[i].elemStreamType);
+			std::string codec = GetAudioFormatStringForCodec(streamtype);
+			audioTracks.push_back(AudioTrackInfo(index, language, group_id, name, codec, characteristics, 0));
+			NOTICE( "[%p] found audio#%d in program %d with pcr pid %d audio pid %d lan:%s codec:%s",
+				this, i, m_program, pcrPid, audioComponents[i].pid, audioComponents[i].associatedLanguage, codec.c_str());
+		}
+		if(audioTracks.size() > 0)
+		{
+			if(aamp->mpStreamAbstractionAAMP)
+			{
+				aamp->mpStreamAbstractionAAMP->SetAudioTrackInfoFromMuxedStream(audioTracks);
+			}
+		}
+		if(m_audDemuxer)
+		{
+			// Audio demuxer found, select audio by preference
+			int trackIndex = SelectAudioIndexToPlay();
+			if(trackIndex != -1 && trackIndex < audioComponentCount)
+			{
+				AAMPLOG_INFO("Selected best track audio#%d with lang:%s per preference", trackIndex, audioComponents[trackIndex].associatedLanguage);
+				m_AudioTrackIndexToPlay = trackIndex;
+				std::string index = "mux-" + std::to_string(trackIndex);
+				aamp->mpStreamAbstractionAAMP->SetCurrentAudioTrackIndex(index);
+			}
+		}
 	}
 
 	if (videoComponentCount > 0)
@@ -4505,4 +4539,133 @@ void TSProcessor::getAudioComponents(const RecordingComponent** audioComponentsP
 {
 	count = audioComponentCount;
 	*audioComponentsPtr = audioComponents;
+}
+
+/**
+ * @fn Change Muxed Audio Track
+ * @param[in] AudioTrackIndex
+ */
+void TSProcessor::ChangeMuxedAudioTrack(unsigned char index)
+{
+	pthread_mutex_lock(&m_mutex);
+	AAMPLOG_WARN("Track changed from %d to %d", m_AudioTrackIndexToPlay, index);
+	m_AudioTrackIndexToPlay = index;
+	pthread_mutex_unlock(&m_mutex);
+}
+
+/**
+ * @fn Select Audio Track
+ * @param[out] bestTrackIndex
+ */
+int TSProcessor::SelectAudioIndexToPlay()
+{
+	int bestTrack = -1;
+	int bestScore = -1;
+	for(int i=0; i<audioComponentCount ; i++)
+	{
+		int score = 0;
+		std::string trackLanguage = audioComponents[i].associatedLanguage;
+		StreamOutputFormat audioFormat = getStreamFormatForCodecType(audioComponents[i].elemStreamType);
+		if(!FilterAudioCodecBasedOnConfig(audioFormat))
+		{
+			GetLanguageCode(trackLanguage);
+			if(aamp->preferredLanguagesList.size() > 0)
+			{
+				auto iter = std::find(aamp->preferredLanguagesList.begin(), aamp->preferredLanguagesList.end(), trackLanguage);
+				if(iter != aamp->preferredLanguagesList.end())
+				{ // track is in preferred language list
+					int distance = std::distance(aamp->preferredLanguagesList.begin(),iter);
+					score += (aamp->preferredLanguagesList.size()-distance)*100000; // big bonus for language match
+				}
+			}
+
+			if( aamp->preferredCodecList.size() > 0 )
+			{
+				auto iter = std::find(aamp->preferredCodecList.begin(), aamp->preferredCodecList.end(), GetAudioFormatStringForCodec(audioFormat) );
+				if(iter != aamp->preferredCodecList.end())
+				{ // track is in preferred codec list
+					int distance = std::distance(aamp->preferredCodecList.begin(),iter);
+					score += (aamp->preferredCodecList.size()-distance)*100; //  bonus for codec match
+				}
+			}
+			else
+			{
+				score += audioFormat;
+			}
+		}
+
+		AAMPLOG_TRACE("TSProcessor > track#%d score = %d lang : %s", i+1, score, trackLanguage.c_str());
+		if(score > bestScore)
+		{
+			bestScore = score;
+			bestTrack = i;
+		}
+	}
+	return bestTrack;
+}
+
+
+/**
+ * @brief Function to filter the audio codec based on the configuration
+ * @param[in] audioFormat
+ * @param[out] bool ignoreProfile - true/false
+ */
+bool TSProcessor::FilterAudioCodecBasedOnConfig(StreamOutputFormat audioFormat)
+{
+	bool ignoreProfile = false;
+	bool bDisableEC3 = ISCONFIGSET(eAAMPConfig_DisableEC3);
+	bool bDisableAC3 = bDisableEC3;
+	bool bDisableAC4 = ISCONFIGSET(eAAMPConfig_DisableAC4);
+	// bringing in parity with DASH , if EC3 is disabled ,then ATMOS also will be disabled
+	bool bDisableATMOS = (bDisableEC3) ? true : ISCONFIGSET(eAAMPConfig_DisableATMOS);
+
+	switch (audioFormat)
+	{
+		case FORMAT_AUDIO_ES_AC3:
+			if (bDisableAC3)
+			{
+				ignoreProfile = true;
+			}
+			break;
+
+		case FORMAT_AUDIO_ES_ATMOS:
+			if (bDisableATMOS)
+			{
+				ignoreProfile = true;
+			}
+			break;
+
+		case FORMAT_AUDIO_ES_EC3:
+			if (bDisableEC3)
+			{
+				ignoreProfile = true;
+			}
+			break;
+
+		default:
+			break;
+	}
+
+	return ignoreProfile;
+}
+
+/**
+ * @brief Function to get the language code
+ * @param[in] string - language
+ */
+void TSProcessor::GetLanguageCode(std::string& lang)
+{
+	lang = Getiso639map_NormalizeLanguageCode(lang,aamp->GetLangCodePreference());
+}
+
+/**
+ * @brief Function to set the group-ID
+ * @param[in] string - id
+ */
+void TSProcessor::SetAudioGroupId(std::string& id)
+{
+	if(!id.empty())
+	{
+		m_audioGroupId = id;
+	}
 }

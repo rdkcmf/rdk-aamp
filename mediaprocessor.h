@@ -117,5 +117,17 @@ public:
 	 * @return void
 	 */
 	virtual void reset() = 0;
+
+	/**
+	* @fn Change Muxed Audio Track
+	* @param[in] AudioTrackIndex
+	*/
+	virtual void ChangeMuxedAudioTrack(unsigned char index){};
+
+	/**
+	* @brief Function to set the group-ID
+	* @param[in] string - id
+	*/
+	virtual void SetAudioGroupId(std::string& id){};
 };
 #endif /* __MEDIA_PROCESSOR_H__ */
