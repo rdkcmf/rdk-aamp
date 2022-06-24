@@ -3411,7 +3411,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 	{
 		aux = trackState[eMEDIATYPE_AUX_AUDIO];
 	}
-	AAMPStatusType retVal = eAAMPSTATUS_GENERIC_ERROR;
+	AAMPStatusType retVal = eAAMPSTATUS_OK;
 
 	double roundedPlayTarget = std::round(video->playTarget);
 	// Offset value to add . By default it will playtarget
@@ -3428,6 +3428,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracksForDiscontinuity()
 	if (audio->GetNumberOfPeriods() != video->GetNumberOfPeriods())
 	{
 		AAMPLOG_WARN("WARNING audio's number of period %d video number of period: %d", audio->GetNumberOfPeriods(), video->GetNumberOfPeriods());
+		return eAAMPSTATUS_INVALID_PLAYLIST_ERROR;
 	}
 
 	if (video->playTarget !=0)
@@ -4894,19 +4895,19 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			TrackState *other = audio->enabled ? audio : aux;
 			if (!aamp->IsLive())
 			{
-				SyncTracksForDiscontinuity();
+				retval = SyncTracksForDiscontinuity();
+				if (eAAMPSTATUS_OK != retval)
+				{
+					return retval;
+				}
 			}
 			else
 			{
 				if(!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 				{
-					bool syncDone = false;
 					if (!liveAdjust && video->mDiscontinuityIndexCount && (video->mDiscontinuityIndexCount == other->mDiscontinuityIndexCount))
 					{
-						if (eAAMPSTATUS_OK == SyncTracksForDiscontinuity())
-						{
-							syncDone = true;
-						}
+						SyncTracksForDiscontinuity();
 					}
 				}
 			}
