@@ -30,7 +30,6 @@ patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0004-Support-of-Even
 patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0005-DELIA-39460-libdash-memleak.patch
 patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0006-RDK-32003-LLD-Support.patch
 patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0009-RDK-35134-Support-for-FailoverContent.patch
-patch -p1 < meta-rdk-ext/recipes-multimedia/libdash/libdash/0010-RDKAAMP-121-Failover-Tag-on-SegmentTemplate.patch
 mkdir -p build
 cd build
 cmake ..
