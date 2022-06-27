@@ -2558,7 +2558,8 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 
 #if defined(AMLOGIC)
 		// AMLOGIC-3130: included to fix av sync / trickmode speed issues in LLAMA-4291
-		if(!aamp->mbNewSegmentEvtSent[mediaType])
+		// LLAMA-6788 - Also add check for trick-play on 1st frame.
+		if(!aamp->mbNewSegmentEvtSent[mediaType] || (mediaType == eMEDIATYPE_VIDEO && aamp->rate != AAMP_NORMAL_PLAY_RATE))
 		{
 			SendNewSegmentEvent(mediaType, pts ,0);
 			aamp->mbNewSegmentEvtSent[mediaType]=true;
