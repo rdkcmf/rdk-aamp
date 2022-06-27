@@ -1577,14 +1577,18 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 							else if(mIsLiveStream && ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline))
 							{
 								// Non-fog Linear with absolute position reporting
+								AcquirePlaylistLock();
 								pMediaStreamContext->downloadedDuration = (GetPeriodStartTime(mpd, mCurrentPeriodIdx) - mAvailabilityStartTime) + positionInPeriod;
+								ReleasePlaylistLock();
 							}
 							else
 							{
 								// For VOD and non-fog linear without Absolute timeline
 								// calculate relative position in manifest
 								// For VOD, culledSeconds will be 0, and for linear it is added to first period start
+								AcquirePlaylistLock();
 								pMediaStreamContext->downloadedDuration = aamp->culledSeconds + GetPeriodStartTime(mpd, mCurrentPeriodIdx) - GetPeriodStartTime(mpd, 0) + positionInPeriod;
+								ReleasePlaylistLock();
 							}
 						}
 						else if((mIsFogTSB && !mAdPlayingFromCDN) && pMediaStreamContext->mDownloadedFragment.ptr)
@@ -1879,6 +1883,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					positionInPeriod = (pMediaStreamContext->lastSegmentNumber - startNumber) * fragmentDuration;
 				}
 
+				AcquirePlaylistLock();
 				string startTimeStringValue = mpd->GetPeriods().at(mCurrentPeriodIdx)->GetStart();
 				double periodstartValue = 0;
 				if(mIsLiveStream && ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline))
@@ -1901,6 +1906,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 					// For VOD, culledSeconds will be 0, and for linear it is added to first period start
 					pMediaStreamContext->downloadedDuration = aamp->culledSeconds + GetPeriodStartTime(mpd, mCurrentPeriodIdx) - GetPeriodStartTime(mpd, 0) + positionInPeriod;
 				}
+				ReleasePlaylistLock();
 				if( mCheckForRampdown )
 				{
 					/* NOTE : This case needs to be validated with the segmentTimeline not available stream */
@@ -5253,19 +5259,15 @@ void StreamAbstractionAAMP_MPD::IndexNewMPDDocument(bool updateTrackInfo)
 				UpdateCulledAndDurationFromPeriodInfo();
 			}
 
-			auto durMs = aamp_GetDurationFromRepresentation(mpd);
-			if(0 == durMs)
+			mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
+			mPeriodStartTime = GetPeriodStartTime(mpd, mCurrentPeriodIdx);
+			mPeriodDuration = GetPeriodDuration(mpd, mCurrentPeriodIdx);
+			uint64_t durMs = 0;
+			for(int periodIter = 0; periodIter < mpd->GetPeriods().size(); periodIter++)
 			{
-				mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
-				mPeriodStartTime = GetPeriodStartTime(mpd, mCurrentPeriodIdx);
-				mPeriodDuration = GetPeriodDuration(mpd, mCurrentPeriodIdx);
-
-				for(int periodIter = 0; periodIter < mpd->GetPeriods().size(); periodIter++)
+				if(!IsEmptyPeriod(mpd->GetPeriods().at(periodIter), mIsFogTSB))
 				{
-					if(!IsEmptyPeriod(mpd->GetPeriods().at(periodIter), mIsFogTSB))
-					{
-						durMs += GetPeriodDuration(mpd, periodIter);
-					}
+					durMs += GetPeriodDuration(mpd, periodIter);
 				}
 			}
 			double duration = (double)durMs / 1000;
