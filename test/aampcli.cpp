@@ -23,6 +23,9 @@
  */
  #include <bits/stdc++.h>
 #include "AampDefine.h"
+extern "C" {
+#include "libavutil/blowfish.h"
+}
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
@@ -58,8 +61,11 @@
 #include "resize_approximation.h"  //MAF - resize approximation and HardCut detector
 #include "hardcut_detector.h"
 #endif
-#define MAX_BUFFER_LENGTH 4096
-#define OAR_NoOfSymbols 320
+#define MAX_BUFFER_LENGTH 		4096
+#define OAR_NoOfSymbols 		320
+#define BLOCK_SIZE 			8
+#define OAR_EncryptedWaterMarkData 	13
+#define FILEPATH_LEN 			256
 using namespace std;
 #define CC_OPTION_1 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"white\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"black\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}"
 #define CC_OPTION_2 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"yellow\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"yellow\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"cyan\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":true}"
@@ -2681,30 +2687,30 @@ void InitShaders()
 }
 
 typedef struct OAR_WaterMark {
-int run_in: 4;
-int reserved1: 2;
-int consortium_key: 2;
-int random: 2;
-int type: 4;
+unsigned char run_in: 4;
+unsigned char reserved1: 2;
+unsigned char consortium_key: 2;
+unsigned char random: 4;
+unsigned char type: 4;
 unsigned short publisher_id;
 unsigned char publisher_key;
 unsigned char crc;
 union {
-     unsigned char reserved2[64]; // For type 0
-     unsigned char undefined[64]; // for type 1
+     unsigned char reserved2[8]; // For type 0
+     unsigned char undefined[8]; // for type 1
      struct {
-           unsigned char preroll[16];
-           unsigned char duration1[8];
-           unsigned char adpod_id[40];
+           unsigned short preroll;
+           unsigned char duration1;
+           unsigned char adpod_id[5];
      }type_2;
      struct {
-           unsigned char time_in_ad[16];
-           unsigned char duration2[8];
-           unsigned char watermark[40];
+           unsigned short time_in_ad;
+           unsigned char duration2;
+           unsigned char watermark[5];
     } type_3;
 };
 unsigned char ECC[24]; // Reed Solomon ECC
-}OAR_WTERMARK;
+}OAR_WATERMARK;
 struct
 {
     const char *name;
@@ -2714,7 +2720,7 @@ struct
     {"run_in", 4},
     {"reserved1",2},
     {"consortium_key",2},
-    {"random",2},
+    {"random",4},
     {"type",4},
     {"publisher_id",16},
     {"publisher_key",8},
@@ -2725,7 +2731,102 @@ struct
     { "ECC",24*8}
 };
 
-	static int frame = 0;
+static int frame = 0;
+void Decrypt_OARWatermark(uint8_t ciphertext[OAR_EncryptedWaterMarkData])
+{
+	AVBlowfish ctx;
+	uint8_t plaintext[BLOCK_SIZE] = {0};
+	uint8_t DataIn[BLOCK_SIZE] = {0};
+	uint8_t iv[BLOCK_SIZE] = {0};
+	char path[FILEPATH_LEN];
+	FILE *fp;
+	OAR_WATERMARK OAR_WATERMARK;
+	memcpy(DataIn , ciphertext ,BLOCK_SIZE);
+	av_blowfish_init(&ctx,  (uint8_t *)"CCC788996C32449BDD32E452ED33A", 29);
+	av_blowfish_crypt(&ctx, plaintext, DataIn , 1 , NULL, 1);
+
+	OAR_WATERMARK.random         = (plaintext[0] & 0xF0) >> 4;
+	OAR_WATERMARK.type           = plaintext[0]  &  0x0F;
+	OAR_WATERMARK.publisher_id   = plaintext[1] << 8 | plaintext[2];
+	OAR_WATERMARK.publisher_key  = plaintext[3];
+	OAR_WATERMARK.crc	     = plaintext[4];
+
+	memset(DataIn ,0 ,BLOCK_SIZE);
+	for(int i = 0 ; i < 3 ; i++)
+		DataIn[i] = plaintext[i+5];
+
+	for(int i = 3 ; i < 8 ; i++) {
+		DataIn[i] = ciphertext[i+5];
+	}
+        iv[0] = OAR_WATERMARK.random;
+	memset(plaintext ,0 ,BLOCK_SIZE);
+	av_blowfish_init(&ctx,  (uint8_t *)"A9E79D488E13BB1D1375CDB66BC7C", 29);
+	av_blowfish_crypt(&ctx, plaintext, DataIn, 1 , iv, 1);
+
+	switch(OAR_WATERMARK.type) {
+		case 0:
+			memcpy(OAR_WATERMARK.reserved2,plaintext,BLOCK_SIZE);
+			break;
+		case 1:
+			memcpy(OAR_WATERMARK.undefined,plaintext,BLOCK_SIZE);
+			break;
+		case 2:
+			OAR_WATERMARK.type_2.preroll      = plaintext[0] << 8 | plaintext[1];
+			OAR_WATERMARK.type_2.duration1    = plaintext[2];
+			OAR_WATERMARK.type_2.adpod_id[0]  = plaintext[3];
+			OAR_WATERMARK.type_2.adpod_id[1]  = plaintext[4];
+			OAR_WATERMARK.type_2.adpod_id[2]  = plaintext[5];
+			OAR_WATERMARK.type_2.adpod_id[3]  = plaintext[6];
+			OAR_WATERMARK.type_2.adpod_id[4]  = plaintext[7];
+			break;
+		case 3:
+			OAR_WATERMARK.type_3.time_in_ad   = plaintext[0] << 8 | plaintext[1];
+			OAR_WATERMARK.type_3.duration2    = plaintext[2];
+			OAR_WATERMARK.type_3.watermark[0] = plaintext[3];
+			OAR_WATERMARK.type_3.watermark[1] = plaintext[4];
+			OAR_WATERMARK.type_3.watermark[2] = plaintext[5];
+			OAR_WATERMARK.type_3.watermark[3] = plaintext[6];
+			OAR_WATERMARK.type_3.watermark[4] = plaintext[7];
+			break;
+		default:
+			break;
+	}
+	sprintf( path, "LAR/y-%04d.txt", frame );
+	fp = fopen(path, "a+");
+	if(fp != NULL) {
+		fprintf( fp, "\nAfter Decryption of OAR WaterMark Data : \n%s : %d", "random",OAR_WATERMARK.random);
+		fprintf( fp, "\n%s : %d", "type",OAR_WATERMARK.type);
+		fprintf( fp, "\n%s : %d", "publisher_id",OAR_WATERMARK.publisher_id);
+		fprintf( fp, "\n%s : %d", "publisher_key",OAR_WATERMARK.publisher_key);
+		fprintf( fp, "\n%s : %d", "crc",OAR_WATERMARK.crc);
+		if(OAR_WATERMARK.type == 0) {
+			fprintf( fp, "\n%s :", "reserved2");
+			fwrite( OAR_WATERMARK.reserved2 , BLOCK_SIZE ,1,fp);
+		}
+		else if(OAR_WATERMARK.type == 1) {
+			fprintf( fp, "\n%s :", "undefined");
+			fwrite( OAR_WATERMARK.undefined, BLOCK_SIZE ,1,fp);
+		}
+		else if(OAR_WATERMARK.type == 2) {
+			fprintf( fp, "\n%s : %d", "preroll",OAR_WATERMARK.type_2.preroll);
+			fprintf( fp, "\n%s : %d", "duration1",OAR_WATERMARK.type_2.duration1);
+			fprintf( fp, "\n%s : 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x","adpod_id",plaintext[3],plaintext[4],plaintext[5],plaintext[6],plaintext[7]);
+		}
+		else if(OAR_WATERMARK.type == 3) {
+			fprintf( fp, "\n%s : %d", "time_in_ad",OAR_WATERMARK.type_3.time_in_ad);
+			fprintf( fp, "\n%s : %d", "duration2",OAR_WATERMARK.type_3.duration2);
+			fprintf( fp, "\n%s : 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x","watermark",plaintext[3],plaintext[4],plaintext[5],plaintext[6],plaintext[7]);
+		}
+		else {
+			fprintf( fp, "\n%s:\n ","WaterMark TYPE Value is not in the range of 0-3 (undefined value received)");
+			for(int i = 0 ; i < 8 ; i++)
+				fprintf( fp, "0x%02x ",plaintext[i]);
+		}
+		fclose(fp);
+	}
+}
+
+
 void glRender(void){
 	/** Input in I420 (YUV420) format.
 	 * Buffer structure:
@@ -2742,7 +2843,7 @@ void glRender(void){
 	int pixel_w = 0;
 	int pixel_h = 0;
 	uint8_t *yuvBuffer = NULL;
-	char path[256];
+	char path[FILEPATH_LEN];
 	bool matched = false;
 	int slice_level = 0;
 	int bytecount = 1;
@@ -2751,6 +2852,7 @@ void glRender(void){
 	int bit = 7;
 	int ll = 0;
 	int pixelspersym = 0;
+	uint8_t ciphertext[BLOCK_SIZE];
 	FILE *f;
 	unsigned char *yPlane, *uPlane, *vPlane;
 	
@@ -2781,6 +2883,7 @@ void glRender(void){
 		for( int row = 0; row < 1 /*2*/; row++ )
 		{ // top line
 			bitset<8> bset1;
+			memset(ciphertext,0,BLOCK_SIZE);
 			for( int i=0; i<pixel_w; i++)
 			{
 				int offs = row*pixel_w+i;
@@ -2806,6 +2909,7 @@ void glRender(void){
 								matched = true;
 								sprintf( path, "LAR/y-%04d.txt", frame );
 								f = fopen( path, "wb" );
+								fprintf( f, "%s\n","OAR Watermark 40 bytes data - 14 bytes payload and 26 bytes of Reed-Solomon ECC :");
 							}
 							bytecount++;
 						}
@@ -2813,6 +2917,8 @@ void glRender(void){
 						{
 							if(f) {
 								fprintf( f, "0x%02x,",bset1.to_ulong());
+								if(ll >= 1 && ll < 14)
+								  ciphertext[ll-1] = bset1.to_ulong();
 								ll++;
 								if(ll == 14)  //14- byte payload and 26 byte ECC
 									fprintf( f, "\n" );
@@ -2828,6 +2934,7 @@ void glRender(void){
 			if(matched) {
 				fprintf( f, "\n" );
 				fclose( f );
+				Decrypt_OARWatermark(ciphertext);
 				matched = false;
 			}
 		}
