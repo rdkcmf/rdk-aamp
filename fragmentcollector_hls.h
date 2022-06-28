@@ -239,9 +239,10 @@ public:
 	/***************************************************************************
      	 * @fn GetNextFragmentUriFromPlaylist
      	 * @param ignoreDiscontinuity Ignore discontinuity
+	 * @param init flag to identify called from Init call
      	 * @return string fragment URI pointer
      	 ***************************************************************************/
-	char *GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity=false);
+	char *GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity=false, bool init=false);
 	/***************************************************************************
      	 * @fn UpdateDrmIV
      	 *
