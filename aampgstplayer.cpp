@@ -2503,9 +2503,6 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 	GstClockTime dts = (GstClockTime)(fdts * GST_SECOND);
 	GstClockTime duration = (GstClockTime)(fDuration * 1000000000LL);
 
-	media_stream *stream = &privateContext->stream[mediaType];
-	bool isFirstBuffer = stream->resetPosition;
-
 	if (aamp->IsEventListenerAvailable(AAMP_EVENT_ID3_METADATA) &&
 		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
 	{
@@ -2525,6 +2522,9 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 		return false;
 	}
 
+	media_stream *stream = &privateContext->stream[mediaType];
+	bool isFirstBuffer = stream->resetPosition;
+	
 	// Make sure source element is present before data is injected
 	// If format is FORMAT_INVALID, we don't know what we are doing here
 	pthread_mutex_lock(&stream->sourceLock);
