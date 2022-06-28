@@ -422,7 +422,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_NativeCCRendering].value			=	false;
 	bAampCfgValue[eAAMPConfig_Subtec_subtitle].value			=	true;
 	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	true;
-	bAampCfgValue[eAAMPConfig_AsyncTune].value                              =       true;
+	bAampCfgValue[eAAMPConfig_AsyncTune].value                              =       false;
 	bAampCfgValue[eAAMPConfig_EnableAccessAttributes].value			=	true;
 #ifdef GST_SUBTEC_ENABLED
 	bAampCfgValue[eAAMPConfig_GstSubtecEnabled].value				=	true;
