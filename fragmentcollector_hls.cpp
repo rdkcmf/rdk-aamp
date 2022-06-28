@@ -1200,7 +1200,7 @@ char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 /**
  * @brief Function to get next fragment URI from playlist based on playtarget
  */
-char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
+char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity, bool init)
 {
 	char *ptr = fragmentURI;
 	char *rc = NULL;
@@ -1488,9 +1488,18 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 								if(mDiscontinuityCheckingOn)
 								{
 									//if The mDiscontinuityCheckingOn is true, then the other track is in progress with the discontinuity check. Hence this track should wait till the completion of the othertrack and proceed
+									if (!init)
+									{
+										pthread_mutex_unlock(&mPlaylistMutex);
+									}
+									AAMPLOG_WARN ("[%s] mDiscontinuityCheckingOn waiting for mDiscoCheckComplete signal init:%d", name, init);
 									pthread_mutex_lock(&mDiscoCheckMutex);
 									pthread_cond_wait(&mDiscoCheckComplete, &mDiscoCheckMutex);
 									pthread_mutex_unlock(&mDiscoCheckMutex);
+									if (!init)
+									{
+										pthread_mutex_lock(&mPlaylistMutex);
+									}
 								}
 								AAMPLOG_WARN("%s Checking HasDiscontinuity for position :%f, playposition :%f playtarget:%f mDiscontinuityCheckingOn:%d",name,position,playPosition,playTarget,mDiscontinuityCheckingOn);								
 								if (!mDiscontinuityCheckingOn) 
@@ -3569,7 +3578,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 		TrackState *ts = trackState[i];
 		if (ts->enabled)
 		{
-			ts->fragmentURI = trackState[i]->GetNextFragmentUriFromPlaylist(true); //To parse track playlist
+			ts->fragmentURI = trackState[i]->GetNextFragmentUriFromPlaylist(true, true); //To parse track playlist
 			/*Update playTarget to playlistPostion to correct the seek position to start of a fragment*/
 			ts->playTarget = ts->playlistPosition;
 			AAMPLOG_WARN("syncTracks loop : track[%d] pos %f start %f frag-duration %f trackState->fragmentURI %s ts->nextMediaSequenceNumber %lld", i, ts->playlistPosition, ts->playTarget, ts->fragmentDurationSeconds, ts->fragmentURI, ts->nextMediaSequenceNumber);
@@ -3665,7 +3674,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 					laggingTS->playTargetOffset += laggingTS->fragmentDurationSeconds;
 					if (laggingTS->fragmentURI)
 					{
-						laggingTS->fragmentURI = laggingTS->GetNextFragmentUriFromPlaylist(true);
+						laggingTS->fragmentURI = laggingTS->GetNextFragmentUriFromPlaylist(true, true);
 					}
 					else
 					{
@@ -3712,7 +3721,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 						track->playTargetOffset += track->fragmentDurationSeconds;
 						if (track->fragmentURI)
 						{
-							track->fragmentURI = track->GetNextFragmentUriFromPlaylist();
+							track->fragmentURI = track->GetNextFragmentUriFromPlaylist(false, true);
 						}
 						else
 						{
@@ -5010,7 +5019,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			//TODO: move call GetNextFragmentUriFromPlaylist() to the sync operation btw muxed and subtitle
 			if (!audio->enabled)
 			{
-				video->fragmentURI = video->GetNextFragmentUriFromPlaylist(true);
+				video->fragmentURI = video->GetNextFragmentUriFromPlaylist(true, true);
 				video->playTarget = video->playlistPosition;
 				video->playTargetBufferCalc = video->playTarget;
 			}
@@ -5032,7 +5041,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				TrackState *ts = trackState[iTrack];
 				if(ts->enabled)
 				{
-					ts->fragmentURI = ts->GetNextFragmentUriFromPlaylist(true);
+					ts->fragmentURI = ts->GetNextFragmentUriFromPlaylist(true, true);
 					ts->playTarget = ts->playlistPosition;
 					ts->playTargetBufferCalc = ts->playTarget;
 				}
@@ -5304,7 +5313,9 @@ void TrackState::SwitchSubtitleTrack()
 		}
 
 		playTarget = 0.0;
+		pthread_mutex_lock(&mPlaylistMutex);
 		fragmentURI = GetNextFragmentUriFromPlaylist();
+		pthread_mutex_unlock(&mPlaylistMutex);
 		context->AbortWaitForAudioTrackCatchup(true);
 
 		mSubtitleParser->init(aamp->GetPositionMilliseconds() / 1000.0, aamp->GetBasePTS());
