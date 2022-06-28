@@ -419,11 +419,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_WebVTTNative].value				=	true;
 	bAampCfgValue[eAAMPConfig_AsyncTune].value                              =       true;
 	bAampCfgValue[eAAMPConfig_EnableAccessAttributes].value			=	true;
-#ifdef GST_SUBTEC_ENABLED
 	bAampCfgValue[eAAMPConfig_GstSubtecEnabled].value				=	true;
-#else
-	bAampCfgValue[eAAMPConfig_GstSubtecEnabled].value				=	false;
-#endif
 	bAampCfgValue[eAAMPConfig_DisableUnderflow].value                       =       false;
 	bAampCfgValue[eAAMPConfig_LimitResolution].value                        =       false;
 	bAampCfgValue[eAAMPConfig_UseAbsoluteTimeline].value                  	=       false;

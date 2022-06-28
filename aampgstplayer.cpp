@@ -2812,7 +2812,11 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 			if (0 != AAMPGstPlayer_SetupStream(this, (MediaType)i))
 			{
 				AAMPLOG_WARN("AAMPGstPlayer: track %d failed", i);
-				return;
+				//Don't kill the tune for subtitles
+				if (eMEDIATYPE_SUBTITLE != (MediaType)i)
+				{
+					return;
+				}
 			}
 		}
 	}
