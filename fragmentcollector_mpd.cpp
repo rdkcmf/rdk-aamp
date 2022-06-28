@@ -5236,7 +5236,8 @@ void StreamAbstractionAAMP_MPD::IndexNewMPDDocument(bool updateTrackInfo)
 			// IsLive = 1 , resetTimeLineIndex = 1
 			// InProgressCdvr (IsLive=1) , resetTimeLineIndex = 1
 			// Vod/CDVR for PeriodChange(mUpdateStreamInfo will be true) , resetTimeLineIndex = 1
-			if(AdState::IN_ADBREAK_AD_PLAYING != mCdaiObject->mAdState || (AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState && mUpdateStreamInfo))
+			if(((AdState::IN_ADBREAK_AD_PLAYING != mCdaiObject->mAdState) && (AdState::IN_ADBREAK_WAIT2CATCHUP != mCdaiObject->mAdState))
+				|| (AdState::IN_ADBREAK_AD_PLAYING == mCdaiObject->mAdState && mUpdateStreamInfo))
 			{
 				AAMPLOG_TRACE("Indexing new mpd doc");
 				UpdateTrackInfo(true, true);
@@ -9422,7 +9423,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							// EOS from both tracks for dynamic(live) manifests.
 							// Wait for the manifest update, otherwise break the loop.
 							if( mIsLiveManifest && (rate > 0)
-							&& (mIterPeriodIndex == mNumberOfPeriods-1))
+							&& (mIterPeriodIndex == mNumberOfPeriods-1) && (AdState::IN_ADBREAK_WAIT2CATCHUP != mCdaiObject->mAdState))
 							{
 								playlistDownloaderContext->NotifyFragmentCollectorWait();
 								playlistDownloaderContext->WaitForManifestUpdate();
