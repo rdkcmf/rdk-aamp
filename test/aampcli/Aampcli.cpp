@@ -148,7 +148,7 @@ void * Aampcli::runCommand( void* args )
 {
 	char cmd[mMaxBufferLength] = {'\0'};
 	std::vector<std::string> *arguments;
-	std::vector<std::string> cmds;
+	std::vector<std::string> cmdVec;
 	CommandDispatcher l_CommandDispatcher;
 	Get l_Get;
 	Set l_Set;
@@ -158,15 +158,17 @@ void * Aampcli::runCommand( void* args )
 	if( args )
 	{
 		arguments = static_cast<std::vector<std::string>*>(args);
-		cmds = *arguments;
+		cmdVec = *arguments;
 
-		for(auto param : cmds)
+		if(!cmdVec.empty())
 		{
-			snprintf( cmd+strlen(cmd),mMaxBufferLength-strlen(cmd),"%s ", param.c_str());
+			for(auto param : cmdVec)
+			{
+				snprintf( cmd+strlen(cmd),mMaxBufferLength-strlen(cmd),"%s ", param.c_str());
+			}
+
+			l_CommandDispatcher.dispatchAampcliCommands(cmd,mAampcli.mSingleton);
 		}
-
-
-		l_CommandDispatcher.dispatchAampcliCommands(cmd,mAampcli.mSingleton);
 	}
 
 	l_Get.initGetHelpText();
@@ -323,7 +325,12 @@ int main(int argc, char **argv)
 		f = NULL;
 	}
 
-	std::vector<std::string> arguments(argv + 1, argv + argc);
+	std::vector<std::string> arguments;
+	for(int i = 1; i < argc; i++)
+	{
+		arguments.push_back(std::string(argv[i]));
+	}
+
 	pthread_t cmdThreadId;
 	if(pthread_create(&cmdThreadId,NULL,mAampcli.runCommand, (void *) &arguments) != 0)
 	{
