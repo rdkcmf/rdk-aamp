@@ -2732,6 +2732,27 @@ struct
 };
 
 static int frame = 0;
+
+/*  crc check of data validity, done on data unencrypted block1 bytes */
+// 0xb2 is the bit reflection of 0x4d, the polynomial coefficients below x^8.
+// The standard description of this CRC is:
+// width=8 poly=0x4d init=0xff refin=true refout=true xorout=0xff check=0xd8
+unsigned crc8CheckOnPlaintext1(const uint8_t *data, size_t len)
+{
+	unsigned crc = 0xff;
+	if(data != NULL)
+	{
+		while(len--) {
+			crc ^= *data++;
+			for (unsigned k = 0; k < 8; k++)
+				crc = crc & 1 ? (crc >> 1) ^ 0xb2 : crc >> 1;
+		}
+	}
+	return crc ^ 0xff;
+}
+
+/*  decrypt block0 with consortiumKey
+ *  then decrypt block1 with publisherKey and a iv[0] = random; */
 void Decrypt_OARWatermark(uint8_t ciphertext[OAR_EncryptedWaterMarkData])
 {
 	AVBlowfish ctx;
@@ -2822,6 +2843,11 @@ void Decrypt_OARWatermark(uint8_t ciphertext[OAR_EncryptedWaterMarkData])
 			for(int i = 0 ; i < 8 ; i++)
 				fprintf( fp, "0x%02x ",plaintext[i]);
 		}
+		//Error detection is performed by comparing an FCS computed on data(OAR_WATERMARK.crc) against an FCS value originally computed and sent.
+		if(crc8CheckOnPlaintext1(plaintext,BLOCK_SIZE) != (OAR_WATERMARK.crc)) {
+			fprintf( fp, "\n%s " , "CRC value computed on block1 decrypted data not match to CRC-8 value");
+		}
+
 		fclose(fp);
 	}
 }
