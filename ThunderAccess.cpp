@@ -204,24 +204,24 @@ bool ThunderAccessAAMP::InvokeJSONRPC(std::string method, const JsonObject &para
         AAMPLOG_WARN( "[ThunderAccessAAMP] client not initialized! ");
         return false;
     }
-    status = remoteObject->Invoke<JsonObject, JsonObject>(waitTime, _T(method), param, result);
+
+    JsonObject result_internal;
+    status = remoteObject->Invoke<JsonObject, JsonObject>(waitTime, _T(method), param, result_internal);
     if (Core::ERROR_NONE == status)
     {
-        if (result["success"].Boolean()) {
-            result.ToString(response);
-			AAMPLOG_TRACE( "[ThunderAccessAAMP] %s success! Response : %s", method.c_str() , response.c_str());
-        }
-        else
-        {
-            result.ToString(response);
+        if (result_internal["success"].Boolean()) {
+            result_internal.ToString(response);
+            AAMPLOG_TRACE( "[ThunderAccessAAMP] %s success! Response : %s", method.c_str() , response.c_str());
+        } else {
+            result_internal.ToString(response);
             AAMPLOG_WARN( "[ThunderAccessAAMP] %s call failed! Response : %s", method.c_str() , response.c_str());
             ret = false;
         }
-    }
-    else
-    {
+    } else {
         AAMPLOG_WARN( "[ThunderAccessAAMP] %s : invoke failed with error status %u", method.c_str(), status);
         ret = false;
     }
+
+    result = result_internal;
     return ret;
 }
