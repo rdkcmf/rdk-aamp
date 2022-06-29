@@ -77,6 +77,7 @@ static EventTypeMap aamp_eventTypes[] =
 	{ AAMP_EVENT_AUDIO_TRACKS_CHANGED, "audioTracksChanged"},
 	{ AAMP_EVENT_TEXT_TRACKS_CHANGED, "textTracksChanged"},
 	{ AAMP_EVENT_CONTENT_GAP, "contentGap" },
+	{ AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE, "contentProtectionDataUpdate" },
 	{ (AAMPEventType)0, "" }
 };
 
@@ -129,6 +130,7 @@ static EventTypeMap aampPlayer_eventTypes[] =
 	{ AAMP_EVENT_CONTENT_GAP, "contentGap" },
 	{ AAMP_EVENT_HTTP_RESPONSE_HEADER, "httpResponseHeader"},
 	{ AAMP_EVENT_WATERMARK_SESSION_UPDATE, "watermarkSessionUpdate" },
+	{ AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE, "contentProtectionDataUpdate" },
 	{ (AAMPEventType)0, "" }
 };
 

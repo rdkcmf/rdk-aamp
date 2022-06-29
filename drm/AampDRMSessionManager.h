@@ -351,6 +351,11 @@ public:
 	 * @fn notifyCleanup
 	 */
 	void notifyCleanup();
+
+	/**
+	 * @fn ContentProtectionDataUpdate
+	 */
+	void ContentProtectionDataUpdate(PrivateInstanceAAMP* aampInstance, std::vector<uint8_t> keyId, MediaType streamType);
 };
 
 /**

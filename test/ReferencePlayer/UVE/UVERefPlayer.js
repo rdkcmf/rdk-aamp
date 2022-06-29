@@ -234,9 +234,24 @@ var defaultInitConfig = {
      * if not then first base url is selected ( default behavior ) 
      */
     //useMatchingBaseUrl : true
-    propagateUriParameters : true
+    propagateUriParameters : true,
+
+    /**
+     * Content Protection Data Update Timeout on Key Rotation(in ms)
+     */
+    contentProtectionDataUpdateTimeout : 0
 
 };
+var DynamicDrmConfig =
+{
+    'keyID':[],
+    'com.microsoft.playready':'mds.ccp.xcal.tv',
+    'com.widevine.alpha':'mds.ccp.xcal.tv',
+    'customData':'',
+    'authToken':'',
+    'licenseResponse':''
+};
+
 
 var playerState = playerStatesEnum.idle;
 var playbackRateIndex = playbackSpeeds.indexOf(1);
@@ -699,6 +714,15 @@ function bulkMetadataHandler(event) {
     console.log("Bulk TimedMetadata : " + JSON.stringify(event));
 }
 
+function contentProtectionDataUpdateHandler(event) {
+    console.log("Update Content Protection for Data: " + JSON.stringify(event));
+    for(let i = 0; i <event.keyID.length; i++)
+    {
+        DynamicDrmConfig.keyID[i]=event.keyID[i];
+    }
+    playerObj.setContentProtectionDataConfig(DynamicDrmConfig);
+}
+
 
 function createAAMPPlayer(){
     var newPlayer = new AAMPPlayer("UVE-Ref-Player");
@@ -728,7 +752,24 @@ function createAAMPPlayer(){
     newPlayer.addEventListener("id3Metadata", id3Metadata);
     //newPlayer.addEventListener("httpResponseHeader", httpResponseHeaderReceived);
     //Can add generic callback for ad resolved event or assign unique through setAlternateContent
+
     //newPlayer.addEventListener("adResolved", adResolvedCallback);
+
+    //To register contentProtectionData Event
+    
+    //newPlayer.addEventListener("contentProtectionDataUpdate",contentProtectionDataUpdateHandler);
+    /*
+    //To simulate contentProtectionData Event Registeration at mid of playback
+    setTimeout(() => {
+        newPlayer.addEventListener('contentProtectionDataUpdate',contentProtectionDataUpdateHandler);},6000);
+    */
+
+    /*
+    //To simulate contentProtectionData Event DeRegisteration at mid of playback
+    setTimeout(() => {
+        newPlayer.removeEventListener('contentProtectionDataUpdate',contentProtectionDataUpdateHandler);},8000);
+    */
+
     return newPlayer;
 }
 

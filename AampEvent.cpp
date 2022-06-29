@@ -1278,3 +1278,36 @@ const std::string &HTTPResponseHeaderEvent::getResponse() const
 {
 	return mHeaderResponse;
 }
+
+/*
+ * @brief ContentProtectionDataEvent Constructor
+ *
+ * @param[in] keyID - Current Session KeyID
+ * @param[in] streamType        - Current StreamType
+ */
+ContentProtectionDataEvent::ContentProtectionDataEvent(const std::vector<uint8_t> &keyID, const std::string &streamType):
+	AAMPEventObject(AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE)
+	, mKeyID(keyID), mStreamType(streamType)
+{
+
+}
+
+/**
+ * @brief Get Session KeyID
+ *
+ * @return keyID
+ */
+const std::vector<uint8_t> &ContentProtectionDataEvent::getKeyID() const
+{
+	return mKeyID;
+}
+
+/**
+ * @brief Get StreamType
+ *
+ * @return streamType
+ */
+const std::string &ContentProtectionDataEvent::getStreamType() const
+{
+	return mStreamType;
+}

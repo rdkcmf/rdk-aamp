@@ -362,6 +362,17 @@ struct EventBreakInfo
 	{}
 };
 
+struct DynamicDrmInfo {
+	std::vector<uint8_t> keyID;
+	std::map<std::string, std::string> licenseEndPoint;
+	std::string customData;
+	std::string authToken;
+	std::string licenseResponse;
+	DynamicDrmInfo() : keyID(), licenseEndPoint{}, customData(""),     authToken(""), licenseResponse()
+	{
+	}
+};
+
 class Id3CallbackData;
 
 /**
@@ -817,6 +828,7 @@ public:
 	std::string preferredTextRenditionString; 		/**< String value for rendition */
 	std::string preferredTextTypeString; 			/**< String value for text type */
 	std::string preferredTextLabelString; 			/**< String value for text type */
+	std::vector<struct DynamicDrmInfo> vDynamicDrmData;
 	Accessibility  preferredTextAccessibilityNode; 		/**< Preferred Accessibility Node for Text */
 	Accessibility  preferredAudioAccessibilityNode; 	/**< Preferred Accessibility Node for Audio  */
 	AudioTrackTuple mAudioTuple;				/**< Depricated **/
@@ -929,6 +941,11 @@ public:
 	bool playerStartedWithTrickPlay; 			/**< To indicate player switch happened in trickplay rate */
 	bool userProfileStatus; 				/**< Select profile based on user list*/
 	bool mApplyCachedVideoMute;				/**< To apply vidoeMute() operations if it has been cached due to tune in progress */
+	bool mDynamicDrmWait;
+	std::vector<std::string> mDynamicDrmCache;
+	pthread_mutex_t mDynamicDrmUpdateLock;
+	pthread_cond_t mWaitForDynamicDRMToUpdate;
+
 	/**
 	 * @fn hasId3Header
 	 *

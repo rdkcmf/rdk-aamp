@@ -280,7 +280,9 @@ void Aampcli::newPlayerInstance( void )
 	printf( "new playerInstance; index=%d\n", playerIndex );
 	mPlayerInstances.push_back(player);
 	mSingleton = player; // select
+	mSingleton->SetContentProtectionDataUpdateTimeout(0);
 }
+
 
 /**
  * @brief
@@ -516,6 +518,26 @@ void MyAAMPEventListener::Event(const AAMPEventPtr& e)
 			{
 				BufferingChangedEventPtr ev = std::dynamic_pointer_cast<BufferingChangedEvent>(e);
 				printf("[AAMPCLI] AAMP_EVENT_BUFFERING_CHANGED Sending Buffer Change event status (Buffering): %s", (ev->buffering() ? "End": "Start"));
+				break;
+			}
+		case AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE:
+			{
+				ContentProtectionDataEventPtr ev =  std::dynamic_pointer_cast<ContentProtectionDataEvent>(e);
+				printf("[AMPCLI] AAMP_EVENT_CONTENT_PROTECTION_UPDATE received stream type %s\n",ev->getStreamType().c_str());
+				std::vector<uint8_t> key = ev->getKeyID();
+				printf("[AMPCLI] AAMP_EVENT_CONTENT_PROTECTION_UPDATE received key is ");
+				for(int i=0;i<key.size();i++)
+					printf("%x",key.at(i)&0xff);
+				printf("\n");
+				cJSON *root = cJSON_CreateObject();
+				cJSON *KeyId = cJSON_CreateArray();
+				for(int i=0;i<key.size();i++)
+					cJSON_AddItemToArray(KeyId, cJSON_CreateNumber(key.at(i)));
+				cJSON_AddItemToObject(root,"keyID",KeyId);
+				//     cJSON_AddItemToObject(root, "com.widevine.alpha", cJSON_CreateString("mds.ccp.xcal.tv"));
+				//     cJSON_AddItemToObject(root, "com.microsoft.playready", cJSON_CreateString("mds-stage.ccp.xcal.tv"));
+				std::string json = cJSON_Print(root);
+				mAampcli.mSingleton->ProcessContentProtectionDataConfig(json.c_str());
 				break;
 			}
 		default:

@@ -56,7 +56,7 @@
           AAMPLOG_WARN("Failed at curl_easy_setopt ");\
     }  //CID:128208 - checked return
 
-static const char *sessionTypeName[] = {"video", "audio"};
+static const char *sessionTypeName[] = {"video", "audio", "subtitle", "aux-audio"};
 
 static pthread_mutex_t drmSessionMutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -953,6 +953,14 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 		return nullptr;
 	}
 
+	std::vector<uint8_t> keyId;
+	drmHelper->getKey(keyId);
+	if(aampInstance->IsEventListenerAvailable(AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE) && (streamType < 4))
+	{
+		AAMPLOG_INFO("App registered the ContentProtectionDataEvent to send new drm config");
+		ContentProtectionDataUpdate(aampInstance, keyId, streamType);
+	}
+
 	code = initializeDrmSession(drmHelper, selectedSlot, eventHandle, aampInstance);
 	if (code != KEY_INIT)
 	{
@@ -1618,6 +1626,72 @@ void AampDRMSessionManager::notifyCleanup()
 		mSessionId = AAMP_SECMGR_INVALID_SESSION_ID;
 	}
 #endif
+}
+
+void AampDRMSessionManager::ContentProtectionDataUpdate(PrivateInstanceAAMP* aampInstance, std::vector<uint8_t> keyId, MediaType streamType)
+{
+	aampInstance->mDynamicDrmWait = true;
+	std::string contentType = sessionTypeName[streamType];
+	int iter1 = 0;
+	bool DRM_Config_Available = false;
+
+	while (iter1 < aampInstance->vDynamicDrmData.size())
+	{
+		DynamicDrmInfo dynamicDrmCache = aampInstance->vDynamicDrmData.at(iter1);
+		if(keyId == dynamicDrmCache.keyID) 
+		{
+			AAMPLOG_WARN("DrmConfig already present in cached data in slot : %d applying config",iter1);
+			std::map<std::string,std::string>::iterator itr;
+			for(itr = dynamicDrmCache.licenseEndPoint.begin();itr!=dynamicDrmCache.licenseEndPoint.end();itr++)
+			{
+				if(strcasecmp("com.microsoft.playready",itr->first.c_str())==0)
+				{
+					aampInstance->mConfig->SetConfigValue(AAMP_APPLICATION_SETTING,eAAMPConfig_PRLicenseServerUrl,itr->second);
+				}
+				if(strcasecmp("com.widevine.alpha",itr->first.c_str())==0)
+				{
+					aampInstance->mConfig->SetConfigValue(AAMP_APPLICATION_SETTING,eAAMPConfig_WVLicenseServerUrl,itr->second);
+				}
+				if(strcasecmp("org.w3.clearkey",itr->first.c_str())==0)
+				{
+					aampInstance->mConfig->SetConfigValue(AAMP_APPLICATION_SETTING,eAAMPConfig_CKLicenseServerUrl,itr->second);
+				}
+			}
+			aampInstance->mConfig->SetConfigValue(AAMP_APPLICATION_SETTING,eAAMPConfig_AuthToken,dynamicDrmCache.authToken);
+			aampInstance->mConfig->SetConfigValue(AAMP_APPLICATION_SETTING,eAAMPConfig_CustomLicenseData,dynamicDrmCache.customData);
+			DRM_Config_Available = true;
+			break;
+		}
+		iter1++;
+	}
+	if(!DRM_Config_Available) {
+		ContentProtectionDataEventPtr eventData = std::make_shared<ContentProtectionDataEvent>(keyId, contentType);
+		std::string keyIdDebugStr = AampLogManager::getHexDebugStr(keyId);
+		pthread_mutex_lock(&aampInstance->mDynamicDrmUpdateLock);
+		int pthreadReturnValue = 0;
+		struct timespec ts;
+		int drmUpdateTimeout;
+		aampInstance->mConfig->GetConfigValue(eAAMPConfig_ContentProtectionDataUpdateTimeout, drmUpdateTimeout);
+		AAMPLOG_WARN("Timeout Wait for DRM config message from application :%d",drmUpdateTimeout);
+		ts = aamp_GetTimespec(drmUpdateTimeout); /** max delay to update dynamic drm on key rotation **/
+		AAMPLOG_INFO("Found new KeyId %s and not in drm config cache, sending ContentProtectionDataEvent to App", keyIdDebugStr.c_str());
+		aampInstance->SendEvent(eventData);
+		pthreadReturnValue = pthread_cond_timedwait(&aampInstance->mWaitForDynamicDRMToUpdate, &aampInstance->mDynamicDrmUpdateLock, &ts);
+		if (ETIMEDOUT == pthreadReturnValue)
+		{
+			AAMPLOG_WARN("pthread_cond_timedwait returned TIMEOUT");
+			aampInstance->mDynamicDrmWait = false;
+		}
+		else if (0 != pthreadReturnValue)
+		{
+			AAMPLOG_WARN("pthread_cond_timedwait returned %s ", strerror(pthreadReturnValue));
+			aampInstance->mDynamicDrmWait = false;
+		}
+		else{
+			AAMPLOG_WARN("%s:%d [WARN] pthread_cond_timedwait(dynamicDrmUpdate) returned success!", __FUNCTION__, __LINE__);
+		}
+		pthread_mutex_unlock(&aampInstance->mDynamicDrmUpdateLock);
+	}
 }
 
 /**

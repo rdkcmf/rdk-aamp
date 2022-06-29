@@ -92,6 +92,7 @@ typedef enum{
 	eAAMP_SET_AuxiliaryAudio,
 	eAAMP_SET_RegisterForMediaMetadata,
 	eAAMP_SET_VideoTrack,
+	eAAMP_SET_DynamicDrm,
 	eAAMP_SET_TYPE_COUNT
 }AAMPSetTypes;
 

@@ -270,7 +270,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"persistHighNetworkBandwidth",eAAMPConfig_PersistHighNetworkBandwidth,-1,-1},
 	{"persistLowNetworkBandwidth",eAAMPConfig_PersistLowNetworkBandwidth,-1,-1},
 	{"gstSubtecEnabled",eAAMPConfig_GstSubtecEnabled,-1,-1},
-	{"changeTrackWithoutRetune", eAAMPConfig_ChangeTrackWithoutRetune, -1,-1}
+	{"changeTrackWithoutRetune", eAAMPConfig_ChangeTrackWithoutRetune, -1,-1},
+	{"contentProtectionDataUpdateTimeout",eAAMPConfig_ContentProtectionDataUpdateTimeout,{.iMinValue = 0},{.iMaxValue=-1}}
 };
 /////////////////// Public Functions /////////////////////////////////////
 /**
@@ -508,6 +509,7 @@ void AampConfig::Initialize()
 	iAampCfgValue[eAAMPConfig_FragmentDownloadFailThreshold-eAAMPConfig_IntStartValue].value=	MAX_SEG_DOWNLOAD_FAIL_COUNT;
 	iAampCfgValue[eAAMPConfig_MaxInitFragCachePerTrack-eAAMPConfig_IntStartValue].value	=       MAX_INIT_FRAGMENT_CACHE_PER_TRACK;
 	iAampCfgValue[eAAMPConfig_FogMaxConcurrentDownloads-eAAMPConfig_IntStartValue].value	=	FOG_MAX_CONCURRENT_DOWNLOADS;
+	iAampCfgValue[eAAMPConfig_ContentProtectionDataUpdateTimeout-eAAMPConfig_IntStartValue].value	=	DEFAULT_CONTENT_PROTECTION_DATA_UPDATE_TIMEOUT;
 
 	///////////////// Following for long data types /////////////////////////////
 	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value	=	DEFAULT_DISCONTINUITY_TIMEOUT;

@@ -85,6 +85,7 @@ typedef enum
 	AAMP_EVENT_CONTENT_GAP,			/**< 39, Content gap event for progress gap reporting*/
 	AAMP_EVENT_HTTP_RESPONSE_HEADER,        /**< 40, Http response header data */
 	AAMP_EVENT_WATERMARK_SESSION_UPDATE,    /**< 41, Update on Watermark Session*/
+	AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE,	/**< 42, Update on Content Protection Data on Dynamic Key Rotation*/
 	AAMP_MAX_NUM_EVENTS
 } AAMPEventType;
 
@@ -442,6 +443,15 @@ struct AAMPEvent
 			const char* header;         /**< HTTP header name */
 			const char* response;       /**< HTTP response value */
 		} httpResponseHeader;
+
+		/**
+		 * @brief Structure of the content protection data update event
+		*/
+		struct
+		{
+			uint8_t *keyID;			/**< Session KeyID */
+			const char* streamType;		/**< Session StreamType */
+		} contentProtectionData;
 
 	} data;
 
@@ -1996,6 +2006,47 @@ public:
 	const std::string &getSystem() const { return mSystem; }
 };
 
+/**
+ * @brief Class for the Content Protection Data Update Event on Dynamic Key Rotation
+ */
+class ContentProtectionDataEvent: public AAMPEventObject
+{
+	std::vector<uint8_t> mKeyID;                    /**< Key ID */
+	std::string mStreamType;                /**< Stream Type */
+public:
+	ContentProtectionDataEvent() = delete;
+	ContentProtectionDataEvent(const ContentProtectionDataEvent&) = delete;
+	ContentProtectionDataEvent& operator=(const ContentProtectionDataEvent&) = delete;
+
+	/*
+	 * @brief ContentProtectionDataEvent Constructor
+	 *
+	 * @param[in] keyID - KeyID
+	 * @param[in] streamType - Current StreamType
+	 */
+
+	ContentProtectionDataEvent(const std::vector<uint8_t> &keyID, const std::string &streamType);
+
+	/**
+	 * @brief ContentProtectionDataEvent Destructor
+	 */
+	virtual ~ContentProtectionDataEvent() { }
+	/**
+	 * @brief Get Current Key ID
+	 *
+	 * @return Current KeyID
+	 */
+	const std::vector<uint8_t> &getKeyID() const;
+
+	/**
+	 * @brief Get Current Stream Type
+	 *
+	 * @return Current StreamType
+	 */
+	const std::string &getStreamType() const;
+};
+
+
 using AAMPEventPtr = std::shared_ptr<AAMPEventObject>;
 using MediaErrorEventPtr = std::shared_ptr<MediaErrorEvent>;
 using SpeedChangedEventPtr = std::shared_ptr<SpeedChangedEvent>;
@@ -2023,5 +2074,6 @@ using BlockedEventPtr = std::shared_ptr<BlockedEvent>;
 using ContentGapEventPtr = std::shared_ptr<ContentGapEvent>;
 using HTTPResponseHeaderEventPtr = std::shared_ptr<HTTPResponseHeaderEvent>;
 using WatermarkSessionUpdateEventPtr = std::shared_ptr<WatermarkSessionUpdateEvent>;
+using ContentProtectionDataEventPtr = std::shared_ptr<ContentProtectionDataEvent>;
 #endif /* __AAMP_EVENTS_H__ */
 

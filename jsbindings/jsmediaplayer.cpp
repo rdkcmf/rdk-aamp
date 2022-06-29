@@ -3064,6 +3064,81 @@ JSValueRef AAMPMediaPlayerJS_xreSupportedTune(JSContextRef ctx, JSObjectRef func
 }
 
 /**
+ * @brief Callback invoked from JS to set update content protection data value on key rotation
+ *
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_setContentProtectionDataConfig(JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call setContentProtectionDataConfig() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+	if (argumentCount == 1)
+	{
+		const char *jsonbuffer = aamp_JSValueToJSONCString(ctx,arguments[0], exception);
+		ERROR("%s() Response json call ProcessContentProtection %s",__FUNCTION__,jsonbuffer);
+		privObj->_aamp->ProcessContentProtectionDataConfig(jsonbuffer);
+		SAFE_DELETE_ARRAY(jsonbuffer);
+	}
+	else
+	{
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setContentProtectionDataConfig() - 1 argument required");
+	}
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(ctx);
+}
+
+/**
+ * @brief Callback invoked from JS to set content protection data update timeout value on key rotation
+ *
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMPMediaPlayerJS_setContentProtectionDataUpdateTimeout(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	TRACELOG("Enter %s()", __FUNCTION__);
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if (!privObj)
+	{
+		ERROR("%s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setContentProtectionDataUpdateTimeout on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("%s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setContentProtectionDataUpdateTimeout' - 1 argument required");
+	}
+	else
+	{
+		int contentProtectionDataUpdateTimeout = (int)JSValueToNumber(context, arguments[0], exception);
+		privObj->_aamp->SetContentProtectionDataUpdateTimeout(contentProtectionDataUpdateTimeout);
+	}
+	TRACELOG("Exit %s()", __FUNCTION__);
+	return JSValueMakeUndefined(context);
+}
+
+/**
  * @brief Array containing the AAMPMediaPlayer's statically declared functions
  */
 static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
@@ -3131,6 +3206,8 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "setAuxiliaryLanguage", AAMPMediaPlayerJS_setAuxiliaryLanguage, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "xreSupportedTune", AAMPMediaPlayerJS_xreSupportedTune, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "getPlaybackStatistics", AAMPMediaPlayerJS_getPlayeBackStats, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setContentProtectionDataConfig", AAMPMediaPlayerJS_setContentProtectionDataConfig, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setContentProtectionDataUpdateTimeout", AAMPMediaPlayerJS_setContentProtectionDataUpdateTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, 0 },
 };
 
