@@ -526,4 +526,12 @@ class AAMPPlayer {
     setClosedCaptionStatus(status) {
         this.player.setClosedCaptionStatus(status);
     }
+
+    /**
+     *  Set the Dynamic DRM Config params
+     */
+    setContentProtectionDataConfig(config) {
+        this.player.setContentProtectionDataConfig(config);
+    }
+}
 };

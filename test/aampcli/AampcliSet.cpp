@@ -87,6 +87,7 @@ void Set::initSetHelpText()
 	mSetHelpText[eAAMP_SET_AuxiliaryAudio] =                     "<x>             // Set auxiliary audio language (x = string lang)";
 	mSetHelpText[eAAMP_SET_RegisterForMediaMetadata] =           "<x>             // Set Listen for AAMP_EVENT_MEDIA_METADATA events (x = 1 - add listener, x = 0 - remove)";
 	mSetHelpText[eAAMP_SET_VideoTrack] =			     "<x> <y> <z>     // Set Video tracks range (x = bitrate1, y = bitrate2, z = bitrate3) OR single bitrate provide same value for x, y,z ";
+	mSetHelpText[eAAMP_SET_DynamicDrm] =                         "<x>              //set Dynamic DRM config in Json format x=Timeout value for response message";
 }
 
 /**
@@ -1173,6 +1174,23 @@ void Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 					}
 					break;
 				}
+			case eAAMP_SET_DynamicDrm:
+				{
+					int timeout;
+					if (sscanf(cmd, "set %d %d", &opt, &timeout) == 2) 
+					{
+						printf("[AAMPCLI] Enabling AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE event registration");
+						playerInstanceAamp->AddEventListener(AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE, lAampcli.mEventListener);
+						playerInstanceAamp->SetContentProtectionDataUpdateTimeout(timeout);
+					}
+					else
+					{
+						printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+						printf("[AAMPCLI] Expected: set %d <value in Milliseconds>\n", opt);
+					}
+					break;
+				}
+
 			default:
 				printf("[AAMPCLI] Invalid set command %d\n", opt );
 				break;

@@ -1957,6 +1957,21 @@ public:
 	 */
 	void SetLicenseCustomData(const char *customData);
 
+	/**
+	 *   @brief To set default timeout for Dynamic ContentProtectionDataUpdate on Key Rotation.
+	 *
+	 *   @param[in] preferred timeout value
+	 */
+	void SetContentProtectionDataUpdateTimeout(int timeout);
+
+	/**
+	 * @fn ProcessContentProtectionDataConfig
+	 *
+	 * @param jsonbuffer Received DRM config for content protection data update event
+	 */
+	void ProcessContentProtectionDataConfig(const char *jsonbuffer);
+
+
 	class PrivateInstanceAAMP *aamp;  		  /**< AAMP player's private instance */
 	std::shared_ptr<PrivateInstanceAAMP> sp_aamp; 	  /**< shared pointer for aamp resource */
 

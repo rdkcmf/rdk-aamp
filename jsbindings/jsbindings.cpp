@@ -1819,6 +1819,54 @@ public:
 	}
 };
 
+/**
+ * @class AAMP_JSListener_ContentProtectionData
+ * @brief Event listener impl for (AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE) AAMP event
+ */
+class AAMP_JSListener_ContentProtectionData : public AAMP_JSListener
+{
+public:
+
+	/**
+	 * @brief AAMP_JSListener_ContentProtectionData Constructor
+	 * @param[in] aamp instance of AAMP_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_JSListener_ContentProtectionData(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback) : AAMP_JSListener(aamp, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set JS event properties
+	 * @param[in] e AAMP event object
+	 * @param[in] context JS execution context
+	 * @param[out] eventObj JS event object
+	 */
+	void setEventProperties(const AAMPEventPtr& e, JSContextRef context, JSObjectRef eventObj)
+	{
+		ContentProtectionDataEventPtr evt = std::dynamic_pointer_cast<ContentProtectionDataEvent>(e);
+		std::vector<uint8_t> keyId = evt->getKeyID();
+		int len = keyId.size();
+		JSStringRef prop;
+		JSValueRef* array = new JSValueRef[len];
+		for (int32_t i = 0; i < len; i++)
+		{
+			array[i] = JSValueMakeNumber(context, keyId[i]);
+		}
+
+		prop = JSStringCreateWithUTF8CString("keyID");
+		JSObjectSetProperty(context, eventObj, prop, JSObjectMakeArray(context, len, array, NULL), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+		SAFE_DELETE_ARRAY(array);
+
+		prop = JSStringCreateWithUTF8CString("streamType");
+		JSObjectSetProperty(context, eventObj, prop, aamp_CStringToJSValue(context, evt->getStreamType().c_str()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+
+	}
+};
+
 
 /**
  * @brief Callback invoked from JS to add an event listener for a particular event
@@ -1981,6 +2029,10 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
 	else if(type == AAMP_EVENT_DRM_MESSAGE)
 	{
 		pListener = new AAMP_JSListener_DrmMessage(aamp, type, jsCallback);
+	}
+	else if(type == AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE)
+	{
+		pListener = new AAMP_JSListener_ContentProtectionData(aamp, type, jsCallback);
 	}
 	else
 	{
@@ -3928,6 +3980,81 @@ static JSValueRef AAMP_xreSupportedTune(JSContextRef context, JSObjectRef functi
 	return JSValueMakeUndefined(context);
 }
 
+
+/**
+ * @brief Callback invoked from JS to set content protection data update timeout value on key rotation
+ *
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_setContentProtectionDataUpdateTimeout(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if (!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setContentProtectionDataUpdateTimeout on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setContentProtectionDataUpdateTimeout' - 1 argument required");
+	}
+	else
+	{
+		int contentProtectionDataUpdateTimeout = (int)JSValueToNumber(context, arguments[0], exception);
+		pAAMP->_aamp->SetContentProtectionDataUpdateTimeout(contentProtectionDataUpdateTimeout);
+	}
+	return JSValueMakeUndefined(context);
+}
+
+/**
+ * @brief Callback invoked from JS to update content protection data value on key rotation
+ *
+ * @param[in] ctx JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval JSValue that is the function's return value
+ */
+
+static JSValueRef AAMP_setContentProtectionDataConfig(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if(!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setContentProtectionDataConfig on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+	if (argumentCount == 1 && JSValueIsObject(context, arguments[0]))
+	{
+		const char *jsonbuffer = aamp_JSValueToJSONCString(context,arguments[0], exception);
+		ERROR("%s() Response json call ProcessContentProtection %s",__FUNCTION__,jsonbuffer);
+		pAAMP->_aamp->ProcessContentProtectionDataConfig(jsonbuffer);
+		SAFE_DELETE_ARRAY(jsonbuffer);
+	}
+	else
+	{
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute setContentProtectionDataConfig() - 1 argument of type IConfig required");
+	}
+	return JSValueMakeUndefined(context);
+}
+
 /**
  * @brief Array containing the AAMP's statically declared functions
  */
@@ -3986,6 +4113,8 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 	{ "setAuxiliaryLanguage", AAMP_setAuxiliaryLanguage, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "xreSupportedTune", AAMP_xreSupportedTune, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly},
 	{ "getPlaybackStatistics", AAMP_getPlayeBackStats, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setContentProtectionDataConfig", AAMP_setContentProtectionDataConfig, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setContentProtectionDataUpdateTimeout", AAMP_setContentProtectionDataUpdateTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, 0 }
 };
 

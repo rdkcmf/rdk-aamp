@@ -1420,6 +1420,55 @@ public:
 };
 
 /**
+ * @class AAMP_JSListener_ContentProtectionData
+ * @brief Event listener impl for (AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE) AAMP event
+ */
+
+class AAMP_Listener_ContentProtectionData : public AAMP_JSEventListener
+{
+public:
+	/**
+	 * @brief AAMP_Listener_ContentProtectionData Constructor
+	 * @param[in] aamp instance of PrivAAMPStruct_JS
+	 * @param[in] type event type
+	 * @param[in] jsCallback callback to be registered as listener
+	 */
+	AAMP_Listener_ContentProtectionData(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
+		: AAMP_JSEventListener(obj, type, jsCallback)
+	{
+	}
+
+	/**
+	 * @brief Set properties to JS event object
+	 * @param[in] ev AAMP event object
+	 * @param[out] jsEventObj JS event object
+	 */
+	void SetEventProperties(const AAMPEventPtr& ev, JSObjectRef jsEventObj)
+	{
+		ContentProtectionDataEventPtr evt = std::dynamic_pointer_cast<ContentProtectionDataEvent>(ev);
+		std::vector<uint8_t> keyId = evt->getKeyID();
+		int len = keyId.size();
+		JSStringRef prop;
+		JSValueRef* array = new JSValueRef[len];
+		for (int32_t i = 0; i < len; i++)
+		{
+			array[i] = JSValueMakeNumber(p_obj->_ctx, keyId[i]);
+		}
+
+		prop = JSStringCreateWithUTF8CString("keyID");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSObjectMakeArray(p_obj->_ctx, len, array, NULL), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+		SAFE_DELETE_ARRAY(array);
+
+		prop = JSStringCreateWithUTF8CString("streamType");
+		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getStreamType().c_str()), kJSPropertyAttributeReadOnly, NULL);
+		JSStringRelease(prop);
+	}
+
+};
+
+
+/**
  * @brief AAMP_JSEventListener Constructor
  */
 AAMP_JSEventListener::AAMP_JSEventListener(PrivAAMPStruct_JS *obj, AAMPEventType type, JSObjectRef jsCallback)
@@ -1587,6 +1636,9 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
 			break;
 		case AAMP_EVENT_WATERMARK_SESSION_UPDATE:
 			pListener = new AAMP_Listener_WatermarkSessionUpdate(obj, type, jsCallback);
+			break;
+		case AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE:
+			pListener = new AAMP_Listener_ContentProtectionData(obj, type, jsCallback);
 			break;
 		// Following events are not having payload and hence falls under default case
 		// AAMP_EVENT_EOS, AAMP_EVENT_TUNED, AAMP_EVENT_ENTERING_LIVE,

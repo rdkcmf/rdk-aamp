@@ -1435,6 +1435,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mPauseOnFirstVideoFrameDisp(false)
 	, mPreferredTextTrack(), mFirstVideoFrameDisplayedEnabled(false)
 	, mSessionToken() 
+	, vDynamicDrmData()
 	, midFragmentSeekCache(false)
 	, mPreviousAudioType (FORMAT_INVALID)
 	, mTsbRecordingId()
@@ -1512,6 +1513,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mApplyCachedVideoMute(false)
 	, mFirstProgress(false)
 	, mTsbSessionRequestUrl()
+	, mWaitForDynamicDRMToUpdate()
+	, mDynamicDrmUpdateLock()
+	, mDynamicDrmWait(false)
+	, mDynamicDrmCache()
 	, mMediaDownloadsEnabled()
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
@@ -1549,6 +1554,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	pthread_mutex_init(&mParallelPlaylistFetchLock, &mMutexAttr);
 	pthread_mutex_init(&mFragmentCachingLock, &mMutexAttr);
 	pthread_mutex_init(&mEventLock, &mMutexAttr);
+	pthread_mutex_init(&mDynamicDrmUpdateLock,&mMutexAttr);
 	pthread_mutex_init(&mStreamLock, &mMutexAttr);
 	pthread_mutex_init(&mDiscoCompleteLock,&mMutexAttr);
 	mCurlShared = curl_share_init();
@@ -1599,6 +1605,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	mCustomHeaders["Connection:"] = std::vector<std::string> { "Keep-Alive" };
 	pthread_cond_init(&mCondDiscontinuity, NULL);
 	pthread_cond_init(&waitforplaystart, NULL);
+	pthread_cond_init(&mWaitForDynamicDRMToUpdate,NULL);
 	pthread_mutex_init(&mMutexPlaystart, NULL);
 	pthread_cond_init(&mWaitForDiscoToComplete,NULL);
 	preferredLanguagesList.push_back("en");
@@ -1641,11 +1648,13 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	pthread_mutex_unlock(&mLock);
 
 	pthread_cond_destroy(&mDownloadsDisabled);
+	pthread_cond_destroy(&mWaitForDynamicDRMToUpdate);
 	pthread_cond_destroy(&mCondDiscontinuity);
 	pthread_cond_destroy(&waitforplaystart);
 	pthread_cond_destroy(&mWaitForDiscoToComplete);
 	pthread_mutex_destroy(&mMutexPlaystart);
 	pthread_mutex_destroy(&mLock);
+	pthread_mutex_destroy(&mDynamicDrmUpdateLock);
 	pthread_mutex_destroy(&mParallelPlaylistFetchLock);
 	pthread_mutex_destroy(&mFragmentCachingLock);
 	pthread_mutex_destroy(&mEventLock);
