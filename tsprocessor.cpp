@@ -1244,7 +1244,11 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 		for(int i=0; i< audioComponentCount; i++)
 		{
 			std::string index = "mux-" + std::to_string(i);
-			std::string language = Getiso639map_NormalizeLanguageCode(audioComponents[i].associatedLanguage,aamp->GetLangCodePreference());
+			std::string language;
+			if(audioComponents[i].associatedLanguage)
+			{
+				language = Getiso639map_NormalizeLanguageCode(audioComponents[i].associatedLanguage,aamp->GetLangCodePreference());
+			}
 			std::string group_id = m_audioGroupId;
 			std::string name = "pid-" + std::to_string(audioComponents[i].pid);
 			std::string characteristics = "muxed-audio";
@@ -1252,7 +1256,7 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 			std::string codec = GetAudioFormatStringForCodec(streamtype);
 			audioTracks.push_back(AudioTrackInfo(index, language, group_id, name, codec, characteristics, 0));
 			NOTICE( "[%p] found audio#%d in program %d with pcr pid %d audio pid %d lan:%s codec:%s",
-				this, i, m_program, pcrPid, audioComponents[i].pid, audioComponents[i].associatedLanguage, codec.c_str());
+				this, i, m_program, pcrPid, audioComponents[i].pid, language.c_str(), codec.c_str());
 		}
 		if(audioTracks.size() > 0)
 		{
@@ -1267,7 +1271,7 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 			int trackIndex = SelectAudioIndexToPlay();
 			if(trackIndex != -1 && trackIndex < audioComponentCount)
 			{
-				AAMPLOG_INFO("Selected best track audio#%d with lang:%s per preference", trackIndex, audioComponents[trackIndex].associatedLanguage);
+				AAMPLOG_INFO("Selected best track audio#%d with per preference", trackIndex);
 				m_AudioTrackIndexToPlay = trackIndex;
 				std::string index = "mux-" + std::to_string(trackIndex);
 				aamp->mpStreamAbstractionAAMP->SetCurrentAudioTrackIndex(index);
