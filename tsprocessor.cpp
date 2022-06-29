@@ -4564,7 +4564,11 @@ int TSProcessor::SelectAudioIndexToPlay()
 	for(int i=0; i<audioComponentCount ; i++)
 	{
 		int score = 0;
-		std::string trackLanguage = audioComponents[i].associatedLanguage;
+		std::string trackLanguage;
+		if(audioComponents[i].associatedLanguage)
+		{
+			trackLanguage = audioComponents[i].associatedLanguage;
+		}
 		StreamOutputFormat audioFormat = getStreamFormatForCodecType(audioComponents[i].elemStreamType);
 		if(!FilterAudioCodecBasedOnConfig(audioFormat))
 		{
