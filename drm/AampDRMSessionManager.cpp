@@ -1350,7 +1350,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				aampInstance->profiler.ProfileBegin(PROFILE_BUCKET_LA_NETWORK);
 
 #if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
-				if (isContentMetadataAvailable || usingAppDefinedAuthToken)
+				if (isContentMetadataAvailable)
 				{
 					eventHandle->setSecclientError(true);
 					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, &httpExtendedStatusCode, eventHandle));
@@ -1381,6 +1381,10 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				else
 #endif
 				{
+					if(usingAppDefinedAuthToken)
+					{
+						AAMPLOG_WARN("Ignore  AuthToken Provided for non-ContentMetadata DRM license request");
+					}
 					eventHandle->setSecclientError(false);
 					licenseResponse.reset(getLicense(licenseRequest, &httpResponseCode, streamType, aampInstance, isContentMetadataAvailable, licenseServerProxy));
 				}
