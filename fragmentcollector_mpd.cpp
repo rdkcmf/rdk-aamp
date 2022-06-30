@@ -317,6 +317,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	for (int i=0; i<AAMP_TRACK_COUNT; i++)
 	{
 		mFirstFragPTS[i] = 0.0;
+		parallelInitDownload[i]=NULL;
 	}
 	GetABRManager().clearProfiles();
 	mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
@@ -8080,9 +8081,22 @@ void StreamAbstractionAAMP_MPD::UpdateCulledAndDurationFromPeriodInfo()
  */
 void StreamAbstractionAAMP_MPD::FetchAndInjectInitFragments(bool discontinuity)
 {
-	for( int i = 0; i < mNumberOfTracks; i++)
+	for( int trackIdx = 0; trackIdx < mNumberOfTracks; trackIdx++)
 	{
-		FetchAndInjectInitialization(i,discontinuity);
+		if(parallelInitDownload[trackIdx])
+		{
+			parallelInitDownload[trackIdx]->join();
+			SAFE_DELETE(parallelInitDownload[trackIdx]);
+		}
+	}
+
+	for( int trackIdx = 0; trackIdx < mNumberOfTracks; trackIdx++)
+	{
+		parallelInitDownload[trackIdx] = new std::thread(
+				&StreamAbstractionAAMP_MPD::FetchAndInjectInitialization,
+				this,
+				trackIdx,
+				discontinuity);
 	}
 }
 
@@ -8329,9 +8343,9 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(int trackIdx, bool 
 
 	if(dlThreadCreated)
 	{
-		AAMPLOG_TRACE("Waiting for pthread_join trackDownloadThread");
+		AAMPLOG_TRACE("Waiting for pthread_join trackDownloadThread for track:%d",trackIdx);
 		pthread_join(trackDownloadThreadID, NULL);
-		AAMPLOG_TRACE("Joined trackDownloadThread");
+		AAMPLOG_TRACE("Joined trackDownloadThread for track:%d",trackIdx);
 		SAFE_DELETE(fetchParams);
 	}
 }
@@ -8484,6 +8498,11 @@ void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
+	if(parallelInitDownload[trackIdx])
+	{
+		parallelInitDownload[trackIdx]->join();
+		SAFE_DELETE(parallelInitDownload[trackIdx]);
+	}
 	class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[trackIdx];
 	bool isAllowNextFrag = true;
 	int  maxCachedFragmentsPerTrack;
@@ -9545,6 +9564,14 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 		if(track)
 		{
 			track->AbortWaitForCachedAndFreeFragment(true);
+		}
+	}
+	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
+	{
+		if(parallelInitDownload[iTrack])
+		{
+			parallelInitDownload[iTrack]->join();
+			SAFE_DELETE(parallelInitDownload[iTrack]);
 		}
 	}
 
