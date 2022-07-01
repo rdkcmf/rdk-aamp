@@ -204,7 +204,14 @@ void * Aampcli::runCommand( void* args )
 		}
 		else
 		{
-			l_CommandDispatcher.dispatchAampcliCommands(cmd,mAampcli.mSingleton);
+			bool l_status = false;
+
+			l_status = l_CommandDispatcher.dispatchAampcliCommands(cmd,mAampcli.mSingleton);
+
+			if(l_status == false)
+			{
+				_exit(0);
+			}
 		}
 	}
 

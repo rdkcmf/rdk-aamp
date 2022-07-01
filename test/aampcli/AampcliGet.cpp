@@ -87,7 +87,7 @@ void Get::showHelpGet()
 	printf("****************************************************************************\n");
 }
 
-void Get::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
+bool Get::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 {
 	char help[8];
 	int opt, value1, value2;
@@ -282,5 +282,7 @@ void Get::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 	{
 		printf("[AAMPCLI] Invalid get command = %s\n", cmd);
 	}
+
+	return true;
 }
 

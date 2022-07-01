@@ -109,7 +109,7 @@ void Set::showHelpSet()
 	printf("******************************************************************************************\n");
 }
 
-void Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
+bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 {
 	printf("%s:%d:cmd %s\n", __FUNCTION__, __LINE__,cmd);
 	char help[8];
@@ -1212,5 +1212,7 @@ void Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 	{
 		printf("[AAMPCLI] Invalid set command = %s\n", cmd);
 	}
+
+	return true;
 }
 
