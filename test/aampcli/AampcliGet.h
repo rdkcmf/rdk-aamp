@@ -76,7 +76,7 @@ class Get : public Command {
 	public:
 		void initGetHelpText();
 		void showHelpGet();
-		void execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
+		bool execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
 };
 
 #endif // AAMPCLIGET_H

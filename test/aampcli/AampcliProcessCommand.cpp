@@ -54,6 +54,7 @@ void CommandDispatcher::registerCommand(const std::string& commandName, Command*
 
 bool CommandDispatcher::dispatchAampcliCommands(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 {
+	bool l_status = false;
 	char l_cmd[4096] = {'\0'};
 	strcpy(l_cmd,cmd);
 	char *token = strtok(l_cmd," ");
@@ -69,9 +70,9 @@ bool CommandDispatcher::dispatchAampcliCommands(char *cmd, PlayerInstanceAAMP *p
 		}
 
 		Command* l_Command = cmdPair->second;
-		l_Command->execute(cmd,playerInstanceAamp);
+		l_status = l_Command->execute(cmd,playerInstanceAamp);
 
-		return true;
+		return l_status;
 	}
 }
 

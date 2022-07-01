@@ -35,7 +35,7 @@ class Command
 	public:
 		virtual ~Command( )
 		{}
-		virtual void execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp) = 0;
+		virtual bool execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp) = 0;
 };
 
 class CommandDispatcher

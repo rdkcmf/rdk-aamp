@@ -32,7 +32,7 @@ extern void tsdemuxer_InduceRollover( bool enable );
  * @brief Process command
  * @param cmd command
  */
-void PlaybackCommand::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
+bool PlaybackCommand::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 {
 	bool eventChange = false;
 	char lang[MAX_LANGUAGE_TAG_LENGTH];
@@ -251,7 +251,7 @@ void PlaybackCommand::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 			SAFE_DELETE( playerInstance );
 		}
 		termPlayerLoop();
-		exit(0);
+		return false;	//to exit
 	}
 	else if (memcmp(cmd, "rect", 4) == 0)
 	{
@@ -334,6 +334,8 @@ void PlaybackCommand::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 	{
 		printf("[AAMPCLI] Playback stats: %s", playerInstanceAamp->GetPlaybackStats().c_str());
 	}
+
+	return true;
 }
 
 /**
