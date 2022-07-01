@@ -3027,7 +3027,6 @@ void TrackState::RefreshPlaylist(void)
 			// Metadata refresh is needed for live content only , not for VOD
 			// Across ABR , for VOD no metadata change is expected from initial reported ones
 			FindTimedMetadata();
-			aamp->ReportTimedMetadata();
 		}
 	
 		if( mDuration > 0.0f )
@@ -4428,6 +4427,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					bool bMetadata = ISCONFIGSET(eAAMPConfig_BulkTimedMetaReport);
 					ts->FindTimedMetadata(bMetadata, true);
+					if(bMetadata && newTune)
+					{
+						// Send bulk report
+						aamp->ReportBulkTimedMetadata();
+					}
 				}
 
 				if (iTrack == eMEDIATYPE_VIDEO)
@@ -4792,6 +4796,9 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			needMetadata = false;
 			aamp->mIsIframeTrackPresent = mIframeAvailable;
 			mProgramStartTime = programStartTime;
+			// Delay "preparing" state until all tracks have been processed.
+			// JS Player assumes all onTimedMetadata event fire before "preparing" state.
+			aamp->SetState(eSTATE_PREPARING);
 		}
 
 		//Currently un-used playlist indexed event, might save some JS overhead
@@ -4822,13 +4829,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 			}
 		}
-
-			//DELIA-56264 : calling ReportTimedMetadata before tuned event is leading to make tuned event delayed if timedmetadata is huge 
-			//so moving reporttimedmetadata to be sent after tuned event
-			aamp->ReportTimedMetadata(true);
-			// Delay "preparing" state until all tracks have been processed.
-			// JS Player assumes all onTimedMetadata event fire before "preparing" state.
-			aamp->SetState(eSTATE_PREPARING);
 
 		/*Do live adjust on live streams on 1. eTUNETYPE_NEW_NORMAL, 2. eTUNETYPE_SEEKTOLIVE,
 		 * 3. Seek to a point beyond duration*/
@@ -7188,13 +7188,13 @@ void TrackState::FindTimedMetadata(bool reportBulkMeta, bool bInitCall)
 							long long positionMilliseconds = (long long) std::round((mCulledSecondsAtStart + mCulledSeconds + totalDuration) * 1000.0);
 							//AAMPLOG_INFO("mCulledSecondsAtStart:%f mCulledSeconds :%f totalDuration: %f posnMs:%lld playposn:%lld",mCulledSecondsAtStart,mCulledSeconds,totalDuration,positionMilliseconds,aamp->GetPositionMs());
 							//AAMPLOG_WARN("Found subscribedTag[%d]: @%f cull:%f Posn:%lld '%.*s'", i, totalDuration, mCulledSeconds, positionMilliseconds, nb, ptr);
-							if(reportBulkMeta && bInitCall)
+							if(reportBulkMeta)
 							{
 								aamp->SaveTimedMetadata(positionMilliseconds, data, ptr, nb);
 							}
 							else
 							{
-								aamp->SaveNewTimedMetadata(positionMilliseconds, data, ptr, nb);
+								aamp->ReportTimedMetadata(positionMilliseconds, data, ptr, nb,bInitCall);
 							}
 							break;
 						}

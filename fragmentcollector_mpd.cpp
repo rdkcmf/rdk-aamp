@@ -4690,6 +4690,10 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 					AAMPLOG_WARN("aamp: mpd - sent tune event after indexing playlist");
 				}
 			}
+			// Update track with update in stream info
+			mUpdateStreamInfo = true;
+			ret = UpdateTrackInfo(!newTune, true);
+
 			if(eAAMPSTATUS_OK != ret)
 			{
 				if (ret == eAAMPSTATUS_MANIFEST_CONTENT_ERROR)
@@ -4698,15 +4702,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				}
 				return ret;
 			}
-
-			//DELIA-51402 - calling ReportTimedMetadata function after drm creation in order
-			//to reduce the delay caused
-			//DELIA-56264 : calling ReportTimedMetadata before tuned event is leading to make tuned event delayed if bulkmeta data is more 
-			 //so moving reporttimedmetadata to be sent after tuned event
-			mUpdateStreamInfo = true;
-			aamp->ReportTimedMetadata(true);
-			ret = UpdateTrackInfo(!newTune, true);
-	
 
 			if(!newTune && mIsFogTSB)
 			{
