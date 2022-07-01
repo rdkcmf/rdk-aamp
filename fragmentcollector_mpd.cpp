@@ -4357,16 +4357,6 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				}
 			}
 		}
-		auto start = std::chrono::high_resolution_clock::now();
-		if(!mIsLiveStream)
-		{
-			/** Populate Audio Track for static content TBD **/
-			GetAvailableAudioTracks(true);
-		}
-		auto end = std::chrono::high_resolution_clock::now();
-		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-		AAMPLOG_INFO("Time taken to populate Audio Track %lld", static_cast<long long int>(duration.count()));
-
 		for (unsigned iPeriod = 0; iPeriod < numPeriods; iPeriod++)
 		{//TODO -  test with streams having multiple periods.
 			IPeriod *period = mpd->GetPeriods().at(iPeriod);
@@ -10983,7 +10973,6 @@ void StreamAbstractionAAMP_MPD::ParseAvailablePreselections(IMPDElement *period,
  */
 void StreamAbstractionAAMP_MPD::PopulateTrackInfo(MediaType media, bool reset)
 {
-	std::lock_guard<std::mutex> lock(mStreamLock);
 	//Clear the current track info , if any
 	if (reset && media == eMEDIATYPE_AUDIO)
 	{
@@ -10997,13 +10986,13 @@ void StreamAbstractionAAMP_MPD::PopulateTrackInfo(MediaType media, bool reset)
 	std::vector<dash::mpd::IPeriod*>  ptrPeriods =  mpd->GetPeriods();
 	for (auto &period : ptrPeriods)
 	{
-		AAMPLOG_INFO("Traversing Period [%s] ", period->GetId().c_str());
+		AAMPLOG_TRACE("Traversing Period [%s] ", period->GetId().c_str());
 
 		std::vector<dash::mpd::IAdaptationSet*> adaptationSets = period->GetAdaptationSets();
 		uint32_t adaptationIndex = 0;
 		for (auto &adaptationSet : adaptationSets)
 		{
-			AAMPLOG_INFO("Adaptation Set Content type [%s] ", adaptationSet->GetContentType().c_str());
+			AAMPLOG_TRACE("Adaptation Set Content type [%s] ", adaptationSet->GetContentType().c_str());
 			if (IsContentType(adaptationSet, (MediaType)media))
 			{
 				ParseTrackInformation(adaptationSet, adaptationIndex, (MediaType)media,  mAudioTracksAll, mTextTracksAll);
