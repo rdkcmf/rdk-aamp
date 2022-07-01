@@ -2620,6 +2620,10 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 			{
 				stream->bufferUnderrun = false;
 			}
+
+			// PROFILE_BUCKET_FIRST_BUFFER after successfull push of first gst buffer
+			if (isFirstBuffer == true && ret == GST_FLOW_OK)
+				this->aamp->profiler.ProfilePerformed(PROFILE_BUCKET_FIRST_BUFFER);
 		}
 	}
 

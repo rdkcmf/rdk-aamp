@@ -6568,7 +6568,6 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
  */
 void PrivateInstanceAAMP::SendStreamCopy(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration)
 {
-	profiler.ProfilePerformed(PROFILE_BUCKET_FIRST_BUFFER);
 	mStreamSink->SendCopy(mediaType, ptr, len, fpts, fdts, fDuration);
 }
 
@@ -6577,7 +6576,6 @@ void PrivateInstanceAAMP::SendStreamCopy(MediaType mediaType, const void *ptr, s
  */
 void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration, bool initFragment)
 {
-	profiler.ProfilePerformed(PROFILE_BUCKET_FIRST_BUFFER);
 	mStreamSink->SendTransfer(mediaType, buffer, fpts, fdts, fDuration, initFragment);
 }
 
