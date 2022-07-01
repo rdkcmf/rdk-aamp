@@ -38,7 +38,7 @@ class PlaybackCommand : public Command
 		bool isTuneScheme(const char *cmd);
 		void trim(char **cmd);
 		void termPlayerLoop();
-		void execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
+		bool execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
 
 };
 

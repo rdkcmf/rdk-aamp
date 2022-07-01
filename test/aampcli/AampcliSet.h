@@ -101,7 +101,7 @@ class Set : public Command {
 	public:
 		void initSetHelpText();
 		void showHelpSet();
-		void execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
+		bool execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
 };
 
 #endif // AAMPCLISET_H
