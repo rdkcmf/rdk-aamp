@@ -1478,8 +1478,8 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 							FCS_content = false;
 							for(int i =0;i< failovercontents.size();i++)
                                                         {
-								uint64_t starttime = failovercontents.at(i)->GetStartTime();
-								uint64_t duration  =  failovercontents.at(i)->GetDuration();
+								double starttime = failovercontents.at(i)->GetStartTime();
+								double  duration  =  failovercontents.at(i)->GetDuration();
 								// Logic  to handle the duration option missing case
 								if(!duration)
 								{
@@ -1504,7 +1504,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 									}
 								}
 								// the value of this attribute minus the value of the @presentationTimeOffset specifies the MPD start time,
-								uint64_t fcscontent_range = (starttime  + duration);
+								double fcscontent_range = (starttime  + duration);
 								if((starttime <= pMediaStreamContext->fragmentDescriptor.Time)&&(fcscontent_range > pMediaStreamContext->fragmentDescriptor.Time))
 								{
 									FCS_content = true;
