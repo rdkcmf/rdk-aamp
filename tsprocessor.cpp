@@ -4592,7 +4592,7 @@ int TSProcessor::SelectAudioIndexToPlay()
 					score += (aamp->preferredCodecList.size()-distance)*100; //  bonus for codec match
 				}
 			}
-			else
+			else if(audioFormat != FORMAT_UNKNOWN)
 			{
 				score += audioFormat;
 			}
