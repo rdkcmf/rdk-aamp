@@ -3158,7 +3158,7 @@ int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 						score += (aamp->preferredCodecList.size()-distance)*100; //  bonus for codec match
 					}
 				}
-				else
+				else if(this->mediaInfo[i].audioFormat != FORMAT_UNKNOWN)
 				{
 					score += this->mediaInfo[i].audioFormat; // small bonus for better codecs like ATMOS
 				}
