@@ -533,5 +533,4 @@ class AAMPPlayer {
     setContentProtectionDataConfig(config) {
         this.player.setContentProtectionDataConfig(config);
     }
-}
 };
