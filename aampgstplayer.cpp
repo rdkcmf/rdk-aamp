@@ -1591,10 +1591,10 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				if (AAMPGstPlayer_isVideoDecoder(GST_OBJECT_NAME(msg->src), _this))
 				{
 					_this->privateContext->video_dec = (GstElement *) msg->src;
-#if !defined(REALTEKCE)
 					type_check_instance("bus_sync_handle: video_dec ", _this->privateContext->video_dec);
 					g_signal_connect(_this->privateContext->video_dec, "first-video-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
+#if !defined(REALTEKCE)                               
                                         g_object_set(msg->src, "report_decode_errors", TRUE, NULL);
 #endif
 
@@ -1630,9 +1630,6 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #if !defined(REALTEKCE)
 			}
 #else
-				type_check_instance("bus_sync_handle: connecting first-video-frame-callback", (GstElement *) msg->src);
-				g_signal_connect(msg->src, "first-video-frame-callback",
-                                                                        G_CALLBACK(AAMPGstPlayer_OnFirstVideoFrameCallback), _this);
 				g_object_set(msg->src, "freerun-threshold", DEFAULT_AVSYNC_FREERUN_THRESHOLD_SECS, NULL);
 			}
 
