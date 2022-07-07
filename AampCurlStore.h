@@ -31,7 +31,7 @@
 #include <vector>
 #include <glib.h>
 
-#define eCURL_MAX_AGE_TIME			( (300) * (1000) )			/**< 5 mins - 300 secs - Max age for a connection /
+#define eCURL_MAX_AGE_TIME			( (300) * (1000) )			/**< 5 mins - 300 secs - Max age for a connection */
 
 /**
  * @enum AampCurlStoreErrorCode
