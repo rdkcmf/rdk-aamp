@@ -744,6 +744,7 @@ class MediaMetadataEvent: public AAMPEventObject
 	int mAspectRatioHeight;		/**< Aspect Ratio Height*/
 	std::string mVideoCodec;	/**<  VideoCodec - E.g MPEG2.*/
 	std::string mHdrType; 		/**< type of HDR being played, in example "DOLBY_VISION" */
+	std::string mMediaFormatName;	/*< Media format type */
 
 	/* Audio Info   */
 	std::vector<long> mAudioBitrates; 	  /**< Available Audio bitrates */
@@ -975,6 +976,19 @@ public:
 	 * @return true/false
 	 */
 	bool getAtmosInfo() const {return  isAtmos;}
+		/**
+	 * @brief Get Media format type
+	 *
+	 * @return mediaFormat
+	 */
+	const std::string & getMediaFormat() { return mMediaFormatName; }
+
+	/**
+	 * @brief Set Media format type
+	 *
+	 * @return void
+	 */
+	void setMediaFormat(const std::string &mediaFormatName) { mMediaFormatName = mediaFormatName; }
 };
 
 /**

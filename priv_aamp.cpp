@@ -8122,6 +8122,8 @@ void PrivateInstanceAAMP::SendMediaMetadataEvent(void)
 		event->addSupportedSpeed(1);
 	}
 
+	event->setMediaFormat(mMediaFormatName[mMediaFormat]);
+
 	SendEvent(event,AAMP_EVENT_ASYNC_MODE);
 }
 
