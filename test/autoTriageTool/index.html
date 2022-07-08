@@ -9,13 +9,14 @@
 			<script src="autotriage.js"></script>
 			<script src="exportStats.js"></script>
 				
-			<script src="markers/0_general.json"></script>
-			<script src="markers/1_aampgstplayer.json"></script>
-			<script src="markers/2_main.json"></script>
-			<script src="markers/3_priv_aamp.json"></script>
-			<script src="markers/4_hls.json"></script>
-			<script src="markers/5_dash.json"></script>
-			<script src="markers/8_tsprocessor.json"></script>
+			<script src="markers/0_general.js"></script>
+			<script src="markers/1_aampgstplayer.js"></script>
+			<script src="markers/2_main.js"></script>
+			<script src="markers/3_priv_aamp.js"></script>
+			<script src="markers/4_hls.js"></script>
+			<script src="markers/5_dash.js"></script>
+            <script src="markers/8_tsprocessor.js"></script>
+            <script src="markers/9_sky.js"></script>
 	</head>
 	<body>
 		<div id="navbar" class="triage-tool-bar">
@@ -48,6 +49,10 @@
 		<div id="fileUploadResponse">
 			<strong id="fileMsg"></strong>
 			<span id="hideButton" onclick="this.parentElement.style.display='none';">&times;</span> 
+		</div>
+		<div id="contentTypeDiv">
+			<label id="contentTypeLabel">ContentType : </label> 
+			<span id="contentTypeID"></span>
 		</div>
 		<div id="durationDiv">
 			<label id="durationLabel">Playback Duration: </label> 

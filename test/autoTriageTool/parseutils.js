@@ -201,13 +201,30 @@ const eMEDIATYPE_INIT_IFRAME = 16;
 const eMEDIATYPE_DSM_CC = 17;
 const eMEDIATYPE_IMAGE = 18;
 
+const ContentType_UNKNOWN = 0;
+const ContentType_CDVR = 1;
+const ContentType_VOD = 2;
+const ContentType_LINEAR = 3;
+const ContentType_IVOD = 4;
+const ContentType_EAS = 5;
+const ContentType_CAMERA = 6;
+const ContentType_DVR = 7;
+const ContentType_MDVR = 8;
+const ContentType_IPDVR = 9;
+const ContentType_PPV = 10;
+const ContentType_OTT = 11;
+const ContentType_OTA = 12;
+const ContentType_HDMIIN = 13;
+const ContentType_COMPOSITEIN = 14;
+const ContentType_SLE = 15;
+
 var mediaTypes = [
 "VIDEO",
 "AUDIO",
 "SUBTITLE",
 "AUX_AUDIO",
 "MANIFEST",
-"LICENCE",
+"LICENSE",
 "IFRAME",
 "INIT_VIDEO",
 "INIT_AUDIO",
@@ -306,6 +323,24 @@ function ParseCurrentBitrate( line )
     return rc;
 }
 
+var contentTypeString = [
+"UNKNOWN",
+"CDVR",
+"VOD",
+"LINEAR",
+"IVOD",
+"EAS",
+"CAMERA",
+"DVR",
+"MDVR",
+"IPDVR",
+"PPV",
+"OTT",
+"OTA",
+"HDMIIN",
+"COMPOSITEIN",
+"SLE"];
+
 var trackNames = [ "video", "audio", "subtitle" ];
 
 var playerStates = [ // PrivAAMPState
@@ -394,3 +429,5 @@ const _VideoFragmentDecryptDuration = 32;
 const _AudioFragmentDecryptDuration = 33;
 const _gstPlayStartTime = 34;
 const _gstFirstFrameTime = 35;
+const _tuneSuccess = 44;
+const _contentType = 36;
