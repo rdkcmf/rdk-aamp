@@ -446,6 +446,12 @@ public:
 		prop = JSStringCreateWithUTF8CString("isAtmos");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeBoolean(p_obj->_ctx,evt->getAtmosInfo()), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
+
+		//MediaFormat type
+		prop = JSStringCreateWithUTF8CString("mediaFormat");
+                JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, evt->getMediaFormat().c_str()), kJSPropertyAttributeReadOnly, NULL);
+                JSStringRelease(prop);
+
 	}
 };
 

@@ -234,7 +234,7 @@ MediaMetadataEvent::MediaMetadataEvent(long duration, int width, int height, boo
 		mLanguages(), mBitrates(), mWidth(width), mHeight(height),
 		mHasDrm(hasDrm), mSupportedSpeeds(), mIsLive(isLive), mDrmType(DrmType), mProgramStartTime(programStartTime),
 		mPCRating(),mSsi(-1),mFrameRate(0),mVideoScanType(eVIDEOSCAN_UNKNOWN),mAspectRatioWidth(0),mAspectRatioHeight(0),
-		mVideoCodec(),mHdrType(),mAudioBitrates(),mAudioCodec(),mAudioMixType(),isAtmos(false)
+		mVideoCodec(),mHdrType(),mAudioBitrates(),mAudioCodec(),mAudioMixType(),isAtmos(false),mMediaFormatName()
 {
 
 }
