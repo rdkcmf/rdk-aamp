@@ -136,6 +136,13 @@ input {
 }
 
 #durationDiv {
+  padding-top: 1%;
+  padding-left: 3%;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: bold;
+}
+
+#contentTypeDiv {
   padding-top: 3%;
   padding-left: 3%;
   font-family: Arial, Helvetica, sans-serif;

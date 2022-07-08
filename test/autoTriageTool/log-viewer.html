@@ -31,8 +31,21 @@
 					{
 						ctx.fillStyle = color;
 						ctx.fillRect( 0,y-LINE_HEIGHT,canvas.width,LINE_HEIGHT);
+                        if( color == "#ffffcc" )
+                        {
+                            ctx.fillStyle = "#000000";
+                        }
+                        else
+                        {
+                            ctx.fillStyle = "#ffffff";
+                        }
+
+						ctx.fillStyle = selectTextColor(color)
 					}
-					ctx.fillStyle = "#000000";
+                    else
+                    {
+                        ctx.fillStyle = "#000000";
+                    }
 					ctx.fillText( line[1], -translateX, y-DESCENDER_ADJUST );
 					
 					y += LINE_HEIGHT;
@@ -84,6 +97,24 @@
 						 e.preventDefault();
 						}
 				  });
+			}
+
+			function selectTextColor(hexColor) {
+				// Remove # from hex code
+				bgColor = hexColor.slice(1);
+				// Convert color from hex format to rgb number
+				bgColor = + ("0x" + bgColor.replace(bgColor.length < 5 && /./g, '$&$&'));
+				redVariant = bgColor >> 16;
+				greenVariant = bgColor >> 8 & 255;
+				blueVariant = bgColor & 255;
+				
+				colorIntensityValue = Math.sqrt(0.299 * (redVariant * redVariant) + 0.587 * (greenVariant * greenVariant) + 0.114 * (blueVariant * blueVariant));
+				// Identify whether the color is light or dark using the color intensity value
+				if (colorIntensityValue > 127.5) {
+					return '#000000';
+				} else {
+					return '#ffffff';
+				}
 			}
 		</script>
 		<body>

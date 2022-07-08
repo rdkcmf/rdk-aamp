@@ -1,8 +1,10 @@
-// 127.0.0.1:8080/autotriage.html
 const ROWHEIGHT = 24;
 const BITRATE_MARGIN = 112;
 const TOP_MARGIN = 64;
+const COLOR_TUNED = "#058840";
+const COLOR_TUNE_FAILED = "#FF0000";
 const COLOR_GOLD = "#FFD700";
+const COLOR_LIGHT_GOLD = "#ffffcc"
 const alllabels = ["MANIFEST","DRM","VIDEO","AUDIO","IFRAME","AUX_AUDIO","SUBTITLE"];
 
 var markerPicker;
@@ -20,6 +22,7 @@ var timestamp_min;
 var timestamp_max;
 var gLineNumber;
 var gTimeStampUTC;
+var gContentType;
 
 function myclickhandler(e)
 {
@@ -50,7 +53,7 @@ function myclickhandler(e)
 				document.getElementById("url").innerHTML = gBoxDownload[i].url;
 				// display the fragment table on click
 				document.getElementById("fragTable").style.display = "block";
-
+                
 				if( e.ctrlKey || e.metaKey )
 				{ // control/command click to pop up details for this download activity indicator
 					// note: with newlines included, alert text isn't selectable in chrome
@@ -222,73 +225,39 @@ function paint()
 			
 			if( pass==0 )
 			{ // vertical lines
-				
-				if(String(obj.label) === "Tuned") {
-					// Show tuned line in green color
-					ctx.strokeStyle = "#058840";
-				} else if(String(obj.label) === "Notify-Bitrate-Change") {
-					// Show bitrate changed line in orange color
-					ctx.strokeStyle = "#d35811";		
-				} else if(String(obj.label) === "Crashed!!!") {
-					// Show bitrate changed line in orange color
-					ctx.strokeStyle = "#00ff00";		
-				} else if(String(obj.label) === "WebProcess unresponsive") {
-					// Show bitrate changed line in orange color
-					ctx.strokeStyle = "#ff3d3d";		
-				} else if(String(obj.label) === "High load average") {
-					// Show bitrate changed line in orange color
-					ctx.strokeStyle = "#f59f00";		
-				} else if(isUserDefinedMarker(obj.label)) {
-					// If user defined marker show in distinctive color
-					ctx.strokeStyle = "#b768eb";	
-				} else {
+                if( obj.style )
+                {
+                    ctx.strokeStyle = obj.style;
+                }
+                else
+                {
 					ctx.strokeStyle = COLOR_GOLD;
-				}
-				ctx.beginPath();
+                }
+                ctx.beginPath();
 				ctx.moveTo(obj.x+dx, timeline_y0-20);
 				ctx.lineTo(obj.x+dx, obj.y);
 				ctx.stroke();
 			}
 			else
 			{ // framed marker boxes
-				ctx.strokeStyle = COLOR_GOLD;
-				ctx.strokeRect(obj.x+dx,obj.y,obj.w,obj.h);
-
-				if(String(obj.label) === "Tuned") {
-					// Show tuned in green color
-					ctx.fillStyle = "#058840";
-				} else if(String(obj.label) === "Notify-Bitrate-Change") {
-					// Show bitrate changed in orange color
-					ctx.fillStyle = "#d35811";		
-				} else if(String(obj.label) === "Crashed!!!") {
-					// Show bitrate changed line in orange color
-					ctx.fillStyle = "#ff0000";		
-				} else if(String(obj.label) === "WebProcess unresponsive") {
-					// Show bitrate changed line in orange color
-					ctx.fillStyle = "#ff3d3d";		
-				} else if(String(obj.label) === "High load average") {
-					// Show bitrate changed line in orange color
-					ctx.fillStyle = "#f59f00";		
-				} else if(isUserDefinedMarker(obj.label)) {
-					// If user defined marker fill in distinctive color
-					ctx.fillStyle = "#6d4194";	
-				} else {
-					ctx.fillStyle = '#ffffe0';
-				}
-
-				ctx.fillRect(obj.x+dx,obj.y,obj.w,obj.h);
-				
-				if((String(obj.label) !== "Tuned")
-						&& (String(obj.label) !== "Notify-Bitrate-Change")
-						&& (String(obj.label) !== "Crashed!!!")
-						&& (String(obj.label) !== "WebProcess unresponsive")
-						&& (String(obj.label) !== "High load average")
-						&& !(isUserDefinedMarker(obj.label))) {
-					ctx.fillStyle = "#000000";	
-				} else {
-					ctx.fillStyle = '#ffffff';
-				}
-				
+                if( obj.style )
+                {
+                    ctx.fillStyle = obj.style;
+                }
+                else
+                {
+					ctx.fillStyle = COLOR_LIGHT_GOLD;
+                }
+                ctx.strokeRect(obj.x+dx,obj.y,obj.w,obj.h);
+                ctx.fillRect(obj.x+dx,obj.y,obj.w,obj.h);
+				if( obj.style )
+                {
+                    ctx.fillStyle = '#ffffff';
+                }
+                else
+                {
+                    ctx.fillStyle = "#000000";
+                }
 				ctx.fillText(obj.label, obj.x+4+dx, obj.y+16 );
 			}
 		}
@@ -362,12 +331,13 @@ window.onload = function() {
 		if (timestamp_max == null || gTimeStampUTC > timestamp_max) timestamp_max = gTimeStampUTC;
 	}
 	
-	function AddMarker( label )
+	function AddMarker( label, style )
 	{
 		var obj = {
 			"timestamp":gTimeStampUTC,
 			"line":gLineNumber,
-			"label":label
+			"label":label,
+            "style":style
 		};
 		gBoxMarker.push(obj);
 		
@@ -377,7 +347,7 @@ window.onload = function() {
 		option.text = "LineNo. " + Number(gLineNumber + 1) + ". " + label;
 		// Show user defined markers in a distinctive color in drop down 
 		if(isUserDefinedMarker(label)) {
-			option.style.color = "#b768eb";
+			option.style.color = obj.style;
 		}
 		option.value = gLineNumber;
 		markerPicker.add(option);
@@ -401,6 +371,7 @@ window.onload = function() {
 			var obj = {};
 			obj.pattern = userDefMarker[markerIndex].pattern;
 			obj.label = userDefMarker[markerIndex].label;
+            obj.style = userDefMarker[markerIndex].style;
 			markerCfg.push(obj);
 			// push to user defined marker list also
 			userDefinedMarkers.push(obj);
@@ -420,37 +391,41 @@ window.onload = function() {
 			gAllLogLines = gAllLogLines.split("\n");
 			
 			gTuneStartLine = [];
+			var hasSkyTune = false;
 			
 			sessionClickedID = 0;
 			sessionClicked = false;
 			
 			//var tStopBegin = null;
-			gAllIpAampTuneTimes = ["version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune,Prebuffered,PreBufferedTime,durationSeconds,interfaceWifi,TuneAttempts,TuneSuccess,FailureReason,Appname,Numbers of TimedMetadata(Ads),StartTime to Report TimedEvent,Time taken to ReportTimedMetadata,TSBEnabled"];
+			gAllIpAampTuneTimes = ["version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune,Prebuffered,PreBufferedTime,durationSeconds,interfaceWifi,TuneAttempts,TuneSuccess,FailureReason,Appname,Numbers of TimedMetadata(Ads),StartTime to Report TimedEvent,Time taken to ReportTimedMetadata,TSBEnabled,TotalTime"];
 			var prefix = "IP_AAMP_TUNETIME:";
+            var epgTuneTime = [];
 			for(var iLine=0; iLine<gAllLogLines.length; iLine++ )
 			{
 				var line = gAllLogLines[iLine];
-				/*
-				// following code snippet measured stop overhead
-				 var tm = ParseReceiverLogTimestamp(line);
-				if( line.indexOf("aamp_stop PlayerState")>=0)
-				{
-					tStopBegin = tm;
-				}
-				else if( line.indexOf("exiting AAMPGstPlayer_Stop")>=0 )
-				{
-					if( tStopBegin )
-					{
-						var dt = tm - tStopBegin;
-						console.log( "stop time = " + dt );
-						tStopBegin = null;
-					}
-				}
-				 else
-				*/
+                if( line.indexOf("EPG Request to play VIPER stream")>=0 ) // SKY
+                {
+					hasSkyTune = true;
+                    gTuneStartLine.push(iLine);
+                }
+                
+                var epgTuneTimePrefix = "EPG Total tune time (ms) :  ";
+                var epgTuneTimeDelim = line.indexOf(epgTuneTimePrefix);
+                if( epgTuneTimeDelim>=0 )
+                {
+                    var epgTuneTimeDelimStart = epgTuneTimeDelim + epgTuneTimePrefix.length;
+                    var epgTuneTimeDelimFin = line.indexOf(" ",epgTuneTimeDelimStart);
+                    var tuneTimeMs = parseInt(line.substr(epgTuneTimeDelimStart,epgTuneTimeDelimFin-epgTuneTimeDelimStart));
+                    
+                    epgTuneTime[gTuneStartLine.length-1] = tuneTimeMs;
+                }
+                
 				if( line.indexOf("aamp_tune:")>=0 )
 				{
-					gTuneStartLine.push(iLine);
+					if( !hasSkyTune )
+					{ // fall back to plotting individual aamp tunes if no sky epg tune log preceeding
+						gTuneStartLine.push(iLine);
+					}
 					var offs = line.indexOf("URL: ");
 					if( offs>=0 )
 					{
@@ -474,7 +449,7 @@ window.onload = function() {
 					var idx = line.indexOf(prefix);
 					if( idx>=0 )
 					{
-						gAllIpAampTuneTimes[gTuneStartLine.length] = line.substr(idx+prefix.length)+","+locator;
+                        gAllIpAampTuneTimes[gTuneStartLine.length] = line.substr(idx+prefix.length)+","+locator;
 					}
 				}
 			} // next line
@@ -498,7 +473,8 @@ window.onload = function() {
 					var temp = gAllIpAampTuneTimes[iter+1];
 					if( temp )
 					{
-						option.text += "(" + temp.split(",")[_gstFirstFrameTime]+"ms)"
+                        option.text += "("+epgTuneTime[iter]+")"; // SKY
+//                        option.text += "(" + temp.split(",")[_gstFirstFrameTime]+"ms)"
 					}
 					option.value = (iter+1);
 					currentSession.add(option);
@@ -522,7 +498,6 @@ window.onload = function() {
 	
 	function ProcessLine( line )
 	{
-
 		var color = undefined;
 
 		gTimeStampUTC = ParseReceiverLogTimestamp(line);
@@ -535,33 +510,13 @@ window.onload = function() {
 				if( param )
 				{
 					gTimeStampUTC = ParseReceiverLogTimestamp(line);
-
-					console.log("QQQQQQQQQQQQQQQQQQQ");
 					console.log(MarkerToOptionText(entry.label,param));
-					AddMarker( MarkerToOptionText(entry.label,param) );
-
-					if(String(entry.label) === "Tuned") {
-						// Show tuned in green color
-						color = "#058840";
-					} else if(String(entry.label) === "Notify-Bitrate-Change") {
-						// Show bitrate changed in orange color
-						color = "#d35811";		
-					} else if(String(entry.label) === "Crashed!!!") {
-						// Show bitrate changed line in orange color
-						color = "#ff0000";		
-					} else if(String(entry.label) === "WebProcess unresponsive") {
-						// Show bitrate changed line in orange color
-						color = "#ff3d3d";		
-					} else if(String(entry.label) === "High load average") {
-						// Show bitrate changed line in orange color
-						color = "#f59f00";		
-					} else if(isUserDefinedMarker(entry.label)) {
-						// If user defined marker fill in distinctive color
-						color = "#6d4194";	
-					} else {
-						color= COLOR_GOLD;
-					}
-				
+                    color = entry.style;
+					AddMarker( MarkerToOptionText(entry.label,param),color );
+                    if( !color )
+                    {
+                        color = COLOR_LIGHT_GOLD;
+                    }
 					break;
 				}
 			}
@@ -590,7 +545,13 @@ window.onload = function() {
 					{
 						label = label.substr(offs+1);
 					}
-					obj.track = alllabels.indexOf(label);
+
+					// Map License request to DRM row
+					if(label == "LICENSE") {
+						obj.track = alllabels.indexOf("DRM");
+					} else {
+						obj.track = alllabels.indexOf(label);
+					}
 				}
 				
 				// map UI color based on download type and success/failure
@@ -608,58 +569,68 @@ window.onload = function() {
 			var param=line.indexOf("IP_AAMP_TUNETIME:");
 			if( param >= 0 )
 			{
-				AddMarker( "Tuned" );
-				
 				var attrs = line.substr(param+17).split(",");
-				var baseUTC = gTimeStampUTC - parseInt(attrs[_gstFirstFrameTime]);
-				var startTime = baseUTC + parseInt(attrs[_drmLicenseAcqStartTime]);
-				
-				// use IP_AAMP_TUNETIME log to define license and pre/post drm overhead in timeline
-				{
-					var obj = {};
-					obj.line = gLineNumber;
-					obj.error = "HTTP200(OK)";
-					obj.durationms = parseInt(attrs[_LicenseAcqPreProcessingDuration]);
-					obj.type = eMEDIATYPE_LICENSE;
-					obj.ulSz = 0;
-					obj.bytes = 0;
-					obj.url = "LicenseAcqPreProcessingDuration";
-					obj.utcstart = startTime;
-					obj.track = 1;//"DRM";
-					obj.fillStyle = MapMediaColor(-eMEDIATYPE_LICENSE);
-					gBoxDownload.push(obj);
-					startTime += obj.durationms;
+				// check tuneSucess parameter for checking if tune is success/failure
+				if(attrs[_tuneSuccess] == '1') {
+					AddMarker( "Tuned", COLOR_TUNED );
+					color = COLOR_TUNED;
+
+					var baseUTC = gTimeStampUTC - parseInt(attrs[_gstFirstFrameTime]);
+					var startTime = baseUTC + parseInt(attrs[_drmLicenseAcqStartTime]);
+					
+					// use IP_AAMP_TUNETIME log to define license and pre/post drm overhead in timeline
+					{
+						var obj = {};
+						obj.line = gLineNumber;
+						obj.error = "HTTP200(OK)";
+						obj.durationms = parseInt(attrs[_LicenseAcqPreProcessingDuration]);
+						obj.type = eMEDIATYPE_LICENSE;
+						obj.ulSz = 0;
+						obj.bytes = 0;
+						obj.url = "LicenseAcqPreProcessingDuration";
+						obj.utcstart = startTime;
+						obj.track = 1;//"DRM";
+						obj.fillStyle = MapMediaColor(-eMEDIATYPE_LICENSE);
+						gBoxDownload.push(obj);
+						startTime += obj.durationms;
+					}
+					{
+						var obj = {};
+						obj.line = gLineNumber;
+						obj.error = "HTTP200(OK)";
+						obj.durationms = parseInt(attrs[_LicenseAcqNetworkDuration]);
+						obj.type = eMEDIATYPE_LICENSE;
+						obj.ulSz = 0;
+						obj.bytes = 0;
+						obj.url = "LicenseAcqNetworkDuration";
+						obj.utcstart = startTime;
+						obj.track = 1;//"DRM";
+						obj.fillStyle = MapMediaColor(eMEDIATYPE_LICENSE);
+						gBoxDownload.push(obj);
+						startTime += obj.durationms;
+						//color = obj.fillStyle[0];
+					}
+					
+					{
+						var obj = {};
+						obj.line = gLineNumber;
+						obj.error = "HTTP200(OK)";
+						obj.durationms = parseInt(attrs[_LicenseAcqPostProcDuration]);
+						obj.type = eMEDIATYPE_LICENSE;
+						obj.ulSz = 0;
+						obj.bytes = 0;
+						obj.url = "LicenseAcqPostProcDuration";
+						obj.utcstart = startTime;
+						obj.track = 1;//"DRM";
+						obj.fillStyle = MapMediaColor(-eMEDIATYPE_LICENSE);
+						gBoxDownload.push(obj);
+					}
+				} else {
+					AddMarker( "Tune Failed", COLOR_TUNE_FAILED );
+					color = COLOR_TUNE_FAILED;
 				}
 				{
-					var obj = {};
-					obj.line = gLineNumber;
-					obj.error = "HTTP200(OK)";
-					obj.durationms = parseInt(attrs[_LicenseAcqNetworkDuration]);
-					obj.type = eMEDIATYPE_LICENSE;
-					obj.ulSz = 0;
-					obj.bytes = 0;
-					obj.url = "LicenseAcqNetworkDuration";
-					obj.utcstart = startTime;
-					obj.track = 1;//"DRM";
-					obj.fillStyle = MapMediaColor(eMEDIATYPE_LICENSE);
-					gBoxDownload.push(obj);
-					startTime += obj.durationms;
-					color = obj.fillStyle[0];
-				}
-				
-				{
-					var obj = {};
-					obj.line = gLineNumber;
-					obj.error = "HTTP200(OK)";
-					obj.durationms = parseInt(attrs[_LicenseAcqPostProcDuration]);
-					obj.type = eMEDIATYPE_LICENSE;
-					obj.ulSz = 0;
-					obj.bytes = 0;
-					obj.url = "LicenseAcqPostProcDuration";
-					obj.utcstart = startTime;
-					obj.track = 1;//"DRM";
-					obj.fillStyle = MapMediaColor(-eMEDIATYPE_LICENSE);
-					gBoxDownload.push(obj);
+					gContentType = parseInt(attrs[_contentType]);
 				}
 			} // IP_AAMP_TUNETIME
 		}
@@ -732,6 +703,7 @@ window.onload = function() {
 		
 		// update onscreen duration estimate for IP Video Session
 		document.getElementById("durationID").innerHTML = FormatTime(timestamp_max - timestamp_min) + " Seconds";
+		document.getElementById("contentTypeID").innerHTML = contentTypeString[gContentType];
 		
 		UpdateLayout();
 		
@@ -817,7 +789,8 @@ window.onload = function() {
 		try{
 			for (var fileIndex = 0; fileIndex < files.length; fileIndex++) {
 				var f = files[fileIndex];
-				if (f.type == "application/json")
+				alert(f.type);
+				if (f.type == "text/javascript")
 				{
 					var filename = f.name;
 					console.log( "processing: " + filename );
@@ -846,7 +819,8 @@ window.onload = function() {
 		marker_priv_aamp,
 		marker_hls,
 		marker_dash,
-		marker_tsprocessor];
+		marker_tsprocessor,
+        marker_sky ];
 
 	for (var fileIndex = 0; fileIndex < myFileArray.length; ++fileIndex)
 	{
@@ -854,7 +828,12 @@ window.onload = function() {
 		{
 			var obj = {};
 			obj.pattern = myFileArray[fileIndex][markerIndex].pattern;
-			obj.label = myFileArray[fileIndex][markerIndex].label;
+            obj.label = myFileArray[fileIndex][markerIndex].label;
+            obj.style = myFileArray[fileIndex][markerIndex].style;
+            if( obj.style )
+            {
+                console.log( obj.label + "->" + obj.style );
+            }
 			markerCfg.push(obj);
 		}
 	}
