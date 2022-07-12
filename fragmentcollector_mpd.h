@@ -382,6 +382,17 @@ public:
 	 * @param[out] tTracks text tracks
 	 */
 	void ParseTrackInformation(IAdaptationSet *adaptationSet, uint32_t iAdaptationIndex, MediaType media, std::vector<AudioTrackInfo> &aTracks, std::vector<TextTrackInfo> &tTracks);
+	bool mperiodChanged[AAMP_TRACK_COUNT];
+	bool mpendingPtoProcessing[AAMP_TRACK_COUNT];
+	double mtempDelta[AAMP_TRACK_COUNT];
+	double mFirstBufferScaledPts[AAMP_TRACK_COUNT];
+	uint64_t mLastPlaylistDownloadTimeMs; // Last playlist refresh time
+	/**
+	 * @fn ProcessPlaylist
+	 * @param newPlaylist buffer
+	 * @param[out] http_error code
+	 */
+	void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error);
 private:
 	/**
 	 * @fn printSelectedTrack
@@ -427,6 +438,10 @@ private:
 	 * @param root: XML root node
 	 */ 
 	bool FindServerUTCTime(Node* root);
+	/**
+	 * @fn FetchDashManifest
+	 */
+	AAMPStatusType FetchDashManifest();
 	/**
 	 * @fn FindTimedMetadata
 	 * @param mpd MPD top level element
@@ -530,7 +545,7 @@ private:
 	/**
 	 * @fn UpdateTrackInfo
 	 */
-	AAMPStatusType UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex=false);
+	AAMPStatusType UpdateTrackInfo(bool modifyDefaultBW, bool resetTimeLineIndex=false);
 	/**
 	 * @fn SkipFragments
 	 * @param pMediaStreamContext Media track object
@@ -562,11 +577,11 @@ private:
 	/**
 	 * @fn GetCulledSeconds
 	 */
-	double GetCulledSeconds();
+	double GetCulledSeconds(std::vector<PeriodInfo> &currMPDPeriodDetails);
 	/**
 	 * @fn UpdateCulledAndDurationFromPeriodInfo
 	 */
-	void UpdateCulledAndDurationFromPeriodInfo();
+	void UpdateCulledAndDurationFromPeriodInfo(std::vector<PeriodInfo> &currMPDPeriodDetails);
 	/**
 	 * @fn UpdateLanguageList
 	 * @return void
@@ -603,13 +618,13 @@ private:
 	 */
 	std::string GetLanguageForAdaptationSet( IAdaptationSet *adaptationSet );
 	/**
-	 * @fn GetMpdFromManfiest
+	 * @fn GetMpdFromManifest
 	 * @param manifest buffer pointer
 	 * @param mpd MPD object of manifest
 	 * @param manifestUrl manifest url
 	 * @param init true if this is the first playlist download for a tune/seek/trickplay
 	 */
-	AAMPStatusType GetMpdFromManfiest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init = false);
+	AAMPStatusType GetMpdFromManifest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init);
 	/**
 	 * @fn GetDrmPrefs
 	 * @param The UUID for the DRM type
@@ -632,19 +647,6 @@ private:
 	 * @param isFogPeriod true if it is fog period
 	 */
 	bool IsEmptyAdaptation(IAdaptationSet *adaptationSet, bool isFogPeriod);
-	/**
-	 * @fn GetAvailableVSSPeriods
-	 * @param PeriodIds vector of new Early Available Periods
-	 */
-	void GetAvailableVSSPeriods(std::vector<IPeriod*>& PeriodIds);
-	/**
-	 * @fn CheckForVssTags
-	 */
-	bool CheckForVssTags();
-	/**
-	 * @fn GetVssVirtualStreamID
-	 */
-	std::string GetVssVirtualStreamID();
 	/**
 	 * @fn IsMatchingLanguageAndMimeType
 	 * @param[in] type - media type
@@ -729,6 +731,10 @@ private:
 	class MediaStreamContext *mMediaStreamContext[AAMP_TRACK_COUNT];
 	int mNumberOfTracks;
 	int mCurrentPeriodIdx;
+	size_t mNumberOfPeriods;	// Number of periods in the updated manifest
+	unsigned mIterPeriodIndex;	// FetcherLoop period iterator index
+	unsigned mUpperBoundaryPeriod;	// Last playable period index
+	unsigned mLowerBoundaryPeriod;	// First playable period index
 	double mEndPosition;
 	bool mIsLiveStream;    	    	   /**< Stream is live or not; won't change during runtime. */
 	bool mIsLiveManifest;   	   /**< Current manifest is dynamic or static; may change during runtime. eg: Hot DVR. */
@@ -743,7 +749,6 @@ private:
 	uint64_t mMinUpdateDurationMs;
 	double mTSBDepth;
 	double mPresentationOffsetDelay;
-	uint64_t mLastPlaylistDownloadTimeMs;
 	double mFirstPTS;
 	double mStartTimeOfFirstPTS;
 	double mVideoPosRemainder;
@@ -751,6 +756,8 @@ private:
 	AudioType mAudioType;
 	int mPrevAdaptationSetCount;
 	std::vector<long> mBitrateIndexVector;
+	bool playlistDownloaderThreadStarted; // Playlist downloader thread start status
+
 	// In case of streams with multiple video Adaptation Sets, A profile
 	// is a combination of an Adaptation Set and Representation within
 	// that Adaptation Set. Hence we need a mapping from a profile to
@@ -783,6 +790,7 @@ private:
 	double mDeltaTime;
 	double mHasServerUtcTime;
 	bool mLiveTimeFragmentSync;
+	std::mutex playlistMutex;       /**< Mutex locked for accessing and updating mpd document */
  	/**
 	 * @fn GetPeriodStartTime
 	 * @param mpd : pointer manifest
@@ -825,6 +833,18 @@ private:
 	 * @fn FindPeriodGapsAndReport
 	 */
 	void FindPeriodGapsAndReport();
+	/**
+	 * @fn IndexNewMPDDocument
+	 */
+	void IndexNewMPDDocument(bool updateTrackInfo = true);
+	/**
+	 * @fn AcquirePlaylistLock
+	 */
+	void AcquirePlaylistLock();
+	/**
+	 * @fn ReleasePlaylistLock
+	 */
+	void ReleasePlaylistLock();
 	
 #ifdef AAMP_MPD_DRM
 	/**
@@ -849,6 +869,24 @@ private:
 	 */
 	std::shared_ptr<AampDrmHelper> CreateDrmHelper(IAdaptationSet * adaptationSet,MediaType mediaType);
 #endif
+	/**
+	* @fn CheckForVssTags
+	*/
+	bool CheckForVssTags();
+	/**
+	* @fn ProcessVssLicenseRequset
+	*/
+	void ProcessVssLicenseRequset();
+	/**
+	* @fn GetAvailableVSSPeriods
+	* @param PeriodIds VSS Periods
+	*/
+	void GetAvailableVSSPeriods(std::vector<IPeriod*>& PeriodIds);
+	/**
+	* @fn GetVssVirtualStreamID
+	*/
+	std::string GetVssVirtualStreamID();
+
 	std::vector<StreamInfo*> thumbnailtrack;
 	std::vector<TileInfo> indexedTileInfo;
 	double mFirstPeriodStartTime; /*< First period start time for progress report*/
