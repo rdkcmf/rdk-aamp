@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>UVE Shim Demo</title>
+    <script src="uve.js"></script>
+    <script src="sampleApp.js"></script>
+</head>
+
+<body>
+	<div id="playbackButtonsNav">
+		<button onclick="app_load()" class="button" id="loadButton">Load</button>
+		<button onclick="app_play()" class="button" id="playButton">Play</button>
+		<button onclick="app_pause()" class="button" id="pauseButton">Pause</button>
+		<button onclick="app_seek(0*60)" class="button" id="seekButton0">seek 0:00</button>
+		<button onclick="app_seek(1*60)" class="button" id="seekButton1">seek 1:00</button>
+		<button onclick="app_seek(2*60)" class="button" id="seekButton2">seek 2:00</button>
+		<button onclick="app_seek(3*60)" class="button" id="seekButton3">seek 3:00</button>
+	</div>
+
+	<video id="dummyVideo" style="height:100%; width:100%; position:absolute; bottom:0; left:0">
+        <source src="dummy.mp4" type="video/ave"> <!-- hole punching -->
+    </video>
+
+
+	<style>
+		#playbackButtonsNav {
+			height:65px;
+			position: fixed;
+			bottom: 10px;
+			width:100%;
+			left: 30%;
+			z-index: 100;
+		}
+
+		.button {
+			background-color:  rgba(255,255,255,0.8); 
+			text-align: center;
+			display: inline-block;
+			border-radius: 2px;
+			border: 2px solid #15c27a;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, .6);
+			height: 30px;
+		}
+
+		.focus {
+    		background:#15c27a;
+		}
+	</style>
+</body>
+
+</html>
