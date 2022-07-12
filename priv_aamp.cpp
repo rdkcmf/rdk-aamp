@@ -6432,6 +6432,14 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 			if ((diff > MAX_DIFF_BETWEEN_PTS_POS_MS) || (diff < 0))
 			{
 				AAMPLOG_WARN("diff %lld prev-pos-ms %lld current-pos-ms %lld, restore prev-pos as current-pos!!", diff, prevPositionMiliseconds, positionMiliseconds);
+#ifdef AMLOGIC
+				//Charter workaround to avoid AV sync issue due to -ve PTS rollback
+				if(diff < 0 && mAppName == "SpectrumTV")
+				{
+					AAMPLOG_WARN("PTS roll back detected. Retune initiated to avoid AVsync issue");
+					ScheduleRetune(eGST_ERROR_PTS_ROLL_BACK, eMEDIATYPE_VIDEO);
+				}
+#endif
 				positionMiliseconds = prevPositionMiliseconds;
 			}
 		}
@@ -7111,13 +7119,17 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 		}
 
 		const char* errorString  =  (errorType == eGST_ERROR_PTS) ? "PTS ERROR" :
-									(errorType == eGST_ERROR_UNDERFLOW) ? "Underflow" :
-									(errorType == eSTALL_AFTER_DISCONTINUITY) ? "Stall After Discontinuity" :
-									(errorType == eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED)?"LL DASH Max Correction Reached":
-									(errorType == eDASH_LOW_LATENCY_INPUT_PROTECTION_ERROR)?"LL DASH Input Protection Error":
-									(errorType == eGST_ERROR_GST_PIPELINE_INTERNAL) ? "GstPipeline Internal Error" : "STARTTIME RESET";
-
-		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"), errorString);
+			(errorType == eGST_ERROR_UNDERFLOW) ? "Underflow" :
+			(errorType == eSTALL_AFTER_DISCONTINUITY) ? "Stall After Discontinuity" :
+			(errorType == eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED)?"LL DASH Max Correction Reached":
+			(errorType == eDASH_LOW_LATENCY_INPUT_PROTECTION_ERROR)?"LL DASH Input Protection Error":
+			(errorType == eGST_ERROR_GST_PIPELINE_INTERNAL) ? "GstPipeline Internal Error" :
+			(errorType == eGST_ERROR_PTS_ROLL_BACK) ? "GstPipeline PTS roll back error" : "STARTTIME RESET";
+		//Do not send anomaly report for -ve PTS roll back
+		if(eGST_ERROR_PTS_ROLL_BACK != errorType)
+		{	
+			SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"), errorString);
+		}
 		bool activeAAMPFound = false;
 		pthread_mutex_lock(&gMutex);
 		for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
@@ -7131,13 +7143,13 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 				}
 				else
 				{
-					if(eGST_ERROR_PTS == errorType || eGST_ERROR_UNDERFLOW == errorType)
+					if(eGST_ERROR_PTS == errorType || eGST_ERROR_UNDERFLOW == errorType || eGST_ERROR_PTS_ROLL_BACK == errorType)
 					{
 						long long now = aamp_GetCurrentTimeMS();
 						long long lastErrorReportedTimeMs = lastUnderFlowTimeMs[trackType];
 						int ptsErrorThresholdValue = 0;
 						GETCONFIGVALUE_PRIV(eAAMPConfig_PTSErrorThreshold,ptsErrorThresholdValue);
-						if (lastErrorReportedTimeMs)
+						if (lastErrorReportedTimeMs || eGST_ERROR_PTS_ROLL_BACK == errorType) //For PTS rollback, retune even for the first occurance
 						{
 							bool isRetuneRequried = false;
 							long long diffMs = (now - lastErrorReportedTimeMs);
@@ -7156,7 +7168,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 									isRetuneRequried = true;
 								}
 							}
-							if(isRetuneRequried)
+							if(isRetuneRequried || eGST_ERROR_PTS_ROLL_BACK == errorType)
 							{
 								gAAMPInstance->numPtsErrors++;
 								AAMPLOG_WARN("PrivateInstanceAAMP: numPtsErrors %d, ptsErrorThreshold %d",

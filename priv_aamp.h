@@ -179,7 +179,8 @@ enum PlaybackErrorType
 	eSTALL_AFTER_DISCONTINUITY,		/** Playback stall after notifying discontinuity */
 	eGST_ERROR_GST_PIPELINE_INTERNAL,	/** GstPipeline Internal Error */
 	eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED, /**Low Latency Dash Max Correction Reached**/
-	eDASH_LOW_LATENCY_INPUT_PROTECTION_ERROR /**Low Latency Dash Input Protection error **/
+	eDASH_LOW_LATENCY_INPUT_PROTECTION_ERROR, /**Low Latency Dash Input Protection error **/
+	eGST_ERROR_PTS_ROLL_BACK /**PTS backward rollback error - charter hack **/
 };
 
 
