@@ -577,11 +577,11 @@ private:
 	/**
 	 * @fn GetCulledSeconds
 	 */
-	double GetCulledSeconds();
+	double GetCulledSeconds(std::vector<PeriodInfo> &currMPDPeriodDetails);
 	/**
 	 * @fn UpdateCulledAndDurationFromPeriodInfo
 	 */
-	void UpdateCulledAndDurationFromPeriodInfo();
+	void UpdateCulledAndDurationFromPeriodInfo(std::vector<PeriodInfo> &currMPDPeriodDetails);
 	/**
 	 * @fn UpdateLanguageList
 	 * @return void

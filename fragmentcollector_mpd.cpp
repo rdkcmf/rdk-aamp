@@ -4473,6 +4473,19 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			mMediaStreamContext[i]->representationIndex = -1;
 		}
 
+		auto periods = mpd->GetPeriods();
+		std::vector<PeriodInfo> currMPDPeriodDetails;
+		for (int iter = 0; iter < periods.size(); iter++)
+		{
+			auto period = periods.at(iter);
+			PeriodInfo periodInfo;
+			periodInfo.periodId = period->GetId();
+			periodInfo.duration = GetPeriodDuration(mpd, iter);
+			periodInfo.startTime = GetFirstSegmentStartTime(period);
+			periodInfo.timeScale = GetPeriodSegmentTimeScale(period);
+			currMPDPeriodDetails.push_back(periodInfo);
+		}
+
 		uint64_t nextPeriodStart = 0;
 		double currentPeriodStart = 0;
 		double prevPeriodEndMs = 0; // used to find gaps between periods
@@ -4482,7 +4495,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		if (ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && mIsLiveStream && !aamp->IsUninterruptedTSB())
 		{
 			double culled = aamp->culledSeconds;
-			UpdateCulledAndDurationFromPeriodInfo();
+			UpdateCulledAndDurationFromPeriodInfo(currMPDPeriodDetails);
 			culled = aamp->culledSeconds - culled;
 			if (culled > 0 && !newTune)
 			{
@@ -4847,7 +4860,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				double culled = 0;
 				if(mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
 				{
-					culled = GetCulledSeconds();
+					culled = GetCulledSeconds(currMPDPeriodDetails);
 				}
 				if(culled > 0)
 				{
@@ -4923,7 +4936,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				}
 
 				aamp->UpdateDuration(((double)durationMs)/1000);
-				GetCulledSeconds();
+				GetCulledSeconds(currMPDPeriodDetails);
 				aamp->UpdateRefreshPlaylistInterval((float)mMinUpdateDurationMs / 1000);
 				mProgramStartTime = mAvailabilityStartTime;
 			}
@@ -5086,6 +5099,7 @@ void StreamAbstractionAAMP_MPD::ProcessPlaylist(GrowableBuffer& newPlaylist, lon
 		MPD* mpd = nullptr;
 		vector<std::string> locationUrl;
 		AAMPStatusType ret = GetMpdFromManifest(newPlaylist, mpd, aamp->mManifestUrl, false);
+
 		if (eAAMPSTATUS_OK == ret)
 		{
 			/* DELIA-42794: All manifest requests after the first should
@@ -5098,7 +5112,7 @@ void StreamAbstractionAAMP_MPD::ProcessPlaylist(GrowableBuffer& newPlaylist, lon
 			}
 			if (this->mpd)
 			{
-				delete this->mpd;
+				SAFE_DELETE(this->mpd);
 			}
 			this->mpd = mpd;
 			mIsLiveManifest = !(mpd->GetType() == "static");
@@ -5121,11 +5135,6 @@ void StreamAbstractionAAMP_MPD::ProcessPlaylist(GrowableBuffer& newPlaylist, lon
 	}
 	else
 	{
-		if(newPlaylist.ptr)
-		{
-			// Clear data
-			aamp_Free(&newPlaylist);
-		}
 		if (aamp->DownloadsAreEnabled())
 		{
 			aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST, http_error);
@@ -5145,6 +5154,12 @@ void StreamAbstractionAAMP_MPD::ProcessPlaylist(GrowableBuffer& newPlaylist, lon
 		{
 			AAMPLOG_ERR("manifest download failed");
 		}
+	}
+
+	if(newPlaylist.ptr)
+	{
+		// Clear playlist data
+		aamp_Free(&newPlaylist);
 	}
 }
 
@@ -5232,11 +5247,29 @@ void StreamAbstractionAAMP_MPD::IndexNewMPDDocument(bool updateTrackInfo)
 				UpdateTrackInfo(true, true);
 				mFreshManifest = true;
 			}
+			// To store period duration in local reference to avoid duplicate mpd parsing to reduce processing delay
+			auto periods = mpd->GetPeriods();
+			std::vector<PeriodInfo> currMPDPeriodDetails;
+			uint64_t durMs = 0;
+			for (int iter = 0; iter < periods.size(); iter++)
+			{
+				auto period = periods.at(iter);
+				PeriodInfo periodInfo;
+				periodInfo.periodId = period->GetId();
+				periodInfo.duration = GetPeriodDuration(mpd, iter);
+				periodInfo.startTime = GetFirstSegmentStartTime(period);
+				periodInfo.timeScale = GetPeriodSegmentTimeScale(period);
+				currMPDPeriodDetails.push_back(periodInfo);
+				if(!IsEmptyPeriod(mpd->GetPeriods().at(iter), mIsFogTSB))
+				{
+					durMs += periodInfo.duration;
+				}
+			}
 
 			double culled = 0;
 			if(mMediaStreamContext[eMEDIATYPE_VIDEO]->enabled)
 			{
-				culled = GetCulledSeconds();
+				culled = GetCulledSeconds(currMPDPeriodDetails);
 			}
 			if(culled > 0)
 			{
@@ -5246,21 +5279,14 @@ void StreamAbstractionAAMP_MPD::IndexNewMPDDocument(bool updateTrackInfo)
 			}
 			if(ISCONFIGSET(eAAMPConfig_UseAbsoluteTimeline) && !aamp->IsUninterruptedTSB())
 			{
-				UpdateCulledAndDurationFromPeriodInfo();
+				UpdateCulledAndDurationFromPeriodInfo(currMPDPeriodDetails);
 			}
 
 			mPeriodEndTime = GetPeriodEndTime(mpd, mCurrentPeriodIdx, mLastPlaylistDownloadTimeMs);
 			mPeriodStartTime = GetPeriodStartTime(mpd, mCurrentPeriodIdx);
 			mPeriodDuration = GetPeriodDuration(mpd, mCurrentPeriodIdx);
-			uint64_t durMs = 0;
-			for(int periodIter = 0; periodIter < mpd->GetPeriods().size(); periodIter++)
-			{
-				if(!IsEmptyPeriod(mpd->GetPeriods().at(periodIter), mIsFogTSB))
-				{
-					durMs += GetPeriodDuration(mpd, periodIter);
-				}
-			}
-			double duration = (double)durMs / 1000;
+
+			double duration = durMs / 1000;
 			aamp->UpdateDuration(duration);
 			mLiveEndPosition = duration + mCulledSeconds;
 		}
@@ -8113,7 +8139,7 @@ IPeriod *StreamAbstractionAAMP_MPD::GetPeriod( void )
 /**
  * @brief Update culling state for live manifests
  */
-double StreamAbstractionAAMP_MPD::GetCulledSeconds()
+double StreamAbstractionAAMP_MPD::GetCulledSeconds(std::vector<PeriodInfo> &currMPDPeriodDetails)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	double newStartTimeSeconds = 0;
@@ -8129,19 +8155,6 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 			segmentTimeline = segmentTemplates.GetSegmentTimeline();
 			if (segmentTimeline)
 			{
-				auto periods = mpd->GetPeriods();
-				vector<PeriodInfo> currMPDPeriodDetails;
-				for (int iter = 0; iter < periods.size(); iter++)
-				{
-					auto period = periods.at(iter);
-					PeriodInfo periodInfo;
-					periodInfo.periodId = period->GetId();
-					periodInfo.duration = GetPeriodDuration(mpd, iter)/ 1000;
-					periodInfo.startTime = GetFirstSegmentStartTime(period);
-					periodInfo.timeScale = GetPeriodSegmentTimeScale(period);
-					currMPDPeriodDetails.push_back(periodInfo);
-				}
-
 				int iter1 = 0;
 				PeriodInfo currFirstPeriodInfo = currMPDPeriodDetails.at(0);
 				while (iter1 < aamp->mMPDPeriodsInfo.size())
@@ -8164,10 +8177,10 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 					}
 					else
 					{
-						culled += prevPeriodInfo.duration;
+						culled += (prevPeriodInfo.duration / 1000);
 						iter1++;
 						AAMPLOG_WARN("PeriodId %s , with last known duration %f seems to have got culled",
-										prevPeriodInfo.periodId.c_str(), prevPeriodInfo.duration);
+										prevPeriodInfo.periodId.c_str(), (prevPeriodInfo.duration / 1000));
 					}
 				}
 				aamp->mMPDPeriodsInfo = currMPDPeriodDetails;
@@ -8336,7 +8349,7 @@ double StreamAbstractionAAMP_MPD::GetCulledSeconds()
 /**
  * @brief Update culled and duration value from periodinfo
  */
-void StreamAbstractionAAMP_MPD::UpdateCulledAndDurationFromPeriodInfo()
+void StreamAbstractionAAMP_MPD::UpdateCulledAndDurationFromPeriodInfo(std::vector<PeriodInfo> &currMPDPeriodDetails)
 {
 	IPeriod* firstPeriod = NULL;
 	unsigned firstPeriodIdx = 0;
@@ -8398,13 +8411,15 @@ void StreamAbstractionAAMP_MPD::UpdateCulledAndDurationFromPeriodInfo()
 			// Updating duration as culled + total duration as manifest is changing to VOD
 			AAMPLOG_WARN("Duration is less than culled seconds, updating it wrt actual fragment duration");
 			aamp->mAbsoluteEndPosition = 0;
-			for (unsigned iPeriod = 0; iPeriod < mpd->GetPeriods().size(); iPeriod++)
+			int iter = 0;
+			while (iter < aamp->mMPDPeriodsInfo.size())
 			{
-				IPeriod *period = mpd->GetPeriods().at(iPeriod);
-				if(!IsEmptyPeriod(period))
+				PeriodInfo periodInfo = currMPDPeriodDetails.at(iter);
+				if(!IsEmptyPeriod(mpd->GetPeriods().at(iter)))
 				{
-					aamp->mAbsoluteEndPosition += (GetPeriodDuration(mpd, iPeriod) / 1000.00);
+					aamp->mAbsoluteEndPosition += (periodInfo.duration / 1000.0);
 				}
+				iter++;
 			}
 			aamp->mAbsoluteEndPosition += aamp->culledSeconds;
 		}
@@ -9447,7 +9462,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 					}
 					ReleasePlaylistLock();
 					int timeoutMs = refreshInterval - (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
-					if(timeoutMs <= 0 && mIsLiveManifest && rate > 0)
+					if(timeoutMs <= 0 && mIsLiveManifest && rate > 0 && !bCacheFullState)
 					{
 						liveMPDRefresh = true;
 						break;
@@ -12041,8 +12056,8 @@ bool StreamAbstractionAAMP_MPD::ParseMPDLLData(MPD* mpd, AampLLDashServiceData &
            stAampLLDashServiceData.utcTiming == eUTC_HTTP_ISO ||
            stAampLLDashServiceData.utcTiming == eUTC_HTTP_NTP)
         {
-            long http_error = -1;
-            AAMPLOG_TRACE("UTCTiming(%d) Value: %s",stAampLLDashServiceData.utcTiming, utcTiming->GetValue().c_str());
+	    long http_error = -1;
+	    AAMPLOG_TRACE("UTCTiming(%d) Value: %s",stAampLLDashServiceData.utcTiming, utcTiming->GetValue().c_str());
             bool bFlag = aamp->GetNetworkTime(stAampLLDashServiceData.utcTiming, utcTiming->GetValue(), &http_error, eCURL_GET);
         }
     }

@@ -345,7 +345,6 @@ static gboolean PrivateInstanceAAMP_ProcessDiscontinuity(gpointer ptr)
 			aamp->SyncEnd();
 		}
 		pthread_cond_signal(&aamp->mCondDiscontinuity);
-
 	}
 	return G_SOURCE_REMOVE;
 }
