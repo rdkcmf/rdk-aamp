@@ -399,4 +399,67 @@ bool MediaStreamContext::IsAtEndOfTrack()
     return eosReached;
 }
 
+/**
+ * @brief Returns the MPD playlist URL
+ */
+std::string& MediaStreamContext::GetPlaylistUrl()
+{
+    return mPlaylistUrl;
+}
+
+/**
+ * @brief Returns the MPD original playlist URL
+ */
+std::string& MediaStreamContext::GetEffectivePlaylistUrl()
+{
+    return mEffectiveUrl;
+}
+
+/**
+ * @brief Sets the HLS original playlist URL
+ */
+void MediaStreamContext::SetEffectivePlaylistUrl(std::string url)
+{
+    mEffectiveUrl = url;
+}
+
+/**
+ * @brief Returns last playlist download time
+ */
+long long MediaStreamContext::GetLastPlaylistDownloadTime()
+{
+    return (long long) context->mLastPlaylistDownloadTimeMs;
+}
+
+/**
+ * @brief Sets last playlist download time
+ */
+void MediaStreamContext::SetLastPlaylistDownloadTime(long long time)
+{
+    context->mLastPlaylistDownloadTimeMs = time;
+}
+
+/**
+ * @brief Returns minimum playlist update duration in Ms
+ */
+long MediaStreamContext::GetMinUpdateDuration()
+{
+    return (long) context->GetMinUpdateDuration();
+}
+
+/**
+ * @brief Returns default playlist update duration in Ms
+ */
+int MediaStreamContext::GetDefaultDurationBetweenPlaylistUpdates()
+{
+    return DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS;
+}
+
+/**
+ * @brief ProcessPlaylist after MPD refresh
+ */
+void MediaStreamContext::ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error)
+{
+    context->ProcessPlaylist(newPlaylist, http_error);
+}
 

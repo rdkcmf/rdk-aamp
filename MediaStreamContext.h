@@ -53,7 +53,9 @@ public:
             downloadedDuration(0)
 	   , scaledPTO(0)
 	   , failAdjacentSegment(false)
+	   , mPlaylistUrl(""), mEffectiveUrl(""),freshManifest(false)
     {
+        mPlaylistUrl = aamp->GetManifestUrl();
         memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
         fragmentDescriptor.bUseMatchingBaseUrl = ISCONFIGSET(eAAMPConfig_MatchBaseUrl);
     }
@@ -140,6 +142,57 @@ public:
      */
     bool IsAtEndOfTrack();
 
+    /**
+     * @fn GetPlaylistUrl
+     * @return string - playlist URL
+     */
+    std::string& GetPlaylistUrl();
+
+    /**
+     * @fn GetEffectivePlaylistUrl
+     * @return string - original playlist URL(redirected)
+     */
+    std::string& GetEffectivePlaylistUrl();
+
+    /**
+     * @fn SetEffectivePlaylistUrl
+     * @param string - original playlist URL
+     */
+    void SetEffectivePlaylistUrl(std::string url);
+
+    /**
+     * @fn GetLastPlaylistDownloadTime
+     * @return lastPlaylistDownloadTime
+     */
+    long long GetLastPlaylistDownloadTime();
+
+    /**
+     * @fn SetLastPlaylistDownloadTime
+     * @param[in] time last playlist download time
+     * @return void
+     */
+    void SetLastPlaylistDownloadTime(long long time);
+
+    /**
+     * @fn GetMinUpdateDuration
+     * @return minimumUpdateDuration
+     */
+    long GetMinUpdateDuration();
+
+    /**
+     * @fn GetDefaultDurationBetweenPlaylistUpdates
+     * @return maxIntervalBtwPlaylistUpdateMs
+     */
+    int GetDefaultDurationBetweenPlaylistUpdates();
+
+    /**
+     * @fn ProcessPlaylist
+     * @param[in] newPlaylist buffer
+     * @param[in] http error code
+     * @return void
+     */
+    void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error);
+
     MediaType mediaType;
     struct FragmentDescriptor fragmentDescriptor;
     const IAdaptationSet *adaptationSet;
@@ -170,6 +223,9 @@ public:
     bool mSkipSegmentOnError;
     double scaledPTO;
     bool failAdjacentSegment;
+    std::string mPlaylistUrl;
+    std::string mEffectiveUrl; 		/**< uri associated with downloaded playlist (takes into account 302 redirect) */
+    bool freshManifest;
 }; // MediaStreamContext
 
 #endif /* MEDIASTREAMCONTEXT_H */
