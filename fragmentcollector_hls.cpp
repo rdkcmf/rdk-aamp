@@ -5117,6 +5117,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				{
 					AAMPLOG_TRACE("Setting audio playtarget %f to video playtarget %f", audio->playTarget, ts->playTarget);
 					audio->playTarget = ts->playTarget;
+					subtitle->playTarget = ts->playTarget;
 				}
 			}
 			if (IsLive() && audio->enabled && !ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
