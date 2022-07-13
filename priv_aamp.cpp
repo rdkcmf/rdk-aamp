@@ -5220,7 +5220,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	{
 		mSeekOperationInProgress = false;
 		// Pipeline is not configured if mbPlayEnabled is false, so not required
-		if (mbPlayEnabled && pipeline_paused == true)
+		if (mbPlayEnabled && seekWhilePaused == false && pipeline_paused == true)
 		{
 			if(!mStreamSink->Pause(true, false))
 			{

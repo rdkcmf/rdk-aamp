@@ -1079,15 +1079,6 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 				aamp->pipeline_paused = false;
 				sentSpeedChangedEv = true;
 			}
-#ifdef AMLOGIC
-			else
-			{
-				// For amlogic only, delay going into the paused state until we receive the 
-				// 'displayed first frame' notification
-				AAMPLOG_WARN("Clearing paused flag for seek while paused");
-				aamp->pipeline_paused = false;
-			}
-#endif			
 			// Resume downloads
 			AAMPLOG_INFO("Resuming downloads");
 			aamp->ResumeDownloads();
