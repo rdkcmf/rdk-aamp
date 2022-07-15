@@ -528,6 +528,12 @@ private:
 	 */
 	int GetProfileIdxForBandwidthNotification(uint32_t bandwidth);
 	/**
+	 * @fn GetCurrentMimeType
+	 * @param MediaType type of media
+	 * @retval mimeType
+	 */
+	std::string GetCurrentMimeType(MediaType mediaType);
+	/**
 	 * @fn UpdateTrackInfo
 	 */
 	AAMPStatusType UpdateTrackInfo(bool modifyDefaultBW, bool periodChanged, bool resetTimeLineIndex=false);
