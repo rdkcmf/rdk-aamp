@@ -527,14 +527,6 @@ private:
 	 * @param bandwidth - bandwidth to identify profile index from list
 	 */
 	int GetProfileIdxForBandwidthNotification(uint32_t bandwidth);
-
-	/**
-	 * @fn GetCurrentMimeType
-	 * @param MediaType type of media
-	 * @retval mimeType
-	 */
-	std::string StreamAbstractionAAMP_MPD::GetCurrentMimeType(MediaType mediaType);
-
 	/**
 	 * @fn UpdateTrackInfo
 	 */
