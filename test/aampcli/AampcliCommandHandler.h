@@ -18,17 +18,19 @@
  */
 
 /**
- * @file AampcliProcessCommand.h
- * @brief AampcliProcessCommand header file
+ * @file AampcliCommandHandler.h
+ * @brief AampcliCommandHandler header file
  */
 
-#ifndef AAMPCLIPROCESSCOMMAND_H
-#define AAMPCLIPROCESSCOMMAND_H
+#ifndef AAMPCLICOMMANDHANDLER_H
+#define AAMPCLICOMMANDHANDLER_H
 
 #include <string>
 #include <map>
 #include <vector>
 #include <priv_aamp.h>
+
+using std::string;
 
 class Command
 {
@@ -38,13 +40,16 @@ class Command
 		virtual bool execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp) = 0;
 };
 
-class CommandDispatcher
+class CommandHandler
 {
 	public:
 		static std::map<std::string, Command*> mCommandMap;
 		void registerAampcliCommands();
+		void registerCommandObjects();
 		void registerCommand(const std::string& commandName, Command* command);
 		bool dispatchAampcliCommands(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
+		void registerAllCommands();
+		static char **commandCompletion(const char *text, int start, int end);
 };
 
-#endif // AAMPCLIPROCESSCOMMAND_H
+#endif // AAMPCLICOMMANDHANDLER_H

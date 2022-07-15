@@ -225,7 +225,7 @@ endif()
 
 set(AAMP_CLI_HEADERS test/aampcli/Aampcli.h 
 		     test/aampcli/AampcliPlaybackCommand.h
-	             test/aampcli/AampcliProcessCommand.h
+	             test/aampcli/AampcliCommandHandler.h
 		     test/aampcli/AampcliGet.h
 		     test/aampcli/AampcliSet.h
 		     test/aampcli/AampcliVirtualChannelMap.h
@@ -234,7 +234,7 @@ set(AAMP_CLI_HEADERS test/aampcli/Aampcli.h
 		     ${AAMP_OS_SOURCES})
 set(AAMP_CLI_SOURCES test/aampcli/Aampcli.cpp 
 		     test/aampcli/AampcliPlaybackCommand.cpp
-	             test/aampcli/AampcliProcessCommand.cpp
+	             test/aampcli/AampcliCommandHandler.cpp
 		     test/aampcli/AampcliGet.cpp
 		     test/aampcli/AampcliSet.cpp
 		     test/aampcli/AampcliVirtualChannelMap.cpp
@@ -501,6 +501,7 @@ set(LIBAAMP_SOURCES "${LIBAAMP_SOURCES}" "${LIBAAMP_DRM_SOURCES}")
 
 add_library(aamp SHARED ${LIBAAMP_SOURCES} ${LIBAAMP_HELP_SOURCES})
 add_executable(aamp-cli ${AAMP_CLI_HEADERS} ${AAMP_CLI_SOURCES})
+target_link_libraries(aamp-cli "-lreadline")
 add_executable(playbintest test/playbintest.cpp)
 target_link_libraries(playbintest ${PLAYBINTEST_DEPENDS})
 

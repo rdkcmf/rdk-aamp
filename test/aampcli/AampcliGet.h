@@ -25,57 +25,19 @@
 #ifndef AAMPCLIGET_H
 #define AAMPCLIGET_H
 
-#include <string>
+#include <cstring>
 #include <priv_aamp.h>
-#include "AampcliProcessCommand.h"
-
-/**
- * @enum AAMPGetTypes
- * @brief Define the enum values of get types
- */
-typedef enum {
-	eAAMP_GET_CurrentState,
-	eAAMP_GET_CurrentAudioLan,
-	eAAMP_GET_CurrentDrm,
-	eAAMP_GET_PlaybackPosition,
-	eAAMP_GET_PlaybackDuration,
-	eAAMP_GET_VideoBitrate,
-	eAAMP_GET_InitialBitrate,
-	eAAMP_GET_InitialBitrate4k,
-	eAAMP_GET_MinimumBitrate,
-	eAAMP_GET_MaximumBitrate,
-	eAAMP_GET_AudioBitrate,
-	eAAMP_GET_VideoZoom,
-	eAAMP_GET_VideoMute,
-	eAAMP_GET_AudioVolume,
-	eAAMP_GET_PlaybackRate,
-	eAAMP_GET_VideoBitrates,
-	eAAMP_GET_AudioBitrates,
-	eAAMP_GET_CurrentPreferredLanguages,
-	eAAMP_GET_RampDownLimit,
-	eAAMP_GET_AvailableAudioTracks,
-	eAAMP_GET_AllAvailableAudioTracks,
-	eAAMP_GET_AvailableTextTracks,
-	eAAMP_GET_AllAvailableTextTracks,
-	eAAMP_GET_AudioTrack,
-	eAAMP_GET_InitialBufferDuration,
-	eAAMP_GET_AudioTrackInfo,
-	eAAMP_GET_TextTrackInfo,
-	eAAMP_GET_PreferredAudioProperties,
-	eAAMP_GET_PreferredTextProperties,
-	eAAMP_GET_CCStatus,
-	eAAMP_GET_TextTrack,
-	eAAMP_GET_ThumbnailConfig,
-	eAAMP_GET_ThumbnailData,
-	eAAMP_GET_AvailableVideoTracks,
-	eAAMP_GET_TYPE_COUNT
-}AAMPGetTypes;
+#include "AampcliCommandHandler.h"
 
 class Get : public Command {
 
 	public:
-		void initGetHelpText();
-		void showHelpGet();
+		static std::vector<std::string> commands;
+		static std::map<string,string> getCommands;
+		void addCommand(string command,string description);
+		void registerGetCommands();
+		static char *getCommandRecommender(const char *text, int state);
+		void ShowHelpGet();
 		bool execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
 };
 
