@@ -7168,6 +7168,11 @@ int StreamAbstractionAAMP_MPD::GetProfileIdxForBandwidthNotification(uint32_t ba
 	return profileIndex;
 }
 
+/**
+ * @brief GetCurrentMimeType
+ * @param MediaType type of media
+ * @retval mimeType
+ */
 std::string StreamAbstractionAAMP_MPD::GetCurrentMimeType(MediaType mediaType)
 {
 	if (mediaType >= mNumberOfTracks) return std::string{};
