@@ -102,7 +102,7 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 					const char* licenseRequest, size_t licReqLen, const char* keySystemId,
 					const char* mediaUsage, const char* accessToken, size_t accTokenLen,
 					int64_t* sessionId,
-					char** licenseResponse, size_t* licenseResponseLength, int32_t* statusCode, int32_t* reasonCode)
+					char** licenseResponse, size_t* licenseResponseLength, int32_t* statusCode, int32_t* reasonCode, int32_t* businessStatus)
 {
 	// licenseUrl un-used now
 	(void) licenseUrl;
@@ -259,6 +259,8 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 						*statusCode = resultContext["class"].Number();
 					if(resultContext.HasLabel("reason"))
 						*reasonCode = resultContext["reason"].Number();
+					if(resultContext.HasLabel("businessStatus"))
+						*businessStatus = resultContext["businessStatus"].Number();
 				}
 				
 				if(!ret)
