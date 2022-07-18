@@ -557,6 +557,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 	{
 		int32_t statusCode;
 		int32_t reasonCode;
+		int32_t businessStatus;
 		bool res = AampSecManager::GetInstance()->AcquireLicense(aampInstance, licenseRequest.url.c_str(),
 																 requestMetadata,
 																 ((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
@@ -567,7 +568,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 																 secclientSessionToken, challengeInfo.accessToken.length(),
 																 &mSessionId,
 																 &licenseResponseStr, &licenseResponseLength,
-																 &statusCode, &reasonCode);
+																 &statusCode, &reasonCode, &businessStatus);
 		if (res)
 		{
 			AAMPLOG_WARN("acquireLicense via SecManager SUCCESS!");
@@ -582,6 +583,8 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 		}
 		else
 		{
+			eventHandle->SetVerboseErrorCode( statusCode,  reasonCode, businessStatus);
+			AAMPLOG_WARN("Verbose error set with class : %d, Reason Code : %d Business status: %d ", statusCode, reasonCode, businessStatus);
 			*httpCode = statusCode;
 			*httpExtStatusCode = reasonCode;
 
@@ -636,8 +639,13 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 		if (sec_client_result != SEC_CLIENT_RESULT_SUCCESS)
 		{
 			AAMPLOG_ERR(" acquireLicense FAILED! license request attempt : %d; response code : sec_client %d extStatus %d", attemptCount, sec_client_result, statusInfo.statusCode);
+			
+			eventHandle->ConvertToVerboseErrorCode( sec_client_result,  statusInfo.statusCode);
+			
 			*httpCode = sec_client_result;
 			*httpExtStatusCode = statusInfo.statusCode;
+			
+			AAMPLOG_WARN("Converted the secclient httpCode : %d, httpExtStatusCode: %d to verbose error with class : %d, Reason Code : %d Business status: %d ", *httpCode, *httpExtStatusCode, eventHandle->getSecManagerClassCode(), eventHandle->getSecManagerReasonCode(), eventHandle->getBusinessStatus());
 		}
 		else
 		{
@@ -1510,7 +1518,6 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 				eventHandle->setFailure(AAMP_TUNE_LICENCE_REQUEST_FAILED);
 				eventHandle->setResponseCode(httpResponseCode);
 			}
-
 			return KEY_ERROR;
 		}
 	}
