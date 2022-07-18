@@ -44,6 +44,12 @@ static void GenerateLegacyAAMPEvent(const AAMPEventPtr &e, AAMPEvent &event)
 			event.data.mediaError.code = ev->getCode();
 			event.data.mediaError.description = ev->getDescription().c_str();
 			event.data.mediaError.shouldRetry = ev->shouldRetry();
+			if(-1 != ev->getClass()) //Only send the verbose logging for DRM failure due to secclient/secmanager
+			{
+				event.data.mediaError.classCode = ev->getClass();
+				event.data.mediaError.reasonCode = ev->getReason();
+				event.data.mediaError.shouldRetry = ev->getBusinessStatus();
+			}
 			break;
 		}
 		case AAMP_EVENT_SPEED_CHANGED:

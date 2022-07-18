@@ -1262,7 +1262,7 @@ public:
 	 * @param[in] description - Optional description of error
 	 * @return void
 	 */
-	void SendErrorEvent(AAMPTuneFailure tuneFailure, const char *description = NULL, bool isRetryEnabled = true);
+	void SendErrorEvent(AAMPTuneFailure tuneFailure, const char *description = NULL, bool isRetryEnabled = true, int32_t secManagerClassCode = -1, int32_t secManagerReasonCode = -1, int32_t secClientBusinessStatus = -1);
 
 	/**
 	 * @fn SendDRMMetaData
