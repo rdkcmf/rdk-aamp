@@ -276,6 +276,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	,{"maxCurlStore", eAAMPConfig_MaxCurlSockStore,{.iMinValue=1},{.iMaxValue=10}}
 	,{"configRuntimeDRM", eAAMPConfig_RuntimeDRMConfig,-1,-1}
 	,{"enablePublishingMuxedAudio",eAAMPConfig_EnablePublishingMuxedAudio,-1,-1}
+	,{"enableCMCD", eAAMPConfig_EnableCMCD, -1, -1}
 };
 /////////////////// Public Functions /////////////////////////////////////
 /**
@@ -464,9 +465,11 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_PersistHighNetworkBandwidth].value		=	false;
 	bAampCfgValue[eAAMPConfig_PersistLowNetworkBandwidth].value		=	true;
 	bAampCfgValue[eAAMPConfig_ChangeTrackWithoutRetune].value		=	false;
-	bAampCfgValue[eAAMPConfig_EnableCurlStore].value			=	true;
+	bAampCfgValue[eAAMPConfig_EnableCurlStore].value		= true;
 	bAampCfgValue[eAAMPConfig_RuntimeDRMConfig].value			=	false;
 	bAampCfgValue[eAAMPConfig_EnablePublishingMuxedAudio].value		=	false;
+	bAampCfgValue[eAAMPConfig_EnableCMCD].value			= false;
+
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_ABRCacheLife-eAAMPConfig_IntStartValue].value			=	DEFAULT_ABR_CACHE_LIFE;

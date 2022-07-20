@@ -1558,6 +1558,29 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 			}
 		}
 		ptr = next;
+		//As a part of RDK-35897 to fetch the url of next next fragment
+		if(ISCONFIGSET(eAAMPConfig_EnableCMCD) && ptr )
+		{
+			const char *CMCDnext = strstr(ptr,"#EXTINF");
+			if( CMCDnext )
+			{
+				const char *nextNew = strstr(CMCDnext+7,"#EXT"); // skip ahead to NEXT fragment entry
+				const char *foundNew = strchr(nextNew+4,'\n'); // skip fragment duration
+				if( foundNew )
+				{
+					foundNew++; // skip leading newline
+					const char *fin = strchr(foundNew,'\n'); // find trailing newline
+					if( fin )
+					{
+						std::string mCMCDNextObjectRequest(foundNew,fin-foundNew);
+						aamp->mCMCDNextObjectRequest = mCMCDNextObjectRequest;
+						AAMPLOG_INFO("Next fragment url %s",mCMCDNextObjectRequest.c_str());
+					}
+				}
+			}
+
+		}
+
 	}
 #ifdef TRACE
 	AAMPLOG_WARN("GetNextFragmentUriFromPlaylist %s:  pos %f returning %s", name,playlistPosition, rc);
