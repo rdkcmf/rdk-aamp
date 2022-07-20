@@ -6492,7 +6492,7 @@ std::string StreamAbstractionAAMP_MPD::GetLabel(IAdaptationSet *adaptationSet)
 		for (auto &childNode : childNodeList)
 		{
 			const std::string& name = childNode->GetName();
-			if (name == LABEL_PROPERTY_TAG ) 
+			if (0 == strcasecmp(name.c_str(), LABEL_PROPERTY_TAG )) 
 			{
 				label = childNode->GetText();
 				//Got the label node no need to process further

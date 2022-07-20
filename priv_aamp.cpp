@@ -9373,6 +9373,10 @@ std::string PrivateInstanceAAMP::GetAudioTrackInfo()
 				{
 					cJSON_AddStringToObject(item, "rendition", trackInfo.rendition.c_str());
 				}
+				if (!trackInfo.label.empty())
+				{
+					cJSON_AddStringToObject(item, "label", trackInfo.label.c_str());
+				}
 				if (!trackInfo.accessibilityType.empty())
 				{
 					cJSON_AddStringToObject(item, "accessibilityType", trackInfo.accessibilityType.c_str());
@@ -9470,6 +9474,10 @@ std::string PrivateInstanceAAMP::GetTextTrackInfo()
 				if (!trackInfo.rendition.empty())
 				{
 					cJSON_AddStringToObject(item, "rendition", trackInfo.rendition.c_str());
+				}
+				if (!trackInfo.label.empty())
+				{
+					cJSON_AddStringToObject(item, "label", trackInfo.label.c_str());
 				}
 				if (!trackInfo.accessibilityType.empty())
 				{
