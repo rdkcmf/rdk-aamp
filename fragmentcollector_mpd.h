@@ -711,13 +711,6 @@ private:
 	 * @retun none
 	 */
 	void PopulateTrackInfo(MediaType media, bool reset=false);
-	
-	/**
-	 * @brief get the label from manifest
-	 * @param daptation set
-	 * @return label value
-	 */	
-	std::string GetLabel(IAdaptationSet *adaptationSet);
 
 	std::mutex mStreamLock;
 	bool fragmentCollectorThreadStarted;
