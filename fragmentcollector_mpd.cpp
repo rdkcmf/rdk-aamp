@@ -1040,8 +1040,23 @@ void StreamAbstractionAAMP_MPD::GetFragmentUrl( std::string& fragmentUrl, const 
 	replace(constructedUri, "RepresentationID", fragmentDescriptor->RepresentationID);
 	replace(constructedUri, "Number", fragmentDescriptor->Number);
 	replace(constructedUri, "Time", fragmentDescriptor->Time );
-
 	aamp_ResolveURL(fragmentUrl, fragmentDescriptor->manifestUrl, constructedUri.c_str(),ISCONFIGSET(eAAMPConfig_PropogateURIParam));
+	//As a part of RDK-35897 to fetch the url of next next fragment and bandwidth corresponding to each fragment fetch
+	if(ISCONFIGSET(eAAMPConfig_EnableCMCD))
+	{
+		std::string CMCDfragmentUrl;
+		std::string CMCDUri = constructedUri;
+		int num = fragmentDescriptor->Number;
+		++num;
+		replace(CMCDUri, "Bandwidth", fragmentDescriptor->Bandwidth);
+		replace(CMCDUri, "RepresentationID", fragmentDescriptor->RepresentationID);
+		replace(CMCDUri, "Number", num);
+		replace(CMCDUri, "Time", fragmentDescriptor->Time );
+		aamp->mCMCDBandwidth = fragmentDescriptor->Bandwidth;
+		aamp_ResolveURL(CMCDfragmentUrl, fragmentDescriptor->manifestUrl, CMCDUri.c_str(),ISCONFIGSET(eAAMPConfig_PropogateURIParam));
+		aamp->mCMCDNextObjectRequest = CMCDfragmentUrl;
+		AAMPLOG_INFO("Next fragment url %s",CMCDfragmentUrl.c_str());
+	}
 }
 
 /**

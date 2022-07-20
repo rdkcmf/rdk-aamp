@@ -42,6 +42,7 @@
 #include "base16.h"
 #include "aampgstplayer.h"
 #include "AampDRMSessionManager.h"
+
 #ifdef AAMP_CC_ENABLED
 #include "AampCCManager.h"
 #endif
@@ -118,6 +119,15 @@
 #define TRANSFER_ENCODING_STRING		"Transfer-Encoding:"
 
 #define MAX_DOWNLOAD_DELAY_LIMIT_MS 30000
+
+//CMCD realated key names
+#define CMCD_BITRATE "br="
+#define CMCD_TOP_BITRATE "tb="
+#define CMCD_SESSIONID "sid="
+#define CMCD_BUFFERLENGTH "bl="
+#define CMCD_NEXTOBJECTREQUEST "nor="
+#define CMCD_OBJECT "ot="
+
 
 /**
  * New state for treating a VOD asset as a "virtual linear" stream
@@ -1335,6 +1345,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(ContentType_UNKNOWN), mTunedEventPending(false),
 	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
+	mCMCDNextObjectRequest(""),mCMCDBandwidth(0),
 	mManifestUrl(""), mTunedManifestUrl(""), mOrigManifestUrl(), mServiceZone(), mVssVirtualStreamId(),
 	mCurrentLanguageIndex(0),
 	preferredLanguagesString(), preferredLanguagesList(), preferredLabelList(),
@@ -3382,6 +3393,11 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 {
 	MediaType simType = fileType; // remember the requested specific file type; fileType gets overridden later with simple VIDEO/AUDIO
 	MediaTypeTelemetry mediaType = aamp_GetMediaTypeForTelemetry(fileType);
+	std::unordered_map<std::string, std::vector<std::string>> mCMCDCustomHeaders;
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableCMCD))
+	{
+		BuildCMCDCustomHeaders(fileType,mCMCDCustomHeaders);
+	}
 	long http_code = -1;
 	double fileDownloadTime = 0;
 	bool ret = false;
@@ -3530,6 +3546,41 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				AAMPLOG_TRACE("Appending cookie headers to HTTP request");
 				//curl_easy_setopt(curl, CURLOPT_COOKIE, cookieHeaders[curlInstance].c_str());
 				CURL_EASY_SETOPT(curl, CURLOPT_COOKIE, httpRespHeaders[curlInstance].data.c_str());
+			}
+			if ( ISCONFIGSET_PRIV(eAAMPConfig_EnableCMCD) && mCMCDCustomHeaders.size() > 0)
+			{
+				std::string customHeader;
+				std::string headerValue;
+				for (std::unordered_map<std::string, std::vector<std::string>>::iterator it = mCMCDCustomHeaders.begin();it != mCMCDCustomHeaders.end(); it++)
+				{
+					customHeader.clear();
+					headerValue.clear();
+					customHeader.insert(0, it->first);
+					customHeader.push_back(' ');
+					if (it->first.compare("CMCD-Session:") == 0)
+					{
+						headerValue = it->second.at(0);
+					}
+					if (it->first.compare("CMCD-Object:") == 0)
+					{
+						headerValue = it->second.at(0);
+					}
+					if (it->first.compare("CMCD-Request:") == 0)
+					{
+						headerValue = it->second.at(0);
+					}
+					if (it->first.compare("CMCD-Status:") == 0)
+					{
+						headerValue = it->second.at(0);
+					}
+					customHeader.append(headerValue);
+					httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
+				}
+				if (httpHeaders != NULL)
+				{
+					CURL_EASY_SETOPT(curl, CURLOPT_HTTPHEADER, httpHeaders);
+				}
+
 			}
 			if (mCustomHeaders.size() > 0)
 			{
@@ -5475,6 +5526,18 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	else
 	{
 		this->mTraceUUID = "unknown";
+	}
+	//generate uuid/session id for applications which do not send id along with tune.
+	if(ISCONFIGSET_PRIV(eAAMPConfig_EnableCMCD) && pTraceID == NULL)
+	{
+		uuid_t uuid;
+		uuid_generate(uuid);
+		char sid[MAX_SESSION_ID_LENGTH];
+		uuid_unparse(uuid, sid);
+		for (char *ptr = sid; *ptr; ++ptr) {
+			*ptr = tolower(*ptr);
+		}
+		this->mTraceUUID = sid;
 	}
 }
 
@@ -7804,6 +7867,205 @@ void PrivateInstanceAAMP::SetCallbackAsPending(guint id)
 		mPendingAsyncEvents[id] = true;
 	}
 	pthread_mutex_unlock(&mEventLock);
+}
+
+/**
+ * @brief Collect all key-value pairs for CMCD headers.
+ */
+void PrivateInstanceAAMP::BuildCMCDCustomHeaders(MediaType fileType,std::unordered_map<std::string, std::vector<std::string>> &mCMCDCustomHeaders)
+{
+	MediaType simType = fileType;
+	std::string headerName;
+	long temp=0;
+	std::vector<std::string> headerValue;
+	std::string delimiter = ",";
+	std::string buffer;
+	std::vector<long> bitrateList;
+	bool vBufferStarvation = false;
+	bool aBufferStarvation = false;
+	buffer = CMCD_SESSIONID+this->mTraceUUID;
+	headerValue.push_back(buffer);
+	mCMCDCustomHeaders["CMCD-Session:"] = headerValue;
+	headerValue.clear();
+	buffer.clear();
+	//For manifest sessionid and object type is passed as a part of CMCD Headers
+	if(simType == eMEDIATYPE_MANIFEST)
+	{
+		headerName="m";
+		buffer = CMCD_OBJECT+headerName;
+		headerValue.push_back(buffer);
+		mCMCDCustomHeaders["CMCD-Object:"] = headerValue;
+	}
+	//For video sessionid,object type,currentvideobitrate,maximum videobitrate,bufferlength are send as a part of CMCD Headers
+	if(simType == eMEDIATYPE_VIDEO)
+	{
+		headerName="v";
+		MediaTrack *video = mpStreamAbstractionAAMP->GetMediaTrack(eTRACK_VIDEO);
+		if(video && video->enabled)
+		{
+			if(video->GetBufferStatus() == BUFFER_STATUS_RED)//Bufferstarvation is send only when buffering turns red
+			{
+				vBufferStarvation = true;
+				if(vBufferStarvation)
+				{
+					headerValue.push_back("bs");
+					mCMCDCustomHeaders["CMCD-Status:"] = headerValue;
+				}
+			}
+			int videoBufferLength = ((int)video->GetBufferedDuration())*1000;
+			int videoBitrate  = (int)mpStreamAbstractionAAMP->GetVideoBitrate();
+			bitrateList = mpStreamAbstractionAAMP->GetVideoBitrates();
+			for(int i = 0; i < bitrateList.size(); i++)
+			{
+				if(bitrateList[i]>temp)
+				{
+					temp=bitrateList[i];
+				}
+			}
+			headerValue.clear();
+			buffer.clear();
+			buffer = CMCD_BITRATE+to_string(videoBitrate)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string(temp);
+			headerValue.push_back(buffer);
+			mCMCDCustomHeaders["CMCD-Object:"] = headerValue;
+			headerValue.clear();
+			buffer.clear();
+			AAMPLOG_INFO("video bufferlength %d video bitrate %d",videoBufferLength*1000,videoBitrate);
+			buffer = CMCD_BUFFERLENGTH+to_string(videoBufferLength)+delimiter+CMCD_NEXTOBJECTREQUEST+mCMCDNextObjectRequest;
+			headerValue.push_back(buffer);
+			mCMCDCustomHeaders["CMCD-Request:"] = headerValue;
+		}
+	}
+	//For audio sessionid,object type,currentaudiobitrate,maximum audiobitrate,bufferlength are send as a part of CMCD Headers
+	if(simType == eMEDIATYPE_AUDIO)
+	{
+		headerName="a";
+    		MediaTrack *audio = mpStreamAbstractionAAMP->GetMediaTrack(eTRACK_AUDIO);
+    		if(audio && audio->enabled)
+    		{
+			if(audio->GetBufferStatus() == BUFFER_STATUS_RED)//Bufferstarvation is send only when buffering turns red
+			{
+				aBufferStarvation = true;
+				if(aBufferStarvation)
+				{
+					headerValue.push_back("bs");
+					mCMCDCustomHeaders["CMCD-Status:"] = headerValue;
+				}
+			}
+    		}
+		bitrateList = mpStreamAbstractionAAMP->GetAudioBitrates();
+		for(int i = 0; i < bitrateList.size(); i++)
+		{
+			if(bitrateList[i]>temp)
+			{
+				temp=bitrateList[i];
+			}
+		}
+		headerValue.clear();
+		buffer.clear();
+		int audioBufferLength = (int)mpStreamAbstractionAAMP->GetBufferedDuration();
+		buffer = CMCD_BITRATE+to_string(mCMCDBandwidth)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string(temp);
+		headerValue.push_back(buffer);
+		mCMCDCustomHeaders["CMCD-Object:"] = headerValue;
+		headerValue.clear();
+		buffer.clear();
+		AAMPLOG_INFO("audio bufferlength %daudio bitrate %d",audioBufferLength*1000,(int)mCMCDBandwidth);
+		buffer = CMCD_BUFFERLENGTH+to_string(audioBufferLength*1000)+delimiter+CMCD_NEXTOBJECTREQUEST+mCMCDNextObjectRequest;
+		headerValue.push_back(buffer);
+		mCMCDCustomHeaders["CMCD-Request:"] = headerValue;
+	}
+	//For subtitle sessionid and object type are send as a part of CMCD Headers
+	if(simType == eMEDIATYPE_SUBTITLE)
+	{
+		headerName="s";
+		buffer.clear();
+		headerValue.clear();
+		buffer = CMCD_OBJECT+headerName;
+		headerValue.push_back(buffer);
+		mCMCDCustomHeaders["CMCD-Object:"] = headerValue;
+
+	}
+	//For init fragment sessionid,object type,bitrate,maximum bitrate are send as a part of CMCD Headers
+	if( (simType == eMEDIATYPE_INIT_VIDEO) || (simType == eMEDIATYPE_INIT_AUDIO))
+	{
+		headerName="i";
+		if(simType == eMEDIATYPE_INIT_VIDEO)
+		{
+			int initVideoBitrate  = (int)mpStreamAbstractionAAMP->GetVideoBitrate();
+			bitrateList = mpStreamAbstractionAAMP->GetVideoBitrates();
+			for(int i = 0; i < bitrateList.size(); i++)
+			{
+				if(bitrateList[i]>temp)
+				{
+					temp=bitrateList[i];
+				}
+			}
+			headerValue.clear();
+			buffer.clear();
+			buffer = CMCD_BITRATE+to_string(initVideoBitrate)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string(temp);
+			headerValue.push_back(buffer);
+			mCMCDCustomHeaders["CMCD-Object:"] = headerValue;
+
+		}
+		if(simType == eMEDIATYPE_INIT_AUDIO)
+		{
+			int initAudioBitrate = (int)mpStreamAbstractionAAMP->GetAudioBitrate();
+			bitrateList = mpStreamAbstractionAAMP->GetAudioBitrates();
+			for(int i = 0; i < bitrateList.size(); i++)
+			{
+				if(bitrateList[i]>temp)
+				{
+					temp=bitrateList[i];
+				}
+			}
+			headerValue.clear();
+			buffer.clear();
+			buffer = CMCD_BITRATE+to_string(mCMCDBandwidth)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string(temp);
+			headerValue.push_back(buffer);
+			mCMCDCustomHeaders["CMCD-Object:"] = headerValue;
+		}
+	}
+	//For muxed streams sessionid,object type,bitrate,maximum bitrate,bufferlength are send as a part of CMCD Headers
+	if(mpStreamAbstractionAAMP->IsMuxedStream())
+	{
+		headerName="av";
+		bitrateList = mpStreamAbstractionAAMP->GetVideoBitrates();
+		for(int i = 0; i < bitrateList.size(); i++)
+		{
+			if(bitrateList[i]>temp)
+			{
+				temp=bitrateList[i];
+			}
+		}
+		int muxedBitrate  = (int)mpStreamAbstractionAAMP->GetVideoBitrate();
+		headerValue.clear();
+		buffer.clear();
+		buffer = CMCD_BITRATE+to_string(muxedBitrate)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string(temp);
+		headerValue.push_back(buffer);
+		mCMCDCustomHeaders["CMCD-Object:"] = headerValue;
+		headerValue.clear();
+		buffer.clear();
+    		MediaTrack *video = mpStreamAbstractionAAMP->GetMediaTrack(eTRACK_VIDEO);
+    		if(video)
+		{
+			if(video->GetBufferStatus() == BUFFER_STATUS_RED)///Bufferstarvation is send only when buffering turns red
+			{
+				vBufferStarvation = true;
+				if(vBufferStarvation)
+				{
+					headerValue.push_back("bs");
+					mCMCDCustomHeaders["CMCD-Status:"] = headerValue;
+				}
+			}
+		}
+		headerValue.clear();
+		buffer.clear();
+		int muxedBufferLength = (int)mpStreamAbstractionAAMP->GetBufferedDuration();
+		AAMPLOG_INFO("muxed bufferlength %d muxed bitrate %d",muxedBufferLength,muxedBitrate);
+		buffer = CMCD_BUFFERLENGTH+to_string(muxedBufferLength)+delimiter+CMCD_NEXTOBJECTREQUEST+mCMCDNextObjectRequest;
+		headerValue.push_back(buffer);
+		mCMCDCustomHeaders["CMCD-Request:"] = headerValue;
+	}
+	headerValue.clear();
 }
 
 /**

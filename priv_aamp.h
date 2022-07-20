@@ -83,6 +83,7 @@ static const char *mMediaFormatName[] =
 
 #define AAMP_SEEK_TO_LIVE_POSITION (-1)
 
+#define MAX_SESSION_ID_LENGTH 128                                /**<session id string length */
 #define MANIFEST_TEMP_DATA_LENGTH 100			/**< Manifest temp data length */
 #define AAMP_LOW_BUFFER_BEFORE_RAMPDOWN 10 		/**< 10sec buffer before rampdown */
 #define AAMP_HIGH_BUFFER_BEFORE_RAMPUP  15 		/**< 15sec buffer before rampup */
@@ -870,6 +871,8 @@ public:
 	int mLLDashRateCorrectionCount;
 	int mLLDashRetuneCount;
 	long mNetworkTimeoutMs;
+	std::string mCMCDNextObjectRequest;			/**<store the next next fragment url */
+	long mCMCDBandwidth;					/**<store the audio bandwidth */
 	long mManifestTimeoutMs;
 	long mPlaylistTimeoutMs;
 	bool mAsyncTuneEnabled;
@@ -2104,6 +2107,15 @@ public:
 	 */
 	void SetCallbackAsDispatched(guint id);
 
+
+	/**
+	 *   @fn BuildCMCDCustomHeaders
+	 *   @brief Collect and store CMCD Headers related data
+	 *
+	 *   @param[in] fileType - Type of content.
+	 *   @return void
+	 */
+	void BuildCMCDCustomHeaders(MediaType fileType,std::unordered_map<std::string, std::vector<std::string>> &mCMCDCustomHeaders);
 
 	/**
 	 *   @fn AddCustomHTTPHeader
