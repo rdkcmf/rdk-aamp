@@ -957,7 +957,8 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 
 	std::vector<uint8_t> keyId;
 	drmHelper->getKey(keyId);
-	if(aampInstance->IsEventListenerAvailable(AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE) && (streamType < 4))
+	bool RuntimeDRMConfigSupported = aampInstance->mConfig->IsConfigSet(eAAMPConfig_RuntimeDRMConfig);
+	if(RuntimeDRMConfigSupported && aampInstance->IsEventListenerAvailable(AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE) && (streamType < 4))
 	{
 		AAMPLOG_INFO("App registered the ContentProtectionDataEvent to send new drm config");
 		ContentProtectionDataUpdate(aampInstance, keyId, streamType);

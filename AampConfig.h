@@ -198,6 +198,7 @@ typedef enum
 	eAAMPConfig_PersistLowNetworkBandwidth,					/** Flag to enable Persist Low Network Bandwidth across Tunes */
 	eAAMPConfig_ChangeTrackWithoutRetune,					/**< Flag to enable audio track change without disturbing video pipeline */
 	eAAMPConfig_EnableCurlStore,						/**< Enable/Disable CurlStore to save/reuse curl fds */
+	eAAMPConfig_RuntimeDRMConfig,                                           /**< Enable/Disable Dynamic DRM config feature */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,

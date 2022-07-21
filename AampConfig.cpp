@@ -274,6 +274,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"contentProtectionDataUpdateTimeout",eAAMPConfig_ContentProtectionDataUpdateTimeout,{.iMinValue = 0},{.iMaxValue=-1}}
 	,{"curlStore", eAAMPConfig_EnableCurlStore, -1, -1}
 	,{"maxCurlStore", eAAMPConfig_MaxCurlSockStore,{.iMinValue=1},{.iMaxValue=10}}
+	,{"configRuntimeDRM", eAAMPConfig_RuntimeDRMConfig,-1,-1}
 };
 /////////////////// Public Functions /////////////////////////////////////
 /**
@@ -461,7 +462,8 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_PersistHighNetworkBandwidth].value		=	false;
 	bAampCfgValue[eAAMPConfig_PersistLowNetworkBandwidth].value		=	true;
 	bAampCfgValue[eAAMPConfig_ChangeTrackWithoutRetune].value		=	false;
-	bAampCfgValue[eAAMPConfig_EnableCurlStore].value		= true;
+	bAampCfgValue[eAAMPConfig_EnableCurlStore].value			=	true;
+	bAampCfgValue[eAAMPConfig_RuntimeDRMConfig].value			=	false;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;

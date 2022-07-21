@@ -2938,5 +2938,14 @@ void PlayerInstanceAAMP::SetContentProtectionDataUpdateTimeout(int timeout)
 }
 
 /**
+ *  @brief To set Dynamic DRM feature by Application 
+ */
+void PlayerInstanceAAMP::SetRuntimeDRMConfigSupport(bool DynamicDRMSupported)
+{
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RuntimeDRMConfig,DynamicDRMSupported);
+}
+
+
+/**
  * @}
  */
