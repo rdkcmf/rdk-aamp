@@ -371,12 +371,6 @@ public:
     	 *
      	 */
 	std::string GetVideoRectangle();
-
-	/**
-	 *   @fn SignalConnect
-	 *   @note wraps g_signal_connect, adds functionality required by DisconnectSignals() 
-	 */
-	void SignalConnect(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data);
 private:
 	/**
      	 * @fn PauseAndFlush 
@@ -425,13 +419,6 @@ private:
      	 * @return bool - true if audio to be forwarded
      	 */
 	bool ForwardAudioBuffersToAux();
-
-	/**
-	 *   @fn DisconnectSignals
-	 *   @note runs g_signal_handler_disconnect() for all signals connected using SignalConnect()
-	 */
-	void DisconnectSignals();
-
 	pthread_mutex_t mBufferingLock;
 	pthread_mutex_t mProtectionLock;
 	AampLogManager *mLogObj;
