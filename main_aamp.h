@@ -1971,6 +1971,13 @@ public:
 	 */
 	void ProcessContentProtectionDataConfig(const char *jsonbuffer);
 
+	/**
+	 * @fn EnableDynamicDRMConfigSupport
+	 *
+	 * @param[in] Enable/Disable Dynamic DRM config feature
+	 */
+	void SetRuntimeDRMConfigSupport(bool DynamicDRMSupported);
+
 
 	class PrivateInstanceAAMP *aamp;  		  /**< AAMP player's private instance */
 	std::shared_ptr<PrivateInstanceAAMP> sp_aamp; 	  /**< shared pointer for aamp resource */
