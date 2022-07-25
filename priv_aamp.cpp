@@ -342,9 +342,10 @@ static gboolean PrivateInstanceAAMP_ProcessDiscontinuity(gpointer ptr)
 		{
 			aamp->SyncBegin();
 			aamp->mDiscontinuityTuneOperationId = 0;
-			pthread_cond_signal(&aamp->mCondDiscontinuity);
 			aamp->SyncEnd();
 		}
+		pthread_cond_signal(&aamp->mCondDiscontinuity);
+
 	}
 	return G_SOURCE_REMOVE;
 }
@@ -2622,6 +2623,7 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 	else
 	{
 		ProcessPendingDiscontinuity();
+		pthread_cond_signal(&mCondDiscontinuity);
 		DeliverAdEvents();
 		AAMPLOG_WARN("PrivateInstanceAAMP:  EOS due to discontinuity handled");
 	}
