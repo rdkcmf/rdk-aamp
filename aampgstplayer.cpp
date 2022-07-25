@@ -1584,6 +1584,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				{
 					_this->privateContext->audio_sink = (GstElement *) msg->src;
 					
+					g_object_set(_this->privateContext->audio_sink, "disable-xrun", TRUE, NULL);
 					// Apply audio settings that may have been set before pipeline was ready
 					_this->setVolumeOrMuteUnMute();
 				}
