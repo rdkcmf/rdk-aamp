@@ -857,7 +857,6 @@ private:
 	bool latencyMonitorThreadStarted;	 /**< Monitor latency thread  status*/
 	pthread_t latencyMonitorThreadID;	 /**< Fragment injector thread id*/
 	int mProfileCount;			 /**< Total video profile count*/
-	std::thread *parallelInitDownload[AAMP_TRACK_COUNT];
 };
 
 #endif //FRAGMENTCOLLECTOR_MPD_H_
