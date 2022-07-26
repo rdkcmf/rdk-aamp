@@ -85,7 +85,6 @@
 #define MEDIATYPE_AUX_AUDIO "aux-audio"
 #define MEDIATYPE_IMAGE "image"
 
-#define LABEL_PROPERTY_TAG "label"
 
 static double ParseISO8601Duration(const char *ptr);
 
@@ -6129,7 +6128,7 @@ std::vector<AudioTrackInfo> &ac4Tracks, std::string &audioTrackIndex)
 		if( IsContentType(adaptationSet, eMEDIATYPE_AUDIO) )
 		{
 			unsigned long score = 0;
-			std::string trackLabel = GetLabel(adaptationSet);
+			std::string trackLabel = adaptationSet->GetLabel();
 			std::string trackLanguage = GetLanguageForAdaptationSet(adaptationSet);
 			if(trackLanguage.empty())
 			{
@@ -6368,7 +6367,7 @@ bool StreamAbstractionAAMP_MPD::GetBestTextTrackByLanguage( TextTrackInfo &selec
 		if( IsContentType(adaptationSet, eMEDIATYPE_SUBTITLE) )
 		{
 			uint64_t score = 0;
-			trackLabel = GetLabel(adaptationSet);
+			trackLabel = adaptationSet->GetLabel();
 			if (!trackLabel.empty())
 			{
 				labelFound = true;
@@ -6497,27 +6496,6 @@ void StreamAbstractionAAMP_MPD::PauseSubtitleParser(bool pause)
 	}
 }
 
-std::string StreamAbstractionAAMP_MPD::GetLabel(IAdaptationSet *adaptationSet)
-{
-	FN_TRACE_F_MPD( __FUNCTION__ );
-	std::vector<INode*> childNodeList = adaptationSet->GetAdditionalSubNodes();
-	std::string label = "";
-	if (childNodeList.size() > 0)
-	{
-		for (auto &childNode : childNodeList)
-		{
-			const std::string& name = childNode->GetName();
-			if (0 == strcasecmp(name.c_str(), LABEL_PROPERTY_TAG )) 
-			{
-				label = childNode->GetText();
-				//Got the label node no need to process further
-				break;
-			}
-		}
-	}
-	return label;
-}
-
 /** Static function Do not use aamp log function **/
 Accessibility StreamAbstractionAAMP_MPD::getAccessibilityNode(AampJsonObject &accessNode)
 {
@@ -6591,7 +6569,7 @@ void StreamAbstractionAAMP_MPD::ParseTrackInformation(IAdaptationSet *adaptation
 			std::string group; // value of <Role>, empty if <Role> not present
 			std::string accessibilityType; // value of <Accessibility> //KC
 			std::string empty;
-			std::string label = GetLabel(adaptationSet);
+			std::string label = adaptationSet->GetLabel();
 			if(!label.empty())
 			{
 				labelFound = true;
