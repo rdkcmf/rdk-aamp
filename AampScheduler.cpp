@@ -101,43 +101,50 @@ int AampScheduler::ScheduleTask(AsyncTaskObj obj)
  */
 void AampScheduler::ExecuteAsyncTask()
 {
-	std::unique_lock<std::mutex>lock(mQMutex);
+	std::unique_lock<std::mutex>queueLock(mQMutex);
 	while (mSchedulerRunning)
 	{
 		if (mTaskQueue.empty())
 		{
-			mQCond.wait(lock);
+			mQCond.wait(queueLock);
 		}
 		else
 		{
-			AsyncTaskObj obj = mTaskQueue.front();
-			mTaskQueue.pop_front();
-			if (obj.mId != AAMP_TASK_ID_INVALID)
+			/* DELIA-57121
+			Take the execution lock before taking a task from the queue
+			otherwise this function could hold a task, out of the queue,
+			that cannot be deleted by RemoveAllTasks()!
+			Allow the queue to be modified while waiting.*/
+			queueLock.unlock();
+			std::lock_guard<std::mutex>executionLock(mExMutex);
+			queueLock.lock();
+
+			//DELIA-57121 - note: mTaskQueue could have been modified while waiting for execute permission
+			if (!mTaskQueue.empty())
 			{
-				mCurrentTaskId = obj.mId;
-				AAMPLOG_INFO("Found entry in function queue!!, task:%s. State:%d",obj.mTaskName.c_str(),mState);
-				if( mState == eSTATE_ERROR || mState == eSTATE_RELEASED)
-					continue;
+				AsyncTaskObj obj = mTaskQueue.front();
+				mTaskQueue.pop_front();
+				if (obj.mId != AAMP_TASK_ID_INVALID)
+				{
+					mCurrentTaskId = obj.mId;
+					AAMPLOG_INFO("Found entry in function queue!!, task:%s. State:%d",obj.mTaskName.c_str(),mState);
+					if( mState != eSTATE_ERROR && mState != eSTATE_RELEASED)
+					{
+						//Unlock so that new entries can be added to queue while function executes
+						queueLock.unlock();
+
+						AAMPLOG_WARN("SchedulerTask Execution:%s",obj.mTaskName.c_str());
+						//Execute function
+						obj.mTask(obj.mData);
+						//May be used in a wait() in future loops, it needs to be locked
+						queueLock.lock();
+					}
+				}
+				else
+				{
+					AAMPLOG_ERR("Scheduler found a task with invalid ID, skip task!");
+				}
 			}
-			else
-			{
-				AAMPLOG_ERR("Scheduler found a task with invalid ID, skip task!");
-				continue;
-			}
-
-			//Unlock so that new entries can be added to queue while function executes
-			lock.unlock();
-
-			{
-
-				//Take execution lock
-				std::lock_guard<std::mutex>lock(mExMutex);
-				AAMPLOG_WARN("SchedulerTask Execution:%s",obj.mTaskName.c_str());
-				//Execute function
-				obj.mTask(obj.mData);
-			}
-
-			lock.lock();
 		}
 	}
 	AAMPLOG_INFO("Exited Async Worker Thread");
@@ -149,6 +156,10 @@ void AampScheduler::ExecuteAsyncTask()
 void AampScheduler::RemoveAllTasks()
 {
 	std::lock_guard<std::mutex>lock(mQMutex);
+	if(!mLockOut)
+	{
+		AAMPLOG_WARN("The scheduler is active.  An active task may continue to execute after this function exits.  Call SuspendScheduler() prior to this function to prevent this.");
+	}
 	if (!mTaskQueue.empty())
 	{
 		AAMPLOG_WARN("Clearing up %zu entries from mFuncQueue", mTaskQueue.size());
@@ -164,8 +175,18 @@ void AampScheduler::StopScheduler()
 	AAMPLOG_WARN("Stopping Async Worker Thread");
 	// Clean up things in queue
 	mSchedulerRunning = false;
-	// mLockOut will be set to true, preventing anyother tasks from getting scheduled
+
+	//DELIA-57121 allow StopScheduler() to be called without warning from a nonsuspended state and
+	//DELIA-57122 not cause an error in ResumeScheduler() below due to trying to unlock an unlocked lock
+	if(!mLockOut)
+	{
+		SuspendScheduler();
+	}
+
 	RemoveAllTasks();
+
+	//DELIA-57122 prevent possible deadlock where mSchedulerThread is waiting for mExLock/mExMutex
+	ResumeScheduler();
 	mQCond.notify_one();
     if (mSchedulerThread.joinable())
         mSchedulerThread.join();
