@@ -712,13 +712,6 @@ private:
 	 * @return meme type value
 	 */	
 	std::string GetCurrentMimeType(MediaType mediaType);
-	
-	/**
-	 * @brief get the label from manifest
-	 * @param daptation set
-	 * @return label value
-	 */	
-	std::string GetLabel(IAdaptationSet *adaptationSet);
 
 	std::mutex mStreamLock;
 	bool fragmentCollectorThreadStarted;
