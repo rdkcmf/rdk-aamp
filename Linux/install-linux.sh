@@ -4,7 +4,7 @@ echo $OSTYPE
 aampdir=$PWD/..
 echo $aampdir
 builddir=$aampdir/Linux
-codebranch=dev_sprint_22_1
+defaultcodebranch=dev_sprint_22_1
 
 function clone_rdk_repo() {
     if [ -d $1 ]; then
@@ -13,6 +13,27 @@ function clone_rdk_repo() {
         git clone -b $codebranch https://code.rdkcentral.com/r/rdk/components/generic/$1
     fi
 }
+
+while getopts ":d:b:" opt; do
+  case ${opt} in
+    d ) # process option d install base directory name
+    builddir=${OPTARG}
+    echo "${OPTARG}"
+      ;;
+    b ) # process option b code branch name
+    codebranch=${OPTARG}
+      ;;
+    * ) echo "Usage: $0 [-b aamp branch name] [-d local setup directory name]"
+     exit
+      ;;
+  esac
+done
+
+#Check and if needed setup default aamp code branch name and local environment directory name
+if [[ $codebranch == "" ]]; then
+    codebranch=${defaultcodebranch}
+    echo "using default code branch: $defaultcodebranch"
+fi 
 
 mkdir -p $builddir
 cd $builddir

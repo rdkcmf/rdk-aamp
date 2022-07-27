@@ -349,7 +349,7 @@ elif [[ "$OSTYPE" == "linux"* ]]; then
     sudo apt-get install freeglut3-dev build-essential
     sudo apt-get install libglew-dev
     sudo bash install-linux-deps.sh
-    bash install-linux.sh
+    bash install-linux.sh -b $codebranch
     
     cd ../
     echo "Building aamp-cli..."
