@@ -10825,15 +10825,17 @@ void StreamAbstractionAAMP_MPD::SetAudioTrackInfo(const std::vector<AudioTrackIn
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	bool tracksChanged = false;
-	if (!mAudioTracks.empty()
-			&& tracks.size() != mAudioTracks.size())
-		//TODO: compare pld of tracks too once requirements available
-	{
-		tracksChanged = true;
-	}
+	int audioIndex = -1;
 
 	mAudioTracks = tracks;
 	mAudioTrackIndex = trackIndex;
+	audioIndex = GetAudioTrack();
+	if (-1 != aamp->mCurrentAudioTrackIndex
+			&& aamp->mCurrentAudioTrackIndex != audioIndex)
+	{
+		tracksChanged = true;
+	}
+	aamp->mCurrentAudioTrackIndex = audioIndex;
 
 	if (tracksChanged)
 	{
@@ -11067,15 +11069,19 @@ void StreamAbstractionAAMP_MPD::SetTextTrackInfo(const std::vector<TextTrackInfo
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	bool tracksChanged = false;
-	if (!mTextTracks.empty()
-			&& tracks.size() != mTextTracks.size())
-		//TODO: compare pld of tracks too once requirements available
+	int textTrack = -1;
+
+	mTextTracks = tracks;
+	mTextTrackIndex = trackIndex;
+
+	textTrack = GetTextTrack();
+	if (-1 != aamp->mCurrentTextTrackIndex
+			&& aamp->mCurrentTextTrackIndex != textTrack)
 	{
 		tracksChanged = true;
 	}
 
-	mTextTracks = tracks;
-	mTextTrackIndex = trackIndex;
+	aamp->mCurrentTextTrackIndex = textTrack;
 
 #ifdef AAMP_CC_ENABLED
 		std::vector<TextTrackInfo> textTracksCopy;

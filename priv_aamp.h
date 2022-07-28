@@ -994,6 +994,8 @@ public:
 	bool mVideoComponentCount;
 	bool mAudioOnlyPb;					/**< To indicate Audio Only Playback */
 	bool mVideoOnlyPb;					/**< To indicate Video Only Playback */
+	int mCurrentAudioTrackIndex;				/**< Keep current selected audio track index */
+	int mCurrentTextTrackIndex;				/**< Keep current selected text track index*/
 
 	/**
 	 * @fn hasId3Header

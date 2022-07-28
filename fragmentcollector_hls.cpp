@@ -7730,6 +7730,7 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 {
 	if (mMediaCount > 0 && mProfileCount > 0)
 	{
+		bool tracksChanged = false;
 		for (int i = 0; i < mMediaCount; i++)
 		{
 			struct MediaInfo *media = &(mediaInfo[i]);
@@ -7757,6 +7758,27 @@ void StreamAbstractionAAMP_HLS::PopulateAudioAndTextTracks()
 						  language.c_str(), media->isCC, group_id.c_str(), name.c_str(), instreamID.c_str(), characteristics.c_str());
 				mTextTracks.push_back(TextTrackInfo(index, language, media->isCC, group_id, name, instreamID, characteristics));
 			}
+		}
+
+		if (-1 != aamp->mCurrentAudioTrackIndex && aamp->mCurrentAudioTrackIndex != currentAudioProfileIndex)
+		{
+			tracksChanged = true;
+		}
+		aamp->mCurrentAudioTrackIndex = currentAudioProfileIndex;
+		if (tracksChanged)
+		{
+			aamp->NotifyAudioTracksChanged();
+		}
+
+		tracksChanged = false;
+		if (-1 != aamp->mCurrentTextTrackIndex && aamp->mCurrentTextTrackIndex != currentTextTrackProfileIndex)
+		{
+			tracksChanged = true;
+		}
+		aamp->mCurrentTextTrackIndex = currentTextTrackProfileIndex;
+		if (tracksChanged)
+		{
+			aamp->NotifyTextTracksChanged();
 		}
 #ifdef AAMP_CC_ENABLED
 		std::vector<TextTrackInfo> textTracksCopy;

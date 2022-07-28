@@ -1457,6 +1457,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mVideoComponentCount(-1)
 	, mAudioOnlyPb(false)
 	, mVideoOnlyPb(false)
+	, mCurrentAudioTrackIndex(-1)
+	, mCurrentTextTrackIndex(-1)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -5116,6 +5118,9 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	// reused 
 	mProgramDateTime = 0;
 	mMPDPeriodsInfo.clear();
+	// Reset current audio/text track index
+	mCurrentAudioTrackIndex = -1;
+	mCurrentTextTrackIndex = -1;
 
 #ifdef AAMP_RFC_ENABLED
 	schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
