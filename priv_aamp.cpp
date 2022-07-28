@@ -1453,6 +1453,10 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mDynamicDrmUpdateLock()
 	, mDynamicDrmWait(false)
 	, mDynamicDrmCache()
+	, mAudioComponentCount(-1)
+	, mVideoComponentCount(-1)
+	, mAudioOnlyPb(false)
+	, mVideoOnlyPb(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -6511,7 +6515,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 	if (trickStartUTCMS >= 0)
 	{
 		//DELIA-39530 - Audio only playback is un-tested. Hence disabled for now
-		if (ISCONFIGSET_PRIV(eAAMPConfig_EnableGstPositionQuery) && !ISCONFIGSET_PRIV(eAAMPConfig_AudioOnlyPlayback))
+		if (ISCONFIGSET_PRIV(eAAMPConfig_EnableGstPositionQuery) && !ISCONFIGSET_PRIV(eAAMPConfig_AudioOnlyPlayback) && !mAudioOnlyPb)
                 {
 			positionMiliseconds += mStreamSink->GetPositionMilliseconds();
 		}
@@ -9829,6 +9833,14 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 		reconfigure = true;
 		mAuxFormat = auxFormat;
 	}
+	if (IsMuxedStream()) //Can be a Muxed stream/Demuxed with either of audio or video-only stream
+	{
+		AAMPLOG_INFO(" TS Processing Done. Number of Audio Components : %d and Video Components : %d",mAudioComponentCount,mVideoComponentCount);
+		if (IsAudioOrVideoOnly(videoFormat, audioFormat, auxFormat))
+		{
+			reconfigure = true;
+		}
+	}
 	if (reconfigure)
 	{
 		// Configure pipeline as TSProcessor might have detected the actual stream type
@@ -9838,6 +9850,41 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 	pthread_mutex_unlock(&mLock);
 }
 
+/**
+ * @brief To check for audio/video only Playback
+ */
+
+bool PrivateInstanceAAMP::IsAudioOrVideoOnly(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat)
+{
+	AAMPLOG_WARN("Old Stream format - videoFormat %d and audioFormat %d",mVideoFormat,mAudioFormat);
+	bool ret = false;
+	bool newTune = IsNewTune();
+	if (mVideoComponentCount == 0 && (mVideoFormat != videoFormat && videoFormat == FORMAT_INVALID))
+	{
+		mAudioOnlyPb = true;
+		mVideoFormat = videoFormat;
+		AAMPLOG_INFO("Audio-Only PlayBack");
+		mStreamSink->Stop(!newTune);
+		ret = true;
+	}
+
+	else if (mAudioComponentCount == 0)
+	{
+		if (mAudioFormat != audioFormat && audioFormat == FORMAT_INVALID)
+		{
+			mAudioFormat = audioFormat;
+		}
+		else if (mAuxFormat != auxFormat && auxFormat == FORMAT_INVALID)
+		{
+			mAuxFormat = auxFormat;
+		}
+		mVideoOnlyPb = true;
+		AAMPLOG_INFO("Video-Only PlayBack");
+		mStreamSink->Stop(!newTune);
+		ret = true;
+	}
+	return ret;
+}
 /**
  *  @brief Disable Content Restrictions - unlock
  */

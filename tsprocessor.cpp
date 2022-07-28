@@ -1231,7 +1231,8 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 		}
 		programInfo += (5 + len);
 	}
-
+	aamp->mAudioComponentCount = audioComponentCount;
+	aamp->mVideoComponentCount = videoComponentCount;
 	if (videoComponentCount > 0)
 	{
 		m_videoPid = videoComponents[0].pid;

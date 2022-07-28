@@ -875,7 +875,23 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 	else if (eMEDIATYPE_AUDIO == type)
 	{
 		AAMPLOG_WARN("AAMPGstPlayer_OnAudioFirstFrameAudDecoder. got First Audio Frame");
+		if (aamp->mAudioOnlyPb)
+		{
+			if (!privateContext->decoderHandleNotified)
+			{
+				privateContext->decoderHandleNotified = true;
+				privateContext->firstFrameCallbackIdleTaskPending = false;
+				privateContext->firstFrameCallbackIdleTaskId = aamp->ScheduleAsyncTask(IdleCallbackOnFirstFrame, (void *)this, "FirstFrameCallback");
+				// Wait for scheduler response , if failed to create task for wrong state , not to make pending flag as true 
+				if(privateContext->firstFrameCallbackIdleTaskId != AAMP_TASK_ID_INVALID)
+				{
+					privateContext->firstFrameCallbackIdleTaskPending = true;
+				}
+			}
+			IdleTaskAdd(privateContext->firstProgressCallbackIdleTask, IdleCallback);
+		}
 	}
+
 }
 
 /**
@@ -1853,6 +1869,7 @@ void AAMPGstPlayer::DestroyPipeline()
 
 	//video decoder handle will change with new pipeline
 	privateContext->decoderHandleNotified = false;
+	privateContext->NumberOfTracks = 0;
 }
 
 /**
@@ -2717,6 +2734,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	}
 	else
 	{
+		newFormat[eMEDIATYPE_SUBTITLE]=FORMAT_INVALID;
 		AAMPLOG_WARN("Gstreamer subs disabled");
 	}
 
