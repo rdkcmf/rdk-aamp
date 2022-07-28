@@ -1218,7 +1218,7 @@ void MediaTrack::RunInjectLoop()
         // BCOM-2959  -- Disable audio video balancing for CDVR content ..
         // CDVR Content includes eac3 audio, the duration of audio doesnt match with video
         // and hence balancing fetch/inject not needed for CDVR
-        if(!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback) && !aamp->IsCDVRContent())
+        if(!ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback) && !aamp->IsCDVRContent() && (!aamp->mAudioOnlyPb && !aamp->mVideoOnlyPb))
         {
             StreamAbstractionAAMP* pContext = GetContext();
             if(pContext != NULL)

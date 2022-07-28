@@ -984,6 +984,10 @@ public:
 	std::vector<std::string> mDynamicDrmCache;
 	pthread_mutex_t mDynamicDrmUpdateLock;
 	pthread_cond_t mWaitForDynamicDRMToUpdate;
+	bool mAudioComponentCount;
+	bool mVideoComponentCount;
+	bool mAudioOnlyPb;					/**< To indicate Audio Only Playback */
+	bool mVideoOnlyPb;					/**< To indicate Video Only Playback */
 
 	/**
 	 * @fn hasId3Header
@@ -3324,6 +3328,17 @@ public:
 	 *   @return void
 	 */
 	void SetStreamFormat(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat,  StreamOutputFormat auxFormat);
+
+        /**
+         *   @fn IsAudioOrVideoOnly
+         *
+         *   @param[in] videoFormat - video stream format
+         *   @param[in] audioFormat - audio stream format
+         *   @param[in] auxFormat - aux stream format
+         *   @return bool
+         */
+	bool IsAudioOrVideoOnly(StreamOutputFormat videoFormat, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat);
+
 	/**
 	 *       @brief Set Maximum Cache Size for storing playlist 
 	 *       @return void
