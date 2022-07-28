@@ -11032,7 +11032,7 @@ long PrivateInstanceAAMP::LoadFogConfig()
 		AampJsonObject subtitlePreference;
 		bool aPrefAvail = false;
 		bool tPrefAvail = false;
-		if((preferredLanguagesList.size() > 0) || !preferredRenditionString.empty() || !preferredTypeString.empty() || !preferredAudioAccessibilityNode.getSchemeId().empty())
+		if((preferredLanguagesList.size() > 0) || !preferredRenditionString.empty() || !preferredLabelsString.empty() || !preferredAudioAccessibilityNode.getSchemeId().empty())
 		{
 			aPrefAvail = true;
 			if (preferredLanguagesList.size() > 0)
