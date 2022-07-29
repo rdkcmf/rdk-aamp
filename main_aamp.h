@@ -1421,6 +1421,15 @@ public:
 	 *   @return void
 	 */
 	void SetParallelPlaylistDL(bool bValue);
+	
+	 /**
+         *   @fn ManageAsyncTuneConfig
+         *   @param[in] url - main manifest url
+         *
+         *   @return void
+         */
+        void ManageAsyncTuneConfig(const char* url);
+
 	/**
 	 *   @fn SetAsyncTuneConfig
 	 *   @param[in] bValue - true if async tune enabled 
