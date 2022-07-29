@@ -312,6 +312,9 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, const char *contentTy
  */
 void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const char *contentType, bool bFirstAttempt, bool bFinalAttempt,const char *traceUUID,bool audioDecoderStreamSync)
 {
+#ifdef AMLOGIC
+	ManageAsyncTuneConfig(mainManifestUrl);
+#endif
 	if(mAsyncTuneEnabled)
 	{
 		const std::string manifest 	= std::string(mainManifestUrl);
@@ -2570,6 +2573,19 @@ void PlayerInstanceAAMP::EnableContentRestrictions()
 {
 	ERROR_OR_IDLE_STATE_CHECK_VOID();
 	aamp->EnableContentRestrictions();
+}
+
+/**
+ *  @brief Manage async tune configuration for specific contents
+ */
+void PlayerInstanceAAMP::ManageAsyncTuneConfig(const char* mainManifestUrl)
+{
+	MediaFormat mFormat = eMEDIAFORMAT_UNKNOWN;
+	mFormat = aamp->GetMediaFormatType(mainManifestUrl);
+	if(mFormat == eMEDIAFORMAT_HDMI || mFormat == eMEDIAFORMAT_COMPOSITE || mFormat == eMEDIAFORMAT_OTA)
+	{
+		SetAsyncTuneConfig(false);
+	}
 }
 
 /**
