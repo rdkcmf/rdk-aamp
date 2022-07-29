@@ -26,6 +26,7 @@
 #include "AampcliGet.h"
 #include "AampcliSet.h"
 #include "AampcliPlaybackCommand.h"
+#include "AampcliSmokeTest.h"
 
 std::map<std::string, Command*> CommandHandler::mCommandMap = std::map<std::string, Command*>();
 
@@ -40,6 +41,7 @@ void CommandHandler::registerCommandObjects()
 	registerCommand( "set", new Set);
 	registerCommand( "get", new Get);
 	registerCommand( "harvest", new Harvestor);
+	registerCommand( "smoketest", new SmokeTest);
 	registerCommand( "default", new PlaybackCommand);
 }
 

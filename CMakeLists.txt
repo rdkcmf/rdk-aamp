@@ -263,6 +263,7 @@ set(AAMP_CLI_HEADERS test/aampcli/Aampcli.h
 		     test/aampcli/AampcliVirtualChannelMap.h
 		     test/aampcli/AampcliShader.h
 		     test/aampcli/AampcliHarvestor.h
+		     test/aampcli/AampcliSmokeTest.h
 		     ${AAMP_OS_SOURCES})
 set(AAMP_CLI_SOURCES test/aampcli/Aampcli.cpp 
 		     test/aampcli/AampcliPlaybackCommand.cpp
@@ -272,6 +273,7 @@ set(AAMP_CLI_SOURCES test/aampcli/Aampcli.cpp
 		     test/aampcli/AampcliVirtualChannelMap.cpp
 		     test/aampcli/AampcliShader.cpp
 		     test/aampcli/AampcliHarvestor.cpp
+		     test/aampcli/AampcliSmokeTest.cpp
 		     ${AAMP_OS_SOURCES})
 
 
@@ -648,6 +650,10 @@ install(FILES AampEvent.h AampConfig.h AampEventManager.h AampDefine.h AampEvent
 
 if (CMAKE_AAMP_RFC_REQUIRED)
 install(FILES AampRfc.h DESTINATION include)
+endif()
+
+if (SMOKETEST_ENABLED)
+	add_subdirectory(test/smoketest)
 endif()
 
 message("LIBAAMP_DEFINES is ${LIBAAMP_DEFINES}")
