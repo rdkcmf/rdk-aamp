@@ -6309,9 +6309,9 @@ void PrivateInstanceAAMP::UpdateVideoRectangle (int x, int y, int w, int h)
  */
 void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 {
+	pthread_mutex_lock(&mStreamLock);
 	PrivAAMPState state;
 	GetState(state);
-	pthread_mutex_lock(&mStreamLock);
 	if (mpStreamAbstractionAAMP && state > eSTATE_PREPARING)
 	{
 		if ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE))
@@ -6325,7 +6325,7 @@ void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 	}
 	else
 	{
-		AAMPLOG_INFO("mpStreamAbstractionAAMP is not Ready, Backup video rect values");
+		AAMPLOG_INFO("mpStreamAbstractionAAMP is not Ready, Backup video rect values, current player state: %d", state);
 		UpdateVideoRectangle (x, y, w, h);
 	}
 	pthread_mutex_unlock(&mStreamLock);
