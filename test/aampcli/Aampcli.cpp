@@ -495,6 +495,9 @@ void MyAAMPEventListener::Event(const AAMPEventPtr& e)
 		case AAMP_EVENT_AUDIO_TRACKS_CHANGED:
 			printf("[AAMPCLI] AAMP_EVENT_AUDIO_TRACKS_CHANGED\n");
 			break;
+		case AAMP_EVENT_TEXT_TRACKS_CHANGED:
+			printf("[AAMPCLI] AAMP_EVENT_TEXT_TRACKS_CHANGED\n");
+			break;
 		case AAMP_EVENT_ID3_METADATA:
 			printf("[AAMPCLI] AAMP_EVENT_ID3_METADATA\n");
 			break;
