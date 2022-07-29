@@ -350,7 +350,12 @@ int main(int argc, char **argv)
 		f = NULL;
 	}
 
-	std::vector<std::string> arguments(argv + 1, argv + argc);
+	std::vector<std::string> arguments;
+	for(int i = 1; i < argc; i++)
+	{
+		arguments.push_back(std::string(argv[i]));
+	}
+
 	pthread_t cmdThreadId;
 	if(pthread_create(&cmdThreadId,NULL,mAampcli.runCommand, (void *) &arguments) != 0)
 	{
