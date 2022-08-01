@@ -10211,7 +10211,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 								[languageList, currentPrefLanguage](AudioTrackInfo& temp)
 								{ return ((temp.language == languageList) && (temp.language != currentPrefLanguage) && (temp.isAvailable)); });
 					languageAvailabilityInManifest = (languageAvailable != end(trackInfo) && languageAvailable->isAvailable);
-					if(languagePresent)
+                                        if(languagePresent && (language != end(trackInfo)))
 					{
 						trackIndexStr = language->index;
 					}
