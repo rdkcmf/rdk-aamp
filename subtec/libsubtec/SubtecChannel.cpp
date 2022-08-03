@@ -58,7 +58,12 @@ std::unique_ptr<SubtecChannel> SubtecChannel::SubtecChannelFactory(ChannelType t
 
 bool SubtecChannel::InitComms()
 {
-    return InitComms(SOCKET_PATH);
+    const char *socket_path = ::getenv("AAMP_SUBTITLE_SOCKET");
+
+    if (socket_path)
+        return InitComms(socket_path);
+    else
+        return InitComms(SOCKET_PATH);
 }
 
 bool SubtecChannel::InitComms(const char* socket_path)
