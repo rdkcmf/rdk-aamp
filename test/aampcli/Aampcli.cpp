@@ -160,13 +160,14 @@ void * Aampcli::runCommand( void* args )
 		arguments = static_cast<std::vector<std::string>*>(args);
 		cmds = *arguments;
 
-		for(auto param : cmds)
+		if( true != cmds.empty() )
 		{
-			snprintf( cmd+strlen(cmd),mMaxBufferLength-strlen(cmd),"%s ", param.c_str());
+			for(auto param : cmds)
+			{
+				snprintf( cmd+strlen(cmd),mMaxBufferLength-strlen(cmd),"%s ", param.c_str());
+			}
+			l_CommandDispatcher.dispatchAampcliCommands(cmd,mAampcli.mSingleton);
 		}
-
-
-		l_CommandDispatcher.dispatchAampcliCommands(cmd,mAampcli.mSingleton);
 	}
 
 	l_Get.initGetHelpText();
