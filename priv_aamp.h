@@ -651,6 +651,9 @@ class PrivateInstanceAAMP : public AampDrmCallbacks, public std::enable_shared_f
 
 	#define AAMP2ReceiverMsgHdrSz (sizeof(AAMP2ReceiverMsg)-1)
 
+	//The position previously reported by ReportProgress() (i.e. the position really sent, using SendEvent())
+	double mReportProgressPosn;
+
 public:
 	/**
 	 * @brief Get profiler bucket type
@@ -896,8 +899,11 @@ public:
 	std::vector<struct PeriodInfo> mMPDPeriodsInfo;
 	float maxRefreshPlaylistIntervalSecs;
 	EventListener* mEventListener;
-	double mReportProgressPosn;
-	long long mReportProgressTime;
+
+	//variables written by ReportProgress() and used by PlayerInstanceAAMP::SetRateInternal() to update seek_pos_seconds
+	double mNewSeekPos;
+	long long mNewSeekPosTime;	//the time mNewSeekPos was changed
+
 	long long mAdPrevProgressTime;
 	uint32_t mAdCurOffset;					/**< Start position in percentage */
 	uint32_t mAdDuration;

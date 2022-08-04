@@ -636,8 +636,8 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 		//Logic adapted
 		// XRE gives fixed overshoot position , not suited for aamp . So ignoring overshoot correction value
 			// instead use last reported posn vs the time player get play command
-		// a. During trickplay , last XRE reported position is stored in aamp->mReportProgressPosn
-					/// and last reported time is stored in aamp->mReportProgressTime
+		// a. During trickplay , last XRE reported position is stored in aamp->mNewSeekPos
+					/// and last reported time is stored in aamp->mNewSeekPosTime
 		// b. Calculate the time delta	from last reported time
 		// c. Using this diff , calculate the best/nearest match position (works out 70-80%)
 		// d. If time delta is < 100ms ,still last video fragment rendering is not removed ,but position updated very recently
@@ -648,7 +648,7 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 		//
 		// h. TODO (again trial n error) - for 3x/4x , within 1sec there might multiple frame displayed . Can use timedelta to calculate some more near,to be tried
 
-		int  timeDeltaFromProgReport = (aamp_GetCurrentTimeMS() - aamp->mReportProgressTime);
+		int  timeDeltaFromProgReport = (aamp_GetCurrentTimeMS() - aamp->mNewSeekPosTime);
 
 		//Skip this logic for either going to paused to coming out of paused scenarios with HLS
 		//What we would like to avoid here is the update of seek_pos_seconds because gstreamer position will report proper position
@@ -662,24 +662,24 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 				if (ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery))
 				{
 					// Get the last frame position when resume from the trick play.
-					newSeekPosInSec = (aamp->mReportProgressPosn/1000);
+					newSeekPosInSec = (aamp->mNewSeekPos/1000);
 				}
 				else
 				{
 					if(timeDeltaFromProgReport > 950) // diff > 950 mSec
 					{
 						// increment by 1x trickplay frame , next possible displayed frame
-						newSeekPosInSec = (aamp->mReportProgressPosn+(aamp->rate*1000))/1000;
+						newSeekPosInSec = (aamp->mNewSeekPos+(aamp->rate*1000))/1000;
 					}
 					else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
 					{
 						// Get the last shown frame itself
-						newSeekPosInSec = aamp->mReportProgressPosn/1000;
+						newSeekPosInSec = aamp->mNewSeekPos/1000;
 					}
 					else
 					{
 						// Go little back to last shown frame
-						newSeekPosInSec = (aamp->mReportProgressPosn-(aamp->rate*1000))/1000;
+						newSeekPosInSec = (aamp->mNewSeekPos-(aamp->rate*1000))/1000;
 					}
 				}
 
