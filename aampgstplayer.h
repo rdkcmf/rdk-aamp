@@ -210,6 +210,11 @@ public:
          */
 	void SetSubtitleMute(bool mute);
 	/**
+         * @fn SetSubtitlePtsOffset
+         * @param[in] pts_offset pts offset for subs
+         */
+	void SetSubtitlePtsOffset(std::uint64_t pts_offset);
+	/**
          * @fn setVolumeOrMuteUnMute
          * @note set privateContext->audioVolume before calling this function
          */

@@ -663,6 +663,14 @@ public:
 	virtual void SetSubtitleMute(bool muted){};
 
 	/**
+	 *   @brief Set subtitle pts offset in sink
+	 *
+	 *   @param[in] pts_offset - pts offset for subs display
+	 *   @return void
+	 */
+	virtual void SetSubtitlePtsOffset(std::uint64_t pts_offset){};
+
+	/**
 	 *   @brief Set volume level
 	 *
 	 *   @param[in]  volume - Minimum 0, maximum 100.
