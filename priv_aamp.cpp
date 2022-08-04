@@ -1291,14 +1291,14 @@ static int progress_callback(
 /**
  * @brief PrivateInstanceAAMP Constructor
  */
-PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData(), mLock(), mMutexAttr(),
+PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPosn(0.0), mAbrBitrateData(), mLock(), mMutexAttr(),
 	mpStreamAbstractionAAMP(NULL), mInitSuccess(false), mVideoFormat(FORMAT_INVALID), mAudioFormat(FORMAT_INVALID), mDownloadsDisabled(),
 	mDownloadsEnabled(true), mStreamSink(NULL), profiler(), licenceFromManifest(false), previousAudioType(eAUDIO_UNKNOWN),isPreferredDRMConfigured(false),
 	mbDownloadsBlocked(false), streamerIsActive(false), mTSBEnabled(false), mIscDVR(false), mLiveOffset(AAMP_LIVE_OFFSET), 
 	seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
 	video_muted(false), subtitles_muted(true), audio_volume(100), subscribedTags(), responseHeaders(), httpHeaderResponses(), timedMetadata(), timedMetadataNew(), IsTuneTypeNew(false), trickStartUTCMS(-1),mLogTimetoTopProfile(true),
 	durationSeconds(0.0), culledSeconds(0.0), culledOffset(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000),
-	mEventListener(NULL), mReportProgressPosn(0.0), mReportProgressTime(0), discardEnteringLiveEvt(false),
+	mEventListener(NULL), mNewSeekPos(0.0), mNewSeekPosTime(0), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
 	m_fd(-1), mIsLive(false), mIsAudioContextSkipped(false), mLogTune(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
 	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
@@ -1732,27 +1732,35 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 
 		if ((mReportProgressPosn == position) && !pipeline_paused && beginningOfStream != true)
 		{
-			// Avoid sending the progress event, if the previous position and the current position is same when pipeline is in playing state. 
+			// Avoid sending the progress event, if the previous position and the current position is same when pipeline is in playing state.
                 	// Addded exception if it's beginning of stream to prevent JSPP not loading previous AD while rewind
 			bProcessEvent = false;
 		}
 
+		/*LLAMA-7142
+		**These variables are:
+		**  -Used by PlayerInstanceAAMP::SetRateInternal() to calculate seek position.
+		**  -Included here for consistency with previous code but aren't directly related to reporting.
+		**  -A good candidate for future refactoring*/
+		mNewSeekPos = position;
+		mNewSeekPosTime = aamp_GetCurrentTimeMS();
+
+		double reportFormatPosition = position;
 		if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling) && mTSBEnabled)
 		{
-			// Reporting relative positions for Fog TSB with interrupt handling
 			start -= (mProgressReportOffset * 1000);
-			position -= (mProgressReportOffset * 1000);
+			reportFormatPosition -= (mProgressReportOffset * 1000);
 			end -= (mProgressReportOffset * 1000);
 		}
 
-		ProgressEventPtr evt = std::make_shared<ProgressEvent>(duration, position, start, end, speed, videoPTS, bufferedDuration, seiTimecode.c_str());
+		ProgressEventPtr evt = std::make_shared<ProgressEvent>(duration, reportFormatPosition, start, end, speed, videoPTS, bufferedDuration, seiTimecode.c_str());
 
 		if (trickStartUTCMS >= 0 && (bProcessEvent || mFirstProgress))
 		{
 			if (mFirstProgress)
 			{
 				mFirstProgress = false;
-				AAMPLOG_WARN("Send first progress event with position %ld", (long)(position / 1000));
+				AAMPLOG_WARN("Send first progress event with position %ld", (long)(reportFormatPosition / 1000));
 			}
 
 			if (ISCONFIGSET_PRIV(eAAMPConfig_ProgressLogging))
@@ -1762,7 +1770,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 				{
 					AAMPLOG_WARN("aamp pos: [%ld..%ld..%ld..%lld..%ld..%s]",
 						(long)(start / 1000),
-						(long)(position / 1000),
+						(long)(reportFormatPosition / 1000),
 						(long)(end / 1000),
 						(long long) videoPTS,
 						(long)(bufferedDuration / 1000),
@@ -1779,10 +1787,7 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 				mEventManager->SendEvent(evt);
 			}
 
-			//XIONE-8379 - these statements should be called together whenever a report is made AND ONLY when a report is made
-			//previously this was not the case and report sending could be erratic
 			mReportProgressPosn = position;
-			mReportProgressTime = aamp_GetCurrentTimeMS();
 		}
 	}
 }
