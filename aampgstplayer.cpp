@@ -3649,6 +3649,20 @@ void AAMPGstPlayer::SetVideoZoom(VideoZoomMode zoom)
 #endif
 }
 
+void AAMPGstPlayer::SetSubtitlePtsOffset(std::uint64_t pts_offset)
+{
+	FN_TRACE( __FUNCTION__ );
+
+	if (privateContext->subtitle_sink)
+	{
+		AAMPLOG_INFO("pts_offset %" G_GUINT64_FORMAT ", seek_pos_seconds %2f, subtitle_sink =%p", pts_offset, aamp->seek_pos_seconds, privateContext->subtitle_sink);
+		//We use seek_pos_seconds as an offset durinig seek, so we subtract that here to get an offset from zero position
+		g_object_set(privateContext->subtitle_sink, "pts-offset", static_cast<std::uint64_t>(pts_offset - (aamp->seek_pos_seconds * 1000.0)), NULL);
+	}
+	else
+		AAMPLOG_INFO("subtitle_sink is NULL");
+}
+
 void AAMPGstPlayer::SetSubtitleMute(bool muted)
 {
 	FN_TRACE( __FUNCTION__ );
