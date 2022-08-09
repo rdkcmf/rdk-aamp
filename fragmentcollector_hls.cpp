@@ -6192,6 +6192,7 @@ std::vector<ThumbnailData> StreamAbstractionAAMP_HLS::GetThumbnailRangeData(doub
 void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale)
 {
 	mFirstPTS = ((double)pts / (double)timeScale);
+	aamp->mStreamSink->SetSubtitlePtsOffset(static_cast<std::uint64_t>(mFirstPTS * 1000.0));
 }
 
 /**
