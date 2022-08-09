@@ -199,6 +199,7 @@ typedef enum
 	eAAMPConfig_ChangeTrackWithoutRetune,					/**< Flag to enable audio track change without disturbing video pipeline */
 	eAAMPConfig_EnableCurlStore,						/**< Enable/Disable CurlStore to save/reuse curl fds */
 	eAAMPConfig_RuntimeDRMConfig,                                           /**< Enable/Disable Dynamic DRM config feature */
+	eAAMPConfig_EnablePublishingMuxedAudio,				/**< Enable/Disable publishing the audio track info from muxed contents */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,

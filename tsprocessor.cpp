@@ -1256,26 +1256,29 @@ void TSProcessor::processPMTSection(unsigned char* section, int sectionLength)
 			StreamOutputFormat streamtype = getStreamFormatForCodecType(audioComponents[i].elemStreamType);
 			std::string codec = GetAudioFormatStringForCodec(streamtype);
 			audioTracks.push_back(AudioTrackInfo(index, language, group_id, name, codec, characteristics, 0));
-			NOTICE( "[%p] found audio#%d in program %d with pcr pid %d audio pid %d lan:%s codec:%s",
-				this, i, m_program, pcrPid, audioComponents[i].pid, language.c_str(), codec.c_str());
+			NOTICE( "[%p] found audio#%d in program %d with pcr pid %d audio pid %d lan:%s codec:%s group:%s",
+				this, i, m_program, pcrPid, audioComponents[i].pid, language.c_str(), codec.c_str(), group_id.c_str());
 		}
-		if(audioTracks.size() > 0)
+		if(ISCONFIGSET(eAAMPConfig_EnablePublishingMuxedAudio))
 		{
-			if(aamp->mpStreamAbstractionAAMP)
+			if(audioTracks.size() > 0)
 			{
-				aamp->mpStreamAbstractionAAMP->SetAudioTrackInfoFromMuxedStream(audioTracks);
+				if(aamp->mpStreamAbstractionAAMP)
+				{
+					aamp->mpStreamAbstractionAAMP->SetAudioTrackInfoFromMuxedStream(audioTracks);
+				}
 			}
-		}
-		if(m_audDemuxer)
-		{
-			// Audio demuxer found, select audio by preference
-			int trackIndex = SelectAudioIndexToPlay();
-			if(trackIndex != -1 && trackIndex < audioComponentCount)
+			if(m_audDemuxer)
 			{
-				AAMPLOG_INFO("Selected best track audio#%d with per preference", trackIndex);
-				m_AudioTrackIndexToPlay = trackIndex;
-				std::string index = "mux-" + std::to_string(trackIndex);
-				aamp->mpStreamAbstractionAAMP->SetCurrentAudioTrackIndex(index);
+				// Audio demuxer found, select audio by preference
+				int trackIndex = SelectAudioIndexToPlay();
+				if(trackIndex != -1 && trackIndex < audioComponentCount)
+				{
+					AAMPLOG_INFO("Selected best track audio#%d with per preference", trackIndex);
+					m_AudioTrackIndexToPlay = trackIndex;
+					std::string index = "mux-" + std::to_string(trackIndex);
+					aamp->mpStreamAbstractionAAMP->SetCurrentAudioTrackIndex(index);
+				}
 			}
 		}
 	}
