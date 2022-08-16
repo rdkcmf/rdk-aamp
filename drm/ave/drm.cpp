@@ -41,6 +41,7 @@ IConstraintEnforcer::Status OutputProtectionEnforcer::isConstraintSatisfiedInner
 // TODO: THIS MODULE NEEDS TO BE MADE MULTI-SESSION-FRIENDLY
 #include "drm.h"
 #include "AampUtils.h"
+#include "AampDrmHelper.h"
 #ifdef AVE_DRM
 #include "media/IMedia.h" // TBR - remove dependency
 #include <sys/time.h>
@@ -1290,7 +1291,19 @@ long AveDrmManager::setSessionToken()
 	CURL_EASY_SETOPT(curl, CURLOPT_WRITEDATA, tokenReply);
 	CURL_EASY_SETOPT(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 	CURL_EASY_SETOPT(curl, CURLOPT_URL, SESSION_TOKEN_URL);
+#ifdef LIGHTTPD_AUTHSERVICE_DISABLE
+        struct curl_slist *headerList = NULL;
+        unsigned char access_Token[MAX_LENGTH] = {0};
+        GetSecurityToken(MAX_LENGTH, access_Token);
+        std::string securityToken ( reinterpret_cast< char const* >(access_Token) ) ;
+	std::string authHeader = AUTH_HEADER + securityToken;
+	
+	headerList = curl_slist_append(headerList, authHeader.c_str());
+        headerList = curl_slist_append(headerList, CONTENT_TYPE_HEADER);
+        CURL_EASY_SETOPT(curl, CURLOPT_HTTPHEADER, headerList);
 
+        CURL_EASY_SETOPT(curl, CURLOPT_POSTFIELDS, SESSION_TOKEN_POST_FIELD);
+#endif
 	res = curl_easy_perform(curl);
 
 	if (res == CURLE_OK)
@@ -1338,7 +1351,12 @@ long AveDrmManager::setSessionToken()
 		error_code = res;
 	}
 	SAFE_DELETE(tokenReply);
-	curl_easy_cleanup(curl);
+#ifdef LIGHTTPD_AUTHSERVICE_DISABLE
+	if (headerList != NULL) {
+                curl_slist_free_all(headerList);
+        }
+#endif
+        curl_easy_cleanup(curl);
 	free(urlEncodedkeyId);   //CID:142774 - Resource leak
 	return error_code;
 }

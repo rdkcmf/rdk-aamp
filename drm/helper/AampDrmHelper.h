@@ -36,6 +36,17 @@
 #include "AampDRMutils.h"
 #include "AampMemorySystem.h"
 
+#ifdef LIGHTTPD_AUTHSERVICE_DISABLE
+#include <securityagent/SecurityTokenUtil.h>
+#define SESSION_TOKEN_URL "http://127.0.0.1:9998/jsonrpc"
+#define SESSION_TOKEN_POST_FIELD "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"org.rdk.AuthService.1.getSessionToken\"}"
+#define AUTH_HEADER "Authorization: Bearer "
+#define CONTENT_TYPE_HEADER "Content-Type: application/json"
+#define MAX_LENGTH 1024
+#else
+#define SESSION_TOKEN_URL "http://localhost:50050/authService/getSessionToken"
+#endif
+
 /**
  * @struct AampChallengeInfo
  * @brief Aamp challenge info to get the License
