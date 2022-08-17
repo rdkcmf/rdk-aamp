@@ -8106,8 +8106,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 						{
 							uint64_t ptoFragmenNumber = 0;
 							ptoFragmenNumber = (pMediaStreamContext->scaledPTO / fragmentDuration) + 1;
-							AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: Track %d PTO specific fragment Number : %lld", i, ptoFragmenNumber);
-							startNumber = ptoFragmenNumber;
+							AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: Track %d startnumber:%ld PTO specific fragment Number : %lld", i,startNumber, ptoFragmenNumber);
+							if(ptoFragmenNumber > startNumber)
+							{
+								startNumber = ptoFragmenNumber;
+							}
 						}
 
 						if(i == eMEDIATYPE_VIDEO)
