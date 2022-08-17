@@ -11303,6 +11303,16 @@ long PrivateInstanceAAMP::LoadFogConfig()
 	
 	//persistHighNetworkBandwidth
 	jsondata.add("persistHighNetworkBandwidth", ISCONFIGSET_PRIV(eAAMPConfig_PersistHighNetworkBandwidth));
+
+	tmpLongVar = 0;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MinBitrate,tmpLongVar);
+	jsondata.add("minBitrate", tmpLongVar);
+
+	tmpLongVar = 0;
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxBitrate,tmpLongVar);
+	jsondata.add("maxBitrate", tmpLongVar);
+
+	jsondata.add("enableABR", ISCONFIGSET_PRIV(eAAMPConfig_EnableABR));
 	/*
 	 * Audio and subtitle preference
 	 * Disabled this for XRE supported TSB linear
