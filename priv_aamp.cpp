@@ -2067,11 +2067,11 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRe
 			{
 				snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Http Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
 			}
-			SendErrorEvent(tuneFailure, description, isRetryEnabled);
+			SendErrorEvent(tuneFailure, description, isRetryEnabled, event->getSecManagerClassCode(),event->getSecManagerReasonCode(), event->getBusinessStatus());
 		}
 		else if(tuneFailure >= 0 && tuneFailure < AAMP_TUNE_FAILURE_UNKNOWN)
 		{
-			SendErrorEvent(tuneFailure, NULL, isRetryEnabled);
+			SendErrorEvent(tuneFailure, NULL, isRetryEnabled, event->getSecManagerClassCode(),event->getSecManagerReasonCode(), event->getBusinessStatus());
 		}
 		else
 		{
@@ -2208,7 +2208,7 @@ bool PrivateInstanceAAMP::PausePipeline(bool pause, bool forceStopGstreamerPreBu
  * @brief Handles errors and sends events to application if required.
  * For download failures, use SendDownloadErrorEvent instead.
  */
-void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char * description, bool isRetryEnabled)
+void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char * description, bool isRetryEnabled, int32_t secManagerClassCode, int32_t secManagerReasonCode, int32_t secClientBusinessStatus)
 {
 	bool sendErrorEvent = false;
 	pthread_mutex_lock(&mLock);
@@ -2256,7 +2256,7 @@ void PrivateInstanceAAMP::SendErrorEvent(AAMPTuneFailure tuneFailure, const char
 			errorDescription = tuneFailureMap[AAMP_TUNE_FAILURE_UNKNOWN].description;
 		}
 
-		MediaErrorEventPtr e = std::make_shared<MediaErrorEvent>(tuneFailure, code, errorDescription, isRetryEnabled);
+		MediaErrorEventPtr e = std::make_shared<MediaErrorEvent>(tuneFailure, code, errorDescription, isRetryEnabled, secManagerClassCode, secManagerReasonCode, secClientBusinessStatus);
 		SendAnomalyEvent(ANOMALY_ERROR, "Error[%d]:%s", tuneFailure, e->getDescription().c_str());
 		if (!mAppName.empty())
 		{

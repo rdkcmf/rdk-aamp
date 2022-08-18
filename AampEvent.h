@@ -340,6 +340,10 @@ struct AAMPEvent
 			int code;                                           /**< Error code */
 			const char *description;                            /**< Error description */
 			bool shouldRetry;                                   /**< If recovery on retry is possible */
+			int32_t classCode; /**< class Code */
+			int32_t reasonCode; /**<reason Code */
+			int32_t businessStatus; /**< business Status */
+	
 		} mediaError;
 
 		struct
@@ -533,6 +537,10 @@ class MediaErrorEvent: public AAMPEventObject
 	int mCode;			/**< Error code */
 	std::string mDescription;	/**< Error description */
 	bool mShouldRetry;		/**< If recovery on retry is possible */
+	
+	int32_t mSecManagerClass;	/**< Secmanager error class */
+	int32_t mSecManagerReasonCode; /**< Secmanager reason  code */
+	int32_t mBusinessStatus;	/**< secclient business reason  code */
 
 public:
 	MediaErrorEvent() = delete;
@@ -547,7 +555,7 @@ public:
 	 * @param[in] desc        - Error description
 	 * @param[in] shouldRetry - Retry or not
 	 */
-	MediaErrorEvent(AAMPTuneFailure failure, int code, const std::string &desc, bool shouldRetry);
+	MediaErrorEvent(AAMPTuneFailure failure, int code, const std::string &desc, bool shouldRetry, int32_t classCode, int32_t reason, int32_t businessStatus);
 
 	/**
 	 * @brief MediaErrorEvent Destructor
@@ -573,6 +581,21 @@ public:
 	 * @fn shouldRetry
 	 */ 	 
 	bool shouldRetry() const;
+	
+	/**
+	 * @fn getClass
+	 */
+	int32_t getClass() const;
+	
+	/**
+	 * @fn getReason
+	 */
+	int32_t getReason() const;
+	
+	/**
+	 * @fn getBusinessStatus
+	 */
+	int32_t getBusinessStatus() const;
 };
 
 /**
@@ -1368,7 +1391,6 @@ public:
 };
 
 /**
- * @class DrmMetaDataEvent
  * @brief Class for the Drm Metadata event
  */
 class DrmMetaDataEvent: public AAMPEventObject
@@ -1378,15 +1400,17 @@ class DrmMetaDataEvent: public AAMPEventObject
 	int mAccessStatusValue;		/**< Access status value */
 	long mResponseCode;		/**< Response code */
 	bool mSecclientError;		/**< Is secclient error */
-	long mSecManagerReasonCode; 	/**< Secmanager response code */
-
+	
+	int32_t mSecManagerClass;	/**< Secmanager error class */
+	int32_t mSecManagerReasonCode; /**< Secmanager reason  code */
+	int32_t mBusinessStatus;	/**< secclient business reason  code */
 public:
 	DrmMetaDataEvent() = delete;
 	DrmMetaDataEvent(const DrmMetaDataEvent&) = delete;
 	DrmMetaDataEvent& operator=(const DrmMetaDataEvent&) = delete;
 
-	/**
-	 * @fn DrmMetaDataEvent
+	/*
+	 * @brief DrmMetaDataEvent Constructor
 	 *
 	 * @param[in] failure      - Failure type
 	 * @param[in] accessStatus - Access status
@@ -1402,12 +1426,14 @@ public:
 	virtual ~DrmMetaDataEvent() { }
 
 	/**
-	 * @fn getFailure
-	 */ 	 
+	 * @brief Get Failure type
+	 *
+	 * @return Tune failure type
+	 */
 	AAMPTuneFailure getFailure() const;
 
 	/**
-	 * @fn setFailure
+	 * @brief Set Failure type
 	 *
 	 * @param[in] failure - Failure type
 	 * @return void
@@ -1415,12 +1441,14 @@ public:
 	void setFailure(AAMPTuneFailure failure);
 
 	/**
-	 * @fn getAccessStatus
+	 * @brief Get Access Status
+	 *
+	 * @return Access status string
 	 */
 	const std::string &getAccessStatus() const;
 
 	/**
-	 * @fn setAccessStatus
+	 * @brief Set Access Status
 	 *
 	 * @param[in] status - Access status
 	 * @return void
@@ -1428,12 +1456,14 @@ public:
 	void setAccessStatus(const std::string &status);
 
 	/**
-	 * @fn getAccessStatusValue
+	 * @brief Get Access Status
+	 *
+	 * @return Access status value
 	 */
 	int getAccessStatusValue() const;
 
 	/**
-	 * @fn setAccessStatusValue
+	 * @brief Set Access Status Value
 	 *
 	 * @param[in] value - Access status value
 	 * @return void
@@ -1441,17 +1471,35 @@ public:
 	void setAccessStatusValue(int value);
 
 	/**
-	 * @fn getResponseCode
+	 * @brief Get Response Code
+	 *
+	 * @return Response code
 	 */
 	long getResponseCode() const;
 	
 	/**
-	 * @fn getSecManagerReasonCode
+	 * @brief Get Response Code
+	 *
+	 * @return Response code
 	 */
-	long getSecManagerReasonCode() const;
+	int32_t getSecManagerReasonCode() const;
 	
 	/**
-	 * @fn setResponseCode
+	 * @brief Get Response Code
+	 *
+	 * @return Response code
+	 */
+	int32_t getSecManagerClassCode() const;
+	
+	/**
+	 * @brief Get Response Code
+	 *
+	 * @return Response code
+	 */
+	int32_t getBusinessStatus() const;
+	
+	/**
+	 * @brief Set Response Code
 	 *
 	 * @param[in] code - Response code
 	 * @return void
@@ -1459,26 +1507,38 @@ public:
 	void setResponseCode(long code);
 	
 	/**
-	 * @fn setSecManagerReasonCode
-	 * @param[in] code - secmanager reason code
-	 * @return void
+	 * @brief Get Secmanager response code
+	 * @param[string] code - secmanager reason code
+	 * @return Response code
 	 */
-	void setSecManagerReasonCode(long code);
+	void setSecManagerReasonCode(int32_t code);
 
 	/**
-	 * @fn getSecclientError
+	 * @brief Get secclient error status
+	 *
+	 * @return secclient error (true/false)
 	 */
 	bool getSecclientError() const;
-       
-        /**
-         * @fn setSecclientError
-         *
-         * @param[in] secclientError client error status (true/false)
-         * @return void
-         */
-        void setSecclientError(bool secclientError);
+	   
+	/**
+	 * @brief Set secclient error status
+	 *
+	 * @param[in] sec client error status (true/false)
+	 * @return void
+	 */
+	void setSecclientError(bool secclientError);
+	
+	/**
+	 * @brief Set the secmanager DRM error responses
+	 */
+	void SetVerboseErrorCode(int32_t statusCode,  int32_t reasonCode, int32_t businessStatus );
 
+	/**
+	 * @brief Convert the secclient DRM error code into secmanager error code to have a unified verbose error reported
+	 */
+	void ConvertToVerboseErrorCode(int32_t httpCode, int32_t httpExtStatusCode );
 };
+
 
 /**
  * @class AnomalyReportEvent
