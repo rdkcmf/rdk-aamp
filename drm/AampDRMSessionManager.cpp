@@ -1271,6 +1271,11 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 	{
 		// External license, assuming the DRM system is ready to proceed
 		code = KEY_PENDING;
+		if(drmHelper->friendlyName().compare("Verimatrix") == 0)
+		{
+			licenseResponse = std::make_shared<DrmData>();
+			drmHelper->transformLicenseResponse(licenseResponse);
+		}
 	}
 	else
 	{
