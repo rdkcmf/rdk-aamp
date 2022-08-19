@@ -1419,7 +1419,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mTsbSessionRequestUrl()
 	, mWaitForDynamicDRMToUpdate()
 	, mDynamicDrmUpdateLock()
-	, mDynamicDrmWait(false)
 	, mDynamicDrmCache()
 	, mAudioComponentCount(-1)
 	, mVideoComponentCount(-1)
@@ -1427,6 +1426,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mVideoOnlyPb(false)
 	, mCurrentAudioTrackIndex(-1)
 	, mCurrentTextTrackIndex(-1)
+	, mcurrent_keyIdArray()
+	, mDynamicDrmDefaultconfig()
+
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
