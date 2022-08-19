@@ -968,8 +968,10 @@ AampDrmSession* AampDRMSessionManager::createDrmSession(std::shared_ptr<AampDrmH
 	bool RuntimeDRMConfigSupported = aampInstance->mConfig->IsConfigSet(eAAMPConfig_RuntimeDRMConfig);
 	if(RuntimeDRMConfigSupported && aampInstance->IsEventListenerAvailable(AAMP_EVENT_CONTENT_PROTECTION_DATA_UPDATE) && (streamType < 4))
 	{
+		aampInstance->mcurrent_keyIdArray = keyId;
 		AAMPLOG_INFO("App registered the ContentProtectionDataEvent to send new drm config");
 		ContentProtectionDataUpdate(aampInstance, keyId, streamType);
+		aampInstance->mcurrent_keyIdArray.clear();
 	}
 
 	code = initializeDrmSession(drmHelper, selectedSlot, eventHandle, aampInstance);
@@ -1645,7 +1647,6 @@ void AampDRMSessionManager::notifyCleanup()
 
 void AampDRMSessionManager::ContentProtectionDataUpdate(PrivateInstanceAAMP* aampInstance, std::vector<uint8_t> keyId, MediaType streamType)
 {
-	aampInstance->mDynamicDrmWait = true;
 	std::string contentType = sessionTypeName[streamType];
 	int iter1 = 0;
 	bool DRM_Config_Available = false;
@@ -1694,13 +1695,26 @@ void AampDRMSessionManager::ContentProtectionDataUpdate(PrivateInstanceAAMP* aam
 		pthreadReturnValue = pthread_cond_timedwait(&aampInstance->mWaitForDynamicDRMToUpdate, &aampInstance->mDynamicDrmUpdateLock, &ts);
 		if (ETIMEDOUT == pthreadReturnValue)
 		{
-			AAMPLOG_WARN("pthread_cond_timedwait returned TIMEOUT");
-			aampInstance->mDynamicDrmWait = false;
+			AAMPLOG_WARN("pthread_cond_timedwait returned TIMEOUT, Applying Default config");
+			DynamicDrmInfo dynamicDrmCache = aampInstance->mDynamicDrmDefaultconfig;
+			std::map<std::string,std::string>::iterator itr;
+			for(itr = dynamicDrmCache.licenseEndPoint.begin();itr!=dynamicDrmCache.licenseEndPoint.end();itr++) {
+				if(strcasecmp("com.microsoft.playready",itr->first.c_str())==0) {
+					aampInstance->mConfig->SetConfigValue(AAMP_APPLICATION_SETTING,eAAMPConfig_PRLicenseServerUrl,itr->second);
+				}
+				if(strcasecmp("com.widevine.alpha",itr->first.c_str())==0) {
+					aampInstance->mConfig->SetConfigValue(AAMP_APPLICATION_SETTING,eAAMPConfig_WVLicenseServerUrl,itr->second);
+				}
+				if(strcasecmp("org.w3.clearkey",itr->first.c_str())==0) {
+					aampInstance->mConfig->SetConfigValue(AAMP_APPLICATION_SETTING,eAAMPConfig_CKLicenseServerUrl,itr->second);
+				}
+			}
+			aampInstance->mConfig->SetConfigValue(AAMP_APPLICATION_SETTING,eAAMPConfig_AuthToken,dynamicDrmCache.authToken);
+			aampInstance->mConfig->SetConfigValue(AAMP_APPLICATION_SETTING,eAAMPConfig_CustomLicenseData,dynamicDrmCache.customData);
 		}
 		else if (0 != pthreadReturnValue)
 		{
 			AAMPLOG_WARN("pthread_cond_timedwait returned %s ", strerror(pthreadReturnValue));
-			aampInstance->mDynamicDrmWait = false;
 		}
 		else{
 			AAMPLOG_WARN("%s:%d [WARN] pthread_cond_timedwait(dynamicDrmUpdate) returned success!", __FUNCTION__, __LINE__);
