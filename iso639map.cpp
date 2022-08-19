@@ -407,7 +407,10 @@ static void ConvertLanguage3to2( char lang[] )
                 return;
             }
         }
-        strcpy( lang, "un" ); // default - error
+        if( strcmp(lang,"mul")!=0 )
+        {
+            strcpy( lang, "un" ); // default - error
+        }
     }
 }
 /**
