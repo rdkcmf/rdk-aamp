@@ -2038,11 +2038,6 @@ static GstElement* AAMPGstPlayer_GetAppSrc(AAMPGstPlayer *_this, MediaType media
 			AAMPLOG_INFO("Subtitle seeking first PTS %02f", _this->aamp->GetFirstPTS());
 			gst_element_seek_simple(GST_ELEMENT(source), GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, _this->aamp->GetFirstPTS() * GST_SECOND);
 		}
-		else
-		{
-			AAMPLOG_INFO("Subtitle seeking first PTS %02f", _this->aamp->seek_pos_seconds);
-			gst_element_seek_simple(GST_ELEMENT(source), GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, _this->aamp->seek_pos_seconds * GST_SECOND);
-		}
 	}
 	return source;
 }
@@ -3691,7 +3686,7 @@ void AAMPGstPlayer::SetSubtitlePtsOffset(std::uint64_t pts_offset)
 	{
 		AAMPLOG_INFO("pts_offset %" G_GUINT64_FORMAT ", seek_pos_seconds %2f, subtitle_sink =%p", pts_offset, aamp->seek_pos_seconds, privateContext->subtitle_sink);
 		//We use seek_pos_seconds as an offset durinig seek, so we subtract that here to get an offset from zero position
-		g_object_set(privateContext->subtitle_sink, "pts-offset", static_cast<std::uint64_t>(pts_offset - (aamp->seek_pos_seconds * 1000.0)), NULL);
+		g_object_set(privateContext->subtitle_sink, "pts-offset", static_cast<std::uint64_t>(pts_offset), NULL);
 	}
 	else
 		AAMPLOG_INFO("subtitle_sink is NULL");
@@ -3996,16 +3991,6 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
         {
 			AAMPLOG_WARN("Seek failed");
-		}
-		//HLS always seeks to 0 so we need to correct the sub sink position here
-		else if(privateContext->stream[eMEDIATYPE_SUBTITLE].format == FORMAT_SUBTITLE_WEBVTT)
-		{
-			if (!gst_element_seek_simple(privateContext->subtitle_sink, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, aamp->seek_pos_seconds * GST_SECOND))
-			{
-				AAMPLOG_WARN("Subtitle seek failed");
-			}
-			else
-				AAMPLOG_WARN("Subtitle seek OK with PTS %.2f %lu", aamp->seek_pos_seconds, aamp->seek_pos_seconds * GST_SECOND);
 		}
 #if defined (REALTEKCE)
 		if(bAsyncModify == TRUE)
