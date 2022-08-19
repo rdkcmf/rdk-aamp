@@ -10921,6 +10921,9 @@ long PrivateInstanceAAMP::LoadFogConfig()
 	long tmpLongVar = 0;
 	int maxdownload = 0;
 
+	// langCodePreference
+	jsondata.add("langCodePreference", (int) GetLangCodePreference());
+
 	// networkTimeout value in sec and convert into MS
 	GETCONFIGVALUE_PRIV(eAAMPConfig_NetworkTimeout,tmpVar);
 	jsondata.add("downloadTimeoutMS", (long)CONVERT_SEC_TO_MS(tmpVar));
