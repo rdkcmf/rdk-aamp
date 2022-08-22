@@ -3958,6 +3958,34 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 		{
 			playRate = rate;
 		}
+#if defined (REALTEKCE)
+		/* XIONE-9423
+		 * A work around for a timing issue that can occur around scrubbing.
+		 * This causes trick play issues if applied to rates >1.
+		 */
+		if(abs(rate)<=1)
+		{
+			GstState targetState, currentState;
+			gst_element_get_state(privateContext->pipeline, &currentState, &targetState, 100 * GST_MSECOND);
+
+			if((targetState != GST_STATE_PAUSED) &&
+			((targetState == GST_STATE_PLAYING) || (currentState == GST_STATE_PLAYING)))
+			{
+				AAMPLOG_WARN("AAMPGstPlayer: Pause before seek, Setting Pipeline to GST_STATE_PAUSED.");
+				SetStateWithWarnings(privateContext->pipeline, GST_STATE_PAUSED);
+			}
+			else
+			{
+				AAMPLOG_WARN("AAMPGstPlayer: Pause before seek, not required (targetState=%s, currentState=%s)",
+				gst_element_state_get_name(targetState),
+				gst_element_state_get_name(currentState));
+			}
+		}
+		else
+		{
+			AAMPLOG_INFO("AAMPGstPlayer: Pause before seek, not required (rate = %d).",rate);
+		}
+#endif
 
 		if (!gst_element_seek(privateContext->pipeline, playRate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH, GST_SEEK_TYPE_SET,
 			position * GST_SECOND, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
