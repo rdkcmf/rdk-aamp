@@ -5336,7 +5336,7 @@ void TrackState::SwitchSubtitleTrack()
 		pthread_mutex_unlock(&mPlaylistMutex);
 		context->AbortWaitForAudioTrackCatchup(true);
 
-		mSubtitleParser->init(aamp->GetPositionMilliseconds() / 1000.0, aamp->GetBasePTS());
+		mSubtitleParser->init(aamp->GetPositionSeconds(), aamp->GetBasePTS());
 
 		pthread_mutex_unlock(&mutex);		
 	}

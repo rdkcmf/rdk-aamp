@@ -1500,6 +1500,16 @@ public:
 	long long GetPositionMilliseconds(void);
 
 	/**
+	 *   @fn GetPositionSeconds
+	 *
+	 *   @return Position in seconds.
+	 */
+	double GetPositionSeconds(void)
+	{
+		return static_cast<double>(GetPositionMilliseconds())/1000.00;
+	}
+
+	/**
 	 *   @fn SendStreamCopy
 	 *
 	 *   @param[in]  mediaType - Type of the media.
