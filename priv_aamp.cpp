@@ -1891,7 +1891,7 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 	// The rate check is a special case for a specific player, if this is contradicting to other players, we will have to add a config to enable/disable
 	if (pipeline_paused && mpStreamAbstractionAAMP && (abs(rate) != AAMP_RATE_TRICKPLAY_MAX))
 	{
-		double position = GetPositionMilliseconds() / 1000.0; // in seconds
+		double position = GetPositionSeconds();
 		double minPlaylistPositionToResume = (position < maxRefreshPlaylistIntervalSecs) ? position : (position - maxRefreshPlaylistIntervalSecs);
 		if (this->culledSeconds >= position)
 		{
@@ -2418,7 +2418,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		lastUnderFlowTimeMs[eMEDIATYPE_AUX_AUDIO] = 0;
 
 		{
-			double newPosition = GetPositionMilliseconds() / 1000.0;
+			double newPosition = GetPositionSeconds();
 			double injectedPosition = seek_pos_seconds + mpStreamAbstractionAAMP->GetLastInjectedFragmentPosition();
 			double startTimeofFirstSample = 0;
 			AAMPLOG_WARN("PrivateInstanceAAMP: last injected position:%f position calcualted: %f", injectedPosition, newPosition);
@@ -4633,7 +4633,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	// DELIA-39530 - Get position before pipeline is teared down
 	if (eTUNETYPE_RETUNE == tuneType)
 	{
-		seek_pos_seconds = GetPositionMilliseconds()/1000;
+		seek_pos_seconds = GetPositionSeconds();
 	}
 
 	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
@@ -5908,7 +5908,7 @@ void PrivateInstanceAAMP::detach()
 	if(mpStreamAbstractionAAMP && mbPlayEnabled) //Player is running
 	{
 		pipeline_paused = true;
-		seek_pos_seconds  = GetPositionMilliseconds()/1000.0;
+		seek_pos_seconds  = GetPositionSeconds();
 		AAMPLOG_WARN("Player %s=>%s and soft release.Detach at position %f", STRFGPLAYER, STRBGPLAYER,seek_pos_seconds );
 		DisableDownloads(); //disable download
 		mpStreamAbstractionAAMP->SeekPosUpdate(seek_pos_seconds );
@@ -9611,7 +9611,7 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 				{
 					SetPreferredTextTrack(track);
 					discardEnteringLiveEvt = true;
-					seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+					seek_pos_seconds = GetPositionSeconds();
 					AcquireStreamLock();
 					TeardownStream(false);
 					TuneHelper(eTUNETYPE_SEEK);
@@ -10327,7 +10327,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				{
 					discardEnteringLiveEvt = true;
 
-					seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+					seek_pos_seconds = GetPositionSeconds();
 					mOffsetFromTunetimeForSAPWorkaround = (double)(aamp_GetCurrentTimeMS() / 1000) - mLiveOffset;
 					mLanguageChangeInProgress = true;
 					AcquireStreamLock();
@@ -10508,7 +10508,7 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 			else if (languagePresent) /**< call the tune only if there is a change in the language, rendition or accessibility.*/
 			{
 				discardEnteringLiveEvt = true;
-				seek_pos_seconds = GetPositionMilliseconds()/1000.0;
+				seek_pos_seconds = GetPositionSeconds();
 				mOffsetFromTunetimeForSAPWorkaround = (double)(aamp_GetCurrentTimeMS() / 1000) - mLiveOffset;
 				mLanguageChangeInProgress = true;
 				AcquireStreamLock();
