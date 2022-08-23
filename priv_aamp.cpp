@@ -4337,6 +4337,20 @@ bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, Growa
 	if(curl)
 	{
 		AAMPLOG_INFO("%s, %d", remoteUrl.c_str(), request);
+		
+		CURL_EASY_SETOPT(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
+		CURL_EASY_SETOPT(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
+		CURL_EASY_SETOPT(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+		if(!ISCONFIGSET_PRIV(eAAMPConfig_SslVerifyPeer)){
+			CURL_EASY_SETOPT(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+		}
+		else {
+			CURL_EASY_SETOPT(curl, CURLOPT_SSLVERSION, mSupportedTLSVersion);
+				CURL_EASY_SETOPT(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+		}
+		CURL_EASY_SETOPT(curl, CURLOPT_URL, remoteUrl.c_str());
+
 		if(eCURL_GET == request)
 		{
 			CurlCallbackContext context(this, buffer);
@@ -4350,30 +4364,20 @@ bool PrivateInstanceAAMP::ProcessCustomCurlRequest(std::string& remoteUrl, Growa
 			CURL_EASY_SETOPT(curl, CURLOPT_NOPROGRESS, 0L);
 			CURL_EASY_SETOPT(curl, CURLOPT_WRITEDATA, &context);
 			CURL_EASY_SETOPT(curl, CURLOPT_HTTPGET, 1L);
+			res = curl_easy_perform(curl); // DELIA-57728 - avoid out of scope use of progressCtx
 		}
 		else if(eCURL_DELETE == request)
 		{
 			CURL_EASY_SETOPT(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+			res = curl_easy_perform(curl);
 		}
 		else if(eCURL_POST == request)
 		{
 			CURL_EASY_SETOPT(curl, CURLOPT_POSTFIELDSIZE, pData.size());
 			CURL_EASY_SETOPT(curl, CURLOPT_POSTFIELDS,(uint8_t * )pData.c_str());
+			res = curl_easy_perform(curl);
 		}
-		CURL_EASY_SETOPT(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
-		CURL_EASY_SETOPT(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
-		CURL_EASY_SETOPT(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
-		if(!ISCONFIGSET_PRIV(eAAMPConfig_SslVerifyPeer)){
-			CURL_EASY_SETOPT(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-		}
-		else {
-			CURL_EASY_SETOPT(curl, CURLOPT_SSLVERSION, mSupportedTLSVersion);
-		        CURL_EASY_SETOPT(curl, CURLOPT_SSL_VERIFYPEER, 1L);
-		}
-		CURL_EASY_SETOPT(curl, CURLOPT_URL, remoteUrl.c_str());
-
-		res = curl_easy_perform(curl);
 		if (res == CURLE_OK)
 		{
 			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
