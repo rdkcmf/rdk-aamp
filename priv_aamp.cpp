@@ -10073,11 +10073,15 @@ void PrivateInstanceAAMP::SetStreamFormat(StreamOutputFormat videoFormat, Stream
 		reconfigure = true;
 		mAuxFormat = auxFormat;
 	}
-	if (IsMuxedStream()) //Can be a Muxed stream/Demuxed with either of audio or video-only stream
+	if (IsMuxedStream() && (mVideoComponentCount == 0 || mAudioComponentCount == 0)) //Can be a Muxed stream/Demuxed with either of audio or video-only stream
 	{
 		AAMPLOG_INFO(" TS Processing Done. Number of Audio Components : %d and Video Components : %d",mAudioComponentCount,mVideoComponentCount);
 		if (IsAudioOrVideoOnly(videoFormat, audioFormat, auxFormat))
 		{
+			bool newTune = IsNewTune();
+			pthread_mutex_unlock(&mLock);
+			mStreamSink->Stop(!newTune);
+			pthread_mutex_lock(&mLock);
 			reconfigure = true;
 		}
 	}
@@ -10098,13 +10102,11 @@ bool PrivateInstanceAAMP::IsAudioOrVideoOnly(StreamOutputFormat videoFormat, Str
 {
 	AAMPLOG_WARN("Old Stream format - videoFormat %d and audioFormat %d",mVideoFormat,mAudioFormat);
 	bool ret = false;
-	bool newTune = IsNewTune();
 	if (mVideoComponentCount == 0 && (mVideoFormat != videoFormat && videoFormat == FORMAT_INVALID))
 	{
 		mAudioOnlyPb = true;
 		mVideoFormat = videoFormat;
 		AAMPLOG_INFO("Audio-Only PlayBack");
-		mStreamSink->Stop(!newTune);
 		ret = true;
 	}
 
@@ -10120,9 +10122,9 @@ bool PrivateInstanceAAMP::IsAudioOrVideoOnly(StreamOutputFormat videoFormat, Str
 		}
 		mVideoOnlyPb = true;
 		AAMPLOG_INFO("Video-Only PlayBack");
-		mStreamSink->Stop(!newTune);
 		ret = true;
 	}
+
 	return ret;
 }
 /**
