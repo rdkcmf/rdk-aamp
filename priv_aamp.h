@@ -70,15 +70,15 @@ static const char *mMediaFormatName[] =
 #define aamp_pthread_setname(tid,name) pthread_setname_np(tid,name)
 #endif
 
-#define AAMP_TRACK_COUNT 4              		/**< internal use - audio+video+sub+aux track */
+#define AAMP_TRACK_COUNT 4		/**< internal use - audio+video+sub+aux track */
 #define DEFAULT_CURL_INSTANCE_COUNT (AAMP_TRACK_COUNT + 1) /**< One for Manifest/Playlist + Number of tracks */
-#define AAMP_DRM_CURL_COUNT 4           		/**< audio+video+sub+aux track DRMs */
-//#define CURL_FRAGMENT_DL_TIMEOUT 10L    		/**< Curl timeout for fragment download */
-#define DEFAULT_PLAYLIST_DL_TIMEOUT 10L 		/**< Curl timeout for playlist download */
-#define DEFAULT_CURL_TIMEOUT 5L         		/**< Default timeout for Curl downloads */
-#define DEFAULT_CURL_CONNECTTIMEOUT 3L  		/**< Curl socket connection timeout */
-#define EAS_CURL_TIMEOUT 3L             		/**< Curl timeout for EAS manifest downloads */
-#define EAS_CURL_CONNECTTIMEOUT 2L      		/**< Curl timeout for EAS connection */
+#define AAMP_DRM_CURL_COUNT 4		/**< audio+video+sub+aux track DRMs */
+//#define CURL_FRAGMENT_DL_TIMEOUT 10L	/**< Curl timeout for fragment download */
+#define DEFAULT_PLAYLIST_DL_TIMEOUT 10L	/**< Curl timeout for playlist download */
+#define DEFAULT_CURL_TIMEOUT 5L		/**< Default timeout for Curl downloads */
+#define DEFAULT_CURL_CONNECTTIMEOUT 3L	/**< Curl socket connection timeout */
+#define EAS_CURL_TIMEOUT 3L		/**< Curl timeout for EAS manifest downloads */
+#define EAS_CURL_CONNECTTIMEOUT 2L      /**< Curl timeout for EAS connection */
 #define DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS (6*1000)   /**< Interval between playlist refreshes */
 
 #define AAMP_SEEK_TO_LIVE_POSITION (-1)
@@ -88,14 +88,13 @@ static const char *mMediaFormatName[] =
 #define AAMP_LOW_BUFFER_BEFORE_RAMPDOWN 10 		/**< 10sec buffer before rampdown */
 #define AAMP_HIGH_BUFFER_BEFORE_RAMPUP  15 		/**< 15sec buffer before rampup */
 
-
-#define AAMP_USER_AGENT_MAX_CONFIG_LEN  512    		/**< Max Chars allowed in aamp.cfg for user-agent */
+#define AAMP_USER_AGENT_MAX_CONFIG_LEN  512    /**< Max Chars allowed in aamp.cfg for user-agent */
 #define SERVER_UTCTIME_DIRECT "urn:mpeg:dash:utc:direct:2014"
 #define SERVER_UTCTIME_HTTP "urn:mpeg:dash:utc:http-xsdate:2014"
 // MSO-specific VSS Service Zone identifier in URL
 #define VSS_MARKER			"?sz="
 #define VSS_MARKER_LEN			4
-#define VSS_MARKER_FOG			"%3Fsz%3D" 	/**< URI-encoded ?sz= */
+#define VSS_MARKER_FOG			"%3Fsz%3D"	/**<URI-encoded ?sz= */
 #define VSS_VIRTUAL_STREAM_ID_KEY_STR "content:xcal:virtualStreamId"
 #define VSS_VIRTUAL_STREAM_ID_PREFIX "urn:merlin:linear:stream:"
 #define VSS_SERVICE_ZONE_KEY_STR "device:xcal:serviceZone"
@@ -160,15 +159,19 @@ struct HLSXStart
  */
 enum AampCurlInstance
 {
-	eCURLINSTANCE_VIDEO,			/**< Curl Instance for Video */
-	eCURLINSTANCE_AUDIO,			/**< Curl Instance for Audio */
-	eCURLINSTANCE_SUBTITLE,			/**< Curl Instance for Subtitle */
-	eCURLINSTANCE_AUX_AUDIO,		/**< Curl Instance for Aux Audio */
-	eCURLINSTANCE_MANIFEST_PLAYLIST,	/**< Curl Instance for Manifest file */
-	eCURLINSTANCE_DAI,			/**< Curl Instance for DAI */
-	eCURLINSTANCE_AES,			/**< Curl Instance for AES */
-	eCURLINSTANCE_PLAYLISTPRECACHE,		/**< Curl Instance for Precache */
-	eCURLINSTANCE_MAX			/**< Curl Max Instance */
+	eCURLINSTANCE_VIDEO,
+	eCURLINSTANCE_AUDIO,
+	eCURLINSTANCE_SUBTITLE,
+	eCURLINSTANCE_AUX_AUDIO,
+	eCURLINSTANCE_MANIFEST_MAIN,
+	eCURLINSTANCE_MANIFEST_PLAYLIST_VIDEO,
+	eCURLINSTANCE_MANIFEST_PLAYLIST_AUDIO,
+	eCURLINSTANCE_MANIFEST_PLAYLIST_SUBTITLE,
+	eCURLINSTANCE_MANIFEST_PLAYLIST_AUX_AUDIO,
+	eCURLINSTANCE_DAI,
+	eCURLINSTANCE_AES,
+	eCURLINSTANCE_PLAYLISTPRECACHE,
+	eCURLINSTANCE_MAX
 };
 
 /*
@@ -789,6 +792,29 @@ public:
 	void UpdatePreferredAudioList();
 
 	/**
+	 * @fn EnableMediaDownloads
+	 *
+	 * @param[in] MediaType - playlist type
+	 * @return void
+	 */
+	void EnableMediaDownloads(MediaType type);
+
+	/**
+	 * @fn DisableMediaDownloads
+	 *
+	 * @param[in] MediaType - playlist type
+	 * @return void
+	 */
+	void DisableMediaDownloads(MediaType type);
+
+	/**
+	 * @fn EnableAllMediaDownloads
+	 *
+	 * @return void
+	 */
+	void EnableAllMediaDownloads();
+
+	/**
 	 * @fn ReplaceKeyIDPsshData
 	 * @param initialization data input 
 	 * @param initialization data input size
@@ -815,6 +841,7 @@ public:
 	StreamOutputFormat mSubtitleFormat{FORMAT_UNKNOWN};
 	pthread_cond_t mDownloadsDisabled;
 	bool mDownloadsEnabled;
+	std::map<MediaType, bool> mMediaDownloadsEnabled; /* Used to enable/Disable individual mediaType downloads */
 	StreamSink* mStreamSink;
 
 	ProfileEventAAMP profiler;
