@@ -700,7 +700,7 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 			{
 				// Coming out of pause mode(aamp->rate=0) or when going into pause mode (rate=0)
 				// Show the last position
-				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000;
+				aamp->seek_pos_seconds = aamp->GetPositionSeconds();
 			}
 
 			aamp->trickStartUTCMS = -1;
@@ -712,7 +712,7 @@ void PlayerInstanceAAMP::SetRateInternal(int rate,int overshootcorrection)
 			// trickStartUTCMS has to be reset
 			if (!ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery) && !aamp->mbDetached)
 			{
-				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000;
+				aamp->seek_pos_seconds = aamp->GetPositionSeconds();
 				aamp->trickStartUTCMS = -1;
 			}
 		}
@@ -823,7 +823,7 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 
 	if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
 	{
-		double currPositionSecs = aamp->GetPositionMilliseconds() / 1000.00;
+		double currPositionSecs = aamp->GetPositionSeconds();
 		if ((tuneType == eTUNETYPE_SEEKTOLIVE) || (aamp->seek_pos_seconds >= currPositionSecs))
 		{
 			AAMPLOG_WARN("Already at live point, skipping operation since requested position(%f) >= currPosition(%f) or seekToLive(%d)", aamp->seek_pos_seconds, currPositionSecs, isSeekToLiveOrEnd);
@@ -947,7 +947,7 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 
 		if (aamp->IsLive() && aamp->mpStreamAbstractionAAMP && aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint())
 		{
-			double currPositionSecs = aamp->GetPositionMilliseconds() / 1000.00;
+			double currPositionSecs = aamp->GetPositionSeconds();
 
 			if ((tuneType == eTUNETYPE_SEEKTOLIVE) || secondsRelativeToTuneTime >= currPositionSecs)
 			{
@@ -1566,7 +1566,7 @@ void PlayerInstanceAAMP::SetInitFragTimeoutRetryCount(int count)
 double PlayerInstanceAAMP::GetPlaybackPosition()
 {
 	ERROR_STATE_CHECK_VAL(0.00);
-	return (aamp->GetPositionMilliseconds() / 1000.00);
+	return aamp->GetPositionSeconds();
 }
 
 /**
@@ -2806,7 +2806,7 @@ void PlayerInstanceAAMP::SetAuxiliaryLanguageInternal(const std::string &languag
 
 				aamp->discardEnteringLiveEvt = true;
 
-				aamp->seek_pos_seconds = aamp->GetPositionMilliseconds()/1000.0;
+				aamp->seek_pos_seconds = aamp->GetPositionSeconds();
 				aamp->TeardownStream(false);
 				aamp->TuneHelper(eTUNETYPE_SEEK);
 
