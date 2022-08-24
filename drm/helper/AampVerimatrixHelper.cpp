@@ -22,7 +22,7 @@
 
 #include "AampVerimatrixHelper.h"
 #include "AampDRMutils.h"
-#include "GlobalConfigAAMP.h"
+#include "AampConfig.h"
 #include "AampConstants.h"
 
 #define KEYURL_TAG_START "<KeyUrl><![CDATA["
@@ -137,11 +137,11 @@ bool AampVerimatrixHelperFactory::isDRM(const struct DrmInfo& drmInfo) const
 		);
 }
 
-std::shared_ptr<AampDrmHelper> AampVerimatrixHelperFactory::createHelper(const struct DrmInfo& drmInfo) const
+std::shared_ptr<AampDrmHelper> AampVerimatrixHelperFactory::createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj) const
 {
 	if (isDRM(drmInfo))
 	{
-		return std::make_shared<AampVerimatrixHelper>(drmInfo);
+		return std::make_shared<AampVerimatrixHelper>(drmInfo, logObj);
 	}
 	return NULL;
 }

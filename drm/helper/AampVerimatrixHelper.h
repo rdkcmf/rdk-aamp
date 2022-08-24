@@ -52,7 +52,7 @@ public:
 
 	virtual const std::string& friendlyName() const override { return FRIENDLY_NAME; };
 
-	AampVerimatrixHelper(const struct DrmInfo& drmInfo) : AampDrmHelper(drmInfo), FRIENDLY_NAME("Verimatrix"),
+	AampVerimatrixHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj) : AampDrmHelper(drmInfo, logObj), FRIENDLY_NAME("Verimatrix"),
 		CODEC_TYPE(1), VERIMATRIX_PSSH_DATA_POSITION(52),
 		mInitData(), mKeyID(), mContentMetadata()
 	{}
@@ -72,7 +72,7 @@ private:
 
 class AampVerimatrixHelperFactory : public AampDrmHelperFactory
 {
-	std::shared_ptr<AampDrmHelper> createHelper(const struct DrmInfo& drmInfo) const;
+	std::shared_ptr<AampDrmHelper> createHelper(const struct DrmInfo& drmInfo, AampLogManager *logObj=NULL) const;
 
 	void appendSystemId(std::vector<std::string>& systemIds) const;
 
