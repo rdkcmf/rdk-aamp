@@ -5683,6 +5683,7 @@ bool  StreamAbstractionAAMP_MPD::FindServerUTCTime(Node* root)
 						{
 							mServerUtcTime = ISO8601DateTimeToUTCSeconds(data.ptr);
 							mDeltaTime =  mServerUtcTime - currentTime;
+							aamp_AppendNulTerminator( &data ); // DELIA-57728
 							AAMPLOG_INFO("Time sync delta : %lf (%s)", mDeltaTime, data.ptr);
 							hasServerUtcTime = true;
 						}
