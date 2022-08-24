@@ -245,7 +245,6 @@ private:
 	double GetEncoderDisplayLatency();
 	void StartLatencyMonitorThread();
 	LatencyStatus GetLatencyStatus() { return latencyStatus; }
-	vector<IDescriptor*> GetContentProtection(const IAdaptationSet *adaptationSet, MediaType mediaType);
 	bool GetPreferredCodecIndex(IAdaptationSet *adaptationSet, int &selectedRepIdx, AudioType &selectedCodecType, 
 	uint32_t &selectedRepBandwidth, uint32_t &bestScore, bool disableEC3, bool disableATMOS, bool disableAC4);
 	void PopulateAudioTracks(void);

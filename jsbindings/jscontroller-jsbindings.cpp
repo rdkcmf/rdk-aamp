@@ -250,7 +250,7 @@ static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef fun
 		char* type = aamp_JSValueToCString(context, arguments[0], NULL);
 		JSObjectRef callbackFunc = JSValueToObject(context, arguments[1], NULL);
 
-		if ((callbackFunc != NULL) && JSObjectIsFunction(context, callbackFunc))
+		if (callbackFunc != NULL && JSObjectIsFunction(context, callbackFunc))
 		{
 			AAMPEventType eventType = aampPlayer_getEventTypeFromName(type);
 			LOG("%s() eventType='%s', %d", __FUNCTION__, type, eventType);
@@ -262,7 +262,7 @@ static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef fun
 		}
 		else
 		{
-			ERROR("%s() callbackFunc = %p, JSObjectIsFunction(context, callbackFunc) is NULL", __FUNCTION__, callbackFunc);
+			ERROR("%s() callbackFunc=%p, JSObjectIsFunction(context, callbackFunc)=%d", __FUNCTION__, callbackFunc, JSObjectIsFunction(context, callbackFunc));
 			char errMsg[512];
 			memset(errMsg, '\0', 512);
 			snprintf(errMsg, 511, "Failed to execute addEventListener() for event %s - parameter 2 is not a function", type);
@@ -306,7 +306,7 @@ static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef 
 		char* type = aamp_JSValueToCString(context, arguments[0], NULL);
 		JSObjectRef callbackFunc = JSValueToObject(context, arguments[1], NULL);
 
-		if ((callbackFunc != NULL) && JSObjectIsFunction(context, callbackFunc))
+		if (callbackFunc != NULL && JSObjectIsFunction(context, callbackFunc))
 		{
 			AAMPEventType eventType = aampPlayer_getEventTypeFromName(type);
 			LOG("[AAMP_JS] %s() eventType='%s', %d", __FUNCTION__, type, eventType);
@@ -318,7 +318,7 @@ static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef 
 		}
 		else
 		{
-			ERROR("%s() InvalidArgument: callbackObj = %p, JSObjectIsFunction(context, callbackObj) is NULL", __FUNCTION__, callbackFunc);
+			ERROR("%s() InvalidArgument: callbackObj=%p, JSObjectIsFunction(context, callbackObj)=%d", __FUNCTION__, callbackFunc, JSObjectIsFunction(context, callbackFunc));
 			char errMsg[512];
 			memset(errMsg, '\0', 512);
 			snprintf(errMsg, 511, "Failed to execute removeEventListener() for event %s - parameter 2 is not a function", type);

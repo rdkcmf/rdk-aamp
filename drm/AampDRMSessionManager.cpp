@@ -47,14 +47,10 @@
 #define DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
 #define DRM_METADATA_TAG_END "</ckm:policy>"
 #define SESSION_TOKEN_URL "http://localhost:50050/authService/getSessionToken"
+#define MAX_LICENSE_REQUEST_ATTEMPTS 2
 
 #define INVALID_SESSION_SLOT -1
 #define DEFUALT_CDM_WAIT_TIMEOUT_MS 2000
-
-#define CURL_EASY_SETOPT(curl, CURLoption, option)\
-    if (curl_easy_setopt(curl, CURLoption, option) != 0) {\
-          AAMPLOG_WARN("Failed at curl_easy_setopt ");\
-    }  //CID:128208 - checked return
 
 static const char *sessionTypeName[] = {"video", "audio"};
 
@@ -430,19 +426,19 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 		long httpCode = -1;
 
 		CURL *curl = curl_easy_init();;
-		CURL_EASY_SETOPT(curl, CURLOPT_NOSIGNAL, 1L);
-		CURL_EASY_SETOPT(curl, CURLOPT_WRITEFUNCTION, write_callback);
-		CURL_EASY_SETOPT(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
-		CURL_EASY_SETOPT(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
-		CURL_EASY_SETOPT(curl, CURLOPT_PROGRESSDATA, this);
-		CURL_EASY_SETOPT(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
-		CURL_EASY_SETOPT(curl, CURLOPT_FOLLOWLOCATION, 1L);
-		CURL_EASY_SETOPT(curl, CURLOPT_NOPROGRESS, 0L);
-		CURL_EASY_SETOPT(curl, CURLOPT_WRITEDATA, callbackData);
+		curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+		curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
+		curl_easy_setopt(curl, CURLOPT_TIMEOUT, DEFAULT_CURL_TIMEOUT);
+		curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, this);
+		curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
+		curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
 		if(!bSslPeerVerify){
-		     CURL_EASY_SETOPT(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+		     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 		}
-		CURL_EASY_SETOPT(curl, CURLOPT_URL, SESSION_TOKEN_URL);
+		curl_easy_setopt(curl, CURLOPT_URL, SESSION_TOKEN_URL);
 
 		res = curl_easy_perform(curl);
 
@@ -508,6 +504,22 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 	tokenLen = accessTokenLen;
 	return accessToken;
 }
+
+/**
+ * @brief Sleep for given milliseconds
+ * @param milliseconds Time to sleep
+ */
+static void mssleep(int milliseconds)
+{
+	struct timespec req, rem;
+	if (milliseconds > 0)
+	{
+		req.tv_sec = milliseconds / 1000;
+		req.tv_nsec = (milliseconds % 1000) * 1000000;
+		nanosleep(&req, &rem);
+	}
+}
+
 
 /**
  *  @brief		Get DRM license key from DRM server.
@@ -590,8 +602,8 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 #if USE_SECMANAGER
 	if(aampInstance->mConfig->IsConfigSet(eAAMPConfig_UseSecManager))
 	{
-		int32_t statusCode;
-		int32_t reasonCode;
+		int64_t statusCode;
+		int64_t reasonCode;
 		bool res = AampSecManager::GetInstance()->AcquireLicense(aampInstance, licenseRequest.url.c_str(),
 																 requestMetadata,
 																 ((numberOfAccessAttributes == 0) ? NULL : accessAttributes),
@@ -605,7 +617,7 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 																 &statusCode, &reasonCode);
 		if (res)
 		{
-			AAMPLOG_WARN("acquireLicense via SecManager SUCCESS!");
+			AAMPLOG_WARN("%s:%d acquireLicense via SecManager SUCCESS!",__FUNCTION__, __LINE__);
 			//TODO: Sort this out for backward compatibility
 			*httpCode = 200;
 			*httpExtStatusCode = 0;
@@ -617,11 +629,10 @@ DrmData * AampDRMSessionManager::getLicenseSec(const AampLicenseRequest &license
 		}
 		else
 		{
+			logprintf("%s:%d acquireLicense via SecManager FAILED!",__FUNCTION__, __LINE__);
+			//TODO: Sort this out for backward compatibility
 			*httpCode = statusCode;
 			*httpExtStatusCode = reasonCode;
-
-			AAMPLOG_ERR("acquireLicense via SecManager FAILED!, httpCode %d, httpExtStatusCode %d", *httpCode, *httpExtStatusCode);
-			//TODO: Sort this out for backward compatibility
 		}
 	}
 #endif
@@ -738,42 +749,42 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	AAMPLOG_WARN(" Sending license request to server : %s ", licenseRequest.url.c_str());
 	if (aamp->mConfig->IsConfigSet(eAAMPConfig_CurlLicenseLogging))
 	{
-		CURL_EASY_SETOPT(curl, CURLOPT_VERBOSE, 1L);
+		curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
 	}
-	CURL_EASY_SETOPT(curl, CURLOPT_WRITEFUNCTION, write_callback);
-	CURL_EASY_SETOPT(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
-	CURL_EASY_SETOPT(curl, CURLOPT_PROGRESSDATA, this);
-	CURL_EASY_SETOPT(curl, CURLOPT_TIMEOUT, 5L);
-	CURL_EASY_SETOPT(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
-	CURL_EASY_SETOPT(curl, CURLOPT_FOLLOWLOCATION, 1L);
-	CURL_EASY_SETOPT(curl, CURLOPT_URL, licenseRequest.url.c_str());
-	CURL_EASY_SETOPT(curl, CURLOPT_WRITEDATA, callbackData);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+	curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, progress_callback);
+	curl_easy_setopt(curl, CURLOPT_PROGRESSDATA, this);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+	curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_WHATEVER);
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_URL, licenseRequest.url.c_str());
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
 	if(!ISCONFIGSET(eAAMPConfig_SslVerifyPeer)){
-		CURL_EASY_SETOPT(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 	}
 	else {
-		CURL_EASY_SETOPT(curl, CURLOPT_SSLVERSION, aamp->mSupportedTLSVersion);
-		CURL_EASY_SETOPT(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+		curl_easy_setopt(curl, CURLOPT_SSLVERSION, aamp->mSupportedTLSVersion);
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	}
 
-	CURL_EASY_SETOPT(curl, CURLOPT_HTTPHEADER, headers);
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
 	if(licenseRequest.method == AampLicenseRequest::POST)
 	{
 		challengeLength = licenseRequest.payload.size();
-		CURL_EASY_SETOPT(curl, CURLOPT_POSTFIELDSIZE, challengeLength);
-		CURL_EASY_SETOPT(curl, CURLOPT_POSTFIELDS,(uint8_t * )licenseRequest.payload.data());
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, challengeLength);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS,(uint8_t * )licenseRequest.payload.data());
 	}
 	else
 	{
-		CURL_EASY_SETOPT(curl, CURLOPT_HTTPGET, 1L);
+		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
 	}
 
 	if (!licenseProxy.empty())
 	{
-		CURL_EASY_SETOPT(curl, CURLOPT_PROXY, licenseProxy.c_str());
+		curl_easy_setopt(curl, CURLOPT_PROXY, licenseProxy.c_str());
 		/* allow whatever auth the proxy speaks */
-		CURL_EASY_SETOPT(curl, CURLOPT_PROXYAUTH, CURLAUTH_ANY);
+		curl_easy_setopt(curl, CURLOPT_PROXYAUTH, CURLAUTH_ANY);
 	}
 	unsigned int attemptCount = 0;
 	bool requestFailed = true;
@@ -810,7 +821,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 	                                callbackData = new writeCallbackData();
 	                                callbackData->data = keyInfo;
 	                                callbackData->mDRMSessionManager = this;
-	                                CURL_EASY_SETOPT(curl, CURLOPT_WRITEDATA, callbackData);
+	                                curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
         	                }
                 	        AAMPLOG_ERR(" curl_easy_perform() failed: %s", curl_easy_strerror(res));
                         	AAMPLOG_ERR(" acquireLicense FAILED! license request attempt : %d; response code : curl %d", attemptCount, res);
@@ -835,7 +846,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
                                         callbackData = new writeCallbackData();
                                         callbackData->data = keyInfo;
                                         callbackData->mDRMSessionManager = this;
-					CURL_EASY_SETOPT(curl, CURLOPT_WRITEDATA, callbackData);
+					curl_easy_setopt(curl, CURLOPT_WRITEDATA, callbackData);
 					AAMPLOG_WARN("acquireLicense : Sleeping %d milliseconds before next retry.",licenseRetryWaitTime);
 					mssleep(licenseRetryWaitTime);
 				}
@@ -1332,7 +1343,6 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 			AAMPLOG_ERR("Error in getting license challenge : Key State %d ", code);
 			aampInstance->profiler.ProfileError(PROFILE_BUCKET_LA_PREPROC, AAMP_TUNE_DRM_CHALLENGE_FAILED);
 			eventHandle->setFailure(AAMP_TUNE_DRM_CHALLENGE_FAILED);
-			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_PREPROC);
 		}
 		else
 		{
@@ -1415,10 +1425,8 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				{
 					eventHandle->setSecclientError(true);
 					licenseResponse.reset(getLicenseSec(licenseRequest, drmHelper, challengeInfo, aampInstance, &httpResponseCode, &httpExtendedStatusCode, eventHandle));
-					
-					bool sec_accessTokenExpired = aampInstance->mConfig->IsConfigSet(eAAMPConfig_UseSecManager) && SECMANGER_DRM_FAILURE == httpResponseCode && SECMANGER_ACCTOKEN_EXPIRED == httpExtendedStatusCode;
 					// Reload Expired access token only on http error code 412 with status code 401
-					if (((412 == httpResponseCode && 401 == httpExtendedStatusCode) || sec_accessTokenExpired) && !usingAppDefinedAuthToken)
+					if (412 == httpResponseCode && 401 == httpExtendedStatusCode && !usingAppDefinedAuthToken)
 					{
 						AAMPLOG_INFO("License Req failure by Expired access token httpResCode %d statusCode %d", httpResponseCode, httpExtendedStatusCode);
 						if(accessToken)
@@ -1452,19 +1460,20 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 
 	if (code == KEY_PENDING)
 	{
-		code = handleLicenseResponse(drmHelper, sessionSlot, cdmError, httpResponseCode, httpExtendedStatusCode, licenseResponse, eventHandle, aampInstance);
+		code = handleLicenseResponse(drmHelper, sessionSlot, cdmError, httpResponseCode, licenseResponse, eventHandle, aampInstance);
 	}
 
 	return code;
 }
 
-KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError, int32_t httpResponseCode, int32_t httpExtendedStatusCode, shared_ptr<DrmData> licenseResponse, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aamp)
+KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
+		int32_t httpResponseCode, shared_ptr<DrmData> licenseResponse, DrmMetaDataEventPtr eventHandle, PrivateInstanceAAMP* aampInstance)
 {
 	if (!drmHelper->isExternalLicense())
 	{
 		if ((licenseResponse != NULL) && (licenseResponse->getDataLength() != 0))
 		{
-			aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_NETWORK);
+			aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_NETWORK);
 
 #if !defined(USE_SECCLIENT) && !defined(USE_SECMANAGER)
 			if (!drmHelper->getDrmMetaData().empty())
@@ -1501,38 +1510,10 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 		}
 		else
 		{
-			aamp->profiler.ProfileError(PROFILE_BUCKET_LA_NETWORK, httpResponseCode);
-			aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_NETWORK);
+			aampInstance->profiler.ProfileError(PROFILE_BUCKET_LA_NETWORK, httpResponseCode);
 
 			AAMPLOG_ERR("Error!! Invalid License Response was provided by the Server");
-			
-			bool SecAuthFailure = false, SecTimeout = false;
-			
-			//Handle secmaanger specific error codes here
-			if(ISCONFIGSET(eAAMPConfig_UseSecManager))
-			{
-				//The documentation for secmanager error codes are here
-				//https://etwiki.sys.comcast.net/pages/viewpage.action?spaceKey=RDKV&title=AAMP+-+SecManagerApi
-				eventHandle->setResponseCode(httpResponseCode);
-				eventHandle->setSecManagerReasonCode(httpExtendedStatusCode);
-				if(SECMANGER_DRM_FAILURE == httpResponseCode && SECMANGER_ENTITLEMENT_FAILURE == httpExtendedStatusCode)
-				{
-					if (eventHandle->getFailure() != AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN)
-					{
-						eventHandle->setFailure(AAMP_TUNE_AUTHORISATION_FAILURE);
-					}
-					AAMPLOG_WARN("DRM session for %s, Authorisation failed", drmSessionContexts[sessionSlot].drmSession->getKeySystem().c_str());
-				}
-				else if(SECMANGER_DRM_FAILURE == httpResponseCode && SECMANGER_SERVICE_TIMEOUT == httpExtendedStatusCode)
-				{
-					eventHandle->setFailure(AAMP_TUNE_LICENCE_TIMEOUT);
-				}
-				else
-				{
-					eventHandle->setFailure(AAMP_TUNE_LICENCE_REQUEST_FAILED);
-				}
-			}
-			else if (412 == httpResponseCode)
+			if (412 == httpResponseCode)
 			{
 				if (eventHandle->getFailure() != AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN)
 				{
@@ -1561,7 +1542,7 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 		}
 	}
 
-	return processLicenseResponse(drmHelper, sessionSlot, cdmError, licenseResponse, eventHandle, aamp);
+	return processLicenseResponse(drmHelper, sessionSlot, cdmError, licenseResponse, eventHandle, aampInstance);
 }
 
 KeyState AampDRMSessionManager::processLicenseResponse(std::shared_ptr<AampDrmHelper> drmHelper, int sessionSlot, int &cdmError,
@@ -1747,15 +1728,6 @@ void *CreateDRMSession(void *arg)
 		AAMPLOG_ERR("aamp_pthread_setname failed");
 	}
 	struct DrmSessionParams* sessionParams = (struct DrmSessionParams*)arg;
-
-	if(sessionParams == nullptr) {
-		AAMPLOG_ERR("sessionParams is null");
-                return nullptr;
-	}
-	if(sessionParams->aamp == nullptr) {
-		AAMPLOG_ERR("no aamp in sessionParams");
-		return nullptr;
-	}   //CID:144411 - Reverse_inull
 	AampDRMSessionManager* sessionManger = sessionParams->aamp->mDRMSessionManager;
 #if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
 	bool isSecClientError = true;
@@ -1774,7 +1746,6 @@ void *CreateDRMSession(void *arg)
 		AAMPLOG_ERR("no aamp in sessionParams");
 		return nullptr;
 	}
-
 	if (sessionParams->aamp->mDRMSessionManager == nullptr) {
 		AAMPLOG_ERR("no aamp->mDrmSessionManager in sessionParams");
 		return nullptr;
@@ -1789,7 +1760,6 @@ void *CreateDRMSession(void *arg)
 		sessionParams->aamp->SendDrmErrorEvent(e, false);
 		sessionParams->aamp->profiler.SetDrmErrorCode((int)failure);
 		sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int)failure);
-		sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 	}
 	else
 	{
@@ -1816,9 +1786,7 @@ void *CreateDRMSession(void *arg)
 			}
 			sessionParams->aamp->profiler.SetDrmErrorCode((int) failure);
 			sessionParams->aamp->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int) failure);
-			sessionParams->aamp->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);	
 		}
-
 		else
 		{
 			if(e->getAccessStatusValue() != 3)

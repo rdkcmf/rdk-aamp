@@ -226,7 +226,7 @@ bool ThunderAccessAAMP::InvokeJSONRPC(std::string method, const JsonObject &para
     {
         if (result["success"].Boolean()) {
             result.ToString(response);
-			AAMPLOG_TRACE( "[ThunderAccessAAMP] %s success! Response : %s", method.c_str() , response.c_str());
+            AAMPLOG_INFO( "[ThunderAccessAAMP] %s success! Response : %s", method.c_str() , response.c_str());
         }
         else
         {

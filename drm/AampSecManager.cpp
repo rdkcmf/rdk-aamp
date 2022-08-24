@@ -26,6 +26,7 @@
 #include <string.h>
 #include "_base64.h"
 #include <inttypes.h> // For PRId64
+//TODO: Fix cyclic dependency btw GlobalConfig and AampLogManager
 
 AampSecManager* AampSecManager::mInstance = NULL;
 
@@ -58,16 +59,12 @@ void AampSecManager::DestroyInstance()
 /**
  * @brief AampScheduler Constructor
  */
-AampSecManager::AampSecManager() : mSecManagerObj(SECMANAGER_CALL_SIGN), mSecMutex(), mSchedulerStarted(false),
-				   mRegisteredEvents(), mWatermarkPluginObj(WATERMARK_PLUGIN_CALLSIGN), mWatMutex(), mSpeedStateMutex()
+AampSecManager::AampSecManager() : mSecManagerObj(SECMANAGER_CALL_SIGN), mMutex(),mSchedulerStarted(false),
+				   mRegisteredEvents(), mWatermarkPluginObj(WATERMARK_PLUGIN_CALLSIGN), mSpeedStateMutex()
 {
-	
-	std::lock_guard<std::mutex> lock(mSecMutex);
-	mSecManagerObj.ActivatePlugin();	
-	{
-		std::lock_guard<std::mutex> lock(mWatMutex);
-		mWatermarkPluginObj.ActivatePlugin();
-	}
+	std::lock_guard<std::mutex> lock(mMutex);
+	mSecManagerObj.ActivatePlugin();
+	mWatermarkPluginObj.ActivatePlugin();
 
 	/*Start Scheduler for handling RDKShell API invocation*/    
 	if(false == mSchedulerStarted)
@@ -84,7 +81,7 @@ AampSecManager::AampSecManager() : mSecManagerObj(SECMANAGER_CALL_SIGN), mSecMut
  */
 AampSecManager::~AampSecManager()
 {
-	std::lock_guard<std::mutex> lock(mSecMutex);
+	std::lock_guard<std::mutex> lock(mMutex);
 
 	/*Stop Scheduler used for handling RDKShell API invocation*/    
 	if(true == mSchedulerStarted)
@@ -119,19 +116,14 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 					const char* licenseRequest, size_t licReqLen, const char* keySystemId,
 					const char* mediaUsage, const char* accessToken, size_t accTokenLen,
 					int64_t* sessionId,
-					char** licenseResponse, size_t* licenseResponseLength, int32_t* statusCode, int32_t* reasonCode)
+					char** licenseResponse, size_t* licenseResponseLength,
+					int64_t* statusCode, int64_t* reasonCode)
 {
 	// licenseUrl un-used now
 	(void) licenseUrl;
 
 	bool ret = false;
 	bool rpcResult = false;
-	unsigned int retryCount = 0;
-	
-	//Initializing it with default error codes (which would be sent if there any jsonRPC
-	//call failures to thunder)
-	*statusCode = SECMANGER_DRM_FAILURE;
-	*reasonCode = SECMANGER_DRM_GEN_FAILURE;
 	
 	//Shared memory pointer, key declared here,
 	//Access token, content metadata and licnese request will be passed to
@@ -177,11 +169,11 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 #ifdef DEBUG_SECMAMANER
 	std::string params;
 	param.ToString(params);
-	AAMPLOG_WARN("SecManager openPlaybackSession param: %s", params.c_str());
+	AAMPLOG_WARN("%s:%d SecManager openPlaybackSession param: %s", __FUNCTION__, __LINE__, params.c_str());
 #endif
 	
 	{
-		std::lock_guard<std::mutex> lock(mSecMutex);
+		std::lock_guard<std::mutex> lock(mMutex);
 		if(accTokenLen > 0 && contMetaLen > 0 && licReqLen > 0)
 		{
 			shmPt_accToken = aamp_CreateSharedMem(accTokenLen, shmKey_accToken);
@@ -211,104 +203,8 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 			param["licenseRequestBufferKey"] = shmKey_licReq;
 			param["licenseRequestLength"] = licReqLen;
 			
-			//Retry delay
-			int sleepTime ;
-			GETCONFIGVALUE(eAAMPConfig_LicenseRetryWaitTime,sleepTime) ;
-			if(sleepTime<=0) sleepTime = 100;
-			//invoke "openPlaybackSession" with retries for specific error cases
-			do
-			{
-				rpcResult = mSecManagerObj.InvokeJSONRPC(apiName, param, response, 10000);
-				if (rpcResult)
-				{
-				#ifdef DEBUG_SECMAMANER
-					std::string output;
-					response.ToString(output);
-					AAMPLOG_WARN("SecManager openPlaybackSession o/p: %s",output.c_str());
-				#endif
-					if (response["success"].Boolean())
-					{
-						std::string license = response["license"].String();
-						AAMPLOG_TRACE("SecManager obtained license with length: %d and data: %s",license.size(), license.c_str());
-						if (!license.empty())
-						{
-							// Here license is base64 encoded
-							unsigned char * licenseDecoded = NULL;
-							size_t licenseDecodedLen = 0;
-							licenseDecoded = base64_Decode(license.c_str(), &licenseDecodedLen);
-							AAMPLOG_TRACE("SecManager license decoded len: %d and data: %p", licenseDecodedLen, licenseDecoded);
-
-							if (licenseDecoded != NULL && licenseDecodedLen != 0)
-							{
-								AAMPLOG_INFO("SecManager license post base64 decode length: %d", *licenseResponseLength);
-								*licenseResponse = (char*) malloc(licenseDecodedLen);
-								if (*licenseResponse)
-								{
-									memcpy(*licenseResponse, licenseDecoded, licenseDecodedLen);
-									*licenseResponseLength = licenseDecodedLen;
-								}
-								else
-								{
-									AAMPLOG_ERR("SecManager failed to allocate memory for license!");
-								}
-								free(licenseDecoded);
-								ret = true;
-							}
-							else
-							{
-								AAMPLOG_ERR("SecManager license base64 decode failed!");
-							}
-						}
-					}
-					// Save session ID
-					if (*sessionId == -1)
-					{
-						*sessionId = response["sessionId"].Number();
-					}
-					
-				}
-				// TODO: Sort these values out for backward compatibility
-				if(response.HasLabel("secManagerResultContext"))
-				{
-					JsonObject resultContext = response["secManagerResultContext"].Object();
-					
-					if(resultContext.HasLabel("class"))
-						*statusCode = resultContext["class"].Number();
-					if(resultContext.HasLabel("reason"))
-						*reasonCode = resultContext["reason"].Number();
-				}
-				
-				if(!ret)
-				{
-					//As per Secmanager retry is meaningful only for
-					//Digital Rights Management Failure Class (200) or
-					//Watermarking Failure Class (300)
-					//having the reasons -
-					//DRM license service network timeout / Request/network time out (3).
-					//DRM license network connection failure/Watermark vendor-access service connection failure (4)
-					//DRM license server busy/Watermark service busy (5)
-					if((*statusCode == SECMANGER_DRM_FAILURE || *statusCode == SECMANGER_WM_FAILURE) &&
-					   (*reasonCode == SECMANGER_SERVICE_TIMEOUT ||
-						*reasonCode == SECMANGER_SERVICE_CON_FAILURE ||
-						*reasonCode == SECMANGER_SERVICE_BUSY ) && retryCount < MAX_LICENSE_REQUEST_ATTEMPTS)
-					{
-						++retryCount;
-						AAMPLOG_WARN("SecManager license request failed, response for %s : statusCode: %d, reasonCode: %d, so retrying with delay %d, retry count : %u", apiName, *statusCode, *reasonCode, sleepTime, retryCount );
-						mssleep(sleepTime);						
-					}
-					else
-					{
-						AAMPLOG_ERR("SecManager license request failed, response for %s : statusCode: %d, reasonCode: %d", apiName, *statusCode, *reasonCode);
-						break;
-					}
-				}
-				else
-				{
-					AAMPLOG_INFO("SecManager license request success, response for %s : statusCode: %d, reasonCode: %d", apiName, *statusCode, *reasonCode);
-					break;
-				}
-			}
-			while(retryCount < MAX_LICENSE_REQUEST_ATTEMPTS);
+			//invoke "openPlaybackSession"
+			rpcResult = mSecManagerObj.InvokeJSONRPC(apiName, param, response, 10000);
 			
 			//Cleanup the shared memory after sharing it with secmanager
 			aamp_CleanUpSharedMem( shmPt_accToken, shmKey_accToken, accTokenLen);
@@ -317,8 +213,64 @@ bool AampSecManager::AcquireLicense(PrivateInstanceAAMP* aamp, const char* licen
 		}
 		else
 		{
-			AAMPLOG_ERR("SecManager Failed to copy access token to the shared memory, open playback session is aborted statusCode: %d, reasonCode: %d", *statusCode, *reasonCode);
+			AAMPLOG_WARN("%s:%d Failed to copy access token to the shared memory, open playback session is aborted", __FUNCTION__, __LINE__);
 		}
+	}
+
+	if (rpcResult)
+	{
+#ifdef DEBUG_SECMAMANER
+		std::string output;
+		response.ToString(output);
+		AAMPLOG_WARN("%s:%d SecManager openPlaybackSession o/p: %s", __FUNCTION__, __LINE__, output.c_str());
+#endif
+		if (response["success"].Boolean())
+		{
+			std::string license = response["license"].String();
+			AAMPLOG_TRACE("%s:%d SecManager obtained license with length: %d and data: %s", __FUNCTION__, __LINE__, license.size(), license.c_str());
+			if (!license.empty())
+			{
+				// Here license is base64 encoded
+				unsigned char * licenseDecoded = NULL;
+				size_t licenseDecodedLen = 0;
+				licenseDecoded = base64_Decode(license.c_str(), &licenseDecodedLen);
+				AAMPLOG_TRACE("%s:%d SecManager license decoded len: %d and data: %p", __FUNCTION__, __LINE__, licenseDecodedLen, licenseDecoded);
+
+				if (licenseDecoded != NULL && licenseDecodedLen != 0)
+				{
+					AAMPLOG_INFO("%s:%d SecManager license post base64 decode length: %d", __FUNCTION__, __LINE__, *licenseResponseLength);
+					*licenseResponse = (char*) malloc(licenseDecodedLen);
+					if (*licenseResponse)
+					{
+						memcpy(*licenseResponse, licenseDecoded, licenseDecodedLen);
+						*licenseResponseLength = licenseDecodedLen;
+					}
+					else
+					{
+						AAMPLOG_ERR("%s:%d SecManager failed to allocate memory for license!", __FUNCTION__, __LINE__);
+					}
+					free(licenseDecoded);
+					ret = true;
+				}
+				else
+				{
+					AAMPLOG_ERR("%s:%d SecManager license base64 decode failed!", __FUNCTION__, __LINE__);
+				}
+			}
+		}
+		// Save session ID
+		if (*sessionId == -1)
+		{
+			*sessionId = response["sessionId"].Number();
+		}
+		// TODO: Sort these values out for backward compatibility
+		JsonObject resultContext = response["secManagerResultContext"].Object();
+		*statusCode = resultContext["class"].Number();
+		*reasonCode = resultContext["reason"].Number();
+	}
+	else
+	{
+		AAMPLOG_ERR("%s:%d SecManager openPlaybackSession failed", __FUNCTION__, __LINE__);
 	}
 	return ret;
 }
@@ -347,7 +299,7 @@ void AampSecManager::UpdateSessionState(int64_t sessionId, bool active)
 	}
 
 	{
-		std::lock_guard<std::mutex> lock(mSecMutex);
+		std::lock_guard<std::mutex> lock(mMutex);
 		rpcResult = mSecManagerObj.InvokeJSONRPC("setPlaybackSessionState", param, result);
 	}
 
@@ -381,7 +333,7 @@ void AampSecManager::ReleaseSession(int64_t sessionId)
 	AAMPLOG_INFO("%s:%d SecManager call closePlaybackSession for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
 
 	{
-		std::lock_guard<std::mutex> lock(mSecMutex);
+		std::lock_guard<std::mutex> lock(mMutex);
 		rpcResult = mSecManagerObj.InvokeJSONRPC("closePlaybackSession", param, result);
 	}
 
@@ -420,7 +372,7 @@ bool AampSecManager::setVideoWindowSize(int64_t sessionId, int64_t video_width, 
 
        AAMPLOG_INFO("%s:%d SecManager call setVideoWindowSize for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
        {
-               std::lock_guard<std::mutex> lock(mSecMutex);
+               std::lock_guard<std::mutex> lock(mMutex);
                rpcResult = mSecManagerObj.InvokeJSONRPC("setVideoWindowSize", param, result);
        }
 
@@ -469,7 +421,7 @@ bool AampSecManager::setPlaybackSpeedState(int64_t sessionId, int64_t playback_s
        AAMPLOG_INFO("%s:%d SecManager call setPlaybackSpeedState for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
 
        {
-               std::lock_guard<std::mutex> lock(mSecMutex);
+               std::lock_guard<std::mutex> lock(mMutex);
                rpcResult = mSecManagerObj.InvokeJSONRPC("setPlaybackSpeedState", param, result);
        }
 	   
@@ -514,7 +466,7 @@ bool AampSecManager::loadClutWatermark(int64_t sessionId, int64_t graphicId, int
        AAMPLOG_INFO("%s:%d SecManager call loadClutWatermark for ID: %" PRId64 "", __FUNCTION__, __LINE__, sessionId);
 
        {
-               std::lock_guard<std::mutex> lock(mSecMutex);
+               std::lock_guard<std::mutex> lock(mMutex);
                rpcResult = mSecManagerObj.InvokeJSONRPC("loadClutWatermark", param, result);
        }
 
@@ -663,12 +615,17 @@ void AampSecManager::addWatermarkHandler(const JsonObject& parameters)
  */
 void AampSecManager::updateWatermarkHandler(const JsonObject& parameters)
 {
+#ifdef DEBUG_SECMAMANER
+	std::string param;
+	parameters.ToString(param);
+	AAMPLOG_WARN("AampSecManager::%s:%d i/p params: %s", __FUNCTION__, __LINE__, param.c_str());
+#endif
 	if(mSchedulerStarted)
 	{
 		int graphicId = parameters["graphicId"].Number();
 		int clutKey = parameters["watermarkClutBufferKey"].Number();
 		int imageKey = parameters["watermarkImageBufferKey"].Number();
-		AAMPLOG_TRACE("graphicId : %d ",graphicId);
+		AAMPLOG_WARN("AampSecManager::%s:%d graphicId : %d ", __FUNCTION__, __LINE__, graphicId);
 		ScheduleTask(AsyncTaskObj([graphicId, clutKey, imageKey](void *data)
 								  {
 			AampSecManager *instance = static_cast<AampSecManager *>(data);
@@ -741,11 +698,10 @@ void AampSecManager::ShowWatermark(bool show)
 	bool rpcResult = false;
 
 	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
+	std::lock_guard<std::mutex> lock(mMutex);
+
 	param["show"] = show;
-	{
-		std::lock_guard<std::mutex> lock(mWatMutex);
-		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("showWatermark", param, result);
-	}
+	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("showWatermark", param, result);
 	if (rpcResult)
 	{
 		if (!result["success"].Boolean())
@@ -773,12 +729,11 @@ void AampSecManager::CreateWatermark(int graphicId, int zIndex )
 	bool rpcResult = false;
 
 	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
+	std::lock_guard<std::mutex> lock(mMutex);
+
 	param["id"] = graphicId;
 	param["zorder"] = zIndex;
-	{
-		std::lock_guard<std::mutex> lock(mWatMutex);
-		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("createWatermark", param, result);
-	}
+	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("createWatermark", param, result);
 	if (rpcResult)
 	{
 		if (!result["success"].Boolean())
@@ -805,11 +760,10 @@ void AampSecManager::DeleteWatermark(int graphicId)
 	bool rpcResult = false;
 
 	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
+	std::lock_guard<std::mutex> lock(mMutex);
+
 	param["id"] = graphicId;
-	{
-		std::lock_guard<std::mutex> lock(mWatMutex);
-		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("deleteWatermark", param, result);
-	}
+	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("deleteWatermark", param, result);
 	if (rpcResult)
 	{
 		if (!result["success"].Boolean())
@@ -837,13 +791,12 @@ void AampSecManager::UpdateWatermark(int graphicId, int smKey, int smSize )
 	bool rpcResult = false;
 
 	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
+	std::lock_guard<std::mutex> lock(mMutex);
+
 	param["id"] = graphicId;
 	param["key"] = smKey;
 	param["size"] = smSize;
-	{
-		std::lock_guard<std::mutex> lock(mWatMutex);
-		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("updateWatermark", param, result);
-	}
+	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("updateWatermark", param, result);
 	if (rpcResult)
 	{
 		if (!result["success"].Boolean())
@@ -871,11 +824,10 @@ void AampSecManager::AlwaysShowWatermarkOnTop(bool show)
 	bool rpcResult = false;
 
 	AAMPLOG_ERR("AampSecManager %s:%d ", __FUNCTION__, __LINE__);
+	std::lock_guard<std::mutex> lock(mMutex);
+
 	param["show"] = show;
-	{
-		std::lock_guard<std::mutex> lock(mWatMutex);
-		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("alwaysShowWatermarkOnTop", param, result);
-	}
+	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("alwaysShowWatermarkOnTop", param, result);
 	if (rpcResult)
 	{
 		if (!result["success"].Boolean())
@@ -902,7 +854,7 @@ void AampSecManager::GetWaterMarkPalette(int sessionId, int graphicId)
 	param["id"] = graphicId;
 	AAMPLOG_WARN("AampSecManager %s:%d Graphic id: %d ", __FUNCTION__, __LINE__, graphicId);
 	{
-		std::lock_guard<std::mutex> lock(mWatMutex);
+		std::lock_guard<std::mutex> lock(mMutex);
 		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("getPalettedWatermark", param, result);
 	}
 
@@ -945,13 +897,15 @@ void AampSecManager::ModifyWatermarkPalette(int graphicId, int clutKey, int imag
 	JsonObject result;
 
 	bool rpcResult = false;
+
+	AAMPLOG_WARN("AampSecManager %s:%d Graphic id: %d", __FUNCTION__, __LINE__, graphicId);
+
+	std::lock_guard<std::mutex> lock(mMutex);
+
 	param["id"] = graphicId;
 	param["clutKey"] = clutKey;
 	param["imageKey"] = imageKey;
-	{
-		std::lock_guard<std::mutex> lock(mWatMutex);
-		rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("modifyPalettedWatermark", param, result);
-	}
+	rpcResult =  mWatermarkPluginObj.InvokeJSONRPC("modifyPalettedWatermark", param, result);
 	if (rpcResult)
 	{
 		if (!result["success"].Boolean())

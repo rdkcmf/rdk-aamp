@@ -71,11 +71,11 @@ std::string convertCueToTtmlString(int id, VTTCue *cue, double startTime)
 {
 	std::ostringstream ss;
 	std::string text;
+	std::istringstream is(cue->mText);
+	bool first = true;
 	
 	if (NULL != cue)
-	{
-		std::istringstream is(cue->mText);
-		bool first = true;  //CID:158977 - Reverse_inull
+	{		
 		ss << "<p xml:id=\"subtitle" << id << "\" begin=\"" << startTime / 1000.0 << "s\" end=\"" << (startTime + cue->mDuration) / 1000.0 << "s\" style=\"s1\">";
 		while (std::getline(is, text))
 		{

@@ -74,7 +74,7 @@ public:
 						const char* mediaUsage, const char* accessToken, size_t accessTokenLen,
 						int64_t* sessionId,
 						char** licenseResponse, size_t* licenseResponseLength,
-						int32_t* statusCode, int32_t* reasonCode);
+						int64_t* statusCode, int64_t* reasonCode);
 
 
 	/**
@@ -136,9 +136,8 @@ private:
 	PrivateInstanceAAMP* mAamp;        /**< Pointer to the PrivateInstanceAAMP*/
 	ThunderAccessAAMP mSecManagerObj;  /**< ThunderAccessAAMP object for communicating with SecManager*/
 	ThunderAccessAAMP mWatermarkPluginObj;    /**< ThunderAccessAAMP object for communicating with Watermark Plugin Obj*/
-	std::mutex mSecMutex;		   /**<  Lock for accessing mSecManagerObj*/
-	std::mutex mWatMutex;		   /**<  Lock for accessing mWatermarkPluginObj*/
 	std::mutex mSpeedStateMutex;		   /**<  Lock for accessing mWatermarkPluginObj*/
+	std::mutex mMutex;		   /**<  Lock for accessing mSecManagerObj*/
 	std::list<std::string> mRegisteredEvents;
 	bool mSchedulerStarted;
 };

@@ -887,12 +887,10 @@ public:
 	double mOffsetFromTunetimeForSAPWorkaround; /** current playback position in epoch**/
 	bool mLanguageChangeInProgress;
 	long mSupportedTLSVersion;    /*ssl/TLS default version */
-	std::string mFailureReason;   		/** String to hold the tune failure reason  */
-	long long mTimedMetadataStartTime;	/** Start time to report TimedMetadata   */
-	long long mTimedMetadataDuration;
 	bool playerStartedWithTrickPlay; //To indicate player switch happened in trickplay rate
 	bool userProfileStatus; /**< Select profile based on user list*/
 	bool mApplyCachedVideoMute;	/**< To apply vidoeMute() operations if it has been cached due to tune in progress 
+
 	/**
 	 * @brief Check if segment starts with an ID3 section
 	 *
@@ -1585,13 +1583,6 @@ public:
 	 *   @return void
 	 */
 	void LogTuneComplete(void);
-	
-	/**
-        *   @brief Profiler for failure tune
-        *
-        *   @return void
-        */
-       void TuneFail(bool fail);
 
 	/**
 	 *   @brief Profile first frame displayed

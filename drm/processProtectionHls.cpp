@@ -302,6 +302,11 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 		if (!drmHelper->parsePssh(data, dataLength)) 
 		{
 			AAMPLOG_ERR("Failed to get key Id from manifest");
+			
+			if(data) {
+				free(data);
+				data = NULL;
+			}
 			break;
 		}
 
@@ -335,10 +340,6 @@ DrmSessionDataInfo* ProcessContentProtection(PrivateInstanceAAMP *aamp, std::str
 		}
 		
 	}while(0);
-	if(data)
-	{
-		free(data);  //CID:128617 - Resource leak
-	}
 	return drmSessioData;
 }
 

@@ -116,6 +116,7 @@ void AampScheduler::ExecuteAsyncTask()
 		}
 		else
 		{
+			AAMPLOG_WARN("Found entry in function queue!!");
 			AsyncTaskObj obj = mTaskQueue.front();
 			mTaskQueue.pop_front();
 			if (obj.mId != AAMP_TASK_ID_INVALID)

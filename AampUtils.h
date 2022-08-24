@@ -202,10 +202,4 @@ void getDefaultHarvestPath(std::string &);
  */
 void stream2hex(const std::string str, std::string& hexstr, bool capital = false);
 
-/**
- * @brief Sleep for given milliseconds
- * @param milliseconds Time to sleep
- */
-void mssleep(int milliseconds);
-
 #endif  /* __AAMP_UTILS_H__ */

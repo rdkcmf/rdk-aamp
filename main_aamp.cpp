@@ -1445,8 +1445,7 @@ const char* PlayerInstanceAAMP::GetCurrentAudioLanguage(void)
 		std::vector<AudioTrackInfo> trackInfo = aamp->mpStreamAbstractionAAMP->GetAvailableAudioTracks();
 		if (!trackInfo.empty())
 		{
-			strncpy(lang, trackInfo[trackIndex].language.c_str(), sizeof(lang));
-			lang[sizeof(lang)-1] = '\0';  //CID:173324 - Buffer size warning
+			strncpy(lang, trackInfo[trackIndex].language.c_str(), sizeof(lang) );
 		}
 	}
 	}// end of if aamp
@@ -2874,11 +2873,6 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 {
 	PrivAAMPState state;
 	aamp->GetState(state);
-	if(!aamp->IsTuneCompleted())
-	{
-		aamp->TuneFail(true);
-
-	}
 	
 	AAMPLOG_WARN("aamp_stop PlayerState=%d",state);
 
