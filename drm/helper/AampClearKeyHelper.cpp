@@ -99,14 +99,19 @@ void AampClearKeyHelper::generateLicenseRequest(const AampChallengeInfo& challen
 			licenseRequest.url = challengeInfo.url;
 		}
         }
-	licenseRequest.payload = challengeInfo.data->getData();
+
+	if (NULL != challengeInfo.data)
+	{
+		licenseRequest.payload = challengeInfo.data->getData();
+	}
 }
 
 void AampClearKeyHelper::transformLicenseResponse(std::shared_ptr<DrmData> licenseResponse) const
 {
 	// HLS requires the returned key to be transformed into a JWK.
 	// For DASH it will already be in JWK format
-	if (mDrmInfo.mediaFormat == eMEDIAFORMAT_HLS)
+	if ((mDrmInfo.mediaFormat == eMEDIAFORMAT_HLS) ||
+		(mDrmInfo.mediaFormat == eMEDIAFORMAT_HLS_MP4))
 	{
 		std::vector<uint8_t> licenseResponseData(reinterpret_cast<const char*>(licenseResponse->getData().c_str()),
 		reinterpret_cast<const char*>(licenseResponse->getData().c_str()) + licenseResponse->getDataLength());

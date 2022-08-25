@@ -250,11 +250,16 @@ int AAMPOCDMSessionAdapter::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 {
 	AAMPLOG_INFO("at %p, with %p, %p", this , m_pOpenCDMSystem, m_pOpenCDMSession);
 	int retValue = -1;
-	std:string message 		= key ? key->getData():"";
-	const uint8_t* keyMessage 	= reinterpret_cast<const uint8_t*>(&message[0]);
-	const uint16_t keyMessageLength = key ?key->getDataLength():0;
-	
+	const uint8_t* keyMessage = NULL;
+	uint16_t keyMessageLength = 0;
+
 	OpenCDMError status = OpenCDMError::ERROR_NONE;
+
+	if (key)
+	{
+		keyMessage = (const uint8_t *)key->getData().c_str();
+		keyMessageLength = key->getDataLength();
+	}
 
 	if (keyMessage)
 	{

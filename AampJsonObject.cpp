@@ -73,6 +73,14 @@ bool AampJsonObject::add(const std::string& name, const std::string& value, cons
 }
 
 /**
+ *  @brief Add a string value
+ */
+bool AampJsonObject::add(const std::string& name, const char *value, const ENCODING encoding)
+{
+	return add(name, std::string(value), encoding);
+}
+
+/**
  *  @brief Add a vector of string values as a JSON array
  */
 bool AampJsonObject::add(const std::string& name, const std::vector<std::string>& values)

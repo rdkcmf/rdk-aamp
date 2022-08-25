@@ -8,6 +8,7 @@
 
 int main(int ac, char** av)
 {
+	MemoryLeakWarningPlugin::turnOffNewDeleteOverloads();
 	MockSupportPlugin mockPlugin;
 	TestRegistry::getCurrentRegistry()->installPlugin(&mockPlugin);
 

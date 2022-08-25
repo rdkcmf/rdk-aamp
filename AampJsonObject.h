@@ -61,6 +61,15 @@ public:
 	/**
 	 *  @fn add
 	 *
+	 *  @param name name for the value
+	 *  @param value string value to add
+	 *  @return true if successfully added, false otherwise
+	 */
+	bool add(const std::string& name, const char *value, const ENCODING encoding = ENCODING_STRING);
+
+	/**
+	 *  @fn add
+	 *
 	 *  @param name name for the array
 	 *  @param values vector of strings to add as an array
 	 *  @return true if successfully added, false otherwise

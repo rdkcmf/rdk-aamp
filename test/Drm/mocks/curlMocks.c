@@ -1,6 +1,7 @@
 #include <curl/curl.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "curlMocks.h"
 
@@ -18,6 +19,11 @@ typedef struct _MockCurlInstanceData
 } MockCurlInstanceData;
 
 static MockCurlInstanceData f_mockInstance;
+
+static struct Curl_share
+{
+	int dummy;
+} f_mockShare;
 
 /* BEGIN - methods to access mock functionality */
 void MockCurlSetPerformCallback(MockCurlPerformCallback mockPerformCallback, void* userData)
@@ -79,6 +85,8 @@ CURLcode curl_easy_setopt(CURL *curl, CURLoption option, ...)
 	}
 
 	va_end(arg);
+
+	return CURLE_OK;
 }
 
 CURLcode curl_easy_perform(CURL *curl)
@@ -109,6 +117,21 @@ CURLcode curl_easy_getinfo(CURL *curl, CURLINFO info, ...)
 	return CURLE_OK;
 }
 
+CURL_EXTERN char *curl_easy_unescape(CURL *handle, const char *string, int length, int *outlength)
+{
+	char *p;
+
+	/* Just copy the string. */
+	p = (char *)malloc(length + 1);
+	if (p != NULL)
+	{
+		strcpy(p, string);
+		*outlength = length;
+	}
+
+	return p;
+}
+
 const char *curl_easy_strerror(CURLcode code)
 {
 	return "";
@@ -116,6 +139,11 @@ const char *curl_easy_strerror(CURLcode code)
 
 void curl_easy_cleanup(CURL *curl)
 {
+}
+
+void curl_free(void *p)
+{
+	free(p);
 }
 
 struct curl_slist *curl_slist_append(struct curl_slist * list, const char * val)
@@ -132,4 +160,19 @@ struct curl_slist *curl_slist_append(struct curl_slist * list, const char * val)
 void curl_slist_free_all(struct curl_slist * list)
 {
 	f_mockInstance.opts.headerCount = 0u;
+}
+
+CURLSH *curl_share_init(void)
+{
+	return (CURLSH *)&f_mockShare;
+}
+
+CURLSHcode curl_share_setopt(CURLSH *c, CURLSHoption option, ...)
+{
+	return CURLSHE_OK;
+}
+
+CURLSHcode curl_share_cleanup(CURLSH *c)
+{
+	return CURLSHE_OK;
 }

@@ -17,16 +17,16 @@
 
 TEST_GROUP(AampLegacyDrmSessionTests)
 {
-	PrivateInstanceAAMP mAamp;
+	PrivateInstanceAAMP *mAamp;
 	AampDRMSessionManager *sessionManager;
-	
+	AampLogManager mLogging;
+	int mMaxDrmSessions = 1;
+
 	AampDRMSessionManager* getSessionManager()
 	{
 		if (sessionManager == nullptr) 
 		{
-			MemoryLeakWarningPlugin::turnOffNewDeleteOverloads();
-			sessionManager = new AampDRMSessionManager();
-			MemoryLeakWarningPlugin::turnOnNewDeleteOverloads();
+			sessionManager = new AampDRMSessionManager(&mLogging, mMaxDrmSessions);
 		}
 
 		return sessionManager;
@@ -34,19 +34,18 @@ TEST_GROUP(AampLegacyDrmSessionTests)
 
 	void setupCurlPerformResponse(std::string response)
 	{
-		MemoryLeakWarningPlugin::turnOffNewDeleteOverloads();
 		static string responseStr = response;
 
 		MockCurlSetPerformCallback([](CURL *curl, MockCurlWriteCallback writeCallback, void* writeData, void* userData) {
 			writeCallback((char*)responseStr.c_str(), 1, responseStr.size(), writeData);
 		}, this);
-		MemoryLeakWarningPlugin::turnOnNewDeleteOverloads();
 	}
 
 	void setup()
 	{
 		MockAampReset();
 		MockCurlReset();
+		mAamp = new PrivateInstanceAAMP(gpGlobalConfig);
 	}
 
 	void teardown()
@@ -54,9 +53,13 @@ TEST_GROUP(AampLegacyDrmSessionTests)
 		if (sessionManager != nullptr)
 		{
 			sessionManager->clearSessionData();
-			MemoryLeakWarningPlugin::turnOffNewDeleteOverloads();
 			SAFE_DELETE(sessionManager);
-			MemoryLeakWarningPlugin::turnOnNewDeleteOverloads();
+		}
+
+		if (NULL != mAamp)
+		{
+			delete mAamp;
+			mAamp = NULL;
 		}
 
 		MockAampReset();
@@ -87,15 +90,15 @@ TEST(AampLegacyDrmSessionTests, TestCreateClearkeySession)
 		0xfe, 0xed, 0xf0, 0x0d, 0xee, 0xde, 0xad, 0xbe, 0xef, 0xf0, 0xba, 0xad, 0xf0, 0x0d, 0xd0, 0x0d,
 		0x00, 0x00, 0x00, 0x00};
 
-	AAMPEvent aampEvent;
+	DrmMetaDataEventPtr aampEvent = std::make_shared<DrmMetaDataEvent>(AAMP_TUNE_FAILURE_UNKNOWN, "", 0, 0, false);
 	AampDrmSession *drmSession = sessionManager->createDrmSession(
 			"1077efec-c0b2-4d02-ace3-3c1e52e2fb4b",
 			eMEDIAFORMAT_DASH,
 			initData,
 			sizeof(initData),
 			eMEDIATYPE_VIDEO,
-			&mAamp,
-			&aampEvent,
+			mAamp,
+			aampEvent,
 			NULL,
 			true);
 	CHECK_TEXT(drmSession != NULL, "Session creation failed");

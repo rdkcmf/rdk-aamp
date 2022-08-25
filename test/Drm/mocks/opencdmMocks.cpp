@@ -1,11 +1,12 @@
 #include <string.h>
 
 #include "open_cdm.h"
+#include "open_cdm_adapter.h"
 #include <gst/gst.h>
 
 #include "opencdmMocks.h"
 
-#include "CppUTestExt/MockSupport_c.h"
+#include "CppUTestExt/MockSupport.h"
 
 typedef struct _MockOpenCdmInstanceData
 {
@@ -34,22 +35,23 @@ void MockOpenCdmReset(void)
 }
 /* END - methods to access mock functionality */
 
-struct OpenCDMAccessor* opencdm_create_system()
+struct OpenCDMSystem* opencdm_create_system(const char keySystem[])
 {
-	return mock_scope_c("OpenCDM")->actualCall("opencdm_create_system")
-			->returnPointerValueOrDefault(0);
+	return (OpenCDMSystem *)mock("OpenCDM").actualCall("opencdm_create_system")
+			.withParameter("keySystem", keySystem)
+			.returnPointerValueOrDefault(0);
 }
 
-OpenCDMError opencdm_construct_session(struct OpenCDMAccessor* system, const char keySystem[],
+OpenCDMError opencdm_construct_session(struct OpenCDMSystem* system,
 									   const LicenseType licenseType, const char initDataType[],
 									   const uint8_t initData[], const uint16_t initDataLength,
 									   const uint8_t CDMData[], const uint16_t CDMDataLength,
 									   OpenCDMSessionCallbacks* callbacks, void* userData,
 									   struct OpenCDMSession** session)
 {
-	OpenCDMError retValue = mock_scope_c("OpenCDM")->actualCall("opencdm_construct_session")
-			->withOutputParameter("session", session)
-			->returnIntValueOrDefault(ERROR_NONE);
+	OpenCDMError retValue = (OpenCDMError)mock("OpenCDM").actualCall("opencdm_construct_session")
+			.withOutputParameter("session", session)
+			.returnIntValueOrDefault(ERROR_NONE);
 
 	f_mockInstance.sessionInfo.session = *session;
 	f_mockInstance.sessionInfo.callbacks = *callbacks;
@@ -63,7 +65,7 @@ OpenCDMError opencdm_construct_session(struct OpenCDMAccessor* system, const cha
 	return retValue;
 }
 
-OpenCDMError opencdm_destruct_system(struct OpenCDMAccessor* system)
+OpenCDMError opencdm_destruct_system(struct OpenCDMSystem* system)
 {
 	return ERROR_NONE;
 }
@@ -78,10 +80,10 @@ OpenCDMError opencdm_session_update(struct OpenCDMSession* session,
 									const uint8_t keyMessage[],
 									const uint16_t keyLength)
 {
-	OpenCDMError retValue = mock_scope_c("OpenCDM")->actualCall("opencdm_session_update")
-			->withMemoryBufferParameter("keyMessage", keyMessage, (size_t)keyLength)
-			->withIntParameters("keyLength", keyLength)
-			->returnIntValueOrDefault(ERROR_NONE);
+	OpenCDMError retValue = (OpenCDMError)mock("OpenCDM").actualCall("opencdm_session_update")
+			.withMemoryBufferParameter("keyMessage", keyMessage, (size_t)keyLength)
+			.withIntParameter("keyLength", keyLength)
+			.returnIntValueOrDefault(ERROR_NONE);
 
 	if (f_mockInstance.callbacks.sessionUpdateCallback)
 	{
@@ -91,9 +93,9 @@ OpenCDMError opencdm_session_update(struct OpenCDMSession* session,
 	return retValue;
 }
 
-OpenCDMError opencdm_gstreamer_session_decrypt_ex(struct OpenCDMSession* session, GstBuffer* buffer,
+OpenCDMError opencdm_gstreamer_session_decrypt(struct OpenCDMSession* session, GstBuffer* buffer,
 											   GstBuffer* subSample, const uint32_t subSampleCount,
-											   GstBuffer* IV, GstBuffer* keyID, uint32_t initWithLast15, GstCaps *caps = NULL)
+											   GstBuffer* IV, GstBuffer* keyID, uint32_t initWithLast15)
 {
 	return ERROR_NONE;
 }
@@ -105,16 +107,16 @@ OpenCDMError opencdm_session_decrypt(struct OpenCDMSession* session,
 									 const uint8_t* keyId, const uint16_t keyIdLength,
 									 uint32_t initWithLast15)
 {
-	return mock_scope_c("OpenCDM")->actualCall("opencdm_session_decrypt")
-			->withPointerParameters("session", session)
-			->withMemoryBufferParameter("encrypted", encrypted, encryptedLength)
-			->withOutputParameter("encrypted", encrypted)
-			->withIntParameters("encryptedLength", encryptedLength)
-			->withPointerParameters("iv", (void*)IV)
-			->withIntParameters("ivLength", IVLength)
-			->withMemoryBufferParameter("keyId", keyId, keyIdLength)
-			->withIntParameters("keyIdLength", keyIdLength)
-			->intReturnValue();
+	return (OpenCDMError)mock("OpenCDM").actualCall("opencdm_session_decrypt")
+			.withPointerParameter("session", session)
+			.withMemoryBufferParameter("encrypted", encrypted, encryptedLength)
+			.withOutputParameter("encrypted", encrypted)
+			.withIntParameter("encryptedLength", encryptedLength)
+			.withPointerParameter("iv", (void*)IV)
+			.withIntParameter("ivLength", IVLength)
+			.withMemoryBufferParameter("keyId", keyId, keyIdLength)
+			.withIntParameter("keyIdLength", keyIdLength)
+			.returnIntValueOrDefault(ERROR_NONE);
 }
 
 OpenCDMError opencdm_session_close(struct OpenCDMSession* session)

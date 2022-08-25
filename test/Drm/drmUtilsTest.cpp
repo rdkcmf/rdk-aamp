@@ -64,7 +64,7 @@ TEST(AampDrmUtilsTests, TestGetAbsoluteKeyUri)
 	for (auto test : testData)
 	{
 		std::string keyURI;
-		aamp_ResolveURL(keyURI, test.manifestUrl, test.keyUri.c_str());
+		aamp_ResolveURL(keyURI, test.manifestUrl, test.keyUri.c_str(), false);
 		CHECK_EQUAL(test.expectedUri, keyURI.c_str());
 	}
 }
