@@ -37,6 +37,8 @@ std::map<pthread_t, HarvestProfileDetails> Harvestor::mHarvestInfo = std::map<pt
 std::vector<pthread_t> Harvestor::mHarvestThreadId(0);
 PlayerInstanceAAMP * Harvestor::mPlayerInstanceAamp = NULL;
 bool Harvestor::mHarvestReportFlag = false;
+std::string Harvestor::mHarvestPath = "";
+char Harvestor::exePathName[PATH_MAX] = "";
 Harvestor mHarvestor;
 
 bool Harvestor::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
@@ -92,6 +94,8 @@ void* Harvestor::masterHarvestor(void * arg)
 		printf("%s:%d: aamp_pthread_setname failed\n",__FUNCTION__,__LINE__);
 	}
 
+	mHarvestor.getExecutablePath();
+	
 	while(std::getline(ss, item, ' ')) {
 		params.push_back(item);
 	}
@@ -120,12 +124,20 @@ void* Harvestor::masterHarvestor(void * arg)
 	{
 		mHarvestor.mPlayerInstanceAamp->Tune(cmdlineParams["harvestUrl"].c_str());
 
+		Harvestor::mHarvestPath = cmdlineParams["harvestPath"];
+
 		if(0 != pthread_create(&mHarvestor.mReportThread, NULL, &mHarvestor.startHarvestReport, (char *) cmdlineParams["harvestUrl"].c_str()))
 		{
 			printf("%s:%d: Error at  pthread_create: startHarvestReport thread\n",__FUNCTION__,__LINE__);
 		}
 
-		std::string iFrameCommand = "aamp-cli harvest harvestMode=Slave harvestUrl="+cmdlineParams["harvestUrl"]+" harvestCountLimit=9999999"+" harvestConfig="+std::to_string(getHarvestConfigForMedia(eMEDIATYPE_VIDEO)|getHarvestConfigForMedia(eMEDIATYPE_IFRAME)|getHarvestConfigForMedia(eMEDIATYPE_INIT_VIDEO))+" abr suppressDecode=true";
+		std::string iFrameCommand;
+		if(Harvestor::exePathName[0] != '\0')
+		{
+			iFrameCommand.append(Harvestor::exePathName);
+		}
+
+		iFrameCommand = iFrameCommand +" harvest harvestMode=Slave harvestUrl="+cmdlineParams["harvestUrl"]+" harvestCountLimit=9999999"+" harvestConfig="+std::to_string(getHarvestConfigForMedia(eMEDIATYPE_VIDEO)|getHarvestConfigForMedia(eMEDIATYPE_IFRAME)|getHarvestConfigForMedia(eMEDIATYPE_INIT_VIDEO))+" abr suppressDecode=true";
 
 		if(cmdlineParams.find("harvestPath") != cmdlineParams.end())
 		{
@@ -224,7 +236,13 @@ void* Harvestor::masterHarvestor(void * arg)
 
 					FILE *p;
 
-					std::string videoCommand = "aamp-cli harvest harvestMode=Slave harvestUrl="+cmdlineParams["harvestUrl"]+" harvestCountLimit=9999999"+" harvestConfig="+std::to_string(getHarvestConfigForMedia(eMEDIATYPE_VIDEO)|getHarvestConfigForMedia(eMEDIATYPE_INIT_VIDEO)|getHarvestConfigForMedia(eMEDIATYPE_LICENCE))+" abr suppressDecode=true defaultBitrate="+std::to_string(bitrate);
+					std::string videoCommand;
+					if(Harvestor::exePathName[0] != '\0' )
+					{
+						videoCommand.append(Harvestor::exePathName);
+					}
+
+					videoCommand = videoCommand +" harvest harvestMode=Slave harvestUrl="+cmdlineParams["harvestUrl"]+" harvestCountLimit=9999999"+" harvestConfig="+std::to_string(getHarvestConfigForMedia(eMEDIATYPE_VIDEO)|getHarvestConfigForMedia(eMEDIATYPE_INIT_VIDEO)|getHarvestConfigForMedia(eMEDIATYPE_LICENCE))+" abr suppressDecode=true defaultBitrate="+std::to_string(bitrate);
 
 					if(cmdlineParams.find("harvestPath") != cmdlineParams.end())
 					{
@@ -242,14 +260,14 @@ void* Harvestor::masterHarvestor(void * arg)
 					}
 					else
 					{
-						if(0 != pthread_create(&mHarvestor.mSlaveVideoThreads[videoThreadId++], NULL, &slaveDataOutput, p))
+						if(0 != pthread_create(&mHarvestor.mSlaveVideoThreads[videoThreadId], NULL, &slaveDataOutput, p))
 						{
 							printf("%s:%d: Error at  pthread_create: slaveDataOutput thread\n",__FUNCTION__,__LINE__);
 						}
 						else
 						{
 							printf("%s:%d: Sucessfully launched harvest for video bitrate = %ld\n",__FUNCTION__,__LINE__,bitrate );
-							pthread_join(mHarvestor.mSlaveVideoThreads[videoThreadId++], NULL);
+							videoThreadId++;
 						}
 
 					}
@@ -265,7 +283,13 @@ void* Harvestor::masterHarvestor(void * arg)
 
 					FILE * p;
 
-					std::string audioCommand = "aamp-cli harvest harvestMode=Slave harvestUrl="+cmdlineParams["harvestUrl"]+" harvestCountLimit=9999999"+" harvestConfig="+std::to_string(getHarvestConfigForMedia(eMEDIATYPE_AUDIO))+" abr suppressDecode=true defaultBitrate="+std::to_string(bitrate);
+					std::string audioCommand;
+                                        if(Harvestor::exePathName[0] != '\0' )
+                                        {
+                                                audioCommand.append(Harvestor::exePathName);
+                                        }
+
+                                        audioCommand = audioCommand +" harvest harvestMode=Slave harvestUrl="+cmdlineParams["harvestUrl"]+" harvestCountLimit=9999999"+" harvestConfig="+std::to_string(getHarvestConfigForMedia(eMEDIATYPE_AUDIO))+" abr suppressDecode=true defaultBitrate="+std::to_string(bitrate);
 
 					if(cmdlineParams.find("harvestPath") != cmdlineParams.end())
 					{
@@ -281,14 +305,14 @@ void* Harvestor::masterHarvestor(void * arg)
 					}
 					else
 					{
-						if(0 != pthread_create(&mHarvestor.mSlaveAudioThreads[audioThreadId++], NULL, &slaveDataOutput, p))
+						if(0 != pthread_create(&mHarvestor.mSlaveAudioThreads[audioThreadId], NULL, &slaveDataOutput, p))
 						{
 							printf("%s:%d: Error at  pthread_create: slaveDataOutput thread\n",__FUNCTION__,__LINE__);
 						}
 						else
 						{
 							printf("%s:%d: Sucessfully launched harvest for audio bitrate = %ld\n ",__FUNCTION__,__LINE__,bitrate );
-							pthread_join(mHarvestor.mSlaveAudioThreads[videoThreadId++], NULL);
+							audioThreadId++;
 						}
 					}
 				}
@@ -298,6 +322,15 @@ void* Harvestor::masterHarvestor(void * arg)
 		}
 		
 		pthread_join(mHarvestor.mSlaveIFrameThread, NULL);
+		for(int i = 0; i < videoThreadId; i++)
+		{
+			pthread_join(mHarvestor.mSlaveVideoThreads[i], NULL);
+		}
+
+		for(int i =0; i < audioThreadId; i++)
+		{
+			pthread_join(mHarvestor.mSlaveAudioThreads[i], NULL);
+		}
 	}
 	else
 	{
@@ -425,17 +458,17 @@ void * Harvestor::startHarvestReport(void * arg)
 	char * harvesturl = (char *)arg;
 	FILE *fp;
 	FILE *errorfp;
-	char filename[18] = {'\0'};
-	char errorFilename[23] = {'\0'};
-	
-	sprintf(filename,"HarvestReport.txt");
-	sprintf(errorFilename,"HarvestErrorReport.txt");
+	std::string filename;
+	std::string errorFilename;
 
-	fp = fopen(filename, "w");
+	filename = Harvestor::mHarvestPath+"/HarvestReport.txt";
+	errorFilename = Harvestor::mHarvestPath+"/HarvestErrorReport.txt";
+
+	fp = fopen(filename.c_str(), "w");
 
 	if (fp == NULL)
 	{
-		printf("Error opening the file %s\n", filename);
+		printf("Error opening the file %s\n", filename.c_str());
 		return NULL;
 	}
 
@@ -446,11 +479,11 @@ void * Harvestor::startHarvestReport(void * arg)
 
 	Harvestor::mHarvestReportFlag = true;
 
-	errorfp = fopen(errorFilename, "w");
+	errorfp = fopen(errorFilename.c_str(), "w");
 
 	if (errorfp == NULL)
 	{
-		printf("Error opening the file %s\n", filename);
+		printf("Error opening the file %s\n", errorFilename.c_str());
 		return NULL;
 	}
 
@@ -526,14 +559,15 @@ void Harvestor::writeHarvestErrorReport(HarvestProfileDetails harvestProfileDeta
 {
 
 	FILE *errorfp;
-	char errorFilename[23] = {'\0'};
-	sprintf(errorFilename,"HarvestErrorReport.txt");
+	std::string errorFilename;
+	errorFilename = Harvestor::mHarvestPath+"/HarvestErrorReport.txt";
 
-	errorfp = fopen(errorFilename, "a");
+	errorfp = fopen(errorFilename.c_str(), "a");
 
 	if (errorfp == NULL)
 	{
-		printf("Error opening the file %s\n", errorFilename);
+		printf("Error opening the file %s\n", errorFilename.c_str());
+		return;
 	}
 
 	if (strstr(buffer, "error") != NULL)
@@ -554,24 +588,24 @@ void Harvestor::writeHarvestErrorReport(HarvestProfileDetails harvestProfileDeta
 void Harvestor::writeHarvestEndReport(HarvestProfileDetails harvestProfileDetails, char *buffer)
 {
 	FILE *fp;
-	char filename[18] = {'\0'};
+	std::string filename;
 	int harvestCountLimit = 0;
 
-		sprintf(filename,"HarvestReport.txt");
-		fp = fopen(filename, "a");
+	filename = Harvestor::mHarvestPath+"/HarvestReport.txt";
+	fp = fopen(filename.c_str(), "a");
 
-		if (fp == NULL)
-		{
-			printf("Error opening the file %s\n", filename);
-			return;
-		}
+	if (fp == NULL)
+	{
+		printf("Error opening the file %s\n", filename.c_str());
+		return;
+	}
 
-		mHarvestor.mPlayerInstanceAamp->mConfig.GetConfigValue(eAAMPConfig_HarvestCountLimit,harvestCountLimit);
-		harvestProfileDetails.harvestFragmentsCount = harvestCountLimit - harvestProfileDetails.harvestFragmentsCount; 
+	mHarvestor.mPlayerInstanceAamp->mConfig.GetConfigValue(eAAMPConfig_HarvestCountLimit,harvestCountLimit);
+	harvestProfileDetails.harvestFragmentsCount = harvestCountLimit - harvestProfileDetails.harvestFragmentsCount; 
 
-		fprintf(fp, "\nMedia : %s\nBitrate : %lu\nTotal fragments count : %d\nError fragments count : %d\nFailure fragments count : %d\n",harvestProfileDetails.media,harvestProfileDetails.bitrate,harvestProfileDetails.harvestFragmentsCount,harvestProfileDetails.harvesterrorCount,harvestProfileDetails.harvestFailureCount);
-	
-		fclose(fp);
+	fprintf(fp, "\nMedia : %s\nBitrate : %lu\nTotal fragments count : %d\nError fragments count : %d\nFailure fragments count : %d\n",harvestProfileDetails.media,harvestProfileDetails.bitrate,harvestProfileDetails.harvestFragmentsCount,harvestProfileDetails.harvesterrorCount,harvestProfileDetails.harvestFailureCount);
+
+	fclose(fp);
 
 }
 
@@ -581,15 +615,15 @@ void Harvestor::harvestTerminateHandler(int signal)
 	if((Harvestor::mHarvestReportFlag == true) && (!mHarvestThreadId.empty()))
 	{
 		FILE *fp;
-		char filename[18] = {'\0'};
+		std::string filename;
 		int harvestCountLimit = 0;
 
-		sprintf(filename,"HarvestReport.txt");
-		fp = fopen(filename, "a");
+		filename = Harvestor::mHarvestPath+"/HarvestReport.txt";
+		fp = fopen(filename.c_str(), "a");
 
 		if (fp == NULL)
 		{
-			printf("Error opening the file %s\n", filename);
+			printf("Error opening the file %s\n", filename.c_str());
 			return;
 		}
 
@@ -615,3 +649,23 @@ void Harvestor::harvestTerminateHandler(int signal)
 	
 	exit(signal);
 }
+
+#ifdef __linux__
+void Harvestor::getExecutablePath()
+{
+   realpath(PROC_SELF_EXE, Harvestor::exePathName);
+}
+#endif
+
+#ifdef __APPLE__
+void Harvestor::getExecutablePath()
+{
+        char rawPathName[PATH_MAX];
+        uint32_t rawPathSize = (uint32_t)sizeof(rawPathName);
+
+        if(!_NSGetExecutablePath(rawPathName, &rawPathSize))
+        {
+            realpath(rawPathName, Harvestor::exePathName);
+        }
+}
+#endif 
