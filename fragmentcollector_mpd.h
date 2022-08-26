@@ -366,7 +366,7 @@ public:
 	 * @param[out] selectedRepIdx - Selected representation index
 	 * @param[out] selectedRepBandwidth - selected audio track bandwidth
  	 */
-	void GetPreferredTextRepresentation(IAdaptationSet *adaptationSet, int &selectedRepIdx,	uint32_t &selectedRepBandwidth, uint64_t &score, std::string &name, std::string &codec);
+	void GetPreferredTextRepresentation(IAdaptationSet *adaptationSet, int &selectedRepIdx,	uint32_t &selectedRepBandwidth, unsigned long long &score, std::string &name, std::string &codec);
 	static Accessibility getAccessibilityNode(void *adaptationSet);
 	static Accessibility getAccessibilityNode(AampJsonObject &accessNode);
 	/**

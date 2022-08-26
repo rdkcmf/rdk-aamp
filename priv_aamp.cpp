@@ -10348,10 +10348,11 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 	/**< First argment is Json data then parse it and and assign the variables properly*/
 	AampJsonObject* jsObject = NULL;
 	bool isJson = false;
+	bool isRetuneNeeded = false;
+	bool accessibilityPresent = false;
 	try
 	{	
-		std::string jsonData = std::string(languageList);
-		jsObject = new AampJsonObject(jsonData);
+		jsObject = new AampJsonObject(languageList);
 		if (jsObject)
 		{
 			AAMPLOG_INFO("Preferred Language Properties recieved as json : %s", languageList);
@@ -10360,38 +10361,34 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 	}
 	catch(const std::exception& e)
 	{
-		isJson = false;
 		/**<Nothing to do exclude it*/
 	}
 
 	if (isJson)
 	{
-		preferredLanguagesString.clear();
-		preferredLanguagesList.clear();
-		preferredLabelsString.clear();
-		preferredRenditionString.clear();
-		preferredAudioAccessibilityNode.clear();
+		std::vector<std::string> inputLanguagesList;
+		std::string inputLanguagesString;
 		
 		/** Get language Properties*/
 		if (jsObject->isArray("languages"))
 		{
-			if (jsObject->get("languages", preferredLanguagesList))
+			if (jsObject->get("languages", inputLanguagesList))
 			{
-				for (auto preferredLanguage : preferredLanguagesList)
+				for (auto preferredLanguage : inputLanguagesList)
 				{
-					if (!preferredLanguagesString.empty())
+					if (!inputLanguagesString.empty())
 					{
-						preferredLanguagesString += ",";
+						inputLanguagesString += ",";
 					}
-					preferredLanguagesString += preferredLanguage; 
+					inputLanguagesString += preferredLanguage; 
 				}
 			}
 		}
 		else if (jsObject->isString("languages"))
 		{
-			if (jsObject->get("languages", preferredLanguagesString))
+			if (jsObject->get("languages", inputLanguagesString))
 			{
-				preferredLanguagesList.push_back(preferredLanguagesString);
+				inputLanguagesList.push_back(inputLanguagesString);
 			}
 		}
 		else
@@ -10399,55 +10396,86 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			AAMPLOG_ERR("Preferred Audio Language Field Only support String or String Array");
 		}
 
-		AAMPLOG_INFO("Number of preferred languages: %d", preferredLanguagesList.size());
-		AAMPLOG_INFO("Preferred language string: %s", preferredLanguagesString.c_str());
-		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioLanguage,preferredLanguagesString);
+		AAMPLOG_INFO("Number of preferred languages recieved: %d", inputLanguagesList.size());
+		AAMPLOG_INFO("Preferred language string recieved: %s", inputLanguagesString.c_str());
 
+		std::string inputLabelsString;
 		/** Get Label Properties*/
 		if (jsObject->isString("label"))
 		{
-			if (jsObject->get("label", preferredLabelsString))
+			if (jsObject->get("label", inputLabelsString))
 			{
-				AAMPLOG_INFO("Preferred Label string: %s", preferredLabelsString.c_str());	
+				AAMPLOG_INFO("Preferred Label string: %s", inputLabelsString.c_str());	
 			}
 		}
 
-		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioLabel,preferredLabelsString);
+		string inputRenditionString;
 
 		/** Get rendition or role Properties*/
 		if (jsObject->isString("rendition"))
 		{
-			if (jsObject->get("rendition", preferredRenditionString))
+			if (jsObject->get("rendition", inputRenditionString))
 			{
-				AAMPLOG_INFO("Preferred rendition string: %s", preferredRenditionString.c_str());	
+				AAMPLOG_INFO("Preferred rendition string: %s", inputRenditionString.c_str());	
 			}
 		}
 
-		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioRendition,preferredRenditionString);
-
+		Accessibility  inputAudioAccessibilityNode;
 		/** Get accessibility Properties*/
 		if (jsObject->isObject("accessibility"))
 		{
 			AampJsonObject accessNode;
 			if (jsObject->get("accessibility", accessNode))
 			{
-				preferredAudioAccessibilityNode = StreamAbstractionAAMP_MPD::getAccessibilityNode(accessNode);
-				if (!preferredAudioAccessibilityNode.getSchemeId().empty())
+				inputAudioAccessibilityNode = StreamAbstractionAAMP_MPD::getAccessibilityNode(accessNode);
+				if (!inputAudioAccessibilityNode.getSchemeId().empty())
 				{
-					AAMPLOG_INFO("Preferred accessibility SchemeId: %s", preferredAudioAccessibilityNode.getSchemeId().c_str());	
-					if (preferredAudioAccessibilityNode.getTypeName() == "string_value")
+					AAMPLOG_INFO("Preferred accessibility SchemeId: %s", inputAudioAccessibilityNode.getSchemeId().c_str());	
+					if (inputAudioAccessibilityNode.getTypeName() == "string_value")
 					{
-						AAMPLOG_INFO("Preferred accessibility Value Type %s and Value: %s", preferredAudioAccessibilityNode.getTypeName().c_str(), 
-							preferredAudioAccessibilityNode.getStrValue().c_str());
+						AAMPLOG_INFO("Preferred accessibility Value Type %s and Value: %s", inputAudioAccessibilityNode.getTypeName().c_str(), 
+							inputAudioAccessibilityNode.getStrValue().c_str());
 					}
 					else
 					{
-						AAMPLOG_INFO("Preferred accessibility Value Type %s and Value : %d", preferredAudioAccessibilityNode.getTypeName().c_str(), 
-					 		preferredAudioAccessibilityNode.getIntValue());
+						AAMPLOG_INFO("Preferred accessibility Value Type %s and Value : %d", inputAudioAccessibilityNode.getTypeName().c_str(), 
+					 		inputAudioAccessibilityNode.getIntValue());
 					}
 				}	
 			}
+			if(preferredAudioAccessibilityNode != inputAudioAccessibilityNode )
+			{
+				accessibilityPresent = true;
+			}
 		}
+
+		/**< Release json object **/
+		delete jsObject;
+		jsObject = NULL;
+
+		if ((preferredAudioAccessibilityNode != inputAudioAccessibilityNode ) || (preferredRenditionString != inputRenditionString ) || 
+		(preferredLabelsString != inputLabelsString) || (inputLanguagesList != preferredLanguagesList ))
+		{
+			isRetuneNeeded = true;
+		}
+
+		/** Clear the cache **/
+		preferredAudioAccessibilityNode.clear();
+		preferredLabelsString.clear();
+		preferredRenditionString.clear();
+		preferredLanguagesString.clear();
+		preferredLanguagesList.clear();
+		
+		/** Reload the new values **/
+		preferredAudioAccessibilityNode = inputAudioAccessibilityNode;
+		preferredRenditionString = inputRenditionString;
+		preferredLabelsString = inputLabelsString;
+		preferredLanguagesList = inputLanguagesList;
+		preferredLanguagesString = inputLanguagesString;
+
+		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioRendition,preferredRenditionString);
+		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioLabel,preferredLabelsString);	
+		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioLanguage,preferredLanguagesString);
 	}
 	else
 	{
@@ -10458,6 +10486,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 		(labelList && preferredLabelsString != labelList)
 		) 
 		{
+			isRetuneNeeded = true;
 			if(languageList != NULL)
 			{
 				preferredLanguagesString.clear();
@@ -10547,15 +10576,16 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			languageList?languageList:"", preferredRendition?preferredRendition:"", preferredType?preferredType:"");
 		}
 	}
+
 	PrivAAMPState state;
 	GetState(state);
-	if (state != eSTATE_IDLE && state != eSTATE_RELEASED && state != eSTATE_ERROR )
+	if (state != eSTATE_IDLE && state != eSTATE_RELEASED && state != eSTATE_ERROR && isRetuneNeeded)
 	{ // active playback session; apply immediately
 		if (mpStreamAbstractionAAMP)
 		{
 			bool languagePresent = false;
 			bool renditionPresent = false;
-			bool accessibilityPresent = false;
+			bool accessibilityTypePresent = false;
 			bool codecPresent = false;
 			bool labelPresent = false;
 			int trackIndex = GetAudioTrack();
@@ -10578,15 +10608,16 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				// Logic to check whether the given language is present in the available tracks,
 				// if available, it should not match with current preferredLanguagesString, then call tune to reflect the language change.
 				// if not available, then avoid calling tune.
-				if(languageList)
+				if(preferredLanguagesList.size() > 0)
 				{
+					std::string firstLanguage = preferredLanguagesList.at(0);
 					auto language = std::find_if(trackInfo.begin(), trackInfo.end(),
-								[languageList, currentPrefLanguage](AudioTrackInfo& temp)
-								{ return ((temp.language == languageList) && (temp.language != currentPrefLanguage)); });
+								[firstLanguage, currentPrefLanguage](AudioTrackInfo& temp)
+								{ return ((temp.language == firstLanguage) && (temp.language != currentPrefLanguage)); });
 					languagePresent = (language != end(trackInfo) || (preferredLanguagesList.size() > 1)); /* If multiple value of language is present then retune */
 					auto languageAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
-								[languageList, currentPrefLanguage](AudioTrackInfo& temp)
-								{ return ((temp.language == languageList) && (temp.language != currentPrefLanguage) && (temp.isAvailable)); });
+								[firstLanguage, currentPrefLanguage](AudioTrackInfo& temp)
+								{ return ((temp.language == firstLanguage) && (temp.language != currentPrefLanguage) && (temp.isAvailable)); });
 					languageAvailabilityInManifest = (languageAvailable != end(trackInfo) && languageAvailable->isAvailable);
                                         if(languagePresent && (language != end(trackInfo)))
 					{
@@ -10597,15 +10628,16 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				// Logic to check whether the given label is present in the available tracks,
 				// if available, it should not match with current preferredLabelsString, then call retune to reflect the language change.
 				// if not available, then avoid calling tune. Call retune if multiple labels is present
-				if(labelList)
+				if(!preferredLabelsString.empty())
 				{
+					std::string curLabel = preferredLabelsString;
 					auto label = std::find_if(trackInfo.begin(), trackInfo.end(),
-								[labelList, currentPrefLabel](AudioTrackInfo& temp)
-								{ return ((temp.label == labelList) && (temp.label != currentPrefLabel)); });
+								[curLabel, currentPrefLabel](AudioTrackInfo& temp)
+								{ return ((temp.label == curLabel) && (temp.label != currentPrefLabel)); });
 					labelPresent = (label != end(trackInfo) || (preferredLabelList.size() > 1)); /* If multiple value of label is present then retune */
 					auto labelAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
-								[labelList, currentPrefLabel](AudioTrackInfo& temp)
-								{ return ((temp.label == labelList) && (temp.label != currentPrefLabel) && (temp.isAvailable)); });
+								[curLabel, currentPrefLabel](AudioTrackInfo& temp)
+								{ return ((temp.label == curLabel) && (temp.label != currentPrefLabel) && (temp.isAvailable)); });
 					labelAvailabilityInManifest = ((labelAvailable != end(trackInfo) ) && labelAvailable->isAvailable);
 
 				}
@@ -10614,41 +10646,44 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				// Logic to check whether the given rendition is present in the available tracks,
 				// if available, it should not match with current preferredRenditionString, then call tune to reflect the rendition change.
 				// if not available, then avoid calling tune.
-				if(preferredRendition)
+				if(!preferredRenditionString.empty())
 				{
+					std::string curRendition = preferredRenditionString;
 					auto rendition = std::find_if(trackInfo.begin(), trackInfo.end(),
-								[preferredRendition, currentPrefRendition](AudioTrackInfo& temp)
-								{ return ((temp.rendition == preferredRendition) && (temp.rendition != currentPrefRendition)); });
+								[curRendition, currentPrefRendition](AudioTrackInfo& temp)
+								{ return ((temp.rendition == curRendition) && (temp.rendition != currentPrefRendition)); });
 					renditionPresent = (rendition != end(trackInfo));
 					auto renditionAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
-								[preferredRendition, currentPrefRendition](AudioTrackInfo& temp)
-								{ return ((temp.rendition == preferredRendition) && (temp.rendition != currentPrefRendition) && (temp.isAvailable)); });
+								[curRendition, currentPrefRendition](AudioTrackInfo& temp)
+								{ return ((temp.rendition == curRendition) && (temp.rendition != currentPrefRendition) && (temp.isAvailable)); });
 					renditionAvailabilityInManifest = ((renditionAvailable != end(trackInfo)) && renditionAvailable->isAvailable);
 				}
 
 				// Logic to check whether the given accessibility is present in the available tracks,
 				// if available, it should not match with current preferredTypeString, then call tune to reflect the accessibility change.
 				// if not available, then avoid calling tune.
-				if(preferredType)
+				if(!preferredTypeString.empty())
 				{
+					std:;string curType = preferredTypeString;
 					auto accessType = std::find_if(trackInfo.begin(), trackInfo.end(),
-								[preferredType, currentPrefAccessibility](AudioTrackInfo& temp)
-								{ return ((temp.accessibilityType == preferredType) && (temp.accessibilityType != currentPrefAccessibility)); });
-					accessibilityPresent = (accessType != end(trackInfo));
+								[curType, currentPrefAccessibility](AudioTrackInfo& temp)
+								{ return ((temp.accessibilityType == curType) && (temp.accessibilityType != currentPrefAccessibility)); });
+					accessibilityTypePresent = (accessType != end(trackInfo));
 					auto accessTypeAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
-								[preferredType, currentPrefAccessibility](AudioTrackInfo& temp)
-								{ return ((temp.accessibilityType == preferredType) && (temp.accessibilityType != currentPrefAccessibility) && (temp.isAvailable)); });
+								[curType, currentPrefAccessibility](AudioTrackInfo& temp)
+								{ return ((temp.accessibilityType == curType) && (temp.accessibilityType != currentPrefAccessibility) && (temp.isAvailable)); });
 					accessibilityAvailabilityInManifest = ((accessTypeAvailable != end(trackInfo)) && accessTypeAvailable->isAvailable);
 				}
 
 				// Logic to check whether the given codec is present in the available tracks,
 				// if available, it should not match with current preferred codec, then call tune to reflect the codec change.
 				// if not available, then avoid calling tune.
-				if(codecList)
+				if(preferredCodecList.size() > 0)
 				{
+					std::string firstCodec = preferredCodecList.at(0);
 					auto codec = std::find_if(trackInfo.begin(), trackInfo.end(),
-								[codecList, currentPrefCodec](AudioTrackInfo& temp)
-								{ return ((temp.codec == codecList) && (temp.codec != currentPrefCodec) && (temp.isAvailable)); });
+								[firstCodec, currentPrefCodec](AudioTrackInfo& temp)
+								{ return ((temp.codec == firstCodec) && (temp.codec != currentPrefCodec) && (temp.isAvailable)); });
 					codecPresent = (codec != end(trackInfo) || (preferredCodecList.size() > 1) ); /* If multiple value of codec is present then retune */
 				}
 			}
@@ -10661,7 +10696,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			{
 				/*Avoid retuning in case of HEMIIN and COMPOSITE IN*/
 			}
-			else if (languagePresent || renditionPresent || accessibilityPresent || codecPresent || labelPresent) // call the tune only if there is a change in the language, rendition or accessibility.
+			else if (languagePresent || renditionPresent || accessibilityTypePresent || codecPresent || labelPresent || accessibilityPresent) // call the tune only if there is a change in the language, rendition or accessibility.
 			{
 				if(!ISCONFIGSET_PRIV(eAAMPConfig_ChangeTrackWithoutRetune))
 				{
@@ -10675,7 +10710,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 					if(IsTSBSupported() &&
 					 ((languagePresent && !languageAvailabilityInManifest) ||
 					 (renditionPresent && !renditionAvailabilityInManifest) ||
-					 (accessibilityPresent && !accessibilityAvailabilityInManifest) ||
+					 (accessibilityTypePresent && !accessibilityAvailabilityInManifest) ||
 					 (labelPresent && !labelAvailabilityInManifest)))
 					{
 						ReloadTSB();
@@ -10702,13 +10737,14 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 	/**< First argment is Json data then parse it and and assign the variables properly*/
 	AampJsonObject* jsObject = NULL;
 	bool isJson = false;
+	bool isRetuneNeeded = false;
+	bool accessibilityPresent = false;
 	try
 	{
-		std::string jsonData = std::string(param);
-		jsObject = new AampJsonObject(jsonData);
+		jsObject = new AampJsonObject(param);
 		if (jsObject)
 		{
-			AAMPLOG_INFO("Preferred Language Properties recieved as json : %s", param);
+			AAMPLOG_INFO("Preferred Text Language Properties recieved as json : %s", param);
 			isJson = true;
 		}
 	}
@@ -10719,31 +10755,29 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 
 	if (isJson)
 	{
-		preferredTextLanguagesList.clear();
-		preferredTextLanguagesString.clear();
-		preferredTextRenditionString.clear();
-		preferredTextAccessibilityNode.clear();
-
+		std::vector<std::string> inputTextLanguagesList;
+		std::string inputTextLanguagesString;
+		
 		/** Get language Properties*/
 		if(jsObject->isArray("languages"))
 		{
-			if (jsObject->get("languages", preferredTextLanguagesList))
+			if (jsObject->get("languages", inputTextLanguagesList))
 			{
-				for (auto preferredLanguage : preferredTextLanguagesList)
+				for (auto preferredLanguage : inputTextLanguagesList)
 				{
-					if (!preferredTextLanguagesString.empty())
+					if (!inputTextLanguagesString.empty())
 					{
-						preferredTextLanguagesString += "," ;
+						inputTextLanguagesString += "," ;
 					}
-					preferredTextLanguagesString += preferredLanguage; 	
+					inputTextLanguagesString += preferredLanguage; 	
 				}
 			}
 		}
 		else if (jsObject->isString("languages"))
 		{
-			if (jsObject->get("languages", preferredTextLanguagesString))
+			if (jsObject->get("languages", inputTextLanguagesString))
 			{
-				preferredTextLanguagesList.push_back(preferredTextLanguagesString);
+				inputTextLanguagesList.push_back(inputTextLanguagesString);
 			}
 		}
 		else
@@ -10751,49 +10785,84 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 			AAMPLOG_ERR("Preferred Text Language Field Only support String or String Array");
 		}
 
-		AAMPLOG_INFO("Number of preferred Text languages: %d", preferredTextLanguagesList.size());
-		AAMPLOG_INFO("Preferred Text languages string: %s", preferredTextLanguagesString.c_str());
-		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredTextLanguage,preferredTextLanguagesString);
+		AAMPLOG_INFO("Number of preferred Text languages: %d", inputTextLanguagesList.size());
+		AAMPLOG_INFO("Preferred Text languages string: %s", inputTextLanguagesString.c_str());
 
+		std::string inputTextRenditionString;
 		/** Get rendition or role Properties*/
 		if (jsObject->isString("rendition"))
 		{
-			if (jsObject->get("rendition", preferredTextRenditionString))
+			if (jsObject->get("rendition", inputTextRenditionString))
 			{
-				AAMPLOG_INFO("Preferred text rendition string: %s", preferredTextRenditionString.c_str());	
+				AAMPLOG_INFO("Preferred text rendition string: %s", inputTextRenditionString.c_str());	
 			}
 		}
 
-		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredTextRendition,preferredTextRenditionString);
-
+		Accessibility  inputTextAccessibilityNode;
 		/** Get accessibility Properties*/
 		if (jsObject->isObject("accessibility"))
 		{
 			AampJsonObject accessNode;
 			if (jsObject->get("accessibility", accessNode))
 			{
-				preferredTextAccessibilityNode = StreamAbstractionAAMP_MPD::getAccessibilityNode(accessNode);
-				if (!preferredTextAccessibilityNode.getSchemeId().empty())
+				inputTextAccessibilityNode = StreamAbstractionAAMP_MPD::getAccessibilityNode(accessNode);
+				if (!inputTextAccessibilityNode.getSchemeId().empty())
 				{
-					AAMPLOG_INFO("Preferred accessibility SchemeId: %s", preferredTextAccessibilityNode.getSchemeId().c_str());	
-					if (preferredTextAccessibilityNode.getTypeName() == "string_value")
+					AAMPLOG_INFO("Preferred accessibility SchemeId: %s", inputTextAccessibilityNode.getSchemeId().c_str());	
+					if (inputTextAccessibilityNode.getTypeName() == "string_value")
 					{
-						AAMPLOG_INFO("Preferred accessibility Value Type %s and Value: %s", preferredTextAccessibilityNode.getTypeName().c_str(), 
-							preferredTextAccessibilityNode.getStrValue().c_str());
+						AAMPLOG_INFO("Preferred accessibility Value Type %s and Value: %s", inputTextAccessibilityNode.getTypeName().c_str(), 
+							inputTextAccessibilityNode.getStrValue().c_str());
 					}
 					else
 					{
-						AAMPLOG_INFO("Preferred accessibility Value Type %s and Value : %d", preferredTextAccessibilityNode.getTypeName().c_str(), 
-					 		preferredTextAccessibilityNode.getIntValue());
+						AAMPLOG_INFO("Preferred accessibility Value Type %s and Value : %d", inputTextAccessibilityNode.getTypeName().c_str(), 
+					 		inputTextAccessibilityNode.getIntValue());
 					}
-				}	
+				}
+				if(inputTextAccessibilityNode != preferredTextAccessibilityNode)
+				{
+					accessibilityPresent = true;
+				}
 			}	
 		}
+		
+		/**< Release json object **/
+		delete jsObject;
+		jsObject = NULL;
+
+		if((inputTextLanguagesList != preferredTextLanguagesList) || (inputTextRenditionString != preferredTextRenditionString) || 
+		(inputTextAccessibilityNode != preferredTextAccessibilityNode))
+		{
+			isRetuneNeeded = true;
+		}
+
+		preferredTextLanguagesList.clear();
+		preferredTextLanguagesString.clear();
+		preferredTextRenditionString.clear();
+		preferredTextAccessibilityNode.clear();
+
+		preferredTextLanguagesList = inputTextLanguagesList;
+		preferredTextLanguagesString = inputTextLanguagesString;
+		preferredTextRenditionString = inputTextRenditionString;
+		preferredTextAccessibilityNode = inputTextAccessibilityNode;
+		
+		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredTextLanguage,preferredTextLanguagesString);
+		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredTextRendition,preferredTextRenditionString);
 	}
 	else if( param )
 	{
 		AAMPLOG_INFO("Setting Text Languages  %s", param);
-		preferredTextLanguagesString = std::string(param);
+		std::string inputTextLanguagesString;
+		inputTextLanguagesString = std::string(param);
+		
+		if (inputTextLanguagesString != preferredTextLanguagesString)
+		{
+			isRetuneNeeded = true;
+		}
+		preferredTextLanguagesList.clear();
+		preferredTextLanguagesList.push_back(inputTextLanguagesString);
+		preferredTextLanguagesString = inputTextLanguagesString;
 		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING, eAAMPConfig_PreferredTextLanguage, preferredTextLanguagesString);
 	}
 	else
@@ -10804,48 +10873,70 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 
 	PrivAAMPState state;
 	GetState(state);
-	if (state != eSTATE_IDLE && state != eSTATE_RELEASED && state != eSTATE_ERROR )
+	if (state != eSTATE_IDLE && state != eSTATE_RELEASED && state != eSTATE_ERROR && isRetuneNeeded )
 	{ // active playback session; apply immediately
 		if (mpStreamAbstractionAAMP)
 		{
 			bool languagePresent = false;
 			bool renditionPresent = false;
-			bool accessibilityPresent = false;
+			bool accessibilityTypePresent = false;
 			bool codecPresent = false;
 			bool labelPresent = false;
 			int trackIndex = GetTextTrack();
-
-                        bool languageAvailabilityInManifest = false;
-                        bool renditionAvailabilityInManifest = false;
-                        bool accessibilityAvailabilityInManifest = false;
-                        bool labelAvailabilityInManifest = false;
+			bool languageAvailabilityInManifest = false;
+			bool renditionAvailabilityInManifest = false;
+			bool accessibilityAvailabilityInManifest = false;
+			bool labelAvailabilityInManifest = false;
+			bool trackNotEnabled = false;
+			
 			if (trackIndex >= 0)
 			{
 				std::vector<TextTrackInfo> trackInfo = mpStreamAbstractionAAMP->GetAvailableTextTracks();
 				char *currentPrefLanguage = const_cast<char*>(trackInfo[trackIndex].language.c_str());
 				char *currentPrefRendition = const_cast<char*>(trackInfo[trackIndex].rendition.c_str());
 
-				/**< Logic to check whether the given language is present in the available tracks,
-				 if available, it should not match with current preferredLanguagesString, then call tune to reflect the language change.
-				if not available, then avoid calling tune. */
-				if(param)
+				// Logic to check whether the given language is present in the available tracks,
+				// if available, it should not match with current preferredLanguagesString, then call tune to reflect the language change.
+				// if not available, then avoid calling tune.
+				if(preferredTextLanguagesList.size() > 0)
 				{
+					std::string firstLanguage = preferredTextLanguagesList.at(0);
 					auto language = std::find_if(trackInfo.begin(), trackInfo.end(),
-								[param, currentPrefLanguage](TextTrackInfo& temp)
-								{ return ((temp.language == param) && (temp.language != currentPrefLanguage)); });
+								[firstLanguage, currentPrefLanguage](TextTrackInfo& temp)
+								{ return ((temp.language == firstLanguage) && (temp.language != currentPrefLanguage)); });
 					languagePresent = (language != end(trackInfo) || (preferredTextLanguagesList.size() > 1)); /* If multiple value of language is present then retune */
 					auto languageAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
-								[param, currentPrefLanguage](TextTrackInfo& temp)
-								{ return ((temp.language == param) && (temp.language != currentPrefLanguage) && (temp.isAvailable)); });
+								[firstLanguage, currentPrefLanguage](TextTrackInfo& temp)
+								{ return ((temp.language == firstLanguage) && (temp.language != currentPrefLanguage) && (temp.isAvailable)); });
 					languageAvailabilityInManifest = (languageAvailable != end(trackInfo) && languageAvailable->isAvailable);
 				}
+
+				// Logic to check whether the given rendition is present in the available tracks,
+				// if available, it should not match with current preferredTextRenditionString, then call tune to reflect the rendition change.
+				// if not available, then avoid calling tune.
+				if(!preferredTextRenditionString.empty())
+				{
+					std::string curRendition = preferredTextRenditionString;
+					auto rendition = std::find_if(trackInfo.begin(), trackInfo.end(),
+								[curRendition, currentPrefRendition](TextTrackInfo& temp)
+								{ return ((temp.rendition == curRendition) && (temp.rendition != currentPrefRendition)); });
+					renditionPresent = (rendition != end(trackInfo));
+					auto renditionAvailable = std::find_if(trackInfo.begin(), trackInfo.end(),
+								[curRendition, currentPrefRendition](TextTrackInfo& temp)
+								{ return ((temp.rendition == curRendition) && (temp.rendition != currentPrefRendition) && (temp.isAvailable)); });
+					renditionAvailabilityInManifest = ((renditionAvailable != end(trackInfo)) && renditionAvailable->isAvailable);
+				}
+			}
+			else
+			{
+				trackNotEnabled = true;
 			}
 
 			if((mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE) || (mMediaFormat == eMEDIAFORMAT_OTA))
 			{
 				/**< Avoid retuning in case of HEMIIN and COMPOSITE IN*/
 			}
-			else if (languagePresent) /**< call the tune only if there is a change in the language, rendition or accessibility.*/
+			else if (languagePresent || renditionPresent || accessibilityPresent || trackNotEnabled) /**< call the tune only if there is a change in the language, rendition or accessibility.*/
 			{
 				discardEnteringLiveEvt = true;
 				seek_pos_seconds = GetPositionSeconds();
@@ -10856,7 +10947,7 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 				if(IsTSBSupported() &&
 				 ((languagePresent && !languageAvailabilityInManifest) ||
 				 (renditionPresent && !renditionAvailabilityInManifest) ||
-				 (accessibilityPresent && !accessibilityAvailabilityInManifest) ||
+				 (accessibilityTypePresent && !accessibilityAvailabilityInManifest) ||
 				 (labelPresent && !labelAvailabilityInManifest)))
 				{
 					ReloadTSB();

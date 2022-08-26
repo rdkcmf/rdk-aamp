@@ -38,6 +38,7 @@ class AampJsonObject {
 public:
 	AampJsonObject();
 	AampJsonObject(const std::string& jsonStr);
+	AampJsonObject(const char* jsonStr);
 	~AampJsonObject();
 	AampJsonObject(const AampJsonObject&) = delete;
 	AampJsonObject& operator=(const AampJsonObject&) = delete;
