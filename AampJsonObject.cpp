@@ -45,6 +45,16 @@ AampJsonObject::AampJsonObject(const std::string& jsonStr) : mParent(NULL), mJso
 	}
 }
 
+AampJsonObject::AampJsonObject(const char* jsonStr) : mParent(NULL), mJsonObj()
+{
+	mJsonObj = cJSON_Parse(jsonStr);
+
+	if (!mJsonObj)
+	{
+		throw AampJsonParseException();
+	}
+}
+
 AampJsonObject::~AampJsonObject()
 {
 	if (!mParent)

@@ -1185,7 +1185,8 @@ void Set::registerSetCommands()
 	addCommand("downloadLowBWTimeout <x>","Set Download Low Bandwidth timeout (long x=timeout)");
 	addCommand("preferredSubtitleLang <x>","Set Preferred Subtitle language (string x = lang)");
 	addCommand("parallelPlaylistDL <x>","Set Parallel Playlist download (x=0/1)");
-	addCommand("preferredLanguages <x>","Set Preferred languages (string lang1,lang2,... rendition type codec1,codec2.. ) , use null keyword to discard any argument");
+	addCommand("preferredLanguages <x>","Set Preferred languages (string lang1,lang2,... rendition type codec1,codec2.. ) , use null keyword to discard any argument or path to json file");
+	addCommand("preferredTextLanguages <x>","Set Preferred languages (string lang1,lang2,... ) , or path json file");
 	addCommand("rampDownLimit <x>","Set number of Ramp Down limit during the playback (x = number)");
 	addCommand("initRampdownLimit <x>","Set number of Initial Ramp Down limit prior to the playback (x = number)");
 	addCommand("minimumBitrate <x>","Set Minimum bitrate (x = bitrate)");

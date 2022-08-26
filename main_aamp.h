@@ -250,6 +250,12 @@ class Accessibility
 		return ((strSchemeId == track.strSchemeId) &&	
 			(valueType == "int_value"?(intValue == track.intValue):(strValue == track.strValue)));	
 	};
+
+	bool operator != (const Accessibility& track) const
+	{
+		return ((strSchemeId != track.strSchemeId) ||	
+			(valueType == "int_value"?(intValue != track.intValue):(strValue != track.strValue)));	
+	};
 	
 	Accessibility& operator = (const Accessibility& track)
 	{
