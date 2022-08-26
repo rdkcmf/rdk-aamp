@@ -1943,13 +1943,8 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				{
 					if (rate > 0)
 					{
-						// When PTO Processing is pending
-						// Do not change timeline or fragmentDescriptor.Number
-						if(!mpendingPtoProcessing[pMediaStreamContext->type])
-						{
-							pMediaStreamContext->fragmentDescriptor.Number++;
-							pMediaStreamContext->fragmentDescriptor.Time += fragmentDuration;
-						}
+						pMediaStreamContext->fragmentDescriptor.Number++;
+						pMediaStreamContext->fragmentDescriptor.Time += fragmentDuration;
 					}
 					else
 					{
@@ -9219,13 +9214,6 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 								aamp->mIsPeriodChangeMarked = true;
                                                         }
 							requireStreamSelection = true;
-
-							for (int i = 0; i < mNumberOfTracks; i++)
-							{
-								mperiodChanged[i] = true;
-								mtempDelta[i] = 0.0;
-							}
-
 							mUpdateStreamInfo = true;
 							AAMPLOG_WARN("playing period %d/%d", mIterPeriodIndex, (int)mNumberOfPeriods);
 						}
