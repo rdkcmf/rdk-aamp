@@ -25,7 +25,22 @@
 #ifndef AAMPCLIHARVESTOR_H
 #define AAMPCLIHARVESTOR_H
 
+#include <libgen.h>
+#include <limits.h>
+#include <unistd.h>
 #include "AampcliProcessCommand.h"
+
+#ifdef __APPLE__
+    #include <mach-o/dyld.h>
+#endif
+
+#ifdef __linux__
+    #if defined(__sun)
+        #define PROC_SELF_EXE "/proc/self/path/a.out"
+    #else
+        #define PROC_SELF_EXE "/proc/self/exe"
+    #endif
+#endif
 
 typedef struct harvestProfileDetails
 {
@@ -45,6 +60,8 @@ class Harvestor : public Command
 		static bool mHarvestReportFlag;
 		static const int mHarvestCommandLength = 4096;
 		static const int mHarvestSlaveThreadCount = 50;
+		static char exePathName[PATH_MAX];
+		static std::string mHarvestPath;
 		static std::map<pthread_t, harvestProfileDetails> mHarvestInfo;
 		static std::vector<pthread_t> mHarvestThreadId;
 		static PlayerInstanceAAMP *mPlayerInstanceAamp;
@@ -65,6 +82,7 @@ class Harvestor : public Command
 		void writeHarvestErrorReport(HarvestProfileDetails, char *buffer);
 		void writeHarvestEndReport(HarvestProfileDetails, char *buffer);
 		static void harvestTerminateHandler(int signal);
+		void getExecutablePath();
 		bool execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
 		Harvestor();
 };
