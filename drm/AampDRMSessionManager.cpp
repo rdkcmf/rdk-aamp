@@ -48,8 +48,6 @@
 #define LICENCE_RESPONSE_JSON_LICENCE_KEY "license"
 #define DRM_METADATA_TAG_START "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">"
 #define DRM_METADATA_TAG_END "</ckm:policy>"
-#define SESSION_TOKEN_URL "http://localhost:50050/authService/getSessionToken"
-
 #define INVALID_SESSION_SLOT -1
 #define DEFUALT_CDM_WAIT_TIMEOUT_MS 2000
 
@@ -411,11 +409,25 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 		}
 		CURL_EASY_SETOPT(curl, CURLOPT_URL, SESSION_TOKEN_URL);
 
+#ifdef LIGHTTPD_AUTHSERVICE_DISABLE
+                struct curl_slist *headerList = NULL;
+                unsigned char access_Token[MAX_LENGTH] = {0};
+                GetSecurityToken(MAX_LENGTH, access_Token);
+                std::string securityToken ( reinterpret_cast< char const* >(access_Token) ) ;
+                std::string authHeader = AUTH_HEADER + securityToken;
+
+		headerList = curl_slist_append(headerList, authHeader.c_str());
+                headerList = curl_slist_append(headerList, CONTENT_TYPE_HEADER);
+                CURL_EASY_SETOPT(curl, CURLOPT_HTTPHEADER, headerList);
+
+                CURL_EASY_SETOPT(curl, CURLOPT_POSTFIELDS, SESSION_TOKEN_POST_FIELD);
+#endif
 		res = curl_easy_perform(curl);
 
 		if (res == CURLE_OK)
 		{
 			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+      
 			if (httpCode == 200 || httpCode == 206)
 			{
 				string tokenReplyStr = tokenReply->getData();
@@ -469,6 +481,11 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 		}
 		SAFE_DELETE(tokenReply);
 		SAFE_DELETE(callbackData);
+#ifdef LIGHTTPD_AUTHSERVICE_DISABLE
+                if (headerList != NULL) {
+                        curl_slist_free_all(headerList);
+                }
+#endif
 		curl_easy_cleanup(curl);
 	}
 

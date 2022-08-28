@@ -32,7 +32,6 @@
 #define MAX_DRM_CONTEXT 6
 #define DRM_SHA1_HASH_LEN 40
 #define DRM_IV_LEN 16
-#define SESSION_TOKEN_URL "http://localhost:50050/authService/getSessionToken"
 
 #ifdef AVE_DRM
 #include "ave-adapter/MyFlashAccessAdapter.h"
