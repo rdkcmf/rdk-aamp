@@ -41,11 +41,10 @@ class Command
 class CommandDispatcher
 {
 	public:
-		std::map<std::string, Command*> mCommandMap;
+		static std::map<std::string, Command*> mCommandMap;
 		void registerAampcliCommands();
 		void registerCommand(const std::string& commandName, Command* command);
 		bool dispatchAampcliCommands(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
-		CommandDispatcher();
 };
 
 #endif // AAMPCLIPROCESSCOMMAND_H

@@ -30,9 +30,7 @@
 
 CommandDispatcher mCommandDispatcher;
 
-CommandDispatcher::CommandDispatcher() : mCommandMap(std::map<std::string, Command*>())
-{}
-
+std::map<std::string, Command*> CommandDispatcher::mCommandMap = std::map<std::string, Command*>();
 void CommandDispatcher::registerAampcliCommands()
 {
 	registerCommand( "set", new Set);
