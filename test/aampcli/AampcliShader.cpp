@@ -23,6 +23,7 @@
  */
 
 #include "AampcliShader.h"
+#include "AampUtils.h"
 
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 
@@ -53,6 +54,19 @@ static const char *FSHADER =
 "rgb = mat3( 1, 1, 1, 0, -0.39465, 2.03211, 1.13983, -0.58060,  0) * yuv;"
 "gl_FragColor = vec4(rgb, 1);"
 "}";
+
+AppsinkData Shader::appsinkData = AppsinkData();
+std::mutex Shader::appsinkData_mutex;
+GLuint Shader::mProgramID = 0;
+GLuint Shader::id_y = 0;
+GLuint Shader::id_u = 0;
+GLuint Shader::id_v = 0;
+GLuint Shader::textureUniformY = 0;
+GLuint Shader::textureUniformU = 0;
+GLuint Shader::textureUniformV = 0;
+GLuint Shader::_vertexArray = 0;
+GLuint Shader::_vertexBuffer[2] = {0};
+GLfloat Shader::currentAngleOfRotation = 0;
 
 GLuint Shader::LoadShader( GLenum type )
 {

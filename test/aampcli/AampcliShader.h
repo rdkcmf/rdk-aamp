@@ -25,6 +25,8 @@
 #ifndef AAMPCLISHADER_H
 #define AAMPCLISHADER_H
 
+#include <mutex>
+#include "AampDefine.h"
 
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 #ifdef __APPLE__
@@ -49,15 +51,15 @@
 
 
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
+typedef struct{
+	int width = 0;
+	int height = 0;
+	uint8_t *yuvBuffer = NULL;
+}AppsinkData;
+
 class Shader
 {
 	public:
-		typedef struct{
-			int width = 0;
-			int height = 0;
-			uint8_t *yuvBuffer = NULL;
-		}AppsinkData;
-
 		static const int FPS = 60;
 		static AppsinkData appsinkData;
 		static std::mutex appsinkData_mutex;
@@ -69,11 +71,10 @@ class Shader
 		static GLfloat currentAngleOfRotation;
 
 		GLuint LoadShader(GLenum type);
-		void ShaderInitShaders();
-		void glRender(void);
-		void updateYUVFrame(uint8_t *buffer, int size, int width, int height);
-		void timer(int v);
-
+		void InitShaders();
+		static void glRender(void);
+		static void updateYUVFrame(uint8_t *buffer, int size, int width, int height);
+		static void timer(int v);
 };
 #endif
 
