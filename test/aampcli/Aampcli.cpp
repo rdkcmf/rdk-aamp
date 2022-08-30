@@ -288,7 +288,7 @@ void Aampcli::newPlayerInstance( void )
 	PlayerInstanceAAMP *player = new PlayerInstanceAAMP(
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 			NULL
-			,updateYUVFrame
+			,Shader::updateYUVFrame
 #endif
 			);
 	if( !mEventListener )
@@ -374,8 +374,8 @@ int main(int argc, char **argv)
 #endif
 	Shader l_Shader;
 	l_Shader.InitShaders();
-	glutDisplayFunc(glRender);
-	glutTimerFunc(40, timer, 0);
+	glutDisplayFunc(l_Shader.glRender);
+	glutTimerFunc(40, l_Shader.timer, 0);
 
 	glutMainLoop();
 #else
