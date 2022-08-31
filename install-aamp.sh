@@ -6,7 +6,18 @@ aamposxinstallerver="0.11"
 defaultbuilddir=aamp-devenv-$(date +"%Y-%m-%d-%H-%M")
 defaultcodebranch="dev_sprint_22_1"
 defaultchannellistfile="$HOME/aampcli.csv"
-defaultgstversion="1.18.6"
+defaultopensslversion="openssl@1.1"
+
+arch=$(uname -m)
+echo "Architecture is +$(arch)+"
+if [[ $arch == "x86_64" ]]; then
+    defaultgstversion="1.18.6"
+elif [[ $arch == "arm64" ]]; then
+    defaultgstversion="1.20.3" #1.19.90
+else
+    echo "Achitecture $arch is unsupported"
+    exit
+fi
 ######################################################## 
 # Declare a status array to collect full summary to be printed by the end of execution
 declare -a  arr_install_status
@@ -20,9 +31,9 @@ find_or_install_pkgs() {
             echo "${pkg} is already installed."
             arr_install_status+=("${pkg} is already installed.")
         else
-	    echo "Installing ${pkg}"
-	    brew install $pkg
-	    #update summery 
+            echo "Installing ${pkg}"
+            brew install $pkg
+            #update summery
             if brew ls --versions $pkg > /dev/null; then
                 #The package is successfully installed 
                 arr_install_status+=("The package was ${pkg} was successfully installed.")
@@ -31,10 +42,10 @@ find_or_install_pkgs() {
                 #The package is failed to be installed
                 arr_install_status+=("The package ${pkg} was FAILED to be installed.")
             fi
-	fi
+        fi
         #if pkg is openssl and its successfully installed every time ensure to symlink to the latest version 
-        if [ $pkg =  "openssl@1.1" ]; then
-            OPENSSL_PATH=$(brew info openssl@1.1|sed '4q;d'|cut -d " " -f1)
+        if [ $pkg =  "${defaultopensslversion}" ]; then
+            OPENSSL_PATH=$(brew info $defaultopensslversion|sed '4q;d'|cut -d " " -f1)
             sudo rm -f /usr/local/ssl
             sudo ln -s $OPENSSL_PATH /usr/local/ssl
             export PKG_CONFIG_PATH="$OPENSSL_PATH/lib/pkgconfig" 
@@ -44,17 +55,6 @@ find_or_install_pkgs() {
 
 
 install_system_packages() {
-      
-    #Check/Install brew
-    which -s brew
-    if [[ $? != 0 ]] ; then
-        echo "Installing Homebrew, as its not available"
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    else
-        echo "Homebrew is installed now just updating it"
-        brew update
-    fi
-
 
     #Install XCode Command Line Tools
     base_macOSver=10.15
@@ -73,7 +73,7 @@ install_system_packages() {
 
     #Check/Install base packages needed by aamp env
     echo "Check/Install aamp development environment base packages"
-    find_or_install_pkgs  json-glib cmake openssl libxml2 ossp-uuid cjson gnu-sed meson ninja pkg-config
+    find_or_install_pkgs  json-glib cmake $defaultopensslversion libxml2 ossp-uuid cjson gnu-sed meson ninja pkg-config
 
     git clone https://github.com/DaveGamble/cJSON.git
     cd cJSON
@@ -86,21 +86,37 @@ install_system_packages() {
 
     #Install Gstreamer and plugins if not installed
     if [ -f  /Library/Frameworks/GStreamer.framework/Versions/1.0/bin/gst-launch-1.0 ];then
-      if [ $(/Library/Frameworks/GStreamer.framework/Versions/1.0/bin/gst-launch-1.0 --version | head -n1 |cut -d " " -f 3) == $defaultgstversion ] ; then
-        echo "gstreamer ver $defaultgstversion installed"
-        return
+        if [ $(/Library/Frameworks/GStreamer.framework/Versions/1.0/bin/gst-launch-1.0 --version | head -n1 |cut -d " " -f 3) == $defaultgstversion ] ; then
+            echo "gstreamer ver $defaultgstversion installed"
+            return
+        fi
     fi
-   fi
     echo "Installing GStreamer packages..."
-    brew remove -f  --ignore-dependencies gstreamer gst-validate gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-validate gst-libav gst-devtools
-    sudo rm -rf /usr/local/lib/gstreamer-1.0
-    curl -o gstreamer-1.0-1.18.6-x86_64.pkg  https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-1.18.6-x86_64.pkg 
-    sudo installer -pkg gstreamer-1.0-1.18.6-x86_64.pkg -target /
-    rm gstreamer-1.0-1.18.6-x86_64.pkg
-    curl -o gstreamer-1.0-devel-1.18.6-x86_64.pkg https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-devel-1.18.6-x86_64.pkg
-    sudo installer -pkg gstreamer-1.0-devel-1.18.6-x86_64.pkg  -target /
-    rm gstreamer-1.0-devel-1.18.6-x86_64.pkg
-
+    #brew remove -f  --ignore-dependencies gstreamer gst-validate gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-validate gst-libav gst-devtools
+    #sudo rm -rf /usr/local/lib/gstreamer-1.0
+    #curl -o gstreamer-1.0-1.18.6-x86_64.pkg  https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-1.18.6-x86_64.pkg
+    #sudo installer -pkg gstreamer-1.0-1.18.6-x86_64.pkg -target /
+    #rm gstreamer-1.0-1.18.6-x86_64.pkg
+    #curl -o gstreamer-1.0-devel-1.18.6-x86_64.pkg https://gstreamer.freedesktop.org/data/pkg/osx/1.18.6/gstreamer-1.0-devel-1.18.6-x86_64.pkg
+    #sudo installer -pkg gstreamer-1.0-devel-1.18.6-x86_64.pkg  -target /
+    #rm gstreamer-1.0-devel-1.18.6-x86_64.pkg
+    
+    if [[ $arch == "x86_64" ]]; then
+        curl -o gstreamer-1.0-$defaultgstversion-x86_64.pkg  https://urldefense.com/v3/__https://gstreamer.freedesktop.org/data/pkg/osx/$defaultgstversion/gstreamer-1.0-$defaultgstversion-x86_64.pkg
+        sudo installer -pkg gstreamer-1.0-$defaultgstversion-x86_64.pkg -target /
+        rm gstreamer-1.0-$defaultgstversion-x86_64.pkg
+        curl -o gstreamer-1.0-devel-$defaultgstversion-x86_64.pkg https://urldefense.com/v3/__https://gstreamer.freedesktop.org/data/pkg/osx/$defaultgstversion/gstreamer-1.0-devel-$defaultgstversion-x86_64.pkg
+        sudo installer -pkg gstreamer-1.0-devel-$defaultgstversion-x86_64.pkg  -target /
+        rm gstreamer-1.0-devel-$defaultgstversion-x86_64.pkg
+    elif [[ $arch == "arm64" ]]; then
+        curl -o gstreamer-1.0-$defaultgstversion-universal.pkg  https://urldefense.com/v3/__https://gstreamer.freedesktop.org/data/pkg/osx/$defaultgstversion/gstreamer-1.0-$defaultgstversion-universal.pkg
+        sudo installer -pkg gstreamer-1.0-$defaultgstversion-universal.pkg -target /
+        rm gstreamer-1.0-$defaultgstversion-universal.pkg
+        curl -o gstreamer-1.0-devel-$defaultgstversion-universal.pkg https://urldefense.com/v3/__https://gstreamer.freedesktop.org/data/pkg/osx/$defaultgstversion/gstreamer-1.0-devel-$defaultgstversion-universal.pkg
+        sudo installer -pkg gstreamer-1.0-devel-$defaultgstversion-universal.pkg  -target /
+        rm gstreamer-1.0-devel-$defaultgstversion-universal.pkg
+    fi
+    
  }
 
 #main/start
@@ -145,6 +161,16 @@ fi
 fi
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
+
+    #Check/Install brew
+    which -s brew
+    if [[ $? != 0 ]] ; then
+        echo "Installing Homebrew, as its not available"
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    else
+        echo "Homebrew is installed now just updating it"
+        brew update
+    fi
 
     brew install git
     brew install cmake
@@ -287,7 +313,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 
     mkdir -p build
     
-    cd build && PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/opt/libffi/lib/pkgconfig:/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/pkgconfig:/usr/local/ssl/lib/pkgconfig:/usr/local/opt/curl/lib/pkgconfig:$PKG_CONFIG_PATH /usr/local/bin/cmake -DCMAKE_OSX_SYSROOT="/" -DCMAKE_OSX_DEPLOYMENT_TARGET="" -G Xcode ../
+    cd build && PKG_CONFIG_PATH=/usr/local/opt/ossp-uuid/lib/pkgconfig:/usr/local/opt/libffi/lib/pkgconfig:/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/pkgconfig:/usr/local/ssl/lib/pkgconfig:/usr/local/opt/curl/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_OSX_SYSROOT="/" -DCMAKE_OSX_DEPLOYMENT_TARGET="" -G Xcode ../
 
     echo "Please Start XCode, open aamp/build/AAMP.xcodeproj project file"
 	
@@ -334,8 +360,13 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     done   
     echo ""
     echo "********AAMP install summary end************"    
-    #Launching aamp-cli    
+    #Launching aamp-cli
+    
+    otool -L ./Debug/aamp-cli
+    
    ./Debug/aamp-cli https://cpetestutility.stb.r53.xcal.tv/VideoTestStream/main.mpd
+   
+   
 
     exit 0
 
@@ -365,9 +396,11 @@ elif [[ "$OSTYPE" == "linux"* ]]; then
     cd build
     make
     sudo make install
+
     
     if [  -f "./aamp-cli" ]; then
         echo "****Linux AAMP Build PASSED****"
+        lld ./aamp-cli
         arr_install_status+=("Linux AAMP Build PASSED")
         echo "Installing VSCode..."
 	    sudo snap install --classic code
