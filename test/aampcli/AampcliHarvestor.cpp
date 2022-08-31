@@ -260,14 +260,14 @@ void* Harvestor::masterHarvestor(void * arg)
 					}
 					else
 					{
-						if(0 != pthread_create(&mHarvestor.mSlaveVideoThreads[videoThreadId++], NULL, &slaveDataOutput, p))
+						if(0 != pthread_create(&mHarvestor.mSlaveVideoThreads[videoThreadId], NULL, &slaveDataOutput, p))
 						{
 							printf("%s:%d: Error at  pthread_create: slaveDataOutput thread\n",__FUNCTION__,__LINE__);
 						}
 						else
 						{
 							printf("%s:%d: Sucessfully launched harvest for video bitrate = %ld\n",__FUNCTION__,__LINE__,bitrate );
-							pthread_join(mHarvestor.mSlaveVideoThreads[videoThreadId++], NULL);
+							videoThreadId++;
 						}
 
 					}
@@ -305,14 +305,14 @@ void* Harvestor::masterHarvestor(void * arg)
 					}
 					else
 					{
-						if(0 != pthread_create(&mHarvestor.mSlaveAudioThreads[audioThreadId++], NULL, &slaveDataOutput, p))
+						if(0 != pthread_create(&mHarvestor.mSlaveAudioThreads[audioThreadId], NULL, &slaveDataOutput, p))
 						{
 							printf("%s:%d: Error at  pthread_create: slaveDataOutput thread\n",__FUNCTION__,__LINE__);
 						}
 						else
 						{
 							printf("%s:%d: Sucessfully launched harvest for audio bitrate = %ld\n ",__FUNCTION__,__LINE__,bitrate );
-							pthread_join(mHarvestor.mSlaveAudioThreads[videoThreadId++], NULL);
+							audioThreadId++;
 						}
 					}
 				}
@@ -322,6 +322,15 @@ void* Harvestor::masterHarvestor(void * arg)
 		}
 		
 		pthread_join(mHarvestor.mSlaveIFrameThread, NULL);
+		for(int i = 0; i < videoThreadId; i++)
+		{
+			pthread_join(mHarvestor.mSlaveVideoThreads[i], NULL);
+		}
+
+		for(int i =0; i < audioThreadId; i++)
+		{
+			pthread_join(mHarvestor.mSlaveAudioThreads[i], NULL);
+		}
 	}
 	else
 	{
