@@ -3264,6 +3264,7 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 	{
 		NotifyFragmentCachingComplete();		/*Set pipeline to PLAYING state once fragment caching is complete*/
 		AAMPGstPlayer_SignalEOS(stream->source);
+
 		/*For trickmodes, give EOS to audio source*/
 		if (AAMP_NORMAL_PLAY_RATE != privateContext->rate)
 		{
@@ -3273,6 +3274,17 @@ void AAMPGstPlayer::EndOfStreamReached(MediaType type)
 				AAMPGstPlayer_SignalEOS(privateContext->stream[eMEDIATYPE_SUBTITLE].source);
 			}
 		}
+		else
+		{
+			if ((privateContext->stream[eMEDIATYPE_AUDIO].eosReached) &&
+				(!privateContext->stream[eMEDIATYPE_SUBTITLE].eosReached) &&
+				(privateContext->stream[eMEDIATYPE_SUBTITLE].source))
+			{
+				privateContext->stream[eMEDIATYPE_SUBTITLE].eosReached = true;
+				AAMPGstPlayer_SignalEOS(privateContext->stream[eMEDIATYPE_SUBTITLE].source);
+			}
+		}
+
 		// We are in buffering, but we received end of stream, un-pause pipeline
 		StopBuffering(true);
 	}
@@ -4416,6 +4428,13 @@ bool AAMPGstPlayer::Discontinuity(MediaType type)
 		// We are in buffering, but we received discontinuity, un-pause pipeline
 		StopBuffering(true);
 		ret = true;
+
+		//If we have an audio discontinuity, signal subtec as well
+		if ((type == eMEDIATYPE_AUDIO) && (privateContext->stream[eMEDIATYPE_SUBTITLE].source))
+		{
+			AAMPGstPlayer_SignalEOS(privateContext->stream[eMEDIATYPE_SUBTITLE].source);
+		}
+
 	}
 	return ret;
 }
