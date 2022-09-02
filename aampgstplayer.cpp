@@ -51,6 +51,46 @@ guintptr gContentView;
 #include "aampoutputprotection.h"
 #endif
 
+#undef AAMPLOG
+#undef AAMPLOG_TRACE
+#undef AAMPLOG_INFO
+#undef AAMPLOG_WARN
+#undef AAMPLOG_ERR
+AAMPGstPlayer *_this = NULL;
+/**
+ * @brief New macro for AAMPLOG which checks for _this first to correct the PlayerID in logs for static methods
+ * 
+ */
+#define AAMPLOG(THIS, MYLOGOBJ, LEVEL, LEVELSTR, FORMAT, ...)                                                           \
+	do                                                                                                                  \
+	{                                                                                                                   \
+		/*_this must be defined for static functions when calling logging methods to get the correct player ID */       \
+		if (THIS != NULL)                                                                                               \
+		{                                                                                                               \
+			if (THIS->isLoggingLevelAllowed(LEVEL))                                                                     \
+			{                                                                                                           \
+				logprintf_new(THIS->getLoggingPlayerID(), LEVELSTR, __FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__);     \
+			}                                                                                                           \
+		}                                                                                                               \
+		/* in AAMPGstPlayer methods, _this is not defined. It uses standard logging method. */                          \
+		else if (MYLOGOBJ)                                                                                              \
+		{                                                                                                               \
+			if (MYLOGOBJ->isLogLevelAllowed(LEVEL))                                                                     \
+			{                                                                                                           \
+				logprintf_new(MYLOGOBJ->getPlayerId(), LEVELSTR, __FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__);        \
+			}                                                                                                           \
+		}                                                                                                               \
+		/* else if no logger exists, fall back on the global logger. Player ID may be invalid so pass -1 */             \
+		else if (gpGlobalConfig && gpGlobalConfig->logging.isLogLevelAllowed(LEVEL))                                    \
+		{                                                                                                               \
+			logprintf_new(-1, LEVELSTR, __FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__);                                 \
+		}                                                                                                               \
+	} while (0)
+#define AAMPLOG_TRACE(FORMAT, ...) AAMPLOG(_this, mLogObj, eLOGLEVEL_TRACE, "TRACE", FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_INFO(FORMAT, ...) AAMPLOG(_this, mLogObj, eLOGLEVEL_INFO, "INFO", FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_WARN(FORMAT, ...) AAMPLOG(_this, mLogObj, eLOGLEVEL_WARN, "WARN", FORMAT, ##__VA_ARGS__)
+#define AAMPLOG_ERR(FORMAT, ...) AAMPLOG(_this, mLogObj, eLOGLEVEL_ERROR, "ERROR", FORMAT, ##__VA_ARGS__)
+
 /**
  * @enum GstPlayFlags 
  * @brief Enum of configuration flags used by playbin
@@ -115,6 +155,18 @@ static std::map <std::string, std::vector<std::string>> gmapDecoderLoookUptable 
 	{"ac-4", {"omxac4dec"}}
 };
 
+/**
+ * @struct deferredPlayerControlData
+ * @brief Holds deferred player (with gst pipeline in paused state during player switch) details
+ *        It is assumed access is serialized via jsmedia commands above aamp, so no mutex is implemented
+ */
+struct deferredPlayerControlData
+{
+	int deferredStopPlayerId;                           /**< player ID in pause state ready to be stopped */
+	AAMPGstPlayer *deferredPlayer;                      /**< player in pause state ready to be stopped */
+	deferredPlayerControlData(): deferredStopPlayerId(DAI_UNDEFINED_PLAYER), deferredPlayer(NULL)
+	{};
+};
 /**
  * @struct media_stream
  * @brief Holds stream(A/V) specific variables.
@@ -274,6 +326,8 @@ struct AAMPGstPlayerPriv
 	
 };
 
+static deferredPlayerControlData deferredPlayerDetails;	/**< Deferred player details and control/access methods */
+
 static const char* GstPluginNamePR = "aampplayreadydecryptor";
 static const char* GstPluginNameWV = "aampwidevinedecryptor";
 static const char* GstPluginNameCK = "aampclearkeydecryptor";
@@ -314,7 +368,13 @@ static void type_check_instance( const char * str, GstElement * elem);
  * @param[in] targetState the GstState to apply to element
  * @retval Result of the state change (from inner gst_element_set_state())
  */
-static GstStateChangeReturn SetStateWithWarnings(GstElement *element, GstState targetState);
+static GstStateChangeReturn SetStateWithWarnings(GstElement *element, GstState targetState, AAMPGstPlayer *_this);
+
+
+/** 
+ * @brief wrapper to get gst element name, freeing needed objects to return as a std::string
+ */
+static std::string SafeName(GstElement *element);
 
 #define PLUGINS_TO_LOWER_RANK_MAX    2
 const char *plugins_to_lower_rank[PLUGINS_TO_LOWER_RANK_MAX] = {
@@ -362,7 +422,17 @@ AAMPGstPlayer::AAMPGstPlayer(AampLogManager *logObj, PrivateInstanceAAMP *aamp
 AAMPGstPlayer::~AAMPGstPlayer()
 {
 	FN_TRACE( __FUNCTION__ );
-	DestroyPipeline();
+	if (ISCONFIGSET(eAAMPConfig_MultiPipelineDai) && (this == deferredPlayerDetails.deferredPlayer))
+	{
+		AAMPLOG_INFO("Destructor called while detached calling DetachComplete");
+		DetachComplete();
+	}
+	else
+	{
+		AAMPLOG_INFO("Destructor - not the detached player, destroying pipeline");
+		DestroyPipeline();
+	}
+
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 		pthread_mutex_destroy(&privateContext->stream[i].sourceLock);
 	SAFE_DELETE(privateContext);
@@ -839,6 +909,15 @@ void AAMPGstPlayer::NotifyFirstFrame(MediaType type)
 	if (eMEDIATYPE_VIDEO == type)
 	{
 		AAMPLOG_WARN("AAMPGstPlayer_OnFirstVideoFrameCallback. got First Video Frame");
+ 		// SetKeepLastFrame on ad players only. FIXME (DELIA-57442) - assumes player 1. Needs a cleaner method.
+		if ( aamp && ISCONFIGSET(eAAMPConfig_KeepLastFrameDai) )
+		{
+			if(aamp->mPlayerId != DAI_MAIN_PLAYER)
+			{
+				AAMPLOG_INFO("call SetKeepLastFrame(true) after first video frame on Ad player.");
+				SetKeepLastFrame(true);
+			}
+		}
 
 		// DELIA-42262: No additional checks added here, since the NotifyFirstFrame will be invoked only once
 		// in westerossink disabled case until BCOM fixes it. Also aware of NotifyFirstBufferProcessed called
@@ -1248,12 +1327,49 @@ static gboolean buffering_timeout (gpointer data)
 			else if (frames == -1 || frames > DEFAULT_BUFFERING_QUEUED_FRAMES_MIN || privateContext->buffering_timeout_cnt-- == 0)
 #endif
 			{
-				AAMPLOG_WARN("Set pipeline state to %s - buffering_timeout_cnt %u  frames %i", gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1), frames);
-				SetStateWithWarnings (_this->privateContext->pipeline, _this->privateContext->buffering_target_state);
-				_this->privateContext->buffering_in_progress = false;
-				if(!_this->aamp->mConfig->IsConfigSet(eAAMPConfig_GstSubtecEnabled))
+				if ( (_this->privateContext->buffering_target_state) == GST_STATE_PLAYING )
 				{
-					_this->aamp->UpdateSubtitleTimestamp();
+					GstState gst_aud_sink_current = GST_STATE_NULL;
+					GstState gst_aud_sink_pending = GST_STATE_NULL;
+					// Check the audio sink is ready for transitioning the pipeline to play state, and warn if not (as this can cause the pipeline to start in vsink and transition badly to asink later)
+					if (privateContext->NumberOfTracks <= 1)
+					{
+						AAMPLOG_WARN("Skipping audio sink state check, since tracks <=1.");
+					}
+					else if (_this->privateContext->audio_sink)
+					{						
+						GstStateChangeReturn retStatus;
+						retStatus = gst_element_get_state(_this->privateContext->audio_sink, &gst_aud_sink_current, &gst_aud_sink_pending, 0);
+						AAMPLOG_WARN("Audio sink is present and in %.80s state when transitioning pipeline to %.80s state.",
+						 gst_element_state_get_name(gst_aud_sink_current),
+					 	 gst_element_state_get_name(_this->privateContext->buffering_target_state));
+					}
+					else
+					{
+						// LLAMA-5410 - if we get the following warning then EOS may fail in westeros sink, unless westeros workaround works.
+						// ..check for the following debug lines from westeros in gstreamer if it's being seen.
+						// The first is due to audio sink plugging too late. The second repeatedly could then result in not reaching EOS notification.
+						//   westeros-sink: sync type change: %d -> %d adjust counts: out %d -> 0 displayed %d -> 0 dropped %d -> 0\n
+						//   "waiting for eos: frameOutCount %d displayCount %d (%d+%d)"; where frameOutCount is less than the value for displayCount.
+						AAMPLOG_WARN("Bad pipeline transition to %.80s state with no audio_sink. Frames may be dropped. NumberOfTracks=%d, with buffering_timeout_cnt %u  frames %i.",
+					 	 gst_element_state_get_name(_this->privateContext->buffering_target_state),
+						 privateContext->NumberOfTracks, (_this->privateContext->buffering_timeout_cnt+1), frames);
+					}
+				}
+				AAMPLOG_WARN("Set pipeline state to %s - buffering_timeout_cnt %u  frames %i",
+				 gst_element_state_get_name(_this->privateContext->buffering_target_state), (_this->privateContext->buffering_timeout_cnt+1), frames);
+
+
+				// uncomment the following if we don't want to rely on westeros-sink workaround for eos, where audio sink is in the pipeline too late.
+				// .. this will mean the timer is not cancelled and pipeline change to play will be held off.
+				//if ( !(ISCONFIGSET(eAAMPConfig_MultiPipelineDai) || ( (ISCONFIGSET(eAAMPConfig_MultiPipelineDai) && _this->privateContext->audio_sink)))
+				{
+					SetStateWithWarnings (_this->privateContext->pipeline, _this->privateContext->buffering_target_state, _this);
+					_this->privateContext->buffering_in_progress = false;
+					if(!_this->aamp->mConfig->IsConfigSet(eAAMPConfig_GstSubtecEnabled))
+					{
+						_this->aamp->UpdateSubtitleTimestamp();
+					}
 				}
 			}
 		}
@@ -1473,8 +1589,8 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 	case GST_MESSAGE_CLOCK_LOST:
 		AAMPLOG_WARN("GST_MESSAGE_CLOCK_LOST");
 		// get new clock - needed?
-		SetStateWithWarnings(_this->privateContext->pipeline, GST_STATE_PAUSED);
-		SetStateWithWarnings(_this->privateContext->pipeline, GST_STATE_PLAYING);
+		SetStateWithWarnings(_this->privateContext->pipeline, GST_STATE_PAUSED, _this);
+		SetStateWithWarnings(_this->privateContext->pipeline, GST_STATE_PLAYING, _this);
 		break;
 
 	case GST_MESSAGE_RESET_TIME:
@@ -2072,7 +2188,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 			/* set the playbin state to NULL before detach it */
 			if (stream->sinkbin)
 			{
-				if (GST_STATE_CHANGE_FAILURE == SetStateWithWarnings(GST_ELEMENT(stream->sinkbin), GST_STATE_NULL))
+				if (GST_STATE_CHANGE_FAILURE == SetStateWithWarnings(GST_ELEMENT(stream->sinkbin), GST_STATE_NULL, this))
 				{
 					AAMPLOG_WARN("AAMPGstPlayer::TearDownStream: Failed to set NULL state for sinkbin");
 				}
@@ -2088,7 +2204,7 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 
 			if (stream->using_playersinkbin && stream->source)
 			{
-				if (GST_STATE_CHANGE_FAILURE == SetStateWithWarnings(GST_ELEMENT(stream->source), GST_STATE_NULL))
+				if (GST_STATE_CHANGE_FAILURE == SetStateWithWarnings(GST_ELEMENT(stream->source), GST_STATE_NULL, this))
 				{
 					AAMPLOG_WARN("AAMPGstPlayer::TearDownStream: Failed to set NULL state for source");
 				}
@@ -2713,11 +2829,153 @@ void AAMPGstPlayer::SendTransfer(MediaType mediaType, GrowableBuffer* pBuffer, d
 }
 
 /**
+* @brief Set/clear keep last frame to current pipeline video decoder.
+* @param[in] keepLastFrame denotes if last video frame should be kept
+*/
+void AAMPGstPlayer::SetKeepLastFrame(bool keepLastFrame)
+{
+	FN_TRACE( __FUNCTION__ );
+
+	GstElement *element = NULL;
+
+	if ( !(ISCONFIGSET(eAAMPConfig_KeepLastFrameDai)) )
+	{
+		AAMPLOG_WARN("SetKeepLastFrame() call ignored, since the feature is disabled!.");
+		return;
+	}
+
+#if defined(AMLOGIC)
+	if (privateContext)
+	{
+		element = privateContext->video_dec;
+	}
+#elif defined(REALTEKCE)
+    element = privateContext->video_sink;
+#else
+	AAMPLOG_WARN("SetKeepLastFrame() not implemented on this platform.");
+#endif
+	if (element)
+	{
+		GstState gst_current, gst_pending;
+		GstStateChangeReturn retStatus;
+		std::string elementName = SafeName(element);
+
+		retStatus = gst_element_get_state(element, &gst_current, &gst_pending, 0);
+		switch (retStatus)
+		{
+			case GST_STATE_CHANGE_SUCCESS:
+			{
+				if ( (gst_current != GST_STATE_PAUSED) && (gst_current != GST_STATE_PLAYING) )
+				{
+					AAMPLOG_INFO("'%.80s' is not changing state. 'stop-keep-frame' will be set when next in PAUSE/PLAY state. Current state = %.80s",
+					  elementName.c_str(), gst_element_state_get_name(gst_current));
+				}
+				else
+				{
+					AAMPLOG_INFO("'%.80s' is in PAUSE or PLAY state. 'stop-keep-frame'' will be applied now.", elementName.c_str() );
+				}
+				break;
+			}
+			case GST_STATE_CHANGE_ASYNC:
+			{
+				if ( (gst_pending != GST_STATE_PAUSED) && (gst_pending != GST_STATE_PLAYING))
+				{
+					AAMPLOG_INFO("'%.80s' is changing state. 'stop-keep-frame' may not be applied. Current state = %.80s, pending state=%.80s",
+					 elementName.c_str(), gst_element_state_get_name(gst_current), gst_element_state_get_name(gst_pending));
+				}
+				break;
+			}
+			case GST_STATE_CHANGE_FAILURE:
+			{
+				AAMPLOG_INFO("'%.50s' is in FAIL state. 'stop-keep-frame' will not work.", elementName.c_str());
+				break;
+			}
+		}
+		AAMPLOG_INFO("Setting stop-keep-frame (= %d) property on '%.50s' object %p", keepLastFrame, elementName.c_str(), element);
+		if (gst_current != GST_STATE_NULL)
+		{
+#if defined(AMLOGIC)
+			g_object_set(G_OBJECT(element),  "stop-keep-frame", keepLastFrame, NULL);
+#elif defined(REALTEKCE)
+			// NB: flush-repeat-frame = stop-keep-frame on REALTEK
+			g_object_set(G_OBJECT(element),  "flush-repeat-frame", keepLastFrame, NULL);
+#else
+			AAMPLOG_WARN("stop-keep-frame property not implemented on this platform?");
+#endif
+		}
+		else
+		{
+			AAMPLOG_WARN("Potential failure: Attempting to set 'stop-keep-frame' with decoder in NULL state, so property not set. Ignored!'");
+		}
+	}
+	else
+	{
+		AAMPLOG_WARN("Not setting 'stop-keep-frame' (= %d). 'element' is not valid.", keepLastFrame);
+	}
+}
+
+/**
  * @brief To start playback
  */
 void AAMPGstPlayer::Stream()
 {
 	FN_TRACE( __FUNCTION__ );
+}
+
+/**
+ * @brief To end a detached player
+ */
+bool AAMPGstPlayer::DetachComplete()
+{
+	FN_TRACE( __FUNCTION__ );
+	if (deferredPlayerDetails.deferredPlayer)
+	{
+		AAMPLOG_WARN("Detached player PLAYER[%d] calling stop ", deferredPlayerDetails.deferredStopPlayerId);
+		deferredPlayerDetails.deferredPlayer->Stop(false);
+
+		deferredPlayerDetails.deferredPlayer = NULL;
+		deferredPlayerDetails.deferredStopPlayerId = DAI_UNDEFINED_PLAYER;
+		return true;
+	}
+	return false;
+}
+
+/**
+ * @brief Pause pipeline and remember detach is in progress for this player.
+ * @param[in] void
+ */
+void AAMPGstPlayer::Detach()
+{
+       FN_TRACE( __FUNCTION__ );
+
+       //  set to paused on detach
+	   if (privateContext->pipeline)
+	   {
+			AAMPLOG_WARN("Detach (player %d) setting pipeline to PAUSED.", aamp->mPlayerId);
+			GstStateChangeReturn rc;
+			rc = SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_PAUSED, this);
+			if ( aamp && ISCONFIGSET(eAAMPConfig_KeepLastFrameDai) )
+			{
+				SetKeepLastFrame(false);
+			}
+			if (GST_STATE_CHANGE_FAILURE != rc)
+			{
+				privateContext->pipelineState = GST_STATE_PAUSED;
+			}
+			else
+			{
+				AAMPLOG_WARN("FAILED to change pipeline state!");
+			}
+	   }
+       // Don't detach if we're the deferred player
+       if ( (deferredPlayerDetails.deferredStopPlayerId != DAI_UNDEFINED_PLAYER) && (deferredPlayerDetails.deferredStopPlayerId != aamp->mPlayerId) )
+       {
+			AAMPLOG_WARN("Detaching unexpected PLAYER[%d]. Calling DetachComplete().", deferredPlayerDetails.deferredStopPlayerId);
+			DetachComplete();
+       }
+       // Remember this pipeline for deferred detach
+       deferredPlayerDetails.deferredPlayer = this;
+       deferredPlayerDetails.deferredStopPlayerId = aamp->mPlayerId;
 }
 
 
@@ -2778,7 +3036,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 
 	if (setReadyAfterPipelineCreation)
 	{
-		if(SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_READY) == GST_STATE_CHANGE_FAILURE)
+		if(SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_READY, this) == GST_STATE_CHANGE_FAILURE)
 		{
 			AAMPLOG_ERR("AAMPGstPlayer_Configure GST_STATE_READY failed on forceful set");
 		}
@@ -2857,7 +3115,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 		this->privateContext->buffering_target_state = GST_STATE_PLAYING;
 		this->privateContext->buffering_in_progress = true;
 		this->privateContext->buffering_timeout_cnt = DEFAULT_BUFFERING_MAX_CNT;
-		if (SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_PAUSED) == GST_STATE_CHANGE_FAILURE)
+		if (SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_PAUSED, this) == GST_STATE_CHANGE_FAILURE)
 		{
 			AAMPLOG_WARN("AAMPGstPlayer_Configure GST_STATE_PLAUSED failed");
 		}
@@ -2865,7 +3123,7 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 	}
 	else
 	{
-		if (SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
+		if (SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_PLAYING, this) == GST_STATE_CHANGE_FAILURE)
 		{
 			AAMPLOG_WARN("AAMPGstPlayer: GST_STATE_PLAYING failed");
 		}
@@ -2941,8 +3199,18 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	FN_TRACE( __FUNCTION__ );
 	AAMPLOG_WARN("entering AAMPGstPlayer_Stop keepLastFrame %d", keepLastFrame);
 
+	if ( aamp && ( !ISCONFIGSET(eAAMPConfig_MultiPipelineDai) ) && ISCONFIGSET(eAAMPConfig_KeepLastFrameDai) )
+	{
+		// Note: This is done in Detach() if eAAMPConfig_MultiPipelineDai is enabled instead
+		SetKeepLastFrame(false);
+	}
+
 	//XIONE-8595 - make the execution of this function more deterministic and reduce scope for potential pipeline lockups
-	gst_bus_remove_watch(privateContext->bus);
+	if (privateContext->bus)
+	{
+		gst_bus_remove_watch(privateContext->bus);
+		privateContext->bus = NULL;
+	}
 
 #ifdef INTELCE
 	if (privateContext->video_sink)
@@ -3009,7 +3277,8 @@ void AAMPGstPlayer::Stop(bool keepLastFrame)
 	if (this->privateContext->pipeline)
 	{
 		privateContext->buffering_in_progress = false;   /* stopping pipeline, don't want to change state if GST_MESSAGE_ASYNC_DONE message comes in */
-		SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_NULL);
+		privateContext->video_dec=NULL;					 /* we mustn't try access video decoder if pipeline is in NULL state */
+		SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_NULL, this);
 		AAMPLOG_WARN("AAMPGstPlayer: Pipeline state set to null");
 	}
 #ifdef AAMP_MPD_DRM
@@ -3281,7 +3550,7 @@ static GstState validateStateWithMsTimeout( AAMPGstPlayer *_this, GstState state
 }
 
 
-static GstStateChangeReturn SetStateWithWarnings(GstElement *element, GstState targetState)
+static GstStateChangeReturn SetStateWithWarnings(GstElement *element, GstState targetState, AAMPGstPlayer *_this)
 {
     GstStateChangeReturn rc = GST_STATE_CHANGE_FAILURE;
 	if(element)
@@ -3317,6 +3586,25 @@ static GstStateChangeReturn SetStateWithWarnings(GstElement *element, GstState t
 			AAMPLOG_WARN("AAMPGstPlayer: Attempting to set %s state to %s", SafeName(element).c_str(), gst_element_state_get_name(targetState));
 		}
 		rc = gst_element_set_state(element, targetState);
+		switch (rc)
+		{
+			case GST_STATE_CHANGE_SUCCESS:
+				AAMPLOG_WARN("AAMPGstPlayer: '%s' state changed to %.80s", SafeName(element).c_str(),gst_element_state_get_name(targetState));
+				break;
+			case GST_STATE_CHANGE_ASYNC:
+				AAMPLOG_WARN("AAMPGstPlayer: '%s' state changing asynchronously to %.80s", SafeName(element).c_str(),gst_element_state_get_name(targetState));
+				break;
+			case GST_STATE_CHANGE_NO_PREROLL:
+				AAMPLOG_WARN("AAMPGstPlayer: '%s' state changed resulted in GST_STATE_CHANGE_NO_PREROLL going to %.80s", SafeName(element).c_str(),gst_element_state_get_name(targetState));
+				break;
+			case GST_STATE_CHANGE_FAILURE:
+				AAMPLOG_WARN("AAMPGstPlayer: '%s' state change GST_STATE_CHANGE_FAILURE going to %.80s", SafeName(element).c_str(),gst_element_state_get_name(targetState));
+				break;
+			default:
+				AAMPLOG_WARN("AAMPGstPlayer: ERROR - unknown outcome");
+				break;
+		}
+
 		if(syncOnlyTransition)
 		{
 			AAMPLOG_WARN("AAMPGstPlayer: %s state set to %s",  SafeName(element).c_str(), gst_element_state_get_name(targetState));
@@ -3357,7 +3645,7 @@ void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 	/*On pc, tsdemux requires null transition*/
 	stateBeforeFlush = GST_STATE_NULL;
 #endif
-	rc = SetStateWithWarnings(this->privateContext->pipeline, stateBeforeFlush);
+	rc = SetStateWithWarnings(this->privateContext->pipeline, stateBeforeFlush, this);
 	if (GST_STATE_CHANGE_ASYNC == rc)
 	{
 		if (GST_STATE_PAUSED != validateStateWithMsTimeout(this,GST_STATE_PAUSED, 50))
@@ -3375,7 +3663,7 @@ void AAMPGstPlayer::PauseAndFlush(bool playAfterFlush)
 	if (!ret) AAMPLOG_WARN("AAMPGstPlayer_Flush: flush stop error");
 	if (playAfterFlush)
 	{
-		rc = SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_PLAYING);
+		rc = SetStateWithWarnings(this->privateContext->pipeline, GST_STATE_PLAYING, this);
 
 		if (GST_STATE_CHANGE_ASYNC == rc)
 		{
@@ -3550,7 +3838,7 @@ bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 			privateContext->buffering_in_progress = false;
 		}
 
-		GstStateChangeReturn rc = SetStateWithWarnings(this->privateContext->pipeline, nextState);
+		GstStateChangeReturn rc = SetStateWithWarnings(this->privateContext->pipeline, nextState, this);
 		if (GST_STATE_CHANGE_ASYNC == rc)
 		{
 			/* wait a bit longer for the state change to conclude */
@@ -3582,7 +3870,7 @@ bool AAMPGstPlayer::Pause( bool pause, bool forceStopGstreamerPreBuffering )
 		media_stream *stream = &privateContext->stream[iTrack];
 		if (stream->source)
 		{
-			rc = SetStateWithWarnings(privateContext->stream->sinkbin, GST_STATE_PAUSED);
+			rc = SetStateWithWarnings(privateContext->stream->sinkbin, GST_STATE_PAUSED, this);
 		}
 	}
 #endif
@@ -3982,7 +4270,7 @@ void AAMPGstPlayer::Flush(double position, int rate, bool shouldTearDown)
 			((targetState == GST_STATE_PLAYING) || (currentState == GST_STATE_PLAYING)))
 			{
 				AAMPLOG_WARN("AAMPGstPlayer: Pause before seek, Setting Pipeline to GST_STATE_PAUSED.");
-				SetStateWithWarnings(privateContext->pipeline, GST_STATE_PAUSED);
+				SetStateWithWarnings(privateContext->pipeline, GST_STATE_PAUSED, this);
 			}
 			else
 			{
@@ -4171,7 +4459,7 @@ void AAMPGstPlayer::NotifyFragmentCachingComplete()
 	if(privateContext->pendingPlayState)
 	{
 		AAMPLOG_WARN("AAMPGstPlayer: Setting pipeline to PLAYING state ");
-		if (SetStateWithWarnings(privateContext->pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE)
+		if (SetStateWithWarnings(privateContext->pipeline, GST_STATE_PLAYING, this) == GST_STATE_CHANGE_FAILURE)
 		{
 			AAMPLOG_WARN("AAMPGstPlayer_Configure GST_STATE_PLAYING failed");
 		}
@@ -4653,4 +4941,25 @@ bool AAMPGstPlayer::AdjustPlayBackRate(double position, double rate)
 		}
 	}
 	return ErrSuccess;
+}
+
+/**
+ * @brief Get the player ID kept in the mLogObj object of the player
+ * @fn GetLoggingPlayerID
+ * @return Player ID recorded in mLogObj
+ */
+int AAMPGstPlayer::getLoggingPlayerID()
+{
+	return mLogObj->getPlayerId();
+}
+
+/**
+ * @brief Get whether the log level is allowed for the players' mLogObj
+ * @fn GetLoggingLevelAllowed()
+ * @param[in] logLevel the logging level to query
+ * @return True or false : whether the logging level is allowed
+ */
+bool AAMPGstPlayer::isLoggingLevelAllowed(AAMP_LogLevel logLevel)
+{
+	return mLogObj->isLogLevelAllowed(logLevel);
 }

@@ -49,6 +49,10 @@ struct TaskControlData
 	TaskControlData(const char* taskIdent) : taskID(0), taskIsPending(false), taskName(taskIdent ? taskIdent : "undefined") {};
 };
 
+#define DAI_MAIN_PLAYER (1)                               /**< main vod player (see DELIA-57442) */
+#define DAI_UNDEFINED_PLAYER (-1)                         /**< player uninitialized */
+
+
 /**
  * @brief Function pointer for the idle task
  * @param[in] arg - Arguments
@@ -132,6 +136,23 @@ public:
          * @fn Stream
          */
 	void Stream(void);
+
+	/**
+         * @fn SetKeepLastFrame
+         * @param[in] keepLastFrame True/False to enable or disable
+         */
+	void SetKeepLastFrame(bool keepLastFrame);
+
+	/**
+         * @fn Detach
+         */
+	void Detach(void);
+
+	/**
+         * @fn DetachComplete
+         */
+	bool DetachComplete(void);
+
 	/**
          * @fn Stop
          * @param[in] keepLastFrame denotes if last video frame should be kept
@@ -383,6 +404,22 @@ public:
     	 *
      	 */
 	std::string GetVideoRectangle();
+
+	/**
+	 	* @brief Get the player ID kept in the mLogObj object of the player
+	 	* @fn GetLoggingPlayerID
+	 	* @return Player ID recorded in mLogObj
+	 */
+	int getLoggingPlayerID();
+
+	/**
+	 	* @brief Get whether the log level is allowed for the players' mLogObj
+	 	* @fn GetLoggingLevelAllowed()
+	 	* @param[in] logLevel the logging level to query
+	 	* @return True or false : whether the logging level is allowed
+	 */
+	bool isLoggingLevelAllowed(AAMP_LogLevel logLevel);
+
 private:
 	/**
      	 * @fn PauseAndFlush 

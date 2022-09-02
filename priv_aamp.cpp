@@ -5994,7 +5994,14 @@ void PrivateInstanceAAMP::detach()
 			mCCId = 0;
 		}
 #endif
-		mStreamSink->Stop(true);
+		if ISCONFIGSET_PRIV(eAAMPConfig_MultiPipelineDai)
+		{
+			mStreamSink->Detach();    // keep last frame detach for deferred call to Stop
+		}
+		else
+		{
+			mStreamSink->Stop(true);
+		}
 		mbPlayEnabled = false;
 		mbDetached=true;
 		mPlayerPreBuffered  = false;

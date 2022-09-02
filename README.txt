@@ -105,6 +105,8 @@ playreadyOutputProtection	Enable/Disable output protection for PlayReady DRM.Def
 descriptiveAudioTrack   	Enable/Disable role in audio track selection.syntax <langcode>-<role> instead of just <langcode>.Default false
 decoderUnavailableStrict	Reports decoder unavailable GST Warning as aamp error. Default false
 retuneOnBufferingTimeout 	Enable/Disable internal re-tune on buffering time-out.Default true
+multiPipelineDai		Enable a gstreamer pipeline per player to remove brief black screens on switching. Default true on Amlogic
+keepLastFrameDai		Use keepLastFrame when swapping players for Ads, when multiPipelineDai is enabled. Default true on Amlogic
 client-dai			Enable/Disable Client-DAI.Default false
 cdnAdsOnly			Enable/Disable picking Ads from Fog or CDN . Default false
 appSrcForProgressivePlayback 	Enables appsrc for playing progressive AV type.Default false

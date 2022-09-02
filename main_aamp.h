@@ -509,6 +509,14 @@ class StreamSink
 public:
 
 	/**
+	*   @brief Detach the Stream, pausing it for later call to Stop
+	*
+	*   @return void
+	*/
+
+	virtual void Detach(void){}
+
+	/**
 	 *   @brief  Configure output formats
 	 *
 	 *   @param[in]  format - Video output format.
