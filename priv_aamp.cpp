@@ -1133,6 +1133,14 @@ long getCurrentContentDownloadSpeed(PrivateInstanceAAMP *aamp,
 
 /**
  * @brief HandleSSLProgressCallback - Process progress callback from CURL
+ *
+ * @param clientp opaque context passed by caller
+ * @param dltotal total number of bytes libcurl expects to download
+ * @param dlnow number of bytes downloaded so far
+ * @param ultotal total number of bytes libcurl expects to upload
+ * @param ulnow number of bytes uploaded so far
+ *
+ * @retval -1 to cancel in progress download
  */
 int PrivateInstanceAAMP::HandleSSLProgressCallback ( void *clientp, double dltotal, double dlnow, double ultotal, double ulnow )
 {
@@ -1240,18 +1248,18 @@ int PrivateInstanceAAMP::HandleSSLProgressCallback ( void *clientp, double dltot
 				rc = -1;
 			}
 		}
-
-		if (dlnow > 0 && context->lowBWTimeout > 0 && eMEDIATYPE_VIDEO == context->fileType)
+		if (dlnow > 0 && context->lowBWTimeout> 0 && eMEDIATYPE_VIDEO == context->fileType)
 		{
-			// Timeout for profile rampdown if network bandwidth is not good enough
-			long downloadbps = getCurrentContentDownloadSpeed(aamp, context->fileType, context->dlStarted, (long)context->downloadStartTime, dlnow);
-			long currentProfilebps  = context->aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
-			double timeElapsedInSec = (double)(NOW_STEADY_TS_MS - context->downloadStartTime) / 1000; //in secs
-			if(timeElapsedInSec >= context->lowBWTimeout)
+			double elapsedTimeMs = (double)(NOW_STEADY_TS_MS - context->downloadStartTime);
+			if( elapsedTimeMs >= context->lowBWTimeout*1000 )
 			{
-				if((downloadbps + DEFAULT_BITRATE_OFFSET_FOR_DOWNLOAD) < currentProfilebps)
+				double predictedTotalDownloadTimeMs = elapsedTimeMs*dltotal/dlnow;
+				if( predictedTotalDownloadTimeMs > aamp->mNetworkTimeoutMs )
 				{
-					AAMPLOG_WARN("Abort download as content is estimated to be expired current BW : %ld bps, min required:%ld bps", downloadbps, currentProfilebps);
+					AAMPLOG_WARN("lowBWTimeout=%ds; predictedTotalDownloadTime=%fs>%fs (network timeout)",
+								 context->lowBWTimeout,
+								 predictedTotalDownloadTimeMs/1000.0,
+								 aamp->mNetworkTimeoutMs/1000.0 );
 					context->abortReason = eCURL_ABORT_REASON_LOW_BANDWIDTH_TIMEDOUT;
 					rc = -1;
 				}
@@ -10699,7 +10707,7 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 		
 		/** Get language Properties*/
 		if(jsObject->isArray("languages"))
-		{
+		{ // if starting with array, join to string
 			if (jsObject->get("languages", inputTextLanguagesList))
 			{
 				for (auto preferredLanguage : inputTextLanguagesList)
@@ -10713,7 +10721,7 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 			}
 		}
 		else if (jsObject->isString("languages"))
-		{
+		{ // if starting with string, create simple array
 			if (jsObject->get("languages", inputTextLanguagesString))
 			{
 				inputTextLanguagesList.push_back(inputTextLanguagesString);
