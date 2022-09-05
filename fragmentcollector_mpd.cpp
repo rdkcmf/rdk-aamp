@@ -9424,10 +9424,10 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							{
 								adStateChanged = onAdEvent(AdEvent::AD_FINISHED);
 							}
-							// EOS from both tracks for dynamic(live) manifests.
+							// EOS from both tracks for dynamic(live) manifests for all periods.
 							// Wait for the manifest update, otherwise break the loop.
 							if( mIsLiveManifest && (rate > 0)
-							&& (mIterPeriodIndex == mNumberOfPeriods-1) && (AdState::IN_ADBREAK_WAIT2CATCHUP != mCdaiObject->mAdState))
+							&& (mIterPeriodIndex == mUpperBoundaryPeriod) && (AdState::IN_ADBREAK_WAIT2CATCHUP != mCdaiObject->mAdState))
 							{
 								playlistDownloaderContext->NotifyFragmentCollectorWait();
 								playlistDownloaderContext->WaitForManifestUpdate();
