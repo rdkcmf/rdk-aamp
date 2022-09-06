@@ -312,6 +312,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	,mUpperBoundaryPeriod(0), mLowerBoundaryPeriod(0), playlistDownloaderThreadStarted(false)
 	,mUnSupportedDRMFlag(false)
 	,mLiveTimeFragmentSync(false)
+	,mCompanionDataList()
 {
         FN_TRACE_F_MPD( __FUNCTION__ );
 	this->aamp = aamp;
@@ -3182,7 +3183,7 @@ std::string StreamAbstractionAAMP_MPD::GetPreferredDrmUUID()
  * @brief Create DRM helper from ContentProtection
  * @retval shared_ptr of AampDrmHelper
  */
-std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdaptationSet * adaptationSet,MediaType mediaType)
+std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdaptationSet* adaptationSet, MediaType mediaType)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	const vector<IDescriptor*> contentProt = GetContentProtection(adaptationSet, mediaType); 
@@ -7476,13 +7477,28 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 			}
 			AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]",
 				getMediaTypeName(MediaType(i)),selAdaptationSetIndex,selRepresentationIndex,(mNumberOfTracks+1) );
-
-			ProcessContentProtection(period->GetAdaptationSets().at(selAdaptationSetIndex),(MediaType)i);
+#if defined(AAMP_MPD_DRM) ||  defined(USE_OPENCDM)
+			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(selAdaptationSetIndex);
+			std::vector<uint8_t> keyIdArray;
+			GetKeyId(adaptationSet, keyIdArray);
+			if (!aamp->mDRMSessionManager->IsKeyIdUsable(keyIdArray))
+			{
+				ProcessContentProtection(adaptationSet,(MediaType)i);
+			}
+#endif
 			mNumberOfTracks++;
 		}
 		else if (encryptedIframeTrackPresent) //Process content protection for encyrpted Iframe
 		{
-			ProcessContentProtection(period->GetAdaptationSets().at(pMediaStreamContext->adaptationSetIdx),(MediaType)i);
+#if defined(AAMP_MPD_DRM) ||  defined(USE_OPENCDM)
+			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(pMediaStreamContext->adaptationSetIdx);
+			std::vector<uint8_t> keyIdArray;
+			GetKeyId(adaptationSet, keyIdArray);
+			if (!aamp->mDRMSessionManager->IsKeyIdUsable(keyIdArray))
+			{
+				ProcessContentProtection(adaptationSet,(MediaType)i);
+			}
+#endif
 		}
 
 		if(selAdaptationSetIndex < 0 && rate == 1)
@@ -7630,6 +7646,26 @@ std::string StreamAbstractionAAMP_MPD::GetCurrentMimeType(MediaType mediaType)
 
 	return mimeType;
 }
+
+/**
+ * @brief Get the preferred Key Id from the adaptation set
+ */
+void StreamAbstractionAAMP_MPD::GetKeyId(IAdaptationSet *adaptationSet, std::vector<uint8_t>& keyId )
+{
+	FN_TRACE_F_MPD( __FUNCTION__ );
+	std::string keyIdStr = "";
+	std::shared_ptr<AampDrmHelper> drmHelperTemp = NULL;
+#ifdef AAMP_MPD_DRM
+	drmHelperTemp = CreateDrmHelper(adaptationSet, eMEDIATYPE_VIDEO);
+#endif
+	if (drmHelperTemp)
+	{
+		drmHelperTemp->getKey(keyId);
+	}
+	AAMPLOG_INFO("KeyId for Adaptation Id ( %d ) is %s", adaptationSet->GetId(), AampLogManager::getHexDebugStr(keyId).c_str());
+	return;
+}
+
 
 /**
  * @brief Updates track information based on current state
@@ -7808,9 +7844,12 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 					bool resolutionCheckEnabled = false;
 					bool bVideoCapped = false;
 					bool bIframeCapped = false;
+					std::vector<std::string> adaptationGroup;
+					std::vector<int> intraSupportIndex;
 
 					for (size_t adaptIdx = 0; adaptIdx < adaptationSets.size(); adaptIdx++)
 					{
+						bool adaptaionSupportIntraAsset = false;
 						IAdaptationSet* adaptationSet = adaptationSets.at(adaptIdx);
 						if (IsContentType(adaptationSet, eMEDIATYPE_VIDEO))
 						{
@@ -7830,8 +7869,61 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 							}
 
 							size_t numRepresentations = adaptationSet->GetRepresentation().size();
+
+							struct CompanionData tempCompanionData = {{},false,NULL,0};
+							std::string adaptId =  std::to_string(adaptationSet->GetId());
+							for(int adaptGrpLoop =0; adaptGrpLoop < adaptationGroup.size();adaptGrpLoop++)
+							{
+								if(adaptationGroup.at(adaptGrpLoop) == adaptId)
+								{
+									/**< Found Adaptation Id in Adaptation Group */
+									AAMPLOG_INFO("Intra Asset Content Playback Enabled for mid Adaptations %d", adaptIdx);
+									adaptaionSupportIntraAsset = true;
+									break;
+								}
+							}
+							if(adaptationGroup.empty() || adaptaionSupportIntraAsset)
+							{
+								std::vector<std::string> companionList;
+								companionList = getCompanionList(adaptationSet);
+								if (!adaptaionSupportIntraAsset && !companionList.empty())
+								{
+									AAMPLOG_INFO("Intra Asset Content Playback Enabled for root Adaptation %d", adaptIdx);
+									adaptaionSupportIntraAsset = true;
+								}
+
+								if (adaptaionSupportIntraAsset)
+								{
+									/**< Add the new adaptation ids to the main list **/
+									adaptationGroup.insert(adaptationGroup.end(),companionList.begin(),companionList.end());
+									vector<std::string>::iterator ip;
+									ip = std::unique(adaptationGroup.begin(), adaptationGroup.begin() + adaptationGroup.size());
+									adaptationGroup.resize(std::distance(adaptationGroup.begin(), ip));
+									GetKeyId(adaptationSet, tempCompanionData.mKeyId);
+									std::vector<std::vector<uint8_t> > profiles;
+									std::vector<uint8_t> a;
+									a.push_back(1);
+ 									std::vector<uint8_t> b;
+									b.push_back(2);
+									tempCompanionData.mKeyId =b;
+									tempCompanionData.numberOfProfiles = numRepresentations;
+								}
+							}
+							else
+							{
+								/**< IntraAsset schemedId present and current adaptation not in the group ,
+								 * then skip for time being */
+								AAMPLOG_INFO("Intra Asset schemedId present and current adaptation (%d) not in the group, skip it!!", adaptIdx);
+								continue;
+							}
+
 							for (size_t reprIdx = 0; reprIdx < numRepresentations; reprIdx++)
 							{
+								if (adaptaionSupportIntraAsset)
+								{
+									intraSupportIndex.push_back(idx);
+								}
+
 								IRepresentation *representation = adaptationSet->GetRepresentation().at(reprIdx);
 								mStreamInfo[idx].bandwidthBitsPerSecond = representation->GetBandwidth();
 								mStreamInfo[idx].isIframeTrack = !(AAMP_NORMAL_PLAY_RATE == rate);
@@ -7862,7 +7954,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								}
 								 // Map profile index to corresponding adaptationset and representation index
                                                                 iProfileMaps[idx].adaptationSetIndex = adaptIdx;
-                                                                iProfileMaps[idx].representationIndex = reprIdx;
+								iProfileMaps[idx].representationIndex = reprIdx;
 
 								if (ISCONFIGSET(eAAMPConfig_LimitResolution) && aamp->mDisplayWidth > 0 && aamp->mDisplayHeight > 0)
 								{
@@ -7879,6 +7971,13 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 									}
 								}
 								idx++;
+							}
+
+							if(adaptaionSupportIntraAsset)
+							{
+								/**< Add the stream info in companionData and push it to the list **/
+								tempCompanionData.mProfileList = mStreamInfo;
+								mCompanionDataList.push_back(tempCompanionData);
 							}
 						}
 					}
@@ -7926,6 +8025,15 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								{
 									continue;
 								}
+								if(!intraSupportIndex.empty())
+								{
+									if (0 == std::count(intraSupportIndex.begin(), intraSupportIndex.end(), pidx))
+									{
+										AAMPLOG_INFO("Video Profile ignoring due to outside Intra Asset Profiles BW=%ld", mStreamInfo[pidx].bandwidthBitsPerSecond);
+										continue;
+									}
+								}
+
 								GetABRManager().addProfile({
 									mStreamInfo[pidx].isIframeTrack,
 									mStreamInfo[pidx].bandwidthBitsPerSecond,
@@ -7938,6 +8046,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								mProfileMaps[addedProfiles].adaptationSetIndex = iProfileMaps[pidx].adaptationSetIndex;
 								mProfileMaps[addedProfiles].representationIndex = iProfileMaps[pidx].representationIndex;
 								addedProfiles++;
+
 								if (resolutionCheckEnabled && 
 									((mStreamInfo[pidx].isIframeTrack && bIframeCapped) || 
 									(!mStreamInfo[pidx].isIframeTrack && bVideoCapped)))
@@ -10208,6 +10317,40 @@ long StreamAbstractionAAMP_MPD::GetMaxBitrate()
 
 
 /**
+ * @brief Function to remove unsupported profiles in the ABR list  for intra asset supported stream
+ */
+bool StreamAbstractionAAMP_MPD::UpdateProfile(std::vector<std::vector<uint8_t> >profiles)
+{
+	FN_TRACE_F_MPD( __FUNCTION__ );
+	bool retval = true;
+	std::vector<long> profileBPS;
+	if(!mCompanionDataList.empty())
+       	{
+		for(int i=0;i<mCompanionDataList.size();i++)
+		{
+			for(int j=0;j<profiles.size();j++)
+			{
+				if(profiles[j] == mCompanionDataList[i].mKeyId)
+				{
+					mCompanionDataList[i].mIsLicenseAcquired = true;
+					break;
+				}
+			}
+			if(mCompanionDataList[i].mIsLicenseAcquired == false)
+			{
+				for(int k=0;k<mCompanionDataList[i].numberOfProfiles;k++)
+				{
+					profileBPS.push_back(mCompanionDataList[i].mProfileList[k].bandwidthBitsPerSecond);
+					AAMPLOG_WARN("Unsupported ProfileBPS %d, Removing from ABR list",mCompanionDataList[i].mProfileList[k].bandwidthBitsPerSecond);
+				}
+
+			}
+		}
+	}
+	return retval;
+}
+
+/**
  * @brief To get the available audio bitrates.
  * @ret available audio bitrates
  */
@@ -12189,4 +12332,87 @@ std::vector<StreamInfo*> StreamAbstractionAAMP_MPD::GetAvailableVideoTracks(void
 		videoTracks.push_back(streamInfo);
 	}
 	return videoTracks;
+}
+
+
+CompanionData StreamAbstractionAAMP_MPD::getCompanionData (std::vector<uint8_t> keyId)
+{
+	struct CompanionData tempCompanionData = {{},false,NULL,0};
+	if(!keyId.empty())
+	{
+		for(int i=0;i< mCompanionDataList.size();i++) {
+			if(mCompanionDataList[i].mKeyId == keyId){
+				tempCompanionData = mCompanionDataList[i];
+				break;
+			}
+		}
+	}
+	return tempCompanionData;
+}
+
+#define SCHEME_ID_ADAPTATION_SET_SWITCHING "urn:mpeg:dash:adaptation-set-switching:2016"
+
+std::vector<string> StreamAbstractionAAMP_MPD::getCompanionList(IAdaptationSet *adaptationSet)
+{
+	std::vector<string> value_list;
+	std::string value;
+	if (adaptationSet->HasSegmentAlignment())
+	{
+		for (INode *childNode : adaptationSet->GetAdditionalSubNodes())
+		{
+			const std::string &name = childNode->GetName();
+			if (name == SUPPLEMENTAL_PROPERTY_TAG)
+			{
+				if (childNode->HasAttribute("schemeIdUri"))
+				{
+					const std::string &schemeIdUri = childNode->GetAttributeValue("schemeIdUri");
+					if (schemeIdUri == SCHEME_ID_ADAPTATION_SET_SWITCHING)
+					{
+						if (childNode->HasAttribute("value"))
+						{
+							value = childNode->GetAttributeValue("value");
+							AAMPLOG_WARN("DEBUG: Recieved %s tag property value as %s", SCHEME_ID_ADAPTATION_SET_SWITCHING, value.c_str());
+						}
+					}
+				}
+			}
+		}
+
+		std::istringstream ss(value);
+		std::string val;
+		while(std::getline(ss, val, ','))
+		{
+			value_list.push_back(val);
+			AAMPLOG_INFO("DEBUG: Parsed preferred value: %s",val.c_str());
+		}
+	}
+	AAMPLOG_INFO("DEBUG: Number of Companion Adaptations: %d", value_list.size());
+	return value_list;
+}
+
+std::vector<long> StreamAbstractionAAMP_MPD::getUnsupportedProfiles(std::vector<std::vector<uint8_t>> supportedKeyId)
+{
+	FN_TRACE_F_MPD( __FUNCTION__ );
+	std::vector<long> bitrates;
+	if(!supportedKeyId.empty())
+	{
+		for(int i = 0; i < mCompanionDataList.size(); i++) {
+			if(std::find(supportedKeyId.begin(), supportedKeyId.end(),mCompanionDataList[i].mKeyId) == supportedKeyId.end())
+			{
+				int profileCount = mCompanionDataList[i].numberOfProfiles;
+				if(profileCount)
+				{
+					for (int pidx = 0; pidx < profileCount; pidx++)
+					{
+						StreamInfo *profileList = &(mCompanionDataList[i].mProfileList[pidx]);
+						if (profileList != NULL && !profileList->isIframeTrack)
+						{
+							bitrates.push_back(profileList->bandwidthBitsPerSecond);
+						}
+					}
+				}
+			}
+		}
+	}
+	return bitrates;
 }

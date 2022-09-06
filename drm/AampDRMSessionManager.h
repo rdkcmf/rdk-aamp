@@ -356,6 +356,10 @@ public:
 	 * @fn ContentProtectionDataUpdate
 	 */
 	void ContentProtectionDataUpdate(PrivateInstanceAAMP* aampInstance, std::vector<uint8_t> keyId, MediaType streamType);
+	/**
+	 * @fn parseLicenseResponse
+	 */
+	std::vector<std::vector<uint8_t> > parseLicenseResponse(std::shared_ptr<DrmData> licenseResponse);
 };
 
 /**

@@ -168,6 +168,17 @@ public :
 	}
 };
 
+
+
+struct CompanionData
+{
+	std::vector<uint8_t> mKeyId;	/**< KeyId extracted for the adaptation **/
+	bool mIsLicenseAcquired;		/**< License Acquired or not */
+	StreamInfo* mProfileList;		/**< all profile list from all representation in this adaptation node */
+	uint32_t numberOfProfiles;		/**< Number of profiles in the adaptation List **/
+};
+
+
 /**
  * @class StreamAbstractionAAMP_MPD
  * @brief Fragment collector for MPEG DASH
@@ -393,6 +404,13 @@ public:
 	 * @param[out] http_error code
 	 */
 	void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error);
+	/**
+	 * @fn GetKeyId
+	 *
+	 * @param adaptationSet - Adaptation node
+	 * @return std::string - return KeyId as string
+	 */
+	void GetKeyId(IAdaptationSet *adaptationSet, std::vector<uint8_t>& keyId );
 private:
 	/**
 	 * @fn printSelectedTrack
@@ -773,6 +791,7 @@ private:
 	std::vector<std::string> mEarlyAvailablePeriodIds;
 	std::map<std::string, struct EarlyAvailablePeriodInfo> mEarlyAvailableKeyIDMap;
 	std::queue<std::string> mPendingKeyIDs;
+	std::vector<struct CompanionData> mCompanionDataList;
 	int mCommonKeyDuration;
 
 	// DASH does not use abr manager to store the supported bandwidth values,
@@ -783,6 +802,13 @@ private:
 	double mLiveEndPosition;
 	double mCulledSeconds;
 	bool mAdPlayingFromCDN;   /*Note: TRUE: Ad playing currently & from CDN. FALSE: Ad "maybe playing", but not from CDN.*/
+	std::vector<string> getCompanionList(IAdaptationSet* adaptationSet);
+	CompanionData getCompanionData (std::vector<uint8_t> keyId);
+	CompanionData populateCompanionData(IAdaptationSet* adaptationSet);
+	std::vector<long> getUnsupportedProfiles(std::vector<std::vector<uint8_t>> supportedKeyId);
+
+	bool UpdateProfile(std::vector<std::vector<uint8_t> >profile) override;
+
 	double mAvailabilityStartTime;
 	std::map<std::string, int> mDrmPrefs;
 	int mMaxTracks; /* Max number of tracks for this session */

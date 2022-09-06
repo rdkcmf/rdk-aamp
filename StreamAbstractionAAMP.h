@@ -967,6 +967,8 @@ public:
 	 */
 	int GetDesiredProfile(bool getMidProfile);
 
+	virtual bool UpdateProfile(std::vector<std::vector<uint8_t> >profiles) {};
+
 	/**
 	 *   @fn UpdateRampdownProfileReason
 	 *

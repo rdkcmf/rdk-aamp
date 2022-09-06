@@ -1672,6 +1672,20 @@ long long PrivateInstanceAAMP::GetVideoPTS(bool bAddVideoBasePTS)
 }
 
 /**
+ * @brief Function to remove unsupported ABR profiles
+ */
+bool PrivateInstanceAAMP::RemoveUnsupportedProfile(std::vector<std::vector<uint8_t> > profiles)
+{
+	bool retval = false;
+	if(!profiles.empty())
+	{
+		retval = mpStreamAbstractionAAMP->UpdateProfile(profiles);
+	}
+	return retval;
+}
+
+
+/**
  * @brief Report progress event to listeners
  */
 void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)

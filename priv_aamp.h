@@ -662,6 +662,8 @@ class PrivateInstanceAAMP : public AampDrmCallbacks, public std::enable_shared_f
 	double mReportProgressPosn;
 
 public:
+
+	bool RemoveUnsupportedProfile(std::vector<std::vector<uint8_t>> supportedKeyId);
 	/**
 	 * @brief Get profiler bucket type
 	 *

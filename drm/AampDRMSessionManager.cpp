@@ -1530,7 +1530,17 @@ KeyState AampDRMSessionManager::handleLicenseResponse(std::shared_ptr<AampDrmHel
 		}
 	}
 
+	std::vector<std::vector<uint8_t> > SupportedKeyId;
+	SupportedKeyId = parseLicenseResponse(licenseResponse);
+	aamp->RemoveUnsupportedProfile(SupportedKeyId);	
 	return processLicenseResponse(drmHelper, sessionSlot, cdmError, licenseResponse, eventHandle, aamp);
+}
+
+std::vector<std::vector<uint8_t> > AampDRMSessionManager::parseLicenseResponse(shared_ptr<DrmData> licenseResponse)
+{
+	std::vector<std::vector<uint8_t>> SupportedKeyId;
+	return SupportedKeyId;
+
 }
 
 
