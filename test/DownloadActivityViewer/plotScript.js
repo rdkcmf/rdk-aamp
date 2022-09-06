@@ -14,7 +14,7 @@ window.onload = function() {
         for (var i = 0; i < data.length; i++) {
             if (x >= data[i].x && x < data[i].x + data[i].w &&
                 y >= data[i].y && y < data[i].y + ROWHEIGHT) {
-                alert(mediaType[data[i].type] + "\n" + data[i].url);
+                alert(mediaTypes[data[i].type] + " " + data[i].error + "\n" + data[i].url);
                 break;
             }
         }
@@ -27,7 +27,6 @@ window.onload = function() {
     var timestamp_max;
     var bitrate_max;
     var allbitrates;
-    var currentBitrate;
 
     function time2x(t) {
         return BITRATE_MARGIN + 16 + (t - timestamp_min) * 0.1;
@@ -43,66 +42,81 @@ window.onload = function() {
                          
     function AddBitrate( newBitrate )
     {
-        currentBitrate = newBitrate;
         for( var i=0; i<allbitrates.length; i++ )
         {
-            if( allbitrates[i]==currentBitrate ) return;
+            if( allbitrates[i]==newBitrate ) return;
         }
-        allbitrates.push( currentBitrate );
+        allbitrates.push( newBitrate );
     }
-
-    var eMEDIATYPE_VIDEO = 0;
-    var eMEDIATYPE_AUDIO = 1;
-    var eMEDIATYPE_SUBTITLE = 2;
-    var eMEDIATYPE_MANIFEST = 3;
-    var eMEDIATYPE_LICENSE = 4;
-    var eMEDIATYPE_IFRAME = 5;
-    var eMEDIATYPE_INIT_VIDEO = 6;
-    var eMEDIATYPE_INIT_AUDIO = 7;
-    var eMEDIATYPE_INIT_SUBTITLE = 8;
-    var eMEDIATYPE_PLAYLIST_VIDEO = 9;
-    var eMEDIATYPE_PLAYLIST_AUDIO = 10;
-    var eMEDIATYPE_PLAYLIST_SUBTITLE = 11;
-    var eMEDIATYPE_PLAYLIST_IFRAME = 12;
-    var eMEDIATYPE_INIT_IFRAME = 13;
-    
-    var mediaType = [ // enum MediaType
-        "VIDEO",
-        "AUDIO",
-        "SUBTITLE",
-        "MANIFEST",
-        "LICENCE",
-        "IFRAME",
-        "INIT_VIDEO",
-        "INIT_AUDIO",
-        "INIT_SUBTITLE",
-        "PLAYLIST_VIDEO",
-        "PLAYLIST_AUDIO",
-        "PLAYLIST_SUBTITLE",
-        "PLAYLIST_IFRAME",
-        "INIT_IFRAME"];
     
     var topMargin = 24;
 
+	
+	function MapMediaColor(mediaType)
+ { // first color for box interior; second color for outline
+	 switch( mediaType )
+	 {
+		 case eMEDIATYPE_MANIFEST:
+			 return ['#00cccc','#006666']; // cyan;
+		 case eMEDIATYPE_PLAYLIST_VIDEO:
+			 return ['#00cc00','#006600']; // dark green
+		 case eMEDIATYPE_INIT_VIDEO:
+			 return ['#3fbb3f','#3f7f3f']; // medium green
+		 case eMEDIATYPE_VIDEO:
+			 return ['#ccffcc','#667f66']; // light green
+		 case eMEDIATYPE_PLAYLIST_IFRAME:
+			 return ['#00cc00','#006600']; // dark green
+		 case eMEDIATYPE_INIT_IFRAME:
+			 return ['#7fff7f','#3f7f3f']; // medium green
+		 case eMEDIATYPE_IFRAME:
+			 return ['#ccffcc','#667f66']; // light green
+		 case eMEDIATYPE_PLAYLIST_AUDIO:
+			 return ['#0000cc','#000066']; // dark blue
+		 case eMEDIATYPE_INIT_AUDIO:
+			 return ['#7f7fff','#3f3f7f']; // medium blue
+		 case eMEDIATYPE_AUDIO:
+			 return ['#ccccff','#66667f']; // light blue
+		 case eMEDIATYPE_PLAYLIST_SUBTITLE:
+			 return ['#cccc00','#666600']; // dark yellow
+		 case eMEDIATYPE_INIT_SUBTITLE:
+			 return ['#cccc3f','#7f7f3f']; // medium yellow
+		 case eMEDIATYPE_SUBTITLE:
+			 return ['#ffffcc','#7f7f66']; // light yellow
+		 case eMEDIATYPE_LICENSE:
+			 return ['#ff7fff','#7f3f7f']; // medium magenta
+		 case -eMEDIATYPE_LICENSE: // pre/post overhead
+			 return ['#ffccff','#7f667f'];
+		 default: // error
+			 return ['#ff2020','#7f3f3f'];
+	 }
+ }
+	
     function myLoadHandler(e) {
         var iframe_seqstart = null;
         var av_seqstart = null;
         var bandwidth_samples = [];
-
-        // initialize state
         timestamp_min = null;
         timestamp_max = null;
         bitrate_max = null;
-        allbitrates = [0];
+        allbitrates = ["audio","subtitle","manifest"];
         var marker = [];
 
         if (!sessionClicked) {
             // parse data
             var raw = e.target.result;
 
+			var sessions;
             // cut out single sessions from a bigger log
-            var sessions = raw.split("aamp_tune:");
-            sessions.shift(); // to remove first null match
+			if( raw.indexOf("aamp_tune:")>=0 )
+			{
+				sessions = raw.split("aamp_tune:");
+			}
+			else
+			{
+				sessions = raw.split("[processTSBRequest][INFO]new");
+			}
+			
+			sessions.shift(); // to remove first null match
 
             var currentSession = document.getElementById("session");
             while (currentSession.firstChild) {
@@ -123,82 +137,42 @@ window.onload = function() {
 
 
         data = [];
-        currentBitrate = 0;
                          
         for (var i = 0; i < samples.length; i++) {
             var line = samples[i];
-            var aampLogOffset = line.indexOf( "[AAMP-PLAYER]" );
-            if( aampLogOffset >=0 )
-            {   // aamp-related logging
-                // pattern to identify AAMP log format  "[AAMP-PLAYER][Object][Log level][Function name][Line number]log"
-                var logPattern = new RegExp("\\[AAMP-PLAYER\\]\\[[0-9]+\\]\\[[A-Za-z]+\\]\\[.*\\]\\[[0-9]+\\]");
-                var logMatch = line.substr(aampLogOffset).match(logPattern);
-                if(logMatch) {
-                    // if the log has latest format update the offset
-                    aampLogOffset += logMatch[0].length;
-                }  else {
-                    // for logs in old format
-                    aampLogOffset +=  "[AAMP-PLAYER]".length
-                }
-
-                var payload = line.substr(aampLogOffset);  // skip the aamp log prefix
-                var param;
-                if( payload.startsWith("HttpRequestEnd:") )
-                {
-                    payloadData = payload.substr(15);
-                    var httpRequestEnd = payloadData.split(",");
-
-                    var indexAdjust = 0;
-                    // if the object has extra appName parameter at the start adjust the index calculation
-                    if(httpRequestEnd.length === 16) {
-                        indexAdjust = 1;
-                    }
-
-                    var obj = {};
-                    var type = Number(httpRequestEnd[indexAdjust]);
-                    console.log(httpRequestEnd[indexAdjust]);
-                    obj.error = mapError(httpRequestEnd[2 + indexAdjust]);
-                    obj.durationms = 1000*httpRequestEnd[3 + indexAdjust];
-                    obj.type = type;
-                    obj.bytes = httpRequestEnd[11 + indexAdjust];
-                    obj.url = httpRequestEnd[14 + indexAdjust];
-
-                    var doneUtc = ParseReceiverLogTimestamp(line);
-                    obj.utcstart = doneUtc-obj.durationms;
-                    if (timestamp_min == null || obj.utcstart < timestamp_min) timestamp_min = obj.utcstart;
-                    if (timestamp_max == null || doneUtc > timestamp_max) timestamp_max = doneUtc;
-                    if( type==eMEDIATYPE_PLAYLIST_VIDEO || type==eMEDIATYPE_VIDEO )
-                    {
-                         obj.bitrate = currentBitrate;
-//                         console.log( currentBitrate + "=" + obj.url );
-                    }
-                    else
-                    {
-                         obj.bitrate = 0;
-                    }
-                    data.push(obj);
-                }
-                else if( line.indexOf("GST_MESSAGE_EOS")>=0 )
-                {
-                    marker.push( [ParseReceiverLogTimestamp(line), "GST_EOS"] );
-                }
-                else if( line.indexOf("IP_AAMP_TUNETIME")>=0 )
-                {
-                    marker.push( [ParseReceiverLogTimestamp(line), "Tuned"] );
-                }
-                else if( param = sscanf(payload,'ABRMonitor-Reset::{"Reason":"%%","Bandwidth":%%,"Profile":%%}') )
-                {
-                         var reason = param[0];
-                         AddBitrate(param[1]);
-                         marker.push( [ParseReceiverLogTimestamp(line), reason+":"+Math.round(currentBitrate/1000)+"kbps"] );
-                }
-                else if( param = sscanf(payload,"AAMPLogABRInfo : switching to '%%' profile '%% -> %%' currentBandwidth[%%]->desiredBandwidth[%%]") )
-                {
-                        var reason = param[0];
-                        AddBitrate(param[4]);
-                        marker.push( [ParseReceiverLogTimestamp(line), reason+":"+Math.round(currentBitrate/1000)+"kbps"] );
-                }
-            }
+			var httpRequestEnd = ParseHttpRequestEnd(line);
+			if( httpRequestEnd )
+			{
+				var obj = {};
+				obj.error = mapError(httpRequestEnd.responseCode);
+				obj.durationms = 1000*parseFloat(httpRequestEnd.total);
+				obj.type = parseInt(httpRequestEnd.type);
+				obj.bytes = parseInt(httpRequestEnd.dlSz);
+				obj.url = httpRequestEnd.url;
+				var doneUtc = ParseReceiverLogTimestamp(line);
+				obj.utcstart = doneUtc-obj.durationms;
+				if (timestamp_min == null || obj.utcstart < timestamp_min) timestamp_min = obj.utcstart;
+				if (timestamp_max == null || doneUtc > timestamp_max) timestamp_max = doneUtc;
+				if( obj.type==eMEDIATYPE_PLAYLIST_VIDEO || obj.type==eMEDIATYPE_VIDEO || obj.type == eMEDIATYPE_INIT_VIDEO )
+				{
+					obj.bitrate = httpRequestEnd.br;
+					AddBitrate( parseInt(obj.bitrate) );
+                    console.log(httpRequestEnd.br)
+				}
+				else if( obj.type == eMEDIATYPE_AUDIO || obj.type == eMEDIATYPE_INIT_AUDIO )
+				{
+					obj.bitrate = "audio";
+				}
+				else if( obj.type == eMEDIATYPE_SUBTITLE || obj.type == eMEDIATYPE_INIT_SUBTITLE )
+				{
+					obj.bitrate = "subtitle";
+				}
+				else if( obj.type == eMEDIATYPE_MANIFEST )
+				{
+					obj.bitrate = "manifest";
+				}
+				data.push(obj);
+			}
         } // next line
         allbitrates.sort( function(a,b){return b-a;} );
                          
@@ -240,7 +214,7 @@ window.onload = function() {
             ctx.strokeRect(BITRATE_MARGIN + 2, y, canvas.width, 1);
 
             ctx.fillStyle = '#000000';
-            var label = (bitrate==0)?"audio/other":bitrate;
+            var label = bitrate;//(bitrate==0)?"audio/other":bitrate;
             ctx.fillText(label, BITRATE_MARGIN, y + ROWHEIGHT / 2 - 3);
         }
         
@@ -295,54 +269,18 @@ window.onload = function() {
             // map colors based on download type and success/failure
             if (data[i].error != "HTTP200(OK)" ) {
                 ctx.fillStyle = '#ff0000';
+				ctx.strokeStyle = '#3f0000';
             }
             else
             {
-                switch( data[i].type )
-                {
-                case eMEDIATYPE_INIT_VIDEO:
-                case eMEDIATYPE_VIDEO:
-                    ctx.fillStyle = '#ccffcc'; // light green
-                    break;
-                         
-                case eMEDIATYPE_AUDIO:
-                case eMEDIATYPE_INIT_AUDIO:
-                    ctx.fillStyle = '#ccccff'; // light blue
-                    break;
-
-                case eMEDIATYPE_MANIFEST:
-                case eMEDIATYPE_PLAYLIST_VIDEO:
-                    ctx.fillStyle = '#00cc00'; // dark green
-                    break;
-                         
-                case eMEDIATYPE_PLAYLIST_AUDIO:
-                    ctx.fillStyle = '#0000cc'; // dark blue
-                    break;
-
-                case eMEDIATYPE_PLAYLIST_SUBTITLE:
-                case eMEDIATYPE_PLAYLIST_IFRAME:
-                    ctx.fillStyle = '#cccc00'; // dark yellow
-                    break;
-
-                case eMEDIATYPE_INIT_IFRAME:
-                case eMEDIATYPE_IFRAME:
-                    ctx.fillStyle = '#ffffcc'; // light yellow
-                    break;
-                         
-                case eMEDIATYPE_LICENSE:
-                case eMEDIATYPE_INIT_SUBTITLE:
-                case eMEDIATYPE_SUBTITLE:
-                default:
-                    ctx.fillStyle = '#aaaaaa';
-                    ctx.strokeStyle = '#000000';
-                    break;
-                }
-            }
-                         
+				var coloring = MapMediaColor(data[i].type);
+				ctx.fillStyle = coloring[0];
+				ctx.strokeStyle = coloring[1];
+			}
+			
             ctx.fillRect(data[i].x, data[i].y - ROWHEIGHT / 2, data[i].w, ROWHEIGHT - 1);
-      
-
-            ctx.strokeStyle = '#999999';
+//            ctx.strokeStyle = '#999999';
+			ctx.strokeStyle = '#000000';
             ctx.strokeRect(data[i].x, data[i].y - ROWHEIGHT / 2, data[i].w, ROWHEIGHT - 1);
         }
     }
