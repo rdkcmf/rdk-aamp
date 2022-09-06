@@ -56,13 +56,15 @@ struct MockChallengeData
 
 TEST_GROUP(AampDrmSessionTests)
 {
-	PrivateInstanceAAMP mAamp;
+	PrivateInstanceAAMP *mAamp;
 	OpenCDMSession* mOcdmSession = (OpenCDMSession*)0x0CD12345;
-	OpenCDMAccessor* mOcdmAccessor = (OpenCDMAccessor*)0x0CDACC12345;
+	OpenCDMSystem* mOcdmSystem = (OpenCDMSystem*)0x0CDACC12345;
 	std::map<std::string, TestCurlResponse> mCurlResponses;
 	MockChallengeData mMockChallengeData;
 	AampDRMSessionManager *sessionManager;
-	
+	AampLogManager mLogging;
+	int mMaxDrmSessions = 2;
+
 	// The URL AAMP uses to fetch the session token
 	const std::string mSessionTokenUrl = "http://localhost:50050/authService/getSessionToken";
 	// A fixed session token response - any tests which require a session token can use this,
@@ -73,41 +75,43 @@ TEST_GROUP(AampDrmSessionTests)
 	AampDRMSessionManager* getSessionManager()
 	{
 		if (sessionManager == nullptr) {
-			MemoryLeakWarningPlugin::turnOffNewDeleteOverloads();
-			sessionManager = new AampDRMSessionManager();
-			MemoryLeakWarningPlugin::turnOnNewDeleteOverloads();
+			sessionManager = new AampDRMSessionManager(&mLogging, mMaxDrmSessions);
 		}
 		return sessionManager;
 	}
 
-	AampDrmSession* createDrmSessionForHelper(std::shared_ptr<AampDrmHelper> drmHelper)
+	AampDrmSession* createDrmSessionForHelper(std::shared_ptr<AampDrmHelper> drmHelper, const char *keySystem)
 	{
 		AampDRMSessionManager *sessionManager = getSessionManager();
-		AAMPEvent event;
+		DrmMetaDataEventPtr event = createDrmMetaDataEvent();
 
-		mock("OpenCDM").expectOneCall("opencdm_create_system").andReturnValue(mOcdmAccessor);
+		mock("OpenCDM").expectOneCall("opencdm_create_system")
+				.withParameter("keySystem", keySystem)
+				.andReturnValue(mOcdmSystem);
 
 		mock("OpenCDM").expectOneCall("opencdm_construct_session")
 				.withOutputParameterReturning("session", &mOcdmSession, sizeof(mOcdmSession))
 				.andReturnValue(0);
-		AampDrmSession *drmSession = sessionManager->createDrmSession(drmHelper, &event, &mAamp);
+		AampDrmSession *drmSession = sessionManager->createDrmSession(drmHelper, event, mAamp, eMEDIATYPE_VIDEO);
 		mock().checkExpectations();
 		CHECK_TEXT(drmSession != NULL, "Session creation failed");
 
 		return drmSession;
 	}
 
-	AampDrmSession* createDashDrmSession(const std::string testKeyData, const std::string psshStr, AAMPEvent& event)
+	AampDrmSession* createDashDrmSession(const std::string testKeyData, const std::string psshStr, DrmMetaDataEventPtr& event)
 	{
 		std::vector<uint8_t> testKeyDataVec(testKeyData.begin(), testKeyData.end());
 		return createDashDrmSession(testKeyDataVec, psshStr, event);
 	}
 
-	AampDrmSession* createDashDrmSession(const std::vector<uint8_t> testKeyData, const std::string psshStr, AAMPEvent& event)
+	AampDrmSession* createDashDrmSession(const std::vector<uint8_t> testKeyData, const std::string psshStr, DrmMetaDataEventPtr& event)
 	{
 		AampDRMSessionManager *sessionManager = getSessionManager();
 
-		mock("OpenCDM").expectOneCall("opencdm_create_system").andReturnValue(mOcdmAccessor);
+		mock("OpenCDM").expectOneCall("opencdm_create_system")
+			.withParameter("keySystem", "com.microsoft.playready")
+			.andReturnValue(mOcdmSystem);
 
 		mock("OpenCDM").expectOneCall("opencdm_construct_session")
 				.withOutputParameterReturning("session", &mOcdmSession, sizeof(mOcdmSession))
@@ -119,7 +123,7 @@ TEST_GROUP(AampDrmSessionTests)
 				.andReturnValue(0);
 
 		AampDrmSession *drmSession = sessionManager->createDrmSession("9a04f079-9840-4286-ab92-e65be0885f95", eMEDIAFORMAT_DASH,
-				(const unsigned char*)psshStr.c_str(), psshStr.length(), eMEDIATYPE_VIDEO, &mAamp, &event);
+				(const unsigned char*)psshStr.c_str(), psshStr.length(), eMEDIATYPE_VIDEO, mAamp, event);
 		CHECK_TEXT(drmSession != NULL, "Session creation failed");
 
 		return drmSession;
@@ -127,7 +131,12 @@ TEST_GROUP(AampDrmSessionTests)
 
 	std::shared_ptr<AampHlsOcdmBridge> createBridgeForHelper(std::shared_ptr<AampVgdrmHelper> drmHelper)
 	{
-		return std::make_shared<AampHlsOcdmBridge>(createDrmSessionForHelper(drmHelper));
+		return std::make_shared<AampHlsOcdmBridge>(&mLogging, createDrmSessionForHelper(drmHelper, "net.vgdrm"));
+	}
+
+	DrmMetaDataEventPtr createDrmMetaDataEvent()
+	{
+		return std::make_shared<DrmMetaDataEvent>(AAMP_TUNE_FAILURE_UNKNOWN, "", 0, 0, false);
 	}
 
 	void setupCurlPerformResponse(std::string response)
@@ -182,7 +191,7 @@ TEST_GROUP(AampDrmSessionTests)
 	void setupChallengeCallbacks(const MockChallengeData& challengeData = MockChallengeData("challenge.example", "OCDM_CHALLENGE_DATA"))
 	{
 		mMockChallengeData = challengeData;
-		MockOpenCdmCallbacks callbacks;
+		MockOpenCdmCallbacks callbacks = {NULL, NULL};
 		callbacks.constructSessionCallback = [](const MockOpenCdmSessionInfo *mockSessionInfo, void *mockUserData) {
 			MockChallengeData *pChallengeData = (MockChallengeData*)mockUserData;
 			// OpenCDM should come back to us with a URL + challenge payload.
@@ -202,7 +211,7 @@ TEST_GROUP(AampDrmSessionTests)
 
 	void setupChallengeCallbacksForExternalLicense()
 	{
-		MockOpenCdmCallbacks callbacks;
+		MockOpenCdmCallbacks callbacks = {NULL, NULL};
 		callbacks.constructSessionCallback = [](const MockOpenCdmSessionInfo *mockSessionInfo, void *mockUserData) {
 			// OpenCDM should come back to us with a URL + challenge payload.
 			// The content of these shouldn't matter for us, since we use the request info from the DRM helper instead
@@ -224,6 +233,7 @@ TEST_GROUP(AampDrmSessionTests)
 		MockAampReset();
 		MockCurlReset();
 		MockOpenCdmReset();
+		mAamp = new PrivateInstanceAAMP(gpGlobalConfig);
 	}
 
 	void teardown()
@@ -231,9 +241,13 @@ TEST_GROUP(AampDrmSessionTests)
 		if (sessionManager != nullptr) 
 		{
 			sessionManager->clearSessionData();
-			MemoryLeakWarningPlugin::turnOffNewDeleteOverloads();
 			SAFE_DELETE(sessionManager);
-			MemoryLeakWarningPlugin::turnOnNewDeleteOverloads();
+		}
+
+		if (NULL != mAamp)
+		{
+			delete mAamp;
+			mAamp = NULL;
 		}
 
 		MockAampReset();
@@ -247,7 +261,7 @@ TEST(AampDrmSessionTests, TestVgdrmSessionDecrypt)
 {
 	DrmInfo drmInfo;
 	drmInfo.keyURI = "81701500000810367b131dd025ab0a7bd8d20c1314151600";
-	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo);
+	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo, &mLogging);
 
 	// The key used in the decrypt call should be picked up from the DRM helper
 	// (URI to key conversion is tested elsewhere)
@@ -257,7 +271,7 @@ TEST(AampDrmSessionTests, TestVgdrmSessionDecrypt)
 
 	setupChallengeCallbacksForExternalLicense();
 
-	AampDrmSession *drmSession = createDrmSessionForHelper(drmHelper);
+	AampDrmSession *drmSession = createDrmSessionForHelper(drmHelper, "net.vgdrm");
 	STRCMP_EQUAL("net.vgdrm", drmSession->getKeySystem().c_str());
 
 	const uint8_t testIv[] = {'T', 'E', 'S', 'T', 'I', 'V'};
@@ -291,7 +305,7 @@ TEST(AampDrmSessionTests, TestDecryptFromHlsOcdmBridgeNoKey)
 {
 	DrmInfo drmInfo;
 	drmInfo.keyURI = "81701500000810367b131dd025ab0a7bd8d20c1314151600";
-	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo);
+	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo, &mLogging);
 
 	setupChallengeCallbacksForExternalLicense();
 
@@ -313,7 +327,7 @@ TEST(AampDrmSessionTests, TestDecryptFromHlsOcdmBridge)
 	std::string testIv = "TESTIV0123456789";
 	drmInfo.iv = (unsigned char*)testIv.c_str();
 
-	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo);
+	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo, &mLogging);
 	std::vector<uint8_t> expectedKeyId;
 	drmHelper->getKey(expectedKeyId);
 	LONGS_EQUAL(16, expectedKeyId.size());
@@ -325,7 +339,7 @@ TEST(AampDrmSessionTests, TestDecryptFromHlsOcdmBridge)
 	uint8_t payloadData[] = {'E', 'N', 'C', 'R', 'Y', 'P', 'T', 'E', 'D'};
 	const uint8_t decryptedData[] = {'C', 'L', 'E', 'A', 'R', 'D', 'A', 'T', 'A', 'O', 'U', 'T'};
 
-	hlsOcdmBridge->SetDecryptInfo(&mAamp, &drmInfo);
+	hlsOcdmBridge->SetDecryptInfo(mAamp, &drmInfo);
 
 	// The actual data transfer happens in shared memory for VGDRM,
 	// so data in/out is just expected to contain the size of the data
@@ -362,7 +376,7 @@ TEST(AampDrmSessionTests, TestClearKeyLicenseAcquisition)
 	drmInfo.method = eMETHOD_AES_128;
 	drmInfo.manifestURL = "http://example.com/assets/test.m3u8";
 	drmInfo.keyURI = "file.key";
-	std::shared_ptr<AampClearKeyHelper> drmHelper = std::make_shared<AampClearKeyHelper>(drmInfo);
+	std::shared_ptr<AampClearKeyHelper> drmHelper = std::make_shared<AampClearKeyHelper>(drmInfo, &mLogging);
 
 	// We expect the key data to be transformed by the helper before being passed to opencdm_session_update.
 	// Thus we call the helper ourselves here (with the data our mock Curl will return) so we know what to expect.
@@ -372,31 +386,34 @@ TEST(AampDrmSessionTests, TestClearKeyLicenseAcquisition)
 	drmHelper->transformLicenseResponse(expectedDrmData);
 
 	mock("OpenCDM").expectOneCall("opencdm_session_update")
-			.withMemoryBufferParameter("keyMessage", expectedDrmData->getData(), (size_t)expectedDrmData->getDataLength())
+			.withMemoryBufferParameter("keyMessage", (const unsigned char*) expectedDrmData->getData().c_str(), (size_t)expectedDrmData->getDataLength())
 			.withIntParameter("keyLength", expectedDrmData->getDataLength())
 			.andReturnValue(0);
 
-	AampDrmSession *drmSession = createDrmSessionForHelper(drmHelper);
+	AampDrmSession *drmSession = createDrmSessionForHelper(drmHelper, "org.w3.clearkey");
 	STRCMP_EQUAL("org.w3.clearkey", drmSession->getKeySystem().c_str());
 
 	const MockCurlOpts *curlOpts = MockCurlGetOpts();
 	// Key URL should been constructed based on manifestURL and keyURI from the DrmInfo
 	STRCMP_EQUAL("http://example.com/assets/file.key", curlOpts->url);
-	LONGS_EQUAL(1L, curlOpts->httpGet);
+	// POST is used
+	LONGS_EQUAL(0L, curlOpts->httpGet);
 }
 
 TEST(AampDrmSessionTests, TestOcdmCreateSystemFailure)
 {
 	DrmInfo drmInfo;
 	drmInfo.keyURI = "81701500000810367b131dd025ab0a7bd8d20c1314151600";
-	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo);
-	AAMPEvent event;
+	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo, &mLogging);
+	DrmMetaDataEventPtr event = createDrmMetaDataEvent();
 
 	// Causing opencdm_create_system to fail - we should not go on to call opencdm_construct_session
-	mOcdmAccessor = nullptr;
-	mock("OpenCDM").expectOneCall("opencdm_create_system").andReturnValue(mOcdmAccessor);
+	mOcdmSystem = nullptr;
+	mock("OpenCDM").expectOneCall("opencdm_create_system")
+			.withParameter("keySystem", "net.vgdrm")
+			.andReturnValue(mOcdmSystem);
 	mock("OpenCDM").expectNoCall("opencdm_construct_session");
-	AampDrmSession *drmSession = getSessionManager()->createDrmSession(drmHelper, &event, &mAamp);
+	AampDrmSession *drmSession = getSessionManager()->createDrmSession(drmHelper, event, mAamp, eMEDIATYPE_VIDEO);
 	mock().checkExpectations();
 }
 
@@ -404,19 +421,21 @@ TEST(AampDrmSessionTests, TestOcdmConstructSessionFailure)
 {
 	DrmInfo drmInfo;
 	drmInfo.keyURI = "81701500000810367b131dd025ab0a7bd8d20c1314151600";
-	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo);
-	AAMPEvent event;
+	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo, &mLogging);
+	DrmMetaDataEventPtr event = createDrmMetaDataEvent();
 
 	AampDRMSessionManager *sessionManager = getSessionManager();
 
-	mock("OpenCDM").expectOneCall("opencdm_create_system").andReturnValue(mOcdmAccessor);
+	mock("OpenCDM").expectOneCall("opencdm_create_system")
+			.withParameter("keySystem", "net.vgdrm")
+			.andReturnValue(mOcdmSystem);
 
 	// Causing opencdm_construct_session to fail - createDrmSession should return a NULL session
 	mOcdmSession = nullptr;
 	mock("OpenCDM").expectOneCall("opencdm_construct_session")
 			.withOutputParameterReturning("session", &mOcdmSession, sizeof(mOcdmSession))
 			.andReturnValue((int)ERROR_KEYSYSTEM_NOT_SUPPORTED);
-	AampDrmSession *drmSession = sessionManager->createDrmSession(drmHelper, &event, &mAamp);
+	AampDrmSession *drmSession = sessionManager->createDrmSession(drmHelper, event, mAamp, eMEDIATYPE_VIDEO);
 	mock().checkExpectations();
 	CHECK_TEXT(drmSession == NULL, "Session creation unexpectedly succeeded");
 }
@@ -429,7 +448,7 @@ TEST(AampDrmSessionTests, TestMultipleSessionsDifferentKey)
 
 	DrmInfo drmInfo;
 	drmInfo.keyURI = "81701500000810367b131dd025ab0a7bd8d20c1314151600";
-	std::shared_ptr<AampVgdrmHelper> drmHelper1 = std::make_shared<AampVgdrmHelper>(drmInfo);
+	std::shared_ptr<AampVgdrmHelper> drmHelper1 = std::make_shared<AampVgdrmHelper>(drmInfo, &mLogging);
 
 	const shared_ptr<DrmData> expectedDrmData = make_shared<DrmData>((unsigned char *)testKeyData.c_str(), testKeyData.size());
 	drmHelper1->transformLicenseResponse(expectedDrmData);
@@ -437,13 +456,13 @@ TEST(AampDrmSessionTests, TestMultipleSessionsDifferentKey)
 	setupChallengeCallbacksForExternalLicense();
 
 	// 1st time around - expecting standard session creation
-	AampDrmSession *drmSession1 = createDrmSessionForHelper(drmHelper1);
+	AampDrmSession *drmSession1 = createDrmSessionForHelper(drmHelper1, "net.vgdrm");
 	STRCMP_EQUAL("net.vgdrm", drmSession1->getKeySystem().c_str());
 
 	// 2nd time around - expecting another new session to be created
 	drmInfo.keyURI = "81701500000811367b131dd025ab0a7bd8d20c1314151600";
-	std::shared_ptr<AampVgdrmHelper> drmHelper2 = std::make_shared<AampVgdrmHelper>(drmInfo);
-	AampDrmSession *drmSession2 = createDrmSessionForHelper(drmHelper2);
+	std::shared_ptr<AampVgdrmHelper> drmHelper2 = std::make_shared<AampVgdrmHelper>(drmInfo, &mLogging);
+	AampDrmSession *drmSession2 = createDrmSessionForHelper(drmHelper2, "net.vgdrm");
 	STRCMP_EQUAL("net.vgdrm", drmSession2->getKeySystem().c_str());
 	CHECK_FALSE(drmSession1 == drmSession2);
 }
@@ -458,38 +477,38 @@ TEST(AampDrmSessionTests, TestMultipleSessionsSameKey)
 	drmInfo.method = eMETHOD_AES_128;
 	drmInfo.manifestURL = "http://example.com/assets/test.m3u8";
 	drmInfo.keyURI = "file.key";
-	std::shared_ptr<AampClearKeyHelper> drmHelper = std::make_shared<AampClearKeyHelper>(drmInfo);
+	std::shared_ptr<AampClearKeyHelper> drmHelper = std::make_shared<AampClearKeyHelper>(drmInfo, &mLogging);
 
 	const shared_ptr<DrmData> expectedDrmData = make_shared<DrmData>((unsigned char *)testKeyData.c_str(), testKeyData.size());
 	drmHelper->transformLicenseResponse(expectedDrmData);
 
 	// Only 1 session update called expected, since a single session should be shared
 	mock("OpenCDM").expectOneCall("opencdm_session_update")
-			.withMemoryBufferParameter("keyMessage", expectedDrmData->getData(), (size_t)expectedDrmData->getDataLength())
+			.withMemoryBufferParameter("keyMessage", (const unsigned char *)expectedDrmData->getData().c_str(), (size_t)expectedDrmData->getDataLength())
 			.withIntParameter("keyLength", expectedDrmData->getDataLength())
 			.andReturnValue(0);
 
 	// 1st time around - expecting standard session creation
-	AampDrmSession *drmSession1 = createDrmSessionForHelper(drmHelper);
+	AampDrmSession *drmSession1 = createDrmSessionForHelper(drmHelper, "org.w3.clearkey");
 	STRCMP_EQUAL("org.w3.clearkey", drmSession1->getKeySystem().c_str());
 
 	// 2nd time around - expecting the existing session will be shared, so no OCDM session created
 	AampDRMSessionManager *sessionManager = getSessionManager();
-	AAMPEvent event;
+	DrmMetaDataEventPtr event = createDrmMetaDataEvent();
 	mock("OpenCDM").expectNoCall("opencdm_create_system");
 	mock("OpenCDM").expectNoCall("opencdm_construct_session");
-	AampDrmSession *drmSession2 = sessionManager->createDrmSession(drmHelper, &event, &mAamp);
+	AampDrmSession *drmSession2 = sessionManager->createDrmSession(drmHelper, event, mAamp, eMEDIATYPE_VIDEO);
 	CHECK_EQUAL(drmSession1, drmSession2);
 
 	// Clear out the sessions. Now a new OCDM session is expected again
 	sessionManager->clearSessionData();
 
 	mock("OpenCDM").expectOneCall("opencdm_session_update")
-			.withMemoryBufferParameter("keyMessage", expectedDrmData->getData(), (size_t)expectedDrmData->getDataLength())
+			.withMemoryBufferParameter("keyMessage", (const unsigned char *)expectedDrmData->getData().c_str(), (size_t)expectedDrmData->getDataLength())
 			.withIntParameter("keyLength", expectedDrmData->getDataLength())
 			.andReturnValue(0);
 
-	AampDrmSession *drmSession3 = createDrmSessionForHelper(drmHelper);
+	AampDrmSession *drmSession3 = createDrmSessionForHelper(drmHelper, "org.w3.clearkey");
 	STRCMP_EQUAL("org.w3.clearkey", drmSession3->getKeySystem().c_str());
 }
 
@@ -501,7 +520,7 @@ TEST(AampDrmSessionTests, TestDashPlayReadySession)
 
 	// Setting a PlayReady license server URL in the global config. This
 	// should get used to request the license
-	gpGlobalConfig->prLicenseServerURL = (char*)prLicenseServerURL.c_str();
+	gpGlobalConfig->SetConfigValue<std::string>(AAMP_APPLICATION_SETTING, eAAMPConfig_PRLicenseServerUrl, prLicenseServerURL);
 
 	// Setting up Curl callbacks for the session token and license requests
 	setupCurlPerformResponses({
@@ -512,9 +531,14 @@ TEST(AampDrmSessionTests, TestDashPlayReadySession)
 	setupChallengeCallbacks(MockChallengeData("playready.example", testChallengeData));
 
 	// PSSH string which will get passed to the helper for parsing, so needs to be in valid format
-	const std::string psshStr = "<KID>16bytebase64enckeydata==</KID>";
+	const std::string psshStr =
+			"<WRMHEADER xmlns=\"http://schemas.microsoft.com/DRM/2007/03/PlayReadyHeader\" version=\"4.0.0.0\">"
+			"<DATA>"
+			"<KID>16bytebase64enckeydata==</KID>"
+			"</DATA>"
+            "</WRMHEADER>";
 
-	AAMPEvent event;
+	DrmMetaDataEventPtr event = createDrmMetaDataEvent();
 	AampDrmSession *drmSession = createDashDrmSession(testKeyData, psshStr, event);
 	STRCMP_EQUAL("com.microsoft.playready", drmSession->getKeySystem().c_str());
 
@@ -526,67 +550,6 @@ TEST(AampDrmSessionTests, TestDashPlayReadySession)
 	CHECK_EQUAL(testChallengeData, licenseResponse->opts.postFields);
 }
 
-TEST(AampDrmSessionTests, TestDashPlayReadySessionWithMdsServer)
-{
-	string prLicenseServerURL = "http://licenseserver.example/license";
-
-	// MDS server response where the license is base64 encoded and wrapped inside a JSON object.
-	// We expect AAMP to extract and decode the license data before passing it on to OpenCDM
-	std::string testKeyData = "{\"license\":\"base64enclicence\",\"accessAttributes\":\"0\"}";
-
-	// Setting a PlayReady license server URL in the global config. This
-	// should get used to request the license
-	gpGlobalConfig->prLicenseServerURL = (char*)prLicenseServerURL.c_str();
-
-	// Setting up Curl callbacks for the session token and license requests
-	setupCurlPerformResponses({
-		{mSessionTokenUrl, mSessionTokenResponse},
-		{prLicenseServerURL, testKeyData}
-	});
-
-	setupChallengeCallbacks();
-
-	// PSSH string which will get passed to the helper for parsing, so needs to be in valid format.
-	// Here we add ckm:policy, which should cause this stream to be identified as an MSO specific stream.
-	// This in turn should lead to
-	const std::string psshStr = "<KID>16bytebase64enckeydata==</KID><ckm:policy xmlns:ckm=\"urn:ccp:ckm\">policy</ckm:policy>";
-
-	// Key expected to be passed to OCDM. This should be the base64 decoded 'license' from the MDS server response.
-	// In this case we are using 'base64enclicence' so the below is the base64 decoded version of that
-	const std::vector<uint8_t> expectedKeyData = {0x6d, 0xab, 0x1e, 0xeb, 0x87, 0xa7, 0x72, 0x58, 0x9c, 0x7a, 0x77, 0x1e};
-
-	AAMPEvent event;
-	AampDrmSession *drmSession = createDashDrmSession(expectedKeyData, psshStr, event);
-	STRCMP_EQUAL("com.microsoft.playready", drmSession->getKeySystem().c_str());
-
-	const TestCurlResponse *licenseResponse = getCurlPerformResponse(prLicenseServerURL);
-	CHECK_EQUAL(1, licenseResponse->callCount);
-
-	// Expecting MSO-specific MDS headers
-	std::vector<std::string> expectedHeaders = {
-			"Content-Type: application/vnd.xcal.mds.licenseRequest+json; version=1",
-			"Accept: application/vnd.xcal.mds.licenseResponse+json; version=1"
-	};
-
-	const std::vector<std::string> actualHeaders = licenseResponse->getHeaders();
-	std::sort(expectedHeaders.begin(), expectedHeaders.end());
-	CHECK_EQUAL(expectedHeaders, actualHeaders);
-
-	// Check the post data set on Curl, this should contain a JSON challenge object
-	// in a format understood by the MDS server
-	CHECK_TRUE(licenseResponse->opts.postFieldSize > 0);
-	TestUtilJsonWrapper jsonWrapper(licenseResponse->opts.postFields, licenseResponse->opts.postFieldSize);
-	cJSON *postFieldObj = jsonWrapper.getJsonObj();
-	CHECK_TEXT(postFieldObj != NULL, "Invalid JSON challenge data");
-	CHECK_JSON_STR_VALUE(postFieldObj, "keySystem", "playReady");
-	CHECK_JSON_STR_VALUE(postFieldObj, "mediaUsage", "stream");
-	// For the licenseRequest we expect the base64 encoding of the string
-	// we make the OCDM challenge callback return: 'OCDM_CHALLENGE_DATA'
-	CHECK_JSON_STR_VALUE(postFieldObj, "licenseRequest", "T0NETV9DSEFMTEVOR0VfREFUQQ==");
-	CHECK_JSON_STR_VALUE(postFieldObj, "contentMetadata", "cG9saWN5");
-	CHECK_JSON_STR_VALUE(postFieldObj, "accessToken", "SESSIONTOKEN");
-}
-
 TEST(AampDrmSessionTests, TestDashPlayReadySessionNoCkmPolicy)
 {
 	string prLicenseServerURL = "http://licenseserver.example/license";
@@ -594,7 +557,7 @@ TEST(AampDrmSessionTests, TestDashPlayReadySessionNoCkmPolicy)
 
 	// Setting a PlayReady license server URL in the global config. This
 	// should get used to request the license
-	gpGlobalConfig->prLicenseServerURL = (char*)prLicenseServerURL.c_str();
+	gpGlobalConfig->SetConfigValue<std::string>(AAMP_APPLICATION_SETTING, eAAMPConfig_PRLicenseServerUrl, prLicenseServerURL);
 
 	// Setting up Curl callbacks for the session token and license requests
 	setupCurlPerformResponses({
@@ -605,9 +568,14 @@ TEST(AampDrmSessionTests, TestDashPlayReadySessionNoCkmPolicy)
 	setupChallengeCallbacks();
 
 	// PSSH string which will get passed to the helper for parsing, so needs to be in valid format
-	const std::string psshStr = "<KID>16bytebase64enckeydata==</KID>";
+	const std::string psshStr =
+			"<WRMHEADER xmlns=\"http://schemas.microsoft.com/DRM/2007/03/PlayReadyHeader\" version=\"4.0.0.0\">"
+			"<DATA>"
+			"<KID>16bytebase64enckeydata==</KID>"
+			"</DATA>"
+            "</WRMHEADER>";
 
-	AAMPEvent event;
+	DrmMetaDataEventPtr event = createDrmMetaDataEvent();
 	AampDrmSession *drmSession = createDashDrmSession(testKeyData, psshStr, event);
 	CHECK_TEXT(drmSession != NULL, "Session creation failed");
 	STRCMP_EQUAL("com.microsoft.playready", drmSession->getKeySystem().c_str());
@@ -615,7 +583,9 @@ TEST(AampDrmSessionTests, TestDashPlayReadySessionNoCkmPolicy)
 	const MockCurlOpts *curlOpts = MockCurlGetOpts();
 
 	// Check license URL from the global config was used
-	STRCMP_EQUAL(gpGlobalConfig->prLicenseServerURL, curlOpts->url);
+	std::string url;
+	CHECK_TRUE(gpGlobalConfig->GetConfigValue(eAAMPConfig_PRLicenseServerUrl, url));
+	STRCMP_EQUAL(url.c_str(), curlOpts->url);
 
 	// Check the post data set on Curl. Since we didn't pass any metadata (ckm:policy) in the init data,
 	// we expect the challenge data returned by OCDM to just be used as-is
@@ -629,21 +599,23 @@ TEST(AampDrmSessionTests, TestSessionBadChallenge)
 	drmInfo.method = eMETHOD_AES_128;
 	drmInfo.manifestURL = "http://example.com/assets/test.m3u8";
 	drmInfo.keyURI = "file.key";
-	std::shared_ptr<AampClearKeyHelper> drmHelper = std::make_shared<AampClearKeyHelper>(drmInfo);
+	std::shared_ptr<AampClearKeyHelper> drmHelper = std::make_shared<AampClearKeyHelper>(drmInfo, &mLogging);
 
 	// Cause OpenCDM to return an empty challenge. This should cause an error
 	setupChallengeCallbacks(MockChallengeData("", ""));
 
-	mock("OpenCDM").expectOneCall("opencdm_create_system").andReturnValue(mOcdmAccessor);
+	mock("OpenCDM").expectOneCall("opencdm_create_system")
+			.withParameter("keySystem", "org.w3.clearkey")
+			.andReturnValue(mOcdmSystem);
 
 	mock("OpenCDM").expectOneCall("opencdm_construct_session")
 			.withOutputParameterReturning("session", &mOcdmSession, sizeof(mOcdmSession))
 			.andReturnValue(0);
 
-	AAMPEvent event;
-	AampDrmSession *drmSession = getSessionManager()->createDrmSession(drmHelper, &event, &mAamp);
+	DrmMetaDataEventPtr event = createDrmMetaDataEvent();
+	AampDrmSession *drmSession = getSessionManager()->createDrmSession(drmHelper, event, mAamp, eMEDIATYPE_VIDEO);
 	POINTERS_EQUAL(NULL, drmSession);
-	CHECK_EQUAL(AAMP_TUNE_DRM_CHALLENGE_FAILED, event.data.dash_drmmetadata.failure);
+	CHECK_EQUAL(AAMP_TUNE_DRM_CHALLENGE_FAILED, event->getFailure());
 }
 
 TEST(AampDrmSessionTests, TestSessionBadLicenseResponse)
@@ -652,24 +624,26 @@ TEST(AampDrmSessionTests, TestSessionBadLicenseResponse)
 	drmInfo.method = eMETHOD_AES_128;
 	drmInfo.manifestURL = "http://example.com/assets/test.m3u8";
 	drmInfo.keyURI = "file.key";
-	std::shared_ptr<AampClearKeyHelper> drmHelper = std::make_shared<AampClearKeyHelper>(drmInfo);
+	std::shared_ptr<AampClearKeyHelper> drmHelper = std::make_shared<AampClearKeyHelper>(drmInfo, &mLogging);
 
 	// Make curl return empty data for the key. This should cause an error
 	setupCurlPerformResponses({
 		{"http://example.com/assets/file.key", ""}
 	});
 
-	mock("OpenCDM").expectOneCall("opencdm_create_system").andReturnValue(mOcdmAccessor);
+	mock("OpenCDM").expectOneCall("opencdm_create_system")
+			.withParameter("keySystem", "org.w3.clearkey")
+			.andReturnValue(mOcdmSystem);
 
 	mock("OpenCDM").expectOneCall("opencdm_construct_session")
 			.withOutputParameterReturning("session", &mOcdmSession, sizeof(mOcdmSession))
 			.andReturnValue(0);
 	setupChallengeCallbacks();
 
-	AAMPEvent event;
-	AampDrmSession *drmSession = getSessionManager()->createDrmSession(drmHelper, &event, &mAamp);
+	DrmMetaDataEventPtr event = createDrmMetaDataEvent();
+	AampDrmSession *drmSession = getSessionManager()->createDrmSession(drmHelper, event, mAamp, eMEDIATYPE_VIDEO);
 	POINTERS_EQUAL(NULL, drmSession);
-	CHECK_EQUAL(AAMP_TUNE_LICENCE_REQUEST_FAILED, event.data.dash_drmmetadata.failure);
+	CHECK_EQUAL(AAMP_TUNE_LICENCE_REQUEST_FAILED, event->getFailure());
 }
 
 TEST(AampDrmSessionTests, TestDashSessionBadPssh)
@@ -679,20 +653,20 @@ TEST(AampDrmSessionTests, TestDashSessionBadPssh)
 	// Pass a bad PSSH string. This should cause an error
 	const std::string psshStr = "bad data with no KID";
 
-	AAMPEvent event;
+	DrmMetaDataEventPtr event = createDrmMetaDataEvent();
 	AampDrmSession *drmSession = getSessionManager()->createDrmSession("9a04f079-9840-4286-ab92-e65be0885f95", eMEDIAFORMAT_DASH,
-					(const unsigned char*)psshStr.c_str(), psshStr.length(), eMEDIATYPE_VIDEO, &mAamp, &event);
+					(const unsigned char*)psshStr.c_str(), psshStr.length(), eMEDIATYPE_VIDEO, mAamp, event);
 	POINTERS_EQUAL(NULL, drmSession);
-	CHECK_EQUAL(AAMP_TUNE_CORRUPT_DRM_METADATA, event.data.dash_drmmetadata.failure);
+	CHECK_EQUAL(AAMP_TUNE_CORRUPT_DRM_METADATA, event->getFailure());
 }
 
 TEST(AampDrmSessionTests, TestDrmMessageCallback)
 {
 	DrmInfo drmInfo;
 	drmInfo.keyURI = "81701500000810367b131dd025ab0a7bd8d20c1314151600";
-	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo);
+	std::shared_ptr<AampVgdrmHelper> drmHelper = std::make_shared<AampVgdrmHelper>(drmInfo, &mLogging);
 	setupChallengeCallbacksForExternalLicense();
-	AampDrmSession *drmSession = createDrmSessionForHelper(drmHelper);
+	AampDrmSession *drmSession = createDrmSessionForHelper(drmHelper, "net.vgdrm");
 	STRCMP_EQUAL("net.vgdrm", drmSession->getKeySystem().c_str());
 
 	struct DrmMessageTestData
@@ -738,11 +712,12 @@ TEST(AampDrmSessionTests, TestDrmMessageCallback)
 #else /* USE_SECCLIENT */
 TEST(AampDrmSessionTests, TestDashPlayReadySessionSecClient)
 {
-	string prLicenseServerURL = "http://licenseserver.example/license";
+	std::string prLicenseServerURL = "http://licenseserver.example/license";
+    std::string expectedServiceHostUrl = "licenseserver.example";
 
 	// Setting a PlayReady license server URL in the global config. This
 	// should get used to request the license
-	gpGlobalConfig->prLicenseServerURL = (char*)prLicenseServerURL.c_str();
+	gpGlobalConfig->SetConfigValue<std::string>(AAMP_APPLICATION_SETTING, eAAMPConfig_PRLicenseServerUrl, prLicenseServerURL);
 
 	// Setting up Curl repsonse for the session token
 	setupCurlPerformResponses({
@@ -752,7 +727,13 @@ TEST(AampDrmSessionTests, TestDashPlayReadySessionSecClient)
 	setupChallengeCallbacks();
 
 	// PSSH string which will get passed to the helper for parsing, so needs to be in valid format
-	const std::string psshStr = "<KID>16bytebase64enckeydata==</KID><ckm:policy xmlns:ckm=\"urn:ccp:ckm\">policy</ckm:policy>";
+	const std::string psshStr =
+			"<WRMHEADER xmlns=\"http://schemas.microsoft.com/DRM/2007/03/PlayReadyHeader\" version=\"4.0.0.0\">"
+			"<DATA>"
+			"<KID>16bytebase64enckeydata==</KID>"
+			"<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">policy</ckm:policy>"
+			"</DATA>"
+            "</WRMHEADER>";
 
 	std::string expectedKeyData = "TESTSECKEYDATA";
 	size_t respLength = expectedKeyData.length();
@@ -760,11 +741,11 @@ TEST(AampDrmSessionTests, TestDashPlayReadySessionSecClient)
 
 	// The license should be acquired using the secure client, rather than curl
 	mock("SecClient").expectOneCall("AcquireLicense")
-			.withStringParameter("serviceHostUrl", prLicenseServerURL.c_str())
+			.withStringParameter("serviceHostUrl", expectedServiceHostUrl.c_str())
 			.withOutputParameterReturning("licenseResponse", &respPtr, sizeof(respPtr))
 			.withOutputParameterReturning("licenseResponseLength", &respLength, sizeof(respLength));
 
-	AAMPEvent event;
+	DrmMetaDataEventPtr event = createDrmMetaDataEvent();
 	AampDrmSession *drmSession = createDashDrmSession(expectedKeyData, psshStr, event);
 	CHECK_TEXT(drmSession != NULL, "Session creation failed");
 	STRCMP_EQUAL("com.microsoft.playready", drmSession->getKeySystem().c_str());

@@ -1524,20 +1524,19 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 		SetStateWithWarnings(_this->privateContext->pipeline, GST_STATE_PLAYING);
 		break;
 
-#ifdef TRACE
 	case GST_MESSAGE_RESET_TIME:		/* Message from pipeline to request resetting its running time */
+#ifdef TRACE
 		GstClockTime running_time;
 		gst_message_parse_reset_time (msg, &running_time);
 		printf("GST_MESSAGE_RESET_TIME %llu\n", (unsigned long long)running_time);
-		break;
 #endif
+		break;
 
 	case GST_MESSAGE_STREAM_STATUS:
 	case GST_MESSAGE_ELEMENT: // can be used to collect pts, dts, pid
 	case GST_MESSAGE_DURATION:
 	case GST_MESSAGE_LATENCY:
 	case GST_MESSAGE_NEW_CLOCK:
-	case GST_MESSAGE_RESET_TIME:
 		break;
 	case GST_MESSAGE_APPLICATION:
 		const GstStructure *msgS;

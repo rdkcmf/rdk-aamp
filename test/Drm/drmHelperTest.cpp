@@ -194,7 +194,7 @@ TEST(AampDrmHelperTests, TestCreateVgdrmHelper)
 
 		std::shared_ptr<AampDrmHelper> vgdrmHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo);
 		CHECK_TEXT(vgdrmHelper != NULL, "VGDRM helper creation failed");
-		CHECK_EQUAL("com.videoguard.drm", vgdrmHelper->ocdmSystemId());
+		CHECK_EQUAL("net.vgdrm", vgdrmHelper->ocdmSystemId());
 		CHECK_EQUAL(true, vgdrmHelper->isClearDecrypt());
 		CHECK_EQUAL(true, vgdrmHelper->isHdcp22Required());
 		CHECK_EQUAL(4, vgdrmHelper->getDrmCodecType());
@@ -347,7 +347,7 @@ TEST(AampDrmHelperTests, TestCreateClearKeyHelper)
 	const std::vector<CreateHelperTestData> testData = {
 		// Valid KEYFORMAT, HLS
 		{eMETHOD_AES_128,
-		 eMEDIAFORMAT_HLS,
+		 eMEDIAFORMAT_HLS_MP4,
 		 "file.key",
 		 "urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b",
 		 "1077efec-c0b2-4d02-ace3-3c1e52e2fb4b",
@@ -363,7 +363,7 @@ TEST(AampDrmHelperTests, TestCreateClearKeyHelper)
 
 		// Textual identifier rather than UUID
 		{eMETHOD_AES_128,
-		 eMEDIAFORMAT_HLS,
+		 eMEDIAFORMAT_HLS_MP4,
 		 "file.key",
 		 "org.w3.clearkey",
 		 "1077efec-c0b2-4d02-ace3-3c1e52e2fb4b",
@@ -399,7 +399,7 @@ TEST(AampDrmHelperTests, TestCreateClearKeyHelper)
 
 TEST(AampDrmHelperTests, TestClearKeyHelperHlsInitDataCreation)
 {
-	DrmInfo drmInfo = createDrmInfo(eMETHOD_AES_128, eMEDIAFORMAT_HLS, "file.key", "urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b");
+	DrmInfo drmInfo = createDrmInfo(eMETHOD_AES_128, eMEDIAFORMAT_HLS_MP4, "file.key", "urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b");
 	CHECK_TRUE(AampDrmHelperEngine::getInstance().hasDRM(drmInfo));
 	std::shared_ptr<AampDrmHelper> clearKeyHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo);
 
@@ -447,7 +447,7 @@ TEST(AampDrmHelperTests, TestClearKeyHelperParsePssh)
 
 TEST(AampDrmHelperTests, TestClearKeyHelperGenerateLicenseRequest)
 {
-	DrmInfo drmInfo = createDrmInfo(eMETHOD_AES_128, eMEDIAFORMAT_HLS, "file.key", "urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b");
+	DrmInfo drmInfo = createDrmInfo(eMETHOD_AES_128, eMEDIAFORMAT_HLS_MP4, "file.key", "urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b");
 	drmInfo.manifestURL = "http://stream.example/hls/playlist.m3u8";
 	CHECK_TRUE(AampDrmHelperEngine::getInstance().hasDRM(drmInfo));
 	std::shared_ptr<AampDrmHelper> clearKeyHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo);
@@ -456,24 +456,24 @@ TEST(AampDrmHelperTests, TestClearKeyHelperGenerateLicenseRequest)
 	challengeInfo.url = "http://challengeinfourl.example";
 	AampLicenseRequest licenseRequest;
 
-	// No ClearKey license URL in the global config, expect the URL to be
+	// No ClearKey license URL in the license request, expect the URL to be
 	// constructed from the information in the DrmInfo
 	clearKeyHelper->generateLicenseRequest(challengeInfo, licenseRequest);
-	CHECK_EQUAL(AampLicenseRequest::GET, licenseRequest.method);
+	CHECK_EQUAL(AampLicenseRequest::POST, licenseRequest.method);
 	CHECK_EQUAL("http://stream.example/hls/file.key", licenseRequest.url);
 	CHECK_EQUAL("", licenseRequest.payload);
 
-	// Setting a fixed ClearKey license URL in the global config, expect
+	// Setting a ClearKey license URL in the license request, expect
 	// that to take precedence
 	const std::string fixedCkLicenseUrl = "http://cklicenseserver.example";
-	gpGlobalConfig->ckLicenseServerURL = (char*)fixedCkLicenseUrl.c_str();
+    licenseRequest.url = fixedCkLicenseUrl;
 	clearKeyHelper->generateLicenseRequest(challengeInfo, licenseRequest);
 	CHECK_EQUAL(fixedCkLicenseUrl, licenseRequest.url);
 
-	// Clearing ClearKey license URL in the global config and creating a
+	// Clearing ClearKey license URL in the license request and creating a
 	// helper with no key URI in the DrmInfo. Should use the URI from the challenge
-	gpGlobalConfig->ckLicenseServerURL = NULL;
-	DrmInfo drmInfoNoKeyUri = createDrmInfo(eMETHOD_AES_128, eMEDIAFORMAT_HLS, "", "urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b");
+    licenseRequest.url.clear();
+	DrmInfo drmInfoNoKeyUri = createDrmInfo(eMETHOD_AES_128, eMEDIAFORMAT_HLS_MP4, "", "urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b");
 	std::shared_ptr<AampDrmHelper> clearKeyHelperNoKeyUri = AampDrmHelperEngine::getInstance().createHelper(drmInfoNoKeyUri);
 	clearKeyHelperNoKeyUri->generateLicenseRequest(challengeInfo, licenseRequest);
 	CHECK_EQUAL(challengeInfo.url, licenseRequest.url);
@@ -487,7 +487,7 @@ TEST(AampDrmHelperTests, TestClearKeyHelperTransformHlsLicenseResponse)
 		std::string expectedEncodedKey;
 	};
 
-	DrmInfo drmInfo = createDrmInfo(eMETHOD_AES_128, eMEDIAFORMAT_HLS, "file.key", "urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b");
+	DrmInfo drmInfo = createDrmInfo(eMETHOD_AES_128, eMEDIAFORMAT_HLS_MP4, "file.key", "urn:uuid:1077efec-c0b2-4d02-ace3-3c1e52e2fb4b");
 	CHECK_TRUE(AampDrmHelperEngine::getInstance().hasDRM(drmInfo));
 	std::shared_ptr<AampDrmHelper> clearKeyHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo);
 
@@ -508,7 +508,7 @@ TEST(AampDrmHelperTests, TestClearKeyHelperTransformHlsLicenseResponse)
 		std::shared_ptr<DrmData> drmData = std::make_shared<DrmData>((unsigned char *)&testCase.keyResponse[0], testCase.keyResponse.size());
 		clearKeyHelper->transformLicenseResponse(drmData);
 
-		TestUtilJsonWrapper jsonWrapper((const char*)drmData->getData(), drmData->getDataLength());
+		TestUtilJsonWrapper jsonWrapper((const char*)drmData->getData().c_str(), drmData->getDataLength());
 		cJSON *responseObj = jsonWrapper.getJsonObj();
 		CHECK_TEXT(responseObj != NULL, "Invalid license response data");
 
@@ -544,7 +544,7 @@ TEST(AampDrmHelperTests, TestTransformDashLicenseResponse)
 
 		clearKeyHelper->transformLicenseResponse(drmData);
 		CHECK_EQUAL_TEXT(sizeof(licenseResponse), drmData->getDataLength(), "Unexpected change in license response size");
-		MEMCMP_EQUAL_TEXT(licenseResponse, drmData->getData(), sizeof(licenseResponse), "Unexpected transformation of license response");
+		MEMCMP_EQUAL_TEXT(licenseResponse, drmData->getData().c_str(), sizeof(licenseResponse), "Unexpected transformation of license response");
 	}
 }
 
@@ -592,11 +592,7 @@ TEST(AampDrmHelperTests, TestCreatePlayReadyHelper)
 		CHECK_EQUAL(5000U, playReadyHelper->licenseGenerateTimeout());
 		CHECK_EQUAL(5000U, playReadyHelper->keyProcessTimeout());
 
-		// HDCP protection for PlayReady should be based on global config
-		CHECK_EQUAL(false, playReadyHelper->isHdcp22Required());
-		gpGlobalConfig->enablePROutputProtection = true;
-		CHECK_EQUAL(true, playReadyHelper->isHdcp22Required());
-		gpGlobalConfig->enablePROutputProtection = false;
+		// TODO: HDCP checks
 	}
 }
 
@@ -745,7 +741,12 @@ TEST(AampDrmHelperTests, TestPlayReadyHelperParsePssh)
 	const std::string expectedMetadata = "testpolicydata";
 
 	std::ostringstream psshSs;
-	psshSs << "<KID>16bytebase64enckeydata==</KID><ckm:policy xmlns:ckm=\"urn:ccp:ckm\">" << expectedMetadata << "</ckm:policy>";
+	psshSs  << "<WRMHEADER xmlns=\"http://schemas.microsoft.com/DRM/2007/03/PlayReadyHeader\" version=\"4.0.0.0\">"
+			<< "<DATA>"
+			<< "<KID>16bytebase64enckeydata==</KID>"
+			<< "<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">" << expectedMetadata << "</ckm:policy>"
+			<< "</DATA>"
+            << "</WRMHEADER>";
 	const std::string psshStr = psshSs.str();
 
 	CHECK_TRUE(playReadyHelper->parsePssh((const unsigned char*)psshStr.data(), psshStr.size()));
@@ -755,8 +756,7 @@ TEST(AampDrmHelperTests, TestPlayReadyHelperParsePssh)
 	playReadyHelper->getKey(keyId);
 
 	const std::string expectedKeyId = "b5f2a6d7-dae6-eeb1-b87a-77247b275ab5";
-	// Note: -1 on size since a quirk of the PR PSSH parsing is that it is treated like a string and size includes the NULL character
-	const std::string actualKeyId = std::string(keyId.begin(), keyId.begin() + keyId.size() - 1);
+	const std::string actualKeyId = std::string(keyId.begin(), keyId.begin() + keyId.size());
 
 	CHECK_EQUAL(expectedKeyId, actualKeyId);
 	CHECK_EQUAL(expectedMetadata, playReadyHelper->getDrmMetaData());
@@ -777,7 +777,12 @@ TEST(AampDrmHelperTests, TestPlayReadyHelperParsePsshNoPolicy)
 	CHECK_TRUE(AampDrmHelperEngine::getInstance().hasDRM(drmInfo));
 	std::shared_ptr<AampDrmHelper> playReadyHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo);
 
-	const std::string psshStr = "<KID>16bytebase64enckeydata==</KID>";
+	const std::string psshStr =
+			"<WRMHEADER xmlns=\"http://schemas.microsoft.com/DRM/2007/03/PlayReadyHeader\" version=\"4.0.0.0\">"
+			"<DATA>"
+			"<KID>16bytebase64enckeydata==</KID>"
+			"</DATA>"
+            "</WRMHEADER>";
 
 	CHECK_TRUE(playReadyHelper->parsePssh((const unsigned char*)psshStr.data(), psshStr.size()));
 
@@ -786,8 +791,7 @@ TEST(AampDrmHelperTests, TestPlayReadyHelperParsePsshNoPolicy)
 	playReadyHelper->getKey(keyId);
 
 	const std::string expectedKeyId = "b5f2a6d7-dae6-eeb1-b87a-77247b275ab5";
-	// Note: -1 on size since a quirk of the PR PSSH parsing is that it is treated like a string and size includes the NULL character
-	const std::string actualKeyId = std::string(keyId.begin(), keyId.begin() + keyId.size() - 1);
+	const std::string actualKeyId = std::string(keyId.begin(), keyId.begin() + keyId.size());
 
 	CHECK_EQUAL(expectedKeyId, actualKeyId);
 	// Not expecting any metadata
@@ -811,11 +815,17 @@ TEST(AampDrmHelperTests, TestPlayReadyHelperGenerateLicenseRequest)
 	AampLicenseRequest licenseRequest1;
 	playReadyHelper->generateLicenseRequest(challengeInfo, licenseRequest1);
 	CHECK_EQUAL(challengeInfo.url, licenseRequest1.url);
-	MEMCMP_EQUAL(challengeInfo.data->getData(), licenseRequest1.payload.data(), challengeInfo.data->getDataLength());
+	MEMCMP_EQUAL(challengeInfo.data->getData().c_str(), licenseRequest1.payload.data(), challengeInfo.data->getDataLength());
 
 	// Parse a PSSH with a ckm:policy. This should cause generateLicenseRequest to return a JSON payload
 	AampLicenseRequest licenseRequest2;
-	const std::string psshStr = "<KID>16bytebase64enckeydata==</KID><ckm:policy xmlns:ckm=\"urn:ccp:ckm\">policy</ckm:policy>";
+	const std::string psshStr =
+			"<WRMHEADER xmlns=\"http://schemas.microsoft.com/DRM/2007/03/PlayReadyHeader\" version=\"4.0.0.0\">"
+			"<DATA>"
+			"<KID>16bytebase64enckeydata==</KID>"
+			"<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">policy</ckm:policy>"
+			"</DATA>"
+            "</WRMHEADER>";
 	CHECK_TRUE(playReadyHelper->parsePssh((const unsigned char*)psshStr.data(), psshStr.size()));
 
 	playReadyHelper->generateLicenseRequest(challengeInfo, licenseRequest2);
@@ -832,10 +842,10 @@ TEST(AampDrmHelperTests, TestPlayReadyHelperGenerateLicenseRequest)
 	CHECK_JSON_STR_VALUE(postFieldObj, "contentMetadata", "cG9saWN5");
 	CHECK_JSON_STR_VALUE(postFieldObj, "accessToken", challengeInfo.accessToken.c_str());
 
-	// Finally, checking the global override works
+	// Finally, checking the license uri override works
 	AampLicenseRequest licenseRequest3;
 	const std::string fixedPrLicenseUrl = "http://prlicenseserver.example";
-	gpGlobalConfig->prLicenseServerURL = (char*)fixedPrLicenseUrl.c_str();
+	licenseRequest3.url = fixedPrLicenseUrl;
 
 	playReadyHelper->generateLicenseRequest(challengeInfo, licenseRequest3);
 	CHECK_EQUAL(fixedPrLicenseUrl, licenseRequest3.url);
@@ -868,7 +878,7 @@ TEST(AampDrmHelperTests, TestCompareHelpers)
 
 	std::shared_ptr<AampDrmHelper> clearKeyHelperHls = AampDrmHelperEngine::getInstance().createHelper(createDrmInfo(
 		eMETHOD_AES_128,
-		eMEDIAFORMAT_HLS,
+		eMEDIAFORMAT_HLS_MP4,
 		"file.key",
 		"",
 		"1077efec-c0b2-4d02-ace3-3c1e52e2fb4b"));
@@ -918,14 +928,24 @@ TEST(AampDrmHelperTests, TestCompareHelpers)
 		"9a04f079-9840-4286-ab92-e65be0885f95"));
 	CHECK_TRUE(playreadyHelper2 != nullptr);
 
-	const std::string pssh1 = "<KID>16bytebase64enckeydata==</KID>";
+	const std::string pssh1 =
+			"<WRMHEADER xmlns=\"http://schemas.microsoft.com/DRM/2007/03/PlayReadyHeader\" version=\"4.0.0.0\">"
+			"<DATA>"
+			"<KID>16bytebase64enckeydata==</KID>"
+			"</DATA>"
+            "</WRMHEADER>";
 	playreadyHelper->parsePssh((const unsigned char*)pssh1.data(), pssh1.size());
 	playreadyHelper2->parsePssh((const unsigned char*)pssh1.data(), pssh1.size());
 
 	// Same key in the PSSH data, should equal
 	CHECK_TRUE(playreadyHelper->compare(playreadyHelper2));
 
-	const std::string pssh2 = "<KID>differentbase64keydata==</KID>";
+	const std::string pssh2 =
+			"<WRMHEADER xmlns=\"http://schemas.microsoft.com/DRM/2007/03/PlayReadyHeader\" version=\"4.0.0.0\">"
+			"<DATA>"
+			"<KID>differentbase64keydata==</KID>"
+			"</DATA>"
+            "</WRMHEADER>";
 	playreadyHelper2->parsePssh((const unsigned char*)pssh2.data(), pssh2.size());
 
 	// Different key in the PSSH data, should not equal
@@ -948,7 +968,13 @@ TEST(AampDrmHelperTests, TestCompareHelpers)
 	CHECK_TRUE(playreadyHelper->compare(playreadyHelper3));
 
 	// Finally keep the same key but add in metadata. Now PR helpers 1 & 3 shouldn't be equal
-	const std::string pssh3 = "<KID>16bytebase64enckeydata==</KID><ckm:policy xmlns:ckm=\"urn:ccp:ckm\">policy</ckm:policy>";
+	const std::string pssh3 =
+			"<WRMHEADER xmlns=\"http://schemas.microsoft.com/DRM/2007/03/PlayReadyHeader\" version=\"4.0.0.0\">"
+			"<DATA>"
+			"<KID>16bytebase64enckeydata==</KID>"
+			"<ckm:policy xmlns:ckm=\"urn:ccp:ckm\">policy</ckm:policy>"
+			"</DATA>"
+            "</WRMHEADER>";
 	playreadyHelper3->parsePssh((const unsigned char*)pssh3.data(), pssh3.size());
 	CHECK_FALSE(playreadyHelper->compare(playreadyHelper3));
 }

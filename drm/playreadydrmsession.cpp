@@ -570,13 +570,13 @@ int PlayReadyDRMSession::aampDRMProcessKey(DrmData* key, uint32_t timeout)
 #ifdef TRACE_LOG
 	cout << "aampDRMProcessKey :: Playready check if msg is null" << endl;
 #endif
-	ChkArg(key->getData() && key->getDataLength() > 0);
+	ChkArg(!key->getData().empty() && key->getDataLength() > 0);
 
 	//cout << "PlayreadyProcessResponse" << endl;
 	drm_res = Drm_LicenseAcq_ProcessResponse(m_ptrAppContext,
 					DRM_PROCESS_LIC_RESPONSE_SIGNATURE_NOT_REQUIRED,
 					NULL,
-					NULL, const_cast<DRM_BYTE *>(key->getData()),
+					NULL, (DRM_BYTE *)(key->getData().c_str()),
 					key->getDataLength(), &oLicenseResp);
 #ifdef TRACE_LOG
 	printf("aampDRMProcessKey :: Drm_LicenseAcq_ProcessResponse result : %08x ", drm_res);
@@ -629,7 +629,7 @@ int PlayReadyDRMSession::decrypt(const uint8_t *f_pbIV, uint32_t f_cbIV,
         // Source material is UHD
         if(!m_pOutputProtection->isHDCPConnection2_2()) {
             // UHD and not HDCP 2.2
-            AAMPLOG_WARN("UHD source but not HDCP 2.2. FAILING decrypt\n",);
+            AAMPLOG_WARN("UHD source but not HDCP 2.2. FAILING decrypt\n");
             return HDCP_COMPLIANCE_CHECK_FAILURE;
         }
     }
