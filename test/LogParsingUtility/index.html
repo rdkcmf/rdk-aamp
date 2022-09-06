@@ -74,7 +74,7 @@ function strip(firstValue)
 	{
 		var elem = document.getElementById("raw");
 		var value = elem.value.split(",");
-		var fields = null;
+		var fields = "";
 		if( value[0].indexOf("IP_EX_TUNETIME")>=0 )
 		{
 			value[0] = strip(value[0]);
@@ -94,7 +94,7 @@ function strip(firstValue)
 			value[0] = strip(value[0]);
 			var indexAdjust = 0;
 			// Add appName to the list if it is present as an extra parameter
-			if(value.length === 16 ) {
+			if(value.length >= 17 ) {
 				fields = "appName,";
 				indexAdjust = 1;
 			} else if(value.length === 15 ) {
@@ -108,7 +108,7 @@ function strip(firstValue)
 			}
 			else
 			{
-				fields = fields + "mediaType,simType,http_code,totalPerformRequest,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSize,reqSize,bps,url";
+				fields = fields + "mediaType,simType,http_code,totalPerformRequest,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSize,reqSize,bps,currentBitrate,url";
 				value[ indexAdjust ] = "("+value[indexAdjust]+")"+MapMediaType(value[indexAdjust]); // mediaType
 			}
 		}
