@@ -34,7 +34,7 @@
 /**
  * @brief AampSharedMemorySystem constructor
  */
-AampSharedMemorySystem::AampSharedMemorySystem(AamplOgManager *logObj): AAMPMemorySystem(logObj) {
+AampSharedMemorySystem::AampSharedMemorySystem(AampLogManager *logObj): AAMPMemorySystem(logObj) {
 }
 
 /**
