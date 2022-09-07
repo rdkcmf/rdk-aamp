@@ -1261,7 +1261,8 @@ int PrivateInstanceAAMP::HandleSSLProgressCallback ( void *clientp, double dltot
 
 	if(rc)
 	{
-		if( ISCONFIGSET_PRIV(eAAMPConfig_EnableCurlStore) && mOrigManifestUrl.isRemotehost )
+		if( !( eCURL_ABORT_REASON_LOW_BANDWIDTH_TIMEDOUT == context->abortReason || eCURL_ABORT_REASON_START_TIMEDOUT == context->abortReason ||\
+			eCURL_ABORT_REASON_STALL_TIMEDOUT == context->abortReason ) && (ISCONFIGSET_PRIV(eAAMPConfig_EnableCurlStore) && mOrigManifestUrl.isRemotehost ) )
 		{
 			rc = 0;
 		}
