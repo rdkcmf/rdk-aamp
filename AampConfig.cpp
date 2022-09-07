@@ -465,7 +465,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_PersistHighNetworkBandwidth].value		=	false;
 	bAampCfgValue[eAAMPConfig_PersistLowNetworkBandwidth].value		=	true;
 	bAampCfgValue[eAAMPConfig_ChangeTrackWithoutRetune].value		=	false;
-	bAampCfgValue[eAAMPConfig_EnableCurlStore].value			=	true;
+	bAampCfgValue[eAAMPConfig_EnableCurlStore].value			=	false;
 	bAampCfgValue[eAAMPConfig_RuntimeDRMConfig].value			=	false;
 	bAampCfgValue[eAAMPConfig_EnablePublishingMuxedAudio].value		=	false;
 	///////////////// Following for Integer Data type configs ////////////////////////////
