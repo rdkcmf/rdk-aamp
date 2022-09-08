@@ -10506,8 +10506,16 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 
 			if( preferredType )
 			{
-				AAMPLOG_INFO("Setting accessibility type %s", preferredType);
 				preferredTypeString = std::string(preferredType);
+				std::string delim = "_";
+				auto pos = preferredTypeString.find(delim);
+				auto end = preferredTypeString.length();
+				if (pos != std::string::npos)
+				{
+					preferredTypeString =  preferredTypeString.substr(pos+1, end);
+				}
+				AAMPLOG_INFO("Setting accessibility type %s", preferredTypeString.c_str());
+
 			}
 			else
 			{
