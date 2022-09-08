@@ -296,6 +296,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"LRHContentType",eAAMPConfig_LRHContentType,true,-1,-1},
 	{"useTCPServerSink",eAAMPConfig_useTCPServerSink,false, -1, -1},
 	{"TCPServerSinkPort",eAAMPConfig_TCPServerSinkPort,false, -1, -1},
+	{"enableDisconnectSignals", eAAMPConfig_enableDisconnectSignals, false, -1, -1},
+	{"enableEOSInjectionDuringStop", eAAMPConfig_enableEOSInjectionDuringStop, false, -1, -1},
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -496,7 +498,8 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableSCTE35PresentationTime].value			=	false;
 	bAampCfgValue[eAAMPConfig_JsInfoLogging].value                          = 	false;
 	bAampCfgValue[eAAMPConfig_useTCPServerSink].value           = 	false;
-
+	bAampCfgValue[eAAMPConfig_enableDisconnectSignals].value = true;
+	bAampCfgValue[eAAMPConfig_enableEOSInjectionDuringStop].value = true;
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_ABRCacheLife-eAAMPConfig_IntStartValue].value			=	DEFAULT_ABR_CACHE_LIFE;
