@@ -206,6 +206,8 @@ typedef enum
 	eAAMPConfig_EnableSlowMotion,					/**< Enable/Disable Slowmotion playback */
 	eAAMPConfig_EnableSCTE35PresentationTime,			/**< Enable/Disable use of SCTE PTS presentation time */
 	eAAMPConfig_IgnoreAppLiveOffset,				/** <Config to ignore the liveOffset from App for LLD */
+	eAAMPConfig_enableDisconnectSignals,			/** When enabled (true which is the default) gstreamer signals are disconnected in AAMPGstPlayer::DisconnectSignals()*/
+	eAAMPConfig_enableEOSInjectionDuringStop,		/** When enabled (true which is the default) the pipeline is flushed and EOS signals injected into the pipline during AAMPGstPlayer::stop()*/
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,

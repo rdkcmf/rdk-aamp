@@ -427,6 +427,11 @@ public:
 	 */
 	bool isLoggingLevelAllowed(AAMP_LogLevel logLevel);
 
+	/**
+        *   @fn SignalConnect
+	    *   @note wraps g_signal_connect, adds functionality required by DisconnectSignals()
+	 */
+	void SignalConnect(gpointer instance, const gchar *detailed_signal, GCallback c_handler, gpointer data);
 private:
 	/**
      	 * @fn PauseAndFlush 
@@ -475,6 +480,21 @@ private:
      	 * @return bool - true if audio to be forwarded
      	 */
 	bool ForwardAudioBuffersToAux();
+
+	/**
+         *   @fn DisconnectSignals
+	     *   @brief runs g_signal_handler_disconnect() for signals connected using SignalConnect() since
+	     *  this function was last called unless
+	     *  these were subsequently removed using RemoveSignalsFromDisconnectList()
+	     */
+	void DisconnectSignals();
+
+	/**
+	     *   @fn RemoveSignalsFromDisconnectList
+	     *   @brief Prevents signals associated with the supplied element from being disconnected by DisconnectSignals
+	     */
+	void RemoveSignalsFromDisconnectList(const gpointer pElementOrBin);
+
 	pthread_mutex_t mBufferingLock;
 	pthread_mutex_t mProtectionLock;
 	AampLogManager *mLogObj;
