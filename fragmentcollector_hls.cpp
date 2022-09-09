@@ -6578,8 +6578,8 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 	int playlistRefreshCount = 0;
 	diffBetweenDiscontinuities = DBL_MAX;
 	bool newDiscHandling = true;
-	pthread_mutex_lock(&mPlaylistMutex);
 	mDiscontinuityCheckingOn = true;
+	pthread_mutex_lock(&mPlaylistMutex);
 
 	while (aamp->DownloadsAreEnabled())
 	{
