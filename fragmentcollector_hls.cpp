@@ -1520,10 +1520,11 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity, bool 
 										pthread_mutex_lock(&mPlaylistMutex);
 									}
 								}
-								AAMPLOG_WARN("%s Checking HasDiscontinuity for position :%f, playposition :%f playtarget:%f mDiscontinuityCheckingOn:%d",name,position,playPosition,playTarget,mDiscontinuityCheckingOn);								
+								AAMPLOG_WARN("%s Checking HasDiscontinuity for position :%f, playposition :%f playtarget:%f mDiscontinuityCheckingOn:%d",name,position,playPosition,playTarget,mDiscontinuityCheckingOn.load());
 								if (!mDiscontinuityCheckingOn) 
 								{
 									bool isDiffChkReq=true;
+									other->mDiscontinuityCheckingOn.store(true);
 									if(false == other->HasDiscontinuityAroundPosition(position, (NULL != programDateTime), diff, playPosition,mCulledSeconds,mProgramDateTime,isDiffChkReq))
 									{
 										AAMPLOG_WARN("[%s] Ignoring discontinuity as %s track does not have discontinuity", name, other->name);
@@ -6604,7 +6605,6 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 	diffBetweenDiscontinuities = DBL_MAX;
 	bool newDiscHandling = true;
 	pthread_mutex_lock(&mPlaylistMutex);
-	mDiscontinuityCheckingOn = true;
 
 	while (aamp->DownloadsAreEnabled())
 	{
