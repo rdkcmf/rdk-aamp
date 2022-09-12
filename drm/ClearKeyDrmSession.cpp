@@ -354,7 +354,7 @@ int ClearKeySession::decrypt(GstBuffer* keyIDBuffer, GstBuffer* ivBuffer, GstBuf
 	uint32_t nBytesEncrypted = 0;
 
 	GstMapInfo ivMap;
-	GstMapInfo subsampleMap;
+	GstMapInfo subsampleMap = GST_MAP_INFO_INIT;
 	GstMapInfo bufferMap;
 	GstByteReader* reader = NULL;
 

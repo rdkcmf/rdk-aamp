@@ -1021,7 +1021,7 @@ bool AampConfig::ProcessConfigJson(const cJSON *cfgdata, ConfigPriority owner )
 		{
 			AAMPLOG_WARN("Parsed value for property DrmConfig");
 			cJSON *subitem = drmConfig->child;
-			DRMSystems drmType;
+			DRMSystems drmType = eDRM_PlayReady;
 			while( subitem )
 			{
 				std::string conv = std::string(subitem->valuestring);

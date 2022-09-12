@@ -2677,7 +2677,7 @@ bool TSProcessor::processStartCode(unsigned char *buffer, bool& keepScanning, in
 			{
 				unsigned char *newBuff = 0;
 				int newSize = m_emulationPreventionCapacity * 2 + length;
-				newBuff = (unsigned char *)malloc(newSize*sizeof(char));
+				newBuff = (unsigned char *)calloc(newSize,sizeof(char));
 				if (!newBuff)
 				{
 					ERROR("Error: unable to allocate emulation prevention buffer");
