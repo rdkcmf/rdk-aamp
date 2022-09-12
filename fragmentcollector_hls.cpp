@@ -3608,7 +3608,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 	AAMPStatusType retval = eAAMPSTATUS_OK;
 	bool startTimeAvailable = true;
 	bool syncedUsingSeqNum = false;
-	long long mediaSequenceNumber[AAMP_TRACK_COUNT];
+	long long mediaSequenceNumber[AAMP_TRACK_COUNT] = {0};
 	TrackState *audio = trackState[eMEDIATYPE_AUDIO];
 	TrackState *video = trackState[eMEDIATYPE_VIDEO];
 	TrackState *subtitle = trackState[eMEDIATYPE_SUBTITLE];
