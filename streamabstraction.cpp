@@ -789,7 +789,7 @@ bool MediaTrack::ProcessFragmentChunk()
 	}
 	noMDATCount = 0;
 	totalMdatCount += mdatCount;
-	AAMPLOG_TRACE("[%s] MDAT count found: %d, Total Found: %d", name,  mdatCount, totalMdatCount );
+	AAMPLOG_INFO("[%s] MDAT count found: %d, Total Found: %d", name,  mdatCount, totalMdatCount );
 
 	pBoxes = isobuf.getParsedBoxes();
 	parsedBoxCount = pBoxes->size();
@@ -797,6 +797,8 @@ bool MediaTrack::ProcessFragmentChunk()
 	pBox = isobuf.getChunkedfBox();
 	if(pBox)
 	{
+		
+		AAMPLOG_INFO("[%s] MDAT Chunk Found - Actual Parsed Box Count: %d", name,parsedBoxCount);
 		parsedBoxCount--;
 
 		AAMPLOG_TRACE("[%s] MDAT Chunk Found - Actual Parsed Box Count: %d", name,parsedBoxCount);
@@ -901,7 +903,7 @@ bool MediaTrack::ProcessFragmentChunk()
 		//isobufTest.printBoxes();
 		isobufTest.destroyBoxes();
 #endif
-
+		AAMPLOG_INFO("Injecting chunk for %s br=%d,chunksize=%ld fpts=%f fduration=%f",name,bandwidthBitsPerSecond,parsedBufferChunk.len,fpts,fduration);
 		InjectFragmentChunkInternal((MediaType)type,&parsedBufferChunk , fpts, fpts, fduration);
 		totalInjectedChunksDuration += fduration;
 	}
@@ -3356,7 +3358,8 @@ void MediaTrack::PlaylistDownloader()
 	long long lastPlaylistDownloadTimeMS = 0;
 	bool quickPlaylistDownload = false;
 	bool firstTimeDownload = true;
-
+	long minUpdateDuration = 0, maxSegDuration = 0,availTimeOffMs=0;
+	
 	// abortPlaylistDownloader is by default true, sets as "false" when thread initializes
 	// This supports Single download mode for VOD and looped mode for Live (always runs in thread)
 	if(abortPlaylistDownloader)
@@ -3369,6 +3372,16 @@ void MediaTrack::PlaylistDownloader()
 		// Playlist downlader called in loop mode
 		AAMPLOG_WARN("[%s] : Enter, track '%s'", trackName.c_str(), name);
 		AAMPLOG_INFO("[%s] Playlist download timeout : %d", trackName.c_str(), updateDuration);
+	}
+
+	if( aamp->GetLLDashServiceData()->lowLatencyMode )
+	{
+		minUpdateDuration = GetMinUpdateDuration();
+		maxSegDuration = (long)(aamp->GetLLDashServiceData()->fragmentDuration*1000);
+		availTimeOffMs = (long)((aamp->GetLLDashServiceData()->availabilityTimeOffset)*1000);
+
+		AAMPLOG_INFO("LL-DASH [%s] maxSegDuration=i[%d]d[%f] minUpdateDuration=[%d]d[%f],availTimeOff=%d]d[%f]",
+		name,(int)maxSegDuration,(double)maxSegDuration,(int)minUpdateDuration,(double)minUpdateDuration,(int)availTimeOffMs,(double)availTimeOffMs);
 	}
 
 	/* DOWNLODER LOOP */
@@ -3396,12 +3409,32 @@ void MediaTrack::PlaylistDownloader()
 				// Else calculate wait time based on buffer
 				if (firstTimeDownload && (eMEDIAFORMAT_DASH == aamp->mMediaFormat))
 				{
-					liveRefreshTimeOutInMs = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+					if(aamp->GetLLDashServiceData()->lowLatencyMode)
+					{
+						AAMPLOG_INFO("LL-DASH Mode Enabled");
+						if( minUpdateDuration > 0 &&  minUpdateDuration > availTimeOffMs )
+						{
+							liveRefreshTimeOutInMs = (int)(minUpdateDuration-availTimeOffMs);
+						}
+						else if(maxSegDuration > 0 && maxSegDuration > availTimeOffMs)
+						{
+							liveRefreshTimeOutInMs = (int)maxSegDuration - availTimeOffMs;
+						}
+						else
+						{
+							liveRefreshTimeOutInMs = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+						}
+					}
+					else
+					{
+						liveRefreshTimeOutInMs = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+					}
 				}
 				else
 				{
 					liveRefreshTimeOutInMs = WaitTimeBasedOnBufferAvailable();
 				}
+				AAMPLOG_INFO("Refreshing playlist at %d ", liveRefreshTimeOutInMs);
 				EnterTimedWaitForPlaylistRefresh(liveRefreshTimeOutInMs);
 			}
 			firstTimeDownload = false;
@@ -3513,7 +3546,6 @@ void MediaTrack::PlaylistDownloader()
 
 	AAMPLOG_WARN("[%s] : Exit", trackName.c_str());
 }
-
 /**
  * @brief Wait time for playlist refresh based on buffer available
  *
@@ -3591,8 +3623,39 @@ int MediaTrack::WaitTimeBasedOnBufferAvailable()
 
 		if(minDelayBetweenPlaylistUpdates < MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS)
 		{
-			// minimum of 500 mSec needed to avoid too frequent download.
-			minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+			
+			if (aamp->GetLLDashServiceData()->lowLatencyMode )
+			{
+				
+				long availTimeOffMs = (long)((aamp->GetLLDashServiceData()->availabilityTimeOffset)*1000);
+				long maxSegDuration = (long)(aamp->GetLLDashServiceData()->fragmentDuration*1000);
+				if(minUpdateDuration > 0 && minUpdateDuration > availTimeOffMs)
+				{
+					minDelayBetweenPlaylistUpdates = (int)minUpdateDuration-availTimeOffMs;
+				}
+				else if (maxSegDuration > 0 && maxSegDuration > availTimeOffMs)
+				{
+						minDelayBetweenPlaylistUpdates = (int)maxSegDuration-availTimeOffMs;
+				}
+				else
+				{
+					// minimum of 500 mSec needed to avoid too frequent download.
+					minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+				}
+				if(minDelayBetweenPlaylistUpdates < MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS)
+				{
+						// minimum of 500 mSec needed to avoid too frequent download.
+					minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+				}
+				AAMPLOG_INFO("In LL-Mode minDelayBetweenPlaylistUpdates=%d,availTimeOffMs=%ld,minUpdateDuration=%ld,maxSegDuration=%ld",
+							minDelayBetweenPlaylistUpdates,availTimeOffMs,minUpdateDuration,maxSegDuration);
+			}
+			else
+			{
+				// minimum of 500 mSec needed to avoid too frequent download.
+				minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
+			}
+			AAMPLOG_INFO("In LL-Mode minDelayBetweenPlaylistUpdates=%d",minDelayBetweenPlaylistUpdates);
 		}
 
 		AAMPLOG_INFO("aamp playlist end refresh bufferMs(%ld) delay(%d) delta(%d) End(%lld) PlayPosition(%lld)",

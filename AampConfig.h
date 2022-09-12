@@ -252,11 +252,14 @@ typedef enum
 	eAAMPConfig_LatencyMonitorInterval,           				/**< Latency Monitor Interval */
 	eAAMPConfig_MaxFragmentChunkCached,           				/**< fragment chunk cache length*/
 	eAAMPConfig_ABRChunkThresholdSize,                			/**< AAMP ABR Chunk threshold size*/
+	eAAMPConfig_LLMinLatency,						/**< Low Latency Min Latency Offset */
+	eAAMPConfig_LLTargetLatency,						/**< Low Latency Target Latency */
+	eAAMPConfig_LLMaxLatency,						/**< Low Latency Max Latency */
 	eAAMPConfig_FragmentDownloadFailThreshold, 				/**< Retry attempts for non-init fragment curl timeout failures*/
 	eAAMPConfig_MaxInitFragCachePerTrack,					/**< Max no of Init fragment cache per track */
 	eAAMPConfig_FogMaxConcurrentDownloads,                                  /**< Concurrent download posted to fog from player*/
 	eAAMPConfig_ContentProtectionDataUpdateTimeout,				/**< Default Timeout For ContentProtectionData Update */
-	eAAMPConfig_MaxCurlSockStore,								/**< Max no of curl socket to be stored */
+	eAAMPConfig_MaxCurlSockStore,						/**< Max no of curl socket to be stored */
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,

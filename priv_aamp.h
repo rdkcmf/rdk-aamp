@@ -515,15 +515,19 @@ struct SpeedCache
  * @brief To store Low Latency Service configurtions
  */
 struct AampLLDashServiceData {
-    bool lowLatencyMode;        /**< LL Playback mode enabled */
-    bool strictSpecConformance; /**< Check for Strict LL Dash spec conformace*/
-    int targetLatency;          /**< Target Latency of playback */
-    int minLatency;             /**< Minimum Latency of playback */
-    int maxLatency;             /**< Maximum Latency of playback */
-    int latencyThreshold;       /**<Latency when play rate correction kicks-in*/
-    double minPlaybackRate;     /**< Minimum playback rate for playback */
-    double maxPlaybackRate;     /**< Maximum playback rate for playback */
-    UtcTiming utcTiming;
+    bool lowLatencyMode;        	/**< LL Playback mode enabled */
+    bool strictSpecConformance; 	/**< Check for Strict LL Dash spec conformace*/
+    double availabilityTimeOffset;  	/**< LL Availability Time Offset */
+    bool availabilityTimeComplete;  	/**< LL Availability Time Complete */
+    int targetLatency;          	/**< Target Latency of playback */
+    int minLatency;             	/**< Minimum Latency of playback */
+    int maxLatency;             	/**< Maximum Latency of playback */
+    int latencyThreshold;       	/**< Latency when play rate correction kicks-in */
+    double minPlaybackRate;     	/**< Minimum playback rate for playback */
+    double maxPlaybackRate;     	/**< Maximum playback rate for playback */
+    bool isSegTimeLineBased;		/**< Indicates is stream is segmenttimeline based */
+    double fragmentDuration;		/**< Maximum Fragment Duartion */
+    UtcTiming utcTiming;		/**< Server UTC timings */	
 };
 
 /**
