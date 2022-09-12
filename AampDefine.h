@@ -133,6 +133,11 @@
 
 #define DEFAULT_LATENCY_MONITOR_DELAY			5					/**< Latency Monitor Delay */
 #define DEFAULT_LATENCY_MONITOR_INTERVAL		2					/**< Latency monitor Interval */
+#define DEFAULT_MIN_LOW_LATENCY			3					/**< min Default Latency */
+#define DEFAULT_MAX_LOW_LATENCY			9					/**< max Default Latency */
+#define DEFAULT_TARGET_LOW_LATENCY			6					/**< Target Default Latency */
+#define DEFAULT_MIN_RATE_CORRECTION_SPEED		0.90f					/**< min Rate correction speed */
+#define DEFAULT_MAX_RATE_CORRECTION_SPEED		1.10f					/**< max Rate correction speed */
 #define DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK	20					/**< Default cached fragement chunks per track */
 #define DEFAULT_ABR_CHUNK_CACHE_LENGTH			10					/**< Default ABR chunk cache length */
 #define DEFAULT_AAMP_ABR_CHUNK_THRESHOLD_SIZE		(DEFAULT_AAMP_ABR_THRESHOLD_SIZE)	/**< aamp abr Chunk threshold size */

@@ -827,7 +827,7 @@ size_t PrivateInstanceAAMP::HandleSSLWriteCallback ( char *ptr, size_t size, siz
 		MediaStreamContext *mCtx = context->aamp->GetMediaStreamContext(context->fileType);
 		if(mCtx)
 		{
-			mCtx->CacheFragmentChunk(context->fileType, ptr, numBytesForBlock,context->remoteUrl);
+			mCtx->CacheFragmentChunk(context->fileType, ptr, numBytesForBlock,context->remoteUrl,context->downloadStartTime);
 		}
         }
     }
@@ -3464,15 +3464,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 	else
 	{
 		maxDownloadAttempt += DEFAULT_DOWNLOAD_RETRY_COUNT;
-
-		//Override Download attmpt in LL mode
-		if(this->mAampLLDashServiceData.lowLatencyMode &&
-			(simType == eMEDIATYPE_VIDEO ||
-			simType == eMEDIATYPE_AUDIO ||
-			simType == eMEDIATYPE_AUX_AUDIO))
-		{
-			maxDownloadAttempt = 1;
-		}
 	}
 
 	if (resetBuffer)
@@ -3544,8 +3535,11 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			context.responseHeaderData = &httpRespHeaders[curlInstance];
 			context.fileType = simType;
 			
-			CURL_EASY_SETOPT(curl, CURLOPT_WRITEDATA, &context);
-			CURL_EASY_SETOPT(curl, CURLOPT_HEADERDATA, &context);
+			if(!this->mAampLLDashServiceData.lowLatencyMode)
+			{
+				CURL_EASY_SETOPT(curl, CURLOPT_WRITEDATA, &context);
+				CURL_EASY_SETOPT(curl, CURLOPT_HEADERDATA, &context);
+			}
 			if(!ISCONFIGSET_PRIV(eAAMPConfig_SslVerifyPeer))
 			{
 				CURL_EASY_SETOPT(curl, CURLOPT_SSL_VERIFYHOST, 0L);
@@ -3721,6 +3715,13 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			while(downloadAttempt < maxDownloadAttempt)
 			{
 				progressCtx.downloadStartTime = NOW_STEADY_TS_MS;
+								
+				if(this->mAampLLDashServiceData.lowLatencyMode)
+				{
+					context.downloadStartTime = progressCtx.downloadStartTime;
+					CURL_EASY_SETOPT(curl, CURLOPT_WRITEDATA, &context);
+					CURL_EASY_SETOPT(curl, CURLOPT_HEADERDATA, &context);
+				}
 				progressCtx.downloadUpdatedTime = -1;
 				progressCtx.downloadSize = -1;
 				progressCtx.abortReason = eCURL_ABORT_REASON_NONE;
@@ -3904,20 +3905,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					{
 						AAMP_LOG_NETWORK_ERROR (remoteUrl.c_str(), AAMPNetworkErrorCurl, (int)(progressCtx.abortReason == eCURL_ABORT_REASON_NONE ? res : CURLE_PARTIAL_FILE), simType);
 						print_headerResponse(context.allResponseHeadersForErrorLogging, simType);
-					}
-
-					if(this->mAampLLDashServiceData.lowLatencyMode &&
-					(res == CURLE_COULDNT_CONNECT || res == CURLE_OPERATION_TIMEDOUT || isDownloadStalled))
-					{
-						 if( simType == eMEDIATYPE_AUDIO || simType == eMEDIATYPE_VIDEO )
-						 {
-							MediaStreamContext *mCtx = GetMediaStreamContext(simType);
-							if(mCtx)
-							{
-								mCtx->CleanChunkCache();
-							}
-						}
-						AAMPLOG_WARN("Download failed due to curl timeout or isDownloadStalled:%d Attempt:%d", isDownloadStalled, downloadAttempt);
 					}
 
 					//Attempt retry for partial downloads, which have a higher chance to succeed
@@ -7358,7 +7345,6 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 								if (diffMs < AAMP_MAX_TIME_LL_BW_UNDERFLOWS_TO_TRIGGER_RETUNE_MS)
 								{
 									isRetuneRequried = true;
-									AAMPLOG_WARN("PrivateInstanceAAMP: Schedule Retune.for low latency mode");
 								}
 							}
 							else
@@ -7371,10 +7357,10 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 							if(isRetuneRequried)
 							{
 								gAAMPInstance->numPtsErrors++;
-								AAMPLOG_WARN("PrivateInstanceAAMP: numPtsErrors %d, ptsErrorThreshold %d",
-									gAAMPInstance->numPtsErrors, ptsErrorThresholdValue);
 								if (gAAMPInstance->numPtsErrors >= ptsErrorThresholdValue)
 								{
+									AAMPLOG_WARN("PrivateInstanceAAMP: numPtsErrors %d, ptsErrorThreshold %d",
+									gAAMPInstance->numPtsErrors, ptsErrorThresholdValue);	
 									gAAMPInstance->numPtsErrors = 0;
 									gAAMPInstance->reTune = true;
 									AAMPLOG_WARN("PrivateInstanceAAMP: Schedule Retune. diffMs %lld < threshold %lld",

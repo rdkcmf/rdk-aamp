@@ -255,6 +255,9 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"latencyMonitorInterval",eAAMPConfig_LatencyMonitorInterval,-1,-1},
 	{"downloadBufferChunks",eAAMPConfig_MaxFragmentChunkCached,-1,-1},
 	{"abrChunkThresholdSize",eAAMPConfig_ABRChunkThresholdSize,-1,-1},
+	{"lowLatencyMinValue",eAAMPConfig_LLMinLatency,-1,-1},
+	{"lowLatencyTargetValue",eAAMPConfig_LLTargetLatency,-1,-1},
+	{"lowLatencyMaxValue",eAAMPConfig_LLMaxLatency,-1,-1},
 	{"enableLowLatencyOffsetMin",eAAMPConfig_EnableLowLatencyOffsetMin,-1,-1},
 	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}},
 	{"syncAudioFragments",eAAMPConfig_SyncAudioFragments,-1,-1},
@@ -452,7 +455,7 @@ void AampConfig::Initialize()
 #endif
 	bAampCfgValue[eAAMPConfig_EnableSharedSSLSession].value			=	true;
 	bAampCfgValue[eAAMPConfig_InterruptHandling].value			=	false;
-	bAampCfgValue[eAAMPConfig_EnableLowLatencyDash].value			=	false;
+	bAampCfgValue[eAAMPConfig_EnableLowLatencyDash].value			=	true;
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyABR].value		    	=	true;
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyMonitor].value		=	false;
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyCorrection].value		=	true;
@@ -471,8 +474,8 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableCurlStore].value		= true;
 	bAampCfgValue[eAAMPConfig_RuntimeDRMConfig].value			=	false;
 	bAampCfgValue[eAAMPConfig_EnablePublishingMuxedAudio].value		=	false;
-	bAampCfgValue[eAAMPConfig_EnableCMCD].value			= false;
-	bAampCfgValue[eAAMPConfig_EnableSlowMotion].value			= true;
+	bAampCfgValue[eAAMPConfig_EnableCMCD].value				=	false;
+	bAampCfgValue[eAAMPConfig_EnableSlowMotion].value			=	true;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
@@ -521,6 +524,9 @@ void AampConfig::Initialize()
 	iAampCfgValue[eAAMPConfig_LatencyMonitorDelay-eAAMPConfig_IntStartValue].value          =       DEFAULT_LATENCY_MONITOR_DELAY;
 	iAampCfgValue[eAAMPConfig_LatencyMonitorInterval-eAAMPConfig_IntStartValue].value       =       DEFAULT_LATENCY_MONITOR_INTERVAL;
 	iAampCfgValue[eAAMPConfig_MaxFragmentChunkCached-eAAMPConfig_IntStartValue].value       =       DEFAULT_CACHED_FRAGMENT_CHUNKS_PER_TRACK;
+	iAampCfgValue[eAAMPConfig_LLMinLatency-eAAMPConfig_IntStartValue].value       			=       DEFAULT_MIN_LOW_LATENCY;
+	iAampCfgValue[eAAMPConfig_LLTargetLatency-eAAMPConfig_IntStartValue].value       		=       DEFAULT_TARGET_LOW_LATENCY;
+	iAampCfgValue[eAAMPConfig_LLMaxLatency-eAAMPConfig_IntStartValue].value       			=       DEFAULT_MAX_LOW_LATENCY;
 	iAampCfgValue[eAAMPConfig_ABRChunkThresholdSize-eAAMPConfig_IntStartValue].value        = 	DEFAULT_AAMP_ABR_CHUNK_THRESHOLD_SIZE;
 	iAampCfgValue[eAAMPConfig_FragmentDownloadFailThreshold-eAAMPConfig_IntStartValue].value=	MAX_SEG_DOWNLOAD_FAIL_COUNT;
 	iAampCfgValue[eAAMPConfig_MaxInitFragCachePerTrack-eAAMPConfig_IntStartValue].value	=       MAX_INIT_FRAGMENT_CACHE_PER_TRACK;

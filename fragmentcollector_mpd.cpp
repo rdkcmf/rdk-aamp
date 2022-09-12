@@ -1209,6 +1209,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 	static bool FCS_rep=false;
 	FailoverContent failovercontent;
 	static std::vector<IFCS *>failovercontents;
+	bool isLowLatencyMode = aamp->GetLLDashServiceData()->lowLatencyMode;
 	AcquirePlaylistLock();
 	SegmentTemplates segmentTemplates(pMediaStreamContext->representation->GetSegmentTemplate(),
 					pMediaStreamContext->adaptationSet->GetSegmentTemplate() );
@@ -1877,8 +1878,23 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			 *Second block is for LIVE, where boundaries are
 						 *  mPeriodStartTime and currentTime
 			 */
-			double fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration;
-
+			double fragmentRequestTime = 0.0f;
+			double availabilityTimeOffset = 0.0f;
+			if(isLowLatencyMode)
+			{
+				// Low Latency Mode will be pointing to edge of the fragment based on avilablitystarttimeoffset,
+				// and fragmentDescriptor time itself will be pointing to edge time when live offset is 0. 
+				// So adding the duration will cause the latency of fragment duartion and sometime repeat the same content.
+				availabilityTimeOffset =  aamp->GetLLDashServiceData()->availabilityTimeOffset;
+				fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time+(fragmentDuration-availabilityTimeOffset);
+			}
+			else
+			{
+				fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration;
+			}
+			AAMPLOG_INFO("fDesc.Time= %lf utcTime=%lf delta=%lf CTSeconds=%lf,FreqTime=%lf",pMediaStreamContext->fragmentDescriptor.Time,
+				mServerUtcTime,mDeltaTime,currentTimeSeconds,fragmentRequestTime);
+			
 			bool bProcessFrgment = true;
 			if(!mIsLiveStream)
 			{
@@ -1898,7 +1914,8 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				}
 			}
 			if ((!mIsLiveStream && ((!bProcessFrgment) || (rate < 0 )))
-			|| (mIsLiveStream && ((pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
+			|| (mIsLiveStream && (
+				(isLowLatencyMode? pMediaStreamContext->fragmentDescriptor.Time>mPeriodEndTime+availabilityTimeOffset:pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
 			|| (pMediaStreamContext->fragmentDescriptor.Time < mPeriodStartTime))))  //CID:93022 - No effect
 			{
 				AAMPLOG_INFO("Type[%d] EOS. pMediaStreamContext->lastSegmentNumber %" PRIu64 " fragmentDescriptor.Time=%f mPeriodEndTime=%f mPeriodStartTime %f  currentTimeSeconds %f FTime=%f", pMediaStreamContext->type, pMediaStreamContext->lastSegmentNumber, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
@@ -1906,23 +1923,25 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				pMediaStreamContext->lastSegmentNumber =0; // looks like change in period may happen now. hence reset lastSegmentNumber
 				pMediaStreamContext->eos = true;
 			}
-			else if(mIsLiveStream &&  mHasServerUtcTime &&  fragmentRequestTime >= mServerUtcTime) 
+			else if( mIsLiveStream &&  mHasServerUtcTime &&  
+					( isLowLatencyMode? fragmentRequestTime >= mServerUtcTime+mDeltaTime : fragmentRequestTime >= mServerUtcTime)) 
 			{
 				ReleasePlaylistLock();
 				int sleepTime = mMinUpdateDurationMs;
 				sleepTime = (sleepTime > MAX_DELAY_BETWEEN_MPD_UPDATE_MS) ? MAX_DELAY_BETWEEN_MPD_UPDATE_MS : sleepTime;
 				sleepTime = (sleepTime < 200) ? 200 : sleepTime;
-				AAMPLOG_INFO("Next fragment Not Available yet: fragmentDescriptor.Time %f fragmentDuration:%f currentTimeSeconds %f Server  UTCTime %f sleepTime %d ", pMediaStreamContext->fragmentDescriptor.Time, fragmentDuration, currentTimeSeconds, mServerUtcTime, sleepTime);
+				AAMPLOG_INFO("With ServerUTCTime. Next fragment Not Available yet: fragmentDescriptor.Time %f fragmentDuration:%f currentTimeSeconds %f Server  UTCTime %f sleepTime %d ", pMediaStreamContext->fragmentDescriptor.Time, fragmentDuration, currentTimeSeconds, mServerUtcTime, sleepTime);
 				aamp->InterruptableMsSleep(sleepTime);
 				retval = false;
-                        }
-			else if(mIsLiveStream && !mHasServerUtcTime && (fragmentRequestTime >= (currentTimeSeconds-mPresentationOffsetDelay)))
+            		}
+			else if(mIsLiveStream && !mHasServerUtcTime && 
+					(isLowLatencyMode?(fragmentRequestTime>=currentTimeSeconds):(fragmentRequestTime >= (currentTimeSeconds-mPresentationOffsetDelay))))
 			{
 				ReleasePlaylistLock();
 				int sleepTime = mMinUpdateDurationMs;
 				sleepTime = (sleepTime > MAX_DELAY_BETWEEN_MPD_UPDATE_MS) ? MAX_DELAY_BETWEEN_MPD_UPDATE_MS : sleepTime;
 				sleepTime = (sleepTime < 200) ? 200 : sleepTime;
-				AAMPLOG_INFO("Next fragment Not Available yet: fragmentDescriptor.Time %f fragmentDuration:%f currentTimeSeconds %f Server  UTCTime %f sleepTime %d ", pMediaStreamContext->fragmentDescriptor.Time, fragmentDuration, currentTimeSeconds, mServerUtcTime, sleepTime);
+				AAMPLOG_INFO("Without ServerUTCTime. Next fragment Not Available yet: fragmentDescriptor.Time %f fragmentDuration:%f currentTimeSeconds %f Server  UTCTime %f sleepTime %d ", pMediaStreamContext->fragmentDescriptor.Time, fragmentDuration, currentTimeSeconds, mServerUtcTime, sleepTime);
 				aamp->InterruptableMsSleep(sleepTime);
 				retval = false;
 			}
@@ -4407,73 +4426,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 		if(mIsLiveStream)
 		{
 			/*LL DASH VERIFICATION START*/
-			//Check if LLD requested
-			if (ISCONFIGSET(eAAMPConfig_EnableLowLatencyDash))
+			ret = EnableAndSetLiveOffsetForLLDashPlayback((MPD*)this->mpd);
+			if(eAAMPSTATUS_OK != ret && ret == eAAMPSTATUS_MANIFEST_PARSE_ERROR)
 			{
-				AampLLDashServiceData stAampLLDashServiceData = {0,};
-
-				TuneType tuneType = aamp->GetTuneType();
-
-				if( ( CheckLLProfileAvailable(mpd) ) &&
-					( aamp->mLLDashRetuneCount <= MAX_LOW_LATENCY_DASH_RETUNE_ALLOWED ) &&
-					( eTUNETYPE_SEEK != tuneType   ) &&
-					( eTUNETYPE_NEW_SEEK != tuneType ) &&
-					( eTUNETYPE_NEW_END != tuneType ) &&
-                    ( eTUNETYPE_SEEKTOEND != tuneType ))
-				{
-					//Enable LowLatency Mode Handling
-					stAampLLDashServiceData.lowLatencyMode = true;
-				}
-				else
-				{
-					stAampLLDashServiceData.lowLatencyMode = false;
-				}
-
-				//If LLD enabled then check servicedescription requirements
-				if(stAampLLDashServiceData.lowLatencyMode)
-				{
-					if(!ParseMPDLLData((MPD*)this->mpd, stAampLLDashServiceData))
-					{
-						ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
-						aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
-						return ret;
-					}
-
-					double currentOffset = 0;
-					GETCONFIGVALUE(eAAMPConfig_LiveOffset,currentOffset);
-					AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: Current Offset(s): %ld",(long)currentOffset);
-
-					double latencyOffsetMin = stAampLLDashServiceData.minLatency/1000;
-					double latencyOffsetMax = stAampLLDashServiceData.maxLatency/1000;
-					AAMPLOG_INFO("StreamAbstractionAAMP_MPD:[LL-Dash] Min Latency: %ld Max Latency: %ld Target Latency: %ld",(long)latencyOffsetMin,(long)latencyOffsetMax,(long)stAampLLDashServiceData.targetLatency/1000);
-
-					//Ignore Low latency setting
-					if (aamp->GetLiveOffsetAppRequest() &&
-					(currentOffset > latencyOffsetMax))
-					{
-						AAMPLOG_INFO("StreamAbstractionAAMP_MPD: Switch off LL mode: App requested currentOffset > latencyOffsetMax");
-						stAampLLDashServiceData.lowLatencyMode = false;
-					}
-					else
-					{
-						if(!aamp->GetLowLatencyServiceConfigured())
-						{
-							double latencyOffset = 0;
-							//Override Latency offset with Min Value if config enabled
-							if (ISCONFIGSET(eAAMPConfig_EnableLowLatencyOffsetMin))
-							{
-								latencyOffset = latencyOffsetMin;
-							}
-							AAMPLOG_INFO("StreamAbstractionAAMP_MPD: Setting LL offset(s): %ld",(long)latencyOffset);
-							SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_LiveOffset,latencyOffset);
-							aamp->UpdateLiveOffset();
-
-							//Set LL Dash Service Configuration Data in Pvt AAMP instance
-							aamp->SetLLDashServiceData(stAampLLDashServiceData);
-							aamp->SetLowLatencyServiceConfigured(true);
-						}
-					}
-				}
+				aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
+				return ret;	
 			}
 			/*LL DASH VERIFICATION END*/
 	
@@ -4518,7 +4475,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				tempStr = mpd->GetMaxSegmentDuration();
 				if(!tempStr.empty())
 				{
-					segmentDurationSeconds = ParseISO8601Duration( tempStr.c_str() ) / 1000;
+					segmentDurationSeconds = ParseISO8601Duration( tempStr.c_str() )/1000;
 				}
 				if(mTSBDepth < ( 4 * (double)segmentDurationSeconds))
 				{
@@ -4998,6 +4955,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			}
 			else
 			{
+				if( (aamp->GetLLDashServiceData()->lowLatencyMode ) && 
+					(!aamp->GetLLDashServiceData()->isSegTimeLineBased) )
+				{
+					offsetFromStart = offsetFromStart+(aamp->GetLLDashServiceData()->fragmentDuration - aamp->GetLLDashServiceData()->availabilityTimeOffset);
+				}
 				SeekInPeriod( offsetFromStart);
 			}
 
@@ -9973,8 +9935,13 @@ void StreamAbstractionAAMP_MPD::Start(void)
 			}
 		}
 	}
-	if(aamp->GetLLDashServiceData()->lowLatencyMode &&
-	!(ISCONFIGSET(eAAMPConfig_DisableLowLatencyMonitor)))
+	TuneType tuneType = aamp->GetTuneType();
+	if( (aamp->GetLLDashServiceData()->lowLatencyMode &&
+	! ( ISCONFIGSET( eAAMPConfig_DisableLowLatencyMonitor ) ) ) && 
+	  ( ( eTUNETYPE_SEEK != tuneType   ) &&
+		( eTUNETYPE_NEW_SEEK != tuneType ) &&
+		( eTUNETYPE_NEW_END != tuneType ) &&
+		( eTUNETYPE_SEEKTOEND != tuneType ) ) )
 	{
 		StartLatencyMonitorThread();
 	}
@@ -11940,8 +11907,16 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 					encoderDisplayLatency = (long)( GetEncoderDisplayLatency() * 1000)+currentLatency;
 					AAMPLOG_INFO("Encoder Display Latency=%ld", encoderDisplayLatency);
 #endif
-
-					if(!ISCONFIGSET(eAAMPConfig_DisableLowLatencyCorrection))
+					//The minPlayback rate should be only <= AAMP_NORMAL_PLAY_RATE-0.20??
+					//The MaxPlayBack rate should be only >= AAMP_NORMAL_PLAY_RATE+0.20??
+					//Do we need to validate above?
+					if(!ISCONFIGSET(eAAMPConfig_DisableLowLatencyCorrection) && 
+						pAampLLDashServiceData->minPlaybackRate !=0 && 
+						pAampLLDashServiceData->minPlaybackRate < pAampLLDashServiceData->maxPlaybackRate &&
+						pAampLLDashServiceData->minPlaybackRate < AAMP_NORMAL_PLAY_RATE && 
+						pAampLLDashServiceData->maxPlaybackRate !=0 && 
+						pAampLLDashServiceData->maxPlaybackRate > pAampLLDashServiceData->minPlaybackRate &&
+						pAampLLDashServiceData->maxPlaybackRate > AAMP_NORMAL_PLAY_RATE)
 					{
 						if (currentLatency < (long)pAampLLDashServiceData->minLatency)
 						{
@@ -12178,154 +12153,391 @@ IProducerReferenceTime *StreamAbstractionAAMP_MPD::GetProducerReferenceTimeForAd
 }
 
 /**
+ * @brief EnableAndSetLiveOffsetForLLDashPlayback based on playerconfig/LL-dash 
+ * profile/availabilityTimeOffset and set the LiveOffset
+ */
+AAMPStatusType  StreamAbstractionAAMP_MPD::EnableAndSetLiveOffsetForLLDashPlayback(const MPD* mpd)
+{
+ 	 AAMPStatusType ret = eAAMPSTATUS_OK;
+	/*LL DASH VERIFICATION START*/
+	//Check if LLD requested
+	if (ISCONFIGSET(eAAMPConfig_EnableLowLatencyDash))
+	{
+		AampLLDashServiceData stLLServiceData;
+		memset(&stLLServiceData,0,sizeof(AampLLDashServiceData));
+		double currentOffset = 0;
+		int maxLatency=0,minLatency=0,TargetLatency=0;
+
+		if( ( GetLowLatencyParams((MPD*)this->mpd,stLLServiceData) ) && 
+				( stLLServiceData.availabilityTimeComplete == false &&
+				  aamp->mLLDashRetuneCount <= MAX_LOW_LATENCY_DASH_RETUNE_ALLOWED) )
+		{
+			stLLServiceData.lowLatencyMode = true;
+			AAMPLOG_WARN("StreamAbstractionAAMP_MPD: LL-DASH playback enabled availabilityTimeOffset=%lf,fragmentDuration=%lf",
+										stLLServiceData.availabilityTimeOffset,stLLServiceData.fragmentDuration);
+		}
+		else
+		{
+			stLLServiceData.lowLatencyMode = false;
+			AAMPLOG_INFO("Not LL-DASH stream");
+		}
+		
+		//If LLD enabled then check servicedescription requirements
+		if( stLLServiceData.lowLatencyMode )
+		{
+			if(!ParseMPDLLData((MPD*)this->mpd, stLLServiceData))
+			{
+				ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
+				return ret;
+			}
+
+			GETCONFIGVALUE(eAAMPConfig_LLMinLatency,minLatency);
+			GETCONFIGVALUE(eAAMPConfig_LLTargetLatency,TargetLatency);
+			GETCONFIGVALUE(eAAMPConfig_LLMaxLatency,maxLatency);
+			GETCONFIGVALUE(eAAMPConfig_LiveOffset,currentOffset);
+			AAMPLOG_INFO("StreamAbstractionAAMP_MPD: Current Offset(s): %ld",(long)currentOffset);
+
+			if(	stLLServiceData.minLatency <= 0)
+			{
+				if(minLatency <= 0 || minLatency > TargetLatency )
+				{
+					stLLServiceData.minLatency = DEFAULT_MIN_LOW_LATENCY*1000;
+				}
+				else
+				{
+					stLLServiceData.minLatency = minLatency*1000;
+				}
+			}
+			if(	stLLServiceData.maxLatency <= 0 ||
+				stLLServiceData.maxLatency < stLLServiceData.minLatency )
+			{
+				if( maxLatency <=0 || maxLatency < minLatency )
+				{
+					stLLServiceData.maxLatency = DEFAULT_MAX_LOW_LATENCY*1000;
+					stLLServiceData.minLatency = DEFAULT_MIN_LOW_LATENCY*1000;
+				}
+				else
+				{
+					stLLServiceData.maxLatency = maxLatency*1000;
+				}
+			}
+			if(	stLLServiceData.targetLatency <= 0 ||
+				stLLServiceData.targetLatency < stLLServiceData.minLatency ||
+				stLLServiceData.targetLatency > stLLServiceData.maxLatency )
+
+			{
+				if(TargetLatency <=0 || TargetLatency < minLatency || TargetLatency > maxLatency )
+				{
+					stLLServiceData.targetLatency = DEFAULT_TARGET_LOW_LATENCY*1000;
+					stLLServiceData.maxLatency = DEFAULT_MAX_LOW_LATENCY*1000;
+					stLLServiceData.minLatency = DEFAULT_MIN_LOW_LATENCY*1000;
+				}
+				else
+				{
+					stLLServiceData.targetLatency = TargetLatency*1000;
+				}
+			}
+			double latencyOffsetMin = stLLServiceData.minLatency/1000;
+			double latencyOffsetMax = stLLServiceData.maxLatency/1000;
+			double TargetLatencyWrtWallClockTime = stLLServiceData.targetLatency/1000;
+			AAMPLOG_WARN("StreamAbstractionAAMP_MPD:[LL-Dash] Min Latency: %ld Max Latency: %ld Target Latency: %ld",(long)latencyOffsetMin,(long)latencyOffsetMax,(long)TargetLatency);
+
+			//Ignore Low latency setting
+			if((AAMP_DEFAULT_SETTING != GETCONFIGOWNER(eAAMPConfig_LiveOffset)) && (currentOffset > latencyOffsetMax))
+			{
+				AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Switch off LL mode: App requested currentOffset > latencyOffsetMax");
+				stLLServiceData.lowLatencyMode = false;
+			}
+			else
+			{
+				
+				string tempStr = mpd->GetMaxSegmentDuration();
+				double maxFragmentDuartion = 0;
+				if(!tempStr.empty())
+				{
+						maxFragmentDuartion = ParseISO8601Duration( tempStr.c_str() )/1000;
+				}
+				double latencyOffset = 0;
+				if(!aamp->GetLowLatencyServiceConfigured())
+				{
+					if(maxFragmentDuartion > 0 )
+					{
+						latencyOffset = maxFragmentDuartion+(maxFragmentDuartion-stLLServiceData.availabilityTimeOffset);
+					}
+					else if(stLLServiceData.fragmentDuration > 0)
+					{
+						latencyOffset = stLLServiceData.fragmentDuration+(stLLServiceData.fragmentDuration-stLLServiceData.availabilityTimeOffset);
+					}
+					else
+					{
+						latencyOffset =(double)((double) DEFAULT_MIN_LOW_LATENCY);
+					}
+					
+					if(latencyOffset > DEFAULT_TARGET_LOW_LATENCY)
+					{
+						latencyOffset = DEFAULT_MIN_LOW_LATENCY;
+					}
+					
+					//Override Latency offset with Min Value if config enabled
+					AAMPLOG_WARN("StreamAbstractionAAMP_MPD: currentOffset:%lf LL-DASH offset(s): %lf",currentOffset,latencyOffset);
+					SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_LiveOffset,latencyOffset);
+					aamp->UpdateLiveOffset();
+
+					//Set LL Dash Service Configuration Data in Pvt AAMP instance
+					aamp->SetLLDashServiceData(stLLServiceData);
+					aamp->SetLowLatencyServiceConfigured(true);
+				}
+			}
+		}
+	}
+	else
+	{
+		AAMPLOG_INFO("StreamAbstractionAAMP_MPD: LL-DASH playback disabled in config");
+	}
+	return ret;
+}
+/**
+ * @brief get Low Latency Parameters from segement template and timeline
+ */
+bool StreamAbstractionAAMP_MPD::GetLowLatencyParams(const MPD* mpd,AampLLDashServiceData &LLDashData)
+{
+	bool isSuccess=false;
+	if(mpd != NULL)
+	{
+		size_t numPeriods = mpd->GetPeriods().size();
+
+		for (unsigned iPeriod = 0; iPeriod < numPeriods; iPeriod++)
+		{
+			IPeriod *period = mpd->GetPeriods().at(iPeriod);
+			if(IsEmptyPeriod(period, mIsFogTSB))
+			{
+				// Empty Period . Ignore processing, continue to next.
+				continue;
+			}
+			if(NULL != period )
+			{
+				const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
+				if (adaptationSets.size() > 0)
+				{
+					IAdaptationSet * pFirstAdaptation = adaptationSets.at(0);
+					if ( NULL != pFirstAdaptation )
+					{
+						ISegmentTemplate *pSegmentTemplate = NULL;
+						pSegmentTemplate = pFirstAdaptation->GetSegmentTemplate();
+						if( NULL != pSegmentTemplate )
+						{
+							map<string, string> attributeMap = pSegmentTemplate->GetRawAttributes();
+							if(attributeMap.find("availabilityTimeOffset") == attributeMap.end())
+    						{
+        						AAMPLOG_WARN("Latency availabilityTimeOffset attribute not available");
+    						}
+							else
+							{
+								LLDashData.availabilityTimeOffset = pSegmentTemplate->GetAvailabilityTimeOffset();
+								LLDashData.availabilityTimeComplete = pSegmentTemplate->GetAvailabilityTimeComplete();
+								AAMPLOG_INFO("AvailabilityTimeOffset=%lf AvailabilityTimeComplete=%d",
+												pSegmentTemplate->GetAvailabilityTimeOffset(),pSegmentTemplate->GetAvailabilityTimeComplete());
+								isSuccess=true;
+								if( isSuccess )
+								{
+									uint32_t timeScale=0;
+									uint32_t duration =0;
+									const ISegmentTimeline *segmentTimeline = pSegmentTemplate->GetSegmentTimeline();
+									if (segmentTimeline)
+									{
+										timeScale = pSegmentTemplate->GetTimescale();
+										std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
+										ITimeline *timeline = timelines.at(0);
+										duration = timeline->GetDuration();
+										LLDashData.fragmentDuration = ComputeFragmentDuration(duration,timeScale);
+										LLDashData.isSegTimeLineBased = true;
+									}
+									else
+									{
+										timeScale = pSegmentTemplate->GetTimescale();
+										duration = pSegmentTemplate->GetDuration();
+										LLDashData.fragmentDuration = ComputeFragmentDuration(duration,timeScale);
+										LLDashData.isSegTimeLineBased = false;
+									}
+									AAMPLOG_INFO("timeScale=%u duration=%u fragmentDuration=%lf",
+												timeScale,duration,LLDashData.fragmentDuration);
+								}
+								break;
+							}
+						}
+						else
+						{
+							AAMPLOG_ERR("NULL segmenttemplate"); 	
+						}
+					}
+					else
+					{
+						AAMPLOG_INFO("NULL adaptationSets");
+					}
+				}
+				else
+				{
+					AAMPLOG_WARN("empty adaptationSets");
+				}
+			}
+			else
+			{
+				AAMPLOG_WARN("empty period ");
+			}
+		}
+	}
+	else
+	{
+		AAMPLOG_WARN("NULL mpd");
+	}
+	return isSuccess;
+}
+/**
  * @brief Parse MPD LL elements
  */
 bool StreamAbstractionAAMP_MPD::ParseMPDLLData(MPD* mpd, AampLLDashServiceData &stAampLLDashServiceData)
 {
     bool ret = false;
-    //check if <ServiceDescription> available->raise error if not
+	//check if <ServiceDescription> available->raise error if not
     if(!mpd->GetServiceDescriptions().size())
     {
-        return ret;
+       AAMPLOG_TRACE("GetServiceDescriptions not avaialble");
     }
-    //check if <scope> element is available in <ServiceDescription> element->raise error if not
-    if(!mpd->GetServiceDescriptions().at(0)->GetScopes().size())
-    {
-        AAMPLOG_WARN("Scope element not available");
-        if (stAampLLDashServiceData.strictSpecConformance)
-        {
-            return ret;
-        }
-    }
-    //check if <Latency> element is availablein <ServiceDescription> element->raise error if not
-    if(!mpd->GetServiceDescriptions().at(0)->GetLatencys().size())
-    {
-        AAMPLOG_WARN("Latency element not available");
-        if (stAampLLDashServiceData.strictSpecConformance)
-        {
-            return ret;
-        }
-    }
-    //check if attribute @target is available in <latency> element->raise error if not
-    ILatency *latency= mpd->GetServiceDescriptions().at(0)->GetLatencys().at(0);
+	else
+	{
+    	//check if <scope> element is available in <ServiceDescription> element->raise error if not
+    	if(!mpd->GetServiceDescriptions().at(0)->GetScopes().size())
+    	{
+        	AAMPLOG_TRACE("Scope element not available");
+       	}
+    	//check if <Latency> element is availablein <ServiceDescription> element->raise error if not
+    	if(!mpd->GetServiceDescriptions().at(0)->GetLatencys().size())
+    	{
+        	AAMPLOG_TRACE("Latency element not available");
+		}
+		else
+		{
+    		//check if attribute @target is available in <latency> element->raise error if not
+    		ILatency *latency= mpd->GetServiceDescriptions().at(0)->GetLatencys().at(0);
 
-    // Some timeline may not have attribute for target latency , check it .
-    map<string, string> attributeMap = latency->GetRawAttributes();
+    		// Some timeline may not have attribute for target latency , check it .
+    		map<string, string> attributeMap = latency->GetRawAttributes();
 
-    if(attributeMap.find("target") == attributeMap.end())
-    {
-        AAMPLOG_WARN("Latency target attribute not available");
-        if (stAampLLDashServiceData.strictSpecConformance)
-        {
-            return ret;
-        }
-    }
+    		if(attributeMap.find("target") == attributeMap.end())
+    		{
+        		AAMPLOG_TRACE("target Latency attribute not available");
+    		}
+			else
+			{
+				stAampLLDashServiceData.targetLatency = latency->GetTarget();
+				AAMPLOG_INFO("targetLatency: %d", stAampLLDashServiceData.targetLatency);
+			}
+			
+    		//check if attribute @max or @min is available in <Latency> element->raise info if not
+    		if(attributeMap.find("max") == attributeMap.end())
+    		{
+        		AAMPLOG_TRACE("Latency max attribute not available");
+			}	
+    		else
+    		{
+        		stAampLLDashServiceData.maxLatency = latency->GetMax();
+				AAMPLOG_INFO("maxLatency: %d", stAampLLDashServiceData.maxLatency);
+    		}
+    		if(attributeMap.find("min") == attributeMap.end())
+    		{
+        		AAMPLOG_TRACE("Latency min attribute not available");
+    		}
+    		else
+    		{
+        		stAampLLDashServiceData.minLatency = latency->GetMin();
+        		AAMPLOG_INFO("minLatency: %d", stAampLLDashServiceData.minLatency);
+    		}
+		}
+	
+    	if(!mpd->GetServiceDescriptions().at(0)->GetPlaybackRates().size())
+    	{
+        	AAMPLOG_TRACE("Play Rate element not available");
+    	}
+    	else
+    	{
+    		//check if attribute @max or @min is available in <PlaybackRate> element->raise info if not
+        	IPlaybackRate *playbackRate= mpd->GetServiceDescriptions().at(0)->GetPlaybackRates().at(0);
 
-    stAampLLDashServiceData.targetLatency = latency->GetTarget();
-    AAMPLOG_TRACE("targetLatency: %d", stAampLLDashServiceData.targetLatency);
-    //check if attribute @max or @min is available in <Latency> element->raise info if not
-    if(attributeMap.find("max") == attributeMap.end())
-    {
-        AAMPLOG_WARN("Latency max attribute not available");
-    }
-    else
-    {
-        stAampLLDashServiceData.maxLatency = latency->GetMax();
-        AAMPLOG_TRACE("maxLatency: %d", stAampLLDashServiceData.maxLatency);
-    }
-    if(attributeMap.find("min") == attributeMap.end())
-    {
-        AAMPLOG_WARN("Latency min attribute not available");
-    }
-    else
-    {
-        stAampLLDashServiceData.minLatency = latency->GetMin();
-        AAMPLOG_TRACE("minLatency: %d", stAampLLDashServiceData.minLatency);
-    }
+			// Some timeline may not have attribute for target latency , check it .
+			map<string, string> attributeMapRate = playbackRate->GetRawAttributes();
 
-    if(!mpd->GetServiceDescriptions().at(0)->GetPlaybackRates().size())
-    {
-        AAMPLOG_WARN("Play Rate element not available");
-    }
-    else
-    {
-        //check if attribute @max or @min is available in <PlaybackRate> element->raise info if not
-        IPlaybackRate *playbackRate= mpd->GetServiceDescriptions().at(0)->GetPlaybackRates().at(0);
-
-        // Some timeline may not have attribute for target latency , check it .
-        map<string, string> attributeMapRate = playbackRate->GetRawAttributes();
-
-        if(attributeMapRate.find("max") == attributeMapRate.end())
-        {
-            AAMPLOG_WARN("Latency max attribute not available");
-        }
-        else
-        {
-            stAampLLDashServiceData.maxPlaybackRate = playbackRate->GetMax();
-            AAMPLOG_TRACE("maxPlaybackRate: %0.2f",stAampLLDashServiceData.maxPlaybackRate);
-        }
-        if(attributeMapRate.find("min") == attributeMapRate.end())
-        {
-            AAMPLOG_WARN("Latency min attribute not available");
-        }
-        else
-        {
-            stAampLLDashServiceData.minPlaybackRate = playbackRate->GetMin();
-            AAMPLOG_TRACE("minPlatbackRate: %0.2f", stAampLLDashServiceData.minPlaybackRate);
-        }
-    }
+			if(attributeMapRate.find("max") == attributeMapRate.end())
+			{
+				AAMPLOG_TRACE("Latency max attribute not available");
+				stAampLLDashServiceData.maxPlaybackRate = DEFAULT_MAX_RATE_CORRECTION_SPEED;
+			}
+			else
+			{
+				stAampLLDashServiceData.maxPlaybackRate = playbackRate->GetMax();
+				AAMPLOG_INFO("maxPlaybackRate: %0.2f",stAampLLDashServiceData.maxPlaybackRate);
+			}
+			if(attributeMapRate.find("min") == attributeMapRate.end())
+			{
+				AAMPLOG_TRACE("Latency min attribute not available");
+				stAampLLDashServiceData.minPlaybackRate = DEFAULT_MIN_RATE_CORRECTION_SPEED;
+			}
+			else
+			{
+				stAampLLDashServiceData.minPlaybackRate = playbackRate->GetMin();
+				AAMPLOG_INFO("minPlatbackRate: %0.2f", stAampLLDashServiceData.minPlaybackRate);
+			}
+		}
+	}
     //check if UTCTiming element available
     if(!mpd->GetUTCTimings().size())
     {
         AAMPLOG_WARN("UTCTiming element not available");
-        if (stAampLLDashServiceData.strictSpecConformance)
-        {
-            return ret;
-        }
     }
+	else
+	{
 
-    //check if attribute @max or @min is available in <PlaybackRate> element->raise info if not
-    IUTCTiming *utcTiming= mpd->GetUTCTimings().at(0);
+		//check if attribute @max or @min is available in <PlaybackRate> element->raise info if not
+		IUTCTiming *utcTiming= mpd->GetUTCTimings().at(0);
 
-    // Some timeline may not have attribute for target latency , check it .
-    map<string, string> attributeMapTiming = utcTiming->GetRawAttributes();
+		// Some timeline may not have attribute for target latency , check it .
+		map<string, string> attributeMapTiming = utcTiming->GetRawAttributes();
 
-    if(attributeMapTiming.find("schemeIdUri") == attributeMapTiming.end())
-    {
-        AAMPLOG_WARN("UTCTiming@schemeIdUri attribute not available");
-    }
-    else
-    {
-        AAMPLOG_TRACE("UTCTiming@schemeIdUri: %s", utcTiming->GetSchemeIdUri().c_str());
-        if(!strcmp(URN_UTC_HTTP_XSDATE , utcTiming->GetSchemeIdUri().c_str()))
-        {
-            stAampLLDashServiceData.utcTiming = eUTC_HTTP_XSDATE;
-        }
-        else if(!strcmp(URN_UTC_HTTP_ISO , utcTiming->GetSchemeIdUri().c_str()))
-        {
-            stAampLLDashServiceData.utcTiming = eUTC_HTTP_ISO;
-        }
-        else if(!strcmp(URN_UTC_HTTP_NTP , utcTiming->GetSchemeIdUri().c_str()))
-        {
-            stAampLLDashServiceData.utcTiming = eUTC_HTTP_NTP;
-        }
-        else
-        {
-            stAampLLDashServiceData.utcTiming = eUTC_HTTP_INVALID;
-            AAMPLOG_WARN("UTCTiming@schemeIdUri Value not proper");
-        }
+		if(attributeMapTiming.find("schemeIdUri") == attributeMapTiming.end())
+		{
+			AAMPLOG_WARN("UTCTiming@schemeIdUri attribute not available");
+		}
+		else
+		{
+			AAMPLOG_TRACE("UTCTiming@schemeIdUri: %s", utcTiming->GetSchemeIdUri().c_str());
+			if(!strcmp(URN_UTC_HTTP_XSDATE , utcTiming->GetSchemeIdUri().c_str()))
+			{
+				stAampLLDashServiceData.utcTiming = eUTC_HTTP_XSDATE;
+			}
+			else if(!strcmp(URN_UTC_HTTP_ISO , utcTiming->GetSchemeIdUri().c_str()))
+			{
+				stAampLLDashServiceData.utcTiming = eUTC_HTTP_ISO;
+			}
+			else if(!strcmp(URN_UTC_HTTP_NTP , utcTiming->GetSchemeIdUri().c_str()))
+			{
+				stAampLLDashServiceData.utcTiming = eUTC_HTTP_NTP;
+			}
+			else
+			{
+				stAampLLDashServiceData.utcTiming = eUTC_HTTP_INVALID;
+				AAMPLOG_WARN("UTCTiming@schemeIdUri Value not proper");
+			}
 
-        //need to chcek support for eUTC_HTTP_XSDATE,eUTC_HTTP_NTP
-        if( stAampLLDashServiceData.utcTiming == eUTC_HTTP_XSDATE ||
-           stAampLLDashServiceData.utcTiming == eUTC_HTTP_ISO ||
-           stAampLLDashServiceData.utcTiming == eUTC_HTTP_NTP)
-        {
-	    long http_error = -1;
-	    AAMPLOG_TRACE("UTCTiming(%d) Value: %s",stAampLLDashServiceData.utcTiming, utcTiming->GetValue().c_str());
-            bool bFlag = aamp->GetNetworkTime(stAampLLDashServiceData.utcTiming, utcTiming->GetValue(), &http_error, eCURL_GET);
-        }
-    }
-
+			//need to chcek support for eUTC_HTTP_XSDATE,eUTC_HTTP_NTP
+			if( stAampLLDashServiceData.utcTiming == eUTC_HTTP_XSDATE ||
+			stAampLLDashServiceData.utcTiming == eUTC_HTTP_ISO ||
+			stAampLLDashServiceData.utcTiming == eUTC_HTTP_NTP)
+			{
+				long http_error = -1;
+				AAMPLOG_TRACE("UTCTiming(%d) Value: %s",stAampLLDashServiceData.utcTiming, utcTiming->GetValue().c_str());
+				bool bFlag = aamp->GetNetworkTime(stAampLLDashServiceData.utcTiming, utcTiming->GetValue(), &http_error, eCURL_GET);
+			}
+		}
+	}
     return true;
 }
 

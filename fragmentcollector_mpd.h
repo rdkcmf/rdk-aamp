@@ -461,6 +461,21 @@ private:
 	 */
 	bool CheckLLProfileAvailable(IMPD *mpd);
 	/**
+	 * @fn EnableAndSetLiveOffsetForLLDashPlayback
+	 * @param[In] const mpd Pointer to FragmentCollector
+	 * @retval AAMPStatusType
+	 */
+	AAMPStatusType  EnableAndSetLiveOffsetForLLDashPlayback(const MPD* mpd);
+
+	/**
+	 * @fn GetLowLatencyParams
+	 * @param[In] const mpd Pointer to FragmentCollector
+	 * @param[Out] LLDashData Reference to LowLatency element parsed data
+	 * @retval bool true if successfully Parsed Low Latency elements. Else false
+	 */
+	bool GetLowLatencyParams(const MPD* mpd,AampLLDashServiceData &LLDashData);
+
+	/**
 	 * @fn ParseMPDLLData
 	 * @param[In] mpd Pointer to FragmentCollector
 	 * @param[Out] stAampLLDashServiceData Reference to LowLatency element parsed data

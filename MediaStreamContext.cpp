@@ -309,7 +309,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
 /**
  *  @brief Cache Fragment Chunk
  */
-bool MediaStreamContext::CacheFragmentChunk(MediaType actualType, char *ptr, size_t size, std::string remoteUrl)
+bool MediaStreamContext::CacheFragmentChunk(MediaType actualType, char *ptr, size_t size, std::string remoteUrl,long long dnldStartTime)
 {
     AAMPLOG_TRACE("[%s] Chunk Buffer Length %d Remote URL %s", name, size, remoteUrl.c_str());
 
@@ -324,10 +324,10 @@ bool MediaStreamContext::CacheFragmentChunk(MediaType actualType, char *ptr, siz
                 return false;
         }
         cachedFragmentChunk->type = actualType;
+        cachedFragmentChunk->downloadStartTime = dnldStartTime;
         aamp_AppendBytes(&cachedFragmentChunk->fragmentChunk, ptr, size);
 
-        AAMPLOG_TRACE("[%s] cachedFragmentChunk %p ptr %p",
-                name, cachedFragmentChunk, cachedFragmentChunk->fragmentChunk.ptr);
+        AAMPLOG_TRACE("[%s] cachedFragmentChunk %p ptr %p",name, cachedFragmentChunk, cachedFragmentChunk->fragmentChunk.ptr);
 
         UpdateTSAfterChunkFetch();
     }
