@@ -11177,7 +11177,7 @@ void StreamAbstractionAAMP_MPD::ParseAvailablePreselections(IMPDElement *period,
 		std::string codec;
 		std::string lang;
 		std::string tag ;
-		long bandwidth;
+		long bandwidth = 0;
 		std::string role;
 		int channel = 0;
 		std::string label;
