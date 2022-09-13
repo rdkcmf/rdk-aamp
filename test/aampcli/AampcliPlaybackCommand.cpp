@@ -22,15 +22,11 @@
  * @brief Aampcli Playback Commands handler
  */
 
-#include <iomanip>
 #include "AampcliPlaybackCommand.h"
 
 extern VirtualChannelMap mVirtualChannelMap;
 extern Aampcli mAampcli;
 extern void tsdemuxer_InduceRollover( bool enable );
-
-std::map<string,string> PlaybackCommand::playbackCommands = std::map<string,string>();
-std::vector<std::string> PlaybackCommand::commands(0);
 
 /**
  * @brief Process command
@@ -373,6 +369,52 @@ bool PlaybackCommand::isNumber(const char *s)
 }
 
 /**
+ * @brief Show help menu with aamp command line interface
+ */
+void PlaybackCommand::showHelp(void)
+{
+	printf("******************************************************************************************\n");
+	printf("*   <command> [<arguments>]\n");
+	printf("*   Usage of Commands, and arguments expected\n");
+	printf("******************************************************************************************\n");
+	printf("list                  // Type list to view virtual channel map\n");
+	printf("get help              // Show help of get command\n");
+	printf("set help              // Show help of set command\n");
+	printf("<channelNumber>       // Play selected channel from guide\n");
+	printf("<url>                 // Play arbitrary stream\n");
+	printf("sleep <ms>            // Sleep <ms> milliseconds\n" );
+	printf("autoplay              // Toggle tune autoplay (default = true)\n" );
+	printf("new                   // Create new player instance\n" );
+	printf("select                // Enumerate available player instances\n" );
+	printf("select <index>        // Select player instance for use\n" );
+	printf("detach                // Detach (lightweight stop) selected player instance\n" );
+	printf("pause                 // Pause the existing playback\n");
+	printf("play                  // Continue existing playback\n");
+	printf("stop                  // Stop the existing playback\n");
+	printf("status                // get the status of existing playback\n");
+	printf("flush                 // Flush the existing playback\n");
+	printf("sf                    // slow\n");
+	printf("ff<x>                 // Trickmodes (x <= 128. y <= 128)\n");
+	printf("rw<y>                 // Trickmodes (x <= 128. y <= 128)\n");
+	printf("bps <x>               // set bitrate (x= bitrate)\n");
+	printf("sap                   // Use SAP track (if avail)\n");
+	printf("seek <seconds>        // Specify start time within manifest\n");
+	printf("live                  // Seek to live point\n");
+	printf("underflow             // Simulate underflow\n");
+	printf("retune                // schedule retune\n");
+	printf("unlock <cond>         // unlock a channel <long int - time in seconds>\n");
+	printf("lock                  // lock the current channel\n");
+	printf("next                  // Play next virtual channel\n");
+	printf("rollover              // Schedule artificial pts rollover 10s after next tune\n" );
+	printf("prev                  // Play previous virtual channel\n");
+	printf("exit                  // Exit from application\n");
+	printf("help                  // Show this list again\n");
+	printf("progress              // Enable/disable Progress event logging\n");
+	printf("harvest <Configs>     // To harvest assets\n");
+	printf("******************************************************************************************\n");
+}
+
+/**
  * @brief Decide if input command consists of supported URI scheme to be tuned.
  * @param cmd cmd to parse
  */
@@ -423,96 +465,3 @@ void PlaybackCommand::termPlayerLoop()
 	}
 }
 
-void PlaybackCommand::registerPlaybackCommands()
-{
-	addCommand("list","Type list to view virtual channel map");
-	addCommand("get help","Show help of get command");
-	addCommand("set help","Show help of set command");
-	addCommand("<channelNumber>","Play selected channel from guide");
-	addCommand("<url>","Play arbitrary stream");
-	addCommand("sleep <ms>","Sleep <ms> milliseconds");
-	addCommand("autoplay","Toggle tune autoplay (default = true)");
-	addCommand("new","Create new player instance");
-	addCommand("select","Enumerate available player instances");
-	addCommand("select <index>","Select player instance for use");
-	addCommand("detach","Detach (lightweight stop) selected player instance");
-	addCommand("pause","Pause the existing playback");
-	addCommand("play","Continue existing playback");
-	addCommand("stop","Stop the existing playback");
-	addCommand("status","get the status of existing playback");
-	addCommand("flush","Flush the existing playback");
-	addCommand("sf","slow");
-	addCommand("ff<x>","Trickmodes (x <= 128. y <= 128)");
-	addCommand("rw<y>","Trickmodes (x <= 128. y <= 128)");
-	addCommand("bps <x>","set bitrate (x= bitrate)");
-	addCommand("sap","Use SAP track (if avail)");
-	addCommand("seek <seconds>","Specify start time within manifest");
-	addCommand("live","Seek to live point");
-	addCommand("underflow","Simulate underflow");
-	addCommand("retune","schedule retune");
-	addCommand("unlock <cond>","unlock a channel <long int - time in seconds>");
-	addCommand("lock","lock the current channel");
-	addCommand("next","Play next virtual channel");
-	addCommand("rollover","Schedule artificial pts rollover 10s after next tune");
-	addCommand("prev","Play previous virtual channel");
-	addCommand("exit","Exit from application");
-	addCommand("help","Show this list again");
-	addCommand("progress","Enable/disable Progress event logging");
-}
-
-void PlaybackCommand::addCommand(string command,string description)
-{
-	playbackCommands.insert(make_pair(command,description));
-	commands.push_back(command);
-}
-
-/**
- * @brief Show help menu with aamp command line interface
- */
-void PlaybackCommand::showHelp(void)
-{
-
-	std::map<string,string>::iterator playbackCmdItr;
-
-	printf("******************************************************************************************\n");
-	printf("*   <command> [<arguments>]\n");
-	printf("*   Usage of Commands, and arguments expected\n");
-	printf("******************************************************************************************\n");
-	
-	for(auto itr:commands)
-	{
-		playbackCmdItr = playbackCommands.find(itr);	
-
-		if(playbackCmdItr != playbackCommands.end())
-		{
-			std::cout << std::setw(20) << std::left << (playbackCmdItr->first).c_str() << "// "<< (playbackCmdItr->second).c_str() << "\n";
-		}
-	}
-
-	printf("******************************************************************************************\n");
-}
-
-char * PlaybackCommand::commandRecommender(const char *text, int state)
-{
-	char *name;
-	static int len;
-	static std::vector<std::string>::iterator itr;
-
-	if (!state) 
-	{
-		itr = commands.begin();
-		len = strlen(text);
-	}
-
-	while (itr != commands.end())
-	{
-		name = (char *) itr->c_str();
-		itr++;
-		if (strncmp(name, text, len) == 0) 
-		{
-			return strdup(name);
-		}	
-	}
-
-	return NULL;
-}
