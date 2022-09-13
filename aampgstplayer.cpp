@@ -2165,6 +2165,29 @@ void AAMPGstPlayer::TearDownStream(MediaType mediaType)
 	AAMPLOG_WARN("AAMPGstPlayer::TearDownStream: exit mediaType = %d", mediaType);
 }
 
+#if defined(REALTEKCE)
+static void callback_element_added (GstElement * element, GstElement * source, gpointer data)
+{
+    AAMPGstPlayer * _this = (AAMPGstPlayer *)data;
+    AAMPLOG_INFO("callback_element_added: %s",GST_ELEMENT_NAME(source));
+    if (element == _this->privateContext->stream[eMEDIATYPE_AUX_AUDIO].sinkbin)
+    {
+        if ((strstr(GST_ELEMENT_NAME(source), "omxaacdec") != NULL) ||
+            (strstr(GST_ELEMENT_NAME(source), "omxac3dec") != NULL) ||
+            (strstr(GST_ELEMENT_NAME(source), "omxeac3dec") != NULL) ||
+            (strstr(GST_ELEMENT_NAME(source), "omxmp3dec") != NULL) ||
+            (strstr(GST_ELEMENT_NAME(source), "omxvorbisdec") != NULL) ||
+            (strstr(GST_ELEMENT_NAME(source), "omxac4dec") != NULL))
+        {
+            g_object_set(source, "audio-tunnel-mode", FALSE, NULL );
+            AAMPLOG_INFO("callback_element_added audio-tunnel-mode FALSE");
+            g_object_set(source, "aux-audio", TRUE, NULL );
+            AAMPLOG_INFO("callback_element_added aux-audio TRUE");
+        }
+    }
+}
+#endif
+
 #define NO_PLAYBIN 1
 /**
  * @brief Setup pipeline for a particular stream type
@@ -2269,6 +2292,9 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 				g_object_set(audiosink, "session-private", TRUE, NULL );
 	
 				g_object_set(stream->sinkbin, "audio-sink", audiosink, NULL);				/* In the stream->sinkbin, set the audio-sink property to audiosink */
+#if defined(REALTEKCE)
+				g_signal_connect (stream->sinkbin, "element-setup",G_CALLBACK (callback_element_added), _this);
+#endif
 				AAMPLOG_WARN("AAMPGstPlayer_SetupStream - using audsrvsink");
 			}
 		}
