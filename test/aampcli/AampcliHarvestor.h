@@ -28,7 +28,7 @@
 #include <libgen.h>
 #include <limits.h>
 #include <unistd.h>
-#include "AampcliCommandHandler.h"
+#include "AampcliProcessCommand.h"
 
 #ifdef __APPLE__
     #include <mach-o/dyld.h>

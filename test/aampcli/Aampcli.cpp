@@ -80,7 +80,7 @@ void Aampcli::doAutomation(const int startChannel, const int stopChannel)
 #endif
 	outPath += "/test-results.csv";
 	const char *mod = "wb"; // initially clear file
-	CommandHandler lCommandHandler;
+	CommandDispatcher l_CommandDispatcher;
 
 	if (mVirtualChannelMap.next() == NULL)
 	{
@@ -108,7 +108,7 @@ void Aampcli::doAutomation(const int startChannel, const int stopChannel)
 			char cmd[32];
 			sprintf( cmd, "%d", chan );
 			mTuneFailureDescription.clear();
-			lCommandHandler.dispatchAampcliCommands(cmd,mSingleton);
+			l_CommandDispatcher.dispatchAampcliCommands(cmd,mSingleton);
 			PrivAAMPState state = eSTATE_IDLE;
 			for(int i=0; i<5; i++ )
 			{
@@ -149,10 +149,11 @@ void * Aampcli::runCommand( void* args )
 	char cmd[mMaxBufferLength] = {'\0'};
 	std::vector<std::string> *arguments;
 	std::vector<std::string> cmds;
-	CommandHandler lCommandHandler;
+	CommandDispatcher l_CommandDispatcher;
+	Get l_Get;
+	Set l_Set;
 
-	lCommandHandler.registerAampcliCommands();
-	using_history();
+	l_CommandDispatcher.registerAampcliCommands();
 
 	if( args )
 	{
@@ -165,37 +166,22 @@ void * Aampcli::runCommand( void* args )
 			{
 				snprintf( cmd+strlen(cmd),mMaxBufferLength-strlen(cmd),"%s ", param.c_str());
 			}
-			lCommandHandler.dispatchAampcliCommands(cmd,mAampcli.mSingleton);
+			l_CommandDispatcher.dispatchAampcliCommands(cmd,mAampcli.mSingleton);
 		}
-
 	}
 
+	l_Get.initGetHelpText();
+	l_Set.initSetHelpText();
+
 	printf("[AAMPCLI] type 'help' for list of available commands\n");
-	
 	for(;;)
 	{
-		rl_attempted_completion_function = lCommandHandler.commandCompletion;
-		char *buffer = readline("[AAMPCLI] Enter cmd: ");
-	
-		if(buffer) 
-		{
-			strcpy(cmd,buffer);
-			add_history(buffer);
-			free(buffer);
-		}
-		else
+		printf("[AAMPCLI] aamp-cli> ");
+		char *ret = fgets(cmd, sizeof(cmd), stdin);
+
+		if( ret == NULL)
 		{
 			break;
-		}
-
-		if(strncmp(cmd,"history",7) == 0)
-		{
-			HISTORY_STATE *historyState = history_get_history_state ();
-
-			for (int i = 0; i < historyState->length; i++) 
-			{
-				printf ("%s\n", historyState->entries[i]->line);
-			}
 		}
 
 		if( memcmp(cmd,"autoplay",8)!=0 && memcmp(cmd,"auto",4)==0 )
@@ -219,7 +205,7 @@ void * Aampcli::runCommand( void* args )
 		{
 			bool l_status = false;
 
-			l_status = lCommandHandler.dispatchAampcliCommands(cmd,mAampcli.mSingleton);
+			l_status = l_CommandDispatcher.dispatchAampcliCommands(cmd,mAampcli.mSingleton);
 
 			if(l_status == false)
 			{

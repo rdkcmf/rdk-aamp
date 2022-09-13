@@ -26,18 +26,13 @@
 #define AAMPCLIPLAYBACKCOMMAND_H
 
 #include "Aampcli.h"
-#include "AampcliCommandHandler.h"
+#include "AampcliProcessCommand.h"
 
 
 class PlaybackCommand : public Command
 {
 
 	public:
-		static std::vector<std::string> commands;
-		static std::map<string,string> playbackCommands;
-		void addCommand(string command,string description);
-		void registerPlaybackCommands();
-		static char *commandRecommender(const char *text, int state);
 		bool isNumber(const char *s);
 		void showHelp(void);
 		bool isTuneScheme(const char *cmd);

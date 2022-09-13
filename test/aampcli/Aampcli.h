@@ -33,14 +33,12 @@
 #include <string>
 #include <ctype.h>
 #include <gst/gst.h>
-#include <readline/readline.h>
-#include <readline/history.h>
 #include <priv_aamp.h>
 #include <main_aamp.h>
 #include "AampConfig.h"
 #include "AampDefine.h"
 #include "StreamAbstractionAAMP.h"
-#include "AampcliCommandHandler.h"
+#include "AampcliProcessCommand.h"
 #include "AampcliVirtualChannelMap.h"
 #include "AampcliGet.h"
 #include "AampcliSet.h"
