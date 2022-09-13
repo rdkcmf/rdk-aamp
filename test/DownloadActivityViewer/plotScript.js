@@ -52,42 +52,42 @@ window.onload = function() {
     var topMargin = 24;
 
 	
-	function MapMediaColor(mediaType)
- { // first color for box interior; second color for outline
+function MapMediaColor(mediaType)
+{ // first color for box interior; second color for outline
 	 switch( mediaType )
 	 {
 		 case eMEDIATYPE_MANIFEST:
-			 return ['#00cccc','#006666']; // cyan;
+			 return '#00cccc'; // cyan;
 		 case eMEDIATYPE_PLAYLIST_VIDEO:
-			 return ['#00cc00','#006600']; // dark green
+			 return '#00cc00'; // dark green
 		 case eMEDIATYPE_INIT_VIDEO:
-			 return ['#3fbb3f','#3f7f3f']; // medium green
+			 return '#3fbb3f'; // medium green
 		 case eMEDIATYPE_VIDEO:
-			 return ['#ccffcc','#667f66']; // light green
+			 return '#ccffcc'; // light green
 		 case eMEDIATYPE_PLAYLIST_IFRAME:
-			 return ['#00cc00','#006600']; // dark green
+			 return '#00cc00'; // dark green
 		 case eMEDIATYPE_INIT_IFRAME:
-			 return ['#7fff7f','#3f7f3f']; // medium green
+			 return '#7fff7f'; // medium green
 		 case eMEDIATYPE_IFRAME:
-			 return ['#ccffcc','#667f66']; // light green
+			 return '#ccffcc'; // light green
 		 case eMEDIATYPE_PLAYLIST_AUDIO:
-			 return ['#0000cc','#000066']; // dark blue
+			 return '#0000cc'; // dark blue
 		 case eMEDIATYPE_INIT_AUDIO:
-			 return ['#7f7fff','#3f3f7f']; // medium blue
+			 return '#7f7fff'; // medium blue
 		 case eMEDIATYPE_AUDIO:
-			 return ['#ccccff','#66667f']; // light blue
+			 return '#ccccff'; // light blue
 		 case eMEDIATYPE_PLAYLIST_SUBTITLE:
-			 return ['#cccc00','#666600']; // dark yellow
+			 return '#cccc00'; // dark yellow
 		 case eMEDIATYPE_INIT_SUBTITLE:
-			 return ['#cccc3f','#7f7f3f']; // medium yellow
+			 return '#cccc3f'; // medium yellow
 		 case eMEDIATYPE_SUBTITLE:
-			 return ['#ffffcc','#7f7f66']; // light yellow
+			 return '#ffffcc'; // light yellow
 		 case eMEDIATYPE_LICENSE:
-			 return ['#ff7fff','#7f3f7f']; // medium magenta
+			 return '#ff7fff'; // medium magenta
 		 case -eMEDIATYPE_LICENSE: // pre/post overhead
-			 return ['#ffccff','#7f667f'];
+			 return '#ffccff';
 		 default: // error
-			 return ['#ff2020','#7f3f3f'];
+			 return '#ff2020';
 	 }
  }
 	
@@ -98,7 +98,7 @@ window.onload = function() {
         timestamp_min = null;
         timestamp_max = null;
         bitrate_max = null;
-        allbitrates = ["audio","subtitle","manifest"];
+        allbitrates = ["iframe","audio","subtitle","manifest"];
         var marker = [];
 
         if (!sessionClicked) {
@@ -110,13 +110,14 @@ window.onload = function() {
 			if( raw.indexOf("aamp_tune:")>=0 )
 			{
 				sessions = raw.split("aamp_tune:");
+				sessions.shift(); // to remove first null match
 			}
 			else
 			{
-				sessions = raw.split("[processTSBRequest][INFO]new");
+				sessions = [raw];
+				//sessions = raw.split("[processTSBRequest][INFO]new");
 			}
 			
-			sessions.shift(); // to remove first null match
 
             var currentSession = document.getElementById("session");
             while (currentSession.firstChild) {
@@ -157,7 +158,10 @@ window.onload = function() {
 				{
 					obj.bitrate = httpRequestEnd.br;
 					AddBitrate( parseInt(obj.bitrate) );
-                    console.log(httpRequestEnd.br)
+				}
+				else if( obj.type == eMEDIATYPE_IFRAME || obj.type == eMEDIATYPE_INIT_IFRAME )
+				{
+					obj.bitrate = "iframe";
 				}
 				else if( obj.type == eMEDIATYPE_AUDIO || obj.type == eMEDIATYPE_INIT_AUDIO )
 				{
@@ -268,19 +272,23 @@ window.onload = function() {
         for (var i = 0; i < data.length; i++) {
             // map colors based on download type and success/failure
             if (data[i].error != "HTTP200(OK)" ) {
-                ctx.fillStyle = '#ff0000';
-				ctx.strokeStyle = '#3f0000';
+                color = '#ff0000';
             }
             else
             {
-				var coloring = MapMediaColor(data[i].type);
-				ctx.fillStyle = coloring[0];
-				ctx.strokeStyle = coloring[1];
+				var color = MapMediaColor(data[i].type);
 			}
+			ctx.fillStyle = color;
+			var r = parseInt(color.substr(1,2),16);
+			var g = parseInt(color.substr(3,2),16);
+			var b = parseInt(color.substr(5,2),16);
+			r = Math.floor(r/2);
+			g = Math.floor(g/2);
+			b = Math.floor(b/2);
+			color = "#" + r.toString(16) + g.toString(16) + b.toString(16);
+			ctx.strokeStyle = color;
 			
             ctx.fillRect(data[i].x, data[i].y - ROWHEIGHT / 2, data[i].w, ROWHEIGHT - 1);
-//            ctx.strokeStyle = '#999999';
-			ctx.strokeStyle = '#000000';
             ctx.strokeRect(data[i].x, data[i].y - ROWHEIGHT / 2, data[i].w, ROWHEIGHT - 1);
         }
     }
