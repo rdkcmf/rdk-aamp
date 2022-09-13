@@ -239,13 +239,62 @@ var mediaTypes = [
 "DSM_CC",
 "IMAGE" ];
 
+//var hack_cur_bitrate = 1;
 function ParseHttpRequestEnd( line )
 {
-    var rc = null;
-    var prefix = "HttpRequestEnd:";
-    var offs = line.indexOf(prefix);
+	var rc = null;
+	var prefix, offs;
+	
+	prefix = "HttpRequestEnd: Type: ";
+	offs = line.indexOf(prefix);
 	if( offs>=0 )
-	{
+	{ // handle older HttpRequestEnd logging as used by FOG
+	  // refer DELIA-57887 "[FOG] inconsistent HttpRequestEnd logging"
+		// preliminary review shared which introduces "br" (bitrate) field in log - it's present for abrs_fragment#t:VIDEO
+		// but not HttpRequestEnd
+		var httpRequestEnd = {};
+		line = "Type: "  + line.substr(offs+prefix.length);
+		line = line.split(", ");
+		for( var i=0; i<line.length; i++ )
+		{
+			var pat = line[i].split( ": " );
+			httpRequestEnd[pat[0]] = pat[1];
+		}
+		if( httpRequestEnd.Type == "DASH-MANIFEST" )
+		{
+			httpRequestEnd.type = eMEDIATYPE_MANIFEST;
+		}
+		else if( httpRequestEnd.Type=="IFRAME" )
+		{
+			httpRequestEnd.type = eMEDIATYPE_IFRAME;
+		}
+		else if( httpRequestEnd.Type=="VIDEO" )
+		{
+			httpRequestEnd.type = eMEDIATYPE_VIDEO;
+		}
+		else if( httpRequestEnd.Type=="AUDIO" )
+		{
+			httpRequestEnd.type = eMEDIATYPE_AUDIO;
+		}
+		else
+		{
+			console.log( "unk type! '" + httpRequestEnd.Type + "'" );
+		}
+		//httpRequestEnd.br = hack_cur_bitrate;
+		httpRequestEnd.ulSz = httpRequestEnd.RequestedSize;
+		httpRequestEnd.dlSz = httpRequestEnd.DownloadSize;
+		httpRequestEnd.total = httpRequestEnd.TotalTime;
+		httpRequestEnd.responseCode = parseInt(httpRequestEnd.hcode)||parseInt(httpRequestEnd.cerr);
+		httpRequestEnd.url = httpRequestEnd.Url;
+		
+		return httpRequestEnd;
+	}
+	
+	
+	prefix = "HttpRequestEnd:";
+    offs = line.indexOf(prefix);
+	if( offs>=0 )
+	{ // handle HttpRequestEnd as logged by aamp
 		var json = line.substr(offs+prefix.length);
 		try
 		{
@@ -253,26 +302,12 @@ function ParseHttpRequestEnd( line )
 		}
 		catch( err )
 		{
+			var fields = "mediaType,type,responseCode,curlTime,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSz,ulSz,br,url"; // <- with new br (bitrate) param from DELIA-57888
 			var param = json.split(",");
-            var fields = "";
-            if( param[0] != parseInt(param[0]) )
-            {
-                if( param.length == 16) {
-                    // If the log is old and don't have current bitrate field, use downloadbps value as br
-                    fields = "mediaType,type,responseCode,curlTime,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSz,ulSz,br,url";
-                } else if( param.length == 17) {
-                    fields = "mediaType,type,responseCode,curlTime,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSz,ulSz,downloadbps,br,url";
-                }
-                console.log('appName');
-                fields = "appName,"+fields;
-            } else {
-                if( param.length == 15) {
-                    // If the log is old and don't have current bitrate field, use downloadbps value as br
-                    fields = "mediaType,type,responseCode,curlTime,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSz,ulSz,br,url";
-                } else if( param.length == 16) {
-                    fields = "mediaType,type,responseCode,curlTime,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSz,ulSz,downloadbps,br,url";
-                }
-            }
+			if( param[0] != parseInt(param[0]) )
+			{
+				fields = "appName,"+fields;
+			}
 			fields = fields.split(",");
 			var httpRequestEnd = {};
 			for( var i=0; i<fields.length; i++ )
