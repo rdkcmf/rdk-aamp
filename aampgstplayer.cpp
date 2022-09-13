@@ -174,6 +174,7 @@ struct AAMPGstPlayerPriv
 	VideoZoomMode zoom; 				/**< Video-zoom setting. */
 	bool videoMuted; 				/**< Video mute status. */
 	bool audioMuted; 				/**< Audio mute status. */
+	std::mutex volumeMuteMutex;			/**< Mutex to ensure setVolumeOrMuteUnMute is thread-safe. */
 	bool subtitleMuted; 				/**< Subtitle mute status. */
 	double audioVolume; 				/**< Audio volume. */
 	guint eosCallbackIdleTaskId; 			/**< ID of idle handler created for notifying EOS event. */
@@ -226,7 +227,7 @@ struct AAMPGstPlayerPriv
 #ifdef INTELCE_USE_VIDRENDSINK
 			video_pproc(NULL),
 #endif
-			rate(AAMP_NORMAL_PLAY_RATE), zoom(VIDEO_ZOOM_FULL), videoMuted(false), audioMuted(false), subtitleMuted(false),
+			rate(AAMP_NORMAL_PLAY_RATE), zoom(VIDEO_ZOOM_FULL), videoMuted(false), audioMuted(false), volumeMuteMutex(), subtitleMuted(false),
 			audioVolume(1.0), eosCallbackIdleTaskId(AAMP_TASK_ID_INVALID), eosCallbackIdleTaskPending(false),
 			firstFrameReceived(false), pendingPlayState(false), decoderHandleNotified(false),
 			firstFrameCallbackIdleTaskId(AAMP_TASK_ID_INVALID), firstFrameCallbackIdleTaskPending(false),
@@ -3752,11 +3753,12 @@ void AAMPGstPlayer::SetAudioVolume(int volume)
  */
 void AAMPGstPlayer::setVolumeOrMuteUnMute(void)
 {
+	const std::lock_guard<std::mutex> lock(privateContext->volumeMuteMutex);
 	FN_TRACE( __FUNCTION__ );
 	GstElement *gSource = NULL;
 	char *propertyName = NULL;
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_AUDIO];
-	
+
 	AAMPLOG_WARN(" volume == %lf muted == %s", privateContext->audioVolume, privateContext->audioMuted?"true":"false");
 
 	AAMPLOG_INFO("AAMPGstPlayer: using_playersinkbin = %d, audio_sink = %p",
