@@ -18,20 +18,24 @@
  */
 
 /**
- * @file AampcliProcessCommand.cpp
+ * @file AampcliCommandHandler.cpp
  * @brief Aampcli Command register and handler
  */
 
-#include "AampcliProcessCommand.h"
+#include "AampcliCommandHandler.h"
 #include "AampcliGet.h"
 #include "AampcliSet.h"
-#include "AampcliHarvestor.h"
 #include "AampcliPlaybackCommand.h"
 
-CommandDispatcher mCommandDispatcher;
+std::map<std::string, Command*> CommandHandler::mCommandMap = std::map<std::string, Command*>();
 
-std::map<std::string, Command*> CommandDispatcher::mCommandMap = std::map<std::string, Command*>();
-void CommandDispatcher::registerAampcliCommands()
+void CommandHandler::registerAampcliCommands()
+{
+	registerAllCommands();
+	registerCommandObjects();
+}
+
+void CommandHandler::registerCommandObjects()
 {
 	registerCommand( "set", new Set);
 	registerCommand( "get", new Get);
@@ -39,7 +43,7 @@ void CommandDispatcher::registerAampcliCommands()
 	registerCommand( "default", new PlaybackCommand);
 }
 
-void CommandDispatcher::registerCommand(const std::string& commandName, Command* command)
+void CommandHandler::registerCommand(const std::string& commandName, Command* command)
 {
 	std::map<std::string, Command*>::iterator cmdPair = mCommandMap.find(commandName);
 	if (cmdPair != mCommandMap.end())
@@ -52,9 +56,9 @@ void CommandDispatcher::registerCommand(const std::string& commandName, Command*
 	}
 }
 
-bool CommandDispatcher::dispatchAampcliCommands(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
+bool CommandHandler::dispatchAampcliCommands(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 {
-	bool l_status = false;
+	bool l_status = true;
 	char l_cmd[4096] = {'\0'};
 	strcpy(l_cmd,cmd);
 	char *token = strtok(l_cmd," ");
@@ -72,7 +76,45 @@ bool CommandDispatcher::dispatchAampcliCommands(char *cmd, PlayerInstanceAAMP *p
 		Command* l_Command = cmdPair->second;
 		l_status = l_Command->execute(cmd,playerInstanceAamp);
 
-		return l_status;
 	}
+	
+	return l_status;
+}
+
+void CommandHandler::registerAllCommands() 
+{
+	PlaybackCommand lPlaybackCommand;
+	Set lSet;
+	Get lGet;
+
+	lPlaybackCommand.registerPlaybackCommands();
+	lGet.registerGetCommands();
+	lSet.registerSetCommands();
+
+}
+
+char ** CommandHandler::commandCompletion(const char *text, int start, int end)
+{
+	PlaybackCommand lPlaybackCommand;
+	Set lSet;
+	Get lGet;
+
+	char *buffer = rl_line_buffer;
+
+    rl_attempted_completion_over = 1;
+
+    if(strncmp(buffer, "get", 3) == 0)
+    {
+    	return rl_completion_matches(text, lGet.getCommandRecommender);
+    }
+    else if (strncmp(buffer, "set", 3) == 0)
+    {
+    	return rl_completion_matches(text, lSet.setCommandRecommender);
+    }
+    else
+    {
+    	return rl_completion_matches(text, lPlaybackCommand.commandRecommender);
+    }
+
 }
 
