@@ -140,6 +140,8 @@ AampDRMSessionManager::~AampDRMSessionManager()
 {
 	clearAccessToken();
 	clearSessionData();
+	SAFE_DELETE_ARRAY(drmSessionContexts);
+	SAFE_DELETE_ARRAY(cachedKeyIDs);
 	pthread_mutex_destroy(&mDrmSessionLock);
 	pthread_mutex_destroy(&accessTokenMutex);
 	pthread_mutex_destroy(&cachedKeyMutex);
@@ -171,8 +173,6 @@ void AampDRMSessionManager::clearSessionData()
 			cachedKeyIDs[i] = KeyID();
 		}
 	}
-	SAFE_DELETE_ARRAY(drmSessionContexts);
-	SAFE_DELETE_ARRAY(cachedKeyIDs);
 }
 
 /**

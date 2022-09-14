@@ -9,6 +9,12 @@ void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *ctx)
 {
 }
 
+#if OPENSSL_API_COMPAT < 0x10100000L
+int EVP_CIPHER_CTX_reset(EVP_CIPHER_CTX *ctx)
+{
+	return 0;
+}
+#else
 void EVP_CIPHER_CTX_init(EVP_CIPHER_CTX *a)
 {
 }
@@ -17,6 +23,7 @@ int EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *a)
 {
 	return 0;
 }
+#endif
 
 const EVP_CIPHER *EVP_aes_128_ctr(void)
 {

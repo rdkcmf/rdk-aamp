@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "sec_client.h"
 
 #include "CppUTestExt/MockSupport_c.h"

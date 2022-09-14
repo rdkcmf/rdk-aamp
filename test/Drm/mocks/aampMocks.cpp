@@ -7,6 +7,7 @@
 #include "AampDRMutils.h"
 #include "AampConfig.h"
 #include "priv_aamp.h"
+#include "aampgstplayer.h"
 
 #include "CppUTest/TestHarness.h"
 #include "CppUTestExt/MockSupport.h"
@@ -17,24 +18,18 @@
 
 std::shared_ptr<AampConfig> gGlobalConfig;
 AampConfig *gpGlobalConfig;
+AampLogManager *mLogObj = NULL;
 
 static std::unordered_map<std::string, std::vector<std::string>> fCustomHeaders;
 
 void MockAampReset(void)
 {
-	MemoryLeakWarningPlugin::turnOffNewDeleteOverloads();
 	gGlobalConfig = std::make_shared<AampConfig>();
-	MemoryLeakWarningPlugin::turnOnNewDeleteOverloads();
 
 	gpGlobalConfig = gGlobalConfig.get();
 }
 
-long long aamp_GetCurrentTimeMS(void)
-{
-	return 0;
-}
-
-PrivateInstanceAAMP::PrivateInstanceAAMP() {}
+PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mConfig(config), mIsFakeTune(false) {}
 PrivateInstanceAAMP::~PrivateInstanceAAMP() {}
 
 void PrivateInstanceAAMP::GetCustomLicenseHeaders(std::unordered_map<std::string, std::vector<std::string>>& customHeaders)
@@ -55,11 +50,82 @@ void PrivateInstanceAAMP::individualization(const std::string& payload)
 	mock("Aamp").actualCall("individualization").withStringParameter("payload", payload.c_str());
 }
 
+void PrivateInstanceAAMP::SendEvent(AAMPEventPtr eventData, AAMPEventMode eventMode)
+{
+}
+
+void PrivateInstanceAAMP::SetState(PrivAAMPState state)
+{
+}
+
+std::string PrivateInstanceAAMP::GetLicenseReqProxy()
+{
+	return std::string();
+}
+
+std::string PrivateInstanceAAMP::GetLicenseServerUrlForDrm(DRMSystems type)
+{
+	std::string url;
+	if (type == eDRM_PlayReady)
+	{
+		GETCONFIGVALUE_PRIV(eAAMPConfig_PRLicenseServerUrl,url);
+	}
+	else if (type == eDRM_WideVine)
+	{
+		GETCONFIGVALUE_PRIV(eAAMPConfig_WVLicenseServerUrl,url);
+	}
+	else if (type == eDRM_ClearKey)
+	{
+		GETCONFIGVALUE_PRIV(eAAMPConfig_CKLicenseServerUrl,url);
+	}
+
+	if(url.empty())
+	{
+		GETCONFIGVALUE_PRIV(eAAMPConfig_LicenseServerUrl,url);
+	}
+	return url;
+}
+
+std::string PrivateInstanceAAMP::GetLicenseCustomData()
+{
+	return std::string();
+}
+
+bool PrivateInstanceAAMP::IsEventListenerAvailable(AAMPEventType eventType)
+{
+	return false;
+}
+
+std::string PrivateInstanceAAMP::GetAppName()
+{
+	return std::string();
+}
+
+int PrivateInstanceAAMP::HandleSSLProgressCallback ( void *clientp, double dltotal, double dlnow, double ultotal, double ulnow )
+{
+	return 0;
+}
+
+size_t PrivateInstanceAAMP::HandleSSLHeaderCallback ( const char *ptr, size_t size, size_t nmemb, void* userdata )
+{
+	return 0;
+}
+
+size_t PrivateInstanceAAMP::HandleSSLWriteCallback ( char *ptr, size_t size, size_t nmemb, void* userdata )
+{
+	return 0;
+}
+
 #ifdef USE_SECCLIENT
 void PrivateInstanceAAMP::GetMoneyTraceString(std::string &customHeader) const
 {
 }
 #endif
+
+bool AAMPGstPlayer::IsCodecSupported(const std::string &codecName)
+{
+	return true;
+}
 
 void aamp_Free(struct GrowableBuffer *buffer)
 {
@@ -109,6 +175,10 @@ std::string AampLogManager::getHexDebugStr(const std::vector<uint8_t>& data)
 	return hexSs.str();
 }
 
+void AampLogManager::setLogLevel(AAMP_LogLevel newLevel)
+{
+}
+
 void logprintf(const char *format, ...)
 {
 #ifdef ENABLE_LOGGING
@@ -118,6 +188,24 @@ void logprintf(const char *format, ...)
 
 	char gDebugPrintBuffer[MAX_DEBUG_LOG_BUFF_SIZE];
 	len = sprintf(gDebugPrintBuffer, "[AAMP-PLAYER]");
+	vsnprintf(gDebugPrintBuffer+len, MAX_DEBUG_LOG_BUFF_SIZE-len, format, args);
+	gDebugPrintBuffer[(MAX_DEBUG_LOG_BUFF_SIZE-1)] = 0;
+
+	std::cout << gDebugPrintBuffer << std::endl;
+
+	va_end(args);
+#endif
+}
+
+void logprintf_new(int playerId, const char* levelstr, const char* file, int line, const char *format, ...)
+{
+#ifdef ENABLE_LOGGING
+	int len = 0;
+	va_list args;
+	va_start(args, format);
+
+	char gDebugPrintBuffer[MAX_DEBUG_LOG_BUFF_SIZE];
+	len = sprintf(gDebugPrintBuffer, "[AAMP-PLAYER][%d][%s][%s][%d]", playerId, levelstr, file, line);
 	vsnprintf(gDebugPrintBuffer+len, MAX_DEBUG_LOG_BUFF_SIZE-len, format, args);
 	gDebugPrintBuffer[(MAX_DEBUG_LOG_BUFF_SIZE-1)] = 0;
 

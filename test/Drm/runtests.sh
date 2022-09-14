@@ -23,7 +23,7 @@ mkdir -p build && cd build
 echo
 echo "------ Building legacy tests ------"
 mkdir -p legacy && pushd legacy
-cmake ../../ $cmake_opts -DCMAKE_USE_MPD_DRM=TRUE && make
+cmake ../../ $cmake_opts -DCMAKE_CDM_DRM=TRUE && make
 popd
 
 echo
