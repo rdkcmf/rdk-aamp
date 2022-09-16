@@ -889,12 +889,22 @@ bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaTyp
 		if( pos != std::string::npos )
 		{
 			fileName = fileName.substr(pos+3); // strip off leading http://
+		
 			/* Avoid chance of overwriting , in case of manifest and playlist, name will be always same */
-			if(fileType == eMEDIATYPE_MANIFEST || fileType == eMEDIATYPE_PLAYLIST_AUDIO 
+			if(fileType == eMEDIATYPE_PLAYLIST_AUDIO 
 			|| fileType == eMEDIATYPE_PLAYLIST_IFRAME || fileType == eMEDIATYPE_PLAYLIST_SUBTITLE || fileType == eMEDIATYPE_PLAYLIST_VIDEO )
-			{ // add suffix to give unique name for each downloaded manifest
+			{ // add suffix to give unique name for each downloaded playlist
 				fileName = fileName + "." + std::to_string(count);
 			}
+			else if(fileType == eMEDIATYPE_MANIFEST)
+			{
+				std::size_t manifestPos = fileName.find_last_of('/');
+				std::size_t extPos = fileName.find_last_of('.');
+				std::string ext = fileName.substr(extPos);
+				fileName = fileName.substr(0,manifestPos+1); 
+				fileName = fileName + "manifest." + std::to_string(count) + ext;
+			} //RDKAAMP-230
+			
 			// create subdirectories lazily as needed, preserving CDN folder structure
 			std::string dirpath = std::string(prefix);
 			const char *subdir = fileName.c_str();
