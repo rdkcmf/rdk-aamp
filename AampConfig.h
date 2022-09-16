@@ -124,6 +124,8 @@ typedef enum
 	eAAMPConfig_EnablePROutputProtection,					/**< Playready output protection config */
 	eAAMPConfig_ReTuneOnBufferingTimeout,					/**< Re-tune on buffering timeout */
 	eAAMPConfig_SslVerifyPeer,						/**< Enable curl ssl certificate verification. */
+	eAAMPConfig_MultiPipelineDai,						/**< Enable a gstreamer pipeline per player to reduce black flash between ads. */
+	eAAMPConfig_KeepLastFrameDai,						/**< Enable 'stop-keep-frame' in westerossink transitioning over ads. */
 	eAAMPConfig_EnableClientDai,						/**< Enabling the client side DAI*/
 	eAAMPConfig_PlayAdFromCDN,						/**< Play Ad from CDN. Not from FOG.*/
 	eAAMPConfig_EnableVideoEndEvent,					/**< Enable or disable videovend events */

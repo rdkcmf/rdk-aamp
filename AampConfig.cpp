@@ -183,6 +183,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"downloadStartTimeout",eAAMPConfig_CurlDownloadStartTimeout,{.lMinValue=0},{.lMaxValue=50}},
 	{"downloadLowBWTimeout",eAAMPConfig_CurlDownloadLowBWTimeout,{.lMinValue=0},{.lMaxValue=50}},
 	{"discontinuityTimeout",eAAMPConfig_DiscontinuityTimeout,{.lMinValue=0},{.lMaxValue=50}},
+	{"multiPipelineDai", eAAMPConfig_MultiPipelineDai, -1,-1},
+	{"keepLastFrameDai", eAAMPConfig_KeepLastFrameDai, -1,-1},
 	{"client-dai",eAAMPConfig_EnableClientDai,-1,-1},                               // not changing this name , this is already in use for RFC
 	{"cdnAdsOnly",eAAMPConfig_PlayAdFromCDN,-1,-1},
 	{"thresholdSizeABR",eAAMPConfig_ABRThresholdSize,{.iMinValue=-1},{.iMaxValue=-1}},
@@ -364,6 +366,16 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnablePROutputProtection].value		=	false;
 	bAampCfgValue[eAAMPConfig_ReTuneOnBufferingTimeout].value		=	true;
 	bAampCfgValue[eAAMPConfig_SslVerifyPeer].value				=	true;
+#if defined(AMLOGIC)
+	bAampCfgValue[eAAMPConfig_MultiPipelineDai].value				= true;
+	bAampCfgValue[eAAMPConfig_KeepLastFrameDai].value				= true;
+#elif defined(REALTEKCE)
+	bAampCfgValue[eAAMPConfig_MultiPipelineDai].value				= false;
+	bAampCfgValue[eAAMPConfig_KeepLastFrameDai].value				= false;
+#else
+	bAampCfgValue[eAAMPConfig_MultiPipelineDai].value				= false;
+	bAampCfgValue[eAAMPConfig_KeepLastFrameDai].value				= false;
+#endif
 	bAampCfgValue[eAAMPConfig_EnableClientDai].value			=	false;
 	bAampCfgValue[eAAMPConfig_PlayAdFromCDN].value				=	false;
 	bAampCfgValue[eAAMPConfig_EnableVideoEndEvent].value			=	true;
