@@ -4022,13 +4022,14 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		{
 			if((mHarvestCountLimit > 0) && (mHarvestConfig & getHarvestConfigForMedia(fileType)))
 			{
-				AAMPLOG_WARN("aamp harvestCountLimit: %d", mHarvestCountLimit);
 				/* Avoid chance of overwriting , in case of manifest and playlist, name will be always same */
 				if(fileType == eMEDIATYPE_MANIFEST || fileType == eMEDIATYPE_PLAYLIST_AUDIO 
 				|| fileType == eMEDIATYPE_PLAYLIST_IFRAME || fileType == eMEDIATYPE_PLAYLIST_SUBTITLE || fileType == eMEDIATYPE_PLAYLIST_VIDEO )
 				{
 					mManifestRefreshCount++;
 				}
+				
+				AAMPLOG_WARN("aamp harvestCountLimit: %d mManifestRefreshCount %d", mHarvestCountLimit,mManifestRefreshCount);
 				std::string harvestPath;
 				GETCONFIGVALUE_PRIV(eAAMPConfig_HarvestPath,harvestPath);
 				if(harvestPath.empty() )
