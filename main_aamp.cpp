@@ -317,15 +317,20 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
 #endif
 	if(mAsyncTuneEnabled)
 	{
-		const std::string manifest 	= std::string(mainManifestUrl);
-		const std::string cType 	= (contentType != NULL) ? std::string(contentType) : std::string();
-		const std::string sTraceUUID 	= (traceUUID != NULL)? std::string(traceUUID) : std::string();
+		const std::string manifest {mainManifestUrl};
+		const std::string cType = (contentType != NULL) ? std::string(contentType) : std::string();
+		const std::string sTraceUUID = (traceUUID != NULL)? std::string(traceUUID) : std::string();
 
-		mScheduler.ScheduleTask(AsyncTaskObj([manifest, autoPlay , cType, bFirstAttempt, bFinalAttempt,sTraceUUID,audioDecoderStreamSync](void *data)
-					{
-						PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-						instance->TuneInternal(manifest.c_str(), autoPlay, cType.c_str(), bFirstAttempt, bFinalAttempt,sTraceUUID.c_str(),audioDecoderStreamSync);
-					}, (void *) this, __FUNCTION__));
+		mScheduler.ScheduleTask(AsyncTaskObj(
+			[manifest = std::move(manifest), autoPlay , cType = std::move(cType), bFirstAttempt, bFinalAttempt, sTraceUUID = std::move(sTraceUUID), audioDecoderStreamSync](void *data)
+			{
+				PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
+				const char * trace_uuid = sTraceUUID.empty() ? nullptr : sTraceUUID.c_str();
+				
+				instance->TuneInternal(manifest.c_str(), autoPlay, cType.c_str(), bFirstAttempt, bFinalAttempt, trace_uuid, audioDecoderStreamSync);
+			},
+			(void *) this,
+			__FUNCTION__));
 	}
 	else
 	{
