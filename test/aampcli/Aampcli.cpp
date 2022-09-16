@@ -177,53 +177,54 @@ void * Aampcli::runCommand( void* args )
 		rl_attempted_completion_function = lCommandHandler.commandCompletion;
 		char *buffer = readline("[AAMPCLI] Enter cmd: ");
 	
-		if(buffer) 
-		{
-			strcpy(cmd,buffer);
-			add_history(buffer);
-			free(buffer);
-		}
-		else
+		if(buffer == NULL)
 		{
 			break;
 		}
 
-		if(strncmp(cmd,"history",7) == 0)
+		if(*buffer) 
 		{
-			HISTORY_STATE *historyState = history_get_history_state ();
+			strcpy(cmd,buffer);
+			add_history(buffer);
+			free(buffer);
 
-			for (int i = 0; i < historyState->length; i++) 
+			if(strncmp(cmd,"history",7) == 0)
 			{
-				printf ("%s\n", historyState->entries[i]->line);
+				HISTORY_STATE *historyState = history_get_history_state ();
+
+				for (int i = 0; i < historyState->length; i++) 
+				{
+					printf ("%s\n", history_get(i+1)->line);
+				}
 			}
-		}
 
-		if( memcmp(cmd,"autoplay",8)!=0 && memcmp(cmd,"auto",4)==0 )
-		{
-			int start=0, end=0;
-			int matched = sscanf(cmd, "auto %d %d", &start, &end);
-			switch (matched)
+			if( memcmp(cmd,"autoplay",8)!=0 && memcmp(cmd,"auto",4)==0 )
 			{
-				case 1:
-					mAampcli.doAutomation(start);
-					break;
-				case 2:
-					mAampcli.doAutomation(start, end);
-					break;
-				default:
-					mAampcli.doAutomation();
-					break;
+				int start=0, end=0;
+				int matched = sscanf(cmd, "auto %d %d", &start, &end);
+				switch (matched)
+				{
+					case 1:
+						mAampcli.doAutomation(start);
+						break;
+					case 2:
+						mAampcli.doAutomation(start, end);
+						break;
+					default:
+						mAampcli.doAutomation();
+						break;
+				}
 			}
-		}
-		else
-		{
-			bool l_status = false;
-
-			l_status = lCommandHandler.dispatchAampcliCommands(cmd,mAampcli.mSingleton);
-
-			if(l_status == false)
+			else
 			{
-				_exit(0);
+				bool l_status = false;
+
+				l_status = lCommandHandler.dispatchAampcliCommands(cmd,mAampcli.mSingleton);
+
+				if(l_status == false)
+				{
+					_exit(0);
+				}
 			}
 		}
 	}
