@@ -532,7 +532,7 @@ private:
 	 * @fn PushEncryptedHeaders
 	 * @return void
 	 */
-	void PushEncryptedHeaders();
+	bool PushEncryptedHeaders();
 	/**
 	 * @fn GetProfileIdxForBandwidthNotification
 	 * @param bandwidth - bandwidth to identify profile index from list
@@ -710,6 +710,14 @@ private:
 	 * @return meme type value
 	 */	
 	std::string GetCurrentMimeType(MediaType mediaType);
+	
+	/**
+	 * @fn IsPeriodEncrypted
+	 * @param[in] period - current period
+	 * @brief check if current period is encrypted
+	 * @retval true on success
+	 */
+	bool IsPeriodEncrypted(IPeriod *period);
 
 	std::mutex mStreamLock;
 	bool fragmentCollectorThreadStarted;

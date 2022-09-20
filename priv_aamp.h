@@ -958,6 +958,8 @@ public:
 	bool mIsTrackIdMismatch;				/**< Indicate track_id mismatch in the trak box between periods */
 
 	bool mIsDefaultOffset; 					/**< Playback offset is not specified and we are using the default value/behaviour */
+	bool mEncryptedPeriodFound;				/**< Will be set if an encrypted pipeline is found while pipeline is clear*/
+	bool mPipelineIsClear;					/**< To keep the status of pipeline (whether configured for clear or not)*/
 	
 #ifdef AAMP_HLS_DRM
 	std::vector <attrNameData> aesCtrAttrDataList; 		/**< Queue to hold the values of DRM data parsed from manifest */
