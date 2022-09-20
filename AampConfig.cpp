@@ -853,167 +853,177 @@ void AampConfig::SetConfigValue(ConfigPriority owner, AAMPConfigSettings cfg , c
 bool AampConfig::ProcessConfigJson(const char *jsonbuffer, ConfigPriority owner )
 {
 	bool retval = false;
-
 	if(jsonbuffer)
 	{
 		cJSON *cfgdata = cJSON_Parse(jsonbuffer);
-		if(cfgdata != NULL)
-		{
-			cJSON *custom = cJSON_GetObjectItem(cfgdata, "Custom");
-			if((custom != NULL) && (owner == AAMP_DEV_CFG_SETTING))
-			{
-				CustomArrayRead( custom,owner );
-				customFound = true;
-			}
-
-			for(cJSON *searchObj = cfgdata->child; NULL != searchObj; searchObj=searchObj->next)
-			{
-				auto it = mAampLookupTable.find(searchObj->string);
-				if ( it != mAampLookupTable.end())
-				{
-					AampConfigLookupEntry cfg = it->second;
-					AAMPConfigSettings cfgEnum = cfg.cfgEntryValue;
-					std::string keyname = it->first;
-
-					// Found that keyname in json string
-					if(cfgEnum < eAAMPConfig_BoolMaxValue )
-					{
-						if(cJSON_IsTrue(searchObj))
-						{
-							SetConfigValue<bool>(owner,cfgEnum,true);
-							AAMPLOG_WARN("Parsed value for property %s - true",keyname.c_str());
-						}
-						else
-						{
-							SetConfigValue<bool>(owner,cfgEnum,false);
-							AAMPLOG_WARN("Parsed value for property %s - false",keyname.c_str());
-						}
-					}
-					else if(cfgEnum > eAAMPConfig_IntStartValue && cfgEnum < eAAMPConfig_IntMaxValue && cJSON_IsNumber(searchObj))
-					{
-						// For those parameters in Integer Settings
-						int conv = (int)searchObj->valueint;
-						AAMPLOG_WARN("Parsed value for property %s - %d",keyname.c_str(),conv);
-						if(ValidateRange(keyname,conv))
-						{
-							SetConfigValue<int>(owner,cfgEnum,conv);
-						}
-						else
-						{
-							AAMPLOG_ERR("Set failed .Input beyond the configured range");
-						}
-					}
-					else if(cfgEnum > eAAMPConfig_LongStartValue && cfgEnum < eAAMPConfig_LongMaxValue && cJSON_IsNumber(searchObj))
-					{
-						// For those parameters in long Settings
-						long conv = (long)searchObj->valueint;
-						AAMPLOG_WARN("Parsed value for property %s - %ld",keyname.c_str(),conv);
-						if(ValidateRange(keyname,conv))
-						{
-							SetConfigValue<long>(owner,cfgEnum,conv);
-						}
-						else
-						{
-							AAMPLOG_ERR("Set failed .Input beyond the configured range");
-						}
-					}
-					else if(cfgEnum > eAAMPConfig_DoubleStartValue && cfgEnum < eAAMPConfig_DoubleMaxValue && cJSON_IsNumber(searchObj))
-					{
-						// For those parameters in double settings
-						double conv= (double)searchObj->valuedouble;
-						AAMPLOG_WARN("Parsed value for property %s - %f",keyname.c_str(),conv);
-						if(ValidateRange(keyname,conv))
-						{
-							SetConfigValue<double>(owner,cfgEnum,conv);
-						}
-						else
-						{
-							AAMPLOG_ERR("Set failed .Input beyond the configured range");
-						}
-					}
-					else if(cfgEnum > eAAMPConfig_StringStartValue && cfgEnum < eAAMPConfig_StringMaxValue && cJSON_IsString(searchObj))
-					{
-						// For those parameters in string Settings
-						std::string conv = std::string(searchObj->valuestring);
-						AAMPLOG_WARN("Parsed value for property %s - %s",keyname.c_str(),conv.c_str());
-						SetConfigValue<std::string>(owner,cfgEnum,conv);
-					}
-				}
-			}
-			// checked all the config string in json
-			// next check is channel override array is present
-			cJSON *chMap = cJSON_GetObjectItem(cfgdata,"chmap");
-			if(chMap)
-			{
-				if(cJSON_IsArray(chMap))
-				{
-					for (int i = 0 ; i < cJSON_GetArraySize(chMap) ; i++)
-					{
-						cJSON * subitem = cJSON_GetArrayItem(chMap, i);
-						char *name      = (char *)cJSON_GetObjectItem(subitem, "name")->valuestring;
-						char *url       = (char *)cJSON_GetObjectItem(subitem, "url")->valuestring;
-						char *licenseUrl= (char *)cJSON_GetObjectItem(subitem, "licenseServerUrl")->valuestring;
-						if(name && url )
-						{
-							ConfigChannelInfo channelInfo;
-							channelInfo.uri = url;
-							channelInfo.name = name;
-							channelInfo.licenseUri = licenseUrl;
-							mChannelOverrideMap.push_back(channelInfo);
-						}
-					}
-				}
-				else
-				{
-					AAMPLOG_ERR("JSON Channel Override format is wrong");
-				}
-			}
-
-			cJSON *drmConfig = cJSON_GetObjectItem(cfgdata,"drmConfig");
-			if(drmConfig)
-			{
-				AAMPLOG_WARN("Parsed value for property DrmConfig");
-				cJSON *subitem = drmConfig->child;
-				DRMSystems drmType;
-				while( subitem )
-				{
-					std::string conv = std::string(subitem->valuestring);
-					if(strcasecmp("com.microsoft.playready",subitem->string)==0)
-					{
-						AAMPLOG_WARN("Playready License Server URL config param received - %s", conv.c_str());
-						SetConfigValue<std::string>(owner,eAAMPConfig_PRLicenseServerUrl,conv);
-						drmType = eDRM_PlayReady;
-					}
-					if(strcasecmp("com.widevine.alpha",subitem->string)==0)
-					{
-						AAMPLOG_WARN("Widevine License Server URL config param received - %s", conv.c_str());
-						SetConfigValue<std::string>(owner,eAAMPConfig_WVLicenseServerUrl,conv);
-						drmType = eDRM_WideVine;
-					}
-					if(strcasecmp("org.w3.clearkey",subitem->string)==0)
-					{
-						AAMPLOG_WARN("ClearKey License Server URL config param received - %s", conv.c_str());
-						SetConfigValue<std::string>(owner,eAAMPConfig_CKLicenseServerUrl,conv);
-						drmType = eDRM_ClearKey;
-					}
-					if(strcasecmp("preferredKeysystem",subitem->string)==0)
-					{
-						AAMPLOG_WARN("Preferred key system received - %s", conv.c_str());
-						SetConfigValue<int>(owner,eAAMPConfig_PreferredDRM,(int)drmType);
-					}
-					if(strcasecmp("customData",subitem->string)==0)
-					{
-						AAMPLOG_WARN("customData received - %s", conv.c_str());
-						SetConfigValue<std::string>(owner,eAAMPConfig_CustomLicenseData,conv);
-					}					
-					subitem = subitem->next;
-				}
-			}
-
-			retval = true;
-			cJSON_Delete(cfgdata);
-		}
+		retval = ProcessConfigJson(cfgdata, owner);
+		cJSON_Delete(cfgdata);
 	}
+	return retval;
+}
+
+/**
+ * @brief ProcessConfigJson - Function to parse and process json configuration string
+ *
+ * @return bool - true on success
+ */
+bool AampConfig::ProcessConfigJson(const cJSON *cfgdata, ConfigPriority owner )
+{
+	bool retval = false;
+
+	if(cfgdata != NULL)
+	{
+		cJSON *custom = cJSON_GetObjectItem(cfgdata, "Custom");
+		if((custom != NULL) && (owner == AAMP_DEV_CFG_SETTING))
+		{
+			CustomArrayRead( custom,owner );
+			customFound = true;
+		}
+
+		for(cJSON *searchObj = cfgdata->child; NULL != searchObj; searchObj=searchObj->next)
+		{
+			auto it = mAampLookupTable.find(searchObj->string);
+			if ( it != mAampLookupTable.end())
+			{
+				AampConfigLookupEntry cfg = it->second;
+				AAMPConfigSettings cfgEnum = cfg.cfgEntryValue;
+				std::string keyname = it->first;
+				// Found that keyname in json string
+				if(cfgEnum < eAAMPConfig_BoolMaxValue )
+				{
+					if(cJSON_IsTrue(searchObj))
+					{
+						SetConfigValue<bool>(owner,cfgEnum,true);
+						AAMPLOG_WARN("Parsed value for property %s - true",keyname.c_str());
+					}
+					else
+					{
+						SetConfigValue<bool>(owner,cfgEnum,false);
+						AAMPLOG_WARN("Parsed value for property %s - false",keyname.c_str());
+					}
+				}
+				else if(cfgEnum > eAAMPConfig_IntStartValue && cfgEnum < eAAMPConfig_IntMaxValue && cJSON_IsNumber(searchObj))
+				{
+					// For those parameters in Integer Settings
+					int conv = (int)searchObj->valueint;
+					AAMPLOG_WARN("Parsed value for property %s - %d",keyname.c_str(),conv);
+					if(ValidateRange(keyname,conv))
+					{
+						SetConfigValue<int>(owner,cfgEnum,conv);
+					}
+					else
+					{
+						AAMPLOG_ERR("Set failed .Input beyond the configured range");
+					}
+				}
+				else if(cfgEnum > eAAMPConfig_LongStartValue && cfgEnum < eAAMPConfig_LongMaxValue && cJSON_IsNumber(searchObj))
+				{
+					// For those parameters in long Settings
+					long conv = (long)searchObj->valueint;
+					AAMPLOG_WARN("Parsed value for property %s - %ld",keyname.c_str(),conv);
+					if(ValidateRange(keyname,conv))
+					{
+						SetConfigValue<long>(owner,cfgEnum,conv);
+					}
+					else
+					{
+						AAMPLOG_ERR("Set failed .Input beyond the configured range");
+					}
+				}
+				else if(cfgEnum > eAAMPConfig_DoubleStartValue && cfgEnum < eAAMPConfig_DoubleMaxValue && cJSON_IsNumber(searchObj))
+				{
+					// For those parameters in double settings
+					double conv= (double)searchObj->valuedouble;
+					AAMPLOG_WARN("Parsed value for property %s - %f",keyname.c_str(),conv);
+					if(ValidateRange(keyname,conv))
+					{
+						SetConfigValue<double>(owner,cfgEnum,conv);
+					}
+					else
+					{
+						AAMPLOG_ERR("Set failed .Input beyond the configured range");
+					}
+				}
+				else if(cfgEnum > eAAMPConfig_StringStartValue && cfgEnum < eAAMPConfig_StringMaxValue && cJSON_IsString(searchObj))
+				{
+					// For those parameters in string Settings
+					std::string conv = std::string(searchObj->valuestring);
+					AAMPLOG_WARN("Parsed value for property %s - %s",keyname.c_str(),conv.c_str());
+					SetConfigValue<std::string>(owner,cfgEnum,conv);
+				}
+			}
+		}
+		// checked all the config string in json
+		// next check is channel override array is present
+		cJSON *chMap = cJSON_GetObjectItem(cfgdata,"chmap");
+		if(chMap)
+		{
+			if(cJSON_IsArray(chMap))
+				{
+				for (int i = 0 ; i < cJSON_GetArraySize(chMap) ; i++)
+				{
+					cJSON * subitem = cJSON_GetArrayItem(chMap, i);
+					char *name      = (char *)cJSON_GetObjectItem(subitem, "name")->valuestring;
+					char *url       = (char *)cJSON_GetObjectItem(subitem, "url")->valuestring;
+					char *licenseUrl= (char *)cJSON_GetObjectItem(subitem, "licenseServerUrl")->valuestring;
+					if(name && url )
+					{
+						ConfigChannelInfo channelInfo;
+						channelInfo.uri = url;
+						channelInfo.name = name;
+						channelInfo.licenseUri = licenseUrl;
+						mChannelOverrideMap.push_back(channelInfo);
+					}
+				}
+			}
+			else
+			{
+				AAMPLOG_ERR("JSON Channel Override format is wrong");
+			}
+		}
+		cJSON *drmConfig = cJSON_GetObjectItem(cfgdata,"drmConfig");
+		if(drmConfig)
+		{
+			AAMPLOG_WARN("Parsed value for property DrmConfig");
+			cJSON *subitem = drmConfig->child;
+			DRMSystems drmType;
+			while( subitem )
+			{
+				std::string conv = std::string(subitem->valuestring);
+				if(strcasecmp("com.microsoft.playready",subitem->string)==0)
+				{
+					AAMPLOG_WARN("Playready License Server URL config param received - %s", conv.c_str());
+					SetConfigValue<std::string>(owner,eAAMPConfig_PRLicenseServerUrl,conv);
+					drmType = eDRM_PlayReady;
+				}
+				if(strcasecmp("com.widevine.alpha",subitem->string)==0)
+				{
+					AAMPLOG_WARN("Widevine License Server URL config param received - %s", conv.c_str());
+					SetConfigValue<std::string>(owner,eAAMPConfig_WVLicenseServerUrl,conv);
+					drmType = eDRM_WideVine;
+				}
+				if(strcasecmp("org.w3.clearkey",subitem->string)==0)
+				{
+					AAMPLOG_WARN("ClearKey License Server URL config param received - %s", conv.c_str());
+					SetConfigValue<std::string>(owner,eAAMPConfig_CKLicenseServerUrl,conv);
+					drmType = eDRM_ClearKey;
+				}
+				if(strcasecmp("preferredKeysystem",subitem->string)==0)
+				{
+					AAMPLOG_WARN("Preferred key system received - %s", conv.c_str());
+					SetConfigValue<int>(owner,eAAMPConfig_PreferredDRM,(int)drmType);
+				}
+				if(strcasecmp("customData",subitem->string)==0)
+				{
+					AAMPLOG_WARN("customData received - %s", conv.c_str());
+					SetConfigValue<std::string>(owner,eAAMPConfig_CustomLicenseData,conv);
+				}					
+				subitem = subitem->next;
+			}
+		}
+		retval = true;
+	}
+
 	return retval;
 }
 
