@@ -1450,6 +1450,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mTsbSessionRequestUrl()
 	, mWaitForDynamicDRMToUpdate()
 	, mDynamicDrmUpdateLock()
+	, mDynamicDrmWait(false)
 	, mDynamicDrmCache()
 	, mAudioComponentCount(-1)
 	, mVideoComponentCount(-1)

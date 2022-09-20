@@ -603,12 +603,6 @@ public:
      	 */
 	bool ProcessConfigJson(const char *cfg, ConfigPriority owner );	
 	/**
-         * @fn ProcessConfigJson
-         * @param[in] cfg - json format
-         * @param[in] owner   - Owner who is setting the value
-         */
-        bool ProcessConfigJson(const cJSON *cfgdata, ConfigPriority owner );
-	/**
      	 * @fn ProcessConfigText
      	 * @param[in] cfg - config text ( new line separated)
      	 * @param[in] owner   - Owner who is setting the value
