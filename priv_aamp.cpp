@@ -1450,8 +1450,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mMediaDownloadsEnabled()
 	, playerrate(1.0)
 	, mSetPlayerRateAfterFirstframe(false)
-	, mEncryptedPeriodFound(false)
-	, mPipelineIsClear(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -2417,7 +2415,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		return ret; // true so that PrivateInstanceAAMP_ProcessDiscontinuity can cleanup properly
 	}
 	SyncEnd();
-	
+
 	if (!(DiscontinuitySeenInAllTracks()))
 	{
 		AAMPLOG_ERR("PrivateInstanceAAMP: Discontinuity status of video - (%d), audio - (%d) and aux - (%d)", mProcessingDiscontinuity[eMEDIATYPE_VIDEO], mProcessingDiscontinuity[eMEDIATYPE_AUDIO], mProcessingDiscontinuity[eMEDIATYPE_AUX_AUDIO]);
@@ -2428,32 +2426,6 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 	SyncBegin();
 	mDiscontinuityTuneOperationInProgress = true;
 	SyncEnd();
-	
-	//if pipeline is currently clear and if encrypted period is found in the last updated mpd, then do an internal retune
-	//to configure the pipeline for encrypted content
-	if(IsLive() && mEncryptedPeriodFound && mPipelineIsClear)
-	{
-		for (std::list<gActivePrivAAMP_t>::iterator iter = gActivePrivAAMPs.begin(); iter != gActivePrivAAMPs.end(); iter++)
-		{
-			if (this == iter->pAAMP)
-			{
-				gActivePrivAAMP_t *gAAMPInstance = &(*iter);
-				if (gAAMPInstance->reTune)
-				{
-					AAMPLOG_WARN("Retune in progress");
-				}
-				else
-				{
-					gAAMPInstance->reTune = true;
-					AAMPLOG_WARN("Retuning as enc pipeline found");
-					PrivateInstanceAAMP_Retune(this);
-					mPipelineIsClear = false;
-					mEncryptedPeriodFound = false;
-					return ret;
-				}
-			}
-		}
-	}
 
 	if (DiscontinuitySeenInAllTracks())
 	{
@@ -4725,13 +4697,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	if (eTUNETYPE_RETUNE == tuneType)
 	{
 		seek_pos_seconds = GetPositionSeconds();
-	}
-	else
-	{
-		//Only trigger the clear to encrypted pipeline switch while on retune
-		mEncryptedPeriodFound = false;
-		mPipelineIsClear = false;
-		AAMPLOG_INFO ("Resetting mClearPipeline & mEncryptedPeriodFound");
 	}
 
 	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));

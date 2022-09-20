@@ -760,7 +760,7 @@ static const char* getMediaTypeName( MediaType mediaType )
  * @param mediaType media type
  * @retval true if adaptation set is of the given media type
  */
-static bool IsContentType(const IAdaptationSet *adaptationSet, MediaType mediaType )
+static bool IsContentType(IAdaptationSet *adaptationSet, MediaType mediaType )
 {
 	//FN_TRACE_F_MPD( __FUNCTION__ );
 	const char *name = getMediaTypeName(mediaType);
@@ -4989,21 +4989,10 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 	if (ret == eAAMPSTATUS_OK)
 	{
 #ifdef AAMP_MPD_DRM
-		//CheckForInitalClearPeriod() check if the current period is clear or encrypted
 		if (pushEncInitFragment && CheckForInitalClearPeriod())
 		{
 			AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Pushing EncryptedHeaders");
-			if(PushEncryptedHeaders())
-			{
-				aamp->mPipelineIsClear = false;
-				aamp->mEncryptedPeriodFound = false;
-			}
-			else if (mIsLiveStream)
-			{
-				AAMPLOG_INFO("Pipeline set as clear since no enc perid found");
-				//If no encrypted period is found, then update the pipeline status
-				aamp->mPipelineIsClear = true;
-			}
+			PushEncryptedHeaders();
 		}
 #endif
 
@@ -5203,38 +5192,6 @@ void StreamAbstractionAAMP_MPD::ProcessPlaylist(GrowableBuffer& newPlaylist, lon
 }
 
 /**
- * @fn IsPeriodEncrypted
- * @param[in] period - current period
- * @brief check if current period is encrypted
- * @retval true on success
- */
-bool StreamAbstractionAAMP_MPD::IsPeriodEncrypted(IPeriod *period)
-{
-	for(int i = mNumberOfTracks - 1; i >= 0; i--)
-	{
-		if(period != NULL)
-		{
-			size_t numAdaptationSets = period->GetAdaptationSets().size();
-			for(unsigned iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
-			{
-				const IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
-				if(adaptationSet != NULL)
-				{
-					if (IsContentType(adaptationSet, (MediaType)i))
-					{
-						if(0 != GetContentProtection(adaptationSet, (MediaType) i).size())
-						{
-							return true;
-						}
-					}
-				}
-			}
-		}
-	}
-	return false;
-}
-
-/**
 * @brief Function to Parse/Index mpd document after being downloaded.
 */
 void StreamAbstractionAAMP_MPD::IndexNewMPDDocument(bool updateTrackInfo)
@@ -5252,11 +5209,6 @@ void StreamAbstractionAAMP_MPD::IndexNewMPDDocument(bool updateTrackInfo)
 		mCurrentPeriodIdx = 0;
 		while(iter > 0)
 		{
-			if(aamp->mPipelineIsClear && IsPeriodEncrypted(periods.at(iter)))
-			{
-				AAMPLOG_WARN("Encrypted period found while pipeline is currently configured for clear streams");
-				aamp->mEncryptedPeriodFound = true;
-			}
 			if(mBasePeriodId == periods.at(iter)->GetId())
 			{
 				mCurrentPeriodIdx = iter;
@@ -5369,6 +5321,7 @@ void StreamAbstractionAAMP_MPD::IndexNewMPDDocument(bool updateTrackInfo)
 			aamp->UpdateDuration(duration);
 			mLiveEndPosition = duration + mCulledSeconds;
 		}
+
 	}
 }
 
@@ -8808,12 +8761,10 @@ bool StreamAbstractionAAMP_MPD::CheckForInitalClearPeriod()
 
 /**
  * @brief Push encrypted headers if available
- * return true for a successful encypted init fragment push
  */
-bool StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
+void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
-	bool ret = false;
 	//Find the first period with contentProtection
 	size_t numPeriods = mpd->GetPeriods().size();  //CID:96576 - Removed the  headerCount variable which is initialized but not used
 	for(int i = mNumberOfTracks - 1; i >= 0; i--)
@@ -8896,15 +8847,13 @@ bool StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 										if (mMediaStreamContext[i]->WaitForFreeFragmentAvailable())
 										{
 											AAMPLOG_WARN("Pushing encrypted header for %s", getMediaTypeName(MediaType(i)));
-											//Set the last parameter (overWriteTrackId) true to overwrite the track id if ad and content has different track ids
-											bool temp =  mMediaStreamContext[i]->CacheFragment(fragmentUrl, (eCURLINSTANCE_VIDEO + mMediaStreamContext[i]->mediaType), mMediaStreamContext[i]->fragmentTime, 0.0, NULL, true, false, false, 0, 0, true);
+											bool temp =  mMediaStreamContext[i]->CacheFragment(fragmentUrl, (eCURLINSTANCE_VIDEO + mMediaStreamContext[i]->mediaType), mMediaStreamContext[i]->fragmentTime, 0.0, NULL, true);
 											if(!temp)
 											{
 												AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: did not cache fragmentUrl %s fragmentTime %f", fragmentUrl.c_str(), mMediaStreamContext[i]->fragmentTime); //CID:84438 - checked return
 											}
 										}
 										SAFE_DELETE(fragmentDescriptor);
-										ret = true;
 										encryptionFound = true;
 									}
 								}
@@ -8924,7 +8873,6 @@ bool StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 			iPeriod++;
 		}
 	}
-	return ret;
 }
 
 

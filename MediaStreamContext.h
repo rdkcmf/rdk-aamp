@@ -108,10 +108,9 @@ public:
      * @param playingAd flag if playing Ad
      * @param pto unscaled pto value from mpd
      * @param scale timeScale value from mpd
-	 *  @param overWriteTrackId flag to overwrite the trackID of the init fragment  with the current one if those are different
      * @retval true on success
      */
-    bool CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false, bool playingAd = false, double pto = 0, uint32_t scale = 0, bool overWriteTrackId = false);
+    bool CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range = NULL, bool initSegment = false, bool discontinuity = false, bool playingAd = false, double pto = 0, uint32_t scale = 0);
 
     /**
      * @fn CacheFragmentChunk
