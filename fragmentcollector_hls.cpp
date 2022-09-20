@@ -283,6 +283,9 @@ static void ParseKeyAttributeCallback(char *attrName, char *delimEqual, char *fi
 			ts->mDrmInfo.method = eMETHOD_AES_128;
 			ts->mDrmMethod = eDRM_KEY_METHOD_AES_128;
 			ts->mKeyTagChanged = true;
+#ifdef AAMP_HLS_DRM
+			ts->mDrmInfo.keyFormat = VERIMATRIX_KEY_SYSTEM_STRING;
+#endif
 		}
 		else if (SubStringMatch(valuePtr, fin, "SAMPLE-AES-CTR"))
 		{
