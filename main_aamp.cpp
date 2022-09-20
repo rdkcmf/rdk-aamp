@@ -2536,7 +2536,6 @@ void PlayerInstanceAAMP::SetSessionToken(std::string sessionToken)
 	ERROR_STATE_CHECK_VOID();	
 	// Stored as tune setting , this will get cleared after one tune session
 	SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_AuthToken,sessionToken);
-	aamp->mDynamicDrmDefaultconfig.authToken = sessionToken;
 	return;
 }
 
@@ -2703,37 +2702,13 @@ void PlayerInstanceAAMP::SetRepairIframes(bool configState)
 bool PlayerInstanceAAMP::InitAAMPConfig(char *jsonStr)
 {
 	bool retVal = false;
-	cJSON *cfgdata = NULL;
-	if(jsonStr)
-	{
-		cfgdata = cJSON_Parse(jsonStr);
-		if(cfgdata != NULL)
-		{
-			retVal = mConfig.ProcessConfigJson(cfgdata,AAMP_APPLICATION_SETTING);
-		}
-	}
+	retVal = mConfig.ProcessConfigJson(jsonStr,AAMP_APPLICATION_SETTING);
 	mConfig.DoCustomSetting(AAMP_APPLICATION_SETTING);
 	if(GETCONFIGOWNER(eAAMPConfig_AsyncTune) == AAMP_APPLICATION_SETTING)
 	{
 		AsyncStartStop();
 	}
-	
-	if(cfgdata != NULL){
-		cJSON *drmConfig = cJSON_GetObjectItem(cfgdata,"drmConfig");
-		if(drmConfig) {
-			std::string LicenseServerUrl = "";
-			GETCONFIGVALUE(eAAMPConfig_PRLicenseServerUrl, LicenseServerUrl);
-			aamp->mDynamicDrmDefaultconfig.licenseEndPoint.insert(std::pair<std::string, std::string>("com.microsoft.playready", LicenseServerUrl.c_str()));
-			GETCONFIGVALUE(eAAMPConfig_WVLicenseServerUrl, LicenseServerUrl);
-			aamp->mDynamicDrmDefaultconfig.licenseEndPoint.insert(std::pair<std::string, std::string>("com.widevine.alpha",LicenseServerUrl.c_str()));
-			GETCONFIGVALUE(eAAMPConfig_CKLicenseServerUrl, LicenseServerUrl);
-			aamp->mDynamicDrmDefaultconfig.licenseEndPoint.insert(std::pair<std::string, std::string>("org.w3.clearkey",LicenseServerUrl.c_str()));
-			std::string customData = "";
-			GETCONFIGVALUE(eAAMPConfig_CustomLicenseData,customData);
-			aamp->mDynamicDrmDefaultconfig.customData = customData;
-                }
-		cJSON_Delete(cfgdata);
-	}
+
 	return retVal;
 }
 
@@ -2845,131 +2820,128 @@ void PlayerInstanceAAMP::ProcessContentProtectionDataConfig(const char *jsonbuff
 {
 	ERROR_STATE_CHECK_VOID();
 	AAMPLOG_INFO("ProcessContentProtectionDataConfig received DRM config data from app");
-	if(aamp){
-		std::vector<uint8_t> tempKeyId;
+	if(aamp && aamp->mDynamicDrmWait==true){
 		DynamicDrmInfo dynamicDrmCache;
 		if(aamp->vDynamicDrmData.size()>9)
 		{
 			aamp->vDynamicDrmData.erase(aamp->vDynamicDrmData.begin());
 		}
-		int empty_config;
 		cJSON *cfgdata = cJSON_Parse(jsonbuffer);
-		empty_config = cJSON_GetArraySize(cfgdata);
+
 		if(cfgdata)
 		{
 			cJSON *arryitem = cJSON_GetObjectItem(cfgdata, "keyID" );
 			if(arryitem) {
 				cJSON *iterator = NULL;
+				std::vector<uint8_t> temp;
 				cJSON_ArrayForEach(iterator, arryitem) {
 					if (cJSON_IsNumber(iterator)) {
-						tempKeyId.push_back(iterator->valueint);
+						temp.push_back(iterator->valueint);
 					}
 				}
-				dynamicDrmCache.keyID=tempKeyId;
-			}
-			else {
-				AAMPLOG_WARN("Response message doesn't have keyID ignoring the message");
-				return;
-			}
-			
-			//Remove old config if response keyId already in cache
-			int iter1 = 0;
-			while (iter1 < aamp->vDynamicDrmData.size()) {
-				DynamicDrmInfo dynamicDrmCache = aamp->vDynamicDrmData.at(iter1);
-				if(tempKeyId == dynamicDrmCache.keyID) {
-					AAMPLOG_WARN("Deleting old config and updating new config");
-					aamp->vDynamicDrmData.erase(aamp->vDynamicDrmData.begin()+iter1);
-					break;
-				}
-				iter1++;
+				dynamicDrmCache.keyID=temp;
 			}
 			cJSON *playReadyObject = cJSON_GetObjectItem(cfgdata, "com.microsoft.playready");
-			std::string playreadyurl="";
 			if(playReadyObject) {
-				playreadyurl = playReadyObject->valuestring;
-				AAMPLOG_TRACE("App configured Playready License server URL : %s",playreadyurl.c_str());
-				
+				std::string playreadyurl = playReadyObject->valuestring;
+				if(!playreadyurl.empty()) {
+					SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PRLicenseServerUrl,playreadyurl);
+					AAMPLOG_TRACE("App configured Playready License server URL : %s",playreadyurl.c_str());
+					dynamicDrmCache.licenseEndPoint.insert(std::pair<std::string, std::string>("com.microsoft.playready",playreadyurl.c_str()));
+				}
 			}
-			dynamicDrmCache.licenseEndPoint.insert(std::pair<std::string, std::string>("com.microsoft.playready",playreadyurl.c_str()));
-			
 			cJSON *wideVineObject = cJSON_GetObjectItem(cfgdata, "com.widevine.alpha");
-			std::string widevineurl = "";
 			if(wideVineObject) {
-				widevineurl = wideVineObject->valuestring;
-				AAMPLOG_TRACE("App configured widevine License server URL : %s",widevineurl.c_str());
+				std::string widevineurl = wideVineObject->valuestring;
+				if(!widevineurl.empty()) {
+					SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_WVLicenseServerUrl,widevineurl);
+					AAMPLOG_TRACE("App configured widevine License server URL : %s",widevineurl.c_str());
+					dynamicDrmCache.licenseEndPoint.insert(std::pair<std::string, std::string>("com.widevine.alpha",widevineurl.c_str()));
+				}
+
 			}
-			dynamicDrmCache.licenseEndPoint.insert(std::pair<std::string, std::string>("com.widevine.alpha",widevineurl.c_str()));
-			
 			cJSON *clearKeyObject = cJSON_GetObjectItem(cfgdata, "org.w3.clearkey");
-			std::string clearkeyurl = "";
 			if(clearKeyObject) {
-				clearkeyurl = clearKeyObject->valuestring;
-				AAMPLOG_TRACE("App configured clearkey License server URL : %s",clearkeyurl.c_str());
+				std::string clearkeyurl = clearKeyObject->valuestring;
+				if(!clearkeyurl.empty()) {
+					SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CKLicenseServerUrl,clearkeyurl);
+					AAMPLOG_TRACE("App configured clearkey License server URL : %s",clearkeyurl.c_str());
+					dynamicDrmCache.licenseEndPoint.insert(std::pair<std::string, std::string>("org.w3.clearkey",clearkeyurl.c_str()));
+				}
 			}
-			dynamicDrmCache.licenseEndPoint.insert(std::pair<std::string, std::string>("org.w3.clearkey",clearkeyurl.c_str()));
-			
 			cJSON *customDataObject = cJSON_GetObjectItem(cfgdata, "customData");
-			std::string customdata = "";
 			if(customDataObject) {
-				customdata = customDataObject->valuestring;
-				AAMPLOG_TRACE("App configured customData : %s",customdata.c_str());
+				std::string customdata = customDataObject->valuestring;
+				if(!customdata.empty()) {
+					SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CustomLicenseData,customdata);
+					AAMPLOG_TRACE("App configured customData : %s",customdata.c_str());
+					dynamicDrmCache.customData = customdata;
+				}
 			}
-			dynamicDrmCache.customData = customdata;
-			
 			cJSON *authTokenObject = cJSON_GetObjectItem(cfgdata, "authToken");
-			std::string authToken = "";
 			if(authTokenObject) {
-				authToken = authTokenObject->valuestring;
-				AAMPLOG_TRACE("App configured authToken : %s",authToken.c_str());
+				std::string authToken = authTokenObject->valuestring;
+				if(!authToken.empty()) {
+					SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_AuthToken,authToken);
+					AAMPLOG_TRACE("App configured authToken : %s",authToken.c_str());
+					dynamicDrmCache.authToken = authToken;
+				}
 			}
-			dynamicDrmCache.authToken = authToken;
-			
 			cJSON *licenseResponseObject = cJSON_GetObjectItem(cfgdata, "licenseResponse");
 			if(licenseResponseObject) {
-				std::string licenseResponse = licenseResponseObject->valuestring;
+				std::string licenseResponse = licenseResponseObject-> valuestring;
 				if(!licenseResponse.empty()) {
 					AAMPLOG_TRACE("App configured License Response");
 				}
 			}
-			if(empty_config == 1){
-				aamp->mDynamicDrmDefaultconfig.keyID=tempKeyId;
-				AAMPLOG_WARN("Received empty config applying default config");	
-				aamp->vDynamicDrmData.push_back(aamp->mDynamicDrmDefaultconfig);
-				DynamicDrmInfo dynamicDrmCache = aamp->mDynamicDrmDefaultconfig;
-				std::map<std::string,std::string>::iterator itr;
-				for(itr = dynamicDrmCache.licenseEndPoint.begin();itr!=dynamicDrmCache.licenseEndPoint.end();itr++) {
-					if(strcasecmp("com.microsoft.playready",itr->first.c_str())==0) {
-						playreadyurl = itr->second;
-					}
-					if(strcasecmp("com.widevine.alpha",itr->first.c_str())==0) {
-						widevineurl = itr->second;
-					}
-					if(strcasecmp("org.w3.clearkey",itr->first.c_str())==0) {
-						clearkeyurl = itr->second;
-					}
+
+			if(dynamicDrmCache.licenseEndPoint.empty()){
+				AAMPLOG_WARN("license end point is not sent by app applying previous config");
+				if(aamp->vDynamicDrmData.size()){
+					DynamicDrmInfo tmpdynamicDrmCache = aamp->vDynamicDrmData.back();
+					dynamicDrmCache.licenseEndPoint = tmpdynamicDrmCache.licenseEndPoint;
 				}
-				authToken = dynamicDrmCache.authToken;
-				customdata = dynamicDrmCache.customData;
+				else {
+					std::string key,value;
+					key = "com.widevine.alpha";
+					GETCONFIGVALUE(eAAMPConfig_WVLicenseServerUrl,value);
+					if(!value.empty()){
+						dynamicDrmCache.licenseEndPoint.insert(std::pair<std::string, std::string>(key.c_str(),value.c_str()));
+					}
+					key = "com.microsoft.playready";
+					GETCONFIGVALUE(eAAMPConfig_PRLicenseServerUrl,value);
+					if(!value.empty()) {
+						dynamicDrmCache.licenseEndPoint.insert(std::pair<std::string, std::string>(key.c_str(),value.c_str()));
+					}
+					key = "org.w3.clearkey";
+					GETCONFIGVALUE(eAAMPConfig_CKLicenseServerUrl,value);
+					if(!value.empty())
+						dynamicDrmCache.licenseEndPoint.insert(std::pair<std::string, std::string>(key.c_str(),value.c_str()));
+				}
 			}
-			else {
-				aamp->vDynamicDrmData.push_back(dynamicDrmCache);
+			if(dynamicDrmCache.customData.empty()) {
+				AAMPLOG_TRACE("No customData provided by app applying previous config");
+				std::string customLicense;
+				GETCONFIGVALUE(eAAMPConfig_CustomLicenseData,customLicense);
+				dynamicDrmCache.customData = customLicense;
 			}
-			
-			if(tempKeyId == aamp->mcurrent_keyIdArray){
-				AAMPLOG_WARN("Player received the config for requested keyId applying the configs");
-				SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_PRLicenseServerUrl,playreadyurl);
-				SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_WVLicenseServerUrl,widevineurl);
-				SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CKLicenseServerUrl,clearkeyurl);
-				SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_CustomLicenseData,customdata);
-				SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_AuthToken,authToken);
-				pthread_mutex_lock(&aamp->mDynamicDrmUpdateLock);
-				pthread_cond_signal(&aamp->mWaitForDynamicDRMToUpdate);
-				AAMPLOG_WARN("Updated new Content Protection Data Configuration");
-				pthread_mutex_unlock(&aamp->mDynamicDrmUpdateLock);
+			if(dynamicDrmCache.authToken.empty()) {
+				AAMPLOG_TRACE("No authToken provided by app applying previous config");
+				std::string authtoken;
+				GETCONFIGVALUE(eAAMPConfig_AuthToken,authtoken);
+				dynamicDrmCache.authToken = authtoken;
 			}
 
+			aamp->vDynamicDrmData.push_back(dynamicDrmCache);
 		}
+		pthread_mutex_lock(&aamp->mDynamicDrmUpdateLock);
+		pthread_cond_signal(&aamp->mWaitForDynamicDRMToUpdate);
+		AAMPLOG_WARN("Updated new Content Protection Data Configuration");
+		pthread_mutex_unlock(&aamp->mDynamicDrmUpdateLock);
 		cJSON_Delete(cfgdata);
+	}
+	else {
+		AAMPLOG_WARN("Delayed response from application ignoring the DRM config");
 	}
 }
 
@@ -2981,7 +2953,6 @@ void PlayerInstanceAAMP::ProcessContentProtectionDataConfig(const char *jsonbuff
 void PlayerInstanceAAMP::SetContentProtectionDataUpdateTimeout(int timeout)
 {
 	ERROR_STATE_CHECK_VOID();
-	int timeout_ms = timeout * 1000;
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_ContentProtectionDataUpdateTimeout,timeout);
 }
 
