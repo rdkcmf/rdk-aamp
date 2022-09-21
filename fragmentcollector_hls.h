@@ -40,7 +40,7 @@
 #include "mediaprocessor.h"
 #include "drm.h"
 #include <sys/time.h>
-
+#include <atomic>
 
 #define MAX_PROFILE 128 // TODO: remove limitation
 #define FOG_FRAG_BW_IDENTIFIER "bandwidth-"
@@ -568,7 +568,7 @@ public:
 	bool mIndexingInProgress;                /**< indicates if indexing is in progress*/
 	GrowableBuffer mDiscontinuityIndex;      /**< discontinuity start position mapping of associated playlist */
 	int mDiscontinuityIndexCount;            /**< number of records in discontinuity position index */
-	bool mDiscontinuityCheckingOn;
+	std::atomic<bool> mDiscontinuityCheckingOn;
 	double mDuration;                        /** Duration of the track*/
 	typedef std::vector<KeyTagStruct> KeyHashTable;
 	typedef std::vector<KeyTagStruct>::iterator KeyHashTableIter;
