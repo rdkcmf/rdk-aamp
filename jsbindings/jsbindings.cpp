@@ -2319,7 +2319,6 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 		SAFE_DELETE_ARRAY(url);
 		SAFE_DELETE_ARRAY(contentType);
 		SAFE_DELETE_ARRAY(strTraceId);
-		SAFE_DELETE_ARRAY(strAuthToken);
 	}
 	else
 	{
