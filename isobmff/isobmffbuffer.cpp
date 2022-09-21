@@ -51,14 +51,17 @@ void IsoBmffBuffer::setBuffer(uint8_t *buf, size_t sz)
 }
 
 /**
+ *	@fn parseBuffer
+ *  @param[in] correctBoxSize - flag to correct the box size
+ *	@param[in] newTrackId - new triack id to overwrite the existing track id, when value is -1, it will not override
  *  @brief Parse ISOBMFF boxes from buffer
  */
-bool IsoBmffBuffer::parseBuffer(bool correctBoxSize)
+bool IsoBmffBuffer::parseBuffer(bool correctBoxSize, int newTrackId)
 {
 	size_t curOffset = 0;
 	while (curOffset < bufSize)
 	{
-		Box *box = Box::constructBox(buffer+curOffset, bufSize - curOffset, mLogObj, correctBoxSize);
+		Box *box = Box::constructBox(buffer+curOffset, bufSize - curOffset, mLogObj, correctBoxSize, newTrackId);
 		if( ((bufSize - curOffset) < 4) || ( (bufSize - curOffset) < box->getSize()) )
 		{
 			chunkedBox = box;

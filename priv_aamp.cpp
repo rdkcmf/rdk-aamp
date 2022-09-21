@@ -1453,6 +1453,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mAbrBitrateData()
 	, mDynamicDrmUpdateLock()
 	, mDynamicDrmWait(false)
 	, mDynamicDrmCache()
+	, mEncryptedPeriodFound(false)
+	, mPipelineIsClear(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -4438,7 +4440,6 @@ void PrivateInstanceAAMP::TeardownStream(bool newTune)
 		mpStreamAbstractionAAMP->Stop(false);
 		SAFE_DELETE(mpStreamAbstractionAAMP);
 	}
-
 	pthread_mutex_lock(&mLock);
 	mVideoFormat = FORMAT_INVALID;
 	pthread_mutex_unlock(&mLock);
@@ -4622,7 +4623,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	mPauseOnFirstVideoFrameDisp = false;
 	mFirstVideoFrameDisplayedEnabled = false;
 	pthread_mutex_unlock(&mFragmentCachingLock);
-
 	if( seekWhilePaused )
 	{ // XIONE-4261 Player state not updated correctly after seek
 		// Prevent gstreamer callbacks from placing us back into playing state by setting these gate flags before CBs are triggered
@@ -4653,9 +4653,14 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	{
 		seek_pos_seconds = GetPositionMilliseconds()/1000;
 	}
-
+	else
+	{
+		//Only trigger the clear to encrypted pipeline switch while on retune
+		mEncryptedPeriodFound = false;
+		mPipelineIsClear = false;
+		AAMPLOG_INFO ("Resetting mClearPipeline & mEncryptedPeriodFound");
+	}
 	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
-
 #if defined(AMLOGIC)
 	// Send new SEGMENT event only on all trickplay and trickplay -> play, not on pause -> play / seek while paused
 	// this shouldn't impact seekplay or ADs on Peacock & LLAMA
@@ -4667,7 +4672,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 
 	if (newTune)
 	{
-
 		// send previouse tune VideoEnd Metrics data
 		// this is done here because events are cleared on stop and there is chance that event may not get sent
 		// check for mEnableVideoEndEvent and call SendVideoEndEvent ,object mVideoEnd is created inside SendVideoEndEvent
@@ -7171,6 +7175,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 									(errorType == eSTALL_AFTER_DISCONTINUITY) ? "Stall After Discontinuity" :
 									(errorType == eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED)?"LL DASH Max Correction Reached":
 									(errorType == eDASH_LOW_LATENCY_INPUT_PROTECTION_ERROR)?"LL DASH Input Protection Error":
+									(errorType == eDASH_RECONFIGURE_FOR_ENC_PERIOD)?"Enrypted period found":
 									(errorType == eGST_ERROR_GST_PIPELINE_INTERNAL) ? "GstPipeline Internal Error" : "STARTTIME RESET";
 
 		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"), errorString);

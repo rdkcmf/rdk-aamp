@@ -53,7 +53,7 @@ void MediaStreamContext::InjectFragmentInternal(CachedFragment* cachedFragment, 
  *  @brief Fetch and cache a fragment
  */
 bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int curlInstance, double position, double duration, const char *range, bool initSegment, bool discontinuity
-    , bool playingAd, double pto, uint32_t scale)
+    , bool playingAd, double pto, uint32_t scale, bool overWriteTrackId)
 {
     // FN_TRACE_F_MPD( __FUNCTION__ );
     bool ret = false;
@@ -128,23 +128,50 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
 				
 				if(actualType == eMEDIATYPE_INIT_VIDEO)
 				{
-					AAMPLOG_INFO("Video track_id read from init config: %d ", track_id);
+					AAMPLOG_WARN("Video track_id read from init fragment: %d overWriteTrackId %d", track_id, overWriteTrackId);
+					bool trackIdUpdated = false;
 					if(aamp->mCurrentVideoTrackId != -1 && track_id != aamp->mCurrentVideoTrackId)
 					{
-						aamp->mIsTrackIdMismatch = true;
-						AAMPLOG_WARN("TrackId mismatch detected for video, current track_id: %d, next period track_id: %d", aamp->mCurrentVideoTrackId, track_id);
+						if(overWriteTrackId)
+						{
+							//Overwrite the track id of the init fragment with the existing track id since overWriteTrackId is true only while pushing the encrypted init fragment while clear content is being played
+							buffer.parseBuffer(false, aamp->mCurrentVideoTrackId);
+							AAMPLOG_WARN("Video track_id of the current track is overwritten as init fragment is pushing for DRM purpose, track id: %d ", track_id);
+							trackIdUpdated = true;
+						}
+						else
+						{
+						    aamp->mIsTrackIdMismatch = true;
+						    AAMPLOG_WARN("TrackId mismatch detected for video, current track_id: %d, next period track_id: %d", aamp->mCurrentVideoTrackId, track_id);
+					    }
 					}
-					aamp->mCurrentVideoTrackId = track_id;
+					if(!trackIdUpdated)
+					{
+					    aamp->mCurrentVideoTrackId = track_id;
+				    }
 				}
 				else
 				{
-					AAMPLOG_INFO("Audio track_id read from init config: %d ", track_id);
+					bool trackIdUpdated = false;
+					AAMPLOG_INFO("Audio track_id read from init fragment: %d ", track_id);
 					if(aamp->mCurrentAudioTrackId != -1 && track_id != aamp->mCurrentAudioTrackId)
 					{
-						aamp->mIsTrackIdMismatch = true;
-						AAMPLOG_WARN("TrackId mismatch detected for audio, current track_id: %d, next period track_id: %d", aamp->mCurrentAudioTrackId, track_id);
+						if(overWriteTrackId)
+						{
+							buffer.parseBuffer(false, aamp->mCurrentAudioTrackId);
+							AAMPLOG_INFO("Video track_id of the current track is overwritten as init fragment is pushing for DRM purpose, track id: %d ", track_id);
+							trackIdUpdated = true;
+						}
+						else
+						{
+						    aamp->mIsTrackIdMismatch = true;
+						    AAMPLOG_WARN("TrackId mismatch detected for audio, current track_id: %d, next period track_id: %d", aamp->mCurrentAudioTrackId, track_id);
+					    }
 					}
-					aamp->mCurrentAudioTrackId = track_id;
+					if(!trackIdUpdated)
+					{
+					    aamp->mCurrentAudioTrackId = track_id;
+					}
 				}
 			}
 		}

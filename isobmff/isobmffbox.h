@@ -186,9 +186,13 @@ public:
 	 *
 	 * @param[in] hdr - pointer to box
 	 * @param[in] maxSz - box size
+	 * @param[in] maxSz - box size
+	 * @param[in] mLOgObj - log object
+	 * @param[in] correctBoxSize - flag to check if box size needs to be corrected
+	 * @param[in] newTrackId - new triack id to overwrite the existing track id, when value is -1, it will not override
 	 * @return newly constructed Box object
 	 */
-	static Box* constructBox(uint8_t *hdr, uint32_t maxSz, AampLogManager *mLOgObj=NULL, bool correctBoxSize = false); 
+	static Box* constructBox(uint8_t *hdr, uint32_t maxSz, AampLogManager *mLOgObj=NULL, bool correctBoxSize = false, int newTrackId = -1);
 };
 
 
@@ -244,9 +248,10 @@ public:
 	 * @param[in] sz - box size
 	 * @param[in] btype - box type
 	 * @param[in] ptr - pointer to box
+	 * @param[in] newTrackId - new triack id to overwrite the existing track id, when value is -1, it will not override
 	 * @return newly constructed GenericContainerBox object
 	 */
-	static GenericContainerBox* constructContainer(uint32_t sz, const char btype[4], uint8_t *ptr);
+	static GenericContainerBox* constructContainer(uint32_t sz, const char btype[4], uint8_t *ptr, int newTrackId = -1);
 };
 
 /**
@@ -271,9 +276,10 @@ public:
 	 *
 	 * @param[in] sz - box size
 	 * @param[in] ptr - pointer to box
+	 * @param[in] newTrackId - new triack id to overwrite the existing track id, when value is -1, it will not override
 	 * @return newly constructed trak object
 	 */
-	static TrakBox* constructTrakBox(uint32_t sz, uint8_t *ptr);
+	static TrakBox* constructTrakBox(uint32_t sz, uint8_t *ptr, int newTrackId = -1);
 	
 	/**
 	 * @brief track_id getter
