@@ -170,6 +170,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"iframeDefaultBitrate4K",eAAMPConfig_IFrameDefaultBitrate4K,{.lMinValue=-1},{.lMaxValue=-1}},
 	{"audioOnlyPlayback",eAAMPConfig_AudioOnlyPlayback,-1,-1},
 	{"licenseRetryWaitTime",eAAMPConfig_LicenseRetryWaitTime,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"licenseKeyAcquireWaitTime",eAAMPConfig_LicenseKeyAcquireWaitTime,{.iMinValue=MIN_LICENSE_KEY_ACQUIRE_WAIT_TIME},{.iMaxValue=MAX_LICENSE_ACQ_WAIT_TIME}},
 	{"downloadBuffer",eAAMPConfig_MaxFragmentCached,{.iMinValue=-1},{.iMaxValue=-1}},
 	{"ptsErrorThreshold",eAAMPConfig_PTSErrorThreshold,{.iMinValue=0},{.iMaxValue=MAX_PTS_ERRORS_THRESHOLD}},
 	{"enableVideoRectangle",eAAMPConfig_EnableRectPropertyCfg,-1,-1},
@@ -486,6 +487,7 @@ void AampConfig::Initialize()
 	iAampCfgValue[eAAMPConfig_BufferHealthMonitorDelay-eAAMPConfig_IntStartValue].value     =       DEFAULT_BUFFER_HEALTH_MONITOR_DELAY;
 	iAampCfgValue[eAAMPConfig_BufferHealthMonitorInterval-eAAMPConfig_IntStartValue].value  =       DEFAULT_BUFFER_HEALTH_MONITOR_INTERVAL;
 	iAampCfgValue[eAAMPConfig_LicenseRetryWaitTime-eAAMPConfig_IntStartValue].value		=	DEFAULT_LICENSE_REQ_RETRY_WAIT_TIME;
+	iAampCfgValue[eAAMPConfig_LicenseKeyAcquireWaitTime-eAAMPConfig_IntStartValue].value = DEFAULT_LICENSE_KEY_ACQUIRE_WAIT_TIME;
 	iAampCfgValue[eAAMPConfig_HarvestConfig-eAAMPConfig_IntStartValue].value		=	0;
 	iAampCfgValue[eAAMPConfig_PreferredDRM-eAAMPConfig_IntStartValue].value			=	eDRM_PlayReady;
 	iAampCfgValue[eAAMPConfig_CEAPreferred-eAAMPConfig_IntStartValue].value			=	-1;
