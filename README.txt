@@ -160,6 +160,7 @@ abrNwConsistency		Number of checks before profile incr/decr by 1.This is to avoi
 abrSkipDuration			Minimum duration of fragment to be downloaded before triggering abr (in secs.default 6 sec).
 progressReportingInterval	Interval of progress reporting(in seconds.default is 1 sec)
 licenseRetryWaitTime		License retry wait interval(in msecs.default is 500msec)
+licenseKeyAcquireWaitTime	License key acquire wait time(in msecs.default is 5000msec)
 liveOffset    			live offset time in seconds, aamp starts live playback this much time before the live point.Default 15sec
 cdvrLiveOffset    		live offset time in seconds for cdvr, aamp starts live playback this much time before the live point for inprogress cdvr.Default 30 sec
 tuneEventConfig 		Send streamplaying for live/VOD when 

@@ -225,6 +225,7 @@ typedef enum
 	eAAMPConfig_VODTrickPlayFPS,						/**< Trickplay frames per second for VOD*/
 	eAAMPConfig_LinearTrickPlayFPS,						/**< Trickplay frames per second for Linear*/
 	eAAMPConfig_LicenseRetryWaitTime,					/**< License retry wait interval*/
+	eAAMPConfig_LicenseKeyAcquireWaitTime,				/**< License key acquire wait time*/
 	eAAMPConfig_PTSErrorThreshold,						/**< Max number of back-to-back PTS errors within designated time*/
 	eAAMPConfig_MaxPlaylistCacheSize,					/**< Max Playlist Cache Size  */
 	eAAMPConfig_MaxDASHDRMSessions,						/**< Max drm sessions that can be cached by AampDRMSessionManager*/

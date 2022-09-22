@@ -71,6 +71,9 @@
 #define DEFAULT_ABR_CACHE_LENGTH 3                  		/**< Default ABR cache length */
 #define DEFAULT_REPORT_PROGRESS_INTERVAL 1     			/**< Progress event reporting interval: 1sec */
 #define DEFAULT_LICENSE_REQ_RETRY_WAIT_TIME 500			/**< Wait time in milliseconds before retrying for DRM license */
+#define MIN_LICENSE_KEY_ACQUIRE_WAIT_TIME 500			/**<minimum wait time in milliseconds for DRM license to ACQUIRE */
+#define DEFAULT_LICENSE_KEY_ACQUIRE_WAIT_TIME 5000		/**< Wait time in milliseconds for DRM license to ACQUIRE  */
+#define MAX_LICENSE_ACQ_WAIT_TIME 12000  			/**< 12 secs Increase from 10 to 12 sec(DELIA-33528) */
 #define DEFAULT_INIT_BITRATE     2500000            		/**< Initial bitrate: 2.5 mb - for non-4k playback */
 #define DEFAULT_BITRATE_OFFSET_FOR_DOWNLOAD 500000		/**< Offset in bandwidth window for checking buffer download expiry */
 #define DEFAULT_INIT_BITRATE_4K 13000000            		/**< Initial bitrate for 4K playback: 13mb ie, 3/4 profile */
