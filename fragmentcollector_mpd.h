@@ -783,6 +783,7 @@ private:
 	double mServerUtcTime;
 	double mDeltaTime;
 	double mHasServerUtcTime;
+	bool mLiveTimeFragmentSync;
 	std::mutex playlistMutex;       /**< Mutex locked for accessing and updating mpd document */
  	/**
 	 * @fn GetPeriodStartTime
