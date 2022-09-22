@@ -148,6 +148,7 @@ private:
 	DRMState mPrevDrmState;
 	std::string mDrmUrl;
 	int mCurlInstance;
+	int mAcquireKeyWaitTime;
 	pthread_t licenseAcquisitionThreadId;
 	bool licenseAcquisitionThreadStarted;
 };

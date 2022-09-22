@@ -193,12 +193,17 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 {
 	DrmReturn err = eDRM_ERROR;
 	pthread_mutex_lock(&mMutex);
+	mpAamp = aamp;
+
+	if (NULL!= mpAamp)
+	{
+		mpAamp->mConfig->GetConfigValue(eAAMPConfig_LicenseKeyAcquireWaitTime, mAcquireKeyWaitTime);
+	}
 	if (mDrmState == eDRM_ACQUIRING_KEY)
 	{
 		AAMPLOG_WARN("AesDec:: acquiring key in progress");
-		WaitForKeyAcquireCompleteUnlocked(20*1000, err);
+		WaitForKeyAcquireCompleteUnlocked(mAcquireKeyWaitTime, err);
 	}
-	mpAamp = aamp;
 	mDrmInfo = *drmInfo;
 
 	if (!mDrmUrl.empty())
@@ -336,9 +341,9 @@ void AesDec::Release()
 	pthread_mutex_lock(&mMutex);
 	//We wait for license acquisition to complete. Once license acquisition is complete
 	//the appropriate state will be set to mDrmState and hence RestoreKeyState will be a no-op.
-	if (mDrmState == eDRM_ACQUIRING_KEY || mPrevDrmState == eDRM_ACQUIRING_KEY)
+	if ( ( mDrmState == eDRM_ACQUIRING_KEY || mPrevDrmState == eDRM_ACQUIRING_KEY ) && mDrmState != eDRM_KEY_FAILED )
 	{
-		WaitForKeyAcquireCompleteUnlocked(20*1000, err);
+		WaitForKeyAcquireCompleteUnlocked(mAcquireKeyWaitTime, err);
 	}
 	if (licenseAcquisitionThreadStarted)
 	{
@@ -421,7 +426,8 @@ AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
 		mCond(), mMutex(), mOpensslCtx(),
 		mDrmInfo(), mAesKeyBuf(), mCurlInstance(-1),
 		licenseAcquisitionThreadId(0),
-		licenseAcquisitionThreadStarted(false)
+		licenseAcquisitionThreadStarted(false),
+		mAcquireKeyWaitTime(MAX_LICENSE_ACQ_WAIT_TIME)
 {
 	pthread_cond_init(&mCond, NULL);
 	pthread_mutex_init(&mMutex, NULL);
