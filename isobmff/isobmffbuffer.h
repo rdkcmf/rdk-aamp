@@ -140,10 +140,11 @@ public:
 
 	/**
 	 * @fn parseBuffer
-	 *
+	 *  @param[in] correctBoxSize - flag to indicate if box size needs to be corrected
+	 * @param[in] newTrackId - new track id to overwrite the existing track id, when value is -1, it will not override
 	 * @return true if parse was successful. false otherwise
 	 */
-	bool parseBuffer(bool correctBoxSize = false);
+	bool parseBuffer(bool correctBoxSize = false, int newTrackId = -1);
 
 	/**
 	 * @fn restampPTS

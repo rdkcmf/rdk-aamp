@@ -530,9 +530,9 @@ private:
 	bool CheckForInitalClearPeriod();
 	/**
 	 * @fn PushEncryptedHeaders
-	 * @return void
+	 * @return bool
 	 */
-	void PushEncryptedHeaders();
+	bool PushEncryptedHeaders();
 	/**
 	 * @fn GetProfileIdxForBandwidthNotification
 	 * @param bandwidth - bandwidth to identify profile index from list
@@ -709,6 +709,14 @@ private:
 	 * @retun none
 	 */
 	void PopulateTrackInfo(MediaType media, bool reset=false);
+	
+	/**
+	 * @fn IsPeriodEncrypted
+	 * @param[in] period - current period
+	 * @brief check if current period is encrypted
+	 * @retval true on success
+	 */
+	bool IsPeriodEncrypted(IPeriod *period);
 
 	std::mutex mStreamLock;
 	bool fragmentCollectorThreadStarted;
