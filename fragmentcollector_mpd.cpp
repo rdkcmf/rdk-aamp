@@ -3042,10 +3042,9 @@ static double ParseISO8601Duration(const char *ptr)
 	const char* durationPtr = strchr(ptr, 'T');
 	indexforT = (int)(durationPtr - ptr);
 	const char* pMptr = strchr(ptr, 'M');
-	const char* pMinptr = strrchr(ptr, 'M');
-	if(NULL != pMinptr)
+	if(NULL != pMptr)
 	{
-		indexforM = (int)(pMinptr - ptr);
+		indexforM = (int)(pMptr - ptr);
 	}
 	
 	if (ptr[0] == 'P')
@@ -3060,7 +3059,7 @@ static double ParseISO8601Duration(const char *ptr)
 				ptr = temp + 1;
 			}
 			temp = strchr(ptr, 'M');
-			if (temp && ( NULL != pMptr ) )
+			if (temp && ( indexforM < indexforT ) )
 			{
 				sscanf(ptr, "%dM", &months);
 				ptr = temp + 1;
@@ -3082,7 +3081,7 @@ static double ParseISO8601Duration(const char *ptr)
 				ptr = temp + 1;
 			}
 			temp = strchr(ptr, 'M');
-			if (temp && ( NULL != pMinptr && indexforM > indexforT ) )
+			if (temp)
 			{
 				sscanf(ptr, "%dM", &minute);
 				ptr = temp + 1;
