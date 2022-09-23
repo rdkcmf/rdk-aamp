@@ -5473,6 +5473,15 @@ void TrackState::RunFetchLoop()
 			break;
 		}
 
+		// wait for manifest refresh on EOS case
+		if(!abortedDownload && aamp->IsLive())
+		{
+			// Notify that fragment collector is waiting
+			AAMPLOG_INFO("EOS wait for playlist refresh");
+			NotifyFragmentCollectorWait();
+			WaitForManifestUpdate();
+		}
+
 		AAMPLOG_FAILOVER("fragmentURI [%s] timeElapsedSinceLastFragment [%f]",
 			 fragmentURI, (aamp_GetCurrentTimeMS() - context->LastVideoFragParsedTimeMS()));
 
