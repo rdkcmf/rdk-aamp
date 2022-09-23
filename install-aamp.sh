@@ -337,6 +337,14 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     
     echo "Starting Xcode, open aamp/build/AAMP.xcodeproj project file OR Execute ./aamp-cli or /playbintest <url> binaries"
     echo "Opening AAMP project in Xcode..."
+    
+    cd AAMP.xcodeproj
+    mkdir xcshareddata
+    cd xcshareddata
+    mkdir xcschemes
+    cd ../../
+    cp ../OSX/aamp-cli.xcscheme AAMP.xcodeproj/xcshareddata/xcschemes
+    chsh -s /bin/bash
 
     (sleep 20 ; open AAMP.xcodeproj) &
     
@@ -346,6 +354,10 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     if [  -f "./Debug/aamp-cli" ]; then 
         echo "OSX AAMP Build PASSED"
         arr_install_status+=("OSX AAMP Build PASSED")
+        
+        #sed -i ".bak" 's/allowLocationSimulation = "YES"/allowLocationSimulation = "YES"\n      consoleMode = "1"/g' AAMP.xcodeproj/xcshareddata/xcschemes/aamp-cli.xcscheme
+        
+        
     else
         echo "OSX AAMP Build FAILED"
         arr_install_status+=("OSX AAMP Build FAILED")
