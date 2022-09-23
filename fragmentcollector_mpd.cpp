@@ -325,8 +325,6 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	for (int i=0; i<AAMP_TRACK_COUNT; i++)
 	{
 		mFirstFragPTS[i] = 0.0;
-		parallelInitDownload[i] = NULL;
-		parallelInitDnldThreadStarted[i] = false;
 	}
 	GetABRManager().clearProfiles();
 	mLastPlaylistDownloadTimeMs = aamp_GetCurrentTimeMS();
@@ -8461,27 +8459,9 @@ void StreamAbstractionAAMP_MPD::UpdateCulledAndDurationFromPeriodInfo(std::vecto
  */
 void StreamAbstractionAAMP_MPD::FetchAndInjectInitFragments(bool discontinuity)
 {
-	for( int trackIdx = 0; trackIdx < mNumberOfTracks; trackIdx++)
+	for( int i = 0; i < mNumberOfTracks; i++)
 	{
-		if(parallelInitDnldThreadStarted[trackIdx])
-		{
-			parallelInitDnldThreadStarted[trackIdx] = false;
-			if(parallelInitDownload[trackIdx] && parallelInitDownload[trackIdx]->joinable())
-			{
-				parallelInitDownload[trackIdx]->join();
-				SAFE_DELETE(parallelInitDownload[trackIdx]);
-			}
-		}
-	}
-
-	for( int trackIdx = 0; trackIdx < mNumberOfTracks; trackIdx++)
-	{
-		parallelInitDownload[trackIdx] = new std::thread(
-				&StreamAbstractionAAMP_MPD::FetchAndInjectInitialization,
-				this,
-				trackIdx,
-				discontinuity);
-		parallelInitDnldThreadStarted[trackIdx] = true;
+		FetchAndInjectInitialization(i,discontinuity);
 	}
 }
 
@@ -8747,9 +8727,9 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(int trackIdx, bool 
 
 	if(dlThreadCreated)
 	{
-		AAMPLOG_TRACE("Waiting for pthread_join trackDownloadThread for track:%d",trackIdx);
+		AAMPLOG_TRACE("Waiting for pthread_join trackDownloadThread");
 		pthread_join(trackDownloadThreadID, NULL);
-		AAMPLOG_TRACE("Joined trackDownloadThread for track:%d",trackIdx);
+		AAMPLOG_TRACE("Joined trackDownloadThread");
 		SAFE_DELETE(fetchParams);
 	}
 }
@@ -8902,15 +8882,6 @@ void StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
-	if(parallelInitDnldThreadStarted[trackIdx])
-	{
-		parallelInitDnldThreadStarted[trackIdx] = false;
-		if(parallelInitDownload[trackIdx] && parallelInitDownload[trackIdx]->joinable())
-		{
-			parallelInitDownload[trackIdx]->join();
-			SAFE_DELETE(parallelInitDownload[trackIdx]);
-		}
-	}
 	class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[trackIdx];
 	bool isAllowNextFrag = true;
 	int  maxCachedFragmentsPerTrack;
@@ -9790,18 +9761,6 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 		if(track)
 		{
 			track->AbortWaitForCachedAndFreeFragment(true);
-		}
-	}
-	for (int iTrack = 0; iTrack < AAMP_TRACK_COUNT; iTrack++)
-	{
-		if(parallelInitDnldThreadStarted[iTrack])
-		{
-			parallelInitDnldThreadStarted[iTrack] = false;
-			if(parallelInitDownload[iTrack] && parallelInitDownload[iTrack]->joinable())
-			{
-				parallelInitDownload[iTrack]->join();
-				SAFE_DELETE(parallelInitDownload[iTrack]);
-			}
 		}
 	}
 
