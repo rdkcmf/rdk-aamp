@@ -1450,6 +1450,8 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mMediaDownloadsEnabled()
 	, playerrate(1.0)
 	, mSetPlayerRateAfterFirstframe(false)
+	, mEncryptedPeriodFound(false)
+	, mPipelineIsClear(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -2415,7 +2417,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 		return ret; // true so that PrivateInstanceAAMP_ProcessDiscontinuity can cleanup properly
 	}
 	SyncEnd();
-
+	
 	if (!(DiscontinuitySeenInAllTracks()))
 	{
 		AAMPLOG_ERR("PrivateInstanceAAMP: Discontinuity status of video - (%d), audio - (%d) and aux - (%d)", mProcessingDiscontinuity[eMEDIATYPE_VIDEO], mProcessingDiscontinuity[eMEDIATYPE_AUDIO], mProcessingDiscontinuity[eMEDIATYPE_AUX_AUDIO]);
@@ -2426,7 +2428,7 @@ bool PrivateInstanceAAMP::ProcessPendingDiscontinuity()
 	SyncBegin();
 	mDiscontinuityTuneOperationInProgress = true;
 	SyncEnd();
-
+	
 	if (DiscontinuitySeenInAllTracks())
 	{
 		bool continueDiscontProcessing = true;
@@ -4698,6 +4700,13 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	if (eTUNETYPE_RETUNE == tuneType)
 	{
 		seek_pos_seconds = GetPositionSeconds();
+	}
+	else
+	{
+		//Only trigger the clear to encrypted pipeline switch while on retune
+		mEncryptedPeriodFound = false;
+		mPipelineIsClear = false;
+		AAMPLOG_INFO ("Resetting mClearPipeline & mEncryptedPeriodFound");
 	}
 
 	TeardownStream(newTune|| (eTUNETYPE_RETUNE == tuneType));
@@ -7243,6 +7252,7 @@ void PrivateInstanceAAMP::ScheduleRetune(PlaybackErrorType errorType, MediaType 
 									(errorType == eSTALL_AFTER_DISCONTINUITY) ? "Stall After Discontinuity" :
 									(errorType == eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED)?"LL DASH Max Correction Reached":
 									(errorType == eDASH_LOW_LATENCY_INPUT_PROTECTION_ERROR)?"LL DASH Input Protection Error":
+									(errorType == eDASH_RECONFIGURE_FOR_ENC_PERIOD)?"Enrypted period found":
 									(errorType == eGST_ERROR_GST_PIPELINE_INTERNAL) ? "GstPipeline Internal Error" : "STARTTIME RESET";
 
 		SendAnomalyEvent(ANOMALY_WARNING, "%s %s", (trackType == eMEDIATYPE_VIDEO ? "VIDEO" : "AUDIO"), errorString);

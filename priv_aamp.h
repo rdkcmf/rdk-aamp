@@ -186,7 +186,8 @@ enum PlaybackErrorType
 	eSTALL_AFTER_DISCONTINUITY,		  /**< Playback stall after notifying discontinuity */
 	eGST_ERROR_GST_PIPELINE_INTERNAL,	  /**< GstPipeline Internal Error */
 	eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED, /**< Low Latency Dash Max Correction Reached**/
-	eDASH_LOW_LATENCY_INPUT_PROTECTION_ERROR  /**< Low Latency Dash Input Protection error **/
+	eDASH_LOW_LATENCY_INPUT_PROTECTION_ERROR,  /**< Low Latency Dash Input Protection error **/
+	eDASH_RECONFIGURE_FOR_ENC_PERIOD /**< Retune to reconfigure pipeline for encrypted period **/
 };
 
 
@@ -958,6 +959,8 @@ public:
 	bool mIsTrackIdMismatch;				/**< Indicate track_id mismatch in the trak box between periods */
 
 	bool mIsDefaultOffset; 					/**< Playback offset is not specified and we are using the default value/behaviour */
+	bool mEncryptedPeriodFound;				/**< Will be set if an encrypted pipeline is found while pipeline is clear*/
+	bool mPipelineIsClear;					/**< To keep the status of pipeline (whether configured for clear or not)*/
 	
 #ifdef AAMP_HLS_DRM
 	std::vector <attrNameData> aesCtrAttrDataList; 		/**< Queue to hold the values of DRM data parsed from manifest */
