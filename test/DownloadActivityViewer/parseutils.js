@@ -1,9 +1,9 @@
 var months =
 [
-    "Jan","Feb","Mar",
-    "Apr","May","Jun",
-    "Jul","Aug","Sep",
-    "Oct","Nov","Dec"
+	"Jan","Feb","Mar",
+	"Apr","May","Jun",
+	"Jul","Aug","Sep",
+	"Oct","Nov","Dec"
 ];
 
 function ParseReceiverLogTimestamp( line )
@@ -56,11 +56,11 @@ function sscanf( string, format )
 {
 	string = string.trim();
 	var first = true;
-    var rc = [];
-    for(;;)
-    {
-        var nextParam = format.indexOf("%%");
-        if( nextParam<0 )
+	var rc = [];
+	for(;;)
+	{
+		var nextParam = format.indexOf("%%");
+		if( nextParam<0 )
 		{ // no more parameters
 			if( first )
 			{
@@ -83,36 +83,36 @@ function sscanf( string, format )
 			string = string.substr(nextParam); // strip wildcard leading characters
 			continue;
 		}
-        else if( string.substr(0,nextParam)!=delim )
-        {
-            return null;
-        }
-        string = string.substr(nextParam); // strip leading characters
-        format = format.substr(nextParam+2); // skip past %% in format string
-        var charAfterParam = format.substr(0,1);
-        var idx = string.indexOf(charAfterParam);
-        if( idx<0 || format=="" )
-        { // no final delimiter
-            rc.push( string );
-        }
-        else
-        { // extract value between delimiters
-            rc.push( string.substr(0,idx) );
-            string = string.substr(idx);
-        }
-    }
+		else if( string.substr(0,nextParam)!=delim )
+		{
+			return null;
+		}
+		string = string.substr(nextParam); // strip leading characters
+		format = format.substr(nextParam+2); // skip past %% in format string
+		var charAfterParam = format.substr(0,1);
+		var idx = string.indexOf(charAfterParam);
+		if( idx<0 || format=="" )
+		{ // no final delimiter
+			rc.push( string );
+		}
+		else
+		{ // extract value between delimiters
+			rc.push( string.substr(0,idx) );
+			string = string.substr(idx);
+		}
+	}
 }
 
 function Pad( num )
 { // used for formatting - convert to fixed width by padding from left with spaces
-    num = Math.round(num);
-    if( num<10 ) return "      "+num;
-    if( num<100 ) return "     "+num;
-    if( num<1000 ) return "    "+num;
-    if( num<10000 ) return "   "+num;
-    if( num<100000 ) return "  "+num;
-    if( num<1000000 ) return " "+num;
-    return num;
+	num = Math.round(num);
+	if( num<10 ) return "      "+num;
+	if( num<100 ) return "     "+num;
+	if( num<1000 ) return "    "+num;
+	if( num<10000 ) return "   "+num;
+	if( num<100000 ) return "  "+num;
+	if( num<1000000 ) return " "+num;
+	return num;
 }
 
 function Pad2( n )
@@ -146,39 +146,39 @@ function FormatTime( duration )
 
 var httpCurlErrMap =
 {
-    0:"OK",
-    7:"Couldn't Connect",
-    18:"Partial File",
-    23:"Interrupted Download",
-    28:"Operation Timed Out",
-    42:"Aborted by callback",
-    56:"Failure with receiving network data",
-    200:"OK",
-    302:"Temporary Redirect",
-    304:"Not Modified",
-    204:"No Content",
-    400:"Bad Request",
-    401:"Unauthorized",
-    403:"Forbidden",
-    404:"Not Found",
-    500:"Internal Server Error",
-    502:"Bad Gateway",
-    503:"Service Unavailable"
+	0:"OK",
+	7:"Couldn't Connect",
+	18:"Partial File",
+	23:"Interrupted Download",
+	28:"Operation Timed Out",
+	42:"Aborted by callback",
+	56:"Failure with receiving network data",
+	200:"OK",
+	302:"Temporary Redirect",
+	304:"Not Modified",
+	204:"No Content",
+	400:"Bad Request",
+	401:"Unauthorized",
+	403:"Forbidden",
+	404:"Not Found",
+	500:"Internal Server Error",
+	502:"Bad Gateway",
+	503:"Service Unavailable"
 };
 
 function mapError( code )
 {
 	code = parseInt(code);
-    var desc = httpCurlErrMap[code];
-    if( desc!=null )
-    {
-        desc = "("+desc+")";
-    }
-    else
-    {
-        desc = "";
-    }
-    return ((code<100)?"CURL":"HTTP") + code + desc;
+	var desc = httpCurlErrMap[code];
+	if( desc!=null )
+	{
+		desc = "("+desc+")";
+	}
+	else
+	{
+		desc = "";
+	}
+	return ((code<100)?"CURL":"HTTP") + code + desc;
 }
 
 const eMEDIATYPE_VIDEO = 0;
@@ -292,7 +292,7 @@ function ParseHttpRequestEnd( line )
 	
 	
 	prefix = "HttpRequestEnd:";
-    offs = line.indexOf(prefix);
+	offs = line.indexOf(prefix);
 	if( offs>=0 )
 	{ // handle HttpRequestEnd as logged by aamp
 		var json = line.substr(offs+prefix.length);
@@ -302,11 +302,23 @@ function ParseHttpRequestEnd( line )
 		}
 		catch( err )
 		{
-			var fields = "mediaType,type,responseCode,curlTime,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSz,ulSz,br,url"; // <- with new br (bitrate) param from DELIA-57888
 			var param = json.split(",");
+			var fields = "mediaType,type,responseCode,curlTime,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSz,ulSz";
 			if( param[0] != parseInt(param[0]) )
 			{
-				fields = "appName,"+fields;
+				// Old log format
+				if( param.length == 16) {
+					// use downloadbps value as br
+					fields = "appName," + fields + ",br,url";
+				} else if( param.length == 17) {
+					fields = "appName," + fields + ",downloadbps,br,url";
+				}
+			} else {
+				if( param.length == 15) {
+					fields += ",br,url";
+				} else if( param.length == 16) {
+					fields += ",downloadbps,br,url";
+				}
 			}
 			fields = fields.split(",");
 			var httpRequestEnd = {};
@@ -337,14 +349,48 @@ function ParseHttpRequestEnd( line )
 			console.log( "ignoring corrupt JSON from receiver log<JSON>" + json + "</JSON>" );
 		}
 	}
-    return rc;
+	return rc;
+}
+
+function ParseFragmentChunk( line )
+{
+	prefix = "Injecting chunk for video br=";
+	offs = line.indexOf(prefix);
+	var isVideo = true;
+	if( offs<0 )
+	{
+		prefix = "Injecting chunk for audio br=";
+		offs = line.indexOf(prefix);
+		isVideo = false;
+	}
+	if( offs>=0 )
+	{
+		chunkData = line.substr(offs+prefix.length);
+		// sample format:: 2150000,chunksize=271272 fpts=109017.909000 fduration=0.016683
+		chunkData = chunkData.split(",");
+		var obj = {};
+		if( isVideo )
+		{
+			obj.bitrate = chunkData[0]; // first element is bitrate
+		}
+		else
+		{
+			obj.bitrate = "audio";
+		}
+		chunkData = chunkData[1].split(" ");
+		obj.chunksize = chunkData[0].slice(chunkData[0].indexOf('=')+1);
+		obj.fpts = chunkData[1].slice(chunkData[1].indexOf('=')+1);
+		obj.fduration = chunkData[2].slice(chunkData[2].indexOf('=')+1);
+		return obj;
+	}
+	return null;
 }
 
 function ParseABRProfileBandwidth( line )
 {
-    var rc = null;
-    var prefix = "Added Video Profile to ABR BW= ";
-    var offs = line.indexOf(prefix);
+	var rc = null;
+	var prefix = "Added Video Profile to ABR BW= ";
+	var offs = line.indexOf(prefix);
 	if( offs>=0 )
 	{
 		var text = line.substr(offs+prefix.length);
@@ -353,14 +399,14 @@ function ParseABRProfileBandwidth( line )
 		return textArray[0];
 	}
 	
-    return rc;
+	return rc;
 }
 
 function ParseCurrentBitrate( line )
 {
-    var rc = null;
-    var prefix = "NotifyBitRateChangeEvent :: bitrate:";
-    var offs = line.indexOf(prefix);
+	var rc = null;
+	var prefix = "NotifyBitRateChangeEvent :: bitrate:";
+	var offs = line.indexOf(prefix);
 	if( offs>=0 )
 	{
 		var text = line.substr(offs+prefix.length);
@@ -369,7 +415,7 @@ function ParseCurrentBitrate( line )
 		return textArray[0];
 	}
 	
-    return rc;
+	return rc;
 }
 
 var contentTypeString = [
