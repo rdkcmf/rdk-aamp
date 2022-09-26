@@ -11418,6 +11418,8 @@ long PrivateInstanceAAMP::LoadFogConfig()
 				audioPreference.add("accessibility", accessiblity);
 			}
 		}
+#if 0
+        /** Time being disabled due to issues - LLAMA-7953, LLAMA-7760 **/
 
 		if((preferredTextLanguagesList.size() > 0) || !preferredTextRenditionString.empty() || !preferredTextLabelString.empty() || !preferredTextAccessibilityNode.getSchemeId().empty())
 		{
@@ -11452,7 +11454,7 @@ long PrivateInstanceAAMP::LoadFogConfig()
 				subtitlePreference.add("accessibility", accessiblity);
 			}
 		}
-
+#endif
 		bool trackAdded = false;
 		if(aPrefAvail)
 		{
