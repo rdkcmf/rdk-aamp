@@ -75,6 +75,16 @@ install_system_packages() {
     echo "Check/Install aamp development environment base packages"
     find_or_install_pkgs  json-glib cmake $defaultopensslversion libxml2 ossp-uuid cjson gnu-sed meson ninja pkg-config
 
+    git clone https://github.com/google/googletest
+    cd googletest
+    git checkout tags/release-1.11.0
+    mkdir build
+    cd build
+    cmake ../
+    make
+    sudo make install
+    cd ../../
+
     git clone https://github.com/DaveGamble/cJSON.git
     cd cJSON
     mkdir build

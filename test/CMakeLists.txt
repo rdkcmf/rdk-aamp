@@ -25,6 +25,10 @@ include_directories(${STAGING_INCDIR}/rdk/iarmmgrs/ir)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-attributes -Wall -Wextra -fpermissive -std=c++1y")
 
+if(CMAKE_ENABLE_LOGGING)
+    add_definitions(-DENABLE_LOGGING)
+endif()
+
 add_executable(IrRemoteApp ${SOURCES})
 set_target_properties(IrRemoteApp PROPERTIES LINK_FLAGS "")
 target_link_libraries(IrRemoteApp "-lglib-2.0 -lIARMBus")

@@ -37,7 +37,7 @@
 #include <signal.h>
 #include <semaphore.h>
 #include <curl/curl.h>
-#include <string.h> // for memset
+#include <string.h>
 #include <vector>
 #include <unordered_map>
 #include <map>
@@ -953,7 +953,7 @@ public:
 	PositionCache<long long> mPrevPositionMilliseconds;
 	std::mutex mGetPositionMillisecondsMutexHard;	//limit (with lock()) access to GetPositionMilliseconds(), & mGetPositionMillisecondsMutexSoft
 	std::mutex mGetPositionMillisecondsMutexSoft;   //detect (with trylock()) where mGetPositionMillisecondsMutexHard would have deadlocked if it was the sole mutex
-
+	volatile std::atomic <long long> mPausePositionMilliseconds;	/**< Requested pause position, can be 0 or more, or AAMP_PAUSE_POSITION_INVALID_POSITION */
 	MediaFormat mMediaFormat;
 	double seek_pos_seconds; 				/**< indicates the playback position at which most recent playback activity began */
 	float rate; 						/**< most recent (non-zero) play rate for non-paused content */
@@ -3796,6 +3796,23 @@ public:
 	class MediaStreamContext* GetMediaStreamContext(MediaType type);
 
 	/**
+	 * @fn Run the thread loop monitoring for requested pause position
+	 */
+	void RunPausePositionMonitoring(void);
+
+	/**
+	 * @fn Start monitoring for requested pause position
+	 * @param[in] pausePositionMilliseconds - The position to pause at, must not be negative
+	 */
+	void StartPausePositionMonitoring(long long pausePositionMilliseconds);
+
+	/**
+	 * @fn Stop monitoring for requested pause position
+	 * @param[in] reason - Reason why the pause position monitoring is stopped
+	 */
+	void StopPausePositionMonitoring(std::string reason);
+
+	/**
 	 * @fn WaitForDiscontinuityProcessToComplete
 	 */
 	void WaitForDiscontinuityProcessToComplete(void);
@@ -3988,6 +4005,10 @@ private:
 	 */
 	bool HasSidecarData();
 
+	std::mutex mPausePositionMonitorMutex;				// Mutex lock for PausePosition condition variable
+	std::condition_variable mPausePositionMonitorCV;	// Condition Variable to signal to stop PausePosition monitoring
+	pthread_t mPausePositionMonitoringThreadID;			// Thread Id of the PausePositionMonitoring thread
+	bool mPausePositionMonitoringThreadStarted;			// Flag to indicate PausePositionMonitoring thread started
 	TuneType mTuneType;
 	int m_fd;
 	bool mIsLive;				// Flag to indicate manifest type.

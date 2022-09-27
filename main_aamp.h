@@ -889,6 +889,18 @@ public:
 	void SetRate(float rate, int overshootcorrection=0);
 
 	/**
+	 *   @fn PauseAt
+	 * 
+	 *       Any subsequent call to this method will override the previous call.
+	 *
+	 *   @param[in]  position - Absolute position within the asset for VOD or
+	 *           relative position from first tune command for linear content;
+	 *           a negative value would cancel any previous PauseAt call.
+	 *   @return void
+	 */
+	void PauseAt(double position);
+
+	/**
 	 *   @fn Seek
 	 *
 	 *   @param[in]  secondsRelativeToTuneTime - Seek position for VOD,
@@ -2060,6 +2072,12 @@ private:
          *   @param  overshootcorrection - overshoot correction in milliseconds.
          */
 	void SetRateInternal(float rate,int overshootcorrection);
+	/**
+		 *   @fn PauseAtInternal
+		 *
+		 *   @param[in]  secondsRelativeToTuneTime - Relative position from first tune command.
+		 */
+	void PauseAtInternal(double secondsRelativeToTuneTime);
 	/**
          *   @fn SeekInternal
          *

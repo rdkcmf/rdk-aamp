@@ -212,6 +212,10 @@ bool PlaybackCommand::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 	{
 		playerInstanceAamp->SetRate(1);
 	}
+	else if (sscanf(cmd, "pause%lf", &seconds) == 1)
+	{
+		playerInstanceAamp->PauseAt(seconds);
+	}
 	else if (strcmp(cmd, "pause") == 0)
 	{
 		playerInstanceAamp->SetRate(0);
@@ -441,6 +445,7 @@ void PlaybackCommand::registerPlaybackCommands()
 	addCommand("select <index>","Select player instance for use");
 	addCommand("detach","Detach (lightweight stop) selected player instance");
 	addCommand("pause","Pause the existing playback");
+	addCommand("pause <seconds>","Pause at specified position, negative value to cancel");
 	addCommand("play","Continue existing playback");
 	addCommand("stop","Stop the existing playback");
 	addCommand("status","get the status of existing playback");
