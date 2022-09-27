@@ -884,6 +884,7 @@ public:
 	long mPlaylistTimeoutMs;
 	bool mAsyncTuneEnabled;
 	long long prevPositionMiliseconds;
+	volatile std::atomic <long long> mPausePositionMilliseconds;	/**< Requested pause position, can be 0 or more, or AAMP_PAUSE_POSITION_INVALID_POSITION */
 	MediaFormat mMediaFormat;
 	double seek_pos_seconds; 				/**< indicates the playback position at which most recent playback activity began */
 	float rate; 						/**< most recent (non-zero) play rate for non-paused content */
@@ -3714,6 +3715,23 @@ public:
 	class MediaStreamContext* GetMediaStreamContext(MediaType type);
 
 	/**
+	 * @fn Run the thread loop monitoring for requested pause position
+	 */
+	void RunPausePositionMonitoring(void);
+
+	/**
+	 * @fn Start monitoring for requested pause position
+	 *     @param[in] pausePositionMilliseconds - The position to pause at, must not be negative
+	 *     @return void
+	 */
+	void StartPausePositionMonitoring(long long pausePositionMilliseconds);
+
+	/**
+	 * @fn Stop monitoring for requested pause position
+	 */
+	void StopPausePositionMonitoring(void);
+
+	/**
 	 * @fn WaitForDiscontinuityProcessToComplete
 	 */
 	void WaitForDiscontinuityProcessToComplete(void);
@@ -3900,6 +3918,10 @@ private:
 	 */
 	bool HasSidecarData();
 
+	std::mutex mPausePositionMonitorMutex;				// Mutex lock for PausePosition condition variable
+	std::condition_variable mPausePositionMonitorCV;	// Condition Variable to signal to stop PausePosition monitoring
+	pthread_t mPausePositionMonitoringThreadID;			// Thread Id of the PausePositionMonitoring thread
+	bool mPausePositionMonitoringThreadStarted;			// Flag to indicate PausePositionMonitoring thread started
 	TuneType mTuneType;
 	int m_fd;
 	bool mIsLive;				// Flag to indicate manifest type.

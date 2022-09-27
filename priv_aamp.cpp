@@ -1329,7 +1329,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	mVideoEnd(NULL),
 #endif
 	mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
-	mIsFirstRequestToFOG(false),mTuneType(eTUNETYPE_NEW_NORMAL)
+	mIsFirstRequestToFOG(false),
+	mPausePositionMonitorMutex(), mPausePositionMonitorCV(), mPausePositionMonitoringThreadID(), mPausePositionMonitoringThreadStarted(false),
+	mTuneType(eTUNETYPE_NEW_NORMAL)
 	,mCdaiObject(NULL), mAdEventsQ(),mAdEventQMtx(), mAdPrevProgressTime(0), mAdCurOffset(0), mAdDuration(0), mAdProgressId("")
 	,mBufUnderFlowStatus(false), mVideoBasePTS(0)
 	,mCustomLicenseHeaders(), mIsIframeTrackPresent(false), mManifestTimeoutMs(-1), mNetworkTimeoutMs(-1)
@@ -1350,7 +1352,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	,  mPreCachePlaylistThreadId(0), mPreCachePlaylistThreadFlag(false) , mPreCacheDnldList()
 	, mPreCacheDnldTimeWindow(0), mParallelPlaylistFetchLock(), mAppName()
 	, mProgressReportFromProcessDiscontinuity(false)
-	, prevPositionMiliseconds(-1), mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
+	, prevPositionMiliseconds(-1)
+	, mPausePositionMilliseconds(AAMP_PAUSE_POSITION_INVALID_POSITION)
+	, mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
 	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
 	//, mLicenseServerUrls()
 	, mFragmentCachingRequired(false), mFragmentCachingLock()
@@ -1558,6 +1562,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
  */
 PrivateInstanceAAMP::~PrivateInstanceAAMP()
 {
+	StopPausePositionMonitoring();
 #ifdef AAMP_CC_ENABLED
     AampCCManager::GetInstance()->Release(mCCId);
     mCCId = 0;
@@ -1632,6 +1637,223 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 		mData = NULL;
 		if (mpStreamAbstractionAAMP)
 			mpStreamAbstractionAAMP->ResetSubtitle();
+	}
+}
+
+/**
+ * @brief perform pause of the pipeline and notifications for PauseAt functionality
+ */
+static gboolean PrivateInstanceAAMP_PausePosition(gpointer ptr)
+{
+	PrivateInstanceAAMP* aamp = (PrivateInstanceAAMP* )ptr;
+	long long pausePositionMilliseconds = aamp->mPausePositionMilliseconds;
+	aamp->mPausePositionMilliseconds = AAMP_PAUSE_POSITION_INVALID_POSITION;
+
+	if  (pausePositionMilliseconds != AAMP_PAUSE_POSITION_INVALID_POSITION)
+	{
+		if(aamp->mStreamSink->Pause(true, false))
+		{
+			aamp->pipeline_paused = true;
+			aamp->NotifySpeedChanged(0, true);
+		}
+
+		aamp->StopDownloads();
+
+		if (aamp->mpStreamAbstractionAAMP)
+		{
+			aamp->mpStreamAbstractionAAMP->NotifyPlaybackPaused(true);
+		}
+
+		AAMPLOG_INFO("paused at pos %lldms requested pos %lldms",
+					 aamp->GetPositionMilliseconds(), pausePositionMilliseconds);
+
+		if ((aamp->rate > AAMP_NORMAL_PLAY_RATE) || (aamp->rate < AAMP_RATE_PAUSE))
+		{
+			aamp->seek_pos_seconds = pausePositionMilliseconds / 1000.0;
+			aamp->trickStartUTCMS = -1;
+			AAMPLOG_INFO("Updated seek pos %fs", aamp->seek_pos_seconds);
+		}
+		else
+		{
+			// (See SetRateInternal)
+			if (!ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery) && !aamp->mbDetached)
+			{
+				aamp->seek_pos_seconds = aamp->GetPositionSeconds();
+				aamp->trickStartUTCMS = -1;
+				AAMPLOG_INFO("Updated seek pos %fs", aamp->seek_pos_seconds);
+			}
+		}
+	}
+	return G_SOURCE_REMOVE;
+}
+
+/**
+ * @brief the PositionMonitoring thread used for PauseAt functionality
+ */
+void PrivateInstanceAAMP::RunPausePositionMonitoring(void)
+{
+	long long localPauseAtMilliseconds = mPausePositionMilliseconds;
+	long long posMs = GetPositionMilliseconds();
+
+	while(localPauseAtMilliseconds != AAMP_PAUSE_POSITION_INVALID_POSITION)
+	{
+		int pollPeriodMs = AAMP_PAUSE_POSITION_POLL_PERIOD_MS;
+		long long trickplayTargetPosMs = localPauseAtMilliseconds;
+		bool forcePause = false;
+
+		if ((rate == AAMP_RATE_PAUSE) || pipeline_paused)
+		{
+			// Shouldn't get here if already paused
+			AAMPLOG_WARN("Already paused, exiting loop");
+			mPausePositionMilliseconds = AAMP_PAUSE_POSITION_INVALID_POSITION;
+			break;
+		}
+		// If normal speed or slower, i.e. not iframe trick mode
+		else if ((rate > AAMP_RATE_PAUSE) && (rate <= AAMP_NORMAL_PLAY_RATE))
+		{
+			// If current pos is within a poll period of the target position,
+			// set the sleep time to be the difference, and then perform
+			// the pause.
+			if (posMs >= (localPauseAtMilliseconds - pollPeriodMs))
+			{
+				pollPeriodMs = (localPauseAtMilliseconds - posMs) / rate;
+				forcePause = true;
+				AAMPLOG_INFO("Requested pos %lldms current pos %lldms rate %f, pausing in %dms",
+							localPauseAtMilliseconds, posMs, rate, pollPeriodMs);
+			}
+			else
+			{
+				AAMPLOG_INFO("Requested pos %lldms current pos %lldms rate %f, polling period %dms",
+							localPauseAtMilliseconds, posMs, rate, pollPeriodMs);
+			}
+		}
+		else
+		{
+			int vodTrickplayFPS = 0;
+			bool config_valid = GETCONFIGVALUE_PRIV(eAAMPConfig_VODTrickPlayFPS,vodTrickplayFPS);
+
+			assert (config_valid && (vodTrickplayFPS != 0));
+
+			// Poll at half the frame period (twice the frame rate)
+			pollPeriodMs = (1000 / vodTrickplayFPS) / 2;
+
+			// If rate > 0, the target position should be earlier than requested pos
+			// If rate < 0, the target position should be later than requested pos
+			trickplayTargetPosMs -= ((rate * 1000) / vodTrickplayFPS);
+
+			AAMPLOG_INFO("Requested pos %lldms current pos %lldms target pos %lld rate %f, fps %d, polling period %dms",
+						 localPauseAtMilliseconds, posMs, trickplayTargetPosMs, rate, vodTrickplayFPS, pollPeriodMs);
+		}
+
+		// The calculation of pollPeriodMs for playback speeds, could result in a negative value
+		if (pollPeriodMs > 0)
+		{
+			std::unique_lock<std::mutex> lock(mPausePositionMonitorMutex);
+			std::cv_status cvStatus = std::cv_status::no_timeout;
+			std::chrono::time_point<std::chrono::system_clock> waitUntilMs = std::chrono::system_clock::now() +
+																			 std::chrono::milliseconds(pollPeriodMs);
+
+			// Wait until now + pollPeriodMs, unless pauseAt is being cancelled
+			while ((localPauseAtMilliseconds != AAMP_PAUSE_POSITION_INVALID_POSITION) &&
+				   (cvStatus == std::cv_status::no_timeout))
+			{
+				cvStatus = mPausePositionMonitorCV.wait_until(lock, waitUntilMs);
+				localPauseAtMilliseconds = mPausePositionMilliseconds;
+			}
+			if (localPauseAtMilliseconds == AAMP_PAUSE_POSITION_INVALID_POSITION)
+			{
+				break;
+			}
+		}
+
+		// Only need to get an updated pos if not forcing pause
+		if (!forcePause)
+		{
+			posMs = GetPositionMilliseconds();
+		}
+
+		// Check if forcing pause at playback, or exceeded target position for trickplay
+		if (forcePause ||
+			((rate > AAMP_NORMAL_PLAY_RATE) && (posMs >= trickplayTargetPosMs)) ||
+			((rate < AAMP_RATE_PAUSE) && (posMs <= trickplayTargetPosMs)))
+		{
+			(void)ScheduleAsyncTask(PrivateInstanceAAMP_PausePosition, this, "PrivateInstanceAAMP_PausePosition");
+			break;
+		}
+	}
+}
+
+/**
+ * @brief call the PausePositionMonitoring thread loop
+ */
+static void *PausePositionMonitor(void *arg)
+{
+	PrivateInstanceAAMP *aamp = (PrivateInstanceAAMP *)arg;
+
+	// Thread name restricted to 16 characters, including null
+	if(aamp_pthread_setname(pthread_self(), "aampPauseMon"))
+	{
+		AAMPLOG_WARN("aamp_pthread_setname failed");
+	}
+	aamp->RunPausePositionMonitoring();
+	return nullptr;
+}
+
+/**
+ * @brief start the PausePositionMonitoring thread used for PauseAt functionality
+ */
+void PrivateInstanceAAMP::StartPausePositionMonitoring(long long pausePositionMilliseconds)
+{
+	if (mPausePositionMonitoringThreadStarted)
+	{
+		StopPausePositionMonitoring();
+	}
+
+	if (pausePositionMilliseconds < 0)
+	{
+		AAMPLOG_ERR("The position (%lld) must be >= 0", pausePositionMilliseconds);
+	}
+	else
+	{
+		mPausePositionMilliseconds = pausePositionMilliseconds;
+
+		AAMPLOG_INFO("Start PausePositionMonitoring at position %lld", pausePositionMilliseconds);
+
+		if (0 == pthread_create(&mPausePositionMonitoringThreadID, nullptr, &PausePositionMonitor, this))
+		{
+			mPausePositionMonitoringThreadStarted = true;
+		}
+		else
+		{
+			AAMPLOG_ERR("Failed to create PausePositionMonitor thread");
+		}
+	}
+}
+
+/**
+ * @brief stop the PausePositionMonitoring thread used for PauseAt functionality
+ */
+void PrivateInstanceAAMP::StopPausePositionMonitoring(void)
+{
+	if (mPausePositionMonitoringThreadStarted)
+	{
+		AAMPLOG_INFO("Stopping PausePositionMonitoring");
+
+		std::unique_lock<std::mutex> lock(mPausePositionMonitorMutex);
+		mPausePositionMilliseconds = AAMP_PAUSE_POSITION_INVALID_POSITION;
+		mPausePositionMonitorCV.notify_one();
+		lock.unlock();
+
+		int rc = pthread_join(mPausePositionMonitoringThreadID, NULL);
+		if (rc != 0)
+		{
+			AAMPLOG_ERR("***pthread_join PausePositionMonitor returned %d(%s)", rc, strerror(rc));
+		}
+		else
+		{
+			AAMPLOG_TRACE("joined PositionMonitor");
+		}
+		mPausePositionMonitoringThreadStarted = false;
 	}
 }
 

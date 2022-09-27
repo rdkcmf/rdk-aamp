@@ -670,10 +670,24 @@ JSValueRef AAMPMediaPlayerJS_pause (JSContextRef ctx, JSObjectRef function, JSOb
 	{
 		ERROR("%s(): Error - JSObjectGetPrivate returned NULL!", __FUNCTION__);
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call pause() on instances of AAMPPlayer");
-		return JSValueMakeUndefined(ctx);
 	}
+	else
 	{
-		privObj->_aamp->SetRate(0);
+		if (argumentCount == 0)
+		{
+			privObj->_aamp->SetRate(0);
+		}
+		else if (argumentCount == 1)
+		{
+			double position = (double)JSValueToNumber(ctx, arguments[0], exception);
+			INFO("%s() Pause at position %f",  __FUNCTION__, position);
+			privObj->_aamp->PauseAt(position);
+		}
+		else
+		{
+			ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 0 or 1", __FUNCTION__, argumentCount);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute pause() - 0 or 1 argument required");
+		}
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);
 	return JSValueMakeUndefined(ctx);
