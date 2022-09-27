@@ -404,7 +404,12 @@ double ISO8601DateTimeToUTCSeconds(const char *ptr)
 
 		if(msString)
 		{
-			msvalue = (double)(atoi(msString)/1000.0);
+			//The return value of the strptime is a pointer to the first character which is not processed, here it is milliseconds time from ISO8601 string.
+                        //Eg UTCTiming : 2022-09-22T16:34:32.664000Z, 664000 is the ms time.
+                        //Convert the milliseconds time to fraction and add it to the timeSeconds.
+			msvalue = (double)(atoi(msString));
+			double highestPlaceValue = pow(10,((int)(log10(msvalue) + 1)));
+			msvalue =  (highestPlaceValue > 0) ? (msvalue / highestPlaceValue) : msvalue;
 		}
 
 		timeSeconds = (mktime(&timeObj) - offsetFromUTC) + msvalue;
