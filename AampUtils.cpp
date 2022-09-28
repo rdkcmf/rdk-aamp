@@ -437,7 +437,7 @@ double ISO8601DateTimeToUTCSeconds(const char *ptr)
                         //Convert the milliseconds time to fraction and add it to the timeSeconds.
 			msvalue = (double)(atoi(msString));
 			double highestPlaceValue = pow(10,((int)(log10(msvalue) + 1)));
-			msvalue =  msvalue / highestPlaceValue;
+			msvalue =  (highestPlaceValue > 0) ? (msvalue / highestPlaceValue) : msvalue;
 		}
 
 		timeSeconds = (mktime(&timeObj) - offsetFromUTC) + msvalue;
