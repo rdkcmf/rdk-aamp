@@ -2643,7 +2643,11 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 	// Store the all the Metadata received from playlist indexing .
 	// IF already stored , AveDrmManager will ignore it
 	// ProcessDrmMetadata -> to be called only from one place , after playlist indexing. Not to call from other places
-	if(mDrmMethod != eDRM_KEY_METHOD_SAMPLE_AES_CTR)
+	if(mDrmMethod != eDRM_KEY_METHOD_SAMPLE_AES_CTR 
+#ifdef USE_OPENCDM
+		&& !AampHlsDrmSessionManager::getInstance().isDrmSupported(mDrmInfo)
+#endif
+	  )
 	{
 		aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
 		//ProcessDrmMetadata();

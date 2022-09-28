@@ -57,6 +57,7 @@ std::shared_ptr<HlsDrmBase> AampHlsDrmSessionManager::createSession(PrivateInsta
 	std::shared_ptr<AampDrmHelper> drmHelper = AampDrmHelperEngine::getInstance().createHelper(drmInfo, mLogObj);
 	aampInstance->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 
+	aampInstance->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
 	DrmMetaDataEventPtr event = std::make_shared<DrmMetaDataEvent>(AAMP_TUNE_FAILURE_UNKNOWN, "", 0, 0, false);
 	mDrmSession = aampInstance->mDRMSessionManager->createDrmSession(drmHelper, event, aampInstance, streamType);
 	if (!mDrmSession)
@@ -65,8 +66,12 @@ std::shared_ptr<HlsDrmBase> AampHlsDrmSessionManager::createSession(PrivateInsta
 
 		if (aampInstance->DownloadsAreEnabled())
 		{
+			AAMPTuneFailure failure = event->getFailure();
+
 			aampInstance->DisableDownloads();
-			aampInstance->SendErrorEvent(event->getFailure());
+			aampInstance->SendErrorEvent(failure);
+
+			aampInstance->profiler.ProfileError(PROFILE_BUCKET_LA_TOTAL, (int) failure);
 		}
 	}
 	else
@@ -74,6 +79,6 @@ std::shared_ptr<HlsDrmBase> AampHlsDrmSessionManager::createSession(PrivateInsta
 		AAMPLOG_WARN("created Drm Session ");
 		bridge = std::make_shared<AampHlsOcdmBridge>(mLogObj, mDrmSession);
 	}
-
+	aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_TOTAL);
 	return bridge;
 }

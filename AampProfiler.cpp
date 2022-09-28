@@ -162,8 +162,6 @@ void ProfileEventAAMP::TuneEnd(TuneEndMetrics &mTuneEndMetrics,std::string appNa
 	}
 	enabled = false;
 	unsigned int licenseAcqNWTime = bucketDuration(PROFILE_BUCKET_LA_NETWORK);
-	//if(licenseAcqNWTime == 0) licenseAcqNWTime = bucketDuration(PROFILE_BUCKET_LA_TOTAL); //A HACK for HLS
-
 	char tuneTimeStrPrefix[64];
 	memset(tuneTimeStrPrefix, '\0', sizeof(tuneTimeStrPrefix));
 	int mTotalTime;

@@ -1278,6 +1278,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 			licenseResponse = std::make_shared<DrmData>();
 			drmHelper->transformLicenseResponse(licenseResponse);
 		}
+		aampInstance->profiler.ProfileEnd(PROFILE_BUCKET_LA_PREPROC);
 	}
 	else
 	{
