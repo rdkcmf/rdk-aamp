@@ -42,6 +42,7 @@
 #include "base16.h"
 #include "aampgstplayer.h"
 #include "AampDRMSessionManager.h"
+#include "SubtecFactory.hpp"
 
 #ifdef AAMP_CC_ENABLED
 #include "AampCCManager.h"
@@ -150,8 +151,6 @@ struct gActivePrivAAMP_t
 	bool reTune;
 	int numPtsErrors;
 };
-
-
 
 static std::list<gActivePrivAAMP_t> gActivePrivAAMPs = std::list<gActivePrivAAMP_t>();
 
@@ -1353,7 +1352,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	m_fd(-1), mIsLive(false), mIsAudioContextSkipped(false), mLogTune(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
 	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
 	mDiscontinuityTuneOperationInProgress(false), mContentType(ContentType_UNKNOWN), mTunedEventPending(false),
-	mSeekOperationInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
+	mSeekOperationInProgress(false), mTrickplayInProgress(false), mPendingAsyncEvents(), mCustomHeaders(),
 	mCMCDNextObjectRequest(""),mCMCDBandwidth(0),
 	mManifestUrl(""), mTunedManifestUrl(""), mOrigManifestUrl(), mServiceZone(), mVssVirtualStreamId(),
 	mCurrentLanguageIndex(0),
@@ -1463,6 +1462,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mPlaybackMode("UNKNOWN")
 	, mApplyVideoRect(false)
 	, mVideoRect{}
+	, mData(NULL)
 	, bitrateList()
 	, userProfileStatus(false)
 	, mApplyCachedVideoMute(false)
@@ -1657,6 +1657,14 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	IARM_Bus_RemoveEventHandler("NET_SRV_MGR", IARM_BUS_NETWORK_MANAGER_EVENT_INTERFACE_IPADDRESS, getActiveInterfaceEventHandler);
 #endif //IARM_MGR
 	SAFE_DELETE(mEventManager);
+
+	if (HasSidecarData())
+	{ // has sidecar data
+		SAFE_DELETE_ARRAY(mData);
+		mData = NULL;
+		if (mpStreamAbstractionAAMP)
+			mpStreamAbstractionAAMP->ResetSubtitle();
+	}
 }
 
 /**
@@ -2375,10 +2383,36 @@ void PrivateInstanceAAMP::NotifySpeedChanged(float rate, bool changeState)
 		if (rate == 0)
 		{
 			SetState(eSTATE_PAUSED);
+			if (HasSidecarData())
+			{ // has sidecar data
+				if (mpStreamAbstractionAAMP)
+					mpStreamAbstractionAAMP->MuteSubtitleOnPause();
+			}
 		}
 		else if (rate == AAMP_NORMAL_PLAY_RATE)
 		{
+			if (mTrickplayInProgress)
+			{
+				mTrickplayInProgress = false;
+			}
+			else
+			{
+				if (HasSidecarData())
+				{ // has sidecar data
+					if (mpStreamAbstractionAAMP)
+						mpStreamAbstractionAAMP->ResumeSubtitleOnPlay(subtitles_muted, mData);
+				}
+			}
 			SetState(eSTATE_PLAYING);
+		}
+		else
+		{
+			mTrickplayInProgress = true;
+			if (HasSidecarData())
+			{ // has sidecar data
+				if (mpStreamAbstractionAAMP)
+					mpStreamAbstractionAAMP->MuteSidecarSubtitles(true);
+			}
 		}
 	}
 
@@ -5094,6 +5128,15 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	}
 #endif
 
+	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE || tuneType == eTUNETYPE_SEEKTOEND)
+	{
+		if (HasSidecarData())
+		{ // has sidecar data
+			if (mpStreamAbstractionAAMP)
+				mpStreamAbstractionAAMP->ResumeSubtitleAfterSeek(subtitles_muted, mData);
+		}
+	}
+
 	if (newTune && !mIsFakeTune)
 	{
 		PrivAAMPState state;
@@ -6761,6 +6804,10 @@ void PrivateInstanceAAMP::Stop()
 		}
 #endif
 		mpStreamAbstractionAAMP->Stop(true);
+		if (HasSidecarData())
+		{ // has sidecar data
+			mpStreamAbstractionAAMP->ResetSubtitle();
+		}
 		//Deleting mpStreamAbstractionAAMP here will prevent the extra stop call in TeardownStream()
 		//and will avoid enableDownlaod() call being made unnecessarily
 		SAFE_DELETE(mpStreamAbstractionAAMP);
@@ -6813,6 +6860,7 @@ void PrivateInstanceAAMP::Stop()
 	mState = eSTATE_IDLE;
   
 	mSeekOperationInProgress = false;
+	mTrickplayInProgress = false;
 	mMaxLanguageCount = 0; // reset language count
 	//mPreferredAudioTrack = AudioTrackInfo(); // reset
 	mPreferredTextTrack = TextTrackInfo(); // reset
@@ -9894,7 +9942,7 @@ std::string PrivateInstanceAAMP::GetTextTrackInfo()
 /**
  * @brief Set text track
  */
-void PrivateInstanceAAMP::SetTextTrack(int trackId)
+void PrivateInstanceAAMP::SetTextTrack(int trackId, char *data)
 {
 	AAMPLOG_INFO("trackId: %d", trackId);
 	if (mpStreamAbstractionAAMP)
@@ -9906,67 +9954,79 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId)
 			return;
 		}
 
-		std::vector<TextTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableTextTracks();
-		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
+		if (data == NULL)
 		{
-			TextTrackInfo track = tracks[trackId];
-			// Check if CC / Subtitle track
-			if (track.isCC)
+			std::vector<TextTrackInfo> tracks = mpStreamAbstractionAAMP->GetAvailableTextTracks();
+			if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
 			{
-#ifdef AAMP_CC_ENABLED
-				if (!track.instreamId.empty())
+				TextTrackInfo track = tracks[trackId];
+				// Check if CC / Subtitle track
+				if (track.isCC)
 				{
-					CCFormat format = eCLOSEDCAPTION_FORMAT_DEFAULT;
-					// AampCCManager expects the CC type, ie 608 or 708
-					// For DASH, there is a possibility that instreamId is just an integer so we infer rendition
-					if (mMediaFormat == eMEDIAFORMAT_DASH && (std::isdigit(static_cast<unsigned char>(track.instreamId[0])) == 0) && !track.rendition.empty())
+#ifdef AAMP_CC_ENABLED
+					if (!track.instreamId.empty())
 					{
-						if (track.rendition.find("608") != std::string::npos)
+						CCFormat format = eCLOSEDCAPTION_FORMAT_DEFAULT;
+						// AampCCManager expects the CC type, ie 608 or 708
+						// For DASH, there is a possibility that instreamId is just an integer so we infer rendition
+						if (mMediaFormat == eMEDIAFORMAT_DASH && (std::isdigit(static_cast<unsigned char>(track.instreamId[0])) == 0) && !track.rendition.empty())
 						{
-							format = eCLOSEDCAPTION_FORMAT_608;
-						}
-						else if (track.rendition.find("708") != std::string::npos)
-						{
-							format = eCLOSEDCAPTION_FORMAT_708;
-						}
-					}
+							if (track.rendition.find("608") != std::string::npos)
+							{
+								format = eCLOSEDCAPTION_FORMAT_608;
+							}
+							else if (track.rendition.find("708") != std::string::npos)
+							{
+								format = eCLOSEDCAPTION_FORMAT_708;
+							}
+						}	
 
-					// preferredCEA708 overrides whatever we infer from track. USE WITH CAUTION
-					int overrideCfg;
-					GETCONFIGVALUE_PRIV(eAAMPConfig_CEAPreferred,overrideCfg);
-					if (overrideCfg != -1)
-					{
-						format = (CCFormat)(overrideCfg & 1);
-						AAMPLOG_WARN("PrivateInstanceAAMP: CC format override present, override format to: %d", format);
+						// preferredCEA708 overrides whatever we infer from track. USE WITH CAUTION
+						int overrideCfg;
+						GETCONFIGVALUE_PRIV(eAAMPConfig_CEAPreferred,overrideCfg);
+						if (overrideCfg != -1)
+						{
+							format = (CCFormat)(overrideCfg & 1);
+							AAMPLOG_WARN("PrivateInstanceAAMP: CC format override present, override format to: %d", format);
+						}	
+						AampCCManager::GetInstance()->SetTrack(track.instreamId, format);
 					}
-					AampCCManager::GetInstance()->SetTrack(track.instreamId, format);
+					else
+					{
+						AAMPLOG_ERR("PrivateInstanceAAMP: Track number/instreamId is empty, skip operation");
+					}
+#endif
 				}
 				else
 				{
-					AAMPLOG_ERR("PrivateInstanceAAMP: Track number/instreamId is empty, skip operation");
-				}
-#endif
-			}
-			else
-			{
-				//Unmute subtitles
-				SetCCStatus(true);
+					//Unmute subtitles
+					SetCCStatus(true);
 
-				//TODO: Effective handling between subtitle and CC tracks
-				int textTrack = mpStreamAbstractionAAMP->GetTextTrack();
-				AAMPLOG_WARN("GetPreferredTextTrack %d trackId %d", textTrack, trackId);
-				if (trackId != textTrack)
-				{
-					SetPreferredTextTrack(track);
-					discardEnteringLiveEvt = true;
-					seek_pos_seconds = GetPositionSeconds();
-					AcquireStreamLock();
-					TeardownStream(false);
-					TuneHelper(eTUNETYPE_SEEK);
-					ReleaseStreamLock();
-					discardEnteringLiveEvt = false;
-				}
+					//TODO: Effective handling between subtitle and CC tracks
+					int textTrack = mpStreamAbstractionAAMP->GetTextTrack();
+					AAMPLOG_WARN("GetPreferredTextTrack %d trackId %d", textTrack, trackId);
+					if (trackId != textTrack)
+					{
+						SetPreferredTextTrack(track);
+						discardEnteringLiveEvt = true;
+						seek_pos_seconds = GetPositionSeconds();
+						AcquireStreamLock();
+						TeardownStream(false);
+						TuneHelper(eTUNETYPE_SEEK);
+						ReleaseStreamLock();
+						discardEnteringLiveEvt = false;
+					}
+				}	
 			}
+		}
+		else
+		{
+			AAMPLOG_WARN("webvtt data received from application");
+			mData = data;
+			SetCCStatus(true);
+
+			mpStreamAbstractionAAMP->InitSubtitleParser(data);
+
 		}
 	}
 }
@@ -10029,6 +10089,10 @@ void PrivateInstanceAAMP::SetCCStatus(bool enabled)
 	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->MuteSubtitles(subtitles_muted);
+		if (HasSidecarData())
+		{ // has sidecar data
+			mpStreamAbstractionAAMP->MuteSidecarSubtitles(subtitles_muted);
+		}
 	}
 	SetSubtitleMute(subtitles_muted);
 	ReleaseStreamLock();
@@ -11601,3 +11665,14 @@ std::string PrivateInstanceAAMP::GetLicenseCustomData()
     return customData;
 }
 
+/**
+ * @brief check if sidecar data available
+ */
+bool PrivateInstanceAAMP::HasSidecarData()
+{
+	if (mData != NULL)
+	{
+		return true;
+	}
+	return false;
+}

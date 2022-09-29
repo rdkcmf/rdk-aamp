@@ -1462,6 +1462,56 @@ public:
 	 */
 	virtual void ChangeMuxedAudioTrackIndex(std::string& index){};
 
+	//Apis for sidecar caption support
+
+	/**
+         *   @brief Initilaize subtitle parser for sidecar support
+         *
+         *   @param data - subtitle data received from application
+         *   @return void
+         */
+	virtual void InitSubtitleParser(char *data) { };
+
+	/**
+         *   @brief reset subtitle parser created for sidecar support
+         *
+         *   @return void
+         */
+	virtual void ResetSubtitle() { };
+
+	/**
+         *   @brief mute subtitles on pause
+         *
+         *   @return void
+         */
+	virtual void MuteSubtitleOnPause() { };
+
+	/**
+         *   @brief resume subtitles on play
+         *
+         *   @param mute - mute status
+         *   @param data - subtitle data received from application
+         *   @return void
+         */
+	virtual void ResumeSubtitleOnPlay(bool mute, char *data) { };
+
+	/**
+         *   @brief mute/unmute sidecar subtitles
+         *   @param mute - mute/unmute
+         *
+         *   @return void
+         */
+	virtual void MuteSidecarSubtitles(bool mute) { };
+
+	/**
+         *   @brief resume subtitles after trickplay
+         *
+         *   @param mute - mute status
+         *   @param data - subtitle data received from application
+         *   @return void
+         */
+	virtual void ResumeSubtitleAfterSeek(bool mute, char *data) { };
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.
