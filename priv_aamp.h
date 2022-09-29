@@ -3256,9 +3256,10 @@ public:
 	 *   @fn SetTextTrack
 	 *
 	 *   @param[in] trackId - index of text track in available track list
+	 *   @param[in] data - subtitle data from application
 	 *   @return void
 	 */
-	void SetTextTrack(int trackId);
+	void SetTextTrack(int trackId, char *data=NULL);
 
 	/**
 	 *   @fn GetTextTrack
@@ -3907,6 +3908,7 @@ private:
 	ContentType mContentType;
 	bool mTunedEventPending;
 	bool mSeekOperationInProgress;
+	bool mTrickplayInProgress;
 	std::map<guint, bool> mPendingAsyncEvents;
 	std::unordered_map<std::string, std::vector<std::string>> mCustomHeaders;
 	bool mIsFirstRequestToFOG;
@@ -3961,6 +3963,7 @@ private:
 	AampLogManager *mLogObj;
 	bool mApplyVideoRect; 			/**< Status to apply stored video rectagle */
 	videoRect mVideoRect;
+	char *mData;
 };
 
 /**

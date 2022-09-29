@@ -2387,7 +2387,7 @@ int PlayerInstanceAAMP::GetAudioTrack()
 /**
  *  @brief Set text track
  */
-void PlayerInstanceAAMP::SetTextTrack(int trackId)
+void PlayerInstanceAAMP::SetTextTrack(int trackId, char *ccData)
 {
         ERROR_OR_IDLE_STATE_CHECK_VOID();
 	if(aamp && aamp->mpStreamAbstractionAAMP)
@@ -2400,28 +2400,30 @@ void PlayerInstanceAAMP::SetTextTrack(int trackId)
 			if (mAsyncTuneEnabled)
 			{
 				mScheduler.ScheduleTask(AsyncTaskObj(
-							[trackId ](void *data)
+							[trackId, ccData ](void *data)
 							{
 								PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-								instance->SetTextTrackInternal(trackId);
+								instance->SetTextTrackInternal(trackId, ccData);
 							}, (void *) this,__FUNCTION__));
 			}
 			else
 			{
-				SetTextTrackInternal(trackId);
+				SetTextTrackInternal(trackId, ccData);
 			}
 		}
+		else
+			SetTextTrackInternal(trackId, ccData);
 	}
 }
 
 /**
  *  @brief Set text track by Id
  */
-void PlayerInstanceAAMP::SetTextTrackInternal(int trackId)
+void PlayerInstanceAAMP::SetTextTrackInternal(int trackId, char *data)
 {
 	if(aamp && aamp->mpStreamAbstractionAAMP)
 	{
-		aamp->SetTextTrack(trackId);
+		aamp->SetTextTrack(trackId, data);
 	}
 }
 

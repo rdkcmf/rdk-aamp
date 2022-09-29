@@ -318,6 +318,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	,playlistMutex(), mIterPeriodIndex(0), mNumberOfPeriods(0)
 	,mUpperBoundaryPeriod(0), mLowerBoundaryPeriod(0), playlistDownloaderThreadStarted(false)
 	,mLiveTimeFragmentSync(false)
+	,mSubtitleParser()
 {
         FN_TRACE_F_MPD( __FUNCTION__ );
 	this->aamp = aamp;
@@ -9859,6 +9860,90 @@ std::string StreamAbstractionAAMP_MPD::GetVssVirtualStreamID()
 		}
 	}
 	return ret;
+}
+
+/**
+ * @brief Init webvtt subtitle parser for sidecar caption support
+ * @param webvtt data
+ */
+void StreamAbstractionAAMP_MPD::InitSubtitleParser(char *data)
+{
+	mSubtitleParser = SubtecFactory::createSubtitleParser(mLogObj, aamp, eSUB_TYPE_WEBVTT);
+	if (mSubtitleParser)
+	{
+		AAMPLOG_WARN("sending init to webvtt parser %.3f", seekPosition);
+		mSubtitleParser->init(seekPosition,0);
+		mSubtitleParser->mute(false);
+		AAMPLOG_INFO("sending data");
+		if (data != NULL)
+			mSubtitleParser->processData(data,strlen(data),0,0);
+	}
+
+}
+
+/**
+ * @brief Reset subtitle parser created for sidecar caption support
+ */
+void StreamAbstractionAAMP_MPD::ResetSubtitle()
+{
+	if (mSubtitleParser)
+	{
+		mSubtitleParser->reset();
+		mSubtitleParser = NULL;
+	}
+}
+
+/**
+ * @brief Mute subtitles on puase
+ */
+void StreamAbstractionAAMP_MPD::MuteSubtitleOnPause()
+{
+	if (mSubtitleParser)
+	{
+		mSubtitleParser->pause(true);
+		mSubtitleParser->mute(true);
+	}
+}
+
+/**
+ * @brief Resume subtitle on play
+ * @param webvtt data
+ */
+void StreamAbstractionAAMP_MPD::ResumeSubtitleOnPlay(char *data)
+{
+	if (mSubtitleParser)
+	{
+		mSubtitleParser->pause(false);
+		mSubtitleParser->mute(false);
+		if (data != NULL)
+			mSubtitleParser->processData(data,strlen(data),0,0);
+	}
+}
+
+/**
+ * @brief Mute subtitles on trickplay
+ */
+void StreamAbstractionAAMP_MPD::MuteSubtitleOnTrickPlay()
+{
+	if (mSubtitleParser)
+		mSubtitleParser->mute(true);
+}
+
+/**
+ * @brief Resume subtitle after seek
+ * @param webvtt data
+ */
+void  StreamAbstractionAAMP_MPD::ResumeSubtitleAfterSeek(char *data)
+{
+	mSubtitleParser = SubtecFactory::createSubtitleParser(mLogObj, aamp, eSUB_TYPE_WEBVTT);
+	if (mSubtitleParser)
+	{
+		mSubtitleParser->updateTimestamp(seekPosition*1000);
+		mSubtitleParser->mute(false);
+		if (data != NULL)
+			mSubtitleParser->processData(data,strlen(data),0,0);
+	}
+
 }
 
 /**

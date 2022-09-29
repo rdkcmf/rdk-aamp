@@ -28,6 +28,7 @@
 	#include "AampUtils.h"
 #endif
 
+
 #include "jsbindings-version.h"
 #include "jsbindings.h"
 #include "jsutils.h"
@@ -41,9 +42,6 @@
 #include "AampCCManager.h"
 #endif
 
-#ifndef MUTE_SUBTITLES_TRACKID
-#define MUTE_SUBTITLES_TRACKID (-1)  /* match priv_aamp.h */
-#endif
 
 extern "C"
 {
@@ -1545,7 +1543,15 @@ JSValueRef AAMPMediaPlayerJS_setTextTrack (JSContextRef ctx, JSObjectRef functio
 	if (argumentCount != 1)
 	{
 		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
-		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setTextTrack() - 1 argument required");
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setTextTrack() - atleast 1 argument required");
+	}
+	else if (!JSValueIsNumber(ctx, arguments[0]))
+	{
+		// note, here, first parameter is not used, only the passed WebVTT data
+		// note: SetTextTrack() will responsibility for releasing data when no longer needed
+		char *data = aamp_JSValueToCString(ctx, arguments[0], exception);
+		privObj->_aamp->SetTextTrack(0, data);
+
 	}
 	else
 	{
@@ -1556,8 +1562,8 @@ JSValueRef AAMPMediaPlayerJS_setTextTrack (JSContextRef ctx, JSObjectRef functio
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - track index should be >= 0!", __FUNCTION__);
-			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Text track index should be >= 0!");
+			ERROR("%s(): InvalidArgument - track index should be >= -1!", __FUNCTION__);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Text track index should be >= -1!");
 		}
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);
