@@ -1411,7 +1411,7 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 
 				if(_this->aamp->mSetPlayerRateAfterFirstframe
 #ifdef REALTEKCE
-				 || _this->aamp->rate != _this->aamp->playerrate
+				 ||((AAMP_SLOWMOTION_RATE == _this->aamp->playerrate) && (_this->aamp->rate != _this->aamp->playerrate))
 #endif /*REALTEKCE*/
 				 )
 				{
@@ -4798,3 +4798,4 @@ bool AAMPGstPlayer::AdjustPlayBackRate(double position, double rate)
 	}
 	return ErrSuccess;
 }
+
