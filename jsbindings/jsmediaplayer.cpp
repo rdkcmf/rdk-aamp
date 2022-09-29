@@ -41,6 +41,9 @@
 #include "AampCCManager.h"
 #endif
 
+#ifndef MUTE_SUBTITLES_TRACKID
+#define MUTE_SUBTITLES_TRACKID (-1)  /* match priv_aamp.h */
+#endif
 
 extern "C"
 {
@@ -1547,7 +1550,7 @@ JSValueRef AAMPMediaPlayerJS_setTextTrack (JSContextRef ctx, JSObjectRef functio
 	else
 	{
 		int index = (int) JSValueToNumber(ctx, arguments[0], NULL);
-		if (index >= 0)
+		if (index >= MUTE_SUBTITLES_TRACKID) // -1 disable subtitles, >0 subtitle track index
 		{
 			privObj->_aamp->SetTextTrack(index);
 		}
