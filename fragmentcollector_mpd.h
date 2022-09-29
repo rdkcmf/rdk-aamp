@@ -389,6 +389,50 @@ public:
 	 * @param[out] http_error code
 	 */
 	void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error);
+
+	//Apis for sidecar caption support
+
+	/**
+         * @fn InitSubtitleParser
+         * @param[in] data - subtitle data from application
+         * @return void
+         */
+	void InitSubtitleParser(char *data) override;
+
+	/**
+         * @fn ResetSubtitle
+         * @return void
+         */
+	void ResetSubtitle() override;
+
+	/**
+         * @fn MuteSubtitleOnPause
+         * @return void
+         */
+	void MuteSubtitleOnPause() override;
+
+	/**
+         * @fn ResumeSubtitleOnPlay
+         * @param[in] mute - mute status
+         * @param[in] data - subtitle data from application
+         * @return void
+         */
+	void ResumeSubtitleOnPlay(bool mute, char *data) override;
+
+	/**
+         * @fn MuteSidecarSubtitles
+         * @param[in] mute - mute/unmute
+         * @return void
+         */
+	void MuteSidecarSubtitles(bool mute) override;
+
+	/**
+         * @fn ResumeSubtitleAfterSeek
+         * @param[in] mute - mute status
+         * @param[in] data - subtitle data from application
+         * @return void
+         */
+	void ResumeSubtitleAfterSeek(bool mute, char *data) override;
 private:
 	/**
 	 * @fn printSelectedTrack
@@ -898,6 +942,7 @@ private:
 	bool latencyMonitorThreadStarted;	 /**< Monitor latency thread  status*/
 	pthread_t latencyMonitorThreadID;	 /**< Fragment injector thread id*/
 	int mProfileCount;			 /**< Total video profile count*/
+	std::unique_ptr<SubtitleParser> mSubtitleParser;	/**< Parser for subtitle data*/
 };
 
 #endif //FRAGMENTCOLLECTOR_MPD_H_
