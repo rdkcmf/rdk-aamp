@@ -3131,17 +3131,23 @@ static JSValueRef AAMP_setTextTrack(JSContextRef context, JSObjectRef function, 
 		return JSValueMakeUndefined(context);
 	}
 
-	if (argumentCount != 1)
+	if (argumentCount != 1 && argumentCount != 2)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
-		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextTrack' - 1 argument required");
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1 or 2", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextTrack' - atleast 1 argument required");
 	}
 	else
 	{
 		int index = (int) JSValueToNumber(context, arguments[0], NULL);
 		if (index >= 0)
 		{
-		        pAAMP->_aamp->SetTextTrack(index);
+			if (argumentCount == 1)
+			    pAAMP->_aamp->SetTextTrack(index);
+			else
+			{
+			    char* data = aamp_JSValueToCString(context, arguments[1], exception);
+			    pAAMP->_aamp->SetTextTrack(index, data);
+			}
 		}
 		else
 		{

@@ -1541,17 +1541,23 @@ JSValueRef AAMPMediaPlayerJS_setTextTrack (JSContextRef ctx, JSObjectRef functio
 		return JSValueMakeUndefined(ctx);
 	}
 
-	if (argumentCount != 1)
+	if (argumentCount != 1 && argumentCount != 2)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
-		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setTextTrack() - 1 argument required");
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1 or 2", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setTextTrack() - atleast 1 argument required");
 	}
 	else
 	{
 		int index = (int) JSValueToNumber(ctx, arguments[0], NULL);
 		if (index >= MUTE_SUBTITLES_TRACKID) // -1 disable subtitles, >0 subtitle track index
 		{
-			privObj->_aamp->SetTextTrack(index);
+			if (argumentCount == 1)
+				privObj->_aamp->SetTextTrack(index);
+			else
+			{
+				char *data = aamp_JSValueToCString(ctx, arguments[1], exception);
+				privObj->_aamp->SetTextTrack(index, data);
+			}
 		}
 		else
 		{
