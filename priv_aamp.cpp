@@ -2739,7 +2739,8 @@ void PrivateInstanceAAMP::AdditionalTuneFailLogEntries()
 		}
 		AAMPLOG_WARN(injectionBlockedMessage.c_str());
 	}
-
+	
+	if(mpStreamAbstractionAAMP)
 	{
 		std::string trackBufferStatusMessage = "Track buffer status: ";
 		for (int i = 0; i < AAMP_TRACK_COUNT; i++)
