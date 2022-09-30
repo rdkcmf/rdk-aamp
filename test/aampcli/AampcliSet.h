@@ -36,12 +36,17 @@ class Set : public Command {
 
 	public:
 		static std::vector<std::string> commands;
+		static std::vector<std::string> numCommands;
 		static std::map<string,string> setCommands;
+		static std::map<string,string> setNumCommands;
 		void addCommand(string command,string description);
 		void registerSetCommands();
 		static char *setCommandRecommender(const char *text, int state);
 		void ShowHelpSet();
 		bool execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
+		void registerSetNumCommands();
+		void addNumCommand(string command,string description);
+		void ShowHelpSetNum();
 };
 
 #endif // AAMPCLISET_H
