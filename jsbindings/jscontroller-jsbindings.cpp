@@ -456,7 +456,7 @@ static const JSClassDefinition AAMP_JSController_class_def =
 };
 
 /**
- * @brief Sets the custom http headers from recieved json string
+ * @brief Sets the custom http headers from received json string
  * @param[in] headerJson http headers json in string format
  */
 void aamp_SetPageHttpHeaders(const char* headerJson)

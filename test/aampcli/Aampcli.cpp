@@ -325,7 +325,7 @@ int main(int argc, char **argv)
 	mAbrManager.setLogDirectory(driveName);
 
 	printf("**************************************************************************\n");
-	printf("** ADVANCED ADAPTIVE MICRO PLAYER (AAMP) - COMMAND LINE INTERFACE (CLI) **\n");
+	printf("** ADVANCED ADAPTIVE MEDIA PLAYER (AAMP) - COMMAND LINE INTERFACE (CLI) **\n");
 	printf("**************************************************************************\n");
 
 	mAampcli.initPlayerLoop(0,NULL);

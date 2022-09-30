@@ -60,7 +60,7 @@ preFetchIframePlaylist		Enable prefetching of I-Frame playlist.Default false
 preservePipeline		Flush instead of teardown.Default false
 demuxHlsAudioTrack		Demux Audio track from HLS transport stream.Default true
 demuxHlsVideoTrack		Demux Video track from HLS transport stream.Default true
-demuxHlsVideoTrackTrickMode	Demux Video track from HLS transport stream during TrickMode.Defaut true
+demuxHlsVideoTrackTrickMode	Demux Video track from HLS transport stream during TrickMode.Default true
 throttle			Regulate output data flow,used with restamping. Default false
 demuxAudioBeforeVideo		Demux video track from HLS transport stream track mode.Default false
 stereoOnly			Enable selection of stereo only audio.It Overrides forceEC3/disableEC3/disableATMOS.Default false
@@ -109,7 +109,7 @@ client-dai			Enable/Disable Client-DAI.Default false
 cdnAdsOnly			Enable/Disable picking Ads from Fog or CDN . Default false
 appSrcForProgressivePlayback 	Enables appsrc for playing progressive AV type.Default false
 seekMidFragment			Enable/Disable Mid-Fragment seek .Default false
-wifiCurlHeader			Enable/Disble wifi custom curl header inclusion.Default true
+wifiCurlHeader			Enable/Disable wifi custom curl header inclusion.Default true
 removeAVEDRMPersistent		Enable/Disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs.Default false.
 reportBufferEvent		Enables Buffer event reporting.Default is true.
 info            		Enable/Disable logging of requested urls.Default is false
@@ -184,22 +184,22 @@ linearTrickPlayFps      	Specify the framerate for Linear trickplay (defaults to
 fragmentRetryLimit		Set fragment rampdown/retry limit for video fragment failure (default is -1).
 initRampdownLimit		Maximum number of rampdown/retries for initial playlist retrieval at tune/seek time. Default is 0 (disabled).
 initFragmentRetryCount	    	Max retry attempts for init frag curl timeout failures, default count is 1 (which internally means 1 download attempt and "1 retry attempt after failure").
-langCodePreference		prefered format for normalizing language code.Default is 0.
+langCodePreference		preferred format for normalizing language code.Default is 0.
 initialBuffer			cached duration before playback start, in seconds. Default is 0.
 maxTimeoutForSourceSetup	Timeout value wait for GStreamer appsource setup to complete.default is 1000.
 drmDecryptFailThreshold		Retry count on drm decryption failure, default is 10.
-segmentInjectFailThreshold	Retry count for segment injection discard/failue, default is 10.
+segmentInjectFailThreshold	Retry count for segment injection discard/failure, default is 10.
 preCachePlaylistTime		Max time to complete PreCaching default is 0 in minutes
 thresholdSizeABR		ABR threshold size. Default 6000.
 stallTimeout			Stall detection timeout. Default is  10sec
 stallErrorCode			Stall error code.Default is  7600
-minABRBufferRampdown		Mininum ABR Buffer for Rampdown.Default is 10sec
+minABRBufferRampdown		Minimum ABR Buffer for Rampdown.Default is 10sec
 maxABRBufferRampup		Maximum ABR Buffer for Rampup.Default is 15sec
 preplayBuffercount		Count of segments to be downloaded until play state.Default is 2
 downloadDelay			Delay for downloads to simulate network latency.Default is 0
 onTuneRate			Tune rate.Default is INT_MAX
 dashMaxDrmSessions		Max drm sessions that can be cached by AampDRMSessionManager.Default is 3
-log				New Configuration to overide info/debug/trace.Default is 0
+log				New Configuration to override info/debug/trace.Default is 0
 livePauseBehavior               Player paused state behavior.Default is 0(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE)
 latencyMonitorDelay		Low Latency Monitor delay.Default is 5(DEFAULT_LATENCY_MONITOR_DELAY)
 latencyMonitorInterval		Low Latency Monitor Interval.Default is 2(DEFAULT_LATENCY_MONITOR_INTERVAL)
@@ -212,7 +212,7 @@ licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) asset
 mapMPD				<domain / host to map> Remap HLS playback url to DASH url for matching domain/host string (.m3u8 to .mpd) mapM3U8				<domain / host to map> Remap DASH MPD playback url to HLS m3u8 url for matching domain/host string (.mpd to .m3u8)
 harvestPath			Specify the path where fragments has to be harvested,check folder permissions specifying the path
 networkProxy			proxy address to set for all file downloads. Default None  
-licenseProxy			proxy address to set for licese fetch . Default None
+licenseProxy			proxy address to set for license fetch . Default None
 AuthToken			SessionToken string to override from Application . Default None
 userAgent			Curl user-agent string.Default is {Mozilla/5.0 (Linux; x86_64 GNU/Linux) AppleWebKit/601.1 (KHTML, like Gecko) Version/8.0 Safari/601.1 WPE}
 customHeader			custom header data to be appended to curl request. Default None
@@ -241,7 +241,7 @@ manifestTimeout			Specify manifest download time out in seconds, default is 10 s
 playlistTimeout			Playlist download time out in sec.Default is 10 seconds.
 
 *File Harvest Config :
-    By default aamp will dump all the type of data, set 0 for desabling harvest
+    By default aamp will dump all the type of data, set 0 for disabling harvest
 	0x00000001 (1)      - Enable Harvest Video fragments - set 1st bit 
 	0x00000002 (2)      - Enable Harvest audio - set 2nd bit 
 	0x00000004 (4)      - Enable Harvest subtitle - set 3rd bit 
@@ -259,13 +259,13 @@ playlistTimeout			Playlist download time out in sec.Default is 10 seconds.
 	0x00004000 (16384)  - Enable Harvest auxiliary audio playlist - set 15th bit 
 	0x00008000 (32768)  - Enable Harvest Iframe playlist - set 16th bit 
 	0x00010000 (65536)  - Enable Harvest IFRAME init fragment - set 17th bit  
-	example :- if you want harvest only manifest and vide0 fragments , set value like 0x00000001 + 0x00000010 = 0x00000011 = 17
+	example :- if you want harvest only manifest and video fragments , set value like 0x00000001 + 0x00000010 = 0x00000011 = 17
 	harvest-config=17
 =================================================================================================================
 3. Channel Override Settings
 
 Overriding channels in aamp.cfg
-aamp.cfg allows to map channnels to custom urls as follows
+aamp.cfg allows to map channels to custom urls as follows
 
 *<Token> <Custom url>
 This will make aamp tune to the <Custom url> when ever aamp gets tune request to any url with <Token> in it.
@@ -323,7 +323,7 @@ live        Seek to live point
 exit        Gracefully exit application
 sap <lang>  Select alternate audio language track.
 bps <val>   Set video bitrate in bps
-harvest <harvestConfiguration> Initiate harvesting for space seperated harvest configuration such as 
+harvest <harvestConfiguration> Initiate harvesting for space separated harvest configuration such as 
 	harvestMode=Master harvestUrl=<url> harvestPath=<path> for Master mode(To download all available profiles)
 	harvestMode=Slave harvestUrl=<url> harvestConfig=65535 defaultBitrate=400000 defaultBitrate4K=400000 disableDecode=true harvestPath=<path> for Slave mode(To download selective profile)
 
@@ -395,7 +395,7 @@ in version 2.0
 	28(0) - Curl 28 occured, network connectivity is down
 	28(1) = Curl 28 occured, network connectivity is up
 	404, 42, 7, etc.. = http/curl error code occured during download.
-		Example : "S":{"200":341,"404":6} - 341 success attemps and 4 attempts with 404
+		Example : "S":{"200":341,"404":6} - 341 success attempts and 4 attempts with 404
 			  "S":{"200":116,"28(1)":1,"404":114} - 115 success attempts, 114 attempts with 404 and 1 attempt with curl-28
 	T0
 	T1
