@@ -499,7 +499,7 @@ bool AAMPGstPlayer::TimerIsRunning(guint& taskId)
 	FN_TRACE( __FUNCTION__ );
 	std::lock_guard<std::mutex> lock(privateContext->TaskControlMutex);
 
-	return !(0 == privateContext->periodicProgressCallbackIdleTaskId);
+	return (AAMP_TASK_ID_INVALID != taskId);
 }
 
 /**
