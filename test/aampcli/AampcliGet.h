@@ -33,12 +33,17 @@ class Get : public Command {
 
 	public:
 		static std::vector<std::string> commands;
+		static std::vector<std::string> numCommands;
 		static std::map<string,string> getCommands;
+		static std::map<string,string> getNumCommands;
 		void addCommand(string command,string description);
 		void registerGetCommands();
 		static char *getCommandRecommender(const char *text, int state);
 		void ShowHelpGet();
 		bool execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
+		void registerGetNumCommands();
+		void addNumCommand(string command,string description);
+		void ShowHelpGetNum();
 };
 
 #endif // AAMPCLIGET_H
