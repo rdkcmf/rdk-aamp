@@ -10576,7 +10576,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 		jsObject = new AampJsonObject(languageList);
 		if (jsObject)
 		{
-			AAMPLOG_INFO("Preferred Language Properties recieved as json : %s", languageList);
+			AAMPLOG_INFO("Preferred Language Properties received as json : %s", languageList);
 			isJson = true;
 		}
 	}
@@ -10617,8 +10617,8 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			AAMPLOG_ERR("Preferred Audio Language Field Only support String or String Array");
 		}
 
-		AAMPLOG_INFO("Number of preferred languages recieved: %d", inputLanguagesList.size());
-		AAMPLOG_INFO("Preferred language string recieved: %s", inputLanguagesString.c_str());
+		AAMPLOG_INFO("Number of preferred languages received: %d", inputLanguagesList.size());
+		AAMPLOG_INFO("Preferred language string received: %s", inputLanguagesString.c_str());
 
 		std::string inputLabelsString;
 		/** Get Label Properties*/
@@ -10974,7 +10974,7 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 		jsObject = new AampJsonObject(param);
 		if (jsObject)
 		{
-			AAMPLOG_INFO("Preferred Text Language Properties recieved as json : %s", param);
+			AAMPLOG_INFO("Preferred Text Language Properties received as json : %s", param);
 			isJson = true;
 		}
 	}

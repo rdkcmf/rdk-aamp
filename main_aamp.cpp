@@ -595,7 +595,7 @@ void PlayerInstanceAAMP::SetRateInternal(float rate,int overshootcorrection)
 	//Hack For DELIA-51318 convert the incoming rates into acceptable rates
 	if(ISCONFIGSET(eAAMPConfig_RepairIframes))
 	{
-		AAMPLOG_WARN("mRepairIframes is true, setting actual rate %d for the recieved rate %f", getWorkingTrickplayRate(rate), rate);
+		AAMPLOG_WARN("mRepairIframes is true, setting actual rate %d for the received rate %f", getWorkingTrickplayRate(rate), rate);
 		rate = getWorkingTrickplayRate(rate);
 	}
 
@@ -1180,7 +1180,7 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 	//Hack For DELIA-51318 convert the incoming rates into acceptable rates
 	if(ISCONFIGSET(eAAMPConfig_RepairIframes))
 	{
-		AAMPLOG_WARN("mRepairIframes is true, setting actual rate %d for the recieved rate %d", getWorkingTrickplayRate(rate), rate);
+		AAMPLOG_WARN("mRepairIframes is true, setting actual rate %d for the received rate %d", getWorkingTrickplayRate(rate), rate);
 		rate = getWorkingTrickplayRate(rate);
 	}
 
