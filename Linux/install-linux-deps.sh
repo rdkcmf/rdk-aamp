@@ -23,6 +23,9 @@ install_package libssl-dev
 install_package libxml2-dev 
 install_package pkg-config 
 install_package zlib1g-dev
+install_package libreadline-dev
+install_package libgstreamer-plugins-base1.0-dev
+install_package gstreamer1.0-libav
 
 ver=$(grep -oP 'VERSION_ID="\K[\d.]+' /etc/os-release)
 
