@@ -88,7 +88,7 @@
 #define GETCONFIGVALUE(key,value) (aamp->mConfig->GetConfigValue( key ,value))
 #define GETCONFIGVALUE_PRIV(key,value) (mConfig->GetConfigValue( key ,value))
 #define GETCONFIGOWNER(key) (aamp->mConfig->GetConfigOwner(key))
-#define GETCONFIGOWNER_PRIV(key,value) (mConfig->GetConfigOwner(key))
+#define GETCONFIGOWNER_PRIV(key) (mConfig->GetConfigOwner(key))
 /**
  * @brief AAMP Config Settings
  */
@@ -310,9 +310,11 @@ typedef enum
 	eAAMPConfig_PreferredAudioCodec,					/**< New Configuration to save preferred Audio codecs values; support comma separated multiple string values*/
 	eAAMPConfig_PreferredAudioLanguage,					/**< New Configuration to save preferred Audio languages; support comma separated multiple string values*/
 	eAAMPConfig_PreferredAudioLabel,					/**< New Configuration to save preferred Audio label field; Label is a textual description of the content. Support only single string value*/ 
+	eAAMPConfig_PreferredAudioType,						/**< New Configuration to save preferred Audio Type field; type indicate the accessibility type of audio track*/ 
 	eAAMPConfig_PreferredTextRendition,					/**< New Configuration to save preferred Text rendition/role descriptor field; support only single string value*/
 	eAAMPConfig_PreferredTextLanguage,					/**<  New Configuration to save preferred Text languages; support comma separated multiple string values*/
 	eAAMPConfig_PreferredTextLabel,						/**< New Configuration to save preferred Text label field; Label is a textual description of the content. Support only single string value*/
+	eAAMPConfig_PreferredTextType,						/**< New Configuration to save preferred Text Type field; type indicate the accessibility type of text track*/
 	eAAMPConfig_CustomLicenseData,                          		/**< Custom Data for License Request */
 	eAAMPConfig_StringMaxValue,
 	eAAMPConfig_MaxValue

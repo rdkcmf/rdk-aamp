@@ -239,9 +239,11 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"preferredAudioCodec",eAAMPConfig_PreferredAudioCodec,-1,-1},
 	{"preferredAudioLanguage",eAAMPConfig_PreferredAudioLanguage,-1,-1},
 	{"preferredAudioLabel",eAAMPConfig_PreferredAudioLabel,-1,-1},
+	{"preferredAudioType",eAAMPConfig_PreferredAudioType,-1,-1},
 	{"preferredTextRendition",eAAMPConfig_PreferredTextRendition,-1,-1},
 	{"preferredTextLanguage",eAAMPConfig_PreferredTextLanguage,-1,-1},
 	{"preferredTextLabel",eAAMPConfig_PreferredTextLabel,-1,-1},
+	{"preferredTextType",eAAMPConfig_PreferredTextType,-1,-1},
 	{"gstVideoBufBytes", eAAMPConfig_GstVideoBufBytes,-1,-1},
 	{"gstAudioBufBytes", eAAMPConfig_GstAudioBufBytes,-1,-1},
 	{"seiTimeCode",eAAMPConfig_SEITimeCode,-1,-1},
@@ -592,6 +594,11 @@ void AampConfig::Initialize()
 	sAampCfgValue[eAAMPConfig_PreferredAudioCodec-eAAMPConfig_StringStartValue].value	=	"";
 	sAampCfgValue[eAAMPConfig_PreferredAudioLanguage-eAAMPConfig_StringStartValue].value    =       "en,eng";
 	sAampCfgValue[eAAMPConfig_PreferredAudioLabel-eAAMPConfig_StringStartValue].value    =       "";
+	sAampCfgValue[eAAMPConfig_PreferredAudioType-eAAMPConfig_StringStartValue].value    =       "";
+	sAampCfgValue[eAAMPConfig_PreferredTextRendition-eAAMPConfig_StringStartValue].value    =   "";
+	sAampCfgValue[eAAMPConfig_PreferredTextLanguage-eAAMPConfig_StringStartValue].value    =    "";
+	sAampCfgValue[eAAMPConfig_PreferredTextLabel-eAAMPConfig_StringStartValue].value    =       "";
+	sAampCfgValue[eAAMPConfig_PreferredTextType-eAAMPConfig_StringStartValue].value    =       "";
 	sAampCfgValue[eAAMPConfig_CustomLicenseData-eAAMPConfig_StringStartValue].value        =       "";
 }
 

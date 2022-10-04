@@ -2462,23 +2462,18 @@ void PlayerInstanceAAMP::SetAudioTrack(int trackId)
 		std::vector<AudioTrackInfo> tracks = aamp->mpStreamAbstractionAAMP->GetAvailableAudioTracks();
 		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
 		{
-			//aamp->SetPreferredAudioTrack(tracks[trackId]);
-			SetPreferredLanguages( tracks[trackId].language.c_str(), tracks[trackId].rendition.c_str(), tracks[trackId].accessibilityType.c_str(), tracks[trackId].codec.c_str() );
-			std::string sLang = tracks[trackId].language;
-			std::string mRendition = tracks[trackId].rendition;
 			if (mAsyncTuneEnabled)
 			{
 				mScheduler.ScheduleTask(AsyncTaskObj(
-						[sLang , mRendition ](void *data)
+						[tracks , trackId](void *data)
 						{
 							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->SetPreferredLanguages( sLang.c_str(), mRendition.c_str());
+							instance->SetPreferredLanguages(tracks[trackId].language.c_str(), tracks[trackId].rendition.c_str(), tracks[trackId].accessibilityType.c_str(), tracks[trackId].codec.c_str(), tracks[trackId].label.c_str());
 						}, (void *) this,__FUNCTION__));
 			}
 			else
 			{
-				//aamp->SetPreferredAudioTrack(tracks[trackId]);
-				SetPreferredLanguages( sLang.c_str(), mRendition.c_str());
+				SetPreferredLanguages(tracks[trackId].language.c_str(), tracks[trackId].rendition.c_str(), tracks[trackId].accessibilityType.c_str(), tracks[trackId].codec.c_str(), tracks[trackId].label.c_str());
 			}
 		}
 	} // end of if
