@@ -2155,7 +2155,7 @@ void PlayerInstanceAAMP::SetSslVerifyPeerConfig(bool bValue)
 /**
  *   @brief Set audio track
  */
-void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string rendition, std::string codec, std::string type, unsigned int channel, std::string label)
+void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string rendition, std::string type, std::string codec, unsigned int channel, std::string label)
 {
 	if(aamp)
 	{
@@ -2163,15 +2163,15 @@ void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string renditi
 		if (mAsyncTuneEnabled)
 		{
 			mScheduler.ScheduleTask(AsyncTaskObj(
-						[language,rendition,codec,type,channel, label](void *data)
+						[language,rendition,type,codec,channel, label](void *data)
 						{
 							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->SetAudioTrackInternal(language,rendition,codec,type,channel, label);
+							instance->SetAudioTrackInternal(language,rendition,type,codec,channel, label);
 						}, (void *) this,__FUNCTION__));
 		}
 		else
 		{
-			SetAudioTrackInternal(language,rendition,codec,type,channel, label);
+			SetAudioTrackInternal(language,rendition,type,codec,channel,label);
 		}
 	}
 }
@@ -2409,23 +2409,18 @@ void PlayerInstanceAAMP::SetAudioTrack(int trackId)
 		std::vector<AudioTrackInfo> tracks = aamp->mpStreamAbstractionAAMP->GetAvailableAudioTracks();
 		if (!tracks.empty() && (trackId >= 0 && trackId < tracks.size()))
 		{
-			//aamp->SetPreferredAudioTrack(tracks[trackId]);
-			SetPreferredLanguages( tracks[trackId].language.c_str(), tracks[trackId].rendition.c_str(), tracks[trackId].accessibilityType.c_str(), tracks[trackId].codec.c_str() );
-			std::string sLang = tracks[trackId].language;
-			std::string mRendition = tracks[trackId].rendition;
 			if (mAsyncTuneEnabled)
 			{
 				mScheduler.ScheduleTask(AsyncTaskObj(
-						[sLang , mRendition ](void *data)
+						[tracks , trackId](void *data)
 						{
 							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->SetPreferredLanguages( sLang.c_str(), mRendition.c_str());
+							instance->SetPreferredLanguages(tracks[trackId].language.c_str(), tracks[trackId].rendition.c_str(), tracks[trackId].accessibilityType.c_str(), tracks[trackId].codec.c_str(), tracks[trackId].label.c_str());
 						}, (void *) this,__FUNCTION__));
 			}
 			else
 			{
-				//aamp->SetPreferredAudioTrack(tracks[trackId]);
-				SetPreferredLanguages( sLang.c_str(), mRendition.c_str());
+				SetPreferredLanguages(tracks[trackId].language.c_str(), tracks[trackId].rendition.c_str(), tracks[trackId].accessibilityType.c_str(), tracks[trackId].codec.c_str(), tracks[trackId].label.c_str());
 			}
 		}
 	} // end of if
