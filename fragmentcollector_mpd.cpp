@@ -6589,6 +6589,11 @@ bool StreamAbstractionAAMP_MPD::GetBestTextTrackByLanguage( TextTrackInfo &selec
 			trackLabel = adaptationSet->GetLabel();
 			if (!trackLabel.empty())
 			{
+				if (!aamp->preferredTextLabelString.empty() && aamp->preferredTextLabelString.compare(trackLabel) == 0)
+				{
+					/**< Label matched **/
+					score += AAMP_LABEL_SCORE;
+				}
 				labelFound = true;
 			}
 			trackLanguage = GetLanguageForAdaptationSet(adaptationSet);

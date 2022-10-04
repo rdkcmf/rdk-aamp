@@ -241,9 +241,11 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"preferredAudioCodec",eAAMPConfig_PreferredAudioCodec,false,-1,-1},
 	{"preferredAudioLanguage",eAAMPConfig_PreferredAudioLanguage,false,-1,-1},
 	{"preferredAudioLabel",eAAMPConfig_PreferredAudioLabel,false,-1,-1},
+	{"preferredAudioType",eAAMPConfig_PreferredAudioType,false,-1,-1},
 	{"preferredTextRendition",eAAMPConfig_PreferredTextRendition,false,-1,-1},
 	{"preferredTextLanguage",eAAMPConfig_PreferredTextLanguage,false,-1,-1},
 	{"preferredTextLabel",eAAMPConfig_PreferredTextLabel,false,-1,-1},
+	{"preferredTextType",eAAMPConfig_PreferredTextType,false,-1,-1},
 	{"gstVideoBufBytes", eAAMPConfig_GstVideoBufBytes,false,-1,-1},
 	{"gstAudioBufBytes", eAAMPConfig_GstAudioBufBytes,false,-1,-1},
 	{"seiTimeCode",eAAMPConfig_SEITimeCode,false,-1,-1},
@@ -269,7 +271,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"maxInitFragCachePerTrack",eAAMPConfig_MaxInitFragCachePerTrack,true,{.iMinValue=1},{.iMaxValue=5}},
 	{"supportTLS",eAAMPConfig_TLSVersion,true,{.lMinValue=CURL_SSLVERSION_DEFAULT},{.lMaxValue=CURL_SSLVERSION_TLSv1_3}},
 	{"fogMaxConcurrentDownloads",eAAMPConfig_FogMaxConcurrentDownloads, false,-1, -1},
-        {"enableFogConfig", eAAMPConfig_EnableAampConfigToFog, false, -1, -1},
+	{"enableFogConfig", eAAMPConfig_EnableAampConfigToFog, false, -1, -1},
 	{"xreSupportedTune",eAAMPConfig_XRESupportedTune,false,-1,-1},
 	{"allowPageHeaders",eAAMPConfig_AllowPageHeaders,false,-1,-1},
 	{"customLicenseData",eAAMPConfig_CustomLicenseData,false,-1,-1},
@@ -584,6 +586,11 @@ void AampConfig::Initialize()
 	sAampCfgValue[eAAMPConfig_PreferredAudioCodec-eAAMPConfig_StringStartValue].value	=	"";
 	sAampCfgValue[eAAMPConfig_PreferredAudioLanguage-eAAMPConfig_StringStartValue].value    =       "en,eng";
 	sAampCfgValue[eAAMPConfig_PreferredAudioLabel-eAAMPConfig_StringStartValue].value    =       "";
+	sAampCfgValue[eAAMPConfig_PreferredAudioType-eAAMPConfig_StringStartValue].value    =       "";
+	sAampCfgValue[eAAMPConfig_PreferredTextRendition-eAAMPConfig_StringStartValue].value    =   "";
+	sAampCfgValue[eAAMPConfig_PreferredTextLanguage-eAAMPConfig_StringStartValue].value    =    "";
+	sAampCfgValue[eAAMPConfig_PreferredTextLabel-eAAMPConfig_StringStartValue].value    =       "";
+	sAampCfgValue[eAAMPConfig_PreferredTextType-eAAMPConfig_StringStartValue].value    =       "";
 	sAampCfgValue[eAAMPConfig_CustomLicenseData-eAAMPConfig_StringStartValue].value        =       "";
 }
 
