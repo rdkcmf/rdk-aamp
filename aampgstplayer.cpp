@@ -2882,7 +2882,8 @@ void AAMPGstPlayer::SetKeepLastFrame(bool keepLastFrame)
 #endif
 	if (element)
 	{
-		GstState gst_current, gst_pending;
+		GstState gst_current = GST_STATE_NULL;
+		GstState gst_pending = GST_STATE_NULL;
 		GstStateChangeReturn retStatus;
 		std::string elementName = SafeName(element);
 
@@ -2890,6 +2891,7 @@ void AAMPGstPlayer::SetKeepLastFrame(bool keepLastFrame)
 		switch (retStatus)
 		{
 			case GST_STATE_CHANGE_SUCCESS:
+			case GST_STATE_CHANGE_NO_PREROLL:
 			{
 				if ( (gst_current != GST_STATE_PAUSED) && (gst_current != GST_STATE_PLAYING) )
 				{
@@ -2914,6 +2916,11 @@ void AAMPGstPlayer::SetKeepLastFrame(bool keepLastFrame)
 			case GST_STATE_CHANGE_FAILURE:
 			{
 				AAMPLOG_INFO("'%.50s' is in FAIL state. 'stop-keep-frame' will not work.", elementName.c_str());
+				break;
+			}
+			default:
+			{
+				AAMPLOG_WARN("Unhandled state change return status %d", retStatus);
 				break;
 			}
 		}
