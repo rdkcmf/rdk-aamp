@@ -1548,10 +1548,19 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						}
 
 						uint64_t fragmentTimeBackUp = pMediaStreamContext->fragmentDescriptor.Time;
+						bool liveEdgePeriodPlayback = mIsLiveManifest && (mCurrentPeriodIdx == mUpperBoundaryPeriod);
 						ReleasePlaylistLock();
-						if(mIsFogTSB ||(mPeriodDuration !=0 &&(((mPeriodStartTime + positionInPeriod) < endTime) || 
-									(mIsLiveManifest && (mCurrentPeriodIdx == mUpperBoundaryPeriod))))&& !FCS_content)
+						if(!FCS_content &&
+							(mIsFogTSB ||
+								((0 != mPeriodDuration) &&
+									(((mPeriodStartTime + positionInPeriod) < endTime) || liveEdgePeriodPlayback))))
 						{
+							/*
+							 * Avoid FetchFragment for following cases
+							 *
+							 *  1. Fail over content
+							 *  2. Non-Fog(Linear OR VOD) with fragment position outside period end, except live final period.
+							 */
 							retval = FetchFragment( pMediaStreamContext, media, fragmentDuration, false, curlInstance);
 						}
 						else
