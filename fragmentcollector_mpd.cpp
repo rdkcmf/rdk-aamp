@@ -1652,9 +1652,20 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						}
 						else if(mIsFogTSB && ISCONFIGSET(eAAMPConfig_InterruptHandling))
 						{
-							// Mark fragment fetched and save lasr segment time to avoid reattempt.
-							pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
-							pMediaStreamContext->lastSegmentDuration = pMediaStreamContext->fragmentDescriptor.Time + duration;
+							// Mark fragment fetched and save last segment time to avoid reattempt.
+							AcquirePlaylistLock();
+							if(pMediaStreamContext->freshManifest)
+							{
+								// if manifest refreshed in between, take backup values
+								pMediaStreamContext->lastSegmentTime = fragmentTimeBackUp;
+								pMediaStreamContext->lastSegmentDuration = fragmentTimeBackUp + duration;
+							}
+							else
+							{
+								pMediaStreamContext->lastSegmentTime = pMediaStreamContext->fragmentDescriptor.Time;
+								pMediaStreamContext->lastSegmentDuration = pMediaStreamContext->fragmentDescriptor.Time + duration;
+							}
+							ReleasePlaylistLock();
 						}
 					}
 					else if (rate < 0)
