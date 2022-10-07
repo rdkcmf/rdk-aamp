@@ -11536,6 +11536,10 @@ long PrivateInstanceAAMP::LoadFogConfig()
 	
 	//persistHighNetworkBandwidth
 	jsondata.add("persistHighNetworkBandwidth", ISCONFIGSET_PRIV(eAAMPConfig_PersistHighNetworkBandwidth));
+
+	//info
+	jsondata.add("info", ISCONFIGSET_PRIV(eAAMPConfig_InfoLogging));
+
 	/*
 	 * Audio and subtitle preference
 	 * Disabled this for XRE supported TSB linear
