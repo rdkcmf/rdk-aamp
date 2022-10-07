@@ -5747,11 +5747,59 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	std::vector<Node*> subNodes = root->GetSubNodes();
+
+
 	if(!subNodes.empty())
-		{
+	{
 		uint64_t periodStartMS = 0;
 		uint64_t periodDurationMS = 0;
 		std::vector<std::string> newPeriods;
+		int64_t firstSegmentStartTime = -1;
+
+		// If we intend to use the PTS presentation time from the event to determine the event start time then
+		// before parsing the events we will get the first segment time. If we do not have a valid first
+		// segment time then we will get the event start time from the period start/duration
+		if (ISCONFIGSET(eAAMPConfig_EnableSCTE35PresentationTime))
+		{
+			if (mpd != NULL)
+			{
+				int iPeriod = 0;
+				while (iPeriod < mpd->GetPeriods().size())
+				{
+					IPeriod *period = mpd->GetPeriods().at(iPeriod);
+					if (period == NULL)
+					{
+						break;
+					}
+					
+					uint64_t segmentStartPTS = GetFirstSegmentStartTime(period);
+					if (segmentStartPTS)
+					{
+						// Got a segment start time so convert it to ms and quit
+						uint64_t timescale = GetPeriodSegmentTimeScale(period);
+						if (timescale > 1)
+						{
+							// We have a first segment start time so we will use that
+							firstSegmentStartTime = segmentStartPTS;
+
+							firstSegmentStartTime *= 1000;
+							firstSegmentStartTime /= timescale;
+						}
+						break;
+					}
+					iPeriod++;
+				}
+			}
+			if (firstSegmentStartTime == -1)
+			{
+				AAMPLOG_ERR("SCTEDBG - failed to get firstSegmentStartTime");	
+			}
+			else
+			{
+				AAMPLOG_INFO("SCTEDBG - firstSegmentStartTime %lld", firstSegmentStartTime);	
+			}
+		}
+
 		// Iterate through each of the MPD's Period nodes, and ProgrameInformation.
 		int periodCnt = 0;
 		for (size_t i=0; i < subNodes.size(); i++) {
@@ -5819,7 +5867,7 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
                                    				|| (!mIsLiveManifest && init))) 				//to enable VOD content to send the metadata
 							{
 								mCdaiObject->InsertToPeriodMap(period);	//Need to do it. Because the FulFill may finish quickly
-								ProcessEventStream(periodStartMS, period, reportBulkMeta);
+								ProcessEventStream(periodStartMS, firstSegmentStartTime, period, reportBulkMeta);
 								continue;
 							}
 						}
@@ -6114,7 +6162,7 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodAssetIdentifier(Node* node, uint64_
 /**
  *   @brief Process event stream.
  */
-bool StreamAbstractionAAMP_MPD::ProcessEventStream(uint64_t startMS, IPeriod * period, bool reportBulkMeta)
+bool StreamAbstractionAAMP_MPD::ProcessEventStream(uint64_t startMS, int64_t startOffsetMS, IPeriod * period, bool reportBulkMeta)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	bool ret = false;
@@ -6127,13 +6175,51 @@ bool StreamAbstractionAAMP_MPD::ProcessEventStream(uint64_t startMS, IPeriod * p
 		std::vector<EventBreakInfo> eventBreakVec;
 		if(isAdbreakStart(period, startMS1, eventBreakVec))
 		{
+			#define MAX_EVENT_STARTIME (24*60*60*1000)
+			uint64_t maxPTSTime = ((uint64_t)0x1FFFFFFFF / (uint64_t)90); // 33 bit pts max converted to ms
+
 			AAMPLOG_WARN("Found CDAI events for period %s ", prdId.c_str());
 			for(EventBreakInfo &eventInfo : eventBreakVec)
 			{
+				uint64_t eventStartTime = startMS; // by default, use the time derived from the period start/duration
+
+				// If we have a presentation time and a valid start time for the stream, then we will use the presentation 
+				// time to set / adjust the event start and duration realtive to the start time of the stream
+				if (eventInfo.presentationTime && (startOffsetMS > -1))
+				{
+					// Adjust for stream start offset and check for pts wrap
+					eventStartTime = eventInfo.presentationTime;
+					if (eventStartTime < startOffsetMS)
+					{
+						eventStartTime += (maxPTSTime - startOffsetMS);
+
+						// If the difference is too large (>24hrs), assume this is not a pts wrap and the event is timed 
+						// to occur before the start - set it to start immediately and adjust the duration accordingly
+						if (eventStartTime > MAX_EVENT_STARTIME)
+						{
+							uint64_t diff = startOffsetMS - eventInfo.presentationTime;
+							if (eventInfo.duration > diff)
+							{
+								eventInfo.duration -= diff;
+							}
+							else
+							{
+								eventInfo.duration = 0;
+							}
+							eventStartTime = 0;
+							
+						}
+					}
+					else
+					{
+						eventStartTime -= startOffsetMS;
+					}
+					AAMPLOG_INFO("SCTEDBG adjust start time %lld -> %lld (duration %lld)", eventInfo.presentationTime, eventStartTime, eventInfo.duration);
+				}
 				//for livestream send the timedMetadata only., because at init, control does not come here
 				if(mIsLiveManifest)
 				{
-					aamp->FoundEventBreak(prdId, startMS, eventInfo);
+					aamp->FoundEventBreak(prdId, eventStartTime, eventInfo);
 				}
 				else
 				{
@@ -6142,11 +6228,11 @@ bool StreamAbstractionAAMP_MPD::ProcessEventStream(uint64_t startMS, IPeriod * p
 					if(reportBulkMeta)
 					{
 						AAMPLOG_INFO("Saving timedMetadata for VOD %s event for the period, %s", eventInfo.name.c_str(), prdId.c_str());
-						aamp->SaveTimedMetadata(startMS, eventInfo.name.c_str() , eventInfo.payload.c_str(), eventInfo.payload.size(), prdId.c_str(), eventInfo.duration);
+						aamp->SaveTimedMetadata(eventStartTime, eventInfo.name.c_str() , eventInfo.payload.c_str(), eventInfo.payload.size(), prdId.c_str(), eventInfo.duration);
 					}
 					else
 					{
-						aamp->SaveNewTimedMetadata(startMS, eventInfo.name.c_str(), eventInfo.payload.c_str(), eventInfo.payload.size(), prdId.c_str(), eventInfo.duration);
+						aamp->SaveNewTimedMetadata(eventStartTime, eventInfo.name.c_str(), eventInfo.payload.c_str(), eventInfo.payload.size(), prdId.c_str(), eventInfo.duration);
 					}
 				}
 			}
@@ -10741,12 +10827,24 @@ bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startM
 						cJSON_AddStringToObject(item, attribute.first.c_str(), attribute.second.c_str());
 					}
 
+					// Try and get the PTS presentation time from the event (and convert to ms)
+					uint64_t presentationTime = event->GetPresentationTime();
+					if (presentationTime)
+					{
+						presentationTime *= 1000;
+
+						uint64_t ts = eventStream->GetTimescale();
+						if (ts > 1)
+						{
+							presentationTime /= ts;
+						}
+					}
+
 					for(auto &evtChild: event->GetAdditionalSubNodes())
 					{
 						std::string prefix = "scte35:";
 						if(evtChild != NULL)
 						{
-
 							if(evtChild->HasAttribute("xmlns") && "http://www.scte.org/schemas/35/2016" == evtChild->GetAttributeValue("xmlns"))
 							{
 								//scte35 namespace defined here. Hence, this & children don't need the prefix 'scte35'
@@ -10756,6 +10854,7 @@ bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startM
 							if(prefix+"Signal" == evtChild->GetName())
 							{
 								isScteEvent = true;
+
 								if(!mIsLiveManifest || ( mIsLiveManifest && 0 != event->GetDuration()))
 								{
 									for(auto &signalChild: evtChild->GetNodes())
@@ -10781,7 +10880,7 @@ bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startM
 											std::string scte35 = signalChild->GetText();
 											if(0 != scte35.length())
 											{
-												EventBreakInfo scte35Event(scte35, "SCTE35", duration);
+												EventBreakInfo scte35Event(scte35, "SCTE35", presentationTime, duration);
 												eventBreakVec.push_back(scte35Event);
 												if(mIsLiveManifest)
 												{
@@ -10847,7 +10946,7 @@ bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startM
 				{
 					std::string eventStreamStr(finalData);
 					cJSON_free(finalData);
-					EventBreakInfo eventBreak(eventStreamStr, "EventStream", duration);
+					EventBreakInfo eventBreak(eventStreamStr, "EventStream", 0, duration);
 					eventBreakVec.push_back(eventBreak);
 					ret = true;
 				}
