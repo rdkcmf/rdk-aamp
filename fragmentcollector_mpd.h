@@ -382,10 +382,6 @@ public:
 	 * @param[out] tTracks text tracks
 	 */
 	void ParseTrackInformation(IAdaptationSet *adaptationSet, uint32_t iAdaptationIndex, MediaType media, std::vector<AudioTrackInfo> &aTracks, std::vector<TextTrackInfo> &tTracks);
-	bool mperiodChanged[AAMP_TRACK_COUNT];
-	bool mpendingPtoProcessing[AAMP_TRACK_COUNT];
-	double mtempDelta[AAMP_TRACK_COUNT];
-	double mFirstBufferScaledPts[AAMP_TRACK_COUNT];
 	uint64_t mLastPlaylistDownloadTimeMs; // Last playlist refresh time
 	/**
 	 * @fn ProcessPlaylist
