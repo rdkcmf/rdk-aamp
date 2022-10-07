@@ -11534,6 +11534,10 @@ long PrivateInstanceAAMP::LoadFogConfig()
 	jsondata.add("maxBitrate", tmpLongVar);
 
 	jsondata.add("enableABR", ISCONFIGSET_PRIV(eAAMPConfig_EnableABR));
+
+	//info
+	jsondata.add("info", ISCONFIGSET_PRIV(eAAMPConfig_InfoLogging));
+
 	/*
 	 * Audio and subtitle preference
 	 * Disabled this for XRE supported TSB linear
