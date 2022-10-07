@@ -2893,7 +2893,6 @@ bool StreamAbstractionAAMP::ProcessDiscontinuity(TrackType type)
 			wait = true;
 			AAMPLOG_WARN("track[%d] Going into wait for processing discontinuity in other track!", type);
 			pthread_cond_wait(&mStateCond, &mStateLock);
-
 			MediaTrack *track = GetMediaTrack(type);
 			if (track && track->IsInjectionAborted())
 			{
@@ -3056,6 +3055,15 @@ void StreamAbstractionAAMP::CheckForMediaTrackInjectionStall(TrackType type)
 					{
 						AAMPLOG_WARN("Ignoring discontinuity in track:%d since other track doesn't have a discontinuity (diff: %f, injectedDuration: %f, cachedDuration: %f)",
 								type, diff, otherTrackDuration, cachedDuration);
+						// This is a logic to handle special case identified with Sky CDVR SCTE embedded streams.
+						// During the period transition, the audio track detected the discontinuity, but the Player didn’t detect discontinuity for the video track within the expected time frame.
+						// So the Audio track is exiting from the discontinuity process due to singular discontinuity condition,
+						// but after that, the video track encountered discontinuity and ended in a deadlock due to no more discontinuity in audio to match with it.
+						if(aamp->IsDashAsset())
+						{
+							AAMPLOG_WARN("Ignoring discontinuity in DASH period for track:%d",type);
+							aamp->SetTrackDiscontinuityIgnoredStatus((MediaType)type);
+						}
 						mTrackState = (MediaTrackDiscontinuityState) (mTrackState & ~state);
 						pthread_cond_signal(&mStateCond);
 					}
