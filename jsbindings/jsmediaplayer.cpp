@@ -28,6 +28,7 @@
 	#include "AampUtils.h"
 #endif
 
+
 #include "jsbindings-version.h"
 #include "jsbindings.h"
 #include "jsutils.h"
@@ -41,9 +42,6 @@
 #include "AampCCManager.h"
 #endif
 
-#ifndef MUTE_SUBTITLES_TRACKID
-#define MUTE_SUBTITLES_TRACKID (-1)  /* match priv_aamp.h */
-#endif
 
 extern "C"
 {
@@ -1541,28 +1539,30 @@ JSValueRef AAMPMediaPlayerJS_setTextTrack (JSContextRef ctx, JSObjectRef functio
 		return JSValueMakeUndefined(ctx);
 	}
 
-	if (argumentCount != 1 && argumentCount != 2)
+	if (argumentCount != 1)
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1 or 2", __FUNCTION__, argumentCount);
+		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
 		*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Failed to execute setTextTrack() - atleast 1 argument required");
+	}
+	else if (!JSValueIsNumber(ctx, arguments[0]))
+	{
+		// note, here, first parameter is not used, only the passed WebVTT data
+		// note: SetTextTrack() will responsibility for releasing data when no longer needed
+		char *data = aamp_JSValueToCString(ctx, arguments[0], exception);
+		privObj->_aamp->SetTextTrack(0, data);
+
 	}
 	else
 	{
 		int index = (int) JSValueToNumber(ctx, arguments[0], NULL);
 		if (index >= MUTE_SUBTITLES_TRACKID) // -1 disable subtitles, >0 subtitle track index
 		{
-			if (argumentCount == 1)
-				privObj->_aamp->SetTextTrack(index);
-			else
-			{
-				char *data = aamp_JSValueToCString(ctx, arguments[1], exception);
-				privObj->_aamp->SetTextTrack(index, data);
-			}
+			privObj->_aamp->SetTextTrack(index);
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - track index should be >= 0!", __FUNCTION__);
-			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Text track index should be >= 0!");
+			ERROR("%s(): InvalidArgument - track index should be >= -1!", __FUNCTION__);
+			*exception = aamp_GetException(ctx, AAMPJS_INVALID_ARGUMENT, "Text track index should be >= -1!");
 		}
 	}
 	TRACELOG("Exit %s()", __FUNCTION__);

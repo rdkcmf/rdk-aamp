@@ -3131,7 +3131,7 @@ static JSValueRef AAMP_setTextTrack(JSContextRef context, JSObjectRef function, 
 		return JSValueMakeUndefined(context);
 	}
 
-	if (argumentCount != 1 && argumentCount != 2)
+	if (argumentCount != 1)
 	{
 		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1 or 2", __FUNCTION__, argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextTrack' - atleast 1 argument required");
@@ -3139,20 +3139,14 @@ static JSValueRef AAMP_setTextTrack(JSContextRef context, JSObjectRef function, 
 	else
 	{
 		int index = (int) JSValueToNumber(context, arguments[0], NULL);
-		if (index >= 0)
+		if (index >= MUTE_SUBTITLES_TRACKID) // -1 disable subtitles, >= 0 subtitle track index
 		{
-			if (argumentCount == 1)
-			    pAAMP->_aamp->SetTextTrack(index);
-			else
-			{
-			    char* data = aamp_JSValueToCString(context, arguments[1], exception);
-			    pAAMP->_aamp->SetTextTrack(index, data);
-			}
+			pAAMP->_aamp->SetTextTrack(index);
 		}
 		else
 		{
-			ERROR("[AAMP_JS] %s() InvalidArgument: Track index should be >= 0!", __FUNCTION__);
-			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextTrack' - argument should be >= 0");
+			ERROR("%s(): InvalidArgument - track index should be >= 0!", __FUNCTION__);
+			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Text track index should be >= -1 !");
 		}
 	}
 	return JSValueMakeUndefined(context);
