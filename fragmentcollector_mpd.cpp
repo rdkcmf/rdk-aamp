@@ -6598,13 +6598,10 @@ std::vector<AudioTrackInfo> &ac4Tracks, std::string &audioTrackIndex)
 				}
 			}
 
-			if( !aamp->preferredAudioAccessibilityNode.getSchemeId().empty() )
+			Accessibility accebilityNoode = StreamAbstractionAAMP_MPD::getAccessibilityNode((void* )adaptationSet);
+			if (accebilityNoode == aamp->preferredAudioAccessibilityNode)
 			{
-				Accessibility accebilityNoode = StreamAbstractionAAMP_MPD::getAccessibilityNode((void* )adaptationSet);
-				if (accebilityNoode == aamp->preferredAudioAccessibilityNode)
-				{
-					score += AAMP_SCHEME_ID_SCORE;
-				}
+				score += AAMP_SCHEME_ID_SCORE;
 			}
 			
 			AudioType selectedCodecType = eAUDIO_UNKNOWN;
@@ -6839,14 +6836,14 @@ bool StreamAbstractionAAMP_MPD::GetBestTextTrackByLanguage( TextTrackInfo &selec
 				}
 			}
 
-			if( !aamp->preferredTextAccessibilityNode.getSchemeId().empty() )
+			accessibilityNode = StreamAbstractionAAMP_MPD::getAccessibilityNode((void *)adaptationSet);
+			if (accessibilityNode == aamp->preferredTextAccessibilityNode)
 			{
-				accessibilityNode = StreamAbstractionAAMP_MPD::getAccessibilityNode((void *)adaptationSet);
-				if (accessibilityNode == aamp->preferredTextAccessibilityNode)
+				if (!accessibilityNode.getSchemeId().empty())
 				{
 					accessibilityFound = true;					
-					score += AAMP_SCHEME_ID_SCORE;
 				}
+				score += AAMP_SCHEME_ID_SCORE;
 			}
 			
 			uint32_t selRepBandwidth = 0;
