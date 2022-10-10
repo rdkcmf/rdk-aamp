@@ -113,6 +113,7 @@ struct CachedFragmentChunk
 {
 	GrowableBuffer fragmentChunk;   /**< Buffer to keep fragment content */
 	MediaType   type; 		/**< MediaType info of the fragment */
+	long long downloadStartTime;	/**< The start time of file download */
 };
 
 /**
@@ -553,12 +554,6 @@ public:
 	void FlushFragments();
 
 	/**
-	 * @fn CleanChunkCache
-	 *
-	 * @return void
-	 */
-	void CleanChunkCache();
-	/**
 	 * @fn FlushFragmentChunks
 	 *
 	 * @return void
@@ -659,7 +654,6 @@ public:
 	int maxCachedFragmentsPerTrack;
 	int maxCachedFragmentChunksPerTrack;
 	pthread_cond_t fragmentChunkFetched;/**< Signaled after a fragment Chunk is fetched*/
-	pthread_cond_t fragmentChunkClean;  /**< Signaled after a fragment Chunks are cleaned*/
 	uint32_t totalMdatCount;            /**< Total MDAT Chunk Found*/
 	int noMDATCount;                    /**< MDAT Chunk Not Found count continuously while chunk buffer processoing*/
 
@@ -675,8 +669,7 @@ protected:
 	bool ptsError;                      /**< flag to indicate if last injected fragment has ptsError */
 	bool abortInject;                   /**< Abort inject operations if flag is set*/
 	bool abortInjectChunk;              /**< Abort inject operations if flag is set*/
-	bool cleanChunkCache;
-	bool cleanChunkCacheInitiated;
+
 private:
 	pthread_cond_t fragmentFetched;     	/**< Signaled after a fragment is fetched*/
 	pthread_cond_t fragmentInjected;    	/**< Signaled after a fragment is injected*/
@@ -703,6 +696,7 @@ private:
 	bool discontinuityProcessed;
 	BufferHealthStatus bufferStatus;     /**< Buffer status of the track*/
 	BufferHealthStatus prevBufferStatus; /**< Previous buffer status of the track*/
+	long long prevDownloadStartTime;		/**< Previous file download Start time*/
 
 	std::thread *playlistDownloaderThread;	/**< PlaylistDownloadThread of track*/
 	bool playlistDownloaderThreadStarted;	/**< `Playlist downloader thread started or not*/
