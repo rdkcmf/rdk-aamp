@@ -372,8 +372,9 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_ReTuneOnBufferingTimeout].value		=	true;
 	bAampCfgValue[eAAMPConfig_SslVerifyPeer].value				=	true;
 #if defined(AMLOGIC)
-	bAampCfgValue[eAAMPConfig_MultiPipelineDai].value				= true;
-	bAampCfgValue[eAAMPConfig_KeepLastFrameDai].value				= true;
+	// Turned OFF due to RDTV-19797
+	bAampCfgValue[eAAMPConfig_MultiPipelineDai].value				= false;
+	bAampCfgValue[eAAMPConfig_KeepLastFrameDai].value				= false;
 #elif defined(REALTEKCE)
 	bAampCfgValue[eAAMPConfig_MultiPipelineDai].value				= false;
 	bAampCfgValue[eAAMPConfig_KeepLastFrameDai].value				= false;
