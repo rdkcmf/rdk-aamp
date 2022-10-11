@@ -1626,7 +1626,7 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 #endif //IARM_MGR
 	SAFE_DELETE(mEventManager);
 
-	if (mData != NULL)
+	if (HasSidecarData())
 	{ // has sidecar data
 		SAFE_DELETE_ARRAY(mData);
 		mData = NULL;
@@ -2351,7 +2351,7 @@ void PrivateInstanceAAMP::NotifySpeedChanged(float rate, bool changeState)
 		if (rate == 0)
 		{
 			SetState(eSTATE_PAUSED);
-			if (mData != NULL)
+			if (HasSidecarData())
 			{ // has sidecar data
 				if (mpStreamAbstractionAAMP)
 					mpStreamAbstractionAAMP->MuteSubtitleOnPause();
@@ -2365,7 +2365,7 @@ void PrivateInstanceAAMP::NotifySpeedChanged(float rate, bool changeState)
 			}
 			else
 			{
-				if (mData != NULL)
+				if (HasSidecarData())
 				{ // has sidecar data
 					if (mpStreamAbstractionAAMP)
 						mpStreamAbstractionAAMP->ResumeSubtitleOnPlay(subtitles_muted, mData);
@@ -2376,7 +2376,7 @@ void PrivateInstanceAAMP::NotifySpeedChanged(float rate, bool changeState)
 		else
 		{
 			mTrickplayInProgress = true;
-			if (mData != NULL)
+			if (HasSidecarData())
 			{ // has sidecar data
 				if (mpStreamAbstractionAAMP)
 					mpStreamAbstractionAAMP->MuteSidecarSubtitles(true);
@@ -5098,7 +5098,7 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE || tuneType == eTUNETYPE_SEEKTOEND)
 	{
-		if (mData != NULL)
+		if (HasSidecarData())
 		{ // has sidecar data
 			if (mpStreamAbstractionAAMP)
 				mpStreamAbstractionAAMP->ResumeSubtitleAfterSeek(subtitles_muted, mData);
@@ -6782,7 +6782,7 @@ void PrivateInstanceAAMP::Stop()
 		}
 #endif
 		mpStreamAbstractionAAMP->Stop(true);
-		if (mData != NULL)
+		if (HasSidecarData())
 		{ // has sidecar data
 			mpStreamAbstractionAAMP->ResetSubtitle();
 		}
@@ -10066,7 +10066,7 @@ void PrivateInstanceAAMP::SetCCStatus(bool enabled)
 	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->MuteSubtitles(subtitles_muted);
-		if (mData != NULL)
+		if (HasSidecarData())
 		{ // has sidecar data
 			mpStreamAbstractionAAMP->MuteSidecarSubtitles(subtitles_muted);
 		}
@@ -11652,3 +11652,14 @@ std::string PrivateInstanceAAMP::GetLicenseCustomData()
     return customData;
 }
 
+/**
+ * @brief check if sidecar data available
+ */
+bool PrivateInstanceAAMP::HasSidecarData()
+{
+	if (mData != NULL)
+	{
+		return true;
+	}
+	return false;
+}
