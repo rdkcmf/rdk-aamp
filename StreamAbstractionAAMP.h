@@ -1489,25 +1489,28 @@ public:
 	/**
          *   @brief resume subtitles on play
          *
+         *   @param mute - mute status
          *   @param data - subtitle data received from application
          *   @return void
          */
-	virtual void ResumeSubtitleOnPlay(char *data) { };
+	virtual void ResumeSubtitleOnPlay(bool mute, char *data) { };
 
 	/**
-         *   @brief mute subtitles on trickplay
+         *   @brief mute/unmute sidecar subtitles
+         *   @param mute - mute/unmute
          *
          *   @return void
          */
-	virtual void MuteSubtitleOnTrickPlay() { };
+	virtual void MuteSidecarSubtitles(bool mute) { };
 
 	/**
          *   @brief resume subtitles after trickplay
          *
+         *   @param mute - mute status
          *   @param data - subtitle data received from application
          *   @return void
          */
-	virtual void ResumeSubtitleAfterSeek(char *data) { };
+	virtual void ResumeSubtitleAfterSeek(bool mute, char *data) { };
 
 protected:
 	/**

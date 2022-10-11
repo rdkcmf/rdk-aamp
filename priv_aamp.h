@@ -3884,6 +3884,13 @@ private:
 	 */
 	void ResetDiscontinuityInTracks();
 
+	/**
+	 *   @fn HasSidecarData
+	 *
+	 *   @return true if sidecar data available
+	 */
+	bool HasSidecarData();
+
 	TuneType mTuneType;
 	int m_fd;
 	bool mIsLive;				// Flag to indicate manifest type.

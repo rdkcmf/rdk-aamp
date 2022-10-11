@@ -1645,8 +1645,8 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 #endif //IARM_MGR
 	SAFE_DELETE(mEventManager);
 
-	if (mData != NULL)
-	{
+	if (HasSidecarData())
+	{ // has sidecar data
 		SAFE_DELETE_ARRAY(mData);
 		mData = NULL;
 		if (mpStreamAbstractionAAMP)
@@ -2370,8 +2370,8 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 		if (rate == 0)
 		{
 			SetState(eSTATE_PAUSED);
-			if (mData != NULL)
-			{
+			if (HasSidecarData())
+			{ // has sidecar data
 				if (mpStreamAbstractionAAMP)
 					mpStreamAbstractionAAMP->MuteSubtitleOnPause();
 			}
@@ -2384,10 +2384,10 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 			}
 			else
 			{
-				if (mData != NULL)
-				{
+				if (HasSidecarData())
+				{ // has sidecar data
 					if (mpStreamAbstractionAAMP)
-						mpStreamAbstractionAAMP->ResumeSubtitleOnPlay(mData);
+						mpStreamAbstractionAAMP->ResumeSubtitleOnPlay(subtitles_muted, mData);
 				}
 			}
 			SetState(eSTATE_PLAYING);
@@ -2395,10 +2395,10 @@ void PrivateInstanceAAMP::NotifySpeedChanged(int rate, bool changeState)
 		else
 		{
 			mTrickplayInProgress = true;
-			if (mData != NULL)
-			{
+			if (HasSidecarData())
+			{ // has sidecar data
 				if (mpStreamAbstractionAAMP)
-					mpStreamAbstractionAAMP->MuteSubtitleOnTrickPlay();
+					mpStreamAbstractionAAMP->MuteSidecarSubtitles(true);
 			}
 		}
 	}
@@ -5108,10 +5108,10 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 
 	if (tuneType == eTUNETYPE_SEEK || tuneType == eTUNETYPE_SEEKTOLIVE || tuneType == eTUNETYPE_SEEKTOEND)
 	{
-		if (mData != NULL)
-		{
+		if (HasSidecarData())
+		{ // has sidecar data
 			if (mpStreamAbstractionAAMP)
-				mpStreamAbstractionAAMP->ResumeSubtitleAfterSeek(mData);
+				mpStreamAbstractionAAMP->ResumeSubtitleAfterSeek(subtitles_muted, mData);
 		}
 	}
 
@@ -6782,8 +6782,10 @@ void PrivateInstanceAAMP::Stop()
 		}
 #endif
 		mpStreamAbstractionAAMP->Stop(true);
-		if (mData != NULL)
+		if (HasSidecarData())
+		{ // has sidecar data
 			mpStreamAbstractionAAMP->ResetSubtitle();
+		}
 		//Deleting mpStreamAbstractionAAMP here will prevent the extra stop call in TeardownStream()
 		//and will avoid enableDownlaod() call being made unnecessarily
 		SAFE_DELETE(mpStreamAbstractionAAMP);
@@ -9972,6 +9974,7 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId, char *data)
 		{
 			AAMPLOG_WARN("webvtt data received from application");
 			mData = data;
+			SetCCStatus(true);
 
 			mpStreamAbstractionAAMP->InitSubtitleParser(data);
 
@@ -10037,6 +10040,10 @@ void PrivateInstanceAAMP::SetCCStatus(bool enabled)
 	if (mpStreamAbstractionAAMP)
 	{
 		mpStreamAbstractionAAMP->MuteSubtitles(subtitles_muted);
+		if (HasSidecarData())
+		{ // has sidecar data
+			mpStreamAbstractionAAMP->MuteSidecarSubtitles(subtitles_muted);
+		}
 	}
 	SetSubtitleMute(subtitles_muted);
 	ReleaseStreamLock();
@@ -11609,3 +11616,14 @@ std::string PrivateInstanceAAMP::GetLicenseCustomData()
     return customData;
 }
 
+/**
+ * @brief check if sidecar data available
+ */
+bool PrivateInstanceAAMP::HasSidecarData()
+{
+	if (mData != NULL)
+	{
+		return true;
+	}
+	return false;
+}
