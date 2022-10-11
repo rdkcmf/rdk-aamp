@@ -362,10 +362,9 @@ struct EventBreakInfo
 	std::string payload;
 	std::string name;
 	uint32_t duration;
-	uint64_t presentationTime;
-	EventBreakInfo() : payload(), name(), duration(0), presentationTime(0)
+	EventBreakInfo() : payload(), name(), duration(0)
 	{}
-	EventBreakInfo(std::string _data, std::string _name, uint64_t _presentationTime, uint32_t _dur) : payload(_data), name(_name), presentationTime(_presentationTime), duration(_dur)
+	EventBreakInfo(std::string _data, std::string _name, uint32_t _dur) : payload(_data), name(_name), duration(_dur)
 	{}
 };
 
