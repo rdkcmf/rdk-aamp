@@ -5582,6 +5582,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	if(pTraceID)
 	{
 		this->mTraceUUID = pTraceID;
+		AAMPLOG_WARN("CMCD Session Id:%s", this->mTraceUUID.c_str());
 	}
 	else
 	{
@@ -5598,6 +5599,7 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 			*ptr = tolower(*ptr);
 		}
 		this->mTraceUUID = sid;
+		AAMPLOG_WARN("CMCD Session Id generated:%s", this->mTraceUUID.c_str());
 	}
 }
 
@@ -7978,7 +7980,7 @@ void PrivateInstanceAAMP::BuildCMCDCustomHeaders(MediaType fileType,std::unorder
 				}
 			}
 			int videoBufferLength = ((int)video->GetBufferedDuration())*1000;
-			int videoBitrate  = (int)mpStreamAbstractionAAMP->GetVideoBitrate();
+			int videoBitrate  = ((int)mpStreamAbstractionAAMP->GetVideoBitrate())/1000;
 			bitrateList = mpStreamAbstractionAAMP->GetVideoBitrates();
 			for(int i = 0; i < bitrateList.size(); i++)
 			{
@@ -7989,12 +7991,12 @@ void PrivateInstanceAAMP::BuildCMCDCustomHeaders(MediaType fileType,std::unorder
 			}
 			headerValue.clear();
 			buffer.clear();
-			buffer = CMCD_BITRATE+to_string(videoBitrate)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string(temp);
+			buffer = CMCD_BITRATE+to_string(videoBitrate)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string((temp/1000));
 			headerValue.push_back(buffer);
 			mCMCDCustomHeaders["CMCD-Object:"] = headerValue;
 			headerValue.clear();
 			buffer.clear();
-			AAMPLOG_INFO("video bufferlength %d video bitrate %d",videoBufferLength*1000,videoBitrate);
+			AAMPLOG_INFO("video bufferlength %d video bitrate %d",videoBufferLength,videoBitrate);
 			buffer = CMCD_BUFFERLENGTH+to_string(videoBufferLength)+delimiter+CMCD_NEXTOBJECTREQUEST+mCMCDNextObjectRequest;
 			headerValue.push_back(buffer);
 			mCMCDCustomHeaders["CMCD-Request:"] = headerValue;
@@ -8028,12 +8030,12 @@ void PrivateInstanceAAMP::BuildCMCDCustomHeaders(MediaType fileType,std::unorder
 		headerValue.clear();
 		buffer.clear();
 		int audioBufferLength = (int)mpStreamAbstractionAAMP->GetBufferedDuration();
-		buffer = CMCD_BITRATE+to_string(mCMCDBandwidth)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string(temp);
+		buffer = CMCD_BITRATE+to_string((mCMCDBandwidth/1000))+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string((temp/1000));
 		headerValue.push_back(buffer);
 		mCMCDCustomHeaders["CMCD-Object:"] = headerValue;
 		headerValue.clear();
 		buffer.clear();
-		AAMPLOG_INFO("audio bufferlength %daudio bitrate %d",audioBufferLength*1000,(int)mCMCDBandwidth);
+		AAMPLOG_INFO("audio bufferlength %daudio bitrate %d",audioBufferLength*1000,((int)mCMCDBandwidth)/1000);
 		buffer = CMCD_BUFFERLENGTH+to_string(audioBufferLength*1000)+delimiter+CMCD_NEXTOBJECTREQUEST+mCMCDNextObjectRequest;
 		headerValue.push_back(buffer);
 		mCMCDCustomHeaders["CMCD-Request:"] = headerValue;
@@ -8055,7 +8057,7 @@ void PrivateInstanceAAMP::BuildCMCDCustomHeaders(MediaType fileType,std::unorder
 		headerName="i";
 		if(simType == eMEDIATYPE_INIT_VIDEO)
 		{
-			int initVideoBitrate  = (int)mpStreamAbstractionAAMP->GetVideoBitrate();
+			int initVideoBitrate  = ((int)mpStreamAbstractionAAMP->GetVideoBitrate())/1000;
 			bitrateList = mpStreamAbstractionAAMP->GetVideoBitrates();
 			for(int i = 0; i < bitrateList.size(); i++)
 			{
@@ -8066,14 +8068,13 @@ void PrivateInstanceAAMP::BuildCMCDCustomHeaders(MediaType fileType,std::unorder
 			}
 			headerValue.clear();
 			buffer.clear();
-			buffer = CMCD_BITRATE+to_string(initVideoBitrate)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string(temp);
+			buffer = CMCD_BITRATE+to_string(initVideoBitrate)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string((temp/1000));
 			headerValue.push_back(buffer);
 			mCMCDCustomHeaders["CMCD-Object:"] = headerValue;
 
 		}
 		if(simType == eMEDIATYPE_INIT_AUDIO)
 		{
-			int initAudioBitrate = (int)mpStreamAbstractionAAMP->GetAudioBitrate();
 			bitrateList = mpStreamAbstractionAAMP->GetAudioBitrates();
 			for(int i = 0; i < bitrateList.size(); i++)
 			{
@@ -8084,7 +8085,7 @@ void PrivateInstanceAAMP::BuildCMCDCustomHeaders(MediaType fileType,std::unorder
 			}
 			headerValue.clear();
 			buffer.clear();
-			buffer = CMCD_BITRATE+to_string(mCMCDBandwidth)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string(temp);
+			buffer = CMCD_BITRATE+to_string((mCMCDBandwidth)/1000)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string((temp/1000));
 			headerValue.push_back(buffer);
 			mCMCDCustomHeaders["CMCD-Object:"] = headerValue;
 		}
@@ -8101,10 +8102,10 @@ void PrivateInstanceAAMP::BuildCMCDCustomHeaders(MediaType fileType,std::unorder
 				temp=bitrateList[i];
 			}
 		}
-		int muxedBitrate  = (int)mpStreamAbstractionAAMP->GetVideoBitrate();
+		int muxedBitrate  = ((int)mpStreamAbstractionAAMP->GetVideoBitrate())/1000;
 		headerValue.clear();
 		buffer.clear();
-		buffer = CMCD_BITRATE+to_string(muxedBitrate)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string(temp);
+		buffer = CMCD_BITRATE+to_string(muxedBitrate)+delimiter+CMCD_OBJECT+headerName+delimiter+CMCD_TOP_BITRATE+to_string((temp/1000));
 		headerValue.push_back(buffer);
 		mCMCDCustomHeaders["CMCD-Object:"] = headerValue;
 		headerValue.clear();
@@ -8124,7 +8125,7 @@ void PrivateInstanceAAMP::BuildCMCDCustomHeaders(MediaType fileType,std::unorder
 		}
 		headerValue.clear();
 		buffer.clear();
-		int muxedBufferLength = (int)mpStreamAbstractionAAMP->GetBufferedDuration();
+		int muxedBufferLength = ((int)mpStreamAbstractionAAMP->GetBufferedDuration())*1000;
 		AAMPLOG_INFO("muxed bufferlength %d muxed bitrate %d",muxedBufferLength,muxedBitrate);
 		buffer = CMCD_BUFFERLENGTH+to_string(muxedBufferLength)+delimiter+CMCD_NEXTOBJECTREQUEST+mCMCDNextObjectRequest;
 		headerValue.push_back(buffer);
