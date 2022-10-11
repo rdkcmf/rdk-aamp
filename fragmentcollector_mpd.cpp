@@ -9813,39 +9813,42 @@ void StreamAbstractionAAMP_MPD::MuteSubtitleOnPause()
 
 /**
  * @brief Resume subtitle on play
+ * @param mute status
  * @param webvtt data
  */
-void StreamAbstractionAAMP_MPD::ResumeSubtitleOnPlay(char *data)
+void StreamAbstractionAAMP_MPD::ResumeSubtitleOnPlay(bool mute, char *data)
 {
 	if (mSubtitleParser)
 	{
 		mSubtitleParser->pause(false);
-		mSubtitleParser->mute(false);
+		mSubtitleParser->mute(mute);
 		if (data != NULL)
 			mSubtitleParser->processData(data,strlen(data),0,0);
 	}
 }
 
 /**
- * @brief Mute subtitles on trickplay
+ * @brief Mute/unmute subtitles
+ * @param mute/unmute
  */
-void StreamAbstractionAAMP_MPD::MuteSubtitleOnTrickPlay()
+void StreamAbstractionAAMP_MPD::MuteSidecarSubtitles(bool mute)
 {
 	if (mSubtitleParser)
-		mSubtitleParser->mute(true);
+		mSubtitleParser->mute(mute);
 }
 
 /**
  * @brief Resume subtitle after seek
+ * @param mute status
  * @param webvtt data
  */
-void  StreamAbstractionAAMP_MPD::ResumeSubtitleAfterSeek(char *data)
+void  StreamAbstractionAAMP_MPD::ResumeSubtitleAfterSeek(bool mute, char *data)
 {
 	mSubtitleParser = SubtecFactory::createSubtitleParser(mLogObj, aamp, eSUB_TYPE_WEBVTT);
 	if (mSubtitleParser)
 	{
 		mSubtitleParser->updateTimestamp(seekPosition*1000);
-		mSubtitleParser->mute(false);
+		mSubtitleParser->mute(mute);
 		if (data != NULL)
 			mSubtitleParser->processData(data,strlen(data),0,0);
 	}

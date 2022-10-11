@@ -413,23 +413,26 @@ public:
 
 	/**
          * @fn ResumeSubtitleOnPlay
+         * @param[in] mute - mute status
          * @param[in] data - subtitle data from application
          * @return void
          */
-	void ResumeSubtitleOnPlay(char *data) override;
+	void ResumeSubtitleOnPlay(bool mute, char *data) override;
 
 	/**
-         * @fn MuteSubtitleOnTrickPlay
+         * @fn MuteSidecarSubtitles
+         * @param[in] mute - mute/unmute
          * @return void
          */
-	void MuteSubtitleOnTrickPlay() override;
+	void MuteSidecarSubtitles(bool mute) override;
 
 	/**
          * @fn ResumeSubtitleAfterSeek
+         * @param[in] mute - mute status
          * @param[in] data - subtitle data from application
          * @return void
          */
-	void ResumeSubtitleAfterSeek(char *data) override;
+	void ResumeSubtitleAfterSeek(bool mute, char *data) override;
 private:
 	/**
 	 * @fn printSelectedTrack
