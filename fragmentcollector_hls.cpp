@@ -4216,14 +4216,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						}
 						ts->playContext = new IsoBmffProcessor(aamp, mLogObj, (IsoBmffProcessorType) iTrack, processor);
 						ts->playContext->setRate(this->rate, PlayMode_normal);
-						//Disable subtitle for fragmented MP4 assets, as we need tsprocessor support for webvtt parsing now
-						if (subtitle->enabled)
-						{
-							AAMPLOG_WARN("StreamAbstractionAAMP_HLS::Unsupported media format for audio or video - FORMAT_ISO_BMFF");
-							subtitle->streamOutputFormat = FORMAT_INVALID;
-							subtitle->fragmentURI = NULL;
-							subtitle->enabled = false;
-						}
 					}
 					continue;
 				}
