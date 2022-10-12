@@ -114,6 +114,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"progress",eAAMPConfig_ProgressLogging,-1,-1},
 	{"debug",eAAMPConfig_DebugLogging,-1,-1},
 	{"trace",eAAMPConfig_TraceLogging,-1,-1},
+	{"warn",eAAMPConfig_WarnLogging,-1,-1},
 	{"curl",eAAMPConfig_CurlLogging,-1,-1},
 	{"stream",eAAMPConfig_StreamLogging,-1,-1},
 	{"initialBitrate",eAAMPConfig_DefaultBitrate,{.lMinValue=-1},{.lMaxValue=-1}},
@@ -396,6 +397,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_InfoLogging].value				=	false;
 	bAampCfgValue[eAAMPConfig_DebugLogging].value				=	false;
 	bAampCfgValue[eAAMPConfig_TraceLogging].value				=	false;
+	bAampCfgValue[eAAMPConfig_WarnLogging].value				=	true;
 	bAampCfgValue[eAAMPConfig_FailoverLogging].value			=	false;
 	bAampCfgValue[eAAMPConfig_GSTLogging].value				=	false;
 	bAampCfgValue[eAAMPConfig_ProgressLogging].value			=	false;
@@ -1773,7 +1775,7 @@ void AampConfig::ConfigureLogSettings()
 		logging.setLogLevel(eLOGLEVEL_INFO);
 		logging.info = true;
 	}
-	else if(logString.compare("warn") == 0)
+	else if((bAampCfgValue[eAAMPConfig_WarnLogging].value || logString.compare("warn") == 0))
 	{
 		logging.setLogLevel(eLOGLEVEL_WARN);
 	}

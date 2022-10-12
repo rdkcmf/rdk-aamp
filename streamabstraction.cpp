@@ -1658,7 +1658,7 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(AampLogManager *logObj, PrivateInst
 		mStartTimeStamp(-1),mLastPausedTimeStamp(-1), aamp(aamp),
 		mIsPlaybackStalled(false), mCheckForRampdown(false), mTuneType(), mLock(),
 		mCond(), mLastVideoFragCheckedforABR(0), mLastVideoFragParsedTimeMS(0),
-		mAbrManager(), mSubCond(), mAudioTracks(), mTextTracks(),mABRHighBufferCounter(0),mABRLowBufferCounter(0),mMaxBufferCountCheck(0),
+		mSubCond(), mAudioTracks(), mTextTracks(),mABRHighBufferCounter(0),mABRLowBufferCounter(0),mMaxBufferCountCheck(0),
 		mStateLock(), mStateCond(), mTrackState(eDISCONTIUITY_FREE),
 		mRampDownLimit(-1), mRampDownCount(0),mABRMaxBuffer(0), mABRCacheLength(0), mABRMinBuffer(0), mABRNwConsistency(0),
 		mBitrateReason(eAAMP_BITRATE_CHANGE_BY_TUNE),
@@ -1682,13 +1682,13 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(AampLogManager *logObj, PrivateInst
 	GETCONFIGVALUE(eAAMPConfig_MaxABRNWBufferRampUp,mABRMaxBuffer);
 	GETCONFIGVALUE(eAAMPConfig_MinABRNWBufferRampDown,mABRMinBuffer);
 	GETCONFIGVALUE(eAAMPConfig_ABRNWConsistency,mABRNwConsistency); 
-	mAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
+	aamp->mhAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
 
 
 	long ibitrate = aamp->GetIframeBitrate();
 	if (ibitrate > 0)
 	{
-		mAbrManager.setDefaultIframeBitrate(ibitrate);
+		aamp->mhAbrManager.setDefaultIframeBitrate(ibitrate);
 	}
 	GETCONFIGVALUE(eAAMPConfig_RampDownLimit,mRampDownLimit); 
 	if (!aamp->IsNewTune())
@@ -1730,13 +1730,13 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
 	int desiredProfileIndex = 0;
 	if(GetProfileCount())
 	{
-		if (this->trickplayMode && ABRManager::INVALID_PROFILE != mAbrManager.getLowestIframeProfile())
+		if (this->trickplayMode && ABRManager::INVALID_PROFILE != aamp->mhAbrManager.getLowestIframeProfile())
 		{
 			desiredProfileIndex = GetIframeTrack();
 		}
 		else
 		{
-			desiredProfileIndex = mAbrManager.getInitialProfileIndex(getMidProfile);
+			desiredProfileIndex = aamp->mhAbrManager.getInitialProfileIndex(getMidProfile);
 		}
 		profileIdxForBandwidthNotification = desiredProfileIndex;
 		MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
@@ -1775,7 +1775,7 @@ int StreamAbstractionAAMP::GetMaxBWProfile()
 	}
 	else
 	{
-		ret = mAbrManager.getMaxBandwidthProfile();
+		ret =  aamp->mhAbrManager.getMaxBandwidthProfile();
 	}
 	return ret;
 }
@@ -1892,34 +1892,9 @@ void StreamAbstractionAAMP::GetDesiredProfileOnBuffer(int currProfileIndex, int 
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 
-	long currentBandwidth = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
-	long newBandwidth = GetStreamInfo(newProfileIndex)->bandwidthBitsPerSecond;
 	double bufferValue = video->GetBufferedDuration();
-	// Buffer levels 
-	// Steadystate Buffer = 10sec - Good condition
-	// Lower threshold before rampdown to happen - 5sec 
-	// Higher threshold before attempting rampup - 15sec
-	// So player to maintain steady state ABR if 10sec buffer is available and absorb all the shocks
-	if(bufferValue > 0 )
-	{
-		if(newBandwidth > currentBandwidth)
-		{
-			// Rampup attempt . check if buffer availability is good before profile change
-			// else retain current profile  
-			if(bufferValue < mABRMaxBuffer)
-				newProfileIndex = currProfileIndex;
-		}
-		else
-		{
-			// Rampdown attempt. check if buffer availability is good before profile change
-			// Also if delta of current profile to new profile is 1 , then ignore the change
-			// if bigger rampdown , then adjust to new profile 
-			// else retain current profile
-			double minBufferNeeded = video->fragmentDurationSeconds + aamp->mNetworkTimeoutMs/1000;
-			if(bufferValue > minBufferNeeded && mAbrManager.getRampedDownProfileIndex(currProfileIndex) == newProfileIndex)
-				newProfileIndex = currProfileIndex;
-		}
-	}
+	double minBufferNeeded = video->fragmentDurationSeconds + aamp->mNetworkTimeoutMs/1000;
+	aamp->mhAbrManager.GetDesiredProfileOnBuffer(currProfileIndex,newProfileIndex,bufferValue,minBufferNeeded);
 }
 
 /**
@@ -1929,7 +1904,6 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	double bufferValue = video->GetBufferedDuration();
-
 	if(bufferValue > 0 && currProfileIndex == newProfileIndex)
 	{
 		AAMPLOG_INFO("buffer:%f currProf:%d nwBW:%ld",bufferValue,currProfileIndex,nwBandwidth);
@@ -1939,22 +1913,12 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 			mABRLowBufferCounter = 0 ;
 			if(mABRHighBufferCounter > mMaxBufferCountCheck)
 			{
-				int nProfileIdx =  mAbrManager.getRampedUpProfileIndex(currProfileIndex);
+				int nProfileIdx =  aamp->mhAbrManager.getRampedUpProfileIndex(currProfileIndex);
 				long newBandwidth = GetStreamInfo(nProfileIdx)->bandwidthBitsPerSecond;
-				if(newBandwidth - nwBandwidth < 2000000)
-					newProfileIndex = nProfileIdx;
-				if(newProfileIndex  != currProfileIndex)
-				{
-					static int loop = 1;
-					AAMPLOG_WARN("Attempted rampup from steady state ->currProf:%d newProf:%d bufferValue:%f",
-					currProfileIndex,newProfileIndex,bufferValue);
-					loop = (++loop >4)?1:loop;
-					mMaxBufferCountCheck =  pow(mABRCacheLength,loop);
-					mBitrateReason = eAAMP_BITRATE_CHANGE_BY_BUFFER_FULL;
-				}
-				// hand holding and rampup neednot be done every time. Give till abr cache to be full (ie abrCacheLength)
-				// if rampup or rampdown happens due to throughput ,then its good . Else provide help to come out that state
-				// counter is set back to 0 to prevent frequent rampup from multiple valley points
+				HybridABRManager::BitrateChangeReason mhBitrateReason;
+				mhBitrateReason = (HybridABRManager::BitrateChangeReason) mBitrateReason;
+				aamp->mhAbrManager.CheckRampupFromSteadyState(currProfileIndex,newProfileIndex,nwBandwidth,bufferValue,newBandwidth,mhBitrateReason,mMaxBufferCountCheck);
+				mBitrateReason = (BitrateChangeReason) mhBitrateReason;
 				mABRHighBufferCounter = 0;
 			}
 		}
@@ -1964,17 +1928,12 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 		{
 			mABRLowBufferCounter++;
 			mABRHighBufferCounter = 0;
-			if(mABRLowBufferCounter > mABRCacheLength)
-			{
-				newProfileIndex =  mAbrManager.getRampedDownProfileIndex(currProfileIndex);
-				if(newProfileIndex  != currProfileIndex)
-				{
-					AAMPLOG_WARN("Attempted rampdown from steady state with low buffer ->currProf:%d newProf:%d bufferValue:%f ",
-					currProfileIndex,newProfileIndex,bufferValue);
-					mBitrateReason = eAAMP_BITRATE_CHANGE_BY_BUFFER_EMPTY;
-				}
+			
+				HybridABRManager::BitrateChangeReason mhBitrateReason;
+				mhBitrateReason = (HybridABRManager::BitrateChangeReason) mBitrateReason;
+				aamp->mhAbrManager.CheckRampdownFromSteadyState(currProfileIndex,newProfileIndex,mhBitrateReason,mABRLowBufferCounter);
+				mBitrateReason = (BitrateChangeReason) mhBitrateReason;
 				mABRLowBufferCounter = 0 ;
-			}
 		}
 	}
 	else
@@ -2065,7 +2024,7 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 			long networkBandwidth = aamp->GetCurrentlyAvailableBandwidth();
 			int nwConsistencyCnt = (mNwConsistencyBypass)?1:mABRNwConsistency;
 			// Ramp up/down (do ABR)
-			desiredProfileIndex = mAbrManager.getProfileIndexByBitrateRampUpOrDown(currentProfileIndex,
+			desiredProfileIndex = aamp->mhAbrManager.getProfileIndexByBitrateRampUpOrDown(currentProfileIndex,
 					currentBandwidth, networkBandwidth, nwConsistencyCnt);
 
 			AAMPLOG_INFO("currBW:%ld NwBW=%ld currProf:%d desiredProf:%d",currentBandwidth,networkBandwidth,currentProfileIndex,desiredProfileIndex);
@@ -2075,8 +2034,6 @@ int StreamAbstractionAAMP::GetDesiredProfileBasedOnCache(void)
 				// Since bitrate notification will not be triggered in this case, its fine
 				mBitrateReason = eAAMP_BITRATE_CHANGE_BY_ABR;
 			}
-			// For first time after tune, not to check for buffer availability, go for existing method .
-			// during steady state run check the buffer for ramp up or ramp down
 			if(!mNwConsistencyBypass && ISCONFIGSET(eAAMPConfig_ABRBufferCheckEnabled))
 			{
 				// Checking if frequent profile change happening
@@ -2114,7 +2071,7 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 	if (this->trickplayMode)
 	{
 		//We use only second last and lowest profiles for iframes
-		int lowestIframeProfile = mAbrManager.getLowestIframeProfile();
+		int lowestIframeProfile = aamp->mhAbrManager.getLowestIframeProfile();
 		if (desiredProfileIndex != lowestIframeProfile)
 		{
 			if (ABRManager::INVALID_PROFILE != lowestIframeProfile)
@@ -2129,7 +2086,7 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 	}
 	else
 	{
-		desiredProfileIndex = mAbrManager.getRampedDownProfileIndex(currentProfileIndex);
+		desiredProfileIndex = aamp->mhAbrManager.getRampedDownProfileIndex(currentProfileIndex);
 	}
 	if (desiredProfileIndex != currentProfileIndex)
 	{
@@ -2190,14 +2147,14 @@ bool StreamAbstractionAAMP::IsLowestProfile(int currentProfileIndex)
 
 	if (trickplayMode)
 	{
-		if (currentProfileIndex == mAbrManager.getLowestIframeProfile())
+		if (currentProfileIndex == aamp->mhAbrManager.getLowestIframeProfile())
 		{
 			ret = true;
 		}
 	}
 	else
 	{
-		ret = mAbrManager.isProfileIndexBitrateLowest(currentProfileIndex);
+		ret = aamp->mhAbrManager.isProfileIndexBitrateLowest(currentProfileIndex);
 	}
 
 	return ret;
@@ -2295,27 +2252,9 @@ void StreamAbstractionAAMP::CheckForProfileChange(void)
 		if(video != NULL)
 		{
 			double totalFetchedDuration = video->GetTotalFetchedDuration();
-			bool checkProfileChange = true;
-			int abrSkipDuration;
-			GETCONFIGVALUE(eAAMPConfig_ABRSkipDuration,abrSkipDuration) ;
-			//Avoid doing ABR during initial buffering which will affect tune times adversely
-			if ( totalFetchedDuration > 0 && totalFetchedDuration < abrSkipDuration)
-			{
-				//For initial fragment downloads, check available bw is less than default bw
-				long availBW = aamp->GetCurrentlyAvailableBandwidth();
-				long currBW = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
-
-				//If available BW is less than current selected one, we need ABR
-				if (availBW > 0 && availBW < currBW)
-				{
-					AAMPLOG_WARN("Changing profile due to low available bandwidth(%ld) than default(%ld)!! ", availBW, currBW);
-				}
-				else
-				{
-					checkProfileChange = false;
-				}
-			}
-
+			long availBW = aamp->GetCurrentlyAvailableBandwidth();
+			bool checkProfileChange = aamp->mhAbrManager.CheckProfileChange(totalFetchedDuration,currentProfileIndex,availBW);
+		
 			if (checkProfileChange)
 			{
 				UpdateProfileBasedOnFragmentCache();
@@ -2334,7 +2273,7 @@ void StreamAbstractionAAMP::CheckForProfileChange(void)
  */
 int StreamAbstractionAAMP::GetIframeTrack()
 {
-	return mAbrManager.getDesiredIframeProfile();
+	return aamp->mhAbrManager.getDesiredIframeProfile();
 }
 
 /**
@@ -2343,7 +2282,7 @@ int StreamAbstractionAAMP::GetIframeTrack()
  */
 void StreamAbstractionAAMP::UpdateIframeTracks()
 {
-	mAbrManager.updateProfile();
+	aamp->mhAbrManager.updateProfile();
 }
 
 
