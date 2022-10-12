@@ -136,6 +136,7 @@ typedef enum
 	eAAMPConfig_InfoLogging,						/**< Enables Info logging */
 	eAAMPConfig_DebugLogging,						/**< Enables Debug logging */
 	eAAMPConfig_TraceLogging,						/**< Enables Trace logging */
+	eAAMPConfig_WarnLogging,						/**< Enables Warn logging */
 	eAAMPConfig_FailoverLogging,						/**< Enables failover logging */
 	eAAMPConfig_GSTLogging,							/**< Enables Gstreamer logging */
 	eAAMPConfig_ProgressLogging,						/**< Enables Progress logging */

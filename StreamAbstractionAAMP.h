@@ -32,7 +32,6 @@
 #include <iterator>
 #include <vector>
 
-#include <ABRManager.h>
 #include <glib.h>
 #include "subtitleParser.h"
 
@@ -1074,7 +1073,7 @@ public:
 	 *    @return The ABRManager reference.
 	 */
 	ABRManager& GetABRManager() {
-		return mAbrManager;
+		return aamp->mhAbrManager;
 	}
 
 	/**
@@ -1083,7 +1082,7 @@ public:
 	 *   @return number of profiles.
 	 */
 	virtual int GetProfileCount() {
-		return mAbrManager.getProfileCount();
+		return aamp->mhAbrManager.getProfileCount();
 	}
 
        /**
@@ -1092,11 +1091,11 @@ public:
        * @retval profile index of the current bandwidth
        */
        virtual int GetProfileIndexForBandwidth(long mTsbBandwidth) {
-	       return mAbrManager.getBestMatchedProfileIndexByBandWidth(mTsbBandwidth);
+	       return aamp->mhAbrManager.getBestMatchedProfileIndexByBandWidth(mTsbBandwidth);
        }
 
 	long GetCurProfIdxBW(){
-		return mAbrManager.getBandwidthOfProfile(this->currentProfileIndex);
+		return aamp->mhAbrManager.getBandwidthOfProfile(this->currentProfileIndex);
 	}
 
 
@@ -1106,7 +1105,7 @@ public:
 	 *   @return max bandwidth
 	 */
 	virtual long GetMaxBitrate(){
-		return mAbrManager.getBandwidthOfProfile(mAbrManager.getMaxBandwidthProfile());
+		return aamp->mhAbrManager.getBandwidthOfProfile(aamp->mhAbrManager.getMaxBandwidthProfile());
 	}
 
 	/**
@@ -1569,7 +1568,6 @@ private:
 	int mRampDownLimit;                 /**< stores ramp down limit value */
 	BitrateChangeReason mBitrateReason; /**< holds the reason for last bitrate change */
 protected:
-	ABRManager mAbrManager;                       /**< Pointer to abr manager*/
 	std::vector<AudioTrackInfo> mAudioTracks;     /**< Available audio tracks */
 	std::vector<AudioTrackInfo> mAudioTracksAll;  /**< Alternative variable to store audio track information from all period */
 	std::vector<TextTrackInfo> mTextTracksAll;    /**< Alternative variable to store text track information from all period */

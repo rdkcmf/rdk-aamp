@@ -1064,15 +1064,6 @@ char* ConvertSpeedToStr(long bps, char *str)
     return str;
 }
 
-/**
- * @brief Check if it is Good to capture speed sample
- * @param time_diff Time Diff
- * @retval bool Good to Estimate
- */
-bool IsGoodToEstimate(long time_diff) {
-
-    return time_diff >= DEFAULT_ABR_ELAPSED_MILLIS_FOR_ESTIMATE;
-}
 
 /**
  * @brief Get Current Content Download Speed
@@ -1098,7 +1089,7 @@ long getCurrentContentDownloadSpeed(PrivateInstanceAAMP *aamp,
     struct SpeedCache* speedcache = NULL;
     speedcache = aamp->GetLLDashSpeedCache();
 
-    if(!aamp->GetLowLatencyStartABR())
+    if(!aamp->mhAbrManager.GetLowLatencyStartABR())
     {
         speedcache->last_sample_time_val = start;
     }
@@ -1124,33 +1115,9 @@ long getCurrentContentDownloadSpeed(PrivateInstanceAAMP *aamp,
 
     //AAMPLOG_INFO("[%d] prev_dlnow: %ld dlnow: %ld dl_diff: %ld total_dl_diff: %ld Current Total Download: %ld Previous Total Download: %ld",fileType, prevdlnow, (long)dlnow, dl_diff,total_dl_diff,currentTotalDownloaded, speedcache->prevSampleTotalDownloaded);
 
-    if(IsGoodToEstimate(time_diff))
+    if(aamp->mhAbrManager.IsABRDataGoodToEstimate(time_diff))
     {
-        speedcache->last_sample_time_val = time_now;
-
-        //speed @ bits per second
-        speedcache->speed_now = ((long)(total_dl_diff / time_diff)* 8000);
-
-        AAMPLOG_TRACE("[%d] SAMPLE(Chunk) - time_diff: %ld, total_dl_diff: %ld Current Total Download: %ld Previous Total Download: %ld speedcache->speed_now: %ld speed_from_prev_sample: %s",fileType,time_diff,total_dl_diff,currentTotalDownloaded, speedcache->prevSampleTotalDownloaded, speedcache->speed_now, ConvertSpeedToStr(speedcache->speed_now, buffer[0]));
-
-        double weight = std::sqrt((double)total_dl_diff);
-        speedcache->weightedBitsPerSecond += weight * speedcache->speed_now;
-        speedcache->totalWeight += weight;
-        speedcache->mChunkSpeedData.push_back(std::make_pair(weight ,speedcache->speed_now));
-
-        AAMPLOG_TRACE("[%d] SAMPLE(Chunk) - weight: %lf, speedcache->weightedBitsPerSecond: %lf speedcache->totalWeight: %lf weight-first: %lf, bps-first: %ld",fileType,weight,speedcache->weightedBitsPerSecond,speedcache->totalWeight, speedcache->mChunkSpeedData.at(0).first,speedcache->mChunkSpeedData.at(0).second);
-
-        if(speedcache->mChunkSpeedData.size() > MAX_LOW_LATENCY_DASH_ABR_SPEEDSTORE_SIZE)
-        {
-            speedcache->totalWeight -= (speedcache->mChunkSpeedData.at(0).first);
-            speedcache->weightedBitsPerSecond -= (speedcache->mChunkSpeedData.at(0).first * speedcache->mChunkSpeedData.at(0).second);
-            speedcache->mChunkSpeedData.erase(speedcache->mChunkSpeedData.begin());
-            //Speed Data Count is good to estimate bps
-            bitsPerSecond = speedcache->weightedBitsPerSecond/speedcache->totalWeight;
-            AAMPLOG_TRACE("[%d] SAMPLE(Chunk) - speedcache->weightedBitsPerSecond: %lf speedcache->totalWeight: %lf estimated-bps: %ld estimated-speed: %s",fileType,speedcache->weightedBitsPerSecond,speedcache->totalWeight, bitsPerSecond, ConvertSpeedToStr(bitsPerSecond, buffer[1]));
-        }
-
-        speedcache->prevSampleTotalDownloaded = currentTotalDownloaded;
+	    aamp->mhAbrManager.CheckLLDashABRSpeedStoreSize(speedcache,bitsPerSecond,time_now,total_dl_diff,time_diff,currentTotalDownloaded);
     }
     else
     {
@@ -1197,7 +1164,7 @@ int PrivateInstanceAAMP::HandleSSLProgressCallback ( void *clientp, double dltot
 			context->downloadNow = dlnow;
 			context->downloadNowUpdatedTime = NOW_STEADY_TS_MS;
 
-			if(!aamp->GetLowLatencyStartABR())
+			if(!aamp->mhAbrManager.GetLowLatencyStartABR())
 			{
 				//Reset speedcache when Fragment download Starts
 				struct SpeedCache* speedcache = NULL;
@@ -1212,9 +1179,9 @@ int PrivateInstanceAAMP::HandleSSLProgressCallback ( void *clientp, double dltot
 				context->dlStarted = false;
 			}
 
-			if(!aamp->GetLowLatencyStartABR())
+			if(!aamp->mhAbrManager.GetLowLatencyStartABR())
 			{
-				aamp->SetLowLatencyStartABR(true);
+				aamp->mhAbrManager.SetLowLatencyStartABR(true);
 			}
 
 			if(downloadbps)
@@ -1222,12 +1189,7 @@ int PrivateInstanceAAMP::HandleSSLProgressCallback ( void *clientp, double dltot
 				long currentProfilebps  = context->aamp->mpStreamAbstractionAAMP->GetVideoBitrate();
 
 				pthread_mutex_lock(&context->aamp->mLock);
-				context->aamp->mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,downloadbps));
-
-				//AAMPLOG_WARN("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
-				if(context->aamp->mAbrBitrateData.size() > DEFAULT_ABR_CHUNK_CACHE_LENGTH)
-					context->aamp->mAbrBitrateData.erase(context->aamp->mAbrBitrateData.begin());
-
+				aamp->mhAbrManager.UpdateABRBitrateDataBasedOnCacheLength(context->aamp->mAbrBitrateData,downloadbps,true);
 				pthread_mutex_unlock(&context->aamp->mLock);
 			}
 		}
@@ -1356,7 +1318,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	mCMCDNextObjectRequest(""),mCMCDBandwidth(0),
 	mManifestUrl(""), mTunedManifestUrl(""), mOrigManifestUrl(), mServiceZone(), mVssVirtualStreamId(),
 	mCurrentLanguageIndex(0),
-	preferredLanguagesString(), preferredLanguagesList(), preferredLabelList(),
+	preferredLanguagesString(), preferredLanguagesList(), preferredLabelList(),mhAbrManager(),
 #ifdef SESSION_STATS
 	mVideoEnd(NULL),
 #endif
@@ -3208,76 +3170,22 @@ void PrivateInstanceAAMP::ResetCurrentlyAvailableBandwidth(long bitsPerSecond , 
  */
 long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 {
-	long avg = 0;
-	long ret = -1;
 	// 1. Check for any old bitrate beyond threshold time . remove those before calculation
 	// 2. Sort and get median 
 	// 3. if any outliers  , remove those entries based on a threshold value.
 	// 4. Get the average of remaining data. 
 	// 5. if no item in the list , return -1 . Caller to ignore bandwidth based processing
 	
-	std::vector< std::pair<long long,long> >::iterator bitrateIter;
 	std::vector< long> tmpData;
-	std::vector< long>::iterator tmpDataIter;
-	long long presentTime = aamp_GetCurrentTimeMS();
-	int  abrCacheLife,abrOutlierDiffBytes;
-	GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheLife,abrCacheLife); 
-
+	long ret = -1;
 	pthread_mutex_lock(&mLock);
-
-	for (bitrateIter = mAbrBitrateData.begin(); bitrateIter != mAbrBitrateData.end();)
-	{
-		//AAMPLOG_WARN("Sz[%d] TimeCheck Pre[%lld] Sto[%lld] diff[%lld] bw[%ld] ",mAbrBitrateData.size(),presentTime,(*bitrateIter).first,(presentTime - (*bitrateIter).first),(long)(*bitrateIter).second);
-        	if ((bitrateIter->first <= 0) || (presentTime - bitrateIter->first > abrCacheLife))
-		{
-			//AAMPLOG_WARN("Threadshold time reached , removing bitrate data ");
-			bitrateIter = mAbrBitrateData.erase(bitrateIter);
-		}
-		else
-		{
-			tmpData.push_back(bitrateIter->second);
-			bitrateIter++;
-		}
-	}
+	mhAbrManager.UpdateABRBitrateDataBasedOnCacheLife(mAbrBitrateData,tmpData);
 	pthread_mutex_unlock(&mLock);
-
-	if (tmpData.size())
-	{	
-		long medianbps=0;
-
-		std::sort(tmpData.begin(),tmpData.end());
-		if (tmpData.size() %2)
-		{
-			medianbps = tmpData.at(tmpData.size()/2);
-		}
-		else
-		{
-			long m1 = tmpData.at(tmpData.size()/2);
-			long m2 = tmpData.at(tmpData.size()/2)+1;
-			medianbps = (m1+m2)/2;
-		} 
-	
-		long diffOutlier = 0;
-		avg = 0;
-		GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheOutlier,abrOutlierDiffBytes);
-		for (tmpDataIter = tmpData.begin();tmpDataIter != tmpData.end();)
-		{
-			diffOutlier = (*tmpDataIter) > medianbps ? (*tmpDataIter) - medianbps : medianbps - (*tmpDataIter);
-			if (diffOutlier > abrOutlierDiffBytes)
-			{
-				//AAMPLOG_WARN("Outlier found[%ld]>[%ld] erasing ....",diffOutlier,abrOutlierDiffBytes);
-				tmpDataIter = tmpData.erase(tmpDataIter);
-			}
-			else
-			{
-				avg += (*tmpDataIter);
-				tmpDataIter++;
-			}
-		}
+		
 		if (tmpData.size())
 		{
 			//AAMPLOG_WARN("NwBW with newlogic size[%d] avg[%ld] ",tmpData.size(), avg/tmpData.size());
-			ret = (avg/tmpData.size());
+			ret =mhAbrManager.UpdateABRBitrateDataBasedOnCacheOutlier(tmpData);
 			mAvailableBandwidth = ret;
 			//Store the PersistBandwidth and UpdatedTime on ABRManager
 			//Bitrate Update only for foreground player
@@ -3295,12 +3203,6 @@ long PrivateInstanceAAMP::GetCurrentlyAvailableBandwidth(void)
 			//AAMPLOG_WARN("No prior data available for abr , return -1 ");
 			ret = -1;
 		}
-	}
-	else
-	{
-		//AAMPLOG_WARN("No data available for bitrate check , return -1 ");
-		ret = -1;
-	}
 	
 	return ret;
 }
@@ -4044,33 +3946,18 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && CheckABREnabled())
 			{
 				int  AbrThresholdSize;
-				GETCONFIGVALUE_PRIV(eAAMPConfig_ABRThresholdSize,AbrThresholdSize);	
-				if(buffer->len > AbrThresholdSize)
+				GETCONFIGVALUE_PRIV(eAAMPConfig_ABRThresholdSize,AbrThresholdSize);
+				//HybridABRManager mhABRManager;
+				HybridABRManager::CurlAbortReason hybridabortReason = (HybridABRManager::CurlAbortReason) abortReason;
+				if((buffer->len > AbrThresholdSize) && (!GetLLDashServiceData()->lowLatencyMode ||
+                                        ( GetLLDashServiceData()->lowLatencyMode  && ISCONFIGSET_PRIV(eAAMPConfig_DisableLowLatencyABR))))
 				{
-					char buf[6] = {0,};
-					long downloadbps = ((long)(buffer->len / downloadTimeMS)*8000);
 					long currentProfilebps  = mpStreamAbstractionAAMP->GetVideoBitrate();
-
-					AAMPLOG_TRACE("[%d] SAMPLE(FULL) - buffer->len: %d downloadTimeMS: %d downloadbps: %ld currentProfilebps: %ld speed: %s",fileType,buffer->len, downloadTimeMS, downloadbps,currentProfilebps,ConvertSpeedToStr(downloadbps, buf));
-
-					if(!GetLLDashServiceData()->lowLatencyMode ||
-					( GetLLDashServiceData()->lowLatencyMode  && ISCONFIGSET_PRIV(eAAMPConfig_DisableLowLatencyABR)))
-					{
-						// extra coding to avoid picking lower profile
-						// Avoid this reset for Low bandwidth timeout cases
-						if(downloadbps < currentProfilebps && fragmentDurationMs && downloadTimeMS < fragmentDurationMs/2 && (abortReason != eCURL_ABORT_REASON_LOW_BANDWIDTH_TIMEDOUT))
-						{
-							downloadbps = currentProfilebps;
-						}
+					long downloadbps = mhAbrManager.CheckAbrThresholdSize(buffer->len,downloadTimeMS,currentProfilebps,fragmentDurationMs,hybridabortReason);
 						pthread_mutex_lock(&mLock);
-						mAbrBitrateData.push_back(std::make_pair(aamp_GetCurrentTimeMS() ,downloadbps));
-						int  abrCacheLength;
-						GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheLength,abrCacheLength);
-						//AAMPLOG_WARN("CacheSz[%d]ConfigSz[%d] Storing Size [%d] bps[%ld]",mAbrBitrateData.size(),abrCacheLength, buffer->len, ((long)(buffer->len / downloadTimeMS)*8000));
-						if(mAbrBitrateData.size() > abrCacheLength)
-							mAbrBitrateData.erase(mAbrBitrateData.begin());
+						mhAbrManager.UpdateABRBitrateDataBasedOnCacheLength(mAbrBitrateData,downloadbps,false);
 						pthread_mutex_unlock(&mLock);
-					}
+					
 				}
 			}
 		}
@@ -5252,6 +5139,10 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 		if(mTSBEnabled && ISCONFIGSET_PRIV(eAAMPConfig_EnableAampConfigToFog))
 		{
 			LoadFogConfig();
+		}
+		else
+		{
+			LoadAampAbrConfig();
 		}
 	}
 	//temporary hack for peacock
@@ -11259,6 +11150,7 @@ AampLLDashServiceData*  PrivateInstanceAAMP::GetLLDashServiceData(void)
     return &this->mAampLLDashServiceData;
 }
 
+
 /**
  * @brief Sets Low Video TimeScale
  */
@@ -11290,7 +11182,6 @@ uint32_t  PrivateInstanceAAMP::GetAudTimeScale(void)
 {
     return audTimeScale;
 }
-
 /**
  * @brief Sets Speed Cache
  */
@@ -11307,7 +11198,6 @@ struct SpeedCache* PrivateInstanceAAMP::GetLLDashSpeedCache()
     return &speedCache;
 }
 
-
 bool PrivateInstanceAAMP::GetLiveOffsetAppRequest()
 {
     return mLiveOffsetAppRequest;
@@ -11320,23 +11210,6 @@ void PrivateInstanceAAMP::SetLiveOffsetAppRequest(bool LiveOffsetAppRequest)
 {
     this->mLiveOffsetAppRequest = LiveOffsetAppRequest;
 }
-
-/**
- *  @brief Get Low Latency ABR Start Status
- */
-bool PrivateInstanceAAMP::GetLowLatencyStartABR()
-{
-    return bLowLatencyStartABR;
-}
-
-/**
- *  @brief Set Low Latency ABR Start Status
- */     
-void PrivateInstanceAAMP::SetLowLatencyStartABR(bool bStart)
-{
-    bLowLatencyStartABR = bStart;
-}
-
 /**
  *  @brief Get Low Latency Service Configuration Status
  */
@@ -11646,6 +11519,32 @@ long PrivateInstanceAAMP::LoadFogConfig()
 	long http_error = -1;
 	ProcessCustomCurlRequest(remoteUrl, NULL, &http_error, eCURL_POST, jsonStr);
 	return http_error;
+}
+
+
+/** 
+ * @brief -To Load needed config from player to aampabr
+ */
+void PrivateInstanceAAMP::LoadAampAbrConfig()
+{
+	HybridABRManager::AampAbrConfig mhAampAbrConfig;
+	// ABR config values
+	GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheLife,mhAampAbrConfig.abrCacheLife);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_ABRCacheLength,mhAampAbrConfig.abrCacheLength);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_ABRSkipDuration,mhAampAbrConfig.abrSkipDuration);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_ABRNWConsistency,mhAampAbrConfig.abrNwConsistency);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_ABRThresholdSize,mhAampAbrConfig.abrThresholdSize);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MaxABRNWBufferRampUp,mhAampAbrConfig.abrMaxBuffer);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_MinABRNWBufferRampDown,mhAampAbrConfig.abrMinBuffer);
+	
+	// Logging level support on aampabr
+
+	mhAampAbrConfig.infologging  = (ISCONFIGSET_PRIV(eAAMPConfig_InfoLogging)  ? 1 :0);
+	mhAampAbrConfig.debuglogging = (ISCONFIGSET_PRIV(eAAMPConfig_DebugLogging) ? 1 :0);
+	mhAampAbrConfig.tracelogging = (ISCONFIGSET_PRIV(eAAMPConfig_TraceLogging) ? 1:0);
+	mhAampAbrConfig.warnlogging  = (ISCONFIGSET_PRIV(eAAMPConfig_WarnLogging) ? 1:0);
+
+	mhAbrManager.ReadPlayerConfig(&mhAampAbrConfig);
 }
 
 /**

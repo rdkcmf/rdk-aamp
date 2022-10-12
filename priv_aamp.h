@@ -58,6 +58,7 @@
 #include <type_traits>
 #include "AampRfc.h"
 #include "AampEventManager.h"
+#include <HybridABRManager.h>
 
 static const char *mMediaFormatName[] =
 {
@@ -849,7 +850,7 @@ public:
 	bool mDownloadsEnabled;
 	std::map<MediaType, bool> mMediaDownloadsEnabled; /* Used to enable/Disable individual mediaType downloads */
 	StreamSink* mStreamSink;
-
+	HybridABRManager mhAbrManager;                 /**< Pointer to Hybrid abr manager*/
 	ProfileEventAAMP profiler;
 	bool licenceFromManifest;
 	AudioType previousAudioType; 			/**< Used to maintain previous audio type */
@@ -3617,7 +3618,7 @@ public:
 	 *   @return struct SpeedCache speedCache*
 	 */
 	struct SpeedCache * GetLLDashSpeedCache();
-
+	
 	 /**
 	  *   @brief Sets Low latency play rate
 	  *
@@ -3638,9 +3639,8 @@ public:
 	{
 		return mLLDashCurrentPlayRate;
 	}
-
 	/**
-	 *   @fn GetLiveOffsetAppRequest 
+	 *   @fn GetLiveOffsetAppRequest
 	 *   @return bool
 	 */
 	bool GetLiveOffsetAppRequest();
@@ -3653,30 +3653,17 @@ public:
 	void SetLiveOffsetAppRequest(bool LiveOffsetAppRequest);
 
 	/**
-	 *    @fn GetLowLatencyStartABR
-	 *    @return bool
-	 */
-	bool GetLowLatencyStartABR();
+         *     @fn GetLowLatencyServiceConfigured
+         *     @return bool
+         */
+        bool GetLowLatencyServiceConfigured();
 
-	/**
-	 *     @fn SetLowLatencyStartABR
-	 *     @param[in] bStart - bool flag
-	 *     @return void
-	 */
-	void SetLowLatencyStartABR(bool bStart);
-    
-	/**
-	 *     @fn GetLowLatencyServiceConfigured
-	 *     @return bool
-	 */
-	bool GetLowLatencyServiceConfigured();
-
-	/**
-	 *     @fn SetLowLatencyServiceConfigured
-	 *     @param[in] bConfig - bool flag
-	 *     @return void
-	 */
-	void SetLowLatencyServiceConfigured(bool bConfig);
+        /**
+         *     @fn SetLowLatencyServiceConfigured
+         *     @param[in] bConfig - bool flag
+         *     @return void
+         */
+        void SetLowLatencyServiceConfigured(bool bConfig);
 
 	/**
 	 *     @fn GetUtcTime
@@ -3754,6 +3741,14 @@ public:
 	 */
 	long LoadFogConfig(void);
 	
+	/**
+	* @brief To pass player config to aampabr
+	* @fn LoadAampAbrConfig
+	* return none
+	*/
+	void LoadAampAbrConfig(void);
+
+
 	/**
 	 *    @brief To increment gaps between periods for dash 
 	 *    return none

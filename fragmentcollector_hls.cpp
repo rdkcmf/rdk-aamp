@@ -754,7 +754,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 	mMediaCount = 0;
 	mProfileCount = 0;
 	vProfileCount = iFrameCount = lineNum = 0;
-	mAbrManager.clearProfiles();
+	aamp->mhAbrManager.clearProfiles();
 	bool useavgbw = ISCONFIGSET(eAAMPConfig_AvgBWForABR);
 #ifdef AVE_DRM
 	//clear previouse data
@@ -4058,7 +4058,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				// XIONE-2039 If bitrate to be persisted during trickplay is true, set persisted BW as default init BW
 				if (persistedBandwidth > 0 && (persistedBandwidth < defaultBitRate || aamp->IsBitRatePersistedOverSeek()))
 				{
-					mAbrManager.setDefaultInitBitrate(persistedBandwidth);
+					aamp->mhAbrManager.setDefaultInitBitrate(persistedBandwidth);
 				}
 			}
 			else
@@ -4066,25 +4066,25 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				// Set Default init bitrate according to last PersistBandwidth
 				if((ISCONFIGSET(eAAMPConfig_PersistLowNetworkBandwidth)|| ISCONFIGSET(eAAMPConfig_PersistHighNetworkBandwidth)) && !aamp->IsTSBSupported())
 				{
-					long persistbandwidth =  mAbrManager.getPersistBandwidth();
+					long persistbandwidth = aamp->mhAbrManager.getPersistBandwidth();
 					long TimeGap   =  aamp_GetCurrentTimeMS() - ABRManager::mPersistBandwidthUpdatedTime;
 					//If current Network bandwidth is lower than current default bitrate ,use persistbw as default bandwidth when peristLowNetworkConfig exist
 					if(ISCONFIGSET(eAAMPConfig_PersistLowNetworkBandwidth) && TimeGap < 10000 &&  persistbandwidth < aamp->GetDefaultBitrate() && persistbandwidth > 0)
 					{
 						AAMPLOG_WARN("PersistBitrate used as defaultBitrate. PersistBandwidth : %ld TimeGap : %ld",persistbandwidth,TimeGap);
-						mAbrManager.setDefaultInitBitrate(persistbandwidth);
+						aamp->mhAbrManager.setDefaultInitBitrate(persistbandwidth);
 					}
 					//If current Network bandwidth is higher than current default bitrate and if config for PersistHighBandwidth is true , then network bandwidth will be applied as default bitrate for tune
 					else if(ISCONFIGSET(eAAMPConfig_PersistHighNetworkBandwidth) && TimeGap < 10000 && persistbandwidth > 0)
 					{
 						AAMPLOG_WARN("PersistBitrate used as defaultBitrate. PersistBandwidth : %ld TimeGap : %ld",persistbandwidth,TimeGap);
-						mAbrManager.setDefaultInitBitrate(persistbandwidth);
+						aamp->mhAbrManager.setDefaultInitBitrate(persistbandwidth);
 					}
 					//set default bitrate
 					else
 					{
 						AAMPLOG_WARN("Using defaultBitrate %ld . PersistBandwidth : %ld TimeGap : %ld",aamp->GetDefaultBitrate(),persistbandwidth,TimeGap);
-						mAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
+						aamp->mhAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
 
 					}
 				}
@@ -4257,7 +4257,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						AAMPLOG_WARN("StreamAbstractionAAMP_HLS::Video playlist download failed, rettrying with rampdown logic : %d ( %d )", 
 						 limitCount, numberOfLimit );
 						/** Choose rampdown profile for next retry */
-						currentProfileIndex = mAbrManager.getRampedDownProfileIndex(currentProfileIndex);
+						currentProfileIndex = aamp->mhAbrManager.getRampedDownProfileIndex(currentProfileIndex);
 						long bandwidthBitsPerSecond = GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond;
 						if(lastSelectedProfileIndex == currentProfileIndex){
 							AAMPLOG_INFO("Failed to rampdown from bandwidth : %ld", bandwidthBitsPerSecond);
@@ -5560,7 +5560,7 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(AampLogManager *logObj, cla
 		this->trickplayMode = true;
 	}
 	//targetDurationSeconds = 0.0;
-	mAbrManager.clearProfiles();
+	aamp->mhAbrManager.clearProfiles();
 	memset(&trackState[0], 0x00, sizeof(trackState));
 	aamp->CurlInit(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT,aamp->GetNetworkProxy());
 	// Initializing curl instances for playlists.
@@ -7270,7 +7270,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 								streamInfo->resolution.width,
 								streamInfo->resolution.height );
 
-						mAbrManager.addProfile({
+						aamp->mhAbrManager.addProfile({
 								streamInfo->isIframeTrack,
 								streamInfo->bandwidthBitsPerSecond,
 								streamInfo->resolution.width,
@@ -7307,7 +7307,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 		else if(iFrameSelectedCount)
 		{
 			// this is to sort the iframe tracks
-			mAbrManager.updateProfile();
+			aamp->mhAbrManager.updateProfile();
 		}
 	}
 	else if(rate == AAMP_NORMAL_PLAY_RATE || rate == AAMP_RATE_PAUSE)
@@ -7549,7 +7549,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 								streamInfo->resolution.width,
 								streamInfo->resolution.height );
 
-						mAbrManager.addProfile({
+						aamp->mhAbrManager.addProfile({
 								streamInfo->isIframeTrack,
 								streamInfo->bandwidthBitsPerSecond,
 								streamInfo->resolution.width,
@@ -7566,7 +7566,7 @@ void StreamAbstractionAAMP_HLS::ConfigureVideoProfiles()
 								streamInfo->resolution.width,
 								streamInfo->resolution.height );
 
-						mAbrManager.addProfile({
+						aamp->mhAbrManager.addProfile({
 								streamInfo->isIframeTrack,
 								streamInfo->bandwidthBitsPerSecond,
 								streamInfo->resolution.width,
@@ -7847,7 +7847,7 @@ StreamInfo * StreamAbstractionAAMP_HLS::GetStreamInfo(int idx)
 
 	if (mProfileCount) // avoid calling getUserDataOfProfile() for playlist only URL playback.
 	{
-		userData = mAbrManager.getUserDataOfProfile(idx);
+		userData = aamp->mhAbrManager.getUserDataOfProfile(idx);
 	}
 
 	return &streamInfo[userData];

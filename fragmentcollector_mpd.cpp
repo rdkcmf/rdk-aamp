@@ -4440,9 +4440,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			{
 				aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE);
 				return ret;	
-			}
-			/*LL DASH VERIFICATION END*/
-	
+			}	
 			if (aamp->mIsVSS)
 			{
 				std::string vssVirtualStreamId = GetVssVirtualStreamID();
@@ -8196,25 +8194,25 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 						// Set Default init bitrate according to last PersistBandwidth
 						if((ISCONFIGSET(eAAMPConfig_PersistLowNetworkBandwidth)|| ISCONFIGSET(eAAMPConfig_PersistHighNetworkBandwidth)) && !aamp->IsTSBSupported())
 						{
-							long persistbandwidth =  mAbrManager.getPersistBandwidth();
+							long persistbandwidth = aamp->mhAbrManager.getPersistBandwidth();
 							long TimeGap   =  aamp_GetCurrentTimeMS() - ABRManager::mPersistBandwidthUpdatedTime;
 							//If current Network bandwidth is lower than current default bitrate ,use persistbw as default bandwidth when peristLowNetworkConfig exist
 							if(ISCONFIGSET(eAAMPConfig_PersistLowNetworkBandwidth) && TimeGap < 10000 &&  persistbandwidth < aamp->GetDefaultBitrate() && persistbandwidth > 0)
 							{
 								AAMPLOG_WARN("PersistBitrate used as defaultBitrate. PersistBandwidth : %ld TimeGap : %ld",persistbandwidth,TimeGap);
-								mAbrManager.setDefaultInitBitrate(persistbandwidth);
+								aamp->mhAbrManager.setDefaultInitBitrate(persistbandwidth);
 							}
 							//If current Network bandwidth is higher than current default bitrate and if config for PersistHighBandwidth is true , then network bandwidth will be applied as default bitrate for tune 
 							else if(ISCONFIGSET(eAAMPConfig_PersistHighNetworkBandwidth) && TimeGap < 10000 && persistbandwidth > 0)
 							{
 								AAMPLOG_WARN("PersistBitrate used as defaultBitrate. PersistBandwidth : %ld TimeGap : %ld",persistbandwidth,TimeGap);
-								mAbrManager.setDefaultInitBitrate(persistbandwidth);
+								aamp->mhAbrManager.setDefaultInitBitrate(persistbandwidth);
 							}
 							// Set default init bitrate 
 							else
 							{
 								AAMPLOG_WARN("Using defaultBitrate %ld . PersistBandwidth : %ld TimeGap : %ld",aamp->GetDefaultBitrate(),persistbandwidth,TimeGap);
-								mAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
+								aamp->mhAbrManager.setDefaultInitBitrate(aamp->GetDefaultBitrate());
 
 							}
 						}
@@ -12197,18 +12195,18 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
  */
 bool StreamAbstractionAAMP_MPD::CheckLLProfileAvailable(IMPD *mpd)
 {
-    std::vector<std::string> profiles;
-    profiles = this->mpd->GetProfiles();
-    size_t numOfProfiles = profiles.size();
-    for (int iProfileCnt = 0; iProfileCnt < numOfProfiles; iProfileCnt++)
-    {
-        std::string profile = profiles.at(iProfileCnt);
-        if(!strcmp(LL_DASH_SERVICE_PROFILE , profile.c_str()))
-        {
-            return true;
-        }
-    }
-    return false;
+	std::vector<std::string> profiles;
+	profiles = this->mpd->GetProfiles();
+	size_t numOfProfiles = profiles.size();
+	for (int iProfileCnt = 0; iProfileCnt < numOfProfiles; iProfileCnt++)
+	{
+		std::string profile = profiles.at(iProfileCnt);
+		if(!strcmp(LL_DASH_SERVICE_PROFILE , profile.c_str()))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
