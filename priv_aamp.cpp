@@ -1389,6 +1389,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, contentGaps()
 	, mAampLLDashServiceData{}
 	, bLowLatencyServiceConfigured(false)
+	, bLLDashAdjustPlayerSpeed(false)
 	, mLLDashCurrentPlayRate(AAMP_NORMAL_PLAY_RATE)
 	, mLLDashRateCorrectionCount(0)
 	, mLLDashRetuneCount(0)
@@ -4638,6 +4639,19 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	}
 
 	newTune = IsNewTune();
+
+	if ((ISCONFIGSET_PRIV(eAAMPConfig_EnableLowLatencyDash)) && ( ISCONFIGSET_PRIV( eAAMPConfig_EnableLowLatencyCorrection ) ) &&\
+	       	(newTune || tuneType == eTUNETYPE_SEEKTOLIVE || ( eTUNETYPE_RETUNE == tuneType && GetLLDashAdjustSpeed() )) )
+	{
+		SetLLDashAdjustSpeed(true);
+		AAMPLOG_WARN("LL Dash speed correction enabled");
+	}
+	else
+	{
+		SetLLDashAdjustSpeed(false);
+		AAMPLOG_WARN("LL Dash speed correction disabled");
+	}
+
 
 	// DELIA-39530 - Get position before pipeline is teared down
 	if (eTUNETYPE_RETUNE == tuneType)

@@ -4729,6 +4729,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 					AAMPLOG_WARN( "StreamAbstractionAAMP_MPD: offSetFromStart[%f] seekWindowEnd[%f]",
 							seekPosition, seekWindowEnd);
 					liveAdjust = true;
+					if ( (ISCONFIGSET(eAAMPConfig_EnableLowLatencyDash)) && ( ISCONFIGSET( eAAMPConfig_EnableLowLatencyCorrection ) ) )
+					{
+						aamp->SetLLDashAdjustSpeed(true);
+						AAMPLOG_WARN("LL Dash speed correction enabled");
+					}
 					if (eTUNETYPE_SEEK == tuneType)
 					{
 						notifyEnteringLive = true;
@@ -10054,11 +10059,11 @@ void StreamAbstractionAAMP_MPD::Start(void)
 	}
 	TuneType tuneType = aamp->GetTuneType();
 	if( (aamp->GetLLDashServiceData()->lowLatencyMode &&
-	! ( ISCONFIGSET( eAAMPConfig_DisableLowLatencyMonitor ) ) ) && 
-	  ( ( eTUNETYPE_SEEK != tuneType   ) &&
+		( ISCONFIGSET( eAAMPConfig_EnableLowLatencyCorrection ) ) ) && 
+	  ( aamp->GetLLDashAdjustSpeed() || ( ( eTUNETYPE_SEEK != tuneType   ) &&
 		( eTUNETYPE_NEW_SEEK != tuneType ) &&
 		( eTUNETYPE_NEW_END != tuneType ) &&
-		( eTUNETYPE_SEEKTOEND != tuneType ) ) )
+		( eTUNETYPE_SEEKTOEND != tuneType ) ) ) )
 	{
 		StartLatencyMonitorThread();
 	}
@@ -12019,6 +12024,8 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 	}
 	AAMPLOG_TRACE("keepRunning : %d", keepRunning);
 	int monitorInterval = latencyMonitorInterval  * 1000;
+	AAMPLOG_INFO( "Speed correction state:%d", aamp->GetLLDashAdjustSpeed());
+
 	while(keepRunning)
 	{
 		aamp->InterruptableMsSleep(monitorInterval);
@@ -12052,7 +12059,9 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 
 					long currentLatency = 0;
 					currentLatency = (mLiveEndPosition * 1000 - (double)aamp->GetPositionMs());
-					AAMPLOG_INFO("Live End Latency=%ld currentPlayRate=%lf", currentLatency, playRate);
+					AAMPLOG_INFO("Live End Latency=%ld currentPlayRate=%lf PBR[min:%f,max:%f]", currentLatency, playRate,
+									pAampLLDashServiceData->minPlaybackRate,
+									pAampLLDashServiceData->maxPlaybackRate);
 #if 0
 					long encoderDisplayLatency = 0;
 					encoderDisplayLatency = (long)( GetEncoderDisplayLatency() * 1000)+currentLatency;
@@ -12061,7 +12070,7 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 					//The minPlayback rate should be only <= AAMP_NORMAL_PLAY_RATE-0.20??
 					//The MaxPlayBack rate should be only >= AAMP_NORMAL_PLAY_RATE+0.20??
 					//Do we need to validate above?
-					if(!ISCONFIGSET(eAAMPConfig_DisableLowLatencyCorrection) && 
+					if(ISCONFIGSET(eAAMPConfig_EnableLowLatencyCorrection) && 
 						pAampLLDashServiceData->minPlaybackRate !=0 && 
 						pAampLLDashServiceData->minPlaybackRate < pAampLLDashServiceData->maxPlaybackRate &&
 						pAampLLDashServiceData->minPlaybackRate < AAMP_NORMAL_PLAY_RATE && 
@@ -12083,14 +12092,14 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 							//Yellow state(the latency is within range but less than target latency but greater than minimum latency)
 							latencyStatus = LATENCY_STATUS_THRESHOLD_MIN;
 							AAMPLOG_INFO("latencyStatus = LATENCY_STATUS_THRESHOLD_MIN(%d)",latencyStatus);
-							playRate = AAMP_NORMAL_PLAY_RATE;
+							playRate = AAMP_NORMAL_LL_PLAY_RATE;
 						}
 						else if ( currentLatency == (long)pAampLLDashServiceData->targetLatency )
 						{
 							//green state(No correction is requried. set the playrate to normal, the latency is equal to given latency from mpd)
 							latencyStatus = LATENCY_STATUS_THRESHOLD;
 							AAMPLOG_INFO("latencyStatus = LATENCY_STATUS_THRESHOLD(%d)",latencyStatus);
-							playRate = AAMP_NORMAL_PLAY_RATE;
+							playRate = AAMP_NORMAL_LL_PLAY_RATE;
 						}
 						else if ( ( currentLatency >= (long)pAampLLDashServiceData->targetLatency ) &&
 							( currentLatency <= (long)pAampLLDashServiceData->maxLatency )  )
@@ -12098,7 +12107,7 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 							//Red state(The latency is more that target latency but less than maximum latency)
 							latencyStatus = LATENCY_STATUS_THRESHOLD_MAX;
 							AAMPLOG_INFO("latencyStatus = LATENCY_STATUS_THRESHOLD_MAX(%d)",latencyStatus);
-							playRate = AAMP_NORMAL_PLAY_RATE;
+							playRate = AAMP_NORMAL_LL_PLAY_RATE;
 						}
 						else if (currentLatency > (long)pAampLLDashServiceData->maxLatency)
 						{
@@ -12114,62 +12123,50 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 							AAMPLOG_WARN("latencyStatus = LATENCY_STATUS_UNKNOWN(%d)",latencyStatus);
 						}
 
-						if( aamp->mLLDashRateCorrectionCount > MAX_LOW_LATENCY_DASH_CORRECTION_ALLOWED )
+						if ( playRate != aamp->GetLLDashCurrentPlayBackRate() )
 						{
-							AAMPLOG_INFO("Retune started due to %d corrrection  ",aamp->mLLDashRateCorrectionCount);
-							aamp->mLLDashRateCorrectionCount = 0;
-							aamp->SetLLDashCurrentPlayBackRate(AAMP_NORMAL_PLAY_RATE);
-							aamp->mLLDashRetuneCount++;
+							bool rateCorrected=false;
 
-							aamp->ScheduleRetune(eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED,eMEDIATYPE_VIDEO);
-						}
-						else
-						{
-							aamp->SetLLDashCurrentPlayBackRate(playRate);
-						}
-
-						switch(latencyStatus)
-						{
-							case LATENCY_STATUS_MIN:
+							switch(latencyStatus)
 							{
-								if(false == aamp->mStreamSink->AdjustPlayBackRate((double)aamp->GetPositionMs(),playRate))
+								case LATENCY_STATUS_MIN:
+								case LATENCY_STATUS_MAX:
 								{
-									AAMPLOG_WARN("[LATENCY_STATUS_THRESHOLD_MIN] AdjustPlayBackRate: failed");
-								}
-								else
-								{
-									AAMPLOG_TRACE("[LATENCY_STATUS_THRESHOLD_MIN] AdjustPlayBackRate: success");
-								}
-							}
-							break;
-							case LATENCY_STATUS_THRESHOLD_MIN:
-							case LATENCY_STATUS_THRESHOLD:
-							case LATENCY_STATUS_THRESHOLD_MAX:
-							{
-								if(false == aamp->mStreamSink->AdjustPlayBackRate((double)aamp->GetPositionMs(),playRate))
-								{
-									AAMPLOG_WARN("[LATENCY_STATUS_THRESHOLD] AdjustPlayBackRate: failed");
-								}
-								else
-								{
-									AAMPLOG_TRACE("[LATENCY_STATUS_THRESHOLD] AdjustPlayBackRate: success");
+									if(false == aamp->mStreamSink->SetPlayBackRate(playRate))
+									{
+										AAMPLOG_WARN("[LATENCY_STATUS_%d] SetPlayBackRate: failed, rate:%f", latencyStatus,playRate);
+									}
+									else
+									{
+										rateCorrected = true;
+										AAMPLOG_TRACE("[LATENCY_STATUS_%d] SetPlayBackRate: success", latencyStatus);
+									}
 								}
 								break;
+								case LATENCY_STATUS_THRESHOLD_MIN:
+								case LATENCY_STATUS_THRESHOLD:
+								case LATENCY_STATUS_THRESHOLD_MAX:
+								break;
+								default:
+								break;
 							}
-							case LATENCY_STATUS_MAX:
+
+							if ( rateCorrected )
 							{
-								if(false == aamp->mStreamSink->AdjustPlayBackRate((double)aamp->GetPositionMs(),playRate))
+								if( aamp->mLLDashRateCorrectionCount > MAX_LOW_LATENCY_DASH_CORRECTION_ALLOWED )
 								{
-									AAMPLOG_WARN("[LATENCY_STATUS_THRESHOLD_MAX] AdjustPlayBackRate: failed");
+									AAMPLOG_INFO("Retune started due to %d corrrection  ",aamp->mLLDashRateCorrectionCount);
+									aamp->mLLDashRateCorrectionCount = 0;
+									aamp->SetLLDashCurrentPlayBackRate(AAMP_NORMAL_LL_PLAY_RATE);
+									aamp->mLLDashRetuneCount++;
+
+									aamp->ScheduleRetune(eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED,eMEDIATYPE_VIDEO);
 								}
 								else
 								{
-									AAMPLOG_TRACE("[LATENCY_STATUS_THRESHOLD_MAX] AdjustPlayBackRate: success");
+									aamp->SetLLDashCurrentPlayBackRate(playRate);
 								}
 							}
-							break;
-							default:
-							break;
 						}
 					}
 				}
@@ -12340,6 +12337,16 @@ AAMPStatusType  StreamAbstractionAAMP_MPD::EnableAndSetLiveOffsetForLLDashPlayba
 			{
 				ret = eAAMPSTATUS_MANIFEST_PARSE_ERROR;
 				return ret;
+			}
+
+			if ( 0 == stLLServiceData.maxPlaybackRate )
+			{
+				stLLServiceData.maxPlaybackRate = DEFAULT_MAX_RATE_CORRECTION_SPEED;
+			}
+
+			if ( 0 == stLLServiceData.minPlaybackRate )
+			{
+				stLLServiceData.minPlaybackRate = DEFAULT_MIN_RATE_CORRECTION_SPEED;
 			}
 
 			GETCONFIGVALUE(eAAMPConfig_LLMinLatency,minLatency);

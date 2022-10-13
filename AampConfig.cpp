@@ -251,9 +251,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, true,-1,-1},
 	{"tsbInterruptHandling", eAAMPConfig_InterruptHandling,true, -1, -1},
 	{"enableLowLatencyDash",eAAMPConfig_EnableLowLatencyDash,true,-1,-1},
-	{"disableLowLatencyMonitor",eAAMPConfig_DisableLowLatencyMonitor,false,-1,-1},
 	{"disableLowLatencyABR",eAAMPConfig_DisableLowLatencyABR,false,-1,-1},
-	{"disableLowLatencyCorrection",eAAMPConfig_DisableLowLatencyCorrection,false,-1,-1},
+	{"enableLowLatencyCorrection",eAAMPConfig_EnableLowLatencyCorrection,false,-1,-1},
 	{"latencyMonitorDelay",eAAMPConfig_LatencyMonitorDelay,false,-1,-1},
 	{"latencyMonitorInterval",eAAMPConfig_LatencyMonitorInterval,false,-1,-1},
 	{"downloadBufferChunks",eAAMPConfig_MaxFragmentChunkCached,false,-1,-1},
@@ -462,8 +461,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_InterruptHandling].value			=	false;
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyDash].value			=	true;
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyABR].value		    	=	true;
-	bAampCfgValue[eAAMPConfig_DisableLowLatencyMonitor].value		=	false;
-	bAampCfgValue[eAAMPConfig_DisableLowLatencyCorrection].value		=	true;
+	bAampCfgValue[eAAMPConfig_EnableLowLatencyCorrection].value		=	false;
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyOffsetMin].value      	=	true;
 	bAampCfgValue[eAAMPConfig_EnableIgnoreEosSmallFragment].value		=       false;
 	bAampCfgValue[eAAMPConfig_EnableAampConfigToFog].value                  =       true;

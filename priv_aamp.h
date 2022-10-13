@@ -3639,6 +3639,28 @@ public:
 	{
 		return mLLDashCurrentPlayRate;
 	}
+
+	 /**
+	  *   @brief Turn off/on the player speed correction for Low latency Dash
+	  *
+	  *   @param[in] state - true or false
+	  *   @return void
+	  */
+	void SetLLDashAdjustSpeed(bool state)
+	{
+		bLLDashAdjustPlayerSpeed = state;
+	}
+
+	/**
+	 *   @brief Gets the state of the player speed correction for Low latency Dash
+	 *
+	 *   @return double
+	 */
+	bool GetLLDashAdjustSpeed(void)
+	{
+		return bLLDashAdjustPlayerSpeed;
+	}
+
 	/**
 	 *   @fn GetLiveOffsetAppRequest
 	 *   @return bool
@@ -3963,6 +3985,7 @@ private:
 	int mCCId;
 	AampLLDashServiceData mAampLLDashServiceData; /**< Low Latency Service Configuration Data */
 	bool bLowLatencyServiceConfigured;
+	bool bLLDashAdjustPlayerSpeed;
 	double mLLDashCurrentPlayRate; 		/**<Low Latency Current play Rate */
 	uint32_t vidTimeScale;
 	uint32_t audTimeScale;
