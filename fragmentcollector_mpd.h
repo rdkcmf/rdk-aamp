@@ -473,10 +473,12 @@ private:
 	void ProcessPeriodAssetIdentifier(Node* node, uint64_t startMS, uint64_t durationMS, std::string& assetID, std::string& providerID,bool isInit, bool reportBulkMeta=false);
 	/**
 	 * @fn ProcessEventStream
+	 * @param startMS the start time of the event derived from the (previous) period info (ms)
+	 * @param startOffsetMS the start time of the stream derived from the first segment
 	 * @param[in] period instance.
 	 * @param reportBulkMeta true if bulk metadata is enabled
 	 */
-	bool ProcessEventStream(uint64_t startMS, IPeriod * period, bool reportBulkMeta);
+	bool ProcessEventStream(uint64_t startMS, int64_t startOffsetMS, IPeriod * period, bool reportBulkMeta);
 	/**
 	 * @fn ProcessStreamRestrictionList
 	 * @param node StreamRestrictionListType node
