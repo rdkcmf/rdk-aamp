@@ -9386,9 +9386,9 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						mpdChanged = false;
 					}
 
+					AcquirePlaylistLock();
 					if (periodChanged)
 					{
-						AcquirePlaylistLock();
 						IPeriod *newPeriod = mpd->GetPeriods().at(mIterPeriodIndex);
 						AAMPLOG_WARN("Period(%s - %d/%zu) Offset[%lf] IsLive(%d) IsCdvr(%d) ", mBasePeriodId.c_str(), mCurrentPeriodIdx, mNumberOfPeriods, mBasePeriodOffset, mIsLiveStream, aamp->IsInProgressCDVR());
 
@@ -9434,16 +9434,15 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						mCurrentPeriodIdx = mIterPeriodIndex;
 						mBasePeriodId = newPeriod->GetId();
 						periodChanged = false; //If the playing period changes, it will be detected below [if(currentPeriodId != mCurrentPeriod->GetId())]
-						ReleasePlaylistLock();
 					}
 					adStateChanged = onAdEvent(AdEvent::DEFAULT);		//TODO: Vinod, We can optimize here.
 
 					if(AdState::IN_ADBREAK_WAIT2CATCHUP == mCdaiObject->mAdState)
 					{
 						waitForAdBreakCatchup= true;
+						ReleasePlaylistLock();
 						break;
 					}
-					AcquirePlaylistLock();
 					if(adStateChanged && AdState::OUTSIDE_ADBREAK == mCdaiObject->mAdState)
 					{
 						//Just came out from the Adbreak. Need to search the right period
@@ -9485,8 +9484,6 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 								aamp->mIsPeriodChangeMarked = true;
                                                         }
 							requireStreamSelection = true;
-
-							mUpdateStreamInfo = true;
 							AAMPLOG_WARN("playing period %d/%d", mIterPeriodIndex, (int)mNumberOfPeriods);
 						}
 						else
@@ -9528,6 +9525,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 					if(requireStreamSelection)
 					{
 						StreamSelection();
+						mUpdateStreamInfo = true;
 					}
 
 					// UpdateTrackInfo from Fetcher thread if there is a periodChange
