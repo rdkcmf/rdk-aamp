@@ -202,6 +202,7 @@ typedef enum
 	eAAMPConfig_RuntimeDRMConfig,                                           /**< Enable/Disable Dynamic DRM config feature */
 	eAAMPConfig_EnablePublishingMuxedAudio,				/**< Enable/Disable publishing the audio track info from muxed contents */
 	eAAMPConfig_EnableCMCD,							/**< Enable/Disable CMCD config feature */
+	eAAMPConfig_EnableSCTE35PresentationTime,			/**< Enable/Disable use of SCTE PTS presentation time */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
