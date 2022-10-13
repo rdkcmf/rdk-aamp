@@ -185,9 +185,8 @@ typedef enum
 	eAAMPConfig_EnableSharedSSLSession,                                     /**< Enable/Disable config for shared ssl session reuse */
 	eAAMPConfig_InterruptHandling,						/**< Enables Config for network interrupt handling*/
 	eAAMPConfig_EnableLowLatencyDash,                           		/**< Enables Low Latency Dash */
-	eAAMPConfig_DisableLowLatencyMonitor,                   		/**< Enables Low Latency Monitor Thread */
 	eAAMPConfig_DisableLowLatencyABR,					/**< Enables Low Latency ABR handling */
-	eAAMPConfig_DisableLowLatencyCorrection,                    		/**< Enables Low Latency Correction handling */
+	eAAMPConfig_EnableLowLatencyCorrection,                    		/**< Enables Low Latency Correction handling */
 	eAAMPConfig_EnableLowLatencyOffsetMin,                                  /**< Enables Low Latency Offset Min handling */
 	eAAMPConfig_SyncAudioFragments,						/**< Flag to enable Audio Video Fragment Sync */
 	eAAMPConfig_EnableIgnoreEosSmallFragment,                               /**< Enable/Disable Small fragment ignore based on minimum duration Threshold at period End*/

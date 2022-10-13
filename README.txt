@@ -140,7 +140,7 @@ sharedSSL			Enabled/Disable curl shared SSL session. Default is true
 enableLowLatencyDash		Enable/Disable Low Latency Dash. Default is false
 disableLowLatencyMonitor	Enable/Disable Low Latency Monitor. Default is true
 disableLowLatencyABR		Enable/Disable Low Latency ABR. Default is true
-disableLowLatencyCorrection	Enable/Disable Low Latency Correction. Default is true
+enableLowLatencyCorrection	Enable/Disable Low Latency Correction. Default is false
 enableFogConfig			Enable/Disable setting player configurations to Fog. Default is true
 suppressDecode			Enable/Disable setting to suppress decode of content for playback , only Downloader test. Default is false
 persistProfileAcrossTune        Enable/Disable persist bandwidth across tunes .Default is false
