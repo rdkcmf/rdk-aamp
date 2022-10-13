@@ -5837,13 +5837,27 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 								ProcessPeriodAssetIdentifier(child, periodStartMS, periodDurationMS, AssetID, ProviderID, init, reportBulkMeta);
 								continue;
 							}
-							if(name == "EventStream" && "" != prdId && !(mCdaiObject->isPeriodExist(prdId))
-                                				&& ((!init || (1 < periodCnt && 0 == period->GetAdaptationSets().size()))   //Take last & empty period at the MPD init AND all new periods in the MPD refresh. (No empty periods will come the middle)
-                                   				|| (!mIsLiveManifest && init))) 				//to enable VOD content to send the metadata
+							if((name == "EventStream") && ("" != prdId) && !mCdaiObject->isPeriodExist(prdId))
 							{
-								mCdaiObject->InsertToPeriodMap(period);	//Need to do it. Because the FulFill may finish quickly
-								ProcessEventStream(periodStartMS, firstSegmentStartTime, period, reportBulkMeta);
-								continue;
+								bool processEventsInPeriod = ((!init || (1 < periodCnt && 0 == period->GetAdaptationSets().size())) //Take last & empty period at the MPD init AND all new periods in the MPD refresh. (No empty periods will come the middle)
+								      						 || (!mIsLiveManifest && init)); //to enable VOD content to send the metadata
+
+								bool modifySCTEProcessing = ISCONFIGSET(eAAMPConfig_EnableSCTE35PresentationTime);
+								if (modifySCTEProcessing)
+								{
+									//LLAMA-8251
+									// cdvr events that are currently recording are tagged as live - we still need to process
+									// all the SCTE events for these manifests so we'll just rely on isPeriodExist() to prevent
+									// repeated notifications and process all events in the manifest
+									processEventsInPeriod = true;
+								}
+
+								if (processEventsInPeriod)
+								{
+									mCdaiObject->InsertToPeriodMap(period);	//Need to do it. Because the FulFill may finish quickly
+									ProcessEventStream(periodStartMS, firstSegmentStartTime, period, reportBulkMeta);
+									continue;
+								}
 							}
 						}
 						else
@@ -6141,7 +6155,7 @@ bool StreamAbstractionAAMP_MPD::ProcessEventStream(uint64_t startMS, int64_t sta
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	bool ret = false;
-  
+
 	const std::string &prdId = period->GetId();
 	if(!prdId.empty())
 	{
@@ -6189,17 +6203,28 @@ bool StreamAbstractionAAMP_MPD::ProcessEventStream(uint64_t startMS, int64_t sta
 					{
 						eventStartTime -= startOffsetMS;
 					}
-					AAMPLOG_INFO("SCTEDBG adjust start time %lld -> %lld (duration %lld)", eventInfo.presentationTime, eventStartTime, eventInfo.duration);
+					AAMPLOG_INFO("SCTEDBG adjust start time %lld -> %lld (duration %d)", eventInfo.presentationTime, eventStartTime, eventInfo.duration);
 				}
+
 				//for livestream send the timedMetadata only., because at init, control does not come here
 				if(mIsLiveManifest)
 				{
-					aamp->FoundEventBreak(prdId, eventStartTime, eventInfo);
+					//LLAMA-8251
+					// The current process relies on enabling eAAMPConfig_EnableClientDai and that may not be desirable
+					// for our requirements. We'll just skip this and use the VOD process to send events
+					bool modifySCTEProcessing = ISCONFIGSET(eAAMPConfig_EnableSCTE35PresentationTime);
+					if (modifySCTEProcessing)
+					{
+						aamp->SaveNewTimedMetadata(eventStartTime, eventInfo.name.c_str(), eventInfo.payload.c_str(), eventInfo.payload.size(), prdId.c_str(), eventInfo.duration);
+					}
+					else
+					{
+						aamp->FoundEventBreak(prdId, eventStartTime, eventInfo);
+					}
 				}
 				else
 				{
 					//for vod, send TimedMetadata only when bulkmetadata is not enabled 
-					//Control comes here only at init, so no need for an init check for bulkmetadata send
 					if(reportBulkMeta)
 					{
 						AAMPLOG_INFO("Saving timedMetadata for VOD %s event for the period, %s", eventInfo.name.c_str(), prdId.c_str());
@@ -10720,9 +10745,15 @@ bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startM
 				//For VOD assets the events are generated irrespective of the 'duration' tag present or not
 				if(event)
 				{
+					bool eventHasDuration = false;
+
 					for(auto &attribute : event->GetRawAttributes())
 					{
 						cJSON_AddStringToObject(item, attribute.first.c_str(), attribute.second.c_str());
+						if (attribute.first == "duration")
+						{
+							eventHasDuration = true;
+						}
 					}
 
 					// Try and get the PTS presentation time from the event (and convert to ms)
@@ -10753,7 +10784,19 @@ bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startM
 							{
 								isScteEvent = true;
 
-								if(!mIsLiveManifest || ( mIsLiveManifest && 0 != event->GetDuration()))
+								bool processEvent = (!mIsLiveManifest || ( mIsLiveManifest && (0 != event->GetDuration())));
+
+								bool modifySCTEProcessing = ISCONFIGSET(eAAMPConfig_EnableSCTE35PresentationTime);
+								if (modifySCTEProcessing)
+								{
+									//LLAMA-8251
+									// Assuming the comment above is correct then we should really check for a duration tag
+									// rather than duration=0. For LLAMA-8251 we will do this to send all the SCTE events in 
+									// the manifest even ones with duration=0
+									processEvent = (!mIsLiveManifest || eventHasDuration);
+								}
+
+								if(processEvent)
 								{
 									for(auto &signalChild: evtChild->GetNodes())
 									{
@@ -10780,7 +10823,11 @@ bool StreamAbstractionAAMP_MPD::isAdbreakStart(IPeriod *period, uint64_t &startM
 											{
 												EventBreakInfo scte35Event(scte35, "SCTE35", presentationTime, duration);
 												eventBreakVec.push_back(scte35Event);
-												if(mIsLiveManifest)
+
+												//LLAMA-8251
+												// This may not be necessary but for LLAMA-8251 will to send all the events we find, 
+												// even if the manifest is flagged as live
+												if(mIsLiveManifest && !modifySCTEProcessing)
 												{
 													return true;
 												}
