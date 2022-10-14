@@ -253,8 +253,7 @@ set(AAMP_CLI_SOURCES test/aampcli/Aampcli.cpp
 
 
 
-#To enable session based stats for latency histogram
-set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DSESSION_STATS")
+# Session based stats for latency histogram
 set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lmetrics")
 
 if(CMAKE_AVE_DRM)

@@ -31,9 +31,7 @@
 #include "AampDrmMediaFormat.h"
 #include "AampDrmCallbacks.h"
 #include "main_aamp.h"
-#ifdef SESSION_STATS
 #include <IPVideoStat.h>
-#endif
 
 #include <pthread.h>
 #include <signal.h>
@@ -2873,11 +2871,7 @@ public:
 	 *   @param[in] manifestData : Manifest info to be updated to partner apps
 	 *   @return void
 	 */
-	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double curlDownloadTime
-#ifdef SESSION_STATS
-		, ManifestData * manifestData = NULL
-#endif
-		);
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double curlDownloadTime, ManifestData * manifestData = NULL);
 
 	/**  
 	 *   @fn UpdateVideoEndProfileResolution
@@ -2916,11 +2910,7 @@ public:
 	 *   @param[in] manifestData : Manifest info to be updated to partner apps
 	 *   @return void
 	 */
-	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration,double curlDownloadTime, bool keyChanged, bool isEncrypted
-#ifdef SESSION_STATS
-		, ManifestData * manifestData = NULL
-#endif
-		);
+	void UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration,double curlDownloadTime, bool keyChanged, bool isEncrypted, ManifestData * manifestData = NULL);
     
 	/**
 	 *   @fn UpdateVideoEndMetrics
@@ -3857,9 +3847,7 @@ public:
 	 *    return none
 	 */
 	void IncrementGaps() {
-#ifdef SESSION_STATS
 		if(mVideoEnd)	mVideoEnd->IncrementGaps();
-#endif
 	}
 
 	/**
@@ -4031,9 +4019,7 @@ private:
 	std::string  mVssVirtualStreamId; 	/**< part of manifest file */
 	std::string mPlaybackMode;        	/**< linear or VOD or any other type */
 	bool mTrackInjectionBlocked[AAMP_TRACK_COUNT];
-#ifdef SESSION_STATS
 	CVideoStat * mVideoEnd;
-#endif
 	std::string  mTraceUUID;          	/**< Trace ID unique to tune */
 	double mTimeToTopProfile;
 	double mTimeAtTopProfile;
