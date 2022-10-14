@@ -1287,9 +1287,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	mManifestUrl(""), mTunedManifestUrl(""), mOrigManifestUrl(), mServiceZone(), mVssVirtualStreamId(),
 	mCurrentLanguageIndex(0),
 	preferredLanguagesString(), preferredLanguagesList(), preferredLabelList(),mhAbrManager(),
-#ifdef SESSION_STATS
 	mVideoEnd(NULL),
-#endif
 	mTimeToTopProfile(0),mTimeAtTopProfile(0),mPlaybackDuration(0),mTraceUUID(),
 	mIsFirstRequestToFOG(false),
 	mPausePositionMonitorMutex(), mPausePositionMonitorCV(), mPausePositionMonitoringThreadID(), mPausePositionMonitoringThreadStarted(false),
@@ -1547,9 +1545,8 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	mMediaDownloadsEnabled.clear();
 	pthread_mutex_lock(&mLock);
 
-#ifdef SESSION_STATS
 	SAFE_DELETE(mVideoEnd);
-#endif
+
 	pthread_mutex_unlock(&mLock);
 
 	pthread_cond_destroy(&mDownloadsDisabled);
@@ -3234,12 +3231,10 @@ void PrivateInstanceAAMP::StoreLanguageList(const std::set<std::string> &langlis
 	{
 		strncpy(mLanguageList[cnt], iter->c_str(), MAX_LANGUAGE_TAG_LENGTH);
 		mLanguageList[cnt][MAX_LANGUAGE_TAG_LENGTH-1] = 0;
-#ifdef SESSION_STATS
 		if( this->mVideoEnd )
 		{
 			mVideoEnd->Setlanguage(VideoStatTrackType::STAT_AUDIO, (*iter), cnt+1);
 		}
-#endif
 	}
 }
 
@@ -7745,7 +7740,6 @@ bool PrivateInstanceAAMP::SendTunedEvent(bool isSynchronous)
 bool PrivateInstanceAAMP::SendVideoEndEvent()
 {
 	bool ret = false;
-#ifdef SESSION_STATS
 	char * strVideoEndJson = NULL;
 	// Required for protecting mVideoEnd object
 	pthread_mutex_lock(&mLock);
@@ -7799,7 +7793,6 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
 		free(strVideoEndJson);
 		ret = true;
 	}
-#endif
 	return ret;
 }
 
@@ -7808,7 +7801,6 @@ bool PrivateInstanceAAMP::SendVideoEndEvent()
  */
 void PrivateInstanceAAMP::UpdateVideoEndProfileResolution(MediaType mediaType, long bitrate, int width, int height)
 {
-#ifdef SESSION_STATS
 	pthread_mutex_lock(&mLock);
 	if(mVideoEnd)
 	{
@@ -7820,7 +7812,6 @@ void PrivateInstanceAAMP::UpdateVideoEndProfileResolution(MediaType mediaType, l
 		mVideoEnd->SetProfileResolution(trackType,bitrate,width,height);
 	}
 	pthread_mutex_unlock(&mLock);
-#endif
 }
 
 /**
@@ -7837,7 +7828,6 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
  */
 void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 {
-#ifdef SESSION_STATS
 	pthread_mutex_lock(&mLock);
 	if(mVideoEnd)
 	{
@@ -7845,7 +7835,6 @@ void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
 		mVideoEnd->SetTsbStatus(btsbAvailable);
 	}
 	pthread_mutex_unlock(&mLock);
-#endif
 }   
 
 /**
@@ -7853,14 +7842,12 @@ void PrivateInstanceAAMP::UpdateVideoEndTsbStatus(bool btsbAvailable)
  */
 void PrivateInstanceAAMP::UpdateProfileCappedStatus(void)
 {
-#ifdef SESSION_STATS
 	pthread_mutex_lock(&mLock);
 	if(mVideoEnd)
 	{
 		mVideoEnd->SetProfileCappedStatus(mProfileCappedStatus);
 	}
 	pthread_mutex_unlock(&mLock);
-#endif
 }
 
 /**
@@ -7868,7 +7855,6 @@ void PrivateInstanceAAMP::UpdateProfileCappedStatus(void)
  */
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double duration, double curlDownloadTime, bool keyChanged, bool isEncrypted, ManifestData * manifestData)
 {
-#ifdef SESSION_STATS
 	int audioIndex = 1;
 	// ignore for write and aborted errors
 	// these are generated after trick play options,
@@ -8046,7 +8032,6 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
 						 dataType,trackType,curlOrHTTPCode);
 		}
 	}
-#endif
 }
 
 /**
@@ -8054,7 +8039,6 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrat
  */
 void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
 {
-#ifdef SESSION_STATS
 	//only for Ramp down case
 	if(info.desiredProfileIndex < info.currentProfileIndex)
 	{
@@ -8080,14 +8064,14 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
 			pthread_mutex_unlock(&mLock);
 		}
 	}
-#endif
 }
 
 /**
  * @brief updates download metrics to VideoStat object, this is used for VideoFragment as it takes duration for calcuation purpose.
  */
-void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double curlDownloadTime, ManifestData * manifestData )
+void PrivateInstanceAAMP::UpdateVideoEndMetrics(MediaType mediaType, long bitrate, int curlOrHTTPCode, std::string& strUrl, double curlDownloadTime, ManifestData * manifestData)
 {
+
 	UpdateVideoEndMetrics(mediaType, bitrate, curlOrHTTPCode, strUrl,0,curlDownloadTime, false, false, manifestData);
 }
 
@@ -11719,7 +11703,6 @@ double PrivateInstanceAAMP::GetPeriodScaledPtoStartTime(void)
 std::string PrivateInstanceAAMP::GetPlaybackStats()
 {
 	std::string strVideoStatsJson;
-#ifdef SESSION_STATS
 	long liveLatency = 0;
 	//Update liveLatency only when playback is active and live
 	if(mpStreamAbstractionAAMP && IsLive())
@@ -11758,9 +11741,6 @@ std::string PrivateInstanceAAMP::GetPlaybackStats()
 	{
 		AAMPLOG_ERR("Failed to retrieve playback stats (video stats returned as empty from aamp metrics)");
 	}
-#else
-	AAMPLOG_WARN("SESSION_STATS not enabled");
-#endif
 	return strVideoStatsJson;
 }
 
