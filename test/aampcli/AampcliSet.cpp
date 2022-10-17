@@ -26,51 +26,51 @@
 #include"Aampcli.h"
 #include"AampcliSet.h"
 
-std::map<string,string> Set::setCommands = std::map<string,string>();
-std::map<string,string> Set::setNumCommands = std::map<string,string>();
+std::map<string,setCommandInfo> Set::setCommands = std::map<string,setCommandInfo>();
 std::vector<std::string> Set::commands(0);
-std::vector<std::string> Set::numCommands(0);
-
-
-uint64_t constexpr mix(char m, uint64_t s)
-{ 
-	return ((s<<7) + ~(s>>3)) + ~m; 
-}
-
-uint64_t constexpr getHash(const char * m)
-{
-	return (*m) ? mix(*m,getHash(m+1)) : 0;
-}
 
 bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 {
 	printf("%s:%d:cmd %s\n", __FUNCTION__, __LINE__,cmd);
 	char command[100];
+	int setCmd = 0;
 	int rate = 0;
 	unsigned int DownloadDelayInMs = 0;
 	Aampcli lAampcli;
 
 	if (sscanf(cmd, "set %s", command) == 1)
 	{
+		if(isdigit(command[0]))
+		{
+			setCmd = atoi(command);
+		}
+		else
+		{
+			std::map<string,setCommandInfo>::iterator setCmdItr;
+			setCmdItr = setCommands.find(command);
+
+			if(setCmdItr != setCommands.end())
+			{
+				setCmd = setCmdItr->second.value;
+			}
+		}
 
 		if(0 == strncmp("help", command, 4))
 		{
 			printf("%s:%d:in help %s\n", __FUNCTION__, __LINE__,cmd);
 			ShowHelpSet();
-			ShowHelpSetNum();
 		}
 		else
 		{
-			switch(getHash(command))
+			switch(setCmd)
 			{
-				case getHash("rateAndSeek"):
-				case getHash("1"):
+				case 1:
 					{
 						int rate;
-						double ralatineTuneTime;
+						double relativeTuneTime;
 						printf("[AAMPCLI] Matched Command RateAndSeek - %s\n", cmd);
-						if (sscanf(cmd, "set %s %d %lf", command, &rate, &ralatineTuneTime ) == 3){
-							playerInstanceAamp->SetRateAndSeek(rate, ralatineTuneTime);
+						if (sscanf(cmd, "set %s %d %lf", command, &rate, &relativeTuneTime ) == 3){
+							playerInstanceAamp->SetRateAndSeek(rate, relativeTuneTime);
 						}
 						else
 						{
@@ -80,8 +80,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("videoRectangle"):
-				case getHash("2"):
+				case 2:
 					{
 						int x,y,w,h;
 						printf("[AAMPCLI] Matched Command VideoRectangle - %s\n", cmd);
@@ -96,8 +95,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("videoZoom"):
-				case getHash("3"):
+				case 3:
 					{
 						int videoZoom;
 						printf("[AAMPCLI] Matched Command VideoZoom - %s\n", cmd);
@@ -112,8 +110,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("videoMute"):
-				case getHash("4"):
+				case 4:
 					{
 						int videoMute;
 						printf("[AAMPCLI] Matched Command VideoMute - %s\n", cmd);
@@ -128,8 +125,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("audioVolume"):
-				case getHash("5"):
+				case 5:
 					{
 						int vol;
 						printf("[AAMPCLI] Matched Command AudioVolume - %s\n", cmd);
@@ -144,8 +140,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("language"):
-				case getHash("6"):
+				case 6:
 					{
 						char lang[12];
 						printf("[AAMPCLI] Matched Command Language - %s\n", cmd);
@@ -160,8 +155,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("subscribedTags"):
-				case getHash("7"):
+				case 7:
 					{
 						//Dummy implimentation
 						std::vector<std::string> subscribedTags;
@@ -170,8 +164,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("licenseServerUrl"):
-				case getHash("8"):
+				case 8:
 					{
 						char lisenceUrl[1024];
 						int drmType;
@@ -188,8 +181,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("anonymousRequest"):
-				case getHash("9"):
+				case 9:
 					{
 						int isAnonym;
 						printf("[AAMPCLI] Matched Command AnonymousRequest - %s\n", cmd);
@@ -204,8 +196,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("vodTrickplayFps"):
-				case getHash("10"):
+				case 10:
 					{
 						int vodTFps;
 						printf("[AAMPCLI] Matched Command VodTrickplayFps - %s\n", cmd);
@@ -220,8 +211,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("linearTrickplayFps"):
-				case getHash("11"):
+				case 11:
 					{
 						int linearTFps;
 						printf("[AAMPCLI] Matched Command LinearTrickplayFps - %s\n", cmd);
@@ -236,8 +226,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("liveOffset"):
-				case getHash("12"):
+				case 12:
 					{
 						double liveOffset;
 						printf("[AAMPCLI] Matched Command LiveOffset - %s\n", cmd);
@@ -251,8 +240,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						}
 						break;
 					}
-				case getHash("liveOffset4K"):
-				case getHash("56"):
+				case 56:
 					{
 						double liveOffset;
 						printf("[AAMPCLI] Matched Command LiveOffset4K - %s\n", cmd);
@@ -267,8 +255,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("stallErrorCode"):
-				case getHash("13"):
+				case 13:
 					{
 						int stallErrorCode;
 						printf("[AAMPCLI] Matched Command StallErrorCode - %s\n", cmd);
@@ -283,8 +270,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("stallTimeout"):
-				case getHash("14"):
+				case 14:
 					{
 						int stallTimeout;
 						printf("[AAMPCLI] Matched Command StallTimeout - %s\n", cmd);
@@ -294,8 +280,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("reportInterval"):
-				case getHash("15"):
+				case 15:
 					{
 						int reportInterval;
 						printf("[AAMPCLI] Matched Command ReportInterval - %s\n", cmd);
@@ -310,8 +295,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("videoBitrate"):
-				case getHash("16"):
+				case 16:
 					{
 						long videoBitrate;
 						printf("[AAMPCLI] Matched Command VideoBitarate - %s\n", cmd);
@@ -326,8 +310,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("initialBitrate"):
-				case getHash("17"):
+				case 17:
 					{
 						long initialBitrate;
 						printf("[AAMPCLI] Matched Command InitialBitrate - %s\n", cmd);
@@ -342,8 +325,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("initialBitrate4k"):
-				case getHash("18"):
+				case 18:
 					{
 						long initialBitrate4k;
 						printf("[AAMPCLI] Matched Command InitialBitrate4k - %s\n", cmd);
@@ -358,8 +340,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("networkTimeout"):
-				case getHash("19"):
+				case 19:
 					{
 						double networkTimeout;
 						printf("[AAMPCLI] Matched Command NetworkTimeout - %s\n", cmd);
@@ -374,8 +355,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("manifestTimeout"):
-				case getHash("20"):
+				case 20:
 					{
 						double manifestTimeout;
 						printf("[AAMPCLI] Matched Command ManifestTimeout - %s\n", cmd);
@@ -390,8 +370,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("downloadBufferSize"):
-				case getHash("21"):
+				case 21:
 					{
 						int downloadBufferSize;
 						printf("[AAMPCLI] Matched Command DownloadBufferSize - %s\n", cmd);
@@ -406,8 +385,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("preferredDrm"):
-				case getHash("22"):
+				case 22:
 					{
 						int preferredDrm;
 						printf("[AAMPCLI] Matched Command PreferredDrm - %s\n", cmd);
@@ -422,8 +400,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("stereoOnlyPlayback"):
-				case getHash("23"):
+				case 23:
 					{
 						int stereoOnlyPlayback;
 						printf("[AAMPCLI] Matched Command StereoOnlyPlayback - %s\n", cmd);
@@ -439,8 +416,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("alternateContent"):
-				case getHash("24"):
+				case 24:
 					{
 						//Dummy implementation
 						std::string adBrkId = "";
@@ -451,8 +427,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("networkProxy"):
-				case getHash("25"):
+				case 25:
 					{
 						char networkProxy[128];
 						printf("[AAMPCLI] Matched Command NetworkProxy - %s\n", cmd);
@@ -467,8 +442,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("licenseReqProxy"):
-				case getHash("26"):
+				case 26:
 					{
 						char licenseReqProxy[128];
 						printf("[AAMPCLI] Matched Command LicenseReqProxy - %s\n", cmd);
@@ -483,8 +457,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("downloadStallTimeout"):
-				case getHash("27"):
+				case 27:
 					{
 						long downloadStallTimeout;
 						printf("[AAMPCLI] Matched Command DownloadStallTimeout - %s\n", cmd);
@@ -499,8 +472,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("downloadStartTimeout"):
-				case getHash("28"):
+				case 28:
 					{
 						long downloadStartTimeout;
 						printf("[AAMPCLI] Matched Command DownloadStartTimeout - %s\n", cmd);
@@ -515,8 +487,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("downloadLowBWTimeout"):
-				case getHash("29"):
+				case 29:
 					{
 						long downloadLowBWTimeout;
 						printf("[AAMPCLI] Matched Command DownloadLowBWTimeout - %s\n", cmd);
@@ -531,8 +502,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("preferredSubtitleLang"):
-				case getHash("30"):
+				case 30:
 					{
 						char preferredSubtitleLang[12];
 						printf("[AAMPCLI] Matched Command PreferredSubtitleLang - %s\n", cmd);
@@ -547,8 +517,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("parallelPlaylistDL"):
-				case getHash("31"):
+				case 31:
 					{
 						int parallelPlaylistDL;
 						printf("[AAMPCLI] Matched Command ParallelPlaylistDL - %s\n", cmd);
@@ -563,8 +532,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("preferredLanguages"):
-				case getHash("32"):
+				case 32:
 					{
 						char preferredLanguages[128];
 						char preferredLabel[128];
@@ -720,8 +688,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("preferredTextLanguages"):
-				case getHash("33"):
+				case 33:
 					{
 						char preferredLanguages[128];
 						if (sscanf(cmd, "set %s %s", command, preferredLanguages) == 2)
@@ -766,8 +733,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("initRampdownLimit"):
-				case getHash("34"):
+				case 34:
 					{
 						int rampDownLimit;
 						printf("[AAMPCLI] Matched Command InitRampdownLimit - %s\n", cmd);
@@ -782,8 +748,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("rampDownLimit"):
-				case getHash("35"):
+				case 35:
 					{
 						int rampDownLimit;
 						printf("[AAMPCLI] Matched Command RampDownLimit - %s\n", cmd);
@@ -798,8 +763,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("minimumBitrate"):
-				case getHash("36"):
+				case 36:
 					{
 						long minBitrate;
 						printf("[AAMPCLI] Matched Command MinimumBitrate - %s\n", cmd);
@@ -814,8 +778,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("maximumBitrate"):
-				case getHash("37"):
+				case 37:
 					{
 						long maxBitrate;
 						printf("[AAMPCLI] Matched Command MaximumBitrate - %s\n", cmd);
@@ -829,8 +792,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						}
 						break;
 					}
-				case getHash("videoTrack"):
-				case getHash("54"):
+				case 54:
 					{
 						long bitrate1, bitrate2, bitrate3;
 						std::vector<long>bitrateList;
@@ -848,8 +810,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						}
 						break;
 					}
-				case getHash("maximumSegmentInjFailCount"):
-				case getHash("38"):
+				case 38:
 					{
 						int failCount;
 						printf("[AAMPCLI] Matched Command MaximumSegmentInjFailCount - %s\n", cmd);
@@ -864,8 +825,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("sslVerifyPeer"):
-				case getHash("49"):
+				case 49:
 					{
 						int value;
 						printf("[AAMPCLI] Matched Command SslVerifyPeer - %s\n", cmd);
@@ -880,8 +840,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("maximumDrmDecryptFailCount"):
-				case getHash("39"):
+				case 39:
 					{
 						int failCount;
 						printf("[AAMPCLI] Matched Command MaximumDrmDecryptFailCount - %s\n", cmd);
@@ -896,8 +855,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("registerForID3MetadataEvents"):
-				case getHash("40"):
+				case 40:
 					{
 						int id3MetadataEventsEnabled;
 						printf("[AAMPCLI] Matched Command RegisterForID3MetadataEvents - %s\n", cmd);
@@ -920,8 +878,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("registerForMediaMetadata"):
-				case getHash("53"):
+				case 53:
 					{
 						int mediaMetadataEventsEnabled;
 						printf("[AAMPCLI] Matched Command RegisterForMediaMetadata - %s\n", cmd);
@@ -943,8 +900,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("languageFormat"):
-				case getHash("46"):
+				case 46:
 					{
 						LangCodePreference preference;
 						int preferenceInt = 0;
@@ -962,8 +918,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("initialBufferDuration"):
-				case getHash("41"):
+				case 41:
 					{
 						int duration;
 						printf("[AAMPCLI] Matched Command InitialBufferDuration - %s\n", cmd);
@@ -979,8 +934,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("audioTrack"):
-				case getHash("42"):
+				case 42:
 					{
 						int track;
 						char strTrackInfo[512];
@@ -1049,8 +1003,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("textTrack"):
-				case getHash("43"):
+				case 43:
 					{
 						int track = 0;
 						char sidecar[128];
@@ -1091,8 +1044,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("ccStatus"):
-				case getHash("44"):
+				case 44:
 					{
 						int status;
 						printf("[AAMPCLI] Matched Command CCStatus - %s\n", cmd);
@@ -1108,8 +1060,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("ccStyle"):
-				case getHash("45"):
+				case 45:
 					{
 						std::string options;
 						int value;
@@ -1168,8 +1119,8 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						}
 						break;
 					}
-				case getHash("propagateUriParam"):
-				case getHash("47"):
+
+				case 47:
 					{
 						int propagateUriParam;
 						printf("[AAMPCLI] Matched Command PropogateUriParam - %s\n", cmd);
@@ -1184,16 +1135,14 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("thumbnailTrack"):
-				case getHash("48"):
+				case 48:
 					{
 						printf("[AAMPCLI] Matched Command ThumbnailTrack - %s\n",cmd);
 						sscanf(cmd, "set %s %d", command, &rate);
 						printf("[AAMPCLI] Setting ThumbnailTrack : %s\n",playerInstanceAamp->SetThumbnailTrack(rate)?"Success":"Failure");
 						break;
 					}
-				case getHash("downloadDelayOnFetch"):
-				case getHash("50"):
+				case 50:
 					{
 						printf("[AAMPCLI] Matched Command DownloadDelayOnFetch - %s\n",cmd);
 						sscanf(cmd, "set %s %d", command, &DownloadDelayInMs);
@@ -1202,8 +1151,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 					}
 
 
-				case getHash("pausedBehavior"):
-				case getHash("51"):
+				case 51:
 					{
 						char behavior[24];
 						printf("[AAMPCLI] Matched Command PausedBehavior - %s\n", cmd);
@@ -1219,8 +1167,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("auxiliaryAudio"):
-				case getHash("52"):
+				case 52:
 					{
 						char lang[12];
 						printf("[AAMPCLI] Matched Command AuxiliaryAudio - %s\n", cmd);
@@ -1236,8 +1183,7 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("dynamicDrm"):
-				case getHash("55"):
+				case 55:
 					{
 						int timeout;
 						if (sscanf(cmd, "set %s %d", command, &timeout) == 2)
@@ -1275,71 +1221,75 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
  */
 void Set::registerSetCommands()
 {
-	addCommand("rateAndSeek <x> <y>","Set Rate and Seek (int x=rate, double y=seconds)");
-	addCommand("videoRectangle <x> <y> <w> <h>","Set Video Rectangle (int x,y,w,h)");
-	addCommand("videoZoom <x>","Set Video zoom  ( x = 1 for full, x = 0 for normal)");
-	addCommand("videoMute <x>","Set Video Mute ( x = 1  - Mute , x = 0 - Unmute)");
-	addCommand("audioVolume <x>","Set Audio Volume (int x=volume)");
-	addCommand("language <x>","Set Language (string x=lang)");
-	addCommand("subscribedTags","Set Subscribed Tag - dummy");
-	addCommand("licenseServerUrl <x> <y>","Set License Server URL (String x=url) (int y=drmType)");
-	addCommand("anonymousRequest <x>","Set Anonymous Request  (int x=0/1)");
-	addCommand("vodTrickplayFps <x>","Set VOD Trickplay FPS (int x=trickPlayFPS)");
-	addCommand("linearTrickplayFps <x>","Set Linear Trickplay FPS (int x=trickPlayFPS)");
-	addCommand("liveOffset <x>","Set Live offset (double x=offset)");
-	addCommand("liveOffset4K <x>","Set Live offset for 4K stream (double x=offset)");
-	addCommand("stallErrorCode <x>","Set Stall error code (int x=errorCode)");
-	addCommand("stallTimeout <x>","Set Stall timeout (int x=timeout)");
-	addCommand("reportInterval <x>","Set Report Interval (int x=interval)");
-	addCommand("videoBitrate <x>","Set Video Bitrate (long x=bitrate)");
-	addCommand("initialBitrate <x>","Set Initial Bitrate (long x = bitrate)");
-	addCommand("initialBitrate4k <x>","Set Initial Bitrate 4K (long x = bitrate4k)");
-	addCommand("networkTimeout <x>","Set Network Timeout (long x = timeout in ms)");
-	addCommand("manifestTimeout <x>","Set Manifest Timeout (long x = timeout in ms)");
-	addCommand("downloadBufferSize <x>","Set Download Buffer Size (int x = bufferSize)");
-	addCommand("preferredDrm <x>","Set Preferred DRM (int x=1-WV, 2-PR, 4-Access, 5-AES 6-ClearKey)");
-	addCommand("stereoOnlyPlayback <x>","Set Stereo only playback (x=1/0)");
-	addCommand("alternateContent","Set Alternate Contents - dummy ()");
-	addCommand("networkProxy <x>","Set Set Network Proxy (string x = url)");
-	addCommand("licenseReqProxy <x>","Set License Request Proxy (string x=url)");
-	addCommand("downloadStallTimeout <x>","Set Download Stall timeout (long x=timeout)");
-	addCommand("downloadStartTimeout <x>","Set Download Start timeout (long x=timeout)");
-	addCommand("downloadLowBWTimeout <x>","Set Download Low Bandwidth timeout (long x=timeout)");
-	addCommand("preferredSubtitleLang <x>","Set Preferred Subtitle language (string x = lang)");
-	addCommand("parallelPlaylistDL <x>","Set Parallel Playlist download (x=0/1)");
-	addCommand("preferredLanguages <x>","Set Preferred languages (string lang1,lang2,... rendition type codec1,codec2.. ) , use null keyword to discard any argument or path to json file");
-	addCommand("preferredTextLanguages <x>","Set Preferred languages (string lang1,lang2,... ) , or path json file");
-	addCommand("rampDownLimit <x>","Set number of Ramp Down limit during the playback (x = number)");
-	addCommand("initRampdownLimit <x>","Set number of Initial Ramp Down limit prior to the playback (x = number)");
-	addCommand("minimumBitrate <x>","Set Minimum bitrate (x = bitrate)");
-	addCommand("maximumBitrate <x>","Set Maximum bitrate (x = bitrate)");
-	addCommand("maximumSegmentInjFailCount <x>","Set Maximum segment injection fail count (int x = count)");
-	addCommand("maximumDrmDecryptFailCount <x>","Set Maximum DRM Decryption fail count(int x = count)");
-	addCommand("registerForID3MetadataEvents <x>","Set Listen for ID3_METADATA events (x = 1 - add listener, x = 0 - remove)");
-	addCommand("languageFormat <x> <y> ","Set Language Format (x = preferredFormat(0-3), y = useRole(0/1))");
-	addCommand("initialBufferDuration <x>","Set Initial Buffer Duration (int x = Duration in sec)");
-	addCommand("audioTrack <x>","Set Audio track ( x = track by index (number) OR track by language properties lan,rendition,type,codec )");
-	addCommand("textTrack <x>","Set Text track (x = track index or path to file)");
-	addCommand("ccStatus <x>","Set CC status (x = 0/1)");
-	addCommand("ccStyle <x>","Set a CC style either predefined style, or json file (x = 1/2/3, or path json file)");
-	//addCommand("auxiliaryAudio <x>","Set auxiliary audio language (x = string lang)");
-	addCommand("propagateUriParam <x>","Set propagate uri parameters: (int x = 0 to disable)");
-	//addCommand("rateOnTune <x>","Set Pre-tune rate (x= PreTuneRate)");
-	addCommand("thumbnailTrack <x>","Set Thumbnail Track (int x = Thumbnail Index)");
-	addCommand("sslVerifyPeer <x>","Set Ssl Verify Peer flag (x = 1 for enabling)");
-	addCommand("downloadDelayOnFetch <x>","Set delay while downloading fragments (unsigned int x = download delay in ms)");
-	addCommand("pausedBehavior <x>","Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"");
-	addCommand("auxiliaryAudio <x>","Set auxiliary audio language (x = string lang)");
-	addCommand("registerForMediaMetadata <x>","Set Listen for AAMP_EVENT_MEDIA_METADATA events (x = 1 - add listener, x = 0 - remove)");
-	addCommand("videoTrack <x> <y> <z> ","Set Video tracks range (x = bitrate1, y = bitrate2, z = bitrate3) OR single bitrate provide same value for x, y,z ");
-	addCommand("dynamicDrm <x> ","set Dynamic DRM config in Json format x=Timeout value for response message ");
+	addCommand(1,"rateAndSeek"," <x> <y>","Set Rate and Seek (int x=rate, double y=seconds)");
+	addCommand(2,"videoRectangle"," <x> <y> <w> <h>","Set Video Rectangle (int x,y,w,h)");
+	addCommand(3,"videoZoom"," <x>","Set Video zoom  ( x = 1 for full, x = 0 for normal)");
+	addCommand(4,"videoMute"," <x>","Set Video Mute ( x = 1  - Mute , x = 0 - Unmute)");
+	addCommand(5,"audioVolume"," <x>","Set Audio Volume (int x=volume)");
+	addCommand(6,"language"," <x>","Set Language (string x=lang)");
+	addCommand(7,"subscribedTags","","Set Subscribed Tag - dummy");
+	addCommand(8,"licenseServerUrl"," <x> <y>","Set License Server URL (String x=url) (int y=drmType)");
+	addCommand(9,"anonymousRequest"," <x>","Set Anonymous Request  (int x=0/1)");
+	addCommand(10,"vodTrickplayFps"," <x>","Set VOD Trickplay FPS (int x=trickPlayFPS)");
+	addCommand(11,"linearTrickplayFps"," <x>","Set Linear Trickplay FPS (int x=trickPlayFPS)");
+	addCommand(12,"liveOffset"," <x>","Set Live offset (int x=offset)");
+	addCommand(13,"stallErrorCode"," <x>","Set Stall error code (int x=errorCode)");
+	addCommand(14,"stallTimeout"," <x>","Set Stall timeout (int x=timeout)");
+	addCommand(15,"reportInterval"," <x>","Set Report Interval (int x=interval)");
+	addCommand(16,"videoBitrate"," <x>","Set Video Bitrate (long x=bitrate)");
+	addCommand(17,"initialBitrate"," <x>","Set Initial Bitrate (long x = bitrate)");
+	addCommand(18,"initialBitrate4k"," <x>","Set Initial Bitrate 4K (long x = bitrate4k)");
+	addCommand(19,"networkTimeout"," <x>","Set Network Timeout (long x = timeout in ms)");
+	addCommand(20,"manifestTimeout"," <x>","Set Manifest Timeout (long x = timeout in ms)");
+	addCommand(21,"downloadBufferSize"," <x>","Set Download Buffer Size (int x = bufferSize)");
+	addCommand(22,"preferredDrm"," <x>","Set Preferred DRM (int x=1-WV, 2-PR, 4-Access, 5-AES 6-ClearKey)");
+	addCommand(23,"stereoOnlyPlayback"," <x>","Set Stereo only playback (x=1/0)");
+	addCommand(24,"alternateContent","","Set Alternate Contents - dummy ()");
+	addCommand(25,"networkProxy"," <x>","Set Set Network Proxy (string x = url)");
+	addCommand(26,"licenseReqProxy"," <x>","Set License Request Proxy (string x=url)");
+	addCommand(27,"downloadStallTimeout"," <x>","Set Download Stall timeout (long x=timeout)");
+	addCommand(28,"downloadStartTimeout"," <x>","Set Download Start timeout (long x=timeout)");
+	addCommand(29,"downloadLowBWTimeout"," <x>","Set Download Low Bandwidth timeout (long x=timeout)");
+	addCommand(30,"preferredSubtitleLang"," <x>","Set Preferred Subtitle language (string x = lang)");
+	addCommand(31,"parallelPlaylistDL"," <x>","Set Parallel Playlist download (x=0/1)");
+	addCommand(32,"preferredLanguages"," <x>","Set Preferred languages (string lang1,lang2,... rendition type codec1,codec2.. ) , use null keyword to discard any argument or path to json file");
+	addCommand(33,"preferredTextLanguages"," <x>","Set Preferred languages (string lang1,lang2,... ) , or path json file");
+	addCommand(34,"rampDownLimit"," <x>","Set number of Ramp Down limit during the playback (x = number)");
+	addCommand(35,"initRampdownLimit"," <x>","Set number of Initial Ramp Down limit prior to the playback (x = number)");
+	addCommand(36,"minimumBitrate"," <x>","Set Minimum bitrate (x = bitrate)");
+	addCommand(37,"maximumBitrate"," <x>","Set Maximum bitrate (x = bitrate)");
+	addCommand(38,"maximumSegmentInjFailCount"," <x>","Set Maximum segment injection fail count (int x = count)");
+	addCommand(39,"maximumDrmDecryptFailCount"," <x>","Set Maximum DRM Decryption fail count(int x = count)");
+	addCommand(40,"registerForID3MetadataEvents"," <x>","Set Listen for ID3_METADATA events (x = 1 - add listener, x = 0 - remove)");
+	addCommand(41,"initialBufferDuration"," <x>","Set Initial Buffer Duration (int x = Duration in sec)");
+	addCommand(42,"audioTrack"," <x>","Set Audio track ( x = track by index (number) OR track by language properties lan,rendition,type,codec )");
+	addCommand(43,"textTrack"," <x>","Set Text track (int x = track index)");
+	addCommand(44,"ccStatus"," <x>","Set CC status (x = 0/1)");
+	addCommand(45,"ccStyle"," <x>","Set a predefined CC style commandion (x = 1/2/3)");
+	addCommand(46,"languageFormat"," <x> <y> ","Set Language Format (x = preferredFormat(0-3), y = useRole(0/1))");
+	//addCommand("auxiliaryAudio"," <x>","Set auxiliary audio language (x = string lang)");
+	addCommand(47,"propagateUriParam"," <x>","Set propagate uri parameters: (int x = 0 to disable)");
+	//addCommand("rateOnTune"," <x>","Set Pre-tune rate (x= PreTuneRate)");
+	addCommand(48,"thumbnailTrack"," <x>","Set Thumbnail Track (int x = Thumbnail Index)");
+	addCommand(49,"sslVerifyPeer"," <x>","Set Ssl Verify Peer flag (x = 1 for enabling)");
+	addCommand(50,"downloadDelayOnFetch"," <x>","Set delay while downloading fragments (unsigned int x = download delay in ms)");        
+	addCommand(51,"pausedBehavior"," <x>","Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"");
+	addCommand(52,"auxiliaryAudio"," <x>","Set auxiliary audio language (x = string lang)");
+	addCommand(53,"registerForMediaMetadata"," <x>","Set Listen for AAMP_EVENT_MEDIA_METADATA events (x = 1 - add listener, x = 0 - remove)");
+	addCommand(54,"videoTrack"," <x> <y> <z> ","Set Video tracks range (x = bitrate1, y = bitrate2, z = bitrate3) OR single bitrate provide same value for x, y,z ");
+	addCommand(55,"dynamicDrm"," <x> ","set Dynamic DRM config in Json format x=Timeout value for response message ");
+	addCommand(56,"liveOffset4K"," <x> ","Set Live offset 4K stream(int x=offset)");
 	commands.push_back("help");
-	registerSetNumCommands();
 }
 
-void Set::addCommand(string command,string description)
+void Set::addCommand(int value,string command,string param,string description)
 {
-	setCommands.insert(make_pair(command,description));
+	setCommandInfo lCmdInfo;
+	lCmdInfo.value = value;
+	lCmdInfo.param = param;
+	lCmdInfo.description = description;
+
+	setCommands.insert(std::make_pair(command,lCmdInfo));
 	commands.push_back(command);
 }
 
@@ -1349,7 +1299,7 @@ void Set::addCommand(string command,string description)
  */
 void Set::ShowHelpSet()
 {
-	std::map<string,string>::iterator setCmdItr;
+	std::map<string,setCommandInfo>::iterator setCmdItr;
 	
 	printf("******************************************************************************************\n");
 	printf("*   set <command> [<arguments>]\n");
@@ -1358,13 +1308,18 @@ void Set::ShowHelpSet()
 	
 	if(!commands.empty())
 	{
-		for(auto itr:commands)
+
+		if(!commands.empty())
 		{
-			setCmdItr = setCommands.find(itr);
-	
-			if(setCmdItr != setCommands.end())
+			for(auto itr:commands)
 			{
-				std::cout << "set " << std::setw(40) << std::left << (setCmdItr->first).c_str() << "// "<< (setCmdItr->second).c_str() << "\n";
+				setCmdItr = setCommands.find(itr);
+
+				if(setCmdItr != setCommands.end())
+				{
+					std::string strCmd = setCmdItr->first + (setCmdItr->second).param;
+					std::cout << "set " << std::right << std::setw(2) << (setCmdItr->second).value << " / " << std::setw(35) << std::left << (strCmd).c_str() << "// " << (setCmdItr->second.description).c_str() << "\n";
+				}
 			}
 		}
 	}
@@ -1396,102 +1351,3 @@ char * Set::setCommandRecommender(const char *text, int state)
 
     return NULL;
 }
-
-
-/**
- * @brief register set number commands
- */
-void Set::registerSetNumCommands()
-{
-	addNumCommand("1","Set Rate and Seek (int x=rate, double y=seconds)");
-	addNumCommand("2","Set Video Rectangle (int x,y,w,h)");
-	addNumCommand("3","Set Video zoom  ( x = 1 for full, x = 0 for normal)");
-	addNumCommand("4","Set Video Mute ( x = 1  - Mute , x = 0 - Unmute)");
-	addNumCommand("5","Set Audio Volume (int x=volume)");
-	addNumCommand("6","Set Language (string x=lang)");
-	addNumCommand("7","Set Subscribed Tag - dummy");
-	addNumCommand("8","Set License Server URL (String x=url) (int y=drmType)");
-	addNumCommand("9","Set Anonymous Request  (int x=0/1)");
-	addNumCommand("10","Set VOD Trickplay FPS (int x=trickPlayFPS)");
-	addNumCommand("11","Set Linear Trickplay FPS (int x=trickPlayFPS)");
-	addNumCommand("12","Set Live offset (int x=offset)");
-	addNumCommand("56","Set Live offset 4K stream(int x=offset)");
-	addNumCommand("13","Set Stall error code (int x=errorCode)");
-	addNumCommand("14","Set Stall timeout (int x=timeout)");
-	addNumCommand("15","Set Report Interval (int x=interval)");
-	addNumCommand("16","Set Video Bitrate (long x=bitrate)");
-	addNumCommand("17","Set Initial Bitrate (long x = bitrate)");
-	addNumCommand("18","Set Initial Bitrate 4K (long x = bitrate4k)");
-	addNumCommand("19","Set Network Timeout (long x = timeout in ms)");
-	addNumCommand("20","Set Manifest Timeout (long x = timeout in ms)");
-	addNumCommand("21","Set Download Buffer Size (int x = bufferSize)");
-	addNumCommand("22","Set Preferred DRM (int x=1-WV, 2-PR, 4-Access, 5-AES 6-ClearKey)");
-	addNumCommand("23","Set Stereo only playback (x=1/0)");
-	addNumCommand("24","Set Alternate Contents - dummy ()");
-	addNumCommand("25","Set Network Proxy (string x = url)");
-	addNumCommand("26","Set License Request Proxy (string x=url)");
-	addNumCommand("27","Set Download Stall timeout (long x=timeout)");
-	addNumCommand("28","Set Download Start timeout (long x=timeout)");
-	addNumCommand("29","Set Download Low Bandwidth timeout (long x=timeout)");
-	addNumCommand("30","Set Preferred Subtitle language (string x = lang)");
-	addNumCommand("31","Set Parallel Playlist download (x=0/1)");
-	addNumCommand("32","Set Preferred Audio languages (string lang1,lang2,... rendition type codec1,codec2.. ) , use null keyword to discard any argument or path to json file");
-	addNumCommand("33","Set Preferred Text languages (string lang1,lang2,... ) , or path json file");
-	addNumCommand("34","Set number of Ramp Down limit during the playback (x = number)");
-	addNumCommand("35","Set number of Initial Ramp Down limit prior to the playback (x = number)");
-	addNumCommand("36","Set Minimum bitrate (x = bitrate)");
-	addNumCommand("37","Set Maximum bitrate (x = bitrate)");
-	addNumCommand("38","Set Maximum segment injection fail count (int x = count)");
-	addNumCommand("39","Set Maximum DRM Decryption fail count(int x = count)");
-	addNumCommand("40","Set Listen for ID3_METADATA events (x = 1 - add listener, x = 0 - remove)");
-	addNumCommand("41","Set Initial Buffer Duration (int x = Duration in sec)");
-	addNumCommand("42","Set Audio track ( x = track by index (number) OR track by language properties lan,rendition,type,codec )");
-	addNumCommand("43","Set Text track (x = track index or path to file)");
-	addNumCommand("44","Set CC status (x = 0/1)");
-	addNumCommand("45","Set a CC style either predefined style, or json file (x = 1/2/3, or path json file)");
-	addNumCommand("46","Set Language Format (x = preferredFormat(0-3), y = useRole(0/1))");
-	addNumCommand("47","Set propagate uri parameters: (int x = 0 to disable)");
-	addNumCommand("48","Set Thumbnail Track (int x = Thumbnail Index)");
-	addNumCommand("49","Set Ssl Verify Peer flag (x = 1 for enabling)");
-	addNumCommand("50","Set delay while downloading fragments (unsigned int x = download delay in ms)");
-	addNumCommand("51","Set Paused behavior (int x (0-3) options -\"autoplay defer\",\"autoplay immediate\",\"live defer\",\"live immediate\"");
-	addNumCommand("52","Set auxiliary audio language (x = string lang)");
-	addNumCommand("53","Set Listen for AAMP_EVENT_MEDIA_METADATA events (x = 1 - add listener, x = 0 - remove)");
-	addNumCommand("54","Set Video tracks range (x = bitrate1, y = bitrate2, z = bitrate3) OR single bitrate provide same value for x, y,z ");
-	addNumCommand("55","set Dynamic DRM config in Json format x=Timeout value for response message ");
-}
-void Set::addNumCommand(string command,string description)
-{
-	setNumCommands.insert(make_pair(command,description));
-	numCommands.push_back(command);
-}
-
-/**
- * @brief Display Help menu for set num commands
- * @param none
- */
-void Set::ShowHelpSetNum(){
-
-	std::map<string,string>::iterator setCmdItr;
-
-	printf("******************************************************************************************\n");
-	printf("*   set <command> [<arguments>]\n");
-	printf("*   Usage of Commands, and arguments expected\n");
-	printf("******************************************************************************************\n");
-
-	if(!numCommands.empty())
-	{
-		for(auto itr:numCommands)
-		{
-			setCmdItr = setNumCommands.find(itr);
-
-			if(setCmdItr != setNumCommands.end())
-			{
-				std::cout << "set " << std::setw(35) << std::left << (setCmdItr->first).c_str() << "// "<< (setCmdItr->second).c_str() << "\n";
-			}
-		}
-	}
-
-	printf("****************************************************************************\n");
-}
-
