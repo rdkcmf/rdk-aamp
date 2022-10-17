@@ -28,6 +28,8 @@
 #include "AampJsonObject.h" // For JSON parsing
 #include "AampUtils.h"
 #include "aampgstplayer.h"
+#include "AampRfc.h"
+#include <time.h>
 //////////////// CAUTION !!!! STOP !!! Read this before you proceed !!!!!!! /////////////
 /// 1. This Class handles Configuration Parameters of AAMP Player , only Config related functionality to be added
 /// 2. Simple Steps to add a new configuration
@@ -77,214 +79,214 @@ static AampOwnerLookupEntry OwnerLookUpTable[] =
 ///// Format -> configuration name, configuration enum (defined in AampConfig.h) , minValue(-1 if none) , maxValue(-1 if none)
 static AampConfigLookupEntry ConfigLookUpTable[] =
 {
-	{"mapMPD",eAAMPConfig_MapMPD,-1,-1},
-	{"mapM3U8",eAAMPConfig_MapM3U8,-1,-1},
-	{"fragmp4LicensePrefetch",eAAMPConfig_Fragmp4PrefetchLicense,-1,-1},
-	{"enableVideoEndEvent",eAAMPConfig_EnableVideoEndEvent,-1,-1},
-	{"fog",eAAMPConfig_Fog,-1,-1},
-	{"harvestCountLimit",eAAMPConfig_HarvestCountLimit,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"harvestConfig",eAAMPConfig_HarvestConfig,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"harvestPath",eAAMPConfig_HarvestPath,-1,-1},
-	{"forceEC3",eAAMPConfig_ForceEC3,-1,-1},						// Complete
-	{"disableEC3",eAAMPConfig_DisableEC3,-1,-1},						// Complete
-	{"disableATMOS",eAAMPConfig_DisableATMOS,-1,-1},					// Complete
-	{"disableAC4",eAAMPConfig_DisableAC4,-1,-1},
-	{"stereoOnly",eAAMPConfig_StereoOnly,-1,-1},						// Complete
-	{"disableAC3",eAAMPConfig_DisableAC3,-1,-1},
-	{"descriptiveTrackName",eAAMPConfig_DescriptiveTrackName,-1,-1},
-	{"offset",eAAMPConfig_PlaybackOffset,{.dMinValue = -1},{.dMaxValue = -1}},
-	{"cdvrLiveOffset",eAAMPConfig_CDVRLiveOffset,{.dMinValue = 0},{.dMaxValue=50}},
-	{"liveOffset",eAAMPConfig_LiveOffset,{.dMinValue = 0},{.dMaxValue=50}},
-	{"disablePlaylistIndexEvent",eAAMPConfig_DisablePlaylistIndexEvent,-1,-1},		// Complete
-	{"enableSubscribedTags",eAAMPConfig_EnableSubscribedTags,-1,-1},			// Complete
-	{"networkTimeout",eAAMPConfig_NetworkTimeout,{.dMinValue = -1},{.dMaxValue=-1}},
-	{"manifestTimeout",eAAMPConfig_ManifestTimeout,{.dMinValue = -1},{.dMaxValue=-1}},
-	{"playlistTimeout",eAAMPConfig_PlaylistTimeout,{.dMinValue = -1},{.dMaxValue=-1}},
-	{"dashIgnoreBaseUrlIfSlash",eAAMPConfig_DASHIgnoreBaseURLIfSlash,-1,-1},		// Complete
-	{"licenseAnonymousRequest",eAAMPConfig_AnonymousLicenseRequest,-1,-1},			// Complete
-	{"useLinearSimulator",eAAMPConfig_EnableLinearSimulator,-1,-1},
-	{"info",eAAMPConfig_InfoLogging,-1,-1},
-	{"failover",eAAMPConfig_FailoverLogging,-1,-1},
-	{"curlHeader",eAAMPConfig_CurlHeader,-1,-1},
-	{"curlLicense",eAAMPConfig_CurlLicenseLogging,-1,-1},
-	{"logMetadata",eAAMPConfig_MetadataLogging,-1,-1},
-	{"customHeader",eAAMPConfig_CustomHeader,-1,-1},
-	{"uriParameter",eAAMPConfig_URIParameter,-1,-1},
-	{"gst",eAAMPConfig_GSTLogging,-1,-1},
-	{"progress",eAAMPConfig_ProgressLogging,-1,-1},
-	{"debug",eAAMPConfig_DebugLogging,-1,-1},
-	{"trace",eAAMPConfig_TraceLogging,-1,-1},
-	{"warn",eAAMPConfig_WarnLogging,-1,-1},
-	{"curl",eAAMPConfig_CurlLogging,-1,-1},
-	{"stream",eAAMPConfig_StreamLogging,-1,-1},
-	{"initialBitrate",eAAMPConfig_DefaultBitrate,{.lMinValue=-1},{.lMaxValue=-1}},
-	{"initialBitrate4K",eAAMPConfig_DefaultBitrate4K,{.lMinValue=-1},{.lMaxValue=-1}},
-	{"defaultBitrate",eAAMPConfig_DefaultBitrate,{.lMinValue=-1},{.lMaxValue=-1}},
-	{"defaultBitrate4K",eAAMPConfig_DefaultBitrate4K,{.lMinValue=-1},{.lMaxValue=-1}},
-	{"abr",eAAMPConfig_EnableABR,-1,-1},
-	{"abrCacheLife",eAAMPConfig_ABRCacheLife,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"abrCacheLength",eAAMPConfig_ABRCacheLength,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"timeShiftBufferLength",eAAMPConfig_TimeShiftBufferLength,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"useNewABR",eAAMPConfig_ABRBufferCheckEnabled,-1,-1},
-	{"useNewAdBreaker",eAAMPConfig_NewDiscontinuity,-1,-1},
-	{"reportVideoPTS",eAAMPConfig_ReportVideoPTS,-1,-1},
-	{"decoderUnavailableStrict",eAAMPConfig_DecoderUnavailableStrict,-1,-1},
-	{"descriptiveAudioTrack",eAAMPConfig_DescriptiveAudioTrack,-1,-1},
-	{"langCodePreference",eAAMPConfig_LanguageCodePreference,{.iMinValue=0},{.iMaxValue=3}},
-	{"appSrcForProgressivePlayback",eAAMPConfig_UseAppSrcForProgressivePlayback,-1,-1},
-	{"abrCacheOutlier",eAAMPConfig_ABRCacheOutlier,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"abrSkipDuration",eAAMPConfig_ABRSkipDuration,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"abrNwConsistency",eAAMPConfig_ABRNWConsistency,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"minABRBufferRampdown",eAAMPConfig_MinABRNWBufferRampDown,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"preservePipeline",eAAMPConfig_PreservePipeline,-1,-1},
-	{"demuxHlsAudioTrack",eAAMPConfig_DemuxAudioHLSTrack,-1,-1},
-	{"demuxHlsVideoTrack",eAAMPConfig_DemuxVideoHLSTrack,-1,-1},
-	{"demuxHlsVideoTrackTrickMode",eAAMPConfig_DemuxHLSVideoTsTrackTM,-1,-1},
-	{"demuxAudioBeforeVideo",eAAMPConfig_DemuxAudioBeforeVideo,-1,-1},
-	{"throttle",eAAMPConfig_Throttle,-1,-1},
-	{"bufferHealthMonitorDelay",eAAMPConfig_BufferHealthMonitorDelay,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"bufferHealthMonitorInterval",eAAMPConfig_BufferHealthMonitorInterval,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"preferredDrm",eAAMPConfig_PreferredDRM,{.iMinValue=0},{.iMaxValue=eDRM_MAX_DRMSystems}},
-	{"playreadyOutputProtection",eAAMPConfig_EnablePROutputProtection,-1,-1},
-	{"tuneEventConfig",eAAMPConfig_TuneEventConfig,{.iMinValue=eTUNED_EVENT_ON_PLAYLIST_INDEXED},{.iMaxValue=eTUNED_EVENT_ON_GST_PLAYING}},
-	{"parallelPlaylistDownload",eAAMPConfig_PlaylistParallelFetch,-1,-1},
-	{"dashParallelFragDownload",eAAMPConfig_DashParallelFragDownload,-1,-1},
-	{"parallelPlaylistRefresh",eAAMPConfig_PlaylistParallelRefresh ,-1,-1},
-	{"bulkTimedMetadata",eAAMPConfig_BulkTimedMetaReport,-1,-1},
-	{"useRetuneForUnpairedDiscontinuity",eAAMPConfig_RetuneForUnpairDiscontinuity,-1,-1},
-	{"useRetuneForGstInternalError",eAAMPConfig_RetuneForGSTError,-1,-1},
-	{"useWesterosSink",eAAMPConfig_UseWesterosSink,-1,-1},
-	{"setLicenseCaching",eAAMPConfig_SetLicenseCaching,-1,-1},
-	{"propagateUriParameters",eAAMPConfig_PropogateURIParam,-1,-1},
-	{"preFetchIframePlaylist",eAAMPConfig_PrefetchIFramePlaylistDL,-1,-1},
-	{"hlsAVTrackSyncUsingPDT",eAAMPConfig_HLSAVTrackSyncUsingStartTime,-1,-1},
-	{"mpdDiscontinuityHandling",eAAMPConfig_MPDDiscontinuityHandling,-1,-1},
-	{"mpdDiscontinuityHandlingCdvr",eAAMPConfig_MPDDiscontinuityHandlingCdvr,-1,-1},
-	{"vodTrickPlayFps",eAAMPConfig_VODTrickPlayFPS,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"linearTrickPlayFps",eAAMPConfig_LinearTrickPlayFPS,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"progressReportingInterval",eAAMPConfig_ReportProgressInterval,{.dMinValue=0},{.dMaxValue=-1}},
-	{"forceHttp",eAAMPConfig_ForceHttp,-1,-1},
-	{"internalRetune",eAAMPConfig_InternalReTune,-1,-1},
-	{"gstBufferAndPlay",eAAMPConfig_GStreamerBufferingBeforePlay,-1,-1},
-	{"retuneOnBufferingTimeout",eAAMPConfig_ReTuneOnBufferingTimeout,-1,-1},
-	{"iframeDefaultBitrate",eAAMPConfig_IFrameDefaultBitrate,{.lMinValue=-1},{.lMaxValue=-1}},
-	{"iframeDefaultBitrate4K",eAAMPConfig_IFrameDefaultBitrate4K,{.lMinValue=-1},{.lMaxValue=-1}},
-	{"audioOnlyPlayback",eAAMPConfig_AudioOnlyPlayback,-1,-1},
-	{"licenseRetryWaitTime",eAAMPConfig_LicenseRetryWaitTime,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"licenseKeyAcquireWaitTime",eAAMPConfig_LicenseKeyAcquireWaitTime,{.iMinValue=MIN_LICENSE_KEY_ACQUIRE_WAIT_TIME},{.iMaxValue=MAX_LICENSE_ACQ_WAIT_TIME}},
-	{"downloadBuffer",eAAMPConfig_MaxFragmentCached,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"ptsErrorThreshold",eAAMPConfig_PTSErrorThreshold,{.iMinValue=0},{.iMaxValue=MAX_PTS_ERRORS_THRESHOLD}},
-	{"enableVideoRectangle",eAAMPConfig_EnableRectPropertyCfg,-1,-1},
-	{"maxPlaylistCacheSize",eAAMPConfig_MaxPlaylistCacheSize,{.iMinValue=0},{.iMaxValue=15360}},              // Range for PlaylistCache size - upto 15 MB max
-	{"dashMaxDrmSessions",eAAMPConfig_MaxDASHDRMSessions,{.iMinValue=1},{.iMaxValue=MAX_DASH_DRM_SESSIONS}},
-	{"userAgent",eAAMPConfig_UserAgent,-1,-1},
-	{"waitTimeBeforeRetryHttp5xx",eAAMPConfig_Http5XXRetryWaitInterval,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"preplayBuffercount",eAAMPConfig_PrePlayBufferCount,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"sslVerifyPeer",eAAMPConfig_SslVerifyPeer,-1,-1},
-	{"downloadStallTimeout",eAAMPConfig_CurlStallTimeout,{.lMinValue=0},{.lMaxValue=50}},
-	{"downloadStartTimeout",eAAMPConfig_CurlDownloadStartTimeout,{.lMinValue=0},{.lMaxValue=50}},
-	{"downloadLowBWTimeout",eAAMPConfig_CurlDownloadLowBWTimeout,{.lMinValue=0},{.lMaxValue=50}},
-	{"discontinuityTimeout",eAAMPConfig_DiscontinuityTimeout,{.lMinValue=0},{.lMaxValue=50}},
-	{"client-dai",eAAMPConfig_EnableClientDai,-1,-1},                               // not changing this name , this is already in use for RFC
-	{"cdnAdsOnly",eAAMPConfig_PlayAdFromCDN,-1,-1},
-	{"thresholdSizeABR",eAAMPConfig_ABRThresholdSize,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"preferredSubtitleLanguage",eAAMPConfig_SubTitleLanguage,-1,-1},
-	{"reportBufferEvent",eAAMPConfig_ReportBufferEvent,-1,-1},
-	{"gstPositionQueryEnable",eAAMPConfig_EnableGstPositionQuery,-1,-1},
-	{"useMatchingBaseUrl",eAAMPConfig_MatchBaseUrl,-1,-1},
-	{"removeAVEDRMPersistent",eAAMPConfig_RemovePersistent,-1,-1},
-	{"useAverageBandwidth",eAAMPConfig_AvgBWForABR,-1,-1},
-	{"preCachePlaylistTime",eAAMPConfig_PreCachePlaylistTime,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"fragmentRetryLimit",eAAMPConfig_RampDownLimit,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"segmentInjectFailThreshold",eAAMPConfig_SegmentInjectThreshold,{.iMinValue=0},{.iMaxValue=MAX_SEG_INJECT_FAIL_COUNT}},
-	{"drmDecryptFailThreshold",eAAMPConfig_DRMDecryptThreshold,{.iMinValue=0},{.iMaxValue=MAX_SEG_DRM_DECRYPT_FAIL_COUNT}},
-	{"minBitrate",eAAMPConfig_MinBitrate,{.lMinValue=0},{.lMaxValue=-1}},
-	{"maxBitrate",eAAMPConfig_MaxBitrate,{.lMinValue=0},{.lMaxValue=-1}},
-	{"initFragmentRetryCount",eAAMPConfig_InitFragmentRetryCount,{.iMinValue=0},{.iMaxValue=-1}},
-	{"nativeCCRendering",eAAMPConfig_NativeCCRendering,-1,-1},
-	{"subtecSubtitle",eAAMPConfig_Subtec_subtitle,-1,-1},
-	{"webVttNative",eAAMPConfig_WebVTTNative,-1,-1},
-	{"ceaFormat",eAAMPConfig_CEAPreferred,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"asyncTune",eAAMPConfig_AsyncTune,-1,-1},
-	{"initRampdownLimit",eAAMPConfig_InitRampDownLimit,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"enableSeekableRange",eAAMPConfig_EnableSeekRange,-1,-1},
-	{"maxTimeoutForSourceSetup",eAAMPConfig_SourceSetupTimeout,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"seekMidFragment",eAAMPConfig_MidFragmentSeek,-1,-1},
-	{"wifiCurlHeader",eAAMPConfig_WifiCurlHeader,-1,-1},
-	{"persistBitrateOverSeek",eAAMPConfig_PersistentBitRateOverSeek,-1,-1},
-	{"log",eAAMPConfig_LogLevel,-1,-1},
-	{"maxABRBufferRampup",eAAMPConfig_MaxABRNWBufferRampUp,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"networkProxy",eAAMPConfig_NetworkProxy,-1,-1},
-	{"licenseProxy",eAAMPConfig_LicenseProxy,-1,-1},
-	{"authToken",eAAMPConfig_AuthToken,-1,-1},
-	{"enableAccessAttributes",eAAMPConfig_EnableAccessAttributes,-1,-1},
-	{"ckLicenseServerUrl",eAAMPConfig_CKLicenseServerUrl,-1,-1},
-	{"licenseServerUrl",eAAMPConfig_LicenseServerUrl,-1,-1},
-	{"prLicenseServerUrl",eAAMPConfig_PRLicenseServerUrl,-1,-1},
-	{"wvLicenseServerUrl",eAAMPConfig_WVLicenseServerUrl,-1,-1},
-	{"stallErrorCode",eAAMPConfig_StallErrorCode,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"stallTimeout",eAAMPConfig_StallTimeoutMS,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"initialBuffer",eAAMPConfig_InitialBuffer,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"playbackBuffer",eAAMPConfig_PlaybackBuffer,{.iMinValue=-1},{.iMaxValue=-1}},
-	{"downloadDelay",eAAMPConfig_DownloadDelay,{.iMinValue=0},{.iMaxValue=MAX_DOWNLOAD_DELAY_LIMIT_MS}},
-	{"livePauseBehavior",eAAMPConfig_LivePauseBehavior,{.iMinValue=ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE},{.iMaxValue=ePAUSED_BEHAVIOR_MAX}},
-	{"disableUnderflow",eAAMPConfig_DisableUnderflow,-1,-1},
-	{"limitResolution",eAAMPConfig_LimitResolution,-1,-1},
-	{"useAbsoluteTimeline",eAAMPConfig_UseAbsoluteTimeline,-1,-1},
-	{"id3",eAAMPConfig_ID3Logging,-1,-1},
-	{"SkyStoreDE",eAAMPConfig_WideVineKIDWorkaround,-1,-1},
-	{"repairIframes",eAAMPConfig_RepairIframes,-1,-1},
-	{"customHeaderLicense",eAAMPConfig_CustomHeaderLicense,-1,-1},
-	{"preferredAudioRendition",eAAMPConfig_PreferredAudioRendition,-1,-1},
-	{"preferredAudioCodec",eAAMPConfig_PreferredAudioCodec,-1,-1},
-	{"preferredAudioLanguage",eAAMPConfig_PreferredAudioLanguage,-1,-1},
-	{"preferredAudioLabel",eAAMPConfig_PreferredAudioLabel,-1,-1},
-	{"preferredTextRendition",eAAMPConfig_PreferredTextRendition,-1,-1},
-	{"preferredTextLanguage",eAAMPConfig_PreferredTextLanguage,-1,-1},
-	{"preferredTextLabel",eAAMPConfig_PreferredTextLabel,-1,-1},
-	{"gstVideoBufBytes", eAAMPConfig_GstVideoBufBytes,-1,-1},
-	{"gstAudioBufBytes", eAAMPConfig_GstAudioBufBytes,-1,-1},
-	{"seiTimeCode",eAAMPConfig_SEITimeCode,-1,-1},
-	{"disable4K" , eAAMPConfig_Disable4K, -1, -1},
-	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, -1,-1},
-	{"tsbInterruptHandling", eAAMPConfig_InterruptHandling, -1, -1},
-	{"enableLowLatencyDash",eAAMPConfig_EnableLowLatencyDash,-1,-1},
-	{"disableLowLatencyMonitor",eAAMPConfig_DisableLowLatencyMonitor,-1,-1},
-	{"disableLowLatencyABR",eAAMPConfig_DisableLowLatencyABR,-1,-1},
-	{"disableLowLatencyCorrection",eAAMPConfig_DisableLowLatencyCorrection,-1,-1},
-	{"latencyMonitorDelay",eAAMPConfig_LatencyMonitorDelay,-1,-1},
-	{"latencyMonitorInterval",eAAMPConfig_LatencyMonitorInterval,-1,-1},
-	{"downloadBufferChunks",eAAMPConfig_MaxFragmentChunkCached,-1,-1},
-	{"abrChunkThresholdSize",eAAMPConfig_ABRChunkThresholdSize,-1,-1},
-	{"lowLatencyMinValue",eAAMPConfig_LLMinLatency,-1,-1},
-	{"lowLatencyTargetValue",eAAMPConfig_LLTargetLatency,-1,-1},
-	{"lowLatencyMaxValue",eAAMPConfig_LLMaxLatency,-1,-1},
-	{"enableLowLatencyOffsetMin",eAAMPConfig_EnableLowLatencyOffsetMin,-1,-1},
-	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}},
-	{"syncAudioFragments",eAAMPConfig_SyncAudioFragments,-1,-1},
-	{"enableEosSmallFragment", eAAMPConfig_EnableIgnoreEosSmallFragment, -1, -1},
-	{"useSecManager",eAAMPConfig_UseSecManager, -1,-1},
-	{"enablePTO", eAAMPConfig_EnablePTO, -1, -1},
-	{"maxInitFragCachePerTrack",eAAMPConfig_MaxInitFragCachePerTrack,{.iMinValue=1},{.iMaxValue=5}},
-	{"supportTLS",eAAMPConfig_TLSVersion,{.lMinValue=CURL_SSLVERSION_DEFAULT},{.lMaxValue=CURL_SSLVERSION_TLSv1_3}},
-	{"fogMaxConcurrentDownloads",eAAMPConfig_FogMaxConcurrentDownloads, -1, -1},
-        {"enableFogConfig", eAAMPConfig_EnableAampConfigToFog, -1, -1},
-	{"xreSupportedTune",eAAMPConfig_XRESupportedTune,-1,-1},
-	{"allowPageHeaders",eAAMPConfig_AllowPageHeaders,-1,-1},
-	{"customLicenseData",eAAMPConfig_CustomLicenseData,-1,-1},
-	{"suppressDecode",eAAMPConfig_SuppressDecode,-1,-1},
-	{"persistHighNetworkBandwidth",eAAMPConfig_PersistHighNetworkBandwidth,-1,-1},
-	{"persistLowNetworkBandwidth",eAAMPConfig_PersistLowNetworkBandwidth,-1,-1},
-	{"gstSubtecEnabled",eAAMPConfig_GstSubtecEnabled,-1,-1},
-	{"changeTrackWithoutRetune", eAAMPConfig_ChangeTrackWithoutRetune, -1,-1},
-	{"contentProtectionDataUpdateTimeout",eAAMPConfig_ContentProtectionDataUpdateTimeout,{.iMinValue = 0},{.iMaxValue=-1}}
-	,{"curlStore", eAAMPConfig_EnableCurlStore, -1, -1}
-	,{"maxCurlStore", eAAMPConfig_MaxCurlSockStore,{.iMinValue=1},{.iMaxValue=10}}
-	,{"configRuntimeDRM", eAAMPConfig_RuntimeDRMConfig,-1,-1}
-	,{"enablePublishingMuxedAudio",eAAMPConfig_EnablePublishingMuxedAudio,-1,-1}
-	,{"enableCMCD", eAAMPConfig_EnableCMCD, -1, -1}
-	,{"SlowMotion", eAAMPConfig_EnableSlowMotion, -1, -1}
-	,{"enableSCTE35PresentationTime", eAAMPConfig_EnableSCTE35PresentationTime, -1, -1}
+	{"mapMPD",eAAMPConfig_MapMPD,false,-1,-1},
+	{"mapM3U8",eAAMPConfig_MapM3U8,false,-1,-1},
+	{"fragmp4LicensePrefetch",eAAMPConfig_Fragmp4PrefetchLicense,false,-1,-1},
+	{"enableVideoEndEvent",eAAMPConfig_EnableVideoEndEvent,true,-1,-1},
+	{"fog",eAAMPConfig_Fog,false,-1,-1},
+	{"harvestCountLimit",eAAMPConfig_HarvestCountLimit,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"harvestConfig",eAAMPConfig_HarvestConfig,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"harvestPath",eAAMPConfig_HarvestPath,false,-1,-1},
+	{"forceEC3",eAAMPConfig_ForceEC3,false,-1,-1},						// Complete
+	{"disableEC3",eAAMPConfig_DisableEC3,true,-1,-1},						// Complete
+	{"disableATMOS",eAAMPConfig_DisableATMOS,true,-1,-1},					// Complete
+	{"disableAC4",eAAMPConfig_DisableAC4,true,-1,-1},
+	{"stereoOnly",eAAMPConfig_StereoOnly,true,-1,-1},						// Complete
+	{"disableAC3",eAAMPConfig_DisableAC3,true,-1,-1},
+	{"descriptiveTrackName",eAAMPConfig_DescriptiveTrackName,false,-1,-1},
+	{"offset",eAAMPConfig_PlaybackOffset,false,{.dMinValue = -1},{.dMaxValue = -1}},
+	{"cdvrLiveOffset",eAAMPConfig_CDVRLiveOffset,true,{.dMinValue = 0},{.dMaxValue=50}},
+	{"liveOffset",eAAMPConfig_LiveOffset,true,{.dMinValue = 0},{.dMaxValue=50}},
+	{"disablePlaylistIndexEvent",eAAMPConfig_DisablePlaylistIndexEvent,false,-1,-1},		// Complete
+	{"enableSubscribedTags",eAAMPConfig_EnableSubscribedTags,false,-1,-1},			// Complete
+	{"networkTimeout",eAAMPConfig_NetworkTimeout,true,{.dMinValue = -1},{.dMaxValue=-1}},
+	{"manifestTimeout",eAAMPConfig_ManifestTimeout,true,{.dMinValue = -1},{.dMaxValue=-1}},
+	{"playlistTimeout",eAAMPConfig_PlaylistTimeout,true,{.dMinValue = -1},{.dMaxValue=-1}},
+	{"dashIgnoreBaseUrlIfSlash",eAAMPConfig_DASHIgnoreBaseURLIfSlash,false,-1,-1},		// Complete
+	{"licenseAnonymousRequest",eAAMPConfig_AnonymousLicenseRequest,false,-1,-1},			// Complete
+	{"useLinearSimulator",eAAMPConfig_EnableLinearSimulator,false,-1,-1},
+	{"info",eAAMPConfig_InfoLogging,true,-1,-1},
+	{"failover",eAAMPConfig_FailoverLogging,false,-1,-1},
+	{"curlHeader",eAAMPConfig_CurlHeader,false,-1,-1},
+	{"curlLicense",eAAMPConfig_CurlLicenseLogging,false,-1,-1},
+	{"logMetadata",eAAMPConfig_MetadataLogging,false,-1,-1},
+	{"customHeader",eAAMPConfig_CustomHeader,false,-1,-1},
+	{"uriParameter",eAAMPConfig_URIParameter,false,-1,-1},
+	{"gst",eAAMPConfig_GSTLogging,false,-1,-1},
+	{"progress",eAAMPConfig_ProgressLogging,false,-1,-1},
+	{"debug",eAAMPConfig_DebugLogging,false,-1,-1},
+	{"trace",eAAMPConfig_TraceLogging,false,-1,-1},
+	{"warn",eAAMPConfig_WarnLogging,false,-1,-1},
+	{"curl",eAAMPConfig_CurlLogging,false,-1,-1},
+	{"stream",eAAMPConfig_StreamLogging,false,-1,-1},
+	{"initialBitrate",eAAMPConfig_DefaultBitrate,false,{.lMinValue=-1},{.lMaxValue=-1}},
+	{"initialBitrate4K",eAAMPConfig_DefaultBitrate4K,false,{.lMinValue=-1},{.lMaxValue=-1}},
+	{"defaultBitrate",eAAMPConfig_DefaultBitrate,true,{.lMinValue=-1},{.lMaxValue=-1}},
+	{"defaultBitrate4K",eAAMPConfig_DefaultBitrate4K,true,{.lMinValue=-1},{.lMaxValue=-1}},
+	{"abr",eAAMPConfig_EnableABR,false,-1,-1},
+	{"abrCacheLife",eAAMPConfig_ABRCacheLife,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"abrCacheLength",eAAMPConfig_ABRCacheLength,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"timeShiftBufferLength",eAAMPConfig_TimeShiftBufferLength,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"useNewABR",eAAMPConfig_ABRBufferCheckEnabled,false,-1,-1},
+	{"useNewAdBreaker",eAAMPConfig_NewDiscontinuity,false,-1,-1},
+	{"reportVideoPTS",eAAMPConfig_ReportVideoPTS,false,-1,-1},
+	{"decoderUnavailableStrict",eAAMPConfig_DecoderUnavailableStrict,false,-1,-1},
+	{"descriptiveAudioTrack",eAAMPConfig_DescriptiveAudioTrack,false,-1,-1},
+	{"langCodePreference",eAAMPConfig_LanguageCodePreference,false,{.iMinValue=0},{.iMaxValue=3}},
+	{"appSrcForProgressivePlayback",eAAMPConfig_UseAppSrcForProgressivePlayback,false,-1,-1},
+	{"abrCacheOutlier",eAAMPConfig_ABRCacheOutlier,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"abrSkipDuration",eAAMPConfig_ABRSkipDuration,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"abrNwConsistency",eAAMPConfig_ABRNWConsistency,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"minABRBufferRampdown",eAAMPConfig_MinABRNWBufferRampDown,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"preservePipeline",eAAMPConfig_PreservePipeline,false,-1,-1},
+	{"demuxHlsAudioTrack",eAAMPConfig_DemuxAudioHLSTrack,false,-1,-1},
+	{"demuxHlsVideoTrack",eAAMPConfig_DemuxVideoHLSTrack,false,-1,-1},
+	{"demuxHlsVideoTrackTrickMode",eAAMPConfig_DemuxHLSVideoTsTrackTM,false,-1,-1},
+	{"demuxAudioBeforeVideo",eAAMPConfig_DemuxAudioBeforeVideo,false,-1,-1},
+	{"throttle",eAAMPConfig_Throttle,false,-1,-1},
+	{"bufferHealthMonitorDelay",eAAMPConfig_BufferHealthMonitorDelay,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"bufferHealthMonitorInterval",eAAMPConfig_BufferHealthMonitorInterval,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"preferredDrm",eAAMPConfig_PreferredDRM,true,{.iMinValue=0},{.iMaxValue=eDRM_MAX_DRMSystems}},
+	{"playreadyOutputProtection",eAAMPConfig_EnablePROutputProtection,false,-1,-1},
+	{"tuneEventConfig",eAAMPConfig_TuneEventConfig,false,{.iMinValue=eTUNED_EVENT_ON_PLAYLIST_INDEXED},{.iMaxValue=eTUNED_EVENT_ON_GST_PLAYING}},
+	{"parallelPlaylistDownload",eAAMPConfig_PlaylistParallelFetch,false,-1,-1},
+	{"dashParallelFragDownload",eAAMPConfig_DashParallelFragDownload,false,-1,-1},
+	{"parallelPlaylistRefresh",eAAMPConfig_PlaylistParallelRefresh ,false,-1,-1},
+	{"bulkTimedMetadata",eAAMPConfig_BulkTimedMetaReport,false,-1,-1},
+	{"useRetuneForUnpairedDiscontinuity",eAAMPConfig_RetuneForUnpairDiscontinuity,false,-1,-1},
+	{"useRetuneForGstInternalError",eAAMPConfig_RetuneForGSTError,false,-1,-1},
+	{"useWesterosSink",eAAMPConfig_UseWesterosSink,true,-1,-1},
+	{"setLicenseCaching",eAAMPConfig_SetLicenseCaching,false,-1,-1},
+	{"propagateUriParameters",eAAMPConfig_PropogateURIParam,false,-1,-1},
+	{"preFetchIframePlaylist",eAAMPConfig_PrefetchIFramePlaylistDL,false,-1,-1},
+	{"hlsAVTrackSyncUsingPDT",eAAMPConfig_HLSAVTrackSyncUsingStartTime,false,-1,-1},
+	{"mpdDiscontinuityHandling",eAAMPConfig_MPDDiscontinuityHandling,false,-1,-1},
+	{"mpdDiscontinuityHandlingCdvr",eAAMPConfig_MPDDiscontinuityHandlingCdvr,false,-1,-1},
+	{"vodTrickPlayFps",eAAMPConfig_VODTrickPlayFPS,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"linearTrickPlayFps",eAAMPConfig_LinearTrickPlayFPS,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"progressReportingInterval",eAAMPConfig_ReportProgressInterval,false,{.dMinValue=0},{.dMaxValue=-1}},
+	{"forceHttp",eAAMPConfig_ForceHttp,false,-1,-1},
+	{"internalRetune",eAAMPConfig_InternalReTune,false,-1,-1},
+	{"gstBufferAndPlay",eAAMPConfig_GStreamerBufferingBeforePlay,false,-1,-1},
+	{"retuneOnBufferingTimeout",eAAMPConfig_ReTuneOnBufferingTimeout,false,-1,-1},
+	{"iframeDefaultBitrate",eAAMPConfig_IFrameDefaultBitrate,false,{.lMinValue=-1},{.lMaxValue=-1}},
+	{"iframeDefaultBitrate4K",eAAMPConfig_IFrameDefaultBitrate4K,false,{.lMinValue=-1},{.lMaxValue=-1}},
+	{"audioOnlyPlayback",eAAMPConfig_AudioOnlyPlayback,false,-1,-1},
+	{"licenseRetryWaitTime",eAAMPConfig_LicenseRetryWaitTime,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"licenseKeyAcquireWaitTime",eAAMPConfig_LicenseKeyAcquireWaitTime,false,{.iMinValue=MIN_LICENSE_KEY_ACQUIRE_WAIT_TIME},{.iMaxValue=MAX_LICENSE_ACQ_WAIT_TIME}},
+	{"downloadBuffer",eAAMPConfig_MaxFragmentCached,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"ptsErrorThreshold",eAAMPConfig_PTSErrorThreshold,false,{.iMinValue=0},{.iMaxValue=MAX_PTS_ERRORS_THRESHOLD}},
+	{"enableVideoRectangle",eAAMPConfig_EnableRectPropertyCfg,false,-1,-1},
+	{"maxPlaylistCacheSize",eAAMPConfig_MaxPlaylistCacheSize,false,{.iMinValue=0},{.iMaxValue=15360}},              // Range for PlaylistCache size - upto 15 MB max
+	{"dashMaxDrmSessions",eAAMPConfig_MaxDASHDRMSessions,false,{.iMinValue=1},{.iMaxValue=MAX_DASH_DRM_SESSIONS}},
+	{"userAgent",eAAMPConfig_UserAgent,false,-1,-1},
+	{"waitTimeBeforeRetryHttp5xx",eAAMPConfig_Http5XXRetryWaitInterval,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"preplayBuffercount",eAAMPConfig_PrePlayBufferCount,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"sslVerifyPeer",eAAMPConfig_SslVerifyPeer,false,-1,-1},
+	{"downloadStallTimeout",eAAMPConfig_CurlStallTimeout,false,{.lMinValue=0},{.lMaxValue=50}},
+	{"downloadStartTimeout",eAAMPConfig_CurlDownloadStartTimeout,false,{.lMinValue=0},{.lMaxValue=50}},
+	{"downloadLowBWTimeout",eAAMPConfig_CurlDownloadLowBWTimeout,false,{.lMinValue=0},{.lMaxValue=50}},
+	{"discontinuityTimeout",eAAMPConfig_DiscontinuityTimeout,false,{.lMinValue=0},{.lMaxValue=50}},
+	{"client-dai",eAAMPConfig_EnableClientDai,true,-1,-1},                               // not changing this name , this is already in use for RFC
+	{"cdnAdsOnly",eAAMPConfig_PlayAdFromCDN,false,-1,-1},
+	{"thresholdSizeABR",eAAMPConfig_ABRThresholdSize,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"preferredSubtitleLanguage",eAAMPConfig_SubTitleLanguage,false,-1,-1},
+	{"reportBufferEvent",eAAMPConfig_ReportBufferEvent,false,-1,-1},
+	{"gstPositionQueryEnable",eAAMPConfig_EnableGstPositionQuery,false,-1,-1},
+	{"useMatchingBaseUrl",eAAMPConfig_MatchBaseUrl,false,-1,-1},
+	{"removeAVEDRMPersistent",eAAMPConfig_RemovePersistent,false,-1,-1},
+	{"useAverageBandwidth",eAAMPConfig_AvgBWForABR,false,-1,-1},
+	{"preCachePlaylistTime",eAAMPConfig_PreCachePlaylistTime,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"fragmentRetryLimit",eAAMPConfig_RampDownLimit,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"segmentInjectFailThreshold",eAAMPConfig_SegmentInjectThreshold,false,{.iMinValue=0},{.iMaxValue=MAX_SEG_INJECT_FAIL_COUNT}},
+	{"drmDecryptFailThreshold",eAAMPConfig_DRMDecryptThreshold,false,{.iMinValue=0},{.iMaxValue=MAX_SEG_DRM_DECRYPT_FAIL_COUNT}},
+	{"minBitrate",eAAMPConfig_MinBitrate,true,{.lMinValue=0},{.lMaxValue=-1}},
+	{"maxBitrate",eAAMPConfig_MaxBitrate,true,{.lMinValue=0},{.lMaxValue=-1}},
+	{"initFragmentRetryCount",eAAMPConfig_InitFragmentRetryCount,false,{.iMinValue=0},{.iMaxValue=-1}},
+	{"nativeCCRendering",eAAMPConfig_NativeCCRendering,false,-1,-1},
+	{"subtecSubtitle",eAAMPConfig_Subtec_subtitle,false,-1,-1},
+	{"webVttNative",eAAMPConfig_WebVTTNative,false,-1,-1},
+	{"ceaFormat",eAAMPConfig_CEAPreferred,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"asyncTune",eAAMPConfig_AsyncTune,true,-1,-1},
+	{"initRampdownLimit",eAAMPConfig_InitRampDownLimit,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"enableSeekableRange",eAAMPConfig_EnableSeekRange,false,-1,-1},
+	{"maxTimeoutForSourceSetup",eAAMPConfig_SourceSetupTimeout,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"seekMidFragment",eAAMPConfig_MidFragmentSeek,false,-1,-1},
+	{"wifiCurlHeader",eAAMPConfig_WifiCurlHeader,false,-1,-1},
+	{"persistBitrateOverSeek",eAAMPConfig_PersistentBitRateOverSeek,true,-1,-1},
+	{"log",eAAMPConfig_LogLevel,false,-1,-1},
+	{"maxABRBufferRampup",eAAMPConfig_MaxABRNWBufferRampUp,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"networkProxy",eAAMPConfig_NetworkProxy,false,-1,-1},
+	{"licenseProxy",eAAMPConfig_LicenseProxy,false,-1,-1},
+	{"authToken",eAAMPConfig_AuthToken,false,-1,-1},
+	{"enableAccessAttributes",eAAMPConfig_EnableAccessAttributes,false,-1,-1},
+	{"ckLicenseServerUrl",eAAMPConfig_CKLicenseServerUrl,false,-1,-1},
+	{"licenseServerUrl",eAAMPConfig_LicenseServerUrl,false,-1,-1},
+	{"prLicenseServerUrl",eAAMPConfig_PRLicenseServerUrl,false,-1,-1},
+	{"wvLicenseServerUrl",eAAMPConfig_WVLicenseServerUrl,false,-1,-1},
+	{"stallErrorCode",eAAMPConfig_StallErrorCode,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"stallTimeout",eAAMPConfig_StallTimeoutMS,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"initialBuffer",eAAMPConfig_InitialBuffer,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"playbackBuffer",eAAMPConfig_PlaybackBuffer,false,{.iMinValue=-1},{.iMaxValue=-1}},
+	{"downloadDelay",eAAMPConfig_DownloadDelay,false,{.iMinValue=0},{.iMaxValue=MAX_DOWNLOAD_DELAY_LIMIT_MS}},
+	{"livePauseBehavior",eAAMPConfig_LivePauseBehavior,false,{.iMinValue=ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE},{.iMaxValue=ePAUSED_BEHAVIOR_MAX}},
+	{"disableUnderflow",eAAMPConfig_DisableUnderflow,false,-1,-1},
+	{"limitResolution",eAAMPConfig_LimitResolution,false,-1,-1},
+	{"useAbsoluteTimeline",eAAMPConfig_UseAbsoluteTimeline,false,-1,-1},
+	{"id3",eAAMPConfig_ID3Logging,false,-1,-1},
+	{"SkyStoreDE",eAAMPConfig_WideVineKIDWorkaround,false,-1,-1},
+	{"repairIframes",eAAMPConfig_RepairIframes,false,-1,-1},
+	{"customHeaderLicense",eAAMPConfig_CustomHeaderLicense,false,-1,-1},
+	{"preferredAudioRendition",eAAMPConfig_PreferredAudioRendition,false,-1,-1},
+	{"preferredAudioCodec",eAAMPConfig_PreferredAudioCodec,false,-1,-1},
+	{"preferredAudioLanguage",eAAMPConfig_PreferredAudioLanguage,false,-1,-1},
+	{"preferredAudioLabel",eAAMPConfig_PreferredAudioLabel,false,-1,-1},
+	{"preferredTextRendition",eAAMPConfig_PreferredTextRendition,false,-1,-1},
+	{"preferredTextLanguage",eAAMPConfig_PreferredTextLanguage,false,-1,-1},
+	{"preferredTextLabel",eAAMPConfig_PreferredTextLabel,false,-1,-1},
+	{"gstVideoBufBytes", eAAMPConfig_GstVideoBufBytes,false,-1,-1},
+	{"gstAudioBufBytes", eAAMPConfig_GstAudioBufBytes,false,-1,-1},
+	{"seiTimeCode",eAAMPConfig_SEITimeCode,false,-1,-1},
+	{"disable4K" , eAAMPConfig_Disable4K, false,-1, -1},
+	{"sharedSSL",eAAMPConfig_EnableSharedSSLSession, true,-1,-1},
+	{"tsbInterruptHandling", eAAMPConfig_InterruptHandling,true, -1, -1},
+	{"enableLowLatencyDash",eAAMPConfig_EnableLowLatencyDash,true,-1,-1},
+	{"disableLowLatencyMonitor",eAAMPConfig_DisableLowLatencyMonitor,false,-1,-1},
+	{"disableLowLatencyABR",eAAMPConfig_DisableLowLatencyABR,false,-1,-1},
+	{"disableLowLatencyCorrection",eAAMPConfig_DisableLowLatencyCorrection,false,-1,-1},
+	{"latencyMonitorDelay",eAAMPConfig_LatencyMonitorDelay,false,-1,-1},
+	{"latencyMonitorInterval",eAAMPConfig_LatencyMonitorInterval,false,-1,-1},
+	{"downloadBufferChunks",eAAMPConfig_MaxFragmentChunkCached,false,-1,-1},
+	{"abrChunkThresholdSize",eAAMPConfig_ABRChunkThresholdSize,false,-1,-1},
+	{"lowLatencyMinValue",eAAMPConfig_LLMinLatency,false,-1,-1},
+	{"lowLatencyTargetValue",eAAMPConfig_LLTargetLatency,false,-1,-1},
+	{"lowLatencyMaxValue",eAAMPConfig_LLMaxLatency,false,-1,-1},
+	{"enableLowLatencyOffsetMin",eAAMPConfig_EnableLowLatencyOffsetMin,false,-1,-1},
+	{"fragmentDownloadFailThreshold",eAAMPConfig_FragmentDownloadFailThreshold,false,{.iMinValue=1},{.iMaxValue=MAX_SEG_DOWNLOAD_FAIL_COUNT}},
+	{"syncAudioFragments",eAAMPConfig_SyncAudioFragments,false,-1,-1},
+	{"enableEosSmallFragment", eAAMPConfig_EnableIgnoreEosSmallFragment, false,-1, -1},
+	{"useSecManager",eAAMPConfig_UseSecManager, true,-1,-1},
+	{"enablePTO", eAAMPConfig_EnablePTO,false, -1, -1},
+	{"maxInitFragCachePerTrack",eAAMPConfig_MaxInitFragCachePerTrack,true,{.iMinValue=1},{.iMaxValue=5}},
+	{"supportTLS",eAAMPConfig_TLSVersion,true,{.lMinValue=CURL_SSLVERSION_DEFAULT},{.lMaxValue=CURL_SSLVERSION_TLSv1_3}},
+	{"fogMaxConcurrentDownloads",eAAMPConfig_FogMaxConcurrentDownloads, false,-1, -1},
+        {"enableFogConfig", eAAMPConfig_EnableAampConfigToFog, false, -1, -1},
+	{"xreSupportedTune",eAAMPConfig_XRESupportedTune,false,-1,-1},
+	{"allowPageHeaders",eAAMPConfig_AllowPageHeaders,false,-1,-1},
+	{"customLicenseData",eAAMPConfig_CustomLicenseData,false,-1,-1},
+	{"suppressDecode",eAAMPConfig_SuppressDecode,false,-1,-1},
+	{"persistHighNetworkBandwidth",eAAMPConfig_PersistHighNetworkBandwidth,false,-1,-1},
+	{"persistLowNetworkBandwidth",eAAMPConfig_PersistLowNetworkBandwidth,false,-1,-1},
+	{"gstSubtecEnabled",eAAMPConfig_GstSubtecEnabled,false,-1,-1},
+	{"changeTrackWithoutRetune", eAAMPConfig_ChangeTrackWithoutRetune, false,-1,-1},
+	{"contentProtectionDataUpdateTimeout",eAAMPConfig_ContentProtectionDataUpdateTimeout,false,{.iMinValue = 0},{.iMaxValue=-1}}
+	,{"curlStore", eAAMPConfig_EnableCurlStore, true, -1, -1}
+	,{"maxCurlStore", eAAMPConfig_MaxCurlSockStore,false, {.iMinValue=1},{.iMaxValue=10}}
+	,{"configRuntimeDRM", eAAMPConfig_RuntimeDRMConfig,false,-1,-1}
+	,{"enablePublishingMuxedAudio",eAAMPConfig_EnablePublishingMuxedAudio,false,-1,-1}
+	,{"enableCMCD", eAAMPConfig_EnableCMCD, true, -1, -1}
+	,{"SlowMotion", eAAMPConfig_EnableSlowMotion, true, -1, -1}
+	,{"enableSCTE35PresentationTime", eAAMPConfig_EnableSCTE35PresentationTime, false, -1, -1}
 };
 /////////////////// Public Functions /////////////////////////////////////
 /**
@@ -1599,10 +1601,10 @@ bool AampConfig::ReadAampCfgTxtFile()
 }
 
 /**
- * @brief ReadOperatorConfiguration - Reads Operator configuration from RFC and env variables
- *
+ * @fn ReadBase64TR181Param reads Tr181 parameter at Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.AAMP_CFG.b64Config
+ * @return void
  */
-void AampConfig::ReadOperatorConfiguration()
+void AampConfig::ReadBase64TR181Param()
 {
 #ifdef IARM_MGR
 	size_t iConfigLen = 0;
@@ -1642,6 +1644,140 @@ void AampConfig::ReadOperatorConfiguration()
 		free(cloudConf); // allocated by base64_Decode in GetTR181AAMPConfig
 	}
 #endif
+}
+
+/**
+ * @fn ReadAllTR181Params reads  All Tr181 parameters at Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.<param-name>
+ * @return void
+ */
+void AampConfig::ReadAllTR181Params()
+{
+
+#ifdef AAMP_RFC_ENABLED
+
+	// To find the execution time of ReadAllTR181Params
+	long long begin = NOW_STEADY_TS_MS;
+
+	ConfigPriority owner = AAMP_OPERATOR_SETTING;
+	const std::string  strAAMPTr181BasePath = "Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.aamp.";
+
+	for( int icount =0; icount < sizeof( ConfigLookUpTable)/ sizeof(AampConfigLookupEntry) ; icount++ )
+	{
+		if(true == ConfigLookUpTable[icount].bSupportOperatorSetting )
+		{
+			std::string strParamName = ConfigLookUpTable[icount].cmdString ;
+			AAMPConfigSettings cfgEnum = ConfigLookUpTable[icount].cfgEntryValue;
+			std::string value = RFCSettings::getRFCValue(strAAMPTr181BasePath+strParamName);
+			if( !value.empty() )
+			{
+				if(cfgEnum < eAAMPConfig_BoolMaxValue)
+				{
+					int conv = 0;
+					if(isdigit(value[0]))
+					{ // for backward compatability 0/1
+						if(ReadNumericHelper(value,conv))
+							SetConfigValue<bool>(owner,cfgEnum,(bool)(conv != 0));
+					}
+					else
+					{
+						// look for true or false
+						if(strcasecmp(value.c_str(),"true")==0)
+						{
+							SetConfigValue<bool>(owner,cfgEnum,(bool)true);
+						}
+						else if(strcasecmp(value.c_str(),"false")==0)
+						{
+							SetConfigValue<bool>(owner,cfgEnum,(bool)false);
+						}
+						else
+						{
+							AAMPLOG_ERR("ReadAllTR181Params: Wrong input provided for param:%s Value:%s",strParamName.c_str(),value.c_str());
+						}
+					}
+				}
+				else if(cfgEnum > eAAMPConfig_IntStartValue && cfgEnum < eAAMPConfig_IntMaxValue)
+				{
+					// For those parameters in Integer Settings
+					int conv = 0;
+					if(isdigit(value[0]) && ReadNumericHelper(value,conv))
+					{
+						if(ValidateRange(strParamName,conv))
+						{
+							SetConfigValue<int>(owner,cfgEnum,(int)conv);
+						}
+						else
+						{
+							AAMPLOG_ERR("ReadAllTR181Params: Out of range input provided for param:%s Value:%s",strParamName.c_str(),value.c_str());
+						}
+					}
+				}
+				else if(cfgEnum > eAAMPConfig_LongStartValue && cfgEnum < eAAMPConfig_LongMaxValue)
+				{
+					// For those parameters in long Settings
+					long conv = 0;
+					if(isdigit(value[0]) && ReadNumericHelper(value,conv))
+					{
+						if(ValidateRange(strParamName,conv))
+						{
+							SetConfigValue<long>(owner,cfgEnum,(long)conv);
+						}
+						else
+						{
+							AAMPLOG_ERR("ReadAllTR181Params: Out of range input provided for param:%s Value:%s",strParamName.c_str(),value.c_str());
+						}
+					}
+				}
+				else if(cfgEnum > eAAMPConfig_DoubleStartValue && cfgEnum < eAAMPConfig_DoubleMaxValue)
+				{
+					// For those parameters in double settings
+					double conv=0.0;
+					if(isdigit(value[0]) && ReadNumericHelper(value,conv))
+					{
+						if(ValidateRange(strParamName,conv))
+						{
+							SetConfigValue<double>(owner,cfgEnum,(double)conv);
+						}
+						else
+						{
+							AAMPLOG_ERR("ReadAllTR181Params: Out of range input provided for param:%s Value:%s",strParamName.c_str(),value.c_str());
+						}
+					}
+				}
+				else if (cfgEnum > eAAMPConfig_StringStartValue && cfgEnum < eAAMPConfig_StringMaxValue)
+				{
+					// For those parameters in string Settings
+					if(value.size())
+					{
+						SetConfigValue<std::string>(owner,cfgEnum,value);
+					}
+				}
+			}
+			else
+			{
+				AAMPLOG_ERR("ReadAllTR181Params: Got emptry value for param:%s",strParamName.c_str());
+
+			}
+		}
+	}
+
+	AAMPLOG_WARN("ReadAllTR181Params took %d ms to execute", (NOW_STEADY_TS_MS - begin));
+#endif
+
+}
+
+
+/**
+ * @brief ReadOperatorConfiguration - Reads Operator configuration from RFC and env variables
+ *
+ */
+void AampConfig::ReadOperatorConfiguration()
+{
+	// Not all parameters are supported as  individual  tr181 parameter hence keeping base64 version.
+	ReadBase64TR181Param();
+
+	// new way of reading RFC for each seperate parameter it will override any parameter set before ReadBase64TR181Param
+	// read all individual  config parameters,
+	ReadAllTR181Params();
 
 	///////////// Read environment variables set specific to Operator ///////////////////
 	const char *env_aamp_force_aac = getenv("AAMP_FORCE_AAC");
