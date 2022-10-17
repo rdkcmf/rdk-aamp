@@ -153,7 +153,7 @@
 #define DEFAULT_CONTENT_PROTECTION_DATA_UPDATE_TIMEOUT	5000					/**< Default Timeout for Content Protection Data Update on Dynamic Key Rotation */
 
 // Player configuration for Fog download
-#define FOG_MAX_CONCURRENT_DOWNLOADS			1					/**< Max concurrent downloads in Fog*/
+#define FOG_MAX_CONCURRENT_DOWNLOADS			4					/**< Max concurrent downloads in Fog*/
 
 #define AAMP_MAX_EVENT_PRIORITY (-70) 	/**< Maximum allowed priority value for events */
 #define AAMP_TASK_ID_INVALID 0

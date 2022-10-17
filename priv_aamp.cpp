@@ -3782,6 +3782,15 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 					httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
 				}
 
+				if(mTSBEnabled  && eMEDIATYPE_VIDEO == simType)
+				{
+					double bufferedDuration = mpStreamAbstractionAAMP->GetBufferedVideoDurationSec() * 1000.0;
+					std::string customHeader;
+					customHeader.clear();
+					customHeader = "Buffer: " +std::to_string(bufferedDuration);
+					httpHeaders = curl_slist_append(httpHeaders, customHeader.c_str());
+				}
+
 				if (ISCONFIGSET_PRIV(eAAMPConfig_CurlHeader) && (eMEDIATYPE_VIDEO == simType || eMEDIATYPE_PLAYLIST_VIDEO == simType))
 				{
 					std::string customheaderstr;
