@@ -164,7 +164,6 @@ struct AdNode {
 	*/
 	AdNode& operator=(const AdNode&) = delete;
 };
-
 /**
  * @struct AdBreakObject
  *
@@ -292,9 +291,9 @@ public:
 	int                                            mCurAdIdx;           /**< Currently playing Ad index */
 	AdFulfillObj                                   mAdFulfillObj;       /**< Temporary object for Ad fulfillment (to pass to the fulfillment thread) */
 	PlacementObj                                   mPlacementObj;       /**< Temporary object for Ad placement over period */
+	PlacementObj				       mAdtoInsertInNextBreak;
 	double                                         mContentSeekOffset;  /**< Seek offset after the Ad playback */
 	AdState                                        mAdState;            /**< Current state of the CDAI state machine */
-
 	/**
 	 * @fn PrivateCDAIObjectMPD
 	 *
