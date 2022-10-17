@@ -357,6 +357,7 @@ struct AampConfigLookupEntry
 {
 	const char* cmdString;
 	AAMPConfigSettings cfgEntryValue;
+	bool bSupportOperatorSetting;
 	union
 	{
 		int iMinValue;
@@ -534,6 +535,16 @@ public:
      	 * @return void
      	 */
 	void ReadOperatorConfiguration();
+	/**
+	 * @fn ReadBase64TR181Param reads Tr181 parameter at Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.AAMP_CFG.b64Config
+	 * @return void
+	 */
+	void ReadBase64TR181Param();
+	/**
+	 * @fn ReadAllTR181Params reads  All Tr181 parameters at Device.DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.AAMP_CFG.<param-name>
+	 * @return void
+	 */
+	void ReadAllTR181Params();
 	/**
          * @brief ParseAampCfgTxtString - It parses the aamp configuration 
          *

@@ -50,6 +50,13 @@ namespace RFCSettings{
      */
     std::string getSchemeIdUriVssStream();
 
+    /**
+     * @fn getRFCValue
+     * @brief   Fetch data from RFC
+     * @param   Parameter to be fetched
+     * @retval  std::string host value
+     */
+    std::string getRFCValue(const std::string& parameter);
 }
 #endif
 #endif
