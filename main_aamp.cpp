@@ -322,7 +322,7 @@ void PlayerInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const 
 		const std::string sTraceUUID = (traceUUID != NULL)? std::string(traceUUID) : std::string();
 
 		mScheduler.ScheduleTask(AsyncTaskObj(
-			[manifest = std::move(manifest), autoPlay , cType = std::move(cType), bFirstAttempt, bFinalAttempt, sTraceUUID = std::move(sTraceUUID), audioDecoderStreamSync](void *data)
+			[manifest, autoPlay , cType, bFirstAttempt, bFinalAttempt, sTraceUUID, audioDecoderStreamSync](void *data)
 			{
 				PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
 				const char * trace_uuid = sTraceUUID.empty() ? nullptr : sTraceUUID.c_str();
