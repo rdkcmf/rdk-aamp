@@ -1874,19 +1874,22 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						 *  mPeriodStartTime and currentTime
 			 */
 			double fragmentRequestTime = 0.0f;
-			AAMPLOG_INFO("pMediaStreamContext->fragmentDescriptor.Time= %lf",pMediaStreamContext->fragmentDescriptor.Time);
+			double availabilityTimeOffset = 0.0f;
 			if(isLowLatencyMode)
 			{
 				// Low Latency Mode will be pointing to edge of the fragment based on avilablitystarttimeoffset,
 				// and fragmentDescriptor time itself will be pointing to edge time when live offset is 0. 
-				// So adding the duration will cause the latency of fragment duartion and sometime repeat the same content. 
-				fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time;
+				// So adding the duration will cause the latency of fragment duartion and sometime repeat the same content.
+				availabilityTimeOffset =  aamp->GetLLDashServiceData()->availabilityTimeOffset;
+				fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time+(fragmentDuration-availabilityTimeOffset);
 			}
 			else
 			{
 				fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration;
 			}
-
+			AAMPLOG_INFO("fDesc.Time= %lf utcTime=%lf delta=%lf CTSeconds=%lf,FreqTime=%lf",pMediaStreamContext->fragmentDescriptor.Time,
+				mServerUtcTime,mDeltaTime,currentTimeSeconds,fragmentRequestTime);
+			
 			bool bProcessFrgment = true;
 			if(!mIsLiveStream)
 			{
@@ -1907,7 +1910,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			}
 			if ((!mIsLiveStream && ((!bProcessFrgment) || (rate < 0 )))
 			|| (mIsLiveStream && (
-				(isLowLatencyMode? pMediaStreamContext->fragmentDescriptor.Time>mPeriodEndTime+aamp->GetLLDashServiceData()->availabilityTimeOffset:pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
+				(isLowLatencyMode? pMediaStreamContext->fragmentDescriptor.Time>mPeriodEndTime+availabilityTimeOffset:pMediaStreamContext->fragmentDescriptor.Time >= mPeriodEndTime)
 			|| (pMediaStreamContext->fragmentDescriptor.Time < mPeriodStartTime))))  //CID:93022 - No effect
 			{
 				AAMPLOG_INFO("Type[%d] EOS. pMediaStreamContext->lastSegmentNumber %" PRIu64 " fragmentDescriptor.Time=%f mPeriodEndTime=%f mPeriodStartTime %f  currentTimeSeconds %f FTime=%f", pMediaStreamContext->type, pMediaStreamContext->lastSegmentNumber, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
@@ -4941,7 +4944,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				if( (aamp->GetLLDashServiceData()->lowLatencyMode ) && 
 					(!aamp->GetLLDashServiceData()->isSegTimeLineBased) )
 				{
-					offsetFromStart = offsetFromStart+aamp->GetLLDashServiceData()->availabilityTimeOffset;
+					offsetFromStart = offsetFromStart+(aamp->GetLLDashServiceData()->fragmentDuration - aamp->GetLLDashServiceData()->availabilityTimeOffset);
 				}
 				SeekInPeriod( offsetFromStart);
 			}
@@ -10026,8 +10029,13 @@ void StreamAbstractionAAMP_MPD::Start(void)
 			}
 		}
 	}
-	if(aamp->GetLLDashServiceData()->lowLatencyMode &&
-	!(ISCONFIGSET(eAAMPConfig_DisableLowLatencyMonitor)))
+	TuneType tuneType = aamp->GetTuneType();
+	if( (aamp->GetLLDashServiceData()->lowLatencyMode &&
+	! ( ISCONFIGSET( eAAMPConfig_DisableLowLatencyMonitor ) ) ) && 
+	  ( ( eTUNETYPE_SEEK != tuneType   ) &&
+		( eTUNETYPE_NEW_SEEK != tuneType ) &&
+		( eTUNETYPE_NEW_END != tuneType ) &&
+		( eTUNETYPE_SEEKTOEND != tuneType ) ) )
 	{
 		StartLatencyMonitorThread();
 	}
@@ -12289,30 +12297,18 @@ AAMPStatusType  StreamAbstractionAAMP_MPD::EnableAndSetLiveOffsetForLLDashPlayba
 		double currentOffset = 0;
 		int maxLatency=0,minLatency=0,TargetLatency=0;
 
-		TuneType tuneType = aamp->GetTuneType();
-
-		if( ( eTUNETYPE_SEEK != tuneType   ) &&
-			( eTUNETYPE_NEW_SEEK != tuneType ) &&
-			( eTUNETYPE_NEW_END != tuneType ) &&
-			( eTUNETYPE_SEEKTOEND != tuneType ) )
-		{
-			if( ( GetLowLatencyParams((MPD*)this->mpd,stLLServiceData) ) && 
+		if( ( GetLowLatencyParams((MPD*)this->mpd,stLLServiceData) ) && 
 				( stLLServiceData.availabilityTimeComplete == false &&
 				  aamp->mLLDashRetuneCount <= MAX_LOW_LATENCY_DASH_RETUNE_ALLOWED) )
-			{
-				stLLServiceData.lowLatencyMode = true;
-				AAMPLOG_WARN("StreamAbstractionAAMP_MPD: LL-DASH playback enabled availabilityTimeOffset=%lf,fragmentDuration=%lf",
+		{
+			stLLServiceData.lowLatencyMode = true;
+			AAMPLOG_WARN("StreamAbstractionAAMP_MPD: LL-DASH playback enabled availabilityTimeOffset=%lf,fragmentDuration=%lf",
 										stLLServiceData.availabilityTimeOffset,stLLServiceData.fragmentDuration);
-			}
-			else
-			{
-				stLLServiceData.lowLatencyMode = false;
-				AAMPLOG_TRACE("Not LL-DASH stream");
-			}
 		}
 		else
 		{
-			AAMPLOG_INFO("StreamAbstractionAAMP_MPD: tune type %d not support LL-DASH",tuneType);
+			stLLServiceData.lowLatencyMode = false;
+			AAMPLOG_INFO("Not LL-DASH stream");
 		}
 		
 		//If LLD enabled then check servicedescription requirements
@@ -12328,7 +12324,7 @@ AAMPStatusType  StreamAbstractionAAMP_MPD::EnableAndSetLiveOffsetForLLDashPlayba
 			GETCONFIGVALUE(eAAMPConfig_LLTargetLatency,TargetLatency);
 			GETCONFIGVALUE(eAAMPConfig_LLMaxLatency,maxLatency);
 			GETCONFIGVALUE(eAAMPConfig_LiveOffset,currentOffset);
-			AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: Current Offset(s): %ld",(long)currentOffset);
+			AAMPLOG_INFO("StreamAbstractionAAMP_MPD: Current Offset(s): %ld",(long)currentOffset);
 
 			if(	stLLServiceData.minLatency <= 0)
 			{
@@ -12393,23 +12389,24 @@ AAMPStatusType  StreamAbstractionAAMP_MPD::EnableAndSetLiveOffsetForLLDashPlayba
 				double latencyOffset = 0;
 				if(!aamp->GetLowLatencyServiceConfigured())
 				{
-					if(stLLServiceData.isSegTimeLineBased)
+					if(maxFragmentDuartion > 0 )
 					{
-						if(maxFragmentDuartion > 0 )
-						{
-							latencyOffset = (double)maxFragmentDuartion;
-						}
-						else if(stLLServiceData.fragmentDuration > 0)
-						{
-							latencyOffset = stLLServiceData.fragmentDuration+stLLServiceData.availabilityTimeOffset;
-						}
-						else
-						{
-							latencyOffset =(double)(((double) DEFAULT_MIN_LOW_LATENCY)+(stLLServiceData.availabilityTimeOffset));
-						}
+						latencyOffset = maxFragmentDuartion+(maxFragmentDuartion-stLLServiceData.availabilityTimeOffset);
+					}
+					else if(stLLServiceData.fragmentDuration > 0)
+					{
+						latencyOffset = stLLServiceData.fragmentDuration+(stLLServiceData.fragmentDuration-stLLServiceData.availabilityTimeOffset);
+					}
+					else
+					{
+						latencyOffset =(double)((double) DEFAULT_MIN_LOW_LATENCY);
 					}
 					
-					stLLServiceData.fragmentDuration = maxFragmentDuartion;
+					if(latencyOffset > DEFAULT_TARGET_LOW_LATENCY)
+					{
+						latencyOffset = DEFAULT_MIN_LOW_LATENCY;
+					}
+					
 					//Override Latency offset with Min Value if config enabled
 					AAMPLOG_WARN("StreamAbstractionAAMP_MPD: currentOffset:%lf LL-DASH offset(s): %lf",currentOffset,latencyOffset);
 					SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_LiveOffset,latencyOffset);
@@ -12472,46 +12469,55 @@ bool StreamAbstractionAAMP_MPD::GetLowLatencyParams(const MPD* mpd,AampLLDashSer
 								isSuccess=true;
 								if( isSuccess )
 								{
+									uint32_t timeScale=0;
+									uint32_t duration =0;
 									const ISegmentTimeline *segmentTimeline = pSegmentTemplate->GetSegmentTimeline();
 									if (segmentTimeline)
 									{
-										uint32_t timeScale = pSegmentTemplate->GetTimescale();
+										timeScale = pSegmentTemplate->GetTimescale();
 										std::vector<ITimeline *>&timelines = segmentTimeline->GetTimelines();
 										ITimeline *timeline = timelines.at(0);
-										uint32_t duration = timeline->GetDuration();
+										duration = timeline->GetDuration();
 										LLDashData.fragmentDuration = ComputeFragmentDuration(duration,timeScale);
 										LLDashData.isSegTimeLineBased = true;
-										AAMPLOG_INFO("[%s][%d] timeScale=%u duration=%u fragmentDuration=%lf",__FUNCTION__,__LINE__,
-												timeScale,duration,LLDashData.fragmentDuration);
 									}
+									else
+									{
+										timeScale = pSegmentTemplate->GetTimescale();
+										duration = pSegmentTemplate->GetDuration();
+										LLDashData.fragmentDuration = ComputeFragmentDuration(duration,timeScale);
+										LLDashData.isSegTimeLineBased = false;
+									}
+									AAMPLOG_INFO("timeScale=%u duration=%u fragmentDuration=%lf",
+												timeScale,duration,LLDashData.fragmentDuration);
 								}
 								break;
 							}
 						}
 						else
 						{
-							AAMPLOG_ERR("[%s][%d]NULL segmenttemplate",__FUNCTION__,__LINE__); 	
+							AAMPLOG_ERR("NULL segmenttemplate"); 	
 						}
 					}
 					else
 					{
-						AAMPLOG_INFO("[%s][%d]NULL adaptationSets",__FUNCTION__,__LINE__);
+						AAMPLOG_INFO("NULL adaptationSets");
 					}
 				}
 				else
 				{
-					AAMPLOG_WARN("[%s][%d]empty adaptationSets",__FUNCTION__,__LINE__);
+					AAMPLOG_WARN("empty adaptationSets");
 				}
 			}
 			else
 			{
-				AAMPLOG_WARN("[%s][%d]empty period ",__FUNCTION__,__LINE__);
+				AAMPLOG_WARN("empty period ");
 			}
 		}
 	}
 	else
 	{
-		AAMPLOG_WARN("[%s][%d]NULL mpd",__FUNCTION__,__LINE__);
+		AAMPLOG_WARN("NULL mpd");
 	}
 	return isSuccess;
 }

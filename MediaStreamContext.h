@@ -119,8 +119,9 @@ public:
      * @param ptr CURL provided chunk data
      * @param size CURL provided chunk data size
      * @param remoteUrl url of fragment
+     * @param dnldStartTime of the download
      */
-    bool CacheFragmentChunk(MediaType actualType, char *ptr, size_t size, std::string remoteUrl);
+    bool CacheFragmentChunk(MediaType actualType, char *ptr, size_t size, std::string remoteUrl,long long dnldStartTime);
 
     /**
      * @fn ABRProfileChanged
