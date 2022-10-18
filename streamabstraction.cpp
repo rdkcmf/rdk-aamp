@@ -1665,7 +1665,8 @@ StreamAbstractionAAMP::StreamAbstractionAAMP(AampLogManager *logObj, PrivateInst
 		mAudioTrackIndex(), mTextTrackIndex(),
 		mAuxCond(), mFwdAudioToAux(false), mLogObj(logObj)
 		, mAudioTracksAll()
-		, mTextTracksAll()
+		, mTextTracksAll(),
+		mTsbMaxBitrateProfileIndex(-1)
 {
 	mLastVideoFragParsedTimeMS = aamp_GetCurrentTimeMS();
 	AAMPLOG_TRACE("StreamAbstractionAAMP");
@@ -1761,6 +1762,25 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
 }
 
 /**
+ *   @brief Get profile index of highest bandwidth
+ *
+ *   @return Profile highest BW profile index
+ */
+int StreamAbstractionAAMP::GetMaxBWProfile()
+{
+	int ret = 0;
+	if(aamp->IsTSBSupported() && mTsbMaxBitrateProfileIndex >= 0)
+	{
+		ret = mTsbMaxBitrateProfileIndex;
+	}
+	else
+	{
+		ret = mAbrManager.getMaxBandwidthProfile();
+	}
+	return ret;
+}
+
+/**
  *   @brief Notify bitrate updates to application.
  *          Used internally by injection logic
  */
@@ -1775,7 +1795,7 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamIn
 		{
 			bool lGetBWIndex = false;
 			/* START: Added As Part of DELIA-28363 and DELIA-28247 */
-			if(aamp->IsTuneTypeNew && cacheFragStreamInfo.bandwidthBitsPerSecond == (streamInfo->bandwidthBitsPerSecond))
+			if(aamp->IsTuneTypeNew && (cacheFragStreamInfo.bandwidthBitsPerSecond == streamInfo->bandwidthBitsPerSecond))
 			{
 				MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 				AAMPLOG_WARN("NotifyBitRateUpdate: Max BitRate: %ld, timetotop: %f", cacheFragStreamInfo.bandwidthBitsPerSecond, video->GetTotalInjectedDuration());
