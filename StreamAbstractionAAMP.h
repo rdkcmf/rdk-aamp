@@ -1050,6 +1050,7 @@ public:
 	TuneType mTuneType;                     /**< Tune type of current playback, initialize by derived classes on Init()*/
 	int mRampDownCount;		        /**< Total number of rampdowns */
 	double mProgramStartTime;	        /**< Indicate program start time or availability start time */
+	int mTsbMaxBitrateProfileIndex;		/**< Indicates the index of highest profile in the saved stream info */
 
 
 	/**
@@ -1057,7 +1058,7 @@ public:
 	 *
 	 *   @return Profile index
 	 */
-	int GetMaxBWProfile() { return mAbrManager.getMaxBandwidthProfile(); } /* Return the Top Profile Index*/
+	int GetMaxBWProfile();
 
 	/**
 	 *   @brief Get profile index of given bandwidth.

@@ -7904,10 +7904,12 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								AAMPLOG_INFO ("Video Profile Ignoring resolution=%d:%d display=%d:%d Bw=%ld", mStreamInfo[idx].resolution.width, mStreamInfo[idx].resolution.height, aamp->mDisplayWidth, aamp->mDisplayHeight, mStreamInfo[idx].bandwidthBitsPerSecond);
 								continue;
 							}
+							AAMPLOG_INFO("Added Video Profile to ABR BW=%ld to bitrate vector index:%d", mStreamInfo[idx].bandwidthBitsPerSecond, idx);
 							mBitrateIndexVector.push_back(mStreamInfo[idx].bandwidthBitsPerSecond);
 							if(mStreamInfo[idx].bandwidthBitsPerSecond > mMaxTSBBandwidth)
 							{
 								mMaxTSBBandwidth = mStreamInfo[idx].bandwidthBitsPerSecond;
+								mTsbMaxBitrateProfileIndex = idx;
 							}
 						}
 						else
@@ -10461,7 +10463,6 @@ long StreamAbstractionAAMP_MPD::GetMaxBitrate()
 
 		maxBitrate = StreamAbstractionAAMP::GetMaxBitrate();
 	}
-
 	return maxBitrate;
 }
 
