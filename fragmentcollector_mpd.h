@@ -792,6 +792,7 @@ private:
 	bool IsPeriodEncrypted(IPeriod *period);
 
 	std::mutex mStreamLock;
+	CMCDHeaders *pCMCDMetrics;/**<pointer object to class CMCDHeaders*/
 	bool fragmentCollectorThreadStarted;
 	std::set<std::string> mLangList;
 	double seekPosition;

@@ -523,6 +523,7 @@ public:
 	KeyHashTable mKeyHashTable;
 	bool mCheckForInitialFragEnc;           /**< Flag that denotes if we should check for encrypted init header and push it to GStreamer*/
 	DrmKeyMethod mDrmMethod;                /**< denotes the X-KEY method for the fragment of interest */
+	CMCDHeaders *pCMCDMetrics;		/**<pointer object to class CMCDHeaders*/
 
 private:
 	bool refreshPlaylist;	                /**< bool flag to indicate if playlist refresh required or not */
@@ -793,6 +794,7 @@ public:
 	bool firstFragmentDecrypted;				/**< Flag indicating if first fragment is decrypted for stream */
 	bool mStartTimestampZero;				/**< Flag indicating if timestamp to start is zero or not (No audio stream) */
 	int mNumberOfTracks;					/**< Number of media tracks.*/
+	CMCDHeaders *pCMCDMetrics;				/**<pointer object to class CMCDHeaders*/
 	/***************************************************************************
          * @fn ParseMainManifest
          *

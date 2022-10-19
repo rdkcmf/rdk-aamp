@@ -50,12 +50,21 @@ public:
             lastSegmentTime(0), lastSegmentNumber(0), lastSegmentDuration(0), adaptationSetIdx(0), representationIndex(0), profileChanged(true),
             adaptationSetId(0), fragmentDescriptor(), context(ctx), initialization(""),
             mDownloadedFragment(), discontinuity(false), mSkipSegmentOnError(true),
-            downloadedDuration(0)
-	   , scaledPTO(0)
+            downloadedDuration(0)//,mCMCDNetworkMetrics{-1,-1,-1}
+	   , scaledPTO(0),pCMCDMetrics(NULL)
 	   , failAdjacentSegment(false),httpErrorCode(0)
     {
         memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
         fragmentDescriptor.bUseMatchingBaseUrl = ISCONFIGSET(eAAMPConfig_MatchBaseUrl);
+	if(ISCONFIGSET(eAAMPConfig_EnableCMCD))
+	{
+		if(mediaType == eMEDIATYPE_VIDEO)
+			pCMCDMetrics = new VideoCMCDHeaders();
+		else if(mediaType == eMEDIATYPE_AUDIO)
+			pCMCDMetrics = new AudioCMCDHeaders();
+		else if(mediaType == eMEDIATYPE_SUBTITLE)
+			pCMCDMetrics = new SubtitleCMCDHeaders();
+	}
     }
 
     /**
@@ -64,6 +73,7 @@ public:
     ~MediaStreamContext()
     {
         aamp_Free(&mDownloadedFragment);
+	delete pCMCDMetrics;
     }
 
     /**
@@ -143,6 +153,7 @@ public:
     bool IsAtEndOfTrack();
 
     MediaType mediaType;
+    CMCDHeaders *pCMCDMetrics;/**<pointer object to class CMCDHeaders*/
     struct FragmentDescriptor fragmentDescriptor;
     const IAdaptationSet *adaptationSet;
     const IRepresentation *representation;

@@ -90,10 +90,10 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
 
         if(!bReadfromcache)
         {
-            ret = aamp->LoadFragment(bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
+            ret = aamp->LoadFragment(pCMCDMetrics,bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
                     range, actualType, &httpErrorCode, &downloadTime, &bitrate, &iFogError, fragmentDurationSeconds );
 			if ( initSegment && ret )
-            aamp->getAampCacheHandler()->InsertToInitFragCache ( fragmentUrl, &cachedFragment->fragment, effectiveUrl, actualType);
+            			aamp->getAampCacheHandler()->InsertToInitFragCache ( fragmentUrl, &cachedFragment->fragment, effectiveUrl, actualType);
         }
 
         if (iCurrentRate != AAMP_NORMAL_PLAY_RATE)

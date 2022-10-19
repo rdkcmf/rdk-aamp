@@ -34,6 +34,13 @@
 
 #include <glib.h>
 #include "subtitleParser.h"
+#include <CMCDHeaders.h>
+#include <AudioCMCDHeaders.h>
+#include <VideoCMCDHeaders.h>
+#include <ManifestCMCDHeaders.h>
+#include <SubtitleCMCDHeaders.h>
+
+
 
 /**
  * @brief Media Track Types
