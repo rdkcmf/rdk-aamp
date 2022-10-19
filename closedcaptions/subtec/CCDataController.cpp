@@ -41,11 +41,8 @@ namespace
     {
         gsw_CcAttributes attribs;
         attribs.charBgColor.rgb = GSW_CC_EMBEDDED_COLOR;
-	attribs.charBgColor.name = "";
         attribs.charFgColor.rgb = GSW_CC_EMBEDDED_COLOR;
-	attribs.charFgColor.name = "";
         attribs.winColor.rgb = GSW_CC_EMBEDDED_COLOR;
-	attribs.winColor.name = "";
         attribs.charBgOpacity = GSW_CC_OPACITY_EMBEDDED;
         attribs.charFgOpacity = GSW_CC_OPACITY_EMBEDDED;
         attribs.winOpacity = GSW_CC_OPACITY_EMBEDDED;
@@ -57,10 +54,8 @@ namespace
         attribs.fontUnderline = GSW_CC_TEXT_STYLE_EMBEDDED_TEXT;
         attribs.borderType = GSW_CC_BORDER_TYPE_EMBEDDED;
         attribs.borderColor.rgb = GSW_CC_EMBEDDED_COLOR;
-	attribs.borderColor.name = "";
         attribs.edgeType = GSW_CC_EDGE_TYPE_EMBEDDED;
         attribs.edgeColor.rgb = GSW_CC_EMBEDDED_COLOR;
-	attribs.edgeColor.name = "";
         return attribs;
     }
 }
