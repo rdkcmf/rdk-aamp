@@ -325,6 +325,7 @@ bool AampJsonObject::get(const std::string& name, std::vector<uint8_t>& values, 
 				{
 					values.insert(values.begin(), decodedResponse, decodedResponse + decodedSize);
 					res = true;
+					free((void *)decodedResponse);
 				}
 			}
 			break;
@@ -337,6 +338,7 @@ bool AampJsonObject::get(const std::string& name, std::vector<uint8_t>& values, 
 				{
 					values.insert(values.begin(), decodedResponse, decodedResponse + decodedSize);
 					res = true;
+					free((void *)decodedResponse);
 				}
 			}
 			break;
