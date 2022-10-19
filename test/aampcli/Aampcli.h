@@ -43,6 +43,7 @@
 #include "AampcliGet.h"
 #include "AampcliSet.h"
 #include "AampcliShader.h"
+#include "AampcliHarvestor.h"
 
 #ifdef __APPLE__
 #import <cocoa_window.h>

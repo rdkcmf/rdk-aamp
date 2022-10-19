@@ -304,6 +304,8 @@ int main(int argc, char **argv)
 	AampLogManager::disableLogRedirection = true;
 	ABRManager mAbrManager;
 
+	signal(SIGINT, Harvestor::harvestTerminateHandler);
+	
 	/* Set log directory path for AAMP and ABR Manager */
 	mLogManager.setLogAndCfgDirectory(driveName);
 	mAbrManager.setLogDirectory(driveName);

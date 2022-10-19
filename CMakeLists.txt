@@ -90,7 +90,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 else()
     set(USE_MAC_FOR_RANDOM_GEN "-DUSE_MAC_FOR_RANDOM_GEN")
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-
+    
 if(CMAKE_RDK_CC_ENABLED)
 	pkg_check_modules(DIRECTFB REQUIRED directfb)
 endif()
@@ -230,6 +230,7 @@ set(AAMP_CLI_HEADERS test/aampcli/Aampcli.h
 		     test/aampcli/AampcliSet.h
 		     test/aampcli/AampcliVirtualChannelMap.h
 		     test/aampcli/AampcliShader.h
+		     test/aampcli/AampcliHarvestor.h
 		     ${AAMP_OS_SOURCES})
 set(AAMP_CLI_SOURCES test/aampcli/Aampcli.cpp 
 		     test/aampcli/AampcliPlaybackCommand.cpp
@@ -238,6 +239,7 @@ set(AAMP_CLI_SOURCES test/aampcli/Aampcli.cpp
 		     test/aampcli/AampcliSet.cpp
 		     test/aampcli/AampcliVirtualChannelMap.cpp
 		     test/aampcli/AampcliShader.cpp
+		     test/aampcli/AampcliHarvestor.cpp
 		     ${AAMP_OS_SOURCES})
 
 

@@ -410,6 +410,7 @@ void PlaybackCommand::showHelp(void)
 	printf("exit                  // Exit from application\n");
 	printf("help                  // Show this list again\n");
 	printf("progress              // Enable/disable Progress event logging\n");
+	printf("harvest <Configs>     // To harvest assets\n");
 	printf("******************************************************************************************\n");
 }
 
