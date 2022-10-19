@@ -759,6 +759,24 @@ EmsgBox* EmsgBox::constructEmsgBox(uint32_t sz, uint8_t *ptr)
 				retBox->setValue(schemeIdValue);
 			}
 		}
+		else
+		{
+			if(schemeIdValue)
+			{
+				free(schemeIdValue);
+			}
+		}
+	}
+	else 
+	{
+		if (schemeId)
+		{
+			free(schemeId);
+		}
+		if(schemeIdValue)
+		{
+			free(schemeIdValue);
+		}
 	}
 	return retBox;
 }
