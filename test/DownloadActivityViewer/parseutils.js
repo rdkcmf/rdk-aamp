@@ -302,7 +302,15 @@ function ParseHttpRequestEnd( line )
 		}
 		catch( err )
 		{
-			var param = json.split(",");
+
+			// Parse the logs having comma in url
+			var parseUrl = json.split(",http");
+
+			var param = parseUrl[0].split(",");
+
+			//insert url to param list
+			param.push("http" + parseUrl[1]);
+
 			var fields = "mediaType,type,responseCode,curlTime,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSz,ulSz";
 			if( param[0] != parseInt(param[0]) )
 			{

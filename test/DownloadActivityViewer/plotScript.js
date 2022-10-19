@@ -25,8 +25,6 @@ window.onload = function() {
 
 	var timestamp_min;
 	var timestamp_max;
-	var chunk_timestamp_min;
-	var chunk_timestamp_max;
 	var bitrate_max;
 	var allbitrates;
 
@@ -40,14 +38,6 @@ window.onload = function() {
 			if( allbitrates[i] == bitrate ) return i*ROWHEIGHT*2 + 64;
 		}
 		return 0;
-	}
-			
-	
-	function AdjustTimeline( gTimeStampUTC )
-	{
-	   
-		if (chunk_timestamp_min == null || gTimeStampUTC < chunk_timestamp_min) chunk_timestamp_min = gTimeStampUTC;
-		if (chunk_timestamp_max == null || gTimeStampUTC > chunk_timestamp_max) chunk_timestamp_max = gTimeStampUTC;
 	}
 
 	function AddBitrate( newBitrate )
@@ -108,7 +98,7 @@ function MapMediaColor(mediaType)
 		timestamp_min = null;
 		timestamp_max = null;
 		bitrate_max = null;
-		allbitrates = ["iframe","audio","subtitle","manifest"];
+		allbitrates = ["iframe","audio","subtitle","manifest","aud-playlist","vid-playlist"];
 		var marker = [];
 
 		if (!sessionClicked) {
@@ -165,9 +155,18 @@ function MapMediaColor(mediaType)
 				obj.utcstart = doneUtc-obj.durationms;
 				if (timestamp_min == null || obj.utcstart < timestamp_min) timestamp_min = obj.utcstart;
 				if (timestamp_max == null || doneUtc > timestamp_max) timestamp_max = doneUtc;
-				if( obj.type==eMEDIATYPE_PLAYLIST_VIDEO || obj.type==eMEDIATYPE_VIDEO || obj.type == eMEDIATYPE_INIT_VIDEO )
+				if( obj.type==eMEDIATYPE_PLAYLIST_VIDEO )
+				{
+					obj.bitrate = "vid-playlist";
+				}
+				else if( obj.type==eMEDIATYPE_VIDEO || obj.type == eMEDIATYPE_INIT_VIDEO )
 				{
 					obj.bitrate = httpRequestEnd.br;
+					if( !obj.bitrate )
+					{
+						console.log( "unk video segment bitrate" );
+						obj.bitrate = 0;
+					}
 					AddBitrate( parseInt(obj.bitrate) );
 				}
 				else if( obj.type == eMEDIATYPE_IFRAME || obj.type == eMEDIATYPE_INIT_IFRAME )
@@ -186,19 +185,22 @@ function MapMediaColor(mediaType)
 				{
 					obj.bitrate = "manifest";
 				}
+				else if( obj.type == eMEDIATYPE_PLAYLIST_AUDIO )
+				{
+					obj.bitrate = "aud-playlist";
+				}
+				else
+				{
+					console.log( "UNK TYPE!" );
+				}
 				data.push(obj);
 			} else {
 				// parse chunk data
 				var chunkDetails = ParseFragmentChunk(line);
 				if( chunkDetails ) {
-					// Parse log time stamp
-
-					var doneUtcTime = ParseReceiverLogTimestamp(line);
-					chunkDetails.xPos = time2x(doneUtcTime);
+					chunkDetails.injectTime = ParseReceiverLogTimestamp(line);
 					chunks.push(chunkDetails);
-					AdjustTimeline( doneUtcTime );
 				}
-
 			}
 		} // next line
 		allbitrates.sort( function(a,b){return b-a;} );
@@ -268,10 +270,14 @@ function MapMediaColor(mediaType)
 			data[i].x = time2x(t0);
 			data[i].w = time2x(t1) - data[i].x;
 			var bitrate = data[i].bitrate;
+			if( bitrate=="audio" )
+			{
+				console.log( "download t0=" + Math.round(data[i].x) + ".." + Math.round(data[i].w + data[i].x) );
+			}
 			data[i].y = bitrate2y(bitrate);
 		}
 
-		// adjust bar placement to avoid overlap w/ parallel downloads
+		// adjust bar placement to avoid overlap w/ parallel downloads - needed?
 		for (;;) {
 			var bump = false;
 			var pad = 0; // +16 used to include labels poking out past bars as consideration for overlap
@@ -294,7 +300,7 @@ function MapMediaColor(mediaType)
 
 		for (var i = 0; i < data.length; i++) {
 			// map colors based on download type and success/failure
-			if (data[i].error != "HTTP200(OK)" ) {
+			if (data[i].error != "HTTP200(OK)" && data[i].error != "HTTP206" ) {
 				color = '#ff0000';
 			}
 			else
@@ -316,7 +322,7 @@ function MapMediaColor(mediaType)
 		}
 
 		for (var i = 0; i < chunks.length; i++) {
-			// Draw vertical dotted line to show chunk injection
+			// draw vertical dotted lines to show chunk injection
 			ctx.beginPath();
 			ctx.lineWidth = "2";
 			ctx.strokeStyle = "#000000";
@@ -324,8 +330,13 @@ function MapMediaColor(mediaType)
 
 			// find chunk position using bitrate
 			ypos = bitrate2y(chunks[i].bitrate);
-			ctx.moveTo(chunks[i].xPos , ypos - (ROWHEIGHT/2)); // starting point of line
-			ctx.lineTo(chunks[i].xPos , ypos + (ROWHEIGHT/2)); // end point of line
+			var xpos = time2x(chunks[i].injectTime);
+			if( chunks[i].bitrate=="audio" )
+			{
+				console.log( "inject=" + Math.round(xpos) );
+			}
+			ctx.moveTo(xpos , ypos - (ROWHEIGHT/2)); // starting point of line
+			ctx.lineTo(xpos , ypos + (ROWHEIGHT/2)); // end point of line
 			ctx.stroke();
 			ctx.closePath();
 		
