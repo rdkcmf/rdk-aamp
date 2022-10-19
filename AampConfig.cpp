@@ -499,7 +499,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableCurlStore].value		= true;
 	bAampCfgValue[eAAMPConfig_RuntimeDRMConfig].value			=	false;
 	bAampCfgValue[eAAMPConfig_EnablePublishingMuxedAudio].value		=	false;
-	bAampCfgValue[eAAMPConfig_EnableCMCD].value				=	false;
+	bAampCfgValue[eAAMPConfig_EnableCMCD].value				=	true;
 	bAampCfgValue[eAAMPConfig_EnableSlowMotion].value			=	true;
 	bAampCfgValue[eAAMPConfig_EnableSCTE35PresentationTime].value			=	false;
 	bAampCfgValue[eAAMPConfig_IgnoreAppLiveOffset].value 			=	false;

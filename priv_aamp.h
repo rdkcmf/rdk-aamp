@@ -57,7 +57,6 @@
 #include "AampRfc.h"
 #include "AampEventManager.h"
 #include <HybridABRManager.h>
-
 static const char *mMediaFormatName[] =
 {
     "HLS","DASH","PROGRESSIVE","HLS_MP4","OTA","HDMI_IN","COMPOSITE_IN","SMOOTH_STREAMING","UNKNOWN"
@@ -1276,9 +1275,17 @@ public:
 	 * @param[in] curlInstance - Curl instance to be used
 	 * @param[in] resetBuffer - Flag to reset the out buffer
 	 * @param[in] fileType - File type
+	 * @param[in] CMCDMetrics - pointer to CMCDNetwork metrics
 	 * @return void
 	 */
-	bool GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long *http_error = NULL, double *downloadTime = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL,  int * fogError = NULL, double fragmentDurationSec = 0);
+	bool GetFile(std::string remoteUrl, struct GrowableBuffer *buffer, std::string& effectiveUrl, long *http_error = NULL, double *downloadTime = NULL, const char *range = NULL,unsigned int curlInstance = 0, bool resetBuffer = true,MediaType fileType = eMEDIATYPE_DEFAULT, long *bitrate = NULL,  int * fogError = NULL, double fragmentDurationSec = 0,class CMCDHeaders *pCMCDMetrics = NULL);
+
+	/**
+	 * @fn getUUID
+	 *
+	 * @param[out] string - TraceUUID
+	 */
+	const std::string & getUUID() const { return mTraceUUID;}
 
 	/**
 	 * @fn GetOnVideoEndSessionStatData
@@ -1332,9 +1339,10 @@ public:
 	 * @param[in] fileType - File type
 	 * @param[out] http_code - HTTP error code
 	 * @param[out] fogError - Error from FOG
+	 * @param[in] CMCDMetrics - pointer to CMCDNetwork metrics
 	 * @return void
 	 */
-	bool LoadFragment(ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, double * downloadTime = NULL, long *bitrate = NULL, int * fogError = NULL, double fragmentDurationSec = 0);
+	bool LoadFragment(class CMCDHeaders *pCMCDMetrics,ProfilerBucketType bucketType, std::string fragmentUrl, std::string& effectiveUrl, struct GrowableBuffer *buffer, unsigned int curlInstance = 0, const char *range = NULL, MediaType fileType = eMEDIATYPE_MANIFEST, long * http_code = NULL, double * downloadTime = NULL, long *bitrate = NULL, int * fogError = NULL, double fragmentDurationSec = 0);
 
 	/**
 	 * @fn PushFragment
@@ -2230,13 +2238,14 @@ public:
 
 
 	/**
-	 *   @fn BuildCMCDCustomHeaders
+	 *   @fn CollectCMCDCustomHeaders
 	 *   @brief Collect and store CMCD Headers related data
 	 *
 	 *   @param[in] fileType - Type of content.
+	 *   @param[in] pCMCDMetrics - pointer to CMCDHeaders.
 	 *   @return void
 	 */
-	void BuildCMCDCustomHeaders(MediaType fileType,std::unordered_map<std::string, std::vector<std::string>> &mCMCDCustomHeaders);
+	void CollectCMCDCustomHeaders(MediaType fileType,class CMCDHeaders *pCMCDMetrics);
 
 	/**
 	 *   @fn AddCustomHTTPHeader

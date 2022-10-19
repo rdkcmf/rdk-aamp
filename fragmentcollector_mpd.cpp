@@ -318,7 +318,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	,playlistMutex(), mIterPeriodIndex(0), mNumberOfPeriods(0)
 	,mUpperBoundaryPeriod(0), mLowerBoundaryPeriod(0), playlistDownloaderThreadStarted(false)
 	,mUnSupportedDRMFlag(false)
-	,mSubtitleParser()
+	,mSubtitleParser(),pCMCDMetrics(NULL)
 	,mLiveTimeFragmentSync(false)
 {
         FN_TRACE_F_MPD( __FUNCTION__ );
@@ -390,6 +390,10 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	}
 
 	trickplayMode = (rate != AAMP_NORMAL_PLAY_RATE);
+	if(ISCONFIGSET(eAAMPConfig_EnableCMCD))
+	{
+		pCMCDMetrics = new ManifestCMCDHeaders();
+	}
 }
 
 static void GetBitrateInfoFromCustomMpd( const IAdaptationSet *adaptationSet, std::vector<Representation *>& representations );
@@ -5540,7 +5544,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::FetchDashManifest()
 		memset(&manifest, 0, sizeof(manifest));
 		aamp->profiler.ProfileBegin(PROFILE_BUCKET_MANIFEST);
 		aamp->SetCurlTimeout(aamp->mManifestTimeoutMs,eCURLINSTANCE_VIDEO);
-		gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_VIDEO, true, eMEDIATYPE_MANIFEST);
+		gotManifest = aamp->GetFile(manifestUrl, &manifest, manifestUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_VIDEO, true, eMEDIATYPE_MANIFEST,NULL,NULL,0,pCMCDMetrics);
 		aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,eCURLINSTANCE_VIDEO);
 		//update videoend info
 		updateVideoEndMetrics = true;
@@ -10118,6 +10122,7 @@ StreamAbstractionAAMP_MPD::~StreamAbstractionAAMP_MPD()
 	memset(aamp->GetLLDashServiceData(),0x00,sizeof(AampLLDashServiceData));
 	aamp->SetLowLatencyServiceConfigured(false);
 	aamp->SyncEnd();
+	delete pCMCDMetrics;
 }
 
 /**
