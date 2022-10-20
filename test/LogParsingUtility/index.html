@@ -73,7 +73,12 @@ function strip(firstValue)
 	function ParseRaw()
 	{
 		var elem = document.getElementById("raw");
-		var value = elem.value.split(",");
+
+		// Parse the logs having comma in url
+		var parseUrl = elem.value.split(",http");
+		var value = parseUrl[0].split(",");
+		//insert url to param list
+		value.push("http" + parseUrl[1]);
 		var fields = "";
 		if( value[0].indexOf("IP_EX_TUNETIME")>=0 )
 		{
