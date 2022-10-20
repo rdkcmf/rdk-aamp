@@ -1,0 +1,19 @@
+Source: COMCAST
+License: BSD-2-Clause
+Upstream-Status: Pending
+From: anthornt@synamedia.com
+Date: Mon, 03 Oct 2022 14:47:18 +0000
+Signed-off-by: anthornt@synamedia.com
+Subject: [AAMP][Simulator] support for UVE-JS APIs from HTML_JavaScript test apps running on desktop
+diff --git a/Source/WebKit/webkitglib-symbols.map b/Source/WebKit/webkitglib-symbols.map
+index 198ba7f466..1a0079fcc6 100644
+--- a/Source/WebKit/webkitglib-symbols.map
++++ b/Source/WebKit/webkitglib-symbols.map
+@@ -2,6 +2,7 @@
+ global:
+   jsc_*;
+   webkit_*;
++  WK*;
+   extern "C++" {
+     "bmalloc::vmPageSize()::cached";
+     "WebKit::NetworkProcessMain(int, char**)";
