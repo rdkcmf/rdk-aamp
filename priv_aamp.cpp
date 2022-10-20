@@ -9483,6 +9483,7 @@ std::string PrivateInstanceAAMP::GetAvailableAudioTracks(bool allTrack)
 					{
 						cJSON_AddStringToObject(item, "Type", iter->mType.c_str());
 					}
+					cJSON_AddBoolToObject(item, "availability", iter->isAvailable);
 					if (!iter->accessibilityItem.getSchemeId().empty())
 					{
 						cJSON *accessibility = cJSON_AddObjectToObject(item, "accessibility");
@@ -9587,6 +9588,7 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks(bool allTrack)
 					{
 						cJSON_AddStringToObject(item, "codec", iter->codec.c_str());
 					}
+					cJSON_AddBoolToObject(item, "availability", iter->isAvailable);
 					if (!iter->accessibilityItem.getSchemeId().empty())
 					{
 						cJSON *accessibility = cJSON_AddObjectToObject(item, "accessibility");
