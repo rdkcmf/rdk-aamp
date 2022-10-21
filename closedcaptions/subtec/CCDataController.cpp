@@ -40,6 +40,7 @@ namespace
     gsw_CcAttributes createDefaultAttributes()
     {
         gsw_CcAttributes attribs;
+	memset(&attribs, 0, sizeof(struct gsw_CcAttributes));
         attribs.charBgColor.rgb = GSW_CC_EMBEDDED_COLOR;
         attribs.charFgColor.rgb = GSW_CC_EMBEDDED_COLOR;
         attribs.winColor.rgb = GSW_CC_EMBEDDED_COLOR;
