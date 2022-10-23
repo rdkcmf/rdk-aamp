@@ -166,12 +166,12 @@ Box* Box::constructBox(uint8_t *hdr, uint32_t maxSz, AampLogManager *mLogObj, bo
 	uint8_t type[5];
 	if(maxSz < 4)
 	{
-		AAMPLOG_WARN("Box data < 4 bytes. Can't determine Size & Type");
+		AAMPLOG_TRACE("Box data < 4 bytes. Can't determine Size & Type");
         	return new Box(maxSz, (const char *)"UKWN");
     	}
     	else if(maxSz >= 4 && maxSz < 8)
     	{
-		AAMPLOG_WARN("Box Size between >4 but <8 bytes. Can't determine Type");
+		AAMPLOG_TRACE("Box Size between >4 but <8 bytes. Can't determine Type");
 		//size = READ_U32(hdr);
 		return new Box(maxSz, (const char *)"UKWN");
     	}
