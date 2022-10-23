@@ -1887,9 +1887,10 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			{
 				fragmentRequestTime = pMediaStreamContext->fragmentDescriptor.Time + fragmentDuration;
 			}
-			AAMPLOG_INFO("fDesc.Time= %lf utcTime=%lf delta=%lf CTSeconds=%lf,FreqTime=%lf",pMediaStreamContext->fragmentDescriptor.Time,
-				mServerUtcTime,mDeltaTime,currentTimeSeconds,fragmentRequestTime);
-			
+
+			AAMPLOG_TRACE("fDesc.Time= %lf utcTime=%lf delta=%lf CTSeconds=%lf,FreqTime=%lf",pMediaStreamContext->fragmentDescriptor.Time,
+					mServerUtcTime,mDeltaTime,currentTimeSeconds,fragmentRequestTime);
+
 			bool bProcessFrgment = true;
 			if(!mIsLiveStream)
 			{
@@ -1925,10 +1926,11 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				int sleepTime = mMinUpdateDurationMs;
 				sleepTime = (sleepTime > MAX_DELAY_BETWEEN_MPD_UPDATE_MS) ? MAX_DELAY_BETWEEN_MPD_UPDATE_MS : sleepTime;
 				sleepTime = (sleepTime < 200) ? 200 : sleepTime;
-				AAMPLOG_INFO("With ServerUTCTime. Next fragment Not Available yet: fragmentDescriptor.Time %f fragmentDuration:%f currentTimeSeconds %f Server  UTCTime %f sleepTime %d ", pMediaStreamContext->fragmentDescriptor.Time, fragmentDuration, currentTimeSeconds, mServerUtcTime, sleepTime);
+
+				AAMPLOG_TRACE("With ServerUTCTime. Next fragment Not Available yet: fragmentDescriptor.Time %f fragmentDuration:%f currentTimeSeconds %f Server  UTCTime %f sleepTime %d ", pMediaStreamContext->fragmentDescriptor.Time, fragmentDuration, currentTimeSeconds, mServerUtcTime, sleepTime);	
 				aamp->InterruptableMsSleep(sleepTime);
 				retval = false;
-            		}
+            }
 			else if(mIsLiveStream && !mHasServerUtcTime && 
 					(isLowLatencyMode?(fragmentRequestTime>=currentTimeSeconds):(fragmentRequestTime >= (currentTimeSeconds-mPresentationOffsetDelay))))
 			{
@@ -1936,7 +1938,8 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				int sleepTime = mMinUpdateDurationMs;
 				sleepTime = (sleepTime > MAX_DELAY_BETWEEN_MPD_UPDATE_MS) ? MAX_DELAY_BETWEEN_MPD_UPDATE_MS : sleepTime;
 				sleepTime = (sleepTime < 200) ? 200 : sleepTime;
-				AAMPLOG_INFO("Without ServerUTCTime. Next fragment Not Available yet: fragmentDescriptor.Time %f fragmentDuration:%f currentTimeSeconds %f Server  UTCTime %f sleepTime %d ", pMediaStreamContext->fragmentDescriptor.Time, fragmentDuration, currentTimeSeconds, mServerUtcTime, sleepTime);
+
+				AAMPLOG_TRACE("Without ServerUTCTime. Next fragment Not Available yet: fragmentDescriptor.Time %f fragmentDuration:%f currentTimeSeconds %f Server  UTCTime %f sleepTime %d ", pMediaStreamContext->fragmentDescriptor.Time, fragmentDuration, currentTimeSeconds, mServerUtcTime, sleepTime);	
 				aamp->InterruptableMsSleep(sleepTime);
 				retval = false;
 			}
@@ -5738,7 +5741,7 @@ bool  StreamAbstractionAAMP_MPD::FindServerUTCTime(Node* root)
 							mServerUtcTime = ISO8601DateTimeToUTCSeconds(data.ptr);
 							mDeltaTime =  mServerUtcTime - currentTime;
 							aamp_AppendNulTerminator( &data ); // DELIA-57728
-							AAMPLOG_INFO("Time sync delta : %lf (%s)", mDeltaTime, data.ptr);
+							AAMPLOG_TRACE("Time sync delta : %lf (%s)", mDeltaTime, data.ptr);
 							hasServerUtcTime = true;
 						}
 						aamp_Free(&data);
@@ -12040,7 +12043,7 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 					assert(pAampLLDashServiceData->maxLatency !=0 );
 					assert(pAampLLDashServiceData->maxLatency >= pAampLLDashServiceData->targetLatency);
 
-					AAMPLOG_INFO("islivepoint=%d mLiveEndPosition=%lf currentPos=%lf mCurrentPeriodIdx=%d",aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint(),mLiveEndPosition * 1000,(double)aamp->GetPositionMs(), mCurrentPeriodIdx);
+					AAMPLOG_TRACE("islivepoint=%d mLiveEndPosition=%lf currentPos=%lf mCurrentPeriodIdx=%d",aamp->mpStreamAbstractionAAMP->IsStreamerAtLivePoint(),mLiveEndPosition * 1000,(double)aamp->GetPositionMs(), mCurrentPeriodIdx);
 
 					long currentLatency = 0;
 					currentLatency = (mLiveEndPosition * 1000 - (double)aamp->GetPositionMs());
