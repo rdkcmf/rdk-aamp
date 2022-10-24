@@ -690,9 +690,9 @@ bool MediaTrack::ProcessFragmentChunk()
 		AAMPLOG_TRACE("[%s] Ignore NULL Chunk - cachedFragmentChunk->fragmentChunk.len %d", name, cachedFragmentChunk->fragmentChunk.len);
 		return false;
 	}
-	if(cachedFragmentChunk->downloadStartTime != prevDownloadStartTime)
+	if((cachedFragmentChunk->downloadStartTime != prevDownloadStartTime) && (unparsedBufferChunk.ptr != NULL))
 	{
-		AAMPLOG_INFO("[%s] clean up curl chunk buffer, since  prevDownloadStartTime[%lld] != currentdownloadtime[%lld]", name,prevDownloadStartTime,cachedFragmentChunk->downloadStartTime);
+		AAMPLOG_WARN("[%s] clean up curl chunk buffer, since  prevDownloadStartTime[%lld] != currentdownloadtime[%lld]", name,prevDownloadStartTime,cachedFragmentChunk->downloadStartTime);
 		aamp_Free(&unparsedBufferChunk);
 		memset(&unparsedBufferChunk,0x00,sizeof(GrowableBuffer));
 
@@ -754,7 +754,7 @@ bool MediaTrack::ProcessFragmentChunk()
 	isobuf.getMdatBoxCount(mdatCount);
 	if(!mdatCount)
 	{
-		 if( noMDATCount > 50 )
+		 if( noMDATCount > MAX_MDAT_NOT_FOUND_COUNT )
 		 {
 			 AAMPLOG_INFO("[%s] noMDATCount=%d ChunkIndex=%d totchunklen=%d", name,noMDATCount, fragmentChunkIdxToInject,unParsedBufferSize);
 			 noMDATCount=0;
@@ -764,7 +764,7 @@ bool MediaTrack::ProcessFragmentChunk()
 	}
 	noMDATCount = 0;
 	totalMdatCount += mdatCount;
-	AAMPLOG_INFO("[%s] MDAT count found: %d, Total Found: %d", name,  mdatCount, totalMdatCount );
+	AAMPLOG_TRACE("[%s] MDAT count found: %d, Total Found: %d", name,  mdatCount, totalMdatCount );
 
 	pBoxes = isobuf.getParsedBoxes();
 	parsedBoxCount = pBoxes->size();
@@ -773,7 +773,6 @@ bool MediaTrack::ProcessFragmentChunk()
 	if(pBox)
 	{
 		
-		AAMPLOG_INFO("[%s] MDAT Chunk Found - Actual Parsed Box Count: %d", name,parsedBoxCount);
 		parsedBoxCount--;
 
 		AAMPLOG_TRACE("[%s] MDAT Chunk Found - Actual Parsed Box Count: %d", name,parsedBoxCount);
@@ -3330,7 +3329,10 @@ void MediaTrack::PlaylistDownloader()
 				{
 					if(aamp->GetLLDashServiceData()->lowLatencyMode)
 					{
-						AAMPLOG_INFO("LL-DASH Mode Enabled");
+						
+						
+						
+						
 						if( minUpdateDuration > 0 &&  minUpdateDuration > availTimeOffMs )
 						{
 							liveRefreshTimeOutInMs = (int)(minUpdateDuration-availTimeOffMs);
@@ -3566,15 +3568,12 @@ int MediaTrack::WaitTimeBasedOnBufferAvailable()
 						// minimum of 500 mSec needed to avoid too frequent download.
 					minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
 				}
-				AAMPLOG_INFO("In LL-Mode minDelayBetweenPlaylistUpdates=%d,availTimeOffMs=%ld,minUpdateDuration=%ld,maxSegDuration=%ld",
-							minDelayBetweenPlaylistUpdates,availTimeOffMs,minUpdateDuration,maxSegDuration);
 			}
 			else
 			{
 				// minimum of 500 mSec needed to avoid too frequent download.
 				minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
 			}
-			AAMPLOG_INFO("In LL-Mode minDelayBetweenPlaylistUpdates=%d",minDelayBetweenPlaylistUpdates);
 		}
 
 		AAMPLOG_INFO("aamp playlist end refresh bufferMs(%ld) delay(%d) delta(%d) End(%lld) PlayPosition(%lld)",
