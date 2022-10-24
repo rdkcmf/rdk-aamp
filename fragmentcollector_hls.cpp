@@ -73,7 +73,6 @@
 #ifdef AAMP_CC_ENABLED
 #include "AampCCManager.h"
 #endif
-
 //#define TRACE // compile-time optional noisy debug output
 
 static const int DEFAULT_STREAM_WIDTH = 720;
@@ -2500,8 +2499,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 	long long commonPlayPosition = nextMediaSequenceNumber - 1; 
 	double prevSecondsBeforePlayPoint; 
 	const char *initFragmentPtr = NULL;
-	std::string discStr;
-	
+
 	if(IsRefresh && !UseProgramDateTimeIfAvailable())
 	{
 		prevSecondsBeforePlayPoint = GetCompletionTimeForFragment(this, commonPlayPosition); 
@@ -2549,9 +2547,6 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				{
 					if (discontinuity)
 					{
-						char str[32];
-						snprintf(str,32,"[%d]-[%.3f],",indexCount,totalDuration);
-						discStr.append(str);
 						DiscontinuityIndexNode discontinuityIndexNode;
 						discontinuityIndexNode.fragmentIdx = indexCount;
 						discontinuityIndexNode.position = totalDuration;
@@ -2901,22 +2896,12 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 					 name, prevProgramDateTime, mProgramDateTime, aamp->culledSeconds, (aamp->culledSeconds+culledSec),mCulledSeconds);
 			}
 			else
-			{			
+			{
 				AAMPLOG_INFO("(%s) Failed to read ProgramDateTime:(%f) Retained last PDT (%f) TrackCulled:%f",
 					 name, mProgramDateTime, prevProgramDateTime, mCulledSeconds);
 				mProgramDateTime = prevProgramDateTime;
 			}
 		}
-
-		if (culledSec != 0 && discStr.size())
-		{
-			AAMPLOG_WARN("DISCONTINUITY in track[%d]%s",type,discStr.c_str());
-		}
-
-	}
-	else  if(discStr.size())
-	{
-		AAMPLOG_WARN("DISCONTINUITY in track[%d]%s",type,discStr.c_str());
 	}
 }
 
