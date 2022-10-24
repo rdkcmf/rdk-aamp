@@ -286,6 +286,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	,{"enableCMCD", eAAMPConfig_EnableCMCD, true, -1, -1}
 	,{"SlowMotion", eAAMPConfig_EnableSlowMotion, true, -1, -1}
 	,{"enableSCTE35PresentationTime", eAAMPConfig_EnableSCTE35PresentationTime, false, -1, -1}
+	,{"jsinfo",eAAMPConfig_JsInfoLogging,false, -1, -1}
 };
 /////////////////// Public Functions /////////////////////////////////////
 /**
@@ -480,6 +481,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableCMCD].value				=	false;
 	bAampCfgValue[eAAMPConfig_EnableSlowMotion].value			=	true;
 	bAampCfgValue[eAAMPConfig_EnableSCTE35PresentationTime].value			=	false;
+	bAampCfgValue[eAAMPConfig_JsInfoLogging].value                          = 	false;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;

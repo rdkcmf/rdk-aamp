@@ -58,8 +58,7 @@ static std::map<std::string, std::string> g_PageHttpHeaders;
 struct AAMP_JSController : public PrivAAMPStruct_JS
 {
 	AAMP_JSController() : _aampSessionID(0), _licenseServerUrl()
-	{
-	}
+	{}
 	int _aampSessionID;
 	std::string _licenseServerUrl;
 };
@@ -77,7 +76,7 @@ AAMP_JSController* _globalController = NULL;
  */
 void setAAMPPlayerInstance(PlayerInstanceAAMP *aamp, int sessionID)
 {
-	LOG("[AAMP_JSController] setAAMPPlayerInstance (%p, id=%d)", aamp, sessionID);
+        LOG_TRACE("setAAMPPlayerInstance (%p, id=%d)", aamp, sessionID);
 	if (_globalController == NULL)
 	{
 		return;
@@ -142,7 +141,8 @@ void unsetAAMPPlayerInstance(PlayerInstanceAAMP *aamp)
  */
 static JSValueRef AAMPJSC_getProperty_closedCaptionEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JSController] %s()", __FUNCTION__);
+	
+        LOG_TRACE("Enter");
 	AAMP_JSController* obj = (AAMP_JSController*) JSObjectGetPrivate(thisObject);
 
 	if (obj == NULL)
@@ -151,7 +151,7 @@ static JSValueRef AAMPJSC_getProperty_closedCaptionEnabled(JSContextRef context,
 		return JSValueMakeUndefined(context);
 	}
 
-	ERROR("[AAMP_JSController] %s() AAMP_JSController.closedCaptionEnabled has been deprecated!!", __FUNCTION__);
+        LOG_ERROR_EX("AAMP_JSController.closedCaptionEnabled has been deprecated!!");
 	return JSValueMakeBoolean(context, false);
 }
 
@@ -167,7 +167,8 @@ static JSValueRef AAMPJSC_getProperty_closedCaptionEnabled(JSContextRef context,
  */
 static bool AAMPJSC_setProperty_closedCaptionEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
-	LOG("[AAMP_JSController] %s()", __FUNCTION__);
+	
+    	LOG_TRACE("Enter");
 	AAMP_JSController* obj = (AAMP_JSController*) JSObjectGetPrivate(thisObject);
 
 	if (obj == NULL)
@@ -180,7 +181,7 @@ static bool AAMPJSC_setProperty_closedCaptionEnabled(JSContextRef context, JSObj
 
 	}
 
-	ERROR("[AAMP_JSController] %s() AAMP_JSController.closedCaptionEnabled has been deprecated!!", __FUNCTION__);
+        LOG_ERROR_EX("AAMP_JSController.closedCaptionEnabled has been deprecated!!");
 	return false;
 }
 
@@ -195,7 +196,9 @@ static bool AAMPJSC_setProperty_closedCaptionEnabled(JSContextRef context, JSObj
  */
 static JSValueRef AAMPJSC_getProperty_aampSessionID(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JSController] %s() ", __FUNCTION__);
+	
+        LOG_TRACE("Enter");
+
 
 	AAMP_JSController *aampObj = (AAMP_JSController *) JSObjectGetPrivate(thisObject);
 
@@ -236,7 +239,7 @@ static const JSStaticValue AAMP_JSController_static_values[] =
  */
 static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JSController] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JSController *aampObj = (AAMP_JSController *)JSObjectGetPrivate(thisObject);
 
 	if (aampObj == NULL)
@@ -253,8 +256,7 @@ static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef fun
 		if ((callbackFunc != NULL) && JSObjectIsFunction(context, callbackFunc))
 		{
 			AAMPEventType eventType = aampPlayer_getEventTypeFromName(type);
-			LOG("%s() eventType='%s', %d", __FUNCTION__, type, eventType);
-
+            		LOG_WARN_EX("eventType='%s', %d", type, eventType);
 			if ((eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 			{
 				AAMP_JSEventListener::AddEventListener(aampObj, eventType, callbackFunc);
@@ -262,7 +264,7 @@ static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef fun
 		}
 		else
 		{
-			ERROR("%s() callbackFunc = %p, JSObjectIsFunction(context, callbackFunc) is NULL", __FUNCTION__, callbackFunc);
+            		LOG_ERROR_EX("callbackFunc = %p, JSObjectIsFunction(context, callbackFunc) is NULL", callbackFunc);
 			char errMsg[512];
 			memset(errMsg, '\0', 512);
 			snprintf(errMsg, 511, "Failed to execute addEventListener() for event %s - parameter 2 is not a function", type);
@@ -291,7 +293,7 @@ static JSValueRef AAMPJSC_addEventListener(JSContextRef context, JSObjectRef fun
  */
 static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JSController] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JSController *aampObj = (AAMP_JSController *)JSObjectGetPrivate(thisObject);
 	JSObjectRef callbackFunc;
 
@@ -309,7 +311,7 @@ static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef 
 		if ((callbackFunc != NULL) && JSObjectIsFunction(context, callbackFunc))
 		{
 			AAMPEventType eventType = aampPlayer_getEventTypeFromName(type);
-			LOG("[AAMP_JS] %s() eventType='%s', %d", __FUNCTION__, type, eventType);
+			LOG_TRACE("eventType='%s', %d",type, eventType);
 
 			if ((eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 			{
@@ -318,7 +320,7 @@ static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef 
 		}
 		else
 		{
-			ERROR("%s() InvalidArgument: callbackObj = %p, JSObjectIsFunction(context, callbackObj) is NULL", __FUNCTION__, callbackFunc);
+            		LOG_ERROR_EX("callbackFunc = %p, JSObjectIsFunction(context, callbackFunc) is NULL", callbackFunc);
 			char errMsg[512];
 			memset(errMsg, '\0', 512);
 			snprintf(errMsg, 511, "Failed to execute removeEventListener() for event %s - parameter 2 is not a function", type);
@@ -347,7 +349,7 @@ static JSValueRef AAMPJSC_removeEventListener(JSContextRef context, JSObjectRef 
  */
 static JSValueRef AAMPJSC_setLicenseServerUrl(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JSController] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JSController *aampObj = (AAMP_JSController *)JSObjectGetPrivate(thisObject);
 
 	if (aampObj == NULL)
@@ -396,7 +398,8 @@ static const JSStaticFunction AAMP_JSController_static_methods[] =
  */
 void AAMP_JSController_finalize(JSObjectRef thisObj)
 {
-	LOG("[AAMP_JSController] AAMP_finalize: object=%p", thisObj);
+
+    	LOG_WARN_EX("AAMP_finalize: object=%p", thisObj);
 	AAMP_JSController *aampObj = (AAMP_JSController*) JSObjectGetPrivate(thisObj);
 
 	if (aampObj == NULL)
@@ -465,7 +468,7 @@ void aamp_SetPageHttpHeaders(const char* headerJson)
 	g_PageHttpHeaders.clear();
 	if(nullptr != headerJson || '\0' != headerJson[0])
 	{
-		INFO("[AAMP_JSController] aamp_SetPageHttpHeaders headerJson=%s", headerJson);
+        	LOG_WARN_EX("aamp_SetPageHttpHeaders headerJson=%s", headerJson);
 		cJSON *parentJsonObj = cJSON_Parse(headerJson);
 		cJSON *jsonObj = nullptr;
 		if(nullptr != parentJsonObj)
@@ -507,7 +510,7 @@ void aamp_SetPageHttpHeaders(const char* headerJson)
  */
 void aamp_ApplyPageHttpHeaders(PlayerInstanceAAMP * aampObject)
 {
-	INFO("[AAMP_JSController] aamp_ApplyPageHttpHeaders aampObject=%p", aampObject);
+        LOG_WARN_EX("aamp_ApplyPageHttpHeaders aampObject=%p", aampObject);
 	if(NULL != aampObject)
 	{
 		aampObject->AddPageHeaders(g_PageHttpHeaders);
@@ -520,8 +523,8 @@ void aamp_ApplyPageHttpHeaders(PlayerInstanceAAMP * aampObject)
  */
 void aamp_LoadJSController(JSGlobalContextRef context)
 {
-	INFO("[AAMP_JSController] aamp_LoadJSController context=%p", context);
 
+    	LOG_WARN_EX("aamp_LoadJSController context=%p", context);
 	AAMP_JSController* aampObj = new AAMP_JSController();
 	aampObj->_ctx = context;
 	aampObj->_aampSessionID = 0;
@@ -552,7 +555,8 @@ void aamp_LoadJSController(JSGlobalContextRef context)
  */
 void aamp_UnloadJSController(JSGlobalContextRef context)
 {
-	INFO("[AAMP_JSController] aamp_UnloadJSController context=%p", context);
+
+    	LOG_WARN_EX("aamp_UnloadJSController context=%p", context);
 
 	aamp_UnloadJS(context);
 	AAMPPlayer_UnloadJS(context);
@@ -581,6 +585,8 @@ void aamp_UnloadJSController(JSGlobalContextRef context)
 	JSObjectDeleteProperty(context, globalObj, str, NULL);
 	JSStringRelease(str);
 
-	LOG("[AAMP_JSController] JSGarbageCollect(%p)", context);
+        LOG_TRACE("JSGarbageCollect(%p)", context);
+
+        
 	JSGarbageCollect(context);
 }
