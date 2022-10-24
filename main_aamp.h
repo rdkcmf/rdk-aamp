@@ -1062,6 +1062,15 @@ public:
 	 *   @return bool - True if live content, false otherwise
 	 */
 	bool IsLive();
+	
+	/**
+	 *   @fn  IsJsInfoLoggingEnabled
+	 *
+	 *   @return bool - True if jsinfo is enabled, false otherwise
+	 */
+	 
+	 bool IsJsInfoLoggingEnabled();
+	
 
 	/**
 	 *   @brief Schedule insertion of ad at given position.
@@ -1258,6 +1267,14 @@ public:
 	 *   @return duration in seconds
 	 */
 	double GetPlaybackDuration(void);
+
+	/**
+	 *  @fn GetId
+	 *
+	 *  @return returns unique id of player,
+	 */
+	int GetId(void);
+
 
 	/**
 	 *   @fn GetState

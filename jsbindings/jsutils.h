@@ -32,23 +32,23 @@
 #include <string.h>
 #include <vector>
 
-#ifndef _DEBUG
-//#define _DEBUG
-#endif
 
-#ifdef _DEBUG
-#define LOG(...)  printf(__VA_ARGS__);printf("\n");fflush(stdout);
-#else
-#define LOG(...)
-#endif
+#define PLAYER_ID_NA		-5
 
-#define INFO(...)  printf(__VA_ARGS__);printf("\n");fflush(stdout);
-#define ERROR(...)  printf(__VA_ARGS__);printf("\n");fflush(stdout);
+/**Defining LOG macros for logging with Playerid in consideration**/
+#define LOG_INFO(AAMP_JS_OBJECT,FORMAT, ...)  if(AAMP_JS_OBJECT && AAMP_JS_OBJECT->bInfoEnabled) {  jsBindingLogprintf(( (NULL != AAMP_JS_OBJECT)? AAMP_JS_OBJECT->iPlayerId : PLAYER_ID_NA  ),"INFO",__FUNCTION__,__LINE__,FORMAT, ##__VA_ARGS__); }
+#define LOG_ERROR(AAMP_JS_OBJECT,FORMAT, ...)   jsBindingLogprintf(( (NULL != AAMP_JS_OBJECT)?AAMP_JS_OBJECT->iPlayerId : PLAYER_ID_NA  ),"ERR",__FUNCTION__,__LINE__,FORMAT, ##__VA_ARGS__)
+#define LOG_WARN(AAMP_JS_OBJECT,FORMAT, ...) jsBindingLogprintf(((NULL != AAMP_JS_OBJECT)?AAMP_JS_OBJECT->iPlayerId : PLAYER_ID_NA  ),"WARN",__FUNCTION__,__LINE__,FORMAT, ##__VA_ARGS__)
+
+/**Defining LOG macros where AAMP-JS object is not relevant**/
+#define LOG_WARN_EX(FORMAT, ...)   jsBindingLogprintf(PLAYER_ID_NA,"WARN",__FUNCTION__,__LINE__,FORMAT, ##__VA_ARGS__)
+#define LOG_ERROR_EX(FORMAT, ...)   jsBindingLogprintf(PLAYER_ID_NA,"ERR",__FUNCTION__,__LINE__,FORMAT, ##__VA_ARGS__)
 
 #ifdef TRACE
-#define TRACELOG(...)  printf(__VA_ARGS__);printf("\n");fflush(stdout);
+#define LOG_TRACE(FORMAT, ...)   jsBindingLogprintf(PLAYER_ID_NA,"TRACE",__FUNCTION__,__LINE__,FORMAT, ##__VA_ARGS__)
+
 #else
-#define TRACELOG(...)
+#define LOG_TRACE(FORMAT, ...)
 #endif
 
 #define EXCEPTION_ERR_MSG_MAX_LEN 1024
@@ -160,5 +160,8 @@ const char* aampPlayer_getNameFromEventType(AAMPEventType type);
  * @retval JSObject of TimedMetadata generated
  */
 JSObjectRef aamp_CreateTimedMetadataJSObject(JSContextRef context, long long timeMS, const char* szName, const char* szContent, const char* id, double durationMS);
+
+
+void jsBindingLogprintf(int playerId,const char* levelstr,const char* functionName, int line,const char *format, ...);
 
 #endif /* __AAMP_JSUTILS_H__ */
