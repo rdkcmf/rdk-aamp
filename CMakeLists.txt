@@ -598,6 +598,8 @@ if(CMAKE_SYSTEMD_JOURNAL)
     message("CMAKE_SYSTEMD_JOURNAL set")
     set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lsystemd")
     set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DUSE_SYSTEMD_JOURNAL_PRINT=1 -DSD_JOURNAL_SUPPRESS_LOCATION=1")
+    set(LIBAAMPJSBINDINGS_DEFINES "${LIBAAMPJSBINDINGS_DEFINES} -DUSE_SYSTEMD_JOURNAL_PRINT=1 -DSD_JOURNAL_SUPPRESS_LOCATION=1")
+
 endif()
 
 if(CMAKE_USE_SECCLIENT)
@@ -615,7 +617,7 @@ if(CMAKE_WPEWEBKIT_JSBINDINGS OR CMAKE_WEBKITGTK_JSBINDINGS)
 		add_subdirectory(test)
 	endif()
 	add_library(aampjsbindings SHARED jsbindings/jscontroller-jsbindings.cpp jsbindings/jsbindings.cpp jsbindings/jsutils.cpp jsbindings/jsmediaplayer.cpp jsbindings/jseventlistener.cpp jsbindings/jsevent.cpp)
-    target_link_libraries(aampjsbindings aamp)
+    target_link_libraries(aampjsbindings aamp systemd)
 
     if (CMAKE_RDK_CC_ENABLED OR CMAKE_SUBTEC_CC_ENABLED)
         set(LIBAAMPJSBINDINGS_DEFINES "${LIBAAMPJSBINDINGS_DEFINES} -DAAMP_CC_ENABLED")

@@ -293,6 +293,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	,{"ignoreAppLiveOffset", eAAMPConfig_IgnoreAppLiveOffset, false, -1, -1}
 	,{"enableDisconnectSignals", eAAMPConfig_enableDisconnectSignals, false, -1, -1}
 	,{"enableEOSInjectionDuringStop", eAAMPConfig_enableEOSInjectionDuringStop, false, -1, -1}
+	,{"jsinfo",eAAMPConfig_JsInfoLogging,false, -1, -1}
 };
 /////////////////// Public Functions /////////////////////////////////////
 /**
@@ -505,6 +506,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_IgnoreAppLiveOffset].value 			=	false;
 	bAampCfgValue[eAAMPConfig_enableDisconnectSignals].value = true;
 	bAampCfgValue[eAAMPConfig_enableEOSInjectionDuringStop].value = true;
+	bAampCfgValue[eAAMPConfig_JsInfoLogging].value                          = 	false;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;

@@ -576,7 +576,7 @@ public:
                 JSStringRef prop;
                 const char* microData = evt->getProfilingData().c_str();
 
-                LOG("AAMP_Listener_TuneProfiling microData %s", microData);
+                LOG_TRACE("AAMP_Listener_TuneProfiling microData %s", microData);
                 prop = JSStringCreateWithUTF8CString("microData");
                 JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, aamp_CStringToJSValue(p_obj->_ctx, microData), kJSPropertyAttributeReadOnly, NULL);
                 JSStringRelease(prop);
@@ -652,7 +652,7 @@ public:
 		int code = evt->getAccessStatusValue();
 		const char* description = evt->getAccessStatus().c_str();
 
-		ERROR("AAMP_Listener_DRMMetadata code %d Description %s", code, description);
+        	LOG_WARN_EX("AAMP_Listener_DRMMetadata code %d Description %s", code, description);
 		prop = JSStringCreateWithUTF8CString("code");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, code), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
@@ -696,7 +696,7 @@ public:
 		int severity = evt->getSeverity();
 		const char* description = evt->getMessage().c_str();
 
-		ERROR("AAMP_Listener_AnomalyReport severity %d Description %s", severity, description);
+        	LOG_WARN_EX("AAMP_Listener_AnomalyReport severity %d Description %s", severity, description);
 		prop = JSStringCreateWithUTF8CString("severity");
 		JSObjectSetProperty(p_obj->_ctx, jsEventObj, prop, JSValueMakeNumber(p_obj->_ctx, severity), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(prop);
@@ -1520,7 +1520,8 @@ AAMP_JSEventListener::~AAMP_JSEventListener()
 void AAMP_JSEventListener::Event(const AAMPEventPtr& e)
 {
 	AAMPEventType evtType = e->getType();
-	LOG("%s() type=%d, jsCallback=%p", __FUNCTION__, evtType, p_jsCallback);
+        LOG_TRACE("type=%d, jsCallback=%p", evtType, p_jsCallback);
+
 	if (evtType < 0 || evtType >= AAMP_MAX_NUM_EVENTS)
 	{
 		return;
@@ -1545,7 +1546,8 @@ void AAMP_JSEventListener::Event(const AAMPEventPtr& e)
 			}
 			else
 			{
-				ERROR("AAMP_JSEventListener::%s() No promise callback registered ctx=%p, jsCallback=%p", __FUNCTION__, ctx, cbObj);
+
+                                LOG_ERROR_EX("No promise callback registered ctx=%p, jsCallback=%p", ctx, cbObj);
 			}
 		}
 		else if (p_jsCallback != NULL)
@@ -1554,7 +1556,9 @@ void AAMP_JSEventListener::Event(const AAMPEventPtr& e)
 		}
 		else
 		{
-			ERROR("AAMP_JSEventListener::%s() Callback registered is (%p) for event=%d", __FUNCTION__, p_jsCallback, p_type);
+			
+                        LOG_WARN_EX("Callback registered is (%p) for event=%d", p_jsCallback, p_type);
+
 		}
 		JSValueUnprotect(ctx, event);
 	}
@@ -1566,7 +1570,7 @@ void AAMP_JSEventListener::Event(const AAMPEventPtr& e)
  */
 void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback)
 {
-	LOG("AAMP_JSEventListener::%s (%p, %d, %p)", __FUNCTION__, obj, type, jsCallback);
+        LOG_TRACE("(%p, %d, %p)", obj, type, jsCallback);
 
 	AAMP_JSEventListener* pListener = NULL;
 
@@ -1683,7 +1687,7 @@ void AAMP_JSEventListener::AddEventListener(PrivAAMPStruct_JS* obj, AAMPEventTyp
  */
 void AAMP_JSEventListener::RemoveEventListener(PrivAAMPStruct_JS* obj, AAMPEventType type, JSObjectRef jsCallback)
 {
-	LOG("AAMP_JSEventListener::%s (%p, %d, %p)", __FUNCTION__, obj, type, jsCallback);
+        LOG_TRACE("(%p, %d, %p)", obj, type, jsCallback);
 
 	if (obj->_listeners.count(type) > 0)
 	{
@@ -1716,7 +1720,8 @@ void AAMP_JSEventListener::RemoveEventListener(PrivAAMPStruct_JS* obj, AAMPEvent
  */
 void AAMP_JSEventListener::RemoveAllEventListener(PrivAAMPStruct_JS * obj)
 {
-	LOG("AAMP_JSEventListener::%s obj(%p) listeners remaining(%d)", __FUNCTION__, obj, obj->_listeners.size());
+	
+        LOG_TRACE("obj(%p) listeners remaining(%d)", obj, obj->_listeners.size());
 
 	for (auto listenerIter = obj->_listeners.begin(); listenerIter != obj->_listeners.end();)
 	{

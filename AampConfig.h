@@ -208,7 +208,8 @@ typedef enum
 	eAAMPConfig_IgnoreAppLiveOffset,				/** <Config to ignore the liveOffset from App for LLD */
 	eAAMPConfig_enableDisconnectSignals,			/** When enabled (true which is the default) gstreamer signals are disconnected in AAMPGstPlayer::DisconnectSignals()*/
 	eAAMPConfig_enableEOSInjectionDuringStop,		/** When enabled (true which is the default) the pipeline is flushed and EOS signals injected into the pipline during AAMPGstPlayer::stop()*/
-	eAAMPConfig_BoolMaxValue,
+	eAAMPConfig_JsInfoLogging,						/**< Enable/disable jsinfo logging       */
+	eAAMPConfig_BoolMaxValue,                          
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
 	eAAMPConfig_HarvestCountLimit,						/**< Number of files to be harvested */

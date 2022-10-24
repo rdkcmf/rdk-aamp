@@ -29,12 +29,6 @@
 
 //#define _DEBUG
 
-#ifdef _DEBUG
-#define LOG(...)  logprintf(__VA_ARGS__);fflush(stdout);
-#else
-#define LOG(...)
-#endif
-
 static JSClassRef AAMPJSEvent_class_ref();
 
 #ifdef JSEVENT_WITH_NATIVE_MEMORY
