@@ -28,6 +28,18 @@
 #include <stdio.h>
 #include <cmath>
 
+#include <iomanip>
+#include <algorithm>
+
+#ifdef USE_SYSLOG_HELPER_PRINT
+#include "syslog_helper_ifc.h"
+#endif
+#ifdef USE_SYSTEMD_JOURNAL_PRINT
+#include <systemd/sd-journal.h>
+#endif
+
+#define MAX_DEBUG_LOG_BUFF_SIZE 1024
+
 /**
  * @struct EventTypeMap
  * @brief Struct to map names of AAMP events and JS events
@@ -205,23 +217,24 @@ std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JS
 
     if(!arrayRef)
     {
-	ERROR("[AAMP_JS] %s() Error: value is NULL.", __FUNCTION__);
+        LOG_ERROR_EX("Error: value is NULL.");
         return retval;
     }
     if (!JSValueIsObject(context, arrayRef))
     {
-	ERROR("[AAMP_JS] %s() Error: value is not an object.", __FUNCTION__);
+        LOG_ERROR_EX("Error: value is not an object.");
         return retval;
     }
     if(!aamp_JSValueIsArray(context, arrayRef))
     {
-	ERROR("[AAMP_JS] %s() Error: value is not an array.", __FUNCTION__);
+        LOG_ERROR_EX("Error: value is not an array.");
         return retval;
     }
     JSObjectRef arrayObj = JSValueToObject(context, arrayRef, &exception);
     if(exception)
     {
-	ERROR("[AAMP_JS] %s() Error: exception accesing array object.", __FUNCTION__);
+
+        LOG_ERROR_EX("Error: exception accesing array object.");
         return retval;
     }
 
@@ -229,13 +242,14 @@ std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JS
     JSValueRef lengthRef = JSObjectGetProperty(context, arrayObj, lengthStrRef, &exception);
     if(exception)
     {
-	ERROR("[AAMP_JS] %s() Error: exception accesing array length.", __FUNCTION__);
+
+        LOG_ERROR_EX("Error: exception accesing array length.");
         return retval;
     }
     int length = JSValueToNumber(context, lengthRef, &exception);
     if(exception)
     {
-	ERROR("[AAMP_JS] %s() Error: exception array length in not a number.", __FUNCTION__);
+        LOG_ERROR_EX("Error: exception array length in not a number.");
         return retval;
     }
 
@@ -247,7 +261,7 @@ std::vector<std::string> aamp_StringArrayToCStringArray(JSContextRef context, JS
             continue;
 
         char* str = aamp_JSValueToCString(context, strRef, NULL);
-	LOG("[AAMP_JS] %s() array[%d] = '%s'.", __FUNCTION__, i, str);
+        LOG_TRACE("array[%d] = '%s'.",i,str);
         retval.push_back(str);
         SAFE_DELETE_ARRAY(str);
     }
@@ -289,14 +303,15 @@ JSValueRef aamp_GetException(JSContextRef context, ErrorCode error, const char *
 		snprintf(exceptionMsg, EXCEPTION_ERR_MSG_MAX_LEN - 1, "%s!!", str);
 	}
 
-	ERROR("[AAMP_JS] %s() Error=%s", __FUNCTION__, exceptionMsg);
 
+        LOG_WARN_EX("exception=%s",exceptionMsg);
+        
 	const JSValueRef arguments[] = { aamp_CStringToJSValue(context, exceptionMsg) };
 	JSValueRef exception = NULL;
 	retVal = JSObjectMakeError(context, 1, arguments, &exception);
 	if (exception)
 	{
-		ERROR("[AAMP_JS] %s() Error: exception creating an error object", __FUNCTION__);
+                LOG_ERROR_EX("Error: exception creating an error object");
 		return NULL;
 	}
 
@@ -520,3 +535,44 @@ JSObjectRef aamp_CreateTimedMetadataJSObject(JSContextRef context, long long tim
         return timedMetadata;
 }
 
+
+/**
+ * @brief Print logs to console / log file
+ */
+void jsBindingLogprintf(int playerId,const char* levelstr,const char* functionName, int line,const char *format, ...)
+{
+
+
+	int len = 0;
+	va_list args;
+	va_start(args, format);
+
+	char gDebugPrintBuffer[MAX_DEBUG_LOG_BUFF_SIZE];
+	if(playerId != PLAYER_ID_NA )
+	{
+		len = sprintf(gDebugPrintBuffer,"[AAMP-JS] %d :%s : %s : %d :",playerId,levelstr,functionName,line);
+	}
+	else
+	{
+		len = sprintf(gDebugPrintBuffer,"[AAMP-JS] %s : %s: %d :",levelstr,functionName,line);
+	}
+	vsnprintf(gDebugPrintBuffer+len, MAX_DEBUG_LOG_BUFF_SIZE-len, format, args);
+	gDebugPrintBuffer[(MAX_DEBUG_LOG_BUFF_SIZE-1)] = 0;
+
+	va_end(args);
+
+#if (defined (USE_SYSTEMD_JOURNAL_PRINT) || defined (USE_SYSLOG_HELPER_PRINT))
+#ifdef USE_SYSTEMD_JOURNAL_PRINT
+
+		sd_journal_print(LOG_NOTICE, "%s", gDebugPrintBuffer);
+#else
+		send_logs_to_syslog(gDebugPrintBuffer);
+#endif
+#else
+		struct timeval t;
+		gettimeofday(&t, NULL);
+		printf("[AAMP-JS]%ld:%3ld : %s\n", (long int)t.tv_sec, (long int)t.tv_usec / 1000, gDebugPrintBuffer);
+
+#endif
+
+}

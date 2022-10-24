@@ -66,7 +66,8 @@ struct AAMP_JS
 	JSGlobalContextRef _ctx;
 	class PlayerInstanceAAMP* _aamp;
 	class AAMP_JSListener* _listeners;
-
+	int  iPlayerId; /*An int variable iPlayerID to store Playerid */
+        bool bInfoEnabled; /*A bool variable bInfoEnabled for INFO logging check*/
 	JSObjectRef _eventType;
 	JSObjectRef _subscribedTags;
 	JSObjectRef _promiseCallback;	/* Callback function for JS promise resolve/reject.*/
@@ -99,11 +100,12 @@ static JSObjectRef AAMP_class_constructor(JSContextRef context, JSObjectRef cons
  */
 static JSValueRef AAMP_getProperty_closedCaptionEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	
+        LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+              	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.closedCaptionEnabled on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -122,11 +124,11 @@ static JSValueRef AAMP_getProperty_closedCaptionEnabled(JSContextRef context, JS
  */
 static bool AAMP_setProperty_closedCaptionEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+        LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+                LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.closedCaptionEnabled on instances of AAMP");
 		return false;
 	}
@@ -144,11 +146,12 @@ static bool AAMP_setProperty_closedCaptionEnabled(JSContextRef context, JSObject
  */
 static JSValueRef AAMP_getProperty_initialBufferTime(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+        LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.initialBufferTime on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -167,11 +170,11 @@ static JSValueRef AAMP_getProperty_initialBufferTime(JSContextRef context, JSObj
  */
 static bool AAMP_setProperty_initialBufferTime(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+        LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+                LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.initialBufferTime on instances of AAMP");
 		return false;
 	}
@@ -189,11 +192,11 @@ static bool AAMP_setProperty_initialBufferTime(JSContextRef context, JSObjectRef
  */
 static JSValueRef AAMP_getProperty_trickPlayEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if (pAAMP == NULL)
-	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+	{		
+                LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.trickPlayEnabled on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -212,11 +215,12 @@ static JSValueRef AAMP_getProperty_trickPlayEnabled(JSContextRef context, JSObje
  */
 static bool AAMP_setProperty_trickPlayEnabled(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+        LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+                LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.trickPlayEnabled on instances of AAMP");
 		return false;
 	}
@@ -234,11 +238,11 @@ static bool AAMP_setProperty_trickPlayEnabled(JSContextRef context, JSObjectRef 
  */
 static JSValueRef AAMP_getProperty_EventType(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.EventType on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -256,11 +260,11 @@ static JSValueRef AAMP_getProperty_EventType(JSContextRef context, JSObjectRef t
  */
 static JSValueRef AAMP_getProperty_MediaType(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+         	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.mediaType on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -286,11 +290,11 @@ static JSValueRef AAMP_getProperty_MediaType(JSContextRef context, JSObjectRef t
  */
 static JSValueRef AAMP_getProperty_Version(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	TRACELOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.version on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -309,16 +313,17 @@ static JSValueRef AAMP_getProperty_Version(JSContextRef context, JSObjectRef thi
  */
 static JSValueRef AAMP_getProperty_AudioLanguage(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	TRACELOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.audioLanguage on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	const char* language = pAAMP->_aamp->GetCurrentAudioLanguage();
+	LOG_INFO(pAAMP,"_aamp->GetCurrentAudioLanguage() %s",language);
 	return aamp_CStringToJSValue(context, language);
 }
 
@@ -332,16 +337,17 @@ static JSValueRef AAMP_getProperty_AudioLanguage(JSContextRef context, JSObjectR
  */
 static JSValueRef AAMP_getProperty_CurrentDRM(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	TRACELOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.currentDRM on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	const char* drm = pAAMP->_aamp->GetCurrentDRM();
+	LOG_INFO(pAAMP,"_aamp->GetCurrentDRM() %s",drm);
 	return aamp_CStringToJSValue(context, drm);
 }
 
@@ -356,11 +362,11 @@ static JSValueRef AAMP_getProperty_CurrentDRM(JSContextRef context, JSObjectRef 
  */
 static JSValueRef AAMP_getProperty_timedMetadata(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.timedMetadata on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -368,7 +374,7 @@ static JSValueRef AAMP_getProperty_timedMetadata(JSContextRef context, JSObjectR
 	PrivateInstanceAAMP* privAAMP = (pAAMP->_aamp != NULL) ? pAAMP->_aamp->aamp : NULL;
 	if (privAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() privAAMP not initialized", __FUNCTION__);
+                LOG_ERROR_EX("privAAMP not initialized");
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "AAMP.timedMetadata - initialization error");
 		return JSValueMakeUndefined(context);
 	}
@@ -401,15 +407,15 @@ static JSValueRef AAMP_getProperty_timedMetadata(JSContextRef context, JSObjectR
  */
 static bool AAMP_setProperty_stallErrorCode(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.stallErrorCode on instances of AAMP");
 		return false;
 	}
-
+        LOG_WARN(pAAMP,"_aamp->SetStallErrorCode context=%p  value=%d exception=%p ",context, value, exception);
 	pAAMP->_aamp->SetStallErrorCode(JSValueToNumber(context, value, exception));
 	return true;
 }
@@ -426,15 +432,15 @@ static bool AAMP_setProperty_stallErrorCode(JSContextRef context, JSObjectRef th
  */
 static bool AAMP_setProperty_stallTimeout(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.stallTimeout on instances of AAMP");
 		return false;
 	}
-
+        LOG_WARN(pAAMP,"_aamp->SetStallTimeout context=%p  value=%d exception=%p",context, value, exception);
 	pAAMP->_aamp->SetStallTimeout(JSValueToNumber(context, value, exception));
 	return true;
 }
@@ -451,15 +457,15 @@ static bool AAMP_setProperty_stallTimeout(JSContextRef context, JSObjectRef this
  */
 static bool AAMP_setProperty_reportInterval(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.reportInterval on instances of AAMP");
 		return false;
 	}
-
+        LOG_WARN(pAAMP,"_aamp->SetReportInterval context=%p  value=%d exception=%p ",context, value, exception);
 	pAAMP->_aamp->SetReportInterval(JSValueToNumber(context, value, exception));
 	return true;
 }
@@ -475,15 +481,15 @@ static bool AAMP_setProperty_reportInterval(JSContextRef context, JSObjectRef th
  */
 static bool AAMP_setProperty_enableNativeCC(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.reportInterval on instances of AAMP");
 		return false;
 	}
-
+        LOG_WARN(pAAMP,"_aamp->SetNativeCCRendering context=%p  value=%d ",context, value);
 	pAAMP->_aamp->SetNativeCCRendering(JSValueToBoolean(context, value));
 	return true;
 }
@@ -499,15 +505,15 @@ static bool AAMP_setProperty_enableNativeCC(JSContextRef context, JSObjectRef th
  */
 static bool AAMP_setProperty_preferredCEAFormat(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef value, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.reportInterval on instances of AAMP");
 		return false;
 	}
-
+        LOG_WARN(pAAMP,"_aamp->SetCEAFormat context=%p  value=%d exception=%p ",context, value, exception);
 	pAAMP->_aamp->SetCEAFormat((int)JSValueToNumber(context, value, exception));
 	return true;
 }
@@ -550,7 +556,7 @@ static const JSStaticFunction Event_staticfunctions[] =
  */
 static void Event_init(JSContextRef ctx, JSObjectRef thisObject)
 {
-	//LOG("[AAMP_JS] %s()", __FUNCTION__);
+	//LOG_TRACE("Enter");
 }
 
 
@@ -561,7 +567,7 @@ static void Event_init(JSContextRef ctx, JSObjectRef thisObject)
 static void Event_finalize(JSObjectRef thisObject)
 {
 	//noisy - large (>400) burst of logging seen during garbage collection
-	//LOG("[AAMP_JS] %s()", __FUNCTION__);
+	//LOG_TRACE("Enter");
 
 	const AAMPEvent* pEvent = (const AAMPEvent*)JSObjectGetPrivate(thisObject);
 	JSObjectSetPrivate(thisObject, NULL);
@@ -582,7 +588,7 @@ static JSClassRef Event_class_ref();
  */
 static JSObjectRef Event_constructor(JSContextRef ctx, JSObjectRef constructor, size_t argumentCount, const JSValueRef arguments[], JSValueRef* execption)
 {
-	//LOG("[AAMP_JS] %s()", __FUNCTION__);
+	//LOG_TRACE("Enter");
 	return JSObjectMake(ctx, Event_class_ref(), NULL);
 }
 
@@ -648,7 +654,7 @@ public:
 		, _jsCallback(jsCallback)
 		, _pNext(NULL)
 	{
-		LOG("[AAMP_JS] %s() ctx=%p, type=%d, jsCallback=%p", __FUNCTION__, _aamp->_ctx, _type, _jsCallback);
+                LOG_TRACE("ctx=%p, type=%d, jsCallback=%p", _aamp->_ctx, _type, _jsCallback);
 		JSValueProtect(_aamp->_ctx, _jsCallback);
 	}
 
@@ -658,7 +664,7 @@ public:
 	 */
 	virtual ~AAMP_JSListener()
 	{
-		LOG("[AAMP_JS] %s() ctx=%p, type=%d, jsCallback=%p", __FUNCTION__, _aamp->_ctx, _type, _jsCallback);
+		LOG_TRACE("ctx=%p, type=%d, jsCallback=%p", _aamp->_ctx, _type, _jsCallback);
 		JSValueUnprotect(_aamp->_ctx, _jsCallback);
 	}
 
@@ -680,7 +686,7 @@ public:
 	{
 		AAMPEventType evtType = e->getType();
 		if(evtType != AAMP_EVENT_PROGRESS && evtType != AAMP_EVENT_AD_PLACEMENT_PROGRESS)//log all events except progress which spams
-			ERROR("[AAMP_JS] %s() ctx=%p, type=%d, jsCallback=%p", __FUNCTION__, _aamp->_ctx, evtType, _jsCallback);
+                        LOG_WARN( _aamp,"ctx=%p, type=%d, jsCallback=%p", _aamp->_ctx,evtType, _jsCallback);
 
 		JSObjectRef eventObj = JSObjectMake(_aamp->_ctx, Event_class_ref(), NULL);
 		if (eventObj) {
@@ -698,7 +704,8 @@ public:
 				}
 				else
 				{
-					ERROR("[AAMP_JS] %s() No promise callback registered ctx=%p, jsCallback=%p", __FUNCTION__, _aamp->_ctx, _aamp->_promiseCallback);
+                                        LOG_WARN( _aamp,"No promise callback registered ctx=%p, jsCallback=%p", _aamp->_ctx, _aamp->_promiseCallback);
+
 				}
 			}
 			else
@@ -997,7 +1004,7 @@ public:
 		int code = evt->getAccessStatusValue();
 		const char* description = evt->getAccessStatus().c_str();
 
-		ERROR("AAMP_JSListener_DRMMetadata code %d Description %s", code, description);
+                LOG_WARN_EX("AAMP_JSListener_DRMMetadata code %d Description %s", code, description);
 		name = JSStringCreateWithUTF8CString("code");
 		JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, code), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
@@ -1041,7 +1048,7 @@ public:
 		int severity = evt->getSeverity();
 		const char* description = evt->getMessage().c_str();
 
-		ERROR("AAMP_JSListener_AnomalyReport severity %d Description %s",severity,description);
+                LOG_WARN_EX("AAMP_JSListener_AnomalyReport severity %d Description %s",severity,description);
 		name = JSStringCreateWithUTF8CString("severity");
 		JSObjectSetProperty(context, eventObj, name, JSValueMakeNumber(context, severity), kJSPropertyAttributeReadOnly, NULL);
 		JSStringRelease(name);
@@ -1895,12 +1902,11 @@ public:
  */
 static JSValueRef AAMP_addEventListener(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
-
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+                LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.addEventListener on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -1913,7 +1919,7 @@ static JSValueRef AAMP_addEventListener(JSContextRef context, JSObjectRef functi
 		{
 			char* type = aamp_JSValueToCString(context, arguments[0], NULL);
 			AAMPEventType eventType = aamp_getEventTypeFromName(type);
-			LOG("[AAMP_JS] %s() eventType='%s', %d", __FUNCTION__, type, eventType);
+                        LOG_TRACE("eventType='%s', %d", type, eventType);
 
 			if ((eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 			{
@@ -1923,13 +1929,13 @@ static JSValueRef AAMP_addEventListener(JSContextRef context, JSObjectRef functi
 		}
 		else
 		{
-			ERROR("[AAMP_JS] %s() callbackObj=%p, JSObjectIsFunction(context, callbackObj) is NULL", __FUNCTION__, callbackObj);
+                        LOG_ERROR_EX("callbackObj=%p, JSObjectIsFunction(context, callbackObj) is NULL", callbackObj);
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.addEventListener' - parameter 2 is not a function");
 		}
 	}
 	else
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+                LOG_ERROR_EX("InvalidArgument: argumentCount=%d, expected: 2", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.addEventListener' - 2 arguments required.");
 	}
 
@@ -1945,7 +1951,7 @@ static JSValueRef AAMP_addEventListener(JSContextRef context, JSObjectRef functi
  */
 void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback)
 {
-	LOG("[AAMP_JS] %s(%p, %d, %p)", __FUNCTION__, aamp, type, jsCallback);
+        LOG_TRACE("(%p, %d, %p)", aamp, type, jsCallback);
 
 	AAMP_JSListener* pListener = 0;
 
@@ -2072,12 +2078,11 @@ void AAMP_JSListener::AddEventListener(AAMP_JS* aamp, AAMPEventType type, JSObje
  */
 static JSValueRef AAMP_removeEventListener(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
-
+        LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+                LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.removeEventListener on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -2090,7 +2095,7 @@ static JSValueRef AAMP_removeEventListener(JSContextRef context, JSObjectRef fun
 		{
 			char* type = aamp_JSValueToCString(context, arguments[0], NULL);
 			AAMPEventType eventType = aamp_getEventTypeFromName(type);
-			LOG("[AAMP_JS] %s() eventType='%s', %d", __FUNCTION__, type, eventType);
+                        LOG_TRACE("eventType='%s', %d", type, eventType);
 
 			if ((eventType >= 0) && (eventType < AAMP_MAX_NUM_EVENTS))
 			{
@@ -2101,13 +2106,13 @@ static JSValueRef AAMP_removeEventListener(JSContextRef context, JSObjectRef fun
 		}
 		else
 		{
-			ERROR("[AAMP_JS] %s() InvalidArgument: callbackObj=%p, JSObjectIsFunction(context, callbackObj) is NULL", __FUNCTION__, callbackObj);
+                        LOG_ERROR_EX("InvalidArgument: callbackObj=%p, JSObjectIsFunction(context, callbackObj) is NULL", callbackObj);
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.removeEventListener' - parameter 2 is not a function");
 		}
 	}
 	else
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+                LOG_ERROR_EX("InvalidArgument: argumentCount=%d, expected: 2", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.removeEventListener' - 2 arguments required.");
 	}
 
@@ -2123,8 +2128,7 @@ static JSValueRef AAMP_removeEventListener(JSContextRef context, JSObjectRef fun
  */
 void AAMP_JSListener::RemoveEventListener(AAMP_JS* aamp, AAMPEventType type, JSObjectRef jsCallback)
 {
-	LOG("[AAMP_JS] %s(%p, %d, %p)", __FUNCTION__, aamp, type, jsCallback);
-
+        LOG_TRACE("(%p, %d, %p)", aamp, type, jsCallback);
 	AAMP_JSListener** ppListener = &aamp->_listeners;
 	while (*ppListener != NULL)
 	{
@@ -2132,6 +2136,7 @@ void AAMP_JSListener::RemoveEventListener(AAMP_JS* aamp, AAMPEventType type, JSO
 		if ((pListener->_type == type) && (pListener->_jsCallback == jsCallback))
 		{
 			*ppListener = pListener->_pNext;
+                        LOG_WARN_EX(" type=%d,pListener= %p", type, pListener);
 			aamp->_aamp->RemoveEventListener(type, pListener);
 			SAFE_DELETE(pListener);
 			return;
@@ -2153,7 +2158,7 @@ void AAMP_JSListener::RemoveEventListener(AAMP_JS* aamp, AAMPEventType type, JSO
  */
 static JSValueRef AAMP_setProperties(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+        LOG_TRACE("Enter");
 	return JSValueMakeUndefined(context);
 }
 
@@ -2170,7 +2175,7 @@ static JSValueRef AAMP_setProperties(JSContextRef context, JSObjectRef function,
  */
 static JSValueRef AAMP_getProperties(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+        LOG_TRACE("Enter");
 	return JSValueMakeUndefined(context);
 }
 
@@ -2187,11 +2192,11 @@ static JSValueRef AAMP_getProperties(JSContextRef context, JSObjectRef function,
  */
 static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.tune on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -2218,15 +2223,15 @@ static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObject
 				char* url = aamp_JSValueToCString(context, arguments[0], exception);
 				aamp_ApplyPageHttpHeaders(pAAMP->_aamp);
 				{
-					pAAMP->_aamp->Tune(url, true, contentType, bFirstAttempt, bFinalAttempt);
-
+                                        LOG_WARN(pAAMP," _aamp->Tune(%d, %s, %d, %d)", true, contentType, bFirstAttempt, bFinalAttempt);
+					pAAMP->_aamp->Tune(url, true, contentType, bFirstAttempt, bFinalAttempt);                  
 				}
 				SAFE_DELETE_ARRAY(url);
 			}
 			SAFE_DELETE_ARRAY(contentType);
 			break;
 		default:
-			ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1 to 4", __FUNCTION__, argumentCount);
+                        LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1 to 4", argumentCount);
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.tune' - 1 argument required");
 			break;
 	}
@@ -2246,11 +2251,11 @@ static JSValueRef AAMP_tune(JSContextRef context, JSObjectRef function, JSObject
  */
 static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+                LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.load on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -2309,10 +2314,11 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 		char* url = aamp_JSValueToCString(context, arguments[0], exception);
 		aamp_ApplyPageHttpHeaders(pAAMP->_aamp);
 		if (strAuthToken != NULL){
-			LOG("[AAMP_JS] %s() - authToken provided by the App", __FUNCTION__);
+                        LOG_WARN(pAAMP,"authToken provided by the App");
 			pAAMP->_aamp->SetSessionToken(strAuthToken);
 		}
 		{
+                        LOG_WARN(pAAMP," _aamp->Tune(%d, %d, %d, %d, %d)", true, contentType, bFirstAttempt, bFinalAttempt, strTraceId);
 			pAAMP->_aamp->Tune(url, true, contentType, bFirstAttempt, bFinalAttempt, strTraceId);
 		}
 
@@ -2322,7 +2328,7 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
 	}
 	else
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1 or 2", __FUNCTION__, argumentCount);
+       		LOG_ERROR_EX("InvalidArgument: argumentCount=%d, expected: 1 or 2", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.load' - 1 or 2 argument required");
 	}
 	return JSValueMakeUndefined(context);
@@ -2341,14 +2347,16 @@ static JSValueRef AAMP_load(JSContextRef context, JSObjectRef function, JSObject
  */
 static JSValueRef AAMP_stop(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+        LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+       		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.stop on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
+   	LOG_WARN(pAAMP," aamp->stop()");
 	pAAMP->_aamp->Stop();
 	return JSValueMakeUndefined(context);
 }
@@ -2366,18 +2374,18 @@ static JSValueRef AAMP_stop(JSContextRef context, JSObjectRef function, JSObject
  */
 static JSValueRef AAMP_setRate(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+        LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+                LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setRate on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount < 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+       		LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 2", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setRate' - 2 arguments required");
 	}
 	else
@@ -2389,8 +2397,10 @@ static JSValueRef AAMP_setRate(JSContextRef context, JSObjectRef function, JSObj
 		{
 			overshoot = (int)JSValueToNumber(context, arguments[1], exception);
 		}
-		LOG("[AAMP_JS] %s () rate=%f, overshoot=%d", __FUNCTION__, rate, overshoot);
+
+                LOG_WARN(pAAMP,"rate=%f, overshoot=%d", rate, overshoot);
 		{
+           		LOG_WARN(pAAMP," _aamp->SetRate(%d, %d)", rate, overshoot);
 			pAAMP->_aamp->SetRate(rate, overshoot);
 		}
 	}
@@ -2410,25 +2420,27 @@ static JSValueRef AAMP_setRate(JSContextRef context, JSObjectRef function, JSObj
  */
 static JSValueRef AAMP_seek(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+        LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+       		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.seek on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1",argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.seek' - 1 argument required");
 	}
 	else
 	{
 		double position = JSValueToNumber(context, arguments[0], exception);
-		LOG("[AAMP_JS] %s () position=%g", __FUNCTION__, position);
 		{
+                        
+            		LOG_WARN(pAAMP,"_aamp->Seek(%g)",position);
 			pAAMP->_aamp->Seek(position);
 		}
 	}
@@ -2449,15 +2461,16 @@ static JSValueRef AAMP_seek(JSContextRef context, JSObjectRef function, JSObject
  */
 static JSValueRef AAMP_seekToLive(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.seekToLive on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 	{
+        	LOG_WARN(pAAMP," _aamp->SeekToLive()");
 		pAAMP->_aamp->SeekToLive();
 	}
 	return JSValueMakeUndefined(context);
@@ -2476,18 +2489,18 @@ static JSValueRef AAMP_seekToLive(JSContextRef context, JSObjectRef function, JS
  */
 static JSValueRef AAMP_setRect(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setRect on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 4)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 4", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 4", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setRect' - 4 arguments required");
 	}
 	else
@@ -2497,6 +2510,7 @@ static JSValueRef AAMP_setRect(JSContextRef context, JSObjectRef function, JSObj
 		int w = JSValueToNumber(context, arguments[2], exception);
 		int h = JSValueToNumber(context, arguments[3], exception);
 		{
+            		LOG_WARN(pAAMP,"  _aamp->SetVideoRectangle(%d, %d, %d, %d)", x,y,w,h);
 			pAAMP->_aamp->SetVideoRectangle(x, y, w, h);
 		}
 	}
@@ -2516,23 +2530,25 @@ static JSValueRef AAMP_setRect(JSContextRef context, JSObjectRef function, JSObj
  */
 static JSValueRef AAMP_setVideoMute(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__); 
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setVideoMute on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setVideoMute' - 1 argument required");
 	}
 	else
 	{
 		bool muted = JSValueToBoolean(context, arguments[0]);
+        	LOG_WARN(pAAMP," _aamp->SetVideoMute(%d)", muted);
 		pAAMP->_aamp->SetVideoMute(muted);
 		// pAAMP->_aamp->SetSubtitleMute(muted);
 	}
@@ -2552,23 +2568,25 @@ static JSValueRef AAMP_setVideoMute(JSContextRef context, JSObjectRef function, 
  */
 static JSValueRef AAMP_setAudioVolume(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setAudioVolume on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setAudioVolume' - 1 argument required");
 	}
 	else
 	{
 		unsigned int volume = JSValueToNumber(context, arguments[0], exception);
+        	LOG_WARN(pAAMP," aamp->SetAudioVolume(%d)", volume);
 		pAAMP->_aamp->SetAudioVolume(volume);
 	}
 	return JSValueMakeUndefined(context);
@@ -2587,25 +2605,26 @@ static JSValueRef AAMP_setAudioVolume(JSContextRef context, JSObjectRef function
  */
 static JSValueRef AAMP_setZoom(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setZoom on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setZoom' - 1 argument required");
 	}
 	else
 	{
 		VideoZoomMode zoom;
 		char* zoomStr = aamp_JSValueToCString(context, arguments[0], exception);
-		LOG("[AAMP_JS] %s() zoomStr %s", __FUNCTION__, zoomStr);
+        	LOG_WARN(pAAMP,"zoomStr %s", zoomStr);
 		if (0 == strcmp(zoomStr, "none"))
 		{
 			zoom = VIDEO_ZOOM_NONE;
@@ -2633,24 +2652,26 @@ static JSValueRef AAMP_setZoom(JSContextRef context, JSObjectRef function, JSObj
  */
 static JSValueRef AAMP_setLanguage(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setLanguage on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setLanguage' - 1 argument required");
 	}
 	else
 	{
 		char* lang = aamp_JSValueToCString(context, arguments[0], exception);
 		{
+            		LOG_WARN(pAAMP," _aamp->SetLKanguage(%s)", lang);
 			pAAMP->_aamp->SetLanguage(lang);
 		}
 		SAFE_DELETE_ARRAY(lang);
@@ -2670,23 +2691,24 @@ static JSValueRef AAMP_setLanguage(JSContextRef context, JSObjectRef function, J
  */
 static JSValueRef AAMP_setSubscribeTags(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.subscribedTags on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setSubscribeTags' - 1 argument required");
 	}
 	else if (!aamp_JSValueIsArray(context, arguments[0]))
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: aamp_JSValueIsArray=%d", __FUNCTION__, aamp_JSValueIsArray(context, arguments[0]));
+        	LOG_ERROR(pAAMP,"InvalidArgument: aamp_JSValueIsArray=%d", aamp_JSValueIsArray(context, arguments[0]));
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setSubscribeTags' - parameter 1 is not an array");
 	}
 	else
@@ -2700,6 +2722,7 @@ static JSValueRef AAMP_setSubscribeTags(JSContextRef context, JSObjectRef functi
 		{
 			JSValueProtect(pAAMP->_ctx, pAAMP->_subscribedTags);
 			std::vector<std::string> subscribedTags = aamp_StringArrayToCStringArray(context, arguments[0]);
+            		LOG_WARN(pAAMP," _aamp->SetSubscribedTags");
 			pAAMP->_aamp->SetSubscribedTags(subscribedTags);
 		}
 	}
@@ -2719,18 +2742,21 @@ static JSValueRef AAMP_setSubscribeTags(JSContextRef context, JSObjectRef functi
  */
 static JSValueRef AAMP_addCustomHTTPHeader(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.addCustomHTTPHeader on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 2)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 2", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.addCustomHTTPHeader' - 2 argument required");
 	}
 	else
@@ -2756,11 +2782,12 @@ static JSValueRef AAMP_addCustomHTTPHeader(JSContextRef context, JSObjectRef fun
 		// Don't support empty values now
 		if (headerVal.size() == 0)
 		{
-			ERROR("[AAMP_JS] %s() InvalidArgument: Custom header's value is empty", __FUNCTION__);
+ 
+            		LOG_ERROR(pAAMP,"InvalidArgument: Custom header's value is empty");
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.addCustomHTTPHeader' - 2nd argument should be a string or array of strings");
 			return JSValueMakeUndefined(context);
 		}
-
+                LOG_WARN(pAAMP,"  _aamp->AddCustomHTTPHeader headerName= %s headerVal= %p",headerName.c_str(), headerVal);
 		pAAMP->_aamp->AddCustomHTTPHeader(headerName, headerVal);
 	}
 	return JSValueMakeUndefined(context);
@@ -2779,24 +2806,27 @@ static JSValueRef AAMP_addCustomHTTPHeader(JSContextRef context, JSObjectRef fun
  */
 static JSValueRef AAMP_removeCustomHTTPHeader(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+                
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.removeCustomHTTPHeader on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.removeCustomHTTPHeader' - 1 argument required");
 	}
 	else
 	{
 		char *name = aamp_JSValueToCString(context, arguments[0], exception);
 		std::string headerName(name);
+		LOG_WARN(pAAMP,"  AAMP_removeCustomHTTPHeader headerName= %s",headerName.c_str());
 		pAAMP->_aamp->AddCustomHTTPHeader(headerName, std::vector<std::string>());
 		SAFE_DELETE_ARRAY(name);
 
@@ -2817,7 +2847,8 @@ static JSValueRef AAMP_removeCustomHTTPHeader(JSContextRef context, JSObjectRef 
  */
 static JSValueRef AAMP_setAds(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+        
+    	LOG_TRACE("Enter");
 	return JSValueMakeUndefined(context);
 }
 
@@ -2834,11 +2865,13 @@ static JSValueRef AAMP_setAds(JSContextRef context, JSObjectRef function, JSObje
  */
 static JSValueRef AAMP_getAvailableAudioTracks(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+ 
+   	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getAvailableAudioTracks on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -2850,10 +2883,12 @@ static JSValueRef AAMP_getAvailableAudioTracks(JSContextRef context, JSObjectRef
 	std::string tracks = pAAMP->_aamp->GetAvailableAudioTracks(allTrack);
 	if (!tracks.empty())
 	{
+       		LOG_WARN(pAAMP,"Exit _aamp->GetAvailableAudioTracks(%d) tracks [%s]",allTrack,tracks.c_str());
 		return aamp_CStringToJSValue(context, tracks.c_str());
 	}
 	else
 	{
+       		LOG_WARN(pAAMP," _aamp->GetAvailableAudioTracks(%d) tracks=NULL", allTrack);
 		return JSValueMakeUndefined(context);
 	}
 }
@@ -2870,11 +2905,12 @@ static JSValueRef AAMP_getAvailableAudioTracks(JSContextRef context, JSObjectRef
  */
 static JSValueRef AAMP_getAudioTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+   	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getAudioTrack on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -2893,21 +2929,25 @@ static JSValueRef AAMP_getAudioTrack(JSContextRef context, JSObjectRef function,
  */
 static JSValueRef AAMP_getAudioTrackInfo(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+   	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getAudioTrackInfo on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
+    	LOG_INFO(pAAMP," _aamp->GetAudioTrackInfo()");
 	std::string track = pAAMP->_aamp->GetAudioTrackInfo();
 	if (!track.empty())
 	{
+		LOG_INFO(pAAMP," _aamp->GetAudioTrackInfo() [%s]",track.c_str()); 
 		return aamp_CStringToJSValue(context, track.c_str());
 	}
 	else
 	{
+        	LOG_WARN(pAAMP,"  _aamp->GetAudioTrackInfo() track=NULL");
 		return JSValueMakeUndefined(context);
 	}
 }
@@ -2924,21 +2964,22 @@ static JSValueRef AAMP_getAudioTrackInfo(JSContextRef context, JSObjectRef funct
  */
 static JSValueRef AAMP_getTextTrackInfo(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getTextTrackInfo on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 	std::string track = pAAMP->_aamp->GetTextTrackInfo();
 	if (!track.empty())
 	{
+		LOG_INFO(pAAMP,"_aamp->GetTextTrackInfo [%s]",track.c_str());
 		return aamp_CStringToJSValue(context, track.c_str());
 	}
 	else
-	{
+	{   	LOG_WARN(pAAMP,"_aamp->GetTextTrackInfo track=NULL");    
 		return JSValueMakeUndefined(context);
 	}
 }
@@ -2955,21 +2996,24 @@ static JSValueRef AAMP_getTextTrackInfo(JSContextRef context, JSObjectRef functi
  */
 static JSValueRef AAMP_getPreferredAudioProperties(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getPreferredAudioProperties on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 	std::string audioPreference = pAAMP->_aamp->GetPreferredAudioProperties();
 	if (!audioPreference.empty())
-	{
+	{    
+        	LOG_INFO(pAAMP," _aamp->GetPreferredAudioProperties() [%s]",audioPreference.c_str());
 		return aamp_CStringToJSValue(context, audioPreference.c_str());
 	}
 	else
 	{
+        	LOG_WARN(pAAMP,"_aamp->GetPreferredAudioProperties() audioPreference=NULL");
 		return JSValueMakeUndefined(context);
 	}
 }
@@ -2986,18 +3030,18 @@ static JSValueRef AAMP_getPreferredAudioProperties(JSContextRef context, JSObjec
  */
 static JSValueRef AAMP_setAudioTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setAudioTrack on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setAudioTrack' - 1 argument required");
 	}
 	else
@@ -3006,12 +3050,13 @@ static JSValueRef AAMP_setAudioTrack(JSContextRef context, JSObjectRef function,
 		if (index >= 0)
 		{
 			{
+                		LOG_WARN(pAAMP," _aamp->SetAudioTrack(%d)", index);
 				pAAMP->_aamp->SetAudioTrack(index);
 			}
 		}
 		else
 		{
-			ERROR("[AAMP_JS] %s() InvalidArgument: Track index should be >= 0!", __FUNCTION__);
+            		LOG_ERROR(pAAMP,"InvalidArgument: Track index should be >= 0!");
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setAudioTrack' - argument should be >= 0");
 		}
 	}
@@ -3030,21 +3075,25 @@ static JSValueRef AAMP_setAudioTrack(JSContextRef context, JSObjectRef function,
  */
 static JSValueRef AAMP_getPreferredTextProperties(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+
+        	LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getPreferredTextProperties on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 	std::string textPreference = pAAMP->_aamp->GetPreferredTextProperties();
 	if (!textPreference.empty())
 	{
+		LOG_INFO(pAAMP," _aamp->GetPreferredTextProperties() [%s]",textPreference.c_str());
 		return aamp_CStringToJSValue(context, textPreference.c_str());
 	}
 	else
 	{
+		LOG_WARN(pAAMP," _aamp->GetPreferredTextProperties() textPreference=NULL"); 
 		return JSValueMakeUndefined(context);
 	}
 }
@@ -3061,11 +3110,12 @@ static JSValueRef AAMP_getPreferredTextProperties(JSContextRef context, JSObject
  */
 static JSValueRef AAMP_getAvailableTextTracks(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	
+    	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getAvailableTextTracks on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -3077,10 +3127,12 @@ static JSValueRef AAMP_getAvailableTextTracks(JSContextRef context, JSObjectRef 
 	std::string tracks = pAAMP->_aamp->GetAvailableTextTracks(allTrack);
 	if (!tracks.empty())
 	{
+		LOG_WARN(pAAMP,"_aamp->GetAvailableTextTracks(%d) [%s]",allTrack,tracks.c_str());
 		return aamp_CStringToJSValue(context, tracks.c_str());
 	}
 	else
 	{
+        	LOG_WARN(pAAMP,"_aamp->GetAvailableTextTracks(%d) tracks=NULL",allTrack);
 		return JSValueMakeUndefined(context);
 	}
 }
@@ -3098,14 +3150,15 @@ static JSValueRef AAMP_getAvailableTextTracks(JSContextRef context, JSObjectRef 
  */
 static JSValueRef AAMP_getTextTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getTextTrack on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
+        LOG_INFO(pAAMP," _aamp->GetTextTrack()");
 	return JSValueMakeNumber(context, pAAMP->_aamp->GetTextTrack());
 }
 
@@ -3122,18 +3175,18 @@ static JSValueRef AAMP_getTextTrack(JSContextRef context, JSObjectRef function, 
  */
 static JSValueRef AAMP_setTextTrack(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setTextTrack on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1 or 2", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1 or 2", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextTrack' - atleast 1 argument required");
 	}
 	else
@@ -3141,11 +3194,12 @@ static JSValueRef AAMP_setTextTrack(JSContextRef context, JSObjectRef function, 
 		int index = (int) JSValueToNumber(context, arguments[0], NULL);
 		if (index >= MUTE_SUBTITLES_TRACKID) // -1 disable subtitles, >= 0 subtitle track index
 		{
+                        LOG_WARN(pAAMP," _aamp->SetTextTrack(%d)", index);
 			pAAMP->_aamp->SetTextTrack(index);
 		}
 		else
 		{
-			ERROR("%s(): InvalidArgument - track index should be >= 0!", __FUNCTION__);
+                       	LOG_ERROR(pAAMP,"InvalidArgument - track index should be >= 0!");
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Text track index should be >= -1 !");
 		}
 	}
@@ -3164,21 +3218,23 @@ static JSValueRef AAMP_setTextTrack(JSContextRef context, JSObjectRef function, 
  */
 static JSValueRef AAMP_getAvailableVideoTracks(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getAvailableAudioTracks on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 	std::string tracks = pAAMP->_aamp->GetAvailableVideoTracks();
 	if (!tracks.empty())
 	{
+		LOG_INFO(pAAMP," _aamp->GetAvailableVideoTracks()[%s]",tracks.c_str());
 		return aamp_CStringToJSValue(context, tracks.c_str());
 	}
 	else
 	{
+		LOG_INFO(pAAMP," _aamp->GetAvailableVideoTracks() tracks=NULL");
 		return JSValueMakeUndefined(context);
 	}
 }
@@ -3195,11 +3251,11 @@ static JSValueRef AAMP_getAvailableVideoTracks(JSContextRef context, JSObjectRef
  */
 static JSValueRef AAMP_setVideoTracks(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setVideoTrack on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -3207,7 +3263,9 @@ static JSValueRef AAMP_setVideoTracks(JSContextRef context, JSObjectRef function
 	std::vector<long> bitrateList;
 	for (int i = 0; i < argumentCount; i++)
 	{
-		bitrateList.push_back ((long) JSValueToNumber(context, arguments[i], exception));
+		long bitrate  = JSValueToNumber(context, arguments[i], exception) ;
+		LOG_WARN(pAAMP,"_aamp->SetVideoTracks argCount:%d value:%ld",i, bitrate);
+		bitrateList.push_back(bitrate);
 	}
 	pAAMP->_aamp->SetVideoTracks(bitrateList);
 
@@ -3226,23 +3284,24 @@ static JSValueRef AAMP_setVideoTracks(JSContextRef context, JSObjectRef function
  */
 static JSValueRef AAMP_setLicenseServerURL(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setLicenseServerURL on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+               	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1",argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setLicenseServerURL' - 1 argument required");
 	}
 	else
 	{
 		const char *url = aamp_JSValueToCString(context, arguments[0], exception);
+                LOG_WARN(pAAMP," _aamp->SetLicenseServerURL(%s)", url);
 		pAAMP->_aamp->SetLicenseServerURL(url);
 		SAFE_DELETE_ARRAY(url);
 	}
@@ -3262,18 +3321,18 @@ static JSValueRef AAMP_setLicenseServerURL(JSContextRef context, JSObjectRef fun
  */
 static JSValueRef AAMP_setPreferredDRM(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setPreferredDRM on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+	        LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1",argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setPreferredDRM' - 1 argument required");
 	}
 	else
@@ -3281,10 +3340,12 @@ static JSValueRef AAMP_setPreferredDRM(JSContextRef context, JSObjectRef functio
 		const char *drm = aamp_JSValueToCString(context, arguments[0], exception);
 		if (strncasecmp(drm, "widevine", 8) == 0)
 		{
+			LOG_WARN(pAAMP,"_aamp->SetPreferredDRM  WideWine");
 			pAAMP->_aamp->SetPreferredDRM(eDRM_WideVine);
 		}
 		if (strncasecmp(drm, "playready", 9) == 0)
 		{
+		        LOG_WARN(pAAMP,"_aamp->SetPreferredDRM  PlayReady");
 			pAAMP->_aamp->SetPreferredDRM(eDRM_PlayReady);
 		}
 		SAFE_DELETE_ARRAY(drm);
@@ -3304,23 +3365,24 @@ static JSValueRef AAMP_setPreferredDRM(JSContextRef context, JSObjectRef functio
  */
 static JSValueRef AAMP_setAnonymousRequest(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setAnonymousRequest on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setAnonymousRequest' - 1 argument required");
 	}
 	else
 	{
 		bool isAnonymousReq = JSValueToBoolean(context, arguments[0]);
+        	LOG_WARN(pAAMP," _aamp->SetAnonymousRequest(%d)", isAnonymousReq);
 		pAAMP->_aamp->SetAnonymousRequest(isAnonymousReq);
 	}
 	return JSValueMakeUndefined(context);
@@ -3339,23 +3401,24 @@ static JSValueRef AAMP_setAnonymousRequest(JSContextRef context, JSObjectRef fun
  */
 static JSValueRef AAMP_setVODTrickplayFPS(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-        LOG("[AAMP_JS] %s()", __FUNCTION__);
+        LOG_TRACE("Enter");
         AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
         if (!pAAMP)
         {
-                ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+                LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
                 *exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setAnonymousRequest on instances of AAMP");
                 return JSValueMakeUndefined(context);
         }
 
         if (argumentCount != 1)
         {
-                ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+               	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
                 *exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setAnonymousRequest' - 1 argument required");
         }
         else
         {
                 int vodTrickplayFPS = (int)JSValueToNumber(context, arguments[0], exception);
+                LOG_WARN(pAAMP," _aamp->SetVODTrickplayFPS(%d)", vodTrickplayFPS);
                 pAAMP->_aamp->SetVODTrickplayFPS(vodTrickplayFPS);
         }
         return JSValueMakeUndefined(context);
@@ -3375,18 +3438,19 @@ static JSValueRef AAMP_setVODTrickplayFPS(JSContextRef context, JSObjectRef func
  */
 static JSValueRef AAMP_setAlternateContent(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	ERROR("[AAMP_JS] %s()", __FUNCTION__);
+	
+        LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.SetAlternateContents() on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 2)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+                LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 2", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.SetAlternateContent' - 1 argument required");
 	}
 	else
@@ -3415,7 +3479,7 @@ static JSValueRef AAMP_setAlternateContent(JSContextRef context, JSObjectRef fun
 			JSObjectRef reservationObject = JSValueToObject(context, arguments[0], NULL);
 			if (reservationObject == NULL)
 			{
-				ERROR("[AAMP_JS] %s() Unable to convert argument to JSObject", __FUNCTION__);
+                               	LOG_ERROR(pAAMP,"Unable to convert argument to JSObject");
 				return JSValueMakeUndefined(context);
 			}
 			JSStringRef propName = JSStringCreateWithUTF8CString("reservationId");
@@ -3480,12 +3544,13 @@ static JSValueRef AAMP_setAlternateContent(JSContextRef context, JSObjectRef fun
 			std::string adBreakId(reservationId);  //CID:89434 - Resolve Forward null
 			std::string adIdStr(adId);  //CID:89725 - Resolve Forward null
 			std::string url(adURL);  //CID:86272 - Resolve Forward null
-			ERROR("[AAMP_JS] Calling pAAMP->_aamp->SetAlternateContents with promiseCallback:%p", callbackObj);
+                        LOG_WARN(pAAMP,"pAAMP->_aamp->SetAlternateContents with promiseCallback:%p", callbackObj);
 			pAAMP->_aamp->SetAlternateContents(adBreakId, adIdStr, url);
 		}
 		else
 		{
-			ERROR("[AAMP_JS] %s() Unable to parse the promiseCallback argument", __FUNCTION__);
+                       LOG_ERROR(pAAMP,"Unable to parse the promiseCallback argument");
+
 		}
 		SAFE_DELETE_ARRAY(reservationId);
 		SAFE_DELETE_ARRAY(adURL);
@@ -3508,18 +3573,18 @@ static JSValueRef AAMP_setAlternateContent(JSContextRef context, JSObjectRef fun
  */
 static JSValueRef AAMP_notifyReservationCompletion(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	ERROR("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.notifyReservationCompletion() on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 2)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 2", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 2", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.notifyReservationCompletion' - 1 argument required");
 	}
 	else
@@ -3528,7 +3593,7 @@ static JSValueRef AAMP_notifyReservationCompletion(JSContextRef context, JSObjec
 		long time = (long) JSValueToNumber(context, arguments[1], exception);
 		//Need an API in AAMP to notify that placements for this reservation are over and AAMP might have to trim
 		//the ads to the period duration or not depending on time param
-		ERROR("[AAMP_JS] %s(): Called reservation close for periodId:%s and time:%ld", __FUNCTION__, reservationId, time);
+                LOG_WARN(pAAMP,"Called reservation close for periodId:%s and time:%ld", reservationId, time);
 		SAFE_DELETE_ARRAY(reservationId);
 	}
 	return JSValueMakeUndefined(context);
@@ -3546,23 +3611,24 @@ static JSValueRef AAMP_notifyReservationCompletion(JSContextRef context, JSObjec
  */
 static JSValueRef AAMP_setLinearTrickplayFPS(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-        LOG("[AAMP_JS] %s()", __FUNCTION__);
+        LOG_TRACE("Enter");
         AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
         if (!pAAMP)
         {
-                ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+                LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
                 *exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setAnonymousRequest on instances of AAMP");
                 return JSValueMakeUndefined(context);
         }
 
         if (argumentCount != 1)
         {
-                ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+               	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
                 *exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setAnonymousRequest' - 1 argument required");
         }
         else
         {
                 int linearTrickplayFPS = (int)JSValueToNumber(context, arguments[0], exception);
+		LOG_WARN(pAAMP," _aamp->SetLinearTrickplayFPS(%d)", linearTrickplayFPS);
                 pAAMP->_aamp->SetLinearTrickplayFPS(linearTrickplayFPS);
         }
         return JSValueMakeUndefined(context);
@@ -3583,23 +3649,24 @@ static JSValueRef AAMP_setLinearTrickplayFPS(JSContextRef context, JSObjectRef f
  */
 static JSValueRef AAMP_setLiveOffset(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setLiveOffset on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+       	 	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setLiveOffset' - 1 argument required");
 	}
 	else
 	{
 		int liveOffset = (int)JSValueToNumber(context, arguments[0], exception);
+		LOG_WARN(pAAMP," _aamp->SetLiveOffset(%d)", liveOffset);
 		pAAMP->_aamp->SetLiveOffset(liveOffset);
 	}
 	return JSValueMakeUndefined(context);
@@ -3620,23 +3687,24 @@ static JSValueRef AAMP_setLiveOffset(JSContextRef context, JSObjectRef function,
  */
 static JSValueRef AAMP_setDownloadStallTimeout(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setDownloadStallTimeout on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setDownloadStallTimeout' - 1 argument required");
 	}
 	else
 	{
 		long stallTimeout = (long)JSValueToNumber(context, arguments[0], exception);
+		LOG_WARN(pAAMP," _aamp->SetDownloadStallTimeout(%ld)",stallTimeout);
 		pAAMP->_aamp->SetDownloadStallTimeout(stallTimeout);
 	}
 
@@ -3658,23 +3726,24 @@ static JSValueRef AAMP_setDownloadStallTimeout(JSContextRef context, JSObjectRef
  */
 static JSValueRef AAMP_setDownloadStartTimeout(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setDownlodStartTimeout on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setDownloadStartTimeout' - 1 argument required");
 	}
 	else
 	{
 		long startTimeout = (long)JSValueToNumber(context, arguments[0], exception);
+        	LOG_WARN(pAAMP,"SetDownloadStartTimeout %ld",startTimeout);
 		pAAMP->_aamp->SetDownloadStartTimeout(startTimeout);
 	}
 
@@ -3696,23 +3765,25 @@ static JSValueRef AAMP_setDownloadStartTimeout(JSContextRef context, JSObjectRef
  */
 static JSValueRef AAMP_setNetworkTimeout(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setNetworkTimeout on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		
+       		LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setNetworkTimeout' - 1 argument required");
 	}
 	else
 	{
 		double networkTimeout = (double)JSValueToNumber(context, arguments[0], exception);
+        	LOG_WARN(pAAMP," _aamp->SetNetworkTimeout %lf",networkTimeout);
 		pAAMP->_aamp->SetNetworkTimeout(networkTimeout);
 	}
 
@@ -3732,23 +3803,24 @@ static JSValueRef AAMP_setNetworkTimeout(JSContextRef context, JSObjectRef funct
  */
 static JSValueRef AAMP_setClosedCaptionStatus(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setClosedCaptionStatus on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);                
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setClosedCaptionStatus' - 1 argument required");
 	}
 	else
 	{
 		bool enabled = JSValueToBoolean(context, arguments[0]);
+        	LOG_WARN(pAAMP,"_aamp->SetCCStatus(%d)", enabled);
 		pAAMP->_aamp->SetCCStatus(enabled);
 	}
 	return JSValueMakeUndefined(context);
@@ -3767,18 +3839,18 @@ static JSValueRef AAMP_setClosedCaptionStatus(JSContextRef context, JSObjectRef 
  */
 static JSValueRef AAMP_setTextStyleOptions(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setTextStyleOptions on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextStyleOptions' - 1 argument required");
 	}
 	else
@@ -3786,13 +3858,14 @@ static JSValueRef AAMP_setTextStyleOptions(JSContextRef context, JSObjectRef fun
 		if (JSValueIsString(context, arguments[0]))
 		{
 			const char *options = aamp_JSValueToCString(context, arguments[0], NULL);
+            		LOG_WARN(pAAMP,"_aamp->SetTextStyle(%s)", options);
 			pAAMP->_aamp->SetTextStyle(std::string(options));
 			SAFE_DELETE_ARRAY(options);
 
 		}
 		else
 		{
-			ERROR("[AAMP_JS] %s() InvalidArgument: Argument should be JSON formatted string", __FUNCTION__);
+            		LOG_ERROR(pAAMP,"InvalidArgument: Argument should be JSON formatted string");
 			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextStyleOptions' - argument should be JSON formatted string");
 		}
 	}
@@ -3812,23 +3885,23 @@ static JSValueRef AAMP_setTextStyleOptions(JSContextRef context, JSObjectRef fun
  */
 static JSValueRef AAMP_getTextStyleOptions(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getTextStyleOptions on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 	std::string options = pAAMP->_aamp->GetTextStyle();
 	if (!options.empty())
 	{
-		TRACELOG("Exit %s()", __FUNCTION__);
+		LOG_INFO(pAAMP,"_aamp->GetTextStyle() [%s]",options.c_str());
 		return aamp_CStringToJSValue(context, options.c_str());
 	}
 	else
 	{
-		TRACELOG("Exit %s()", __FUNCTION__);
+		LOG_WARN(pAAMP,"_aamp->GetTextStyle() options=NULL");
 		return JSValueMakeUndefined(context);
 	}
 }
@@ -3846,25 +3919,25 @@ static JSValueRef AAMP_getTextStyleOptions(JSContextRef context, JSObjectRef fun
  */
 static JSValueRef AAMP_setLanguageFormat(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setLanguageFormat on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 2)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+       		LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setLanguageFormat' - 2 argument required");
 	}
 	else
 	{
 		int preferredFormat = (int) JSValueToNumber(context, arguments[0], NULL);
 		bool useRole = JSValueToBoolean(context, arguments[1]);
-
+        	LOG_WARN(pAAMP," aamp->SetLanguageFormat(%d, %d)", preferredFormat, useRole);
 		pAAMP->_aamp->SetLanguageFormat((LangCodePreference) preferredFormat, useRole);
 	}
 	return JSValueMakeUndefined(context);
@@ -3883,23 +3956,25 @@ static JSValueRef AAMP_setLanguageFormat(JSContextRef context, JSObjectRef funct
  */
 static JSValueRef AAMP_setLicenseCaching(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setLicenseCaching on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		
+        	LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setLicenseCaching' - 1 argument required");
 	}
 	else
 	{
 		bool enabled = JSValueToBoolean(context, arguments[0]);
+		LOG_WARN(pAAMP," _aamp->SetLicenseCaching %d)",enabled);
 		pAAMP->_aamp->SetLicenseCaching(enabled);
 	}
 	return JSValueMakeUndefined(context);
@@ -3917,23 +3992,24 @@ static JSValueRef AAMP_setLicenseCaching(JSContextRef context, JSObjectRef funct
  */
 static JSValueRef AAMP_setAuxiliaryLanguage(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setAuxiliaryLanguage on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setAuxiliaryLanguage' - 1 argument required");
 	}
 	else
 	{
 		char* lang = aamp_JSValueToCString(context, arguments[0], exception);
+        	LOG_WARN(pAAMP," _aamp->SetAuxiliaryLanguage(%s)", lang);
 		pAAMP->_aamp->SetAuxiliaryLanguage(lang);
 		SAFE_DELETE_ARRAY(lang);
 	}
@@ -3951,11 +4027,11 @@ static JSValueRef AAMP_setAuxiliaryLanguage(JSContextRef context, JSObjectRef fu
  */
 static JSValueRef AAMP_getPlayeBackStats(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP || !pAAMP->_aamp)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.getPlayeBackStats on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
@@ -3975,22 +4051,23 @@ static JSValueRef AAMP_getPlayeBackStats(JSContextRef context, JSObjectRef funct
  *  */
 static JSValueRef AAMP_xreSupportedTune(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.xreSupprotedTune on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.xreSupprotedTune' - 1 argument required");
 	}
 	else
 	{
 		bool xreSupported = JSValueToBoolean(context, arguments[0]);
+        	LOG_WARN(pAAMP," _aamp->XRESupportedTune(%d)",xreSupported);
 		pAAMP->_aamp->XRESupportedTune(xreSupported);
 	}
 	return JSValueMakeUndefined(context);
@@ -4011,23 +4088,24 @@ static JSValueRef AAMP_xreSupportedTune(JSContextRef context, JSObjectRef functi
  */
 static JSValueRef AAMP_setContentProtectionDataUpdateTimeout(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if (!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setContentProtectionDataUpdateTimeout on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		LOG_ERROR(pAAMP,"InvalidArgument: argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setContentProtectionDataUpdateTimeout' - 1 argument required");
 	}
 	else
 	{
 		int contentProtectionDataUpdateTimeout = (int)JSValueToNumber(context, arguments[0], exception);
+		LOG_WARN(pAAMP," _aamp->SetContentProtectionDataUpdateTimeout %d",contentProtectionDataUpdateTimeout);
 		pAAMP->_aamp->SetContentProtectionDataUpdateTimeout(contentProtectionDataUpdateTimeout);
 	}
 	return JSValueMakeUndefined(context);
@@ -4048,24 +4126,24 @@ static JSValueRef AAMP_setContentProtectionDataUpdateTimeout(JSContextRef contex
 
 static JSValueRef AAMP_setContentProtectionDataConfig(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
 	if(!pAAMP)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setContentProtectionDataConfig on instances of AAMP");
 		return JSValueMakeUndefined(context);
 	}
 	if (argumentCount == 1 && JSValueIsObject(context, arguments[0]))
 	{
 		const char *jsonbuffer = aamp_JSValueToJSONCString(context,arguments[0], exception);
-		ERROR("%s() Response json call ProcessContentProtection %s",__FUNCTION__,jsonbuffer);
+        	LOG_WARN(pAAMP," Response json call ProcessContentProtection %s",jsonbuffer);
 		pAAMP->_aamp->ProcessContentProtectionDataConfig(jsonbuffer);
 		SAFE_DELETE_ARRAY(jsonbuffer);
 	}
 	else
 	{
-		ERROR("%s(): InvalidArgument - argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+        	LOG_ERROR(pAAMP,"IvalidArgument - argumentCount=%d, expected: 1", argumentCount);
 		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute setContentProtectionDataConfig() - 1 argument of type IConfig required");
 	}
 	return JSValueMakeUndefined(context);
@@ -4085,22 +4163,23 @@ static JSValueRef AAMP_setContentProtectionDataConfig(JSContextRef context, JSOb
  */
 static JSValueRef AAMP_setRuntimeDRMConfig(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
 {
-       LOG("[AAMP_JS] %s()", __FUNCTION__);
+       LOG_TRACE("Enter");
        AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
        if (!pAAMP)
        {
-               ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+               LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
                *exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setDynamicDRMConfig on instances of AAMP");
                return JSValueMakeUndefined(context);
        }
        if(argumentCount != 1)
        {
-               ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+               LOG_ERROR(pAAMP,"IvalidArgument - argumentCount=%d, expected: 1", argumentCount);
                *exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setDynamicDRMConfig - 1 argument required");
        }
        else
        {
                bool DynamicDRMSupport = (bool)JSValueToBoolean(context, arguments[0]);
+               LOG_WARN(pAAMP," _aamp->SetRuntimeDRMConfigSupport %d",DynamicDRMSupport);
                pAAMP->_aamp->SetRuntimeDRMConfigSupport(DynamicDRMSupport);
        }
        return JSValueMakeUndefined(context);
@@ -4178,12 +4257,12 @@ static const JSStaticFunction AAMP_staticfunctions[] =
  */
 static void AAMP_finalize(JSObjectRef thisObject)
 {
-	LOG("[AAMP_JS] %s(): object=%p", __FUNCTION__, thisObject);
-
+        
 	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject); 
+	LOG_WARN_EX("object=%p", thisObject);
 	if (pAAMP == NULL)
 	{
-		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
 		return;
 	}
 	JSObjectSetPrivate(thisObject, NULL);
@@ -4210,8 +4289,9 @@ static void AAMP_finalize(JSObjectRef thisObject)
 	if (NULL != _allocated_aamp)
 	{
 		//when finalizing JS object, don't generate state change events
+        	LOG_WARN(pAAMP," aamp->Stop(false)");
 		_allocated_aamp->Stop(false);
-		LOG("[AAMP_JS] %s:%d delete aamp %p", __FUNCTION__, __LINE__, _allocated_aamp);
+        	LOG_WARN(pAAMP,"delete aamp %p",_allocated_aamp);
 		SAFE_DELETE(_allocated_aamp);
 	}
 	pthread_mutex_unlock(&mutex);
@@ -4273,7 +4353,7 @@ static JSClassRef AAMP_class_ref() {
  */
 static JSValueRef EventType_getproperty_AD_PLAYBACK_STARTED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	return aamp_CStringToJSValue(context, "adPlaybackStarted");
 }
 
@@ -4288,7 +4368,7 @@ static JSValueRef EventType_getproperty_AD_PLAYBACK_STARTED(JSContextRef context
  */
 static JSValueRef EventType_getproperty_AD_PLAYBACK_COMPLETED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	return aamp_CStringToJSValue(context, "adPlaybackCompleted");
 }
 
@@ -4303,7 +4383,7 @@ static JSValueRef EventType_getproperty_AD_PLAYBACK_COMPLETED(JSContextRef conte
  */
 static JSValueRef EventType_getproperty_AD_PLAYBACK_INTERRUPTED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	return aamp_CStringToJSValue(context, "adPlaybackInterrupted");
 }
 
@@ -4318,7 +4398,7 @@ static JSValueRef EventType_getproperty_AD_PLAYBACK_INTERRUPTED(JSContextRef con
  */
 static JSValueRef EventType_getproperty_BUFFERING_BEGIN(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	return aamp_CStringToJSValue(context, "bufferingBegin");
 }
 
@@ -4333,7 +4413,7 @@ static JSValueRef EventType_getproperty_BUFFERING_BEGIN(JSContextRef context, JS
  */
 static JSValueRef EventType_getproperty_BUFFERING_END(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	return aamp_CStringToJSValue(context, "bufferingEnd");
 }
 
@@ -4348,7 +4428,7 @@ static JSValueRef EventType_getproperty_BUFFERING_END(JSContextRef context, JSOb
  */
 static JSValueRef EventType_getproperty_DECODER_AVAILABLE(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	return aamp_CStringToJSValue(context, "decoderAvailable");
 }
 
@@ -4363,7 +4443,7 @@ static JSValueRef EventType_getproperty_DECODER_AVAILABLE(JSContextRef context, 
  */
 static JSValueRef EventType_getproperty_DRM_METADATA_INFO_AVAILABLE(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	return aamp_CStringToJSValue(context, "drmMetadataInfoAvailable");
 }
 
@@ -4381,7 +4461,7 @@ static JSValueRef EventType_getproperty_DRM_METADATA_INFO_AVAILABLE(JSContextRef
  */
 static JSValueRef EventType_getproperty_DRM_METADATA(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-        LOG("[AAMP_JS] %s()", __FUNCTION__);
+        LOG_TRACE("Enter");
         return aamp_CStringToJSValue(context, "drmMetadata");
 }
 
@@ -4398,7 +4478,7 @@ static JSValueRef EventType_getproperty_DRM_METADATA(JSContextRef context, JSObj
  */
 static JSValueRef EventType_getproperty_ENTERING_LIVE(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	return aamp_CStringToJSValue(context, "enteringLive");
 }
 
@@ -4413,7 +4493,7 @@ static JSValueRef EventType_getproperty_ENTERING_LIVE(JSContextRef context, JSOb
  */
 static JSValueRef EventType_getproperty_MEDIA_OPENED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	return aamp_CStringToJSValue(context, "mediaOpened");
 }
 
@@ -4428,7 +4508,7 @@ static JSValueRef EventType_getproperty_MEDIA_OPENED(JSContextRef context, JSObj
  */
 static JSValueRef EventType_getproperty_MEDIA_STOPPED(JSContextRef context, JSObjectRef thisObject, JSStringRef propertyName, JSValueRef* exception)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 	return aamp_CStringToJSValue(context, "mediaStopped");
 }
 
@@ -4459,7 +4539,7 @@ static const JSStaticValue EventType_staticprops[] =
  */
 static void EventType_init(JSContextRef ctx, JSObjectRef thisObject)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 }
 
 
@@ -4469,7 +4549,7 @@ static void EventType_init(JSContextRef ctx, JSObjectRef thisObject)
  */
 static void EventType_finalize(JSObjectRef thisObject)
 {
-	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	LOG_TRACE("Enter");
 }
 
 
@@ -4518,7 +4598,7 @@ static JSClassRef EventType_class_ref() {
  */
 JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context)
 {
-	LOG("[AAMP_JS] %s() context=%p", __FUNCTION__, context);
+        LOG_TRACE("context=%p", context);
 
 	JSObjectRef obj = JSObjectMake(context, EventType_class_ref(), context);
 
@@ -4531,8 +4611,7 @@ JSObjectRef AAMP_JS_AddEventTypeClass(JSGlobalContextRef context)
  */
 void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 {
-	INFO("[AAMP_JS] %s() context=%p, aamp=%p", __FUNCTION__, context, playerInstanceAAMP);
-
+    	LOG_WARN_EX("context=%p, aamp=%p", context, playerInstanceAAMP);
 	JSGlobalContextRef jsContext = (JSGlobalContextRef)context;
 
 	AAMP_JS* pAAMP = new AAMP_JS();
@@ -4547,11 +4626,12 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 		if (NULL == _allocated_aamp )
 		{
 			_allocated_aamp = new PlayerInstanceAAMP(NULL, NULL);
-			LOG("[AAMP_JS] %s:%d create aamp %p", __FUNCTION__, __LINE__, _allocated_aamp);
-		}
+        		LOG_WARN_EX("create aamp %p", _allocated_aamp);
+					}
 		else
 		{
-			LOG("[AAMP_JS] %s:%d reuse aamp %p", __FUNCTION__, __LINE__, _allocated_aamp);
+            		LOG_WARN_EX("reuse aamp %p", _allocated_aamp);
+
 		}
 		pAAMP->_aamp = _allocated_aamp;
 		pthread_mutex_unlock(&mutex);
@@ -4559,6 +4639,11 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
 
 	pAAMP->_listeners = NULL;
 
+    	//Get PLAYER ID and store for future use in logging
+	pAAMP->iPlayerId = pAAMP->_aamp->GetId();
+    	//Get jsinfo config for INFO logging
+	pAAMP->bInfoEnabled =  pAAMP->_aamp->IsJsInfoLoggingEnabled();
+	
 	// DELIA-48250 Set tuned event configuration to playlist indexed
 	pAAMP->_aamp->SetTuneEventConfig(eTUNED_EVENT_ON_PLAYLIST_INDEXED);
 	// DELIA-48278 Set EnableVideoRectangle to false, this is tied to westeros config
@@ -4584,8 +4669,8 @@ void aamp_LoadJS(void* context, void* playerInstanceAAMP)
  */
 void aamp_UnloadJS(void* context)
 {
-	INFO("[AAMP_JS] %s() context=%p", __FUNCTION__, context);
-
+	
+     	LOG_WARN_EX("context=%p", context);
 	JSGlobalContextRef jsContext = (JSGlobalContextRef)context;
 
 	JSObjectRef globalObj = JSContextGetGlobalObject(jsContext);
@@ -4614,7 +4699,7 @@ void aamp_UnloadJS(void* context)
 	JSStringRelease(str);
 
 	// Force a garbage collection to clean-up all AAMP objects.
-	LOG("[AAMP_JS] JSGarbageCollect() context=%p", context);
+        LOG_TRACE("JSGarbageCollect() context=%p", context);
 	JSGarbageCollect(jsContext);
 }
 
@@ -4625,14 +4710,15 @@ void aamp_UnloadJS(void* context)
  */
 void __attribute__ ((destructor(101))) _aamp_term()
 {
-	LOG("[AAMP_JS] %s:%d", __FUNCTION__, __LINE__);
+	
+    	LOG_TRACE("Enter");
 	pthread_mutex_lock(&mutex);
 	if (NULL != _allocated_aamp)
 	{
-		LOG("[AAMP_JS] %s:%d stopping aamp", __FUNCTION__, __LINE__);
+        	LOG_WARN_EX("stopping aamp");
 		//when finalizing JS object, don't generate state change events
 		_allocated_aamp->Stop(false);
-		LOG("[AAMP_JS] %s:%d stopped aamp", __FUNCTION__, __LINE__);
+        	LOG_WARN_EX("stopped aamp");
 		delete _allocated_aamp;
 		_allocated_aamp = NULL;
 	}
