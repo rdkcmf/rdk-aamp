@@ -98,7 +98,7 @@ public:
          * @param[in] audioFormat audio format
          * @param[in] auxFormat aux audio format
          * @param[in] subFormat subtitle format
-         * @param[in] bESChangeStatus
+         * @param[in] bESChangeStatus flag to indicate if the audio type changed in mid stream
          * @param[in] forwardAudioToAux if audio buffers to be forwarded to aux pipeline
          * @param[in] setReadyAfterPipelineCreation True/False for pipeline is created
          */
@@ -245,8 +245,8 @@ public:
 	void NotifyFragmentCachingOngoing();
 	/**
          * @fn GetVideoSize
-         * @param[in] w width video width
-         * @param[in] h height video height
+         * @param[out] w width video width
+         * @param[out] h height video height
          */
 	void GetVideoSize(int &w, int &h);
 	/**^M
@@ -284,7 +284,7 @@ public:
          * @param[in] funcPtr function to execute on timer expiry
          * @param[in] repeatTimeout timeout between calls in ms
          * @param[in] user_data data to pass to the timer function
-         * @param[in] timerName name of the timer being removed (for debug) (opt)
+         * @param[in] timerName name of the timer being added
          * @param[out] taskId id of the timer to be returned
          */
 	void TimerAdd(GSourceFunc funcPtr, int repeatTimeout, guint& taskId, gpointer user_data, const char* timerName = nullptr);
@@ -322,7 +322,7 @@ public:
 	bool SetPlayBackRate ( double rate );
 
 	bool PipelineSetToReady; /**< To indicate the pipeline is set to ready forcefully */
-	bool trickTeardown;
+	bool trickTeardown;		/**< To indicate that the tear down is initiated in trick play */
 	struct AAMPGstPlayerPriv *privateContext;
 	/**
          * @fn AAMPGstPlayer
