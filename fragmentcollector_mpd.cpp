@@ -12029,6 +12029,8 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 	int monitorInterval = latencyMonitorInterval  * 1000;
 	AAMPLOG_INFO( "Speed correction state:%d", aamp->GetLLDashAdjustSpeed());
 
+	aamp->SetLLDashCurrentPlayBackRate(AAMP_NORMAL_PLAY_RATE);
+
 	while(keepRunning)
 	{
 		aamp->InterruptableMsSleep(monitorInterval);
@@ -12160,7 +12162,6 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 								{
 									AAMPLOG_INFO("Retune started due to %d corrrection  ",aamp->mLLDashRateCorrectionCount);
 									aamp->mLLDashRateCorrectionCount = 0;
-									aamp->SetLLDashCurrentPlayBackRate(AAMP_NORMAL_LL_PLAY_RATE);
 									aamp->mLLDashRetuneCount++;
 
 									aamp->ScheduleRetune(eDASH_LOW_LATENCY_MAX_CORRECTION_REACHED,eMEDIATYPE_VIDEO);
