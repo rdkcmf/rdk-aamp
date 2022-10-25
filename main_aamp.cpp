@@ -353,7 +353,7 @@ void PlayerInstanceAAMP::TuneInternal(const char *mainManifestUrl, bool autoPlay
 	PrivAAMPState state;
 	if(aamp){
 
-	aamp->StopPausePositionMonitoring();
+	aamp->StopPausePositionMonitoring("Tune() called");
 
 	aamp->GetState(state);
 	bool IsOTAtoOTA =  false;
@@ -389,7 +389,7 @@ void PlayerInstanceAAMP::detach()
 
 	//Acquire lock
 	mScheduler.SuspendScheduler();
-	aamp->StopPausePositionMonitoring();
+	aamp->StopPausePositionMonitoring("detach() called");
 	aamp->detach();
 	//Release lock
 	mScheduler.ResumeScheduler();
@@ -606,7 +606,7 @@ void PlayerInstanceAAMP::SetRateInternal(float rate,int overshootcorrection)
 		rate = getWorkingTrickplayRate(rate);
 	}
 
-	aamp->StopPausePositionMonitoring();
+	aamp->StopPausePositionMonitoring("SetRate() called");
 
 	if (aamp->mpStreamAbstractionAAMP && !(aamp->mbUsingExternalPlayer))
 	{
@@ -858,11 +858,11 @@ void PlayerInstanceAAMP::PauseAt(double position)
  */
 void PlayerInstanceAAMP::PauseAtInternal(double position)
 {
-	AAMPLOG_INFO("PLAYER[%d] position=%f.", aamp->mPlayerId, position);
+	AAMPLOG_WARN("PLAYER[%d] aamp_PauseAt position=%f", aamp->mPlayerId, position);
 
 	ERROR_STATE_CHECK_VOID();
 
-	aamp->StopPausePositionMonitoring();
+	aamp->StopPausePositionMonitoring("PauseAt() called");
 
 	if (position >= 0)
 	{
@@ -1001,7 +1001,7 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 
 	ERROR_STATE_CHECK_VOID();
 
-	aamp->StopPausePositionMonitoring();
+	aamp->StopPausePositionMonitoring("Seek() called");
 
 	if ((aamp->mMediaFormat == eMEDIAFORMAT_HLS || aamp->mMediaFormat == eMEDIAFORMAT_HLS_MP4) && (eSTATE_INITIALIZING == state)  && aamp->mpStreamAbstractionAAMP)
 	{
@@ -2801,7 +2801,7 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 {
 	PrivAAMPState state;
 
-	aamp->StopPausePositionMonitoring();
+	aamp->StopPausePositionMonitoring("Stop() called");
 
 	aamp->GetState(state);
 	if(!aamp->IsTuneCompleted())

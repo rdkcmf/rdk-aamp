@@ -86,11 +86,11 @@ void PrivateInstanceAAMP::StartPausePositionMonitoring(long long pausePositionMi
 	}
 }
 
-void PrivateInstanceAAMP::StopPausePositionMonitoring(void)
+void PrivateInstanceAAMP::StopPausePositionMonitoring(std::string reason)
 {
 	if (g_mockPrivateInstanceAAMP != nullptr)
 	{
-		g_mockPrivateInstanceAAMP->StopPausePositionMonitoring();
+		g_mockPrivateInstanceAAMP->StopPausePositionMonitoring(reason);
 	}
 }
 

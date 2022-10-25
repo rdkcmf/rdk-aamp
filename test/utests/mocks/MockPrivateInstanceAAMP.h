@@ -29,7 +29,7 @@ public:
 
     MOCK_METHOD(void, StartPausePositionMonitoring, (long long pausePositionMilliseconds));
 
-    MOCK_METHOD(void, StopPausePositionMonitoring, ());
+    MOCK_METHOD(void, StopPausePositionMonitoring, (std::string reason));
 
     MOCK_METHOD(void, GetState, (PrivAAMPState& state));
 
