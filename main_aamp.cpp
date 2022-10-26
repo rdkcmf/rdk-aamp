@@ -2208,7 +2208,7 @@ void PlayerInstanceAAMP::SetSslVerifyPeerConfig(bool bValue)
 /**
  *   @brief Set audio track
  */
-void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string rendition, std::string codec, std::string type, unsigned int channel, std::string label)
+void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string rendition, std::string type, std::string codec, unsigned int channel, std::string label)
 {
 	if(aamp)
 	{
@@ -2216,15 +2216,15 @@ void PlayerInstanceAAMP::SetAudioTrack(std::string language, std::string renditi
 		if (mAsyncTuneEnabled)
 		{
 			mScheduler.ScheduleTask(AsyncTaskObj(
-						[language,rendition,codec,type,channel, label](void *data)
+						[language,rendition,type,codec,channel, label](void *data)
 						{
 							PlayerInstanceAAMP *instance = static_cast<PlayerInstanceAAMP *>(data);
-							instance->SetAudioTrackInternal(language,rendition,codec,type,channel, label);
+							instance->SetAudioTrackInternal(language,rendition,type,codec,channel, label);
 						}, (void *) this,__FUNCTION__));
 		}
 		else
 		{
-			SetAudioTrackInternal(language,rendition,codec,type,channel, label);
+			SetAudioTrackInternal(language,rendition,type,codec,channel,label);
 		}
 	}
 }
