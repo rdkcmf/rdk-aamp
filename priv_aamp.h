@@ -876,8 +876,6 @@ public:
 	bool mTSBEnabled;
 	bool mIscDVR;
 	double mLiveOffset;
-	int mLLDashRateCorrectionCount;
-	int mLLDashRetuneCount;
 	long mNetworkTimeoutMs;
 	std::string mCMCDNextObjectRequest;			/**<store the next next fragment url */
 	long mCMCDBandwidth;					/**<store the audio bandwidth */
@@ -1039,6 +1037,7 @@ public:
 	bool mVideoOnlyPb;					/**< To indicate Video Only Playback */
 	int mCurrentAudioTrackIndex;				/**< Keep current selected audio track index */
 	int mCurrentTextTrackIndex;				/**< Keep current selected text track index*/
+	double mLLActualOffset;				/**< Actual Offset After Seeking in LL Mode*/
 
 	/**
 	 * @fn hasId3Header
