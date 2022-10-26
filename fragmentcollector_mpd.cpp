@@ -9157,7 +9157,8 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 			{	// profile not changed and Cache not full scenario
 				if (!pMediaStreamContext->eos)
 				{
-					if(trickPlay && pMediaStreamContext->mDownloadedFragment.ptr == NULL)
+					AcquirePlaylistLock();
+					if(trickPlay && pMediaStreamContext->mDownloadedFragment.ptr == NULL && !pMediaStreamContext->freshManifest)
 					{
 						//When player started in trickplay rate during player swithcing, make sure that we are showing atleast one frame (mainly to avoid cases where trickplay rate is so high that an ad could get skipped completely)
 						if(aamp->playerStartedWithTrickPlay)
@@ -9171,11 +9172,10 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 							delta = rate / vodTrickplayFPS;
 						}
 						double currFragTime = pMediaStreamContext->fragmentTime;
-						AcquirePlaylistLock();
 						delta = SkipFragments(pMediaStreamContext, delta);
-						ReleasePlaylistLock();
 						mBasePeriodOffset += (pMediaStreamContext->fragmentTime - currFragTime);
 					}
+					ReleasePlaylistLock();
 
 					if (PushNextFragment(pMediaStreamContext, getCurlInstanceByMediaType(static_cast<MediaType>(trackIdx))))
 					{
@@ -9277,7 +9277,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 		if(mpd)
 		{
 			mIterPeriodIndex = mCurrentPeriodIdx;
-			while(mIterPeriodIndex < mNumberOfPeriods && !exitFetchLoop)  //CID:95090 - No effect
+			while((mIterPeriodIndex < mNumberOfPeriods) && (mIterPeriodIndex >= 0) && !exitFetchLoop)  //CID:95090 - No effect
 			{
 				AcquirePlaylistLock();
 				bool periodChanged = (mIterPeriodIndex != mCurrentPeriodIdx) || (mBasePeriodId != mpd->GetPeriods().at(mCurrentPeriodIdx)->GetId());

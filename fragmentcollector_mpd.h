@@ -797,9 +797,9 @@ private:
 	int mNumberOfTracks;
 	int mCurrentPeriodIdx;
 	size_t mNumberOfPeriods;	// Number of periods in the updated manifest
-	unsigned mIterPeriodIndex;	// FetcherLoop period iterator index
-	unsigned mUpperBoundaryPeriod;	// Last playable period index
-	unsigned mLowerBoundaryPeriod;	// First playable period index
+	int mIterPeriodIndex;	// FetcherLoop period iterator index
+	int mUpperBoundaryPeriod;	// Last playable period index
+	int mLowerBoundaryPeriod;	// First playable period index
 	double mEndPosition;
 	bool mIsLiveStream;    	    	   /**< Stream is live or not; won't change during runtime. */
 	bool mIsLiveManifest;   	   /**< Current manifest is dynamic or static; may change during runtime. eg: Hot DVR. */
