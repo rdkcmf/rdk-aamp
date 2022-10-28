@@ -1758,7 +1758,7 @@ void AampConfig::ReadAllTR181Params()
 		}
 	}
 
-	AAMPLOG_WARN("ReadAllTR181Params took %d ms to execute", (NOW_STEADY_TS_MS - begin));
+	AAMPLOG_WARN("ReadAllTR181Params took %lld ms to execute", (NOW_STEADY_TS_MS - begin));
 #endif
 
 }
