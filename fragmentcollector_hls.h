@@ -149,7 +149,7 @@ struct DiscontinuityIndexNode
 	int fragmentIdx;	         /**< Idx of fragment in index table*/
 	double position;	         /**< Time of index from start */
 	double fragmentDuration;	 /**< Fragment duration of current discontinuity index */
-	const char* programDateTime;     /**Program Date time */
+	double discontinuityPDT;	 /**< Program Date time value */
 };
 
 /**
