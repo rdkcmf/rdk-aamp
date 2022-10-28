@@ -339,14 +339,14 @@ Begin streaming the specifed content.
 |SLE|Single Live Event (similar to IVOD)|
 ---
 
-###play()
+### play()
 
 - Supported UVE version 0.7 and above.
 - Start playback (if stream is in prebuffered state), or resume playback at normal speed.  Equivalent to setPlaybackRate(1).
 
 ---
 
-###pause()
+### pause()
 
 - Supported UVE version 0.7 and above.
 - Pauses playback.  Equivalent to setPlaybackRate(0).
@@ -432,7 +432,7 @@ Begin streaming the specifed content.
 
 | Name | Type | Decription |
 | ---- | ---- | ---------- |
-| Volume | Number | Pass false to black out video. Pass true to resume presenting video. |
+| enabled | Boolean | Pass false to black out the video, pass true to resume presenting video. |
 
 ---
 
@@ -540,131 +540,207 @@ Begin streaming the specifed content.
 ### getAvailableAudioTracks()
 - Supported UVE version 1.0 and above.
 - Returns the available audio tracks information in the content.
+- ##### DASH
+    - Returns the available audio tracks information in the current playing content by default or if allTrack is false.
+    - Returns all the available audio tracks information from the Manifest if allTrack in true.
 
-##### DASH
+| Name  | Type | Description |
+| ---- | ---- | ---- |
+| name  | String | Human readable language name e.g: Spanish,English. |
+| language  | String | Specifies dominant language of the audio e.g:  spa,eng |
+| codec  | String | codec associated with Audio. e.g: mp4a.40.2 |
+| rendition  | String | Role for DASH, If not present, the role is assumed to be main e.g: caption,subtitle,main. |
+| accessibilityType  | String | Accessibility value for descriptive, visually impaired signaling e.g: description, captions |
+| bandwidth  | String | Represents variants of the bitrates available for the media type; e.g: 288000 |
+| Type  | String | audio — Primary dialogue and soundtrack; 
+|||audio_native — Primary dialogue and soundtrack with dialogue that was recorded along with the video; 
+|||audio_descriptions — Audio track meant to assist the vision impaired in the enjoyment of the video asset |
+| Channels | String | Indicates the maximum number of audio channels; 1 = mono, 2=stereo, up to 8 for DD+ |
+| availability  | Boolean | Availability of the audio track in current TSB buffer (FOG) |
+| accessibility  | Object | DASH shall signal a new object accessibility to notify a track as hearing impaired |
+| scheme  | String | The SchemeId to indicate the type of Accessibility Example:- "urn:mpeg:dash:role:2011" |
+| string_value  | String | The string value of Accessibility object; Example:-  "description" |
 
-|Name|Type|Description|
-|----|----|-----------|
-| name | String | Human readable language name. **Example:** Spanish, English |
-| language | String | Specifies dominant language of the audio. **Example:**  spa, eng |
-| rendition | String | Role for DASH. If not present, the role is assumed to be main. **Example:** caption, subtitle, main |
-| characteristics | String | Not mapped |
-| Channels | String | Indicates the maximum number of audio channels. 1 = mono, 2=stereo, up to 8 for DD+ |
-| bandwidth | String | Represents variants of the bitrates available for the media type. **Example:** 288000 |
-| codec | String | codec associated with Adaptation Set. **Example:** mp4a.40.2 |
-| accessibilityType | String | Accessibility value for descriptive, visually impaired signaling. **Example:** description, captions |
-
-##### Example:
-
-
-      {
-          "name": "5",
-          "language": "ger",
-          "codec":     "mp4a.40.2",
-          "rendition": "german",
-          "accessibility": "description",
-          "bandwidth":        288000
+- ###### Example:
+```sh
+[{
+    "name":	"root_audio111",
+    "language":	"en",
+    "codec":	"ec-3",
+    "rendition":	"alternate",
+    "accessibilityType":	"description",
+    "bandwidth":	117600,
+    "Type":	"audio_description",
+    "availability":	true,
+    "accessibility":	{
+        "scheme":	"urn:mpeg:dash:role:2011",
+        "string_value":	"description"
       }
+}]
+```
+-   ###### Reference
 
-##### Reference:
+```html
+<AdaptationSet id="4" contentType="audio" mimeType="audio/mp4" lang="en">
+    <AudioChannelConfiguration schemeIdUri="tag:dolby.com,2014:dash:audio_channel_configuration:2011" value="a000"/>
+    <Accessibility schemeIdUri="urn:mpeg:dash:role:2011" value="description"/>
+    <Role schemeIdUri="urn:mpeg:dash:role:2011" value="alternate"/>
+    <SegmentTemplate initialization="S4CHD_HD_SU_SKYUK_2296_0_4955246312692938163-eac3/track-sap-repid-$RepresentationID$-tc-0-header.mp4" media="S4CHD_HD_SU_SKYUK_2296_0_4955246312692938163-eac3/track-sap-repid-$RepresentationID$-tc-0-frag-$Number$.mp4" timescale="90000" startNumber="832358982" presentationTimeOffset="144013">
+    <SegmentTimeline>
+        <S t="7394777152" d="172800" r="14"/>
+    </SegmentTimeline>
+    </SegmentTemplate>
+    <Representation id="root_audio111" bandwidth="117600" codecs="ec-3" audioSamplingRate="48000"/>
+</AdaptationSet>
+```
 
-<AdaptationSet id="3" contentType="audio" segmentAlignment="true" bitstreamSwitching="true" lang="ger">
-<Role schemeIdUri="urn:mpeg:dash:role:2011" value="german"/>
-<Accessibility schemeIdUri="urn:mpeg:dash:role:2011" value="description" />
-<Representation id="5" mimeType="audio/mp4" codecs="mp4a.40.2" bandwidth="288000" audioSamplingRate="48000">
-<AudioChannelConfiguration schemeIdUri="urn:mpeg:dash:23003:3:audio_channel_configuration:2011" value="1"/> </AdaptationSet>
+- ##### HLS
+    - Returns the available audio tracks information in JSON formatted list. Subset of parameters returned
 
-##### HLS
+| Name  | Type | Description |
+| ---- | ---- | ---- |
+| name  | String | The value is a quoted-string containing a human-readable description of the Rendition; e.g:english, commentary, german |
+| language  | String | Identifies the primary language used in the Rendition. 
+|||In practice, this should be present in vast majority of production manifests, but per HLS specification,his attribute is OPTIONAL e.g: eng,ger,spa. |
+| codec  | String | codec associated with Audio. e.g: mp4a.40.2 |
+| rendition  | String | Specifies the group to which the Rendition belongs. GROUP-ID for HLS.|
+| bandwidth  | String | Decimal-Integer encoding - bits per second. Represents peak segment bit rate of the Variant Stream. |
+| Channels | String | Indicates maximum number of audio channels present in any Media Segment in the Rendition. e.g: An AC-3 5.1 rendition would have a CHANNELS=6 |
+| characteristics | String | One or more comma-delimited Uniform Type Identifiers [UTI].  This attribute is OPTIONAL. |
 
-|Name|Type|Description|
-|----|----|-----------|
-| name | String | The value is a quoted-string containing a human-readable description of the Rendition. **Example:** english, commentary, german |
-| language | String | Identifies the primary language used in the Rendition. In practice, this should be present in vast majority of production manifests, but per HLS specification, this attribute is OPTIONAL. **Example:** eng, ger, spa |
-| codec | String | Comma-delimited list of formats, where each format specifies a media sample type that is present in one or more Renditions specified by the Variant Stream. **Example:** mp4a.40.2,avc1.4d401e |
-| rendition | String | Specifies the group to which the Rendition belongs. GROUP-ID for HLS |
-| characteristics | String | One or more comma-delimited Uniform Type Identifiers [UTI].  This attribute is OPTIONAL |
-| bandwidth | String | Decimal-Integer encoding - bits per second. Represents peak segment bit rate of the Variant Stream |
-| Channels | String | Indicates maximum number of audio channels present in any Media Segment in the Rendition. **Example:** An AC-3 5.1 rendition would have a CHANNELS=6 |
+- ###### Example:
 
-##### Example:
+```sh
+[{
+    "name": "6",
+    "language":     "eng",
+    "codec":        "mp4a.40.2",
+    "rendition":    "english",
+    "bandwidth":    288000
+}]
+```
 
- 
-      {
-          "name": "6",
-          "language": "eng",
-          "codec":     "mp4a.40.2",
-          "rendition": "english",
-          "bandwidth":        288000
-      }
+- ###### Reference
 
-##### Reference:
-
+```h
  #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="mono",NAME="english",LANGUAGE="eng",URI="hls/en.m3u8",DEFAULT=YES,AUTOSELECT=YES
  #EXT-X-STREAM-INF:PROGRAM-ID=1,AUDIO="mono",BANDWIDTH=800000,RESOLUTION=640x360,CODECS="avc1.4d400d,mp4a.40.2"
 hls/360p.m3u8
+```
 
 ---
 
 ### getAvailableTextTracks()
 - Supported UVE version 1.0 and above.
-- Returns the available text tracks(CC) in the content.
+- ##### DASH
+    - Returns the available text tracks information in the current playing content by default or if allTrack in false.
+    - Returns all the available text tracks information from the Manifest if allTrack in true.
 
-##### DASH
+| Name  | Type | Description |
+| ---- | ---- | ---- |
+| name  | String | Human readable language name e.g: sub_eng. |
+| language  | String | iso language code. e.g: eng |
+| codec  | String | codec associated with text track. e.g: stpp |
+| rendition  | String | Role for DASH. e.g: caption,subtitle,main. |
+| accessibilityType |	String | Accessibility value for descriptive, visually impaired signaling e.g: description, captions |
+| type |	String | the supported values are	
+||| captions — A text track (608/708/TTML) meant for the hearing impaired. 
+|||            which describes all the dialogue and non-dialogue audio portions of the asset (including music, sound effects, etc) |
+||| subtitles — A text track (TTML) meant for translating the spoken dialogue into additional languages |
+||| subtitles_native — Subtitle in Native language |
+| sub-type |	String |	Closed-caption or subtitles |
+| availability |	Boolean |	Availability of the text track in current TSB buffer (FOG) |
+| accessibility	| Object |	DASH shall signal a new object accessibility to notify a track as visually impaired |
+| accessibility.scheme |	String |	The SchemeId to indicate the type of Accessibility |
+||| Example:- urn:scte:dash:cc:cea-608:2015 for cc |
+||| urn:tva:metadata:cs:AudioPurposeCS:2007 for subtitle |
+| accessibility.int_value |	Number |	The value of Accessibility object; Number for subtile Example:- 2 |
+| accessibility.string_value |	String | The string value of Accessibility object for CC; Example:-  "CC1=en" |
 
-|Name|Type|Description|
-|----|----|-----------|
-| name | String | Human readable language name. **Example:** Spanish, English |
-| language | String | iso language code. The language should be present. If not present, the language is unknown or no language applies. **Example:** eng |
-| codec | String | Codecs used for the Adaptation Set. **Example:** stpp |
-| type | String | The value specifies the media type. Valid strings are AUDIO, VIDEO, SUBTITLES and CLOSED-CAPTIONS. This attribute is REQUIRED. **Example:** CLOSED-CAPTIONS |
-| rendition | String | Role for DASH. If not present, the role is assumed to be main. **Example:** caption,subtitle,main |
-| characteristics | String | Not mapped |
-| instreamID | String | Not mapped |
-| accessibilityType | String | Accessibility value for descriptive, visually impaired signaling. **Example:** description, captions |
+- ###### Example:
 
-##### Example:
+```sh
+[{
+    "sub-type":	"CLOSED-CAPTIONS",
+    "language":	"en",
+    "rendition":	"urn:scte:dash:cc:cea-608:2015",
+    "codec":	"CC1",
+    "availability":	true,
+    "accessibility":	{
+        "scheme":	"urn:scte:dash:cc:cea-608:2015",
+        "string_value":	"CC1=en"
+    }
+}, {
+    "name":	"subtitle0",
+    "sub-type":	"SUBTITLES",
+    "language":	"cy",
+    "rendition":	"subtitle",
+    "type":	"subtitle",
+    "codec":	"stpp.ttml.im1t|etd1",
+    "availability":	true
+}, {
+    "name":	"subtitle0",
+    "sub-type":	"SUBTITLES",
+    "language": "en",
+    "codec": "stpp.ttml.im1t|etd1",
+    "type":	"subtitle",
+    "rendition": "alternate",
+    "availability":	true,
+    "accessibility":{
+        "scheme": 	"urn:tva:metadata:cs:AudioPurposeCS:2007",
+        "int_value": 1
+    }
+}]
+```
 
-      {
-          "name": "caption_en",
-          "type": "SUBTITLES",
-          "language":     "en",
-          "accessibiltyType": "description",
-          "codec":        "text/vt
-      }
+- ###### Reference:
 
-##### Reference:
+```html
+<AdaptationSet id="100" contentType="text" mimeType="application/mp4" lang="cy" segmentAlignment="true" startWithSAP="1">
+    <Role schemeIdUri="urn:mpeg:dash:role:2011" value="subtitle"/>
+    <SegmentTemplate initialization="S4CHD_HD_SU_SKYUK_2296_0_4955246312692938163/track-text-repid-$RepresentationID$-tc--header.mp4" media="S4CHD_HD_SU_SKYUK_2296_0_4955246312692938163/track-text-repid-$RepresentationID$-tc--frag-$Number$.mp4" timescale="90000" startNumber="832358982" presentationTimeOffset="144013">
+        <SegmentTimeline>
+            <S t="7394947162" d="172800" r="14"/>
+        </SegmentTimeline>
+    </SegmentTemplate>
+    <Representation id="subtitle0" bandwidth="20000" codecs="stpp.ttml.im1t|etd1"/>
+</AdaptationSet>
+```
 
-		</AdaptationSet>
-		    <AdaptationSet group="14" mimeType="text/vtt" lang="en">
-		      <Representation id="caption_en" bandwidth="256">
-		        <BaseURL>subtitles/subtitles_en.vtt</BaseURL>
-			        <Accessibility schemeIdUri="urn:mpeg:dash:role:2011" value="captions" />
-      </Representation>
-    </AdaptationSet>
+- ##### HLS
+    - Returns the available text tracks(CC) in the content.
 
-##### HLS
-|Name|Type|Description|
-|----|----|-----------|
-| name | String | Human-readable description of the Rendition. **Example:** english, spanish |
-| type | String | Specifies the media type. Valid strings are AUDIO, VIDEO, SUBTITLES and CLOSED-CAPTIONS. This attribute is REQUIRED. **Example:** CLOSED-CAPTIONS |
-| language | String | Identifies the primary language used in the Rendition. This attribute is OPTIONAL. **Example:** es |
-| rendition | String | Specifies the group to which the Rendition belongs. GROUP-ID for HLS |
-| instreamID | String | Specifies a Rendition within the segments in the Media Playlist. This attribute is REQUIRED if the TYPE attribute is CLOSED-CAPTIONS. **Example:** "CC1", "CC2", "CC3", "CC4", or "SERVICEn" where n MUST be an integer between 1 and 63 |
-| codec | String | Comma-delimited list of formats, where each format specifies a media sample type that is present in one or more Renditions specified by the Variant Stream |
-| characteristics | String | One or more comma-delimited Uniform Type Identifiers [UTI].  This attribute is OPTIONAL |
+| Name  | Type | Description |
+| ---- | ---- | ---- |
+| name  | String | Human readable language name e.g: sub_eng. |
+| language  | String | Identifies the primary language used in the Rendition. This attribute is OPTIONAL. e.g: es |
+| codec  | String | Comma-delimited list of formats, where each format specifies a media sample type that is present in one or more Renditions specified by the Variant Stream. |
+| rendition  | String | Specifies the group to which the Rendition belongs. GROUP-ID for HLS. |
+| characteristics |	String | Pne or more comma-delimited Uniform Type Identifiers [UTI].  This attribute is OPTIONAL. |
+| instreamId	| String	| Specifies a Rendition within the segments in the Media Playlist. 
+||| This attribute is REQUIRED if the TYPE attribute is CLOSED-CAPTIONS |
+||| e.g: "CC1", "CC2", "CC3", "CC4", or "SERVICEn" where n MUST be an integer between 1 and 63 |
+| type	| String |	Specifies the media type. |
+||| Valid strings are AUDIO, VIDEO, SUBTITLES and CLOSED-CAPTIONS. This attribute is REQUIRED. e.g: CLOSED-CAPTIONS |
 
-##### Example:
 
-      {
-          "name": "Deutsch",
-          "type": "SUBTITLES",
-          "language":     "de",
-          "rendition": "subs",
-      }
+- ###### Example:
 
-##### Reference:
+```sh
+[{
+    "name": "Deutsch",
+    "type": "SUBTITLES",
+    "language":     "de",
+    "rendition":    "subs"
+}]
+```
+
+- ###### Reference:
+
+```m
  #EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="Deutsch",DEFAULT=NO,AUTOSELECT=YES,FORCED=NO,LANGUAGE="de",URI="subtitles_de.m3u8"
  #EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=258157,CODECS="avc1.4d400d,mp4a.40.2",AUDIO="stereo",RESOLUTION=422x180,SUBTITLES="subs"
+```
 
 ---
 
@@ -676,7 +752,7 @@ hls/360p.m3u8
 
 ### getAudioTrack( )
 - Supported UVE version 2.6 and above.
-- Returns the index of current audio track in available audio track list.
+- Returns the index of the current audio track in the available audio tracklist.
 
 ---
 
@@ -747,32 +823,45 @@ hls/360p.m3u8
 
 ### setAudioTrack(index )
 - Supported UVE version 2.6 and above.
-- Set the audio track language from available audio track list.
+- Set the audio track language from the available audio tracklist.
+- Behaviour is similar to setPreferredAudioLanguage
 
 |Name|Type|Description|
 |----|----|-----------|
-| index | Number | Track Index of desired audio track in available audio track list |
+| index | Number | Track Index of desired audio track in available audio tracklist |
 
 ---
 
 ### setAudioTrack( trackDescriptorObj )
 - Supported UVE version 3.2 and above.
-- Set the audio track  by language and rendition from available audio track list.
+- Set the audio track  by language, rendition, label and codec from the available audio tracklist.
 - “language” match always takes precedence over “rendition” match.
 - While playing passively to new periods with different track order/availability, or when tuning to new locator, heuristic for track selection is automatically re-applied.
-- Note that for now, “best” codec (ATMOS > DD+ > Stereo) is always selected, subject to filtering configuration.
+- Note that for now, “best” codec (AC4>ATMOS > DD+ >AC3 > AAC> StereoOthers) is always selected, subject to filtering configuration.
+- Behaviour is similar to setPreferredAudioLanguage
 
-|Name|Type|Description|
-|----|----|-----------|
-| language | String | Language of desired audio track in available audio track list |
-| rendition | String | Rendition of desired audio track in available audio track list |
+| Name  | Type | Description |
+| ---- | ---- | ---- |
+| language | String | Language of desired audio track in the available audio tracklist |
+| rendition | String | Rendition of desired audio track in the available audio tracklist |
+| label	| String	| Label or groupLabel elements of the audio track |
+| type	| String	| Optional preferred accessibility type for descriptive audio |
+||| Example:- label set "Native" to indicate the track as the original language track. |
+|codec|	String|	Preferred codec of the audio track.|
+|||Default Priority : (AC4 > ATMOS > D D+ > AC3 > AAC > Others)|
 
-##### Example:
-     {
-          "language":     "ger",
-          "rendition": "commentary",
-      }
-      playerInstance.setAudioTrack( trackDescriptorObject );
+- ###### Example: 
+```js
+var trackDescriptorObject =
+{
+    "language": "de",
+    "rendition": "commentary",
+    "type" : "description",
+    "codec": "avc",
+    "label": "surround"
+}
+playerInstance.setAudioTrack( trackDescriptorObject );
+```
 
 ---
 
@@ -781,68 +870,149 @@ hls/360p.m3u8
 - Set the audio track  preference by languages, rendition and accessibility
 - This is functionally equivalent to passing a trackDescriptorObject to setAudioTrack above.
 - May be called pre-tune or post tune.
+- Behaviour is similar to setPreferredAudioLanguage ( JSON String)
 
 |Name|Type|Description|
 |----|----|-----------|
-| languages | String | ISO-639 audio language preference; for more than one language, provide comma delimited list from highest to lowest priority:  ‘<HIGHEST>,<...>,<LOWEST>’ |
+| languages | String | ISO-639 audio language preference; |
+|||for more than one language, provide comma delimited list from highest to lowest priority:  ‘<HIGHEST>,<...>,<LOWEST>’ |
 | rendition | String | Optional preferred rendition for automatic audio selection |
-| accessibility | String | Optional preferred accessibility type for descriptive audio |
+| accessibilityType | String | Optional preferred accessibility type for descriptive audio |
+| codecList | String |	Codec preferences, for more than one codecs, provide comma delimited list from highest to lowest priority: ‘<HIGHEST>,<...>,<LOWEST>’ |
+| label | String | Preferred Label for automatic audio selection |
+
+- ###### Example :
+```js
+playerInstance.setPreferredAudioLanguage( "en,de,mul","alternate","description","","native");
+```
 
 ---
 
 ### setPreferredAudioLanguage ( JSON String)
 - Supported UVE version 4.4 and above.
-- Set the audio track  preference by languages, rendition and accessibility
+- Set the audio track  preference by languages, label, rendition and accessibility
 - May be called pre-tune or post tune.
+- Behaviour for non XRE build (similar for setAudioTrack or setAudioLanguage )
+    - If setPreferredAudioLanguage is not called; 
+        - AAMP will take default preferred language as English, and 
+        choose better quality track from the language matching list.
+        - For Live, TSB (FOG) keeps downloading all available tracks if preference is not set by setPreferredAudioLanguage or setAudioTrack
+    - If setPreferredAudioLanguage has called in pretune for live;
+        - TSB (FOG) download only preferred labguage tracks but advertise all other languages to application with availability field as false. 
+        - If preferred language is not available, TSB (FOG) will download first available track, and advertise the other tracks with availability field as false.
+    - If setPreferredAudioLanguage (or setAudioTrack) has called in posttune for live;
+        - If the new preferred language track is already available in TSB (FOG), then AAMP change to that track without losing TSB buffer;
+        - If the new preferred language track is not available in TSB (FOG), then AAMP change to that track with FOG retune which course losing TSB buffer; 
+- Behaviour for XRE build
+    - TSB (FOG) downloads all available track irrespective of this call.  
+- JsonObject Format:
+```js
+{
+    “languages” : [“language1”, “language2”, “language3”],
+    “label”:”value”,
+    “rendition”: “value”,
+    "accessibility":
+    {
+        "scheme": "value",
+        "string_value": "value",
+    }
+}
+```
+|Name|Type|Description|
+|----|----|-----------|
+| languages | String | ISO-639 audio language preference; for more than one language, provide comma delimited list from highest to lowest priority:  ‘<HIGHEST>,<...>,<LOWEST>’ |
+| rendition | String | Optional preferred rendition for automatic audio selection |
+| label	| String | Preferred Label for automatic audio selection |
+| accessibility | Object | Optional preferred accessibility object for audio |
+| accessibility.sheme | String | Preferred Accessibility scheme Id  |
+|  accessibility.string_value | String | Preferred Accessibility scheme Id value |
 
-##### Example :
-
-
-      {
-          "languages": ["eng", "ger", "mul"],
-          "label": "native",
-          "rendition": "alternate",
-          "accessibility": 
-          { 
-          "scheme": "urn:mpeg:dash:role:2011",
-          "string_value": "description", 
-          }
-      }
-
+- ###### Example :
+```js
+var trackPreferenceObject =
+{
+    "languages": ["en", "de", "mul"],
+    "label": "native",
+    "rendition": "alternate",
+    "accessibility": 
+    { 
+        "scheme": "urn:mpeg:dash:role:2011",
+        "string_value": "description", 
+    }
+}
+playerInstance.setPreferredAudioLanguage( trackPreferenceObject );
+```
 ---
 
 ### setAudioLanguage( language )
 - Supported UVE version 3.0 and above.
-- Set the audio track language from available audio track list.
+- Set the audio track language from the available audio tracklist.
+- Behaviour is similar to setPreferredAudioLanguage.
 
 |Name|Type|Description|
 |----|----|-----------|
-| language | String | Language of desired audio track in available audio track list |
-
+| language | String | Language of desired audio track in the available audio tracklist |
 ---
 
 ### setPreferredTextLanguage ( JSON String )
 - Supported UVE version 4.4 and above.
 - Set the text  track  preference by languages, rendition and accessibility
 - May be called pre-tune or post tune.
+- Behaviour for non XRE build (similar for setTextTrack )
+    - If setPreferredTextLanguage is not called; 
+        - Choose first or better quality track from the available list.
+        - For Live, TSB (FOG) keeps downloading all available tracks if preference is not set by setPreferredTextLanguage or setTextTrack.
+    - If setPreferredTextLanguage has called in pretune for live;
+        - TSB (FOG) download only preferred labguage tracks but advertise all other languages to application with availability field as false. 
+        - If preferred language is not available, TSB (FOG) will download first available language, and advertise the other languages with availability field as false.
+    - If setPreferredTextLanguage (or setTextTrack) has called in posttune for live;
+        - If the new preferred language track is already available in TSB (FOG), then AAMP change to that track without losing TSB buffer;
+        - If the new preferred language track is not available in TSB (FOG), then AAMP change to that track with FOG retune which course losing TSB buffer; 
+- Behaviour for XRE build
+    - TSB (FOG) downloads all available track irrespective of this call. 
+- JsonObject Format:
 
-##### Example :
+```js
+{
+    “languages” : [“language1”, “language2”, “language3”],
+    “label”:”value”,
+    “rendition”: “value”,
+    "accessibility":
+    {
+        "scheme": "value",
+        "int_value": value,
+    }
+}
+```
+|Name|Type|Description|
+|----|----|-----------|
+| languages | String | ISO-639 audio language preference; for more than one language, provide comma delimited list from highest to lowest priority:  ‘<HIGHEST>,<...>,<LOWEST>’ |
+| rendition | String | Optional preferred rendition for automatic text selection |
+| label	| String | Preferred Label for automatic text selection |
+| accessibilityType | String |	Optional preferred accessibility Node for descriptive audio.|
+| accessibility | Object | Optional preferred accessibility object for audio |
+| accessibility.sheme | String | Preferred Accessibility scheme Id  |
+| accessibility.int_value | Number | Preferred Accessibility scheme Id value |
 
-      {
-          "languages": ["eng", "ger", "mul"],
-          "rendition": "subtitle",
-          "accessibility": 
-          { 
-            "scheme": "urn:tva:metadata:cs:AudioPurposeCS:2007",
-            "int_value": 2 
-          }
-      }
-
+- ###### Example :
+```js
+var trackPreferenceObject =
+{
+    "languages": ["en", "de", "mul"],
+    "rendition": "subtitle",
+    "accessibility": 
+    { 
+        "scheme": "urn:tva:metadata:cs:AudioPurposeCS:2007",
+        "int_value": 2 
+    }
+}
+playerInstance.setPreferredTextLanguage( trackPreferenceObject );
+```
 ---
 
 ### getTextTrack( )
 - Supported UVE version 2.6 and above.
-- Returns the index of current text track in available text track list.
+- Returns the index of the current text track in the available text tracklist.
 
 ---
 
@@ -850,51 +1020,50 @@ hls/360p.m3u8
 - Supported UVE version 4.4 and above.
 - Returns playing Text track information in JSON format 
 
-##### Example : 
-
-
-      {
-          "name": "English"
-          "languages": "eng",
-          "codec": "stpp"
-          "type": "CLOSED-CAPTIONS"
-          "rendition": "alternate",
-          "accessibility": 
-          { 
-            "scheme": "urn:tva:metadata:cs:AudioPurposeCS:2007",
-            "int_value": 2 
-          }
-      }
-
+- ###### Example : 
+```js
+{
+    "name": "English"
+    "languages": "eng",
+    "codec": "stpp"
+    "type": "CLOSED-CAPTIONS"
+    "rendition": "alternate",
+    "accessibility": 
+    { 
+        "scheme": "urn:tva:metadata:cs:AudioPurposeCS:2007",
+        "int_value": 2 
+    }
+}
+```
 ---
 
 ### getPreferredTextProperties
 - Supported UVE version 4.4 and above.
 - Returns Text track information set by user for preferred Text track selection , in JSON format 
 
-##### Example : 
-
-      {
-          "preferred-text-languages" : ["eng", "ger", "mul"],
-          "preferred-text-labels": "subtitle",
-          "preferred-text-rendition": "",
-          "preferred-text-type": ""
-          "preferred-text-accessibility":
-          { 
-            "scheme": "urn:tva:metadata:cs:AudioPurposeCS:2007",
-            "int_value": 2 
-          }
-      }
-
+- ###### Example : 
+```js
+{
+    "preferred-text-languages" : ["eng", "ger", "mul"],
+    "preferred-text-labels": "subtitle",
+    "preferred-text-rendition": "",
+    "preferred-text-type": ""
+    "preferred-text-accessibility":
+    { 
+        "scheme": "urn:tva:metadata:cs:AudioPurposeCS:2007",
+        "int_value": 2 
+    }
+}
+```
 ---
 
 ### setTextTrack( trackIndex )
 - Supported UVE version 2.6 and above.
-- Set the text track at trackIndex in available text track list.
+- Set the text track at trackIndex in the available text tracklist.
 
 |Name|Type|Description|
 |----|----|-----------|
-| trackIndex | Number | Index of desired text track in available text track list |
+| trackIndex | Number | Index of desired text track in the available text tracklist |
 
 ---
 
