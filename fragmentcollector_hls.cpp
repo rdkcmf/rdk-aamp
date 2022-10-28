@@ -2550,7 +2550,11 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 						DiscontinuityIndexNode discontinuityIndexNode;
 						discontinuityIndexNode.fragmentIdx = indexCount;
 						discontinuityIndexNode.position = totalDuration;
-						discontinuityIndexNode.programDateTime = programDateTimeIdxOfFragment;
+						discontinuityIndexNode.discontinuityPDT = 0.0;
+						if (programDateTimeIdxOfFragment)
+						{
+							discontinuityIndexNode.discontinuityPDT = ISO8601DateTimeToUTCSeconds(programDateTimeIdxOfFragment);
+						}
 						discontinuityIndexNode.fragmentDuration = atof(ptr);
 						aamp_AppendBytes(&mDiscontinuityIndex, &discontinuityIndexNode, sizeof(DiscontinuityIndexNode));
 						mDiscontinuityIndexCount++;
@@ -6585,10 +6589,8 @@ bool TrackState::HasDiscontinuityAroundPosition(double position, bool useDiscont
 		for (int i = 0; i < mDiscontinuityIndexCount; i++)
 		{
 			// Live is complicated lets finish that 
-			double discdatetime = 0.0;
-			if(discontinuityIndex[i].programDateTime)
-			discdatetime = ISO8601DateTimeToUTCSeconds(discontinuityIndex[i].programDateTime);
-			
+			double discdatetime = discontinuityIndex[i].discontinuityPDT;
+
 			if (IsLive())
 			{
 				AAMPLOG_WARN("[%s] Host loop %d mDiscontinuityIndexCount %d discontinuity-pos %f mCulledSeconds %f playlistRefreshTime:%f discdatetime=%f",name, i,
