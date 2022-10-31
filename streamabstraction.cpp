@@ -3488,45 +3488,32 @@ int MediaTrack::WaitTimeBasedOnBufferAvailable()
 		long minUpdateDuration = GetMinUpdateDuration();
 		minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
 
-		// If buffer Available is > 2*minUpdateDuration
-		if(bufferAvailable  > (minUpdateDuration*2) )
+		// when target duration is high value(>Max delay)  but buffer is available just above the max update inteval,then go with max delay between playlist refresh.
+		if(bufferAvailable < (2* MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS))
 		{
-			// may be 1.0 times also can be set ???
-			minDelayBetweenPlaylistUpdates = (int)(1.5 * minUpdateDuration);
-		}
-		// if buffer is between 2*target & mMinUpdateDurationMs
-		else if(bufferAvailable  > minUpdateDuration)
-		{
-			minDelayBetweenPlaylistUpdates = (int)(0.5 * minUpdateDuration);
-		}
-		// This is to handle the case where target duration is high value(>Max delay)  but buffer is available just above the max update inteval
-		else if(bufferAvailable > (2*MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS))
-		{
-			minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
-		}
-		// if buffer < targetDuration && buffer < MaxDelayInterval
-		else
-		{
-			// if bufferAvailable is less than targetDuration ,its in RED alert . Close to freeze
-			// need to refresh soon ..
-			if(bufferAvailable)
+			if ((minUpdateDuration > 0) && (bufferAvailable  > minUpdateDuration))
 			{
-				minDelayBetweenPlaylistUpdates = (int)(bufferAvailable / 3) ;
+				//1.If buffer Available is > 2*minUpdateDuration , may be 1.0 times also can be set ???
+				//2.If buffer is between 2*target & mMinUpdateDurationMs
+				float mFactor = (bufferAvailable  > (minUpdateDuration * 2)) ? 1.5 : 0.5;
+				minDelayBetweenPlaylistUpdates = (int)(mFactor * minUpdateDuration);
 			}
+			// if buffer < targetDuration && buffer < MaxDelayInterval
 			else
 			{
-				minDelayBetweenPlaylistUpdates = MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS; // 500mSec
-			}
-			// limit the logs when buffer is low
-			{
-				static int bufferlowCnt;
-				if((bufferlowCnt++ & 5) == 0)
+				// if bufferAvailable is less than targetDuration ,its in RED alert . Close to freeze
+				// need to refresh soon ..
+				minDelayBetweenPlaylistUpdates = (bufferAvailable) ? (int)(bufferAvailable / 3) : MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS; //500ms
+				// limit the logs when buffer is low
 				{
-					AAMPLOG_WARN("Buffer is running low(%ld).Refreshing playlist(%d).PlayPosition(%lld) End(%lld)",
-						bufferAvailable,minDelayBetweenPlaylistUpdates,currentPlayPosition,endPositionAvailable);
+					static int bufferlowCnt;
+					if((bufferlowCnt++ & 5) == 0)
+					{
+						AAMPLOG_WARN("Buffer is running low(%ld).Refreshing playlist(%d).PlayPosition(%lld) End(%lld)",
+								bufferAvailable,minDelayBetweenPlaylistUpdates,currentPlayPosition,endPositionAvailable);
+					}
 				}
 			}
-
 		}
 
 		// First cap max limit ..
