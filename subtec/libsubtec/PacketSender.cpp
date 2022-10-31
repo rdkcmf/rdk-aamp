@@ -22,6 +22,8 @@
 #include "SubtecPacket.hpp"
 #include "PacketSender.hpp"
 
+#define MAX_SNDBUF_SIZE (8*1024*1024)
+
 void runWorkerTask(void *ctx)
 {
     try {
@@ -261,6 +263,19 @@ void PacketSender::sendPacket(PacketPtr && pkt)
 {
     auto buffer = pkt->getBytes();
     size_t size =  static_cast<ssize_t>(buffer.size());
+    if (size > mSockBufSize && size < MAX_SNDBUF_SIZE)
+    {
+	int newSize = buffer.size();
+	if (::setsockopt(mSubtecSocketHandle, SOL_SOCKET, SO_SNDBUF, &newSize, sizeof(newSize)) == -1)
+	{
+            AAMPLOG_WARN("::setsockopt() SO_SNDBUF failed\n");
+	}
+	else
+	{
+	    mSockBufSize = newSize;
+	    AAMPLOG_INFO("new socket buffer size %d\n", mSockBufSize);
+	}
+    }
     auto written = ::write(mSubtecSocketHandle, &buffer[0], size);
     AAMPLOG_TRACE("PacketSender: Written %ld bytes with size %ld", written, size);
 }
@@ -307,6 +322,11 @@ bool PacketSender::initSocket(const char *socket_path)
     addr.sun_family = AF_UNIX;
     (void) std::strncpy(addr.sun_path, socket_path, sizeof(addr.sun_path));
     addr.sun_path[sizeof(addr.sun_path) - 1] = 0;
+
+    socklen_t optlen = sizeof(mSockBufSize);
+    ::getsockopt(mSubtecSocketHandle, SOL_SOCKET, SO_SNDBUF, &mSockBufSize, &optlen);
+    mSockBufSize = mSockBufSize / 2;  //kernel returns twice the value of actual buffer
+    AAMPLOG_INFO("SockBuffer size : %d\n", mSockBufSize);
 
     if (::connect(mSubtecSocketHandle, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) != 0)
     {
