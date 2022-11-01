@@ -417,34 +417,23 @@ double ISO8601DateTimeToUTCSeconds(const char *ptr)
 	double timeSeconds = 0;
 	if(ptr)
 	{
-		time_t offsetFromUTC = 0;
 		std::tm timeObj = { 0 };
-		char *msString;
-		double msvalue = 0.0;;
-
 		//Find out offset from utc by convering epoch
 		std::tm baseTimeObj = { 0 };
 		strptime("1970-01-01T00:00:00.", "%Y-%m-%dT%H:%M:%S.", &baseTimeObj);
-		offsetFromUTC = mktime(&baseTimeObj);
+		time_t offsetFromUTC = mktime(&baseTimeObj);
+		timeSeconds = mktime(&timeObj) - offsetFromUTC;
 
 		//Convert input string to time
-		msString = strptime(ptr, "%Y-%m-%dT%H:%M:%S.", &timeObj);
-
-		if(msString)
-		{
-			//The return value of the strptime is a pointer to the first character which is not processed, here it is milliseconds time from ISO8601 string.
-                        //Eg UTCTiming : 2022-09-22T16:34:32.664000Z, 664000 is the ms time.
-                        //Convert the milliseconds time to fraction and add it to the timeSeconds.
-			msvalue = (double)(atoi(msString));
-			double highestPlaceValue = pow(10,((int)(log10(msvalue) + 1)));
-			msvalue =  (highestPlaceValue > 0) ? (msvalue / highestPlaceValue) : msvalue;
+		const char *msString = strptime(ptr, "%Y-%m-%dT%H:%M:%S.", &timeObj);
+		if( msString && *msString )
+		{ // at least one character following decimal point
+			double ms = atof(msString-1); // back up and parse as float
+			timeSeconds += ms; // include ms granularity
 		}
-
-		timeSeconds = (mktime(&timeObj) - offsetFromUTC) + msvalue;
 	}
 	return timeSeconds;
 }
-
 
 static size_t MyRpcWriteFunction( void *buffer, size_t size, size_t nmemb, void *context )
 {
