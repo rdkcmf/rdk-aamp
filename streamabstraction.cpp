@@ -3511,6 +3511,7 @@ int MediaTrack::WaitTimeBasedOnBufferAvailable()
 		int timeSinceLastPlaylistDownload = (int)(aamp_GetCurrentTimeMS() - lastPlaylistDownloadTimeMS);
 		long long currentPlayPosition = aamp->GetPositionMilliseconds();
 		long long endPositionAvailable = (aamp->culledSeconds + aamp->durationSeconds)*1000;
+		bool lowLatencyMode = aamp->GetLLDashServiceData()->lowLatencyMode;
 		// playTarget value will vary if TSB is full and trickplay is attempted. Cant use for buffer calculation
 		// So using the endposition in playlist - Current playing position to get the buffer availability
 		long bufferAvailable = (endPositionAvailable - currentPlayPosition);
@@ -3541,7 +3542,18 @@ int MediaTrack::WaitTimeBasedOnBufferAvailable()
 			// need to refresh soon ..
 			if(bufferAvailable)
 			{
-				minDelayBetweenPlaylistUpdates = (int)(bufferAvailable / 3) ;
+				//1.If buffer Available is > 2*minUpdateDuration , may be 1.0 times also can be set ???
+				//2.If buffer is between 2*target & mMinUpdateDurationMs
+				float mFactor=0.0f;
+				if (lowLatencyMode)
+				{
+					mFactor = (bufferAvailable  > (minUpdateDuration * 2)) ? (float)(minUpdateDuration/1000) : 0.5;
+				}
+				else
+				{
+					mFactor = (bufferAvailable  > (minUpdateDuration * 2)) ? 1.5 : 0.5;
+				}
+				minDelayBetweenPlaylistUpdates = (int)(mFactor * minUpdateDuration);
 			}
 			else
 			{
@@ -3580,13 +3592,15 @@ int MediaTrack::WaitTimeBasedOnBufferAvailable()
 
 		if(minDelayBetweenPlaylistUpdates < MIN_DELAY_BETWEEN_PLAYLIST_UPDATE_MS)
 		{
-			
-			if (aamp->GetLLDashServiceData()->lowLatencyMode )
+			if (lowLatencyMode)
 			{
-				
 				long availTimeOffMs = (long)((aamp->GetLLDashServiceData()->availabilityTimeOffset)*1000);
 				long maxSegDuration = (long)(aamp->GetLLDashServiceData()->fragmentDuration*1000);
-				if(minUpdateDuration > 0 && minUpdateDuration > availTimeOffMs)
+				if(minUpdateDuration > 0 && minUpdateDuration < maxSegDuration)
+				{
+					minDelayBetweenPlaylistUpdates = (int)minUpdateDuration;		
+				}
+				else if(minUpdateDuration > 0 && minUpdateDuration > availTimeOffMs)
 				{
 					minDelayBetweenPlaylistUpdates = (int)minUpdateDuration-availTimeOffMs;
 				}
