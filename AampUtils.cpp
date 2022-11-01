@@ -422,10 +422,11 @@ double ISO8601DateTimeToUTCSeconds(const char *ptr)
 		std::tm baseTimeObj = { 0 };
 		strptime("1970-01-01T00:00:00.", "%Y-%m-%dT%H:%M:%S.", &baseTimeObj);
 		time_t offsetFromUTC = mktime(&baseTimeObj);
-		timeSeconds = mktime(&timeObj) - offsetFromUTC;
 
 		//Convert input string to time
 		const char *msString = strptime(ptr, "%Y-%m-%dT%H:%M:%S.", &timeObj);
+		timeSeconds = mktime(&timeObj) - offsetFromUTC;
+		
 		if( msString && *msString )
 		{ // at least one character following decimal point
 			double ms = atof(msString-1); // back up and parse as float
