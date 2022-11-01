@@ -5551,6 +5551,56 @@ bool AAMPGstPlayer::SetPlayBackRate ( double rate )
 {
 	int ret=0;
 
+	GstState gst_current = GST_STATE_NULL;
+	GstState gst_pending = GST_STATE_NULL;
+	GstStateChangeReturn retStatus = GST_STATE_CHANGE_FAILURE;
+	bool bSetPlayerRate = false;
+
+#if defined (REALTEKCE) || defined (BRCM)
+	retStatus = gst_element_get_state(privateContext->pipeline, &gst_current, &gst_pending, 0);
+#elif defined (AMLOGIC)
+	retStatus = gst_element_get_state(privateContext->video_dec, &gst_current, &gst_pending, 0);
+#else
+	retStatus = GST_STATE_CHANGE_FAILURE;
+#endif
+
+	switch (retStatus)
+	{
+		case GST_STATE_CHANGE_SUCCESS:
+		case GST_STATE_CHANGE_NO_PREROLL:
+		{
+			if ( (gst_current == GST_STATE_PLAYING) )
+			{
+				// Using below flag only for AMLOGIC as of now.
+				bSetPlayerRate = true;
+				AAMPLOG_INFO("GetState Success, Current state = %.80s, pending state=%.80s",
+					gst_element_state_get_name(gst_current),gst_element_state_get_name(gst_pending));
+			}
+			else
+			{
+				AAMPLOG_INFO("GetState Success, But pipeline is in %.80s state, pending state=%.80s, don't set playbackrate",
+					gst_element_state_get_name(gst_current),gst_element_state_get_name(gst_pending));
+			}
+			break;
+		}
+		case GST_STATE_CHANGE_ASYNC:
+		{
+			AAMPLOG_INFO("GetState Async, don't set playbackrate. Current state = %.80s, pending state=%.80s",
+						gst_element_state_get_name(gst_current), gst_element_state_get_name(gst_pending));
+			break;
+		}
+		case GST_STATE_CHANGE_FAILURE:
+		{
+			AAMPLOG_INFO("GetState FAILED. don't set playbackrate");
+			break;
+		}
+		default:
+		{
+			AAMPLOG_WARN("Unhandled state change return status %d", retStatus);
+			break;
+		}
+	}
+
 #if defined (REALTEKCE)
 	GstStructure* s = gst_structure_new("custom-instant-rate-change", "rate", G_TYPE_DOUBLE, rate, NULL);
 						/* The above statement creates a new GstStructure with the name 'custom-instant-rate-change' that has a member variable
@@ -5564,28 +5614,31 @@ bool AAMPGstPlayer::SetPlayBackRate ( double rate )
 	}
 	AAMPLOG_WARN ("Current rate: %g", rate);
 #elif defined (AMLOGIC)
-	AAMPLOG_WARN("Setting new segment with rate as:%f to audiosink", rate);
-	media_stream* audstream = &privateContext->stream[eMEDIATYPE_AUDIO];
-	GstElement *audsink=NULL;
-
-	GstSegment* segment = gst_segment_new();
-	gst_segment_init(segment, GST_FORMAT_TIME);
-	segment->rate = rate;
-	segment->start = GST_CLOCK_TIME_NONE;
-	segment->position = GST_CLOCK_TIME_NONE;
-
-	AAMPLOG_WARN("Sending new segment");
-	g_object_get (audstream->sinkbin, "audio-sink", &audsink, NULL);
-	if(NULL != audsink)
+	if( true == bSetPlayerRate )
 	{
-		ret=gst_pad_send_event (GST_BASE_SINK_PAD(audsink), gst_event_new_segment(segment));
-		AAMPLOG_WARN("send new segment to audio ret:%d", ret);
+		AAMPLOG_WARN("Setting new segment with rate as:%f to audiosink", rate);
+		media_stream* audstream = &privateContext->stream[eMEDIATYPE_AUDIO];
+		GstElement *audsink=NULL;
+
+		GstSegment* segment = gst_segment_new();
+		gst_segment_init(segment, GST_FORMAT_TIME);
+		segment->rate = rate;
+		segment->start = GST_CLOCK_TIME_NONE;
+		segment->position = GST_CLOCK_TIME_NONE;
+
+		AAMPLOG_WARN("Sending new segment");
+		g_object_get (audstream->sinkbin, "audio-sink", &audsink, NULL);
+		if(NULL != audsink)
+		{
+			ret=gst_pad_send_event (GST_BASE_SINK_PAD(audsink), gst_event_new_segment(segment));
+			AAMPLOG_WARN("send new segment to audio ret:%d", ret);
+		}
+		else
+		{
+			AAMPLOG_WARN("audio-sink device not found");
+		}
+		AAMPLOG_WARN ("Current rate: %g", rate);
 	}
-	else
-	{
-		AAMPLOG_WARN("audio-sink device not found");
-	}
-	AAMPLOG_WARN ("Current rate: %g", rate);
 #else //Broadcom
 	gint64 position;
 	GstEvent *seek_event=NULL, *vidseek=NULL;

@@ -4732,6 +4732,14 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 						notifyEnteringLive = true;
 					}
 				}
+				else
+				{
+					if((eTUNETYPE_SEEK == tuneType || eTUNETYPE_NEW_SEEK == tuneType)&&(aamp->GetLLDashServiceData()->lowLatencyMode ))
+					{
+						aamp->SetLLDashAdjustSpeed(false);
+						AAMPLOG_WARN("LL-Dash speed correction disabled");
+					}
+				}
 			}
 			if (liveAdjust)
 			{
@@ -4961,7 +4969,12 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			else
 			{
 				if( (aamp->GetLLDashServiceData()->lowLatencyMode ) && 
-					(!aamp->GetLLDashServiceData()->isSegTimeLineBased) )
+					(!aamp->GetLLDashServiceData()->isSegTimeLineBased) && \
+					( ( eTUNETYPE_SEEK != tuneType   ) &&
+					( eTUNETYPE_NEW_SEEK != tuneType ) &&
+					( eTUNETYPE_NEW_END != tuneType ) &&
+					( eTUNETYPE_SEEKTOEND != tuneType ) &&
+					( eTUNETYPE_RETUNE != tuneType ) ) )
 				{
 					offsetFromStart = offsetFromStart+(aamp->GetLLDashServiceData()->fragmentDuration - aamp->GetLLDashServiceData()->availabilityTimeOffset);
 				}
@@ -10130,7 +10143,8 @@ void StreamAbstractionAAMP_MPD::Start(void)
 		}
 	}
 	TuneType tuneType = aamp->GetTuneType();
-	if( (aamp->GetLLDashServiceData()->lowLatencyMode && ISCONFIGSET( eAAMPConfig_EnableLowLatencyCorrection ) ) )
+	if( (aamp->GetLLDashServiceData()->lowLatencyMode && ISCONFIGSET( eAAMPConfig_EnableLowLatencyCorrection ) ) && \
+		(true == aamp->GetLLDashAdjustSpeed() ) )
 	{
 		StartLatencyMonitorThread();
 	}
@@ -12098,13 +12112,17 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 	while(keepRunning)
 	{
 		aamp->InterruptableMsSleep(monitorInterval);
-		if (aamp->DownloadsAreEnabled())
+		if ( aamp->DownloadsAreEnabled() )
 		{
 	
 			double playRate = aamp->GetLLDashCurrentPlayBackRate();
-			if( aamp->GetPositionMs() > aamp->DurationFromStartOfPlaybackMs() )
+			PrivAAMPState state = eSTATE_IDLE;
+			aamp->GetState(state);
+			
+			if( state != eSTATE_PLAYING || aamp->GetPositionMs() > aamp->DurationFromStartOfPlaybackMs() )
 			{
-				AAMPLOG_WARN("current position[%lld] must be less than Duration From Start Of Playback[%lld]!!!!:",aamp->GetPositionMs(), aamp->DurationFromStartOfPlaybackMs());
+				AAMPLOG_WARN("Player state:%d must be in playing and current position[%lld] must be less than Duration From Start Of Playback[%lld]!!!!:", state,
+						aamp->GetPositionMs(), aamp->DurationFromStartOfPlaybackMs());
 			}
 			else
 			{
@@ -12400,39 +12418,27 @@ AAMPStatusType  StreamAbstractionAAMP_MPD::EnableAndSetLiveOffsetForLLDashPlayba
 
 		TuneType tuneType = aamp->GetTuneType();
 
-		if( ( eTUNETYPE_SEEK != tuneType   ) &&
-			( eTUNETYPE_NEW_SEEK != tuneType ) &&
-			( eTUNETYPE_NEW_END != tuneType ) &&
-			( eTUNETYPE_SEEKTOEND != tuneType ) )
+		if( GetLowLatencyParams((MPD*)this->mpd,stLLServiceData) &&	stLLServiceData.availabilityTimeComplete == false )
 		{
-			if( GetLowLatencyParams((MPD*)this->mpd,stLLServiceData) &&	stLLServiceData.availabilityTimeComplete == false )
+			stLLServiceData.lowLatencyMode = true;
+			if( ISCONFIGSET( eAAMPConfig_EnableLowLatencyCorrection ) )
 			{
-				stLLServiceData.lowLatencyMode = true;
-				if( ISCONFIGSET( eAAMPConfig_EnableLowLatencyCorrection ) )
-				{
-						aamp->SetLLDashAdjustSpeed(true);
-						AAMPLOG_WARN("LL Dash speed correction enabled");
-				}
-				else
-				{
-						aamp->SetLLDashAdjustSpeed(false);
-						AAMPLOG_WARN("LL Dash speed correction disabled");
-				}
-				AAMPLOG_WARN("StreamAbstractionAAMP_MPD: LL-DASH playback enabled availabilityTimeOffset=%lf,fragmentDuration=%lf",
-										stLLServiceData.availabilityTimeOffset,stLLServiceData.fragmentDuration);
+				aamp->SetLLDashAdjustSpeed(true);
+				AAMPLOG_WARN("LL-Dash speed correction enabled");
 			}
 			else
 			{
-				stLLServiceData.lowLatencyMode = false;
 				aamp->SetLLDashAdjustSpeed(false);
-				AAMPLOG_TRACE("LL-DASH Mode Disabled. Not a LL-DASH Stream");
+				AAMPLOG_WARN("LL-Dash speed correction disabled");
 			}
+			AAMPLOG_WARN("StreamAbstractionAAMP_MPD: LL-DASH playback enabled availabilityTimeOffset=%lf,fragmentDuration=%lf",
+									stLLServiceData.availabilityTimeOffset,stLLServiceData.fragmentDuration);
 		}
 		else
 		{
 			stLLServiceData.lowLatencyMode = false;
 			aamp->SetLLDashAdjustSpeed(false);
-			AAMPLOG_INFO("StreamAbstractionAAMP_MPD: tune type %d not support LL-DASH",tuneType);
+			AAMPLOG_TRACE("LL-DASH Mode Disabled. Not a LL-DASH Stream");
 		}
 		
 		//If LLD enabled then check servicedescription requirements

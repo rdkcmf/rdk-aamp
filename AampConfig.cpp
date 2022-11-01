@@ -480,7 +480,11 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_InterruptHandling].value			=	false;
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyDash].value			=	true;
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyABR].value		    	=	true;
+#if defined(REALTEKCE)
+	bAampCfgValue[eAAMPConfig_EnableLowLatencyCorrection].value		=	true;
+#else
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyCorrection].value		=	false;
+#endif
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyOffsetMin].value      	=	true;
 	bAampCfgValue[eAAMPConfig_EnableIgnoreEosSmallFragment].value		=       false;
 	bAampCfgValue[eAAMPConfig_EnableAampConfigToFog].value                  =       true;
