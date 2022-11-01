@@ -10148,7 +10148,7 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId, char *data)
 					AAMPLOG_WARN("GetPreferredTextTrack %d trackId %d", textTrack, trackId);
 					if (trackId != textTrack)
 					{
-
+						SetPreferredTextTrack(track);
 						const char* jsonData = createJsonData(track);
 						if(NULL != jsonData)
 						{ 
