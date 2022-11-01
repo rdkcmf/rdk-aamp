@@ -2113,7 +2113,8 @@ void PrivateInstanceAAMP::UpdateCullingState(double culledSecs)
 		double minPlaylistPositionToResume = (position < maxRefreshPlaylistIntervalSecs) ? position : (position - maxRefreshPlaylistIntervalSecs);
 		if (this->culledSeconds >= position)
 		{
-			if (mPausedBehavior <= ePAUSED_BEHAVIOR_LIVE_IMMEDIATE)
+			if (mPausedBehavior <= ePAUSED_BEHAVIOR_LIVE_IMMEDIATE 
+					&& this->culledSeconds != culledSecs /* Don't auto resume for first culled on PAUSED */)
 			{
 				// Immediate play from paused state, Execute player resume.
 				// Live immediate - Play from live position
