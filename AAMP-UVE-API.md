@@ -1775,7 +1775,8 @@ Configuration options are passed to AAMP using the UVE initConfig method. This a
 | preferredAudioLanguage | String | en | ISO-639 audio language preference; for more than one language, provide comma delimited list from highest to lowest priority: ‘<HIGHEST>,<...>,<LOWEST>’ |
 | timeShiftBufferLength | Number | - | (not  supported, for future) |
 | stereoOnly | Boolean | False | Optional forcing of playback to only select stereo audio track  available starting with version 0.8 |
-| liveOffset | Number | 15 | Allows override default/stream-defined distance from live point for live stream playback (in seconds) |
+| liveOffset | Number | 15 | Allows override the default/stream-defined distance from a live point for live stream playback (in seconds) |
+| liveOffset4K | Number | 15 | Allows override the default/stream-defined distance from a live point for 4K live stream playback (in seconds) |
 | bulkTimedMetadata | Boolean | False | Send timed metadata using single stringified JSON array instead of individual events  available starting with version 0.8 |
 | networkProxy | String | - | Network proxy to use (Format <SCHEME>://<PROXY IP:PROXY PORT>) |
 | licenseProxy | String | - | Network proxy to use for license requests (Format same as network proxy) |

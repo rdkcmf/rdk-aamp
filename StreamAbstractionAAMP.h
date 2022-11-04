@@ -849,6 +849,22 @@ public:
 	bool IsStreamerAtLivePoint() { return mIsAtLivePoint; }
 
 	/**
+	 * @fn Is4KStream
+	 * @brief check if current stream have 4K content
+	 * @param height - resolution of 4K stream if found
+	 * @param bandwidth - bandwidth of 4K stream if foudd
+	 * @return true on success 
+	 */
+	virtual bool Is4KStream(int &height, long &bandwidth) = 0;
+
+	/**
+	 * @fn GetPreferredLiveOffsetFromConfig
+	 * @brief Set the offset value Live object
+	 * @return none
+	 */
+	virtual bool GetPreferredLiveOffsetFromConfig();
+
+	/**
 	 *   @fn NotifyPlaybackPaused
 	 *
 	 *   @param[in] paused - true, if playback was paused

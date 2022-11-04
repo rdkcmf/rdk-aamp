@@ -3599,12 +3599,47 @@ static JSValueRef AAMP_setLiveOffset(JSContextRef context, JSObjectRef function,
 	}
 	else
 	{
-		int liveOffset = (int)JSValueToNumber(context, arguments[0], exception);
+		double liveOffset = (double)JSValueToNumber(context, arguments[0], exception);
 		pAAMP->_aamp->SetLiveOffset(liveOffset);
 	}
 	return JSValueMakeUndefined(context);
 }
 
+/**
+ * @brief Callback invoked from JS to set live offset for 4K
+ *
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval JSValue that is the function's return value
+ */
+static JSValueRef AAMP_setLiveOffset4K(JSContextRef context, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef *exception)
+{
+	LOG("[AAMP_JS] %s()", __FUNCTION__);
+	AAMP_JS* pAAMP = (AAMP_JS*)JSObjectGetPrivate(thisObject);
+	if (!pAAMP)
+	{
+		ERROR("[AAMP_JS] %s() Error: JSObjectGetPrivate returned NULL!", __FUNCTION__);
+		*exception = aamp_GetException(context, AAMPJS_MISSING_OBJECT, "Can only call AAMP.setLiveOffset4K on instances of AAMP");
+		return JSValueMakeUndefined(context);
+	}
+
+	if (argumentCount != 1)
+	{
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setLiveOffset4K' - 1 argument required");
+	}
+	else
+	{
+		double liveOffset = (double)JSValueToNumber(context, arguments[0], exception);
+		pAAMP->_aamp->SetLiveOffset4K(liveOffset);
+	}
+	return JSValueMakeUndefined(context);
+}
 
 /**
  * @brief Callback invoked from JS to set download stall timeout value
@@ -4152,6 +4187,7 @@ static const JSStaticFunction AAMP_staticfunctions[] =
 
 	{ "setLinearTrickplayFPS", AAMP_setLinearTrickplayFPS, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setLiveOffset", AAMP_setLiveOffset, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "setLiveOffset4K", AAMP_setLiveOffset4K, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setDownloadStallTimeout", AAMP_setDownloadStallTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setDownloadStartTimeout", AAMP_setDownloadStartTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setNetworkTimeout", AAMP_setNetworkTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },

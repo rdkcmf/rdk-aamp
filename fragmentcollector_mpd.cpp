@@ -389,6 +389,8 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	trickplayMode = (rate != AAMP_NORMAL_PLAY_RATE);
 }
 
+static void GetBitrateInfoFromCustomMpd( const IAdaptationSet *adaptationSet, std::vector<Representation *>& representations );
+
 /**
  * @brief Check if mime type is compatible with media type
  * @param mimeType mime type
@@ -4281,6 +4283,8 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 
 		if(mIsLiveStream)
 		{
+			/** Set preferred live Offset*/
+			aamp->mIsStream4K = GetPreferredLiveOffsetFromConfig();
 			/*LL DASH VERIFICATION START*/
 			ret = EnableAndSetLiveOffsetForLLDashPlayback((MPD*)this->mpd);
 			if(eAAMPSTATUS_OK != ret && ret == eAAMPSTATUS_MANIFEST_PARSE_ERROR)
@@ -4995,6 +4999,69 @@ uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd)
 	return durationMs;
 }
 
+
+/**
+ * @fn Is4Kstream
+ * @brief check if current stream have 4K content
+ * @retval true on success
+ */
+bool StreamAbstractionAAMP_MPD::Is4KStream(int &height, long &bandwidth)
+{
+	FN_TRACE_F_MPD( __FUNCTION__ );
+	bool Stream4k = false;
+	//2. Is this 4K stream? if so get height width information
+	for (auto period : mpd->GetPeriods())
+	{
+		for (auto adaptationSet : period->GetAdaptationSets())
+		{
+			//Check for video adaptation
+			if (!IsContentType(adaptationSet, eMEDIATYPE_VIDEO))
+			{
+				continue;
+			}
+
+			if (mIsFogTSB)
+			{
+				vector<Representation *> representations;
+				GetBitrateInfoFromCustomMpd(adaptationSet, representations);
+				for (auto representation : representations)
+				{
+					height =  representation->GetHeight();
+					if ( height > AAMP_FHD_HEIGHT)
+					{
+						bandwidth = representation->GetBandwidth();
+						Stream4k = true;
+						break;
+					}
+				}
+			}
+			else
+			{
+				//vector<IRepresentation *> representations = a
+				for (auto representation : adaptationSet->GetRepresentation())
+				{
+					height = representation->GetHeight();
+					if (height > AAMP_FHD_HEIGHT)
+					{
+						bandwidth = representation->GetBandwidth();
+						Stream4k = true;
+						break;
+					}
+				}
+			}
+			/**< If 4K stream found*/
+			if (Stream4k)
+			{
+				AAMPLOG_INFO("4K profile found with resolution : height %d bandwidth %ld", height, bandwidth);
+				break;
+			}
+		}
+		/**< If 4K stream found*/
+		if (Stream4k)
+			break;
+	}
+	return Stream4k;
+}
 
 /**
  * @fn IsPeriodEncrypted
@@ -12164,7 +12231,15 @@ AAMPStatusType  StreamAbstractionAAMP_MPD::EnableAndSetLiveOffsetForLLDashPlayba
 			GETCONFIGVALUE(eAAMPConfig_LLMinLatency,minLatency);
 			GETCONFIGVALUE(eAAMPConfig_LLTargetLatency,TargetLatency);
 			GETCONFIGVALUE(eAAMPConfig_LLMaxLatency,maxLatency);
-			GETCONFIGVALUE(eAAMPConfig_LiveOffset,currentOffset);
+			if (aamp->mIsStream4K)
+			{
+				GETCONFIGVALUE(eAAMPConfig_LiveOffset4K,currentOffset);
+			}
+			else
+			{
+				GETCONFIGVALUE(eAAMPConfig_LiveOffset,currentOffset);
+			}
+			
 			AAMPLOG_INFO("StreamAbstractionAAMP_MPD: Current Offset(s): %ld",(long)currentOffset);
 
 			if(	stLLServiceData.minLatency <= 0)
@@ -12213,7 +12288,8 @@ AAMPStatusType  StreamAbstractionAAMP_MPD::EnableAndSetLiveOffsetForLLDashPlayba
 			AAMPLOG_WARN("StreamAbstractionAAMP_MPD:[LL-Dash] Min Latency: %ld Max Latency: %ld Target Latency: %ld",(long)latencyOffsetMin,(long)latencyOffsetMax,(long)TargetLatency);
 
 			//Ignore Low latency setting
-			if((AAMP_DEFAULT_SETTING != GETCONFIGOWNER(eAAMPConfig_LiveOffset)) && (currentOffset > latencyOffsetMax))
+			if(((AAMP_DEFAULT_SETTING != GETCONFIGOWNER(eAAMPConfig_LiveOffset4K)) && (currentOffset > latencyOffsetMax) && aamp->mIsStream4K) ||
+			((AAMP_DEFAULT_SETTING != GETCONFIGOWNER(eAAMPConfig_LiveOffset)) && (currentOffset > latencyOffsetMax) && !aamp->mIsStream4K))
 			{
 				AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Switch off LL mode: App requested currentOffset > latencyOffsetMax");
 				stLLServiceData.lowLatencyMode = false;
@@ -12250,9 +12326,15 @@ AAMPStatusType  StreamAbstractionAAMP_MPD::EnableAndSetLiveOffsetForLLDashPlayba
 					
 					//Override Latency offset with Min Value if config enabled
 					AAMPLOG_WARN("StreamAbstractionAAMP_MPD: currentOffset:%lf LL-DASH offset(s): %lf",currentOffset,latencyOffset);
-					SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_LiveOffset,latencyOffset);
-					aamp->UpdateLiveOffset();
-
+					if(((AAMP_STREAM_SETTING >= GETCONFIGOWNER(eAAMPConfig_LiveOffset4K)) && aamp->mIsStream4K) ||
+					((AAMP_STREAM_SETTING >= GETCONFIGOWNER(eAAMPConfig_LiveOffset)) && !aamp->mIsStream4K))
+					{
+						SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_LiveOffset,latencyOffset);
+						if (AAMP_STREAM_SETTING >= GETCONFIGOWNER(eAAMPConfig_LiveOffset))
+						{
+							aamp->UpdateLiveOffset();
+						}
+					}
 					//Set LL Dash Service Configuration Data in Pvt AAMP instance
 					aamp->SetLLDashServiceData(stLLServiceData);
 					aamp->SetLowLatencyServiceConfigured(true);

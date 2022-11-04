@@ -96,7 +96,8 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"descriptiveTrackName",eAAMPConfig_DescriptiveTrackName,false,-1,-1},
 	{"offset",eAAMPConfig_PlaybackOffset,false,{.dMinValue = -1},{.dMaxValue = -1}},
 	{"cdvrLiveOffset",eAAMPConfig_CDVRLiveOffset,true,{.dMinValue = 0},{.dMaxValue=50}},
-	{"liveOffset",eAAMPConfig_LiveOffset,true,{.dMinValue = 0},{.dMaxValue=50}},
+	{"liveOffset",eAAMPConfig_LiveOffset,true,{.dMinValue = 0},{.dMaxValue=50}}, //liveOffset by user
+	{"liveOffset4K",eAAMPConfig_LiveOffset4K,true,{.dMinValue = 0},{.dMaxValue=50}}, //liveOffset for 4K by user
 	{"disablePlaylistIndexEvent",eAAMPConfig_DisablePlaylistIndexEvent,false,-1,-1},		// Complete
 	{"enableSubscribedTags",eAAMPConfig_EnableSubscribedTags,false,-1,-1},			// Complete
 	{"networkTimeout",eAAMPConfig_NetworkTimeout,true,{.dMinValue = -1},{.dMaxValue=-1}},
@@ -562,6 +563,7 @@ void AampConfig::Initialize()
 	dAampCfgValue[eAAMPConfig_PlaybackOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_DEFAULT_PLAYBACK_OFFSET;
 	dAampCfgValue[eAAMPConfig_ReportProgressInterval-eAAMPConfig_DoubleStartValue].value	=	DEFAULT_REPORT_PROGRESS_INTERVAL;
 	dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_LIVE_OFFSET;
+	dAampCfgValue[eAAMPConfig_LiveOffset4K-eAAMPConfig_DoubleStartValue].value		=	AAMP_LIVE_OFFSET;
 	dAampCfgValue[eAAMPConfig_CDVRLiveOffset-eAAMPConfig_DoubleStartValue].value		=	AAMP_CDVR_LIVE_OFFSET;
 
 	///////////////// Following for String type config ////////////////////////////

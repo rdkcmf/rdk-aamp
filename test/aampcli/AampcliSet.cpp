@@ -239,10 +239,25 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 				case getHash("liveOffset"):
 				case getHash("12"):
 					{
-						int liveOffset;
+						double liveOffset;
 						printf("[AAMPCLI] Matched Command LiveOffset - %s\n", cmd);
-						if (sscanf(cmd, "set %s %d", command, &liveOffset) == 2){
+						if (sscanf(cmd, "set %s %lf", command, &liveOffset) == 2){
 							playerInstanceAamp->SetLiveOffset(liveOffset);
+						}
+						else
+						{
+							printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+							printf("[AAMPCLI] Expected: set %s <value>\n", command);
+						}
+						break;
+					}
+				case getHash("liveOffset4K"):
+				case getHash("56"):
+					{
+						double liveOffset;
+						printf("[AAMPCLI] Matched Command LiveOffset4K - %s\n", cmd);
+						if (sscanf(cmd, "set %s %lf", command, &liveOffset) == 2){
+							playerInstanceAamp->SetLiveOffset4K(liveOffset);
 						}
 						else
 						{
@@ -1223,7 +1238,8 @@ void Set::registerSetCommands()
 	addCommand("anonymousRequest <x>","Set Anonymous Request  (int x=0/1)");
 	addCommand("vodTrickplayFps <x>","Set VOD Trickplay FPS (int x=trickPlayFPS)");
 	addCommand("linearTrickplayFps <x>","Set Linear Trickplay FPS (int x=trickPlayFPS)");
-	addCommand("liveOffset <x>","Set Live offset (int x=offset)");
+	addCommand("liveOffset <x>","Set Live offset (double x=offset)");
+	addCommand("liveOffset4K <x>","Set Live offset for 4K stream (double x=offset)");
 	addCommand("stallErrorCode <x>","Set Stall error code (int x=errorCode)");
 	addCommand("stallTimeout <x>","Set Stall timeout (int x=timeout)");
 	addCommand("reportInterval <x>","Set Report Interval (int x=interval)");
@@ -1351,6 +1367,7 @@ void Set::registerSetNumCommands()
 	addNumCommand("10","Set VOD Trickplay FPS (int x=trickPlayFPS)");
 	addNumCommand("11","Set Linear Trickplay FPS (int x=trickPlayFPS)");
 	addNumCommand("12","Set Live offset (int x=offset)");
+	addNumCommand("56","Set Live offset 4K stream(int x=offset)");
 	addNumCommand("13","Set Stall error code (int x=errorCode)");
 	addNumCommand("14","Set Stall timeout (int x=timeout)");
 	addNumCommand("15","Set Report Interval (int x=interval)");

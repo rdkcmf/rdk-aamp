@@ -281,6 +281,16 @@ public:
          * @retval vector of tracks
          */
 	virtual std::vector<TextTrackInfo>& GetAvailableTextTracks(bool allTrack=false) override;
+
+	/**
+	 * @fn Is4KStream
+	 * @brief check if current stream have 4K content
+	 * @param height - resolution of 4K stream if found
+	 * @param bandwidth - bandwidth of 4K stream if foudd
+	 * @return true on success 
+	 */
+	virtual bool Is4KStream(int &height, long &bandwidth) override;
+
 	
 	/**
          * @fn GetProfileCount

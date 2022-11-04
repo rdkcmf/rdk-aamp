@@ -44,6 +44,9 @@
 //Delete Array object
 #define SAFE_DELETE_ARRAY(ptr) { delete [] ptr; ptr = NULL; }
 
+/** FHD height*/
+#define AAMP_FHD_HEIGHT (1080)
+
 /**
 * @struct	FormatMap
 * @brief	FormatMap structure for stream codec/format information

@@ -2779,12 +2779,22 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 						if(!aamp->IsLiveAdjustRequired())
 						{
 							SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_CDVRLiveOffset,offsetval);
+							aamp->UpdateLiveOffset();
 						}
 						else
 						{
-							SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_LiveOffset,offsetval);
+							/** 4K stream and 4K offset configured is below stream settings ; Ovverride liveOffset */
+							if (aamp->mIsStream4K && (GETCONFIGOWNER(eAAMPConfig_LiveOffset4K) <= AAMP_STREAM_SETTING))
+							{
+								aamp->mLiveOffset = offsetval;
+							}
+							else
+							{
+								SETCONFIGVALUE(AAMP_STREAM_SETTING,eAAMPConfig_LiveOffset,offsetval);
+								aamp->UpdateLiveOffset();
+							}
 						}
-						aamp->UpdateLiveOffset();
+						
 						SetXStartTimeOffset(aamp->mLiveOffset);
 					}
 				}
@@ -4862,6 +4872,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			}
 		}
 
+		if (aamp->IsLive() )
+		{
+			/** Set preferred live Offset for 4K or non 4K; Default value of mIsStream4K = false */
+			aamp->mIsStream4K = GetPreferredLiveOffsetFromConfig();
+		}
+		
 		/*Do live adjust on live streams on 1. eTUNETYPE_NEW_NORMAL, 2. eTUNETYPE_SEEKTOLIVE,
 		 * 3. Seek to a point beyond duration*/
 		bool liveAdjust = (eTUNETYPE_NEW_NORMAL == tuneType)  && aamp->IsLiveAdjustRequired() && (aamp->IsLive());
@@ -7257,6 +7273,30 @@ void StreamAbstractionAAMP_HLS::ConfigureAudioTrack()
 		currentAudioProfileIndex = GetBestAudioTrackByLanguage();
 	}
 	AAMPLOG_WARN("Audio profileIndex selected :%d", currentAudioProfileIndex);
+}
+
+/**
+ * @brief Check whether stream is 4K stream or not
+ * @param[out] resolution of stream if 4K
+ * @param[out] bandwidth of stream if 4K
+ * 
+ * @return true or false
+ */
+bool StreamAbstractionAAMP_HLS::Is4KStream(int &height, long &bandwidth)
+{
+	bool Stream4k = false;
+	for (auto stream : streamInfo)
+	{
+		if (stream.resolution.height > AAMP_FHD_HEIGHT)
+		{
+			height = stream.resolution.height ;
+			bandwidth = stream.bandwidthBitsPerSecond;
+			Stream4k = true;
+			AAMPLOG_INFO("4K profile found resolution : %d*%d bandwidth %ld", stream.resolution.height, stream.resolution.width, stream.bandwidthBitsPerSecond);
+			break;
+		}
+	}
+	return Stream4k;
 }
 
 /**
