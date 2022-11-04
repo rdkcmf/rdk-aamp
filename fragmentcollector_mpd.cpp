@@ -2331,6 +2331,11 @@ void StreamAbstractionAAMP_MPD::ApplyLiveOffsetWorkaroundForSAP( double seekPosi
 					currentplaybacktime = mPeriodStartTime;
 				}
 				mMediaStreamContext[i]->fragmentDescriptor.Number = (long long)((currentplaybacktime - mPeriodStartTime) / fragmentDuration) + startNumber - 1;
+                                //If the stream is having  single period with start time 0,Need to add culled fragments with the fragment number.
+                                if (mLiveTimeFragmentSync)
+                                {
+                                        mMediaStreamContext[i]->fragmentDescriptor.Number += (long)((GetPeriodStartTime(mpd, 0) - mAvailabilityStartTime) / fragmentDuration);
+                                }
 				mMediaStreamContext[i]->fragmentDescriptor.Time = currentplaybacktime - fragmentDuration;
 				mMediaStreamContext[i]->fragmentTime = seekPositionSeconds/fragmentDuration - fragmentDuration;
 				mMediaStreamContext[i]->lastSegmentNumber= mMediaStreamContext[i]->fragmentDescriptor.Number;
