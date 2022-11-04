@@ -97,6 +97,16 @@ public:
 	 * @param[out]  subtitleOutputFormat - format of sutbtile track
 	 */
 	void GetStreamFormat(StreamOutputFormat &primaryOutputFormat, StreamOutputFormat &audioOutputFormat, StreamOutputFormat &auxOutputFormat, StreamOutputFormat &subtitleOutputFormat) override;
+    
+    /**
+     * @fn Is4KStream
+     * @brief check if current stream have 4K content
+     * @param height - resolution of 4K stream if found
+     * @param bandwidth - bandwidth of 4K stream if foudd
+     * @return true on success 
+     */
+    virtual bool Is4KStream(int &height, long &bandwidth) override {return false; };
+    
     /**
      * @fn GetStreamPosition
      *

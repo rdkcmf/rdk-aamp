@@ -3205,6 +3205,82 @@ void StreamAbstractionAAMP::DisablePlaylistDownloads()
 }
 
 /**
+ * @fn GetPreferredLiveOffsetFromConfig
+ * @brief check if current stream have 4K content
+ * @retval true on success
+ */
+bool StreamAbstractionAAMP::GetPreferredLiveOffsetFromConfig()
+{
+	bool stream4K = false;
+	do
+	{
+		int height = 0;
+		long bandwidth = 0;
+
+		/** Update Live Offset with default or configured liveOffset*/
+		aamp->UpdateLiveOffset();
+
+		/**< 1. Is it CDVR or iVOD? not required live Offset correction*/
+		if(!aamp->IsLiveAdjustRequired())
+		{
+			/** 4K live offset not applicable for CDVR/IVOD */
+			stream4K = false;
+			break;
+		}
+
+		/**< 2. Check whether it is 4K stream or not*/
+		stream4K =  Is4KStream(height, bandwidth);
+		if (!stream4K)
+		{
+			/**Not a 4K */
+			break;
+		}
+
+		/**< 3. 4K disabled by user? **/
+		if (ISCONFIGSET(eAAMPConfig_Disable4K) )
+		{
+			AAMPLOG_WARN("4K playback disabled by User!!");
+			break;
+		}
+
+		/**< 4. maxbitrate should be less than 4K bitrate? */
+		long maxBitrate = aamp->GetMaximumBitrate();
+		if (bandwidth > maxBitrate)
+		{
+			AAMPLOG_WARN("Maxbitrate (%ld) set by user is less than 4K bitrate (%ld);", maxBitrate, bandwidth);
+			stream4K = false;
+			break;
+		}
+
+		/**< 5. If display resolution check enabled and resolution available then it should be grater than 4K profile */
+		if (ISCONFIGSET(eAAMPConfig_LimitResolution) && aamp->mDisplayHeight == 0)
+		{
+			AAMPLOG_WARN("Ignoring display resolution check due to invalid display height 0");
+		}
+		else
+		{
+			if (ISCONFIGSET(eAAMPConfig_LimitResolution) && aamp->mDisplayHeight < height  )
+			{
+				AAMPLOG_WARN("Display resolution (%d) doesn't support the 4K resolution (%d)", aamp->mDisplayHeight, height);
+				stream4K = false;
+				break;
+			}
+		}
+
+		/** 4K stream and 4K support is found ; Use 4K live offset if provided*/
+		if (GETCONFIGOWNER(eAAMPConfig_LiveOffset4K) > AAMP_DEFAULT_SETTING)
+		{
+			/**Update live Offset with 4K stream live offset configured*/
+			GETCONFIGVALUE(eAAMPConfig_LiveOffset4K, aamp->mLiveOffset);
+			AAMPLOG_INFO("Updated live offset for 4K stream %lf", aamp->mLiveOffset);
+			stream4K = true;
+		}
+
+	}while(0);
+	return stream4K;
+}
+
+/**
  * @brief Abort wait for playlist download
  */
 void MediaTrack::AbortWaitForPlaylistDownload()

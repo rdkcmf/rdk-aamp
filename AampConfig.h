@@ -289,6 +289,7 @@ typedef enum
 	eAAMPConfig_ReportProgressInterval,					/**< Interval of progress reporting*/
 	eAAMPConfig_PlaybackOffset,						/**< playback offset value in seconds*/
 	eAAMPConfig_LiveOffset, 						/**< Current LIVE offset*/
+	eAAMPConfig_LiveOffset4K,						/**< Live offset for 4K content;*/
 	eAAMPConfig_CDVRLiveOffset, 						/**< CDVR LIVE offset*/
 	eAAMPConfig_DoubleMaxValue,
 	////////////////////////////////////

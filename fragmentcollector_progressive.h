@@ -177,6 +177,15 @@ public:
      * @return Updated vector of available thumbnail data.
      */
     std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
+
+    /**
+     * @fn Is4KStream
+     * @brief check if current stream have 4K content
+     * @param height - resolution of 4K stream if found
+     * @param bandwidth - bandwidth of 4K stream if foudd
+     * @return true on success 
+     */
+    bool Is4KStream(int &height, long &bandwidth) override { return false; };
 protected:
     /**
      *   @fn GetStreamInfo

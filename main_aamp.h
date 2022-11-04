@@ -1211,7 +1211,15 @@ public:
 	 *   @param[in]  liveoffset- Live Offset
 	 *   @return void
 	 */
-	void SetLiveOffset(int liveoffset);
+	void SetLiveOffset(double liveoffset);
+
+	/**
+	 *   @fn SetLiveOffset4K
+	 *
+	 *   @param[in]  liveoffset- Live Offset
+	 *   @return void
+	 */
+	void SetLiveOffset4K(double liveoffset);
 
 	/**
 	 *   @fn SetStallErrorCode

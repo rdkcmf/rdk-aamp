@@ -3200,7 +3200,6 @@ static JSValueRef AAMPMediaPlayerJS_setRuntimeDRMConfig(JSContextRef context, JS
 }
 
 
-
 /**
  * @brief Array containing the AAMPMediaPlayer's statically declared functions
  */

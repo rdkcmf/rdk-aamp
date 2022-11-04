@@ -1137,6 +1137,7 @@ public:
 	int mCurrentAudioTrackIndex;				/**< Keep current selected audio track index */
 	int mCurrentTextTrackIndex;				/**< Keep current selected text track index*/
 	double mLLActualOffset;				/**< Actual Offset After Seeking in LL Mode*/
+	bool mIsStream4K;                  /**< Identify whether live playing stream is 4K or not; reset on every retune*/
 
 	/**
 	 * @fn hasId3Header
@@ -2389,15 +2390,6 @@ public:
 	 *   @return void
 	 */
 	void SetLinearTrickplayFPS(int linearTrickplayFPS);
-
-	/**
-	 *   @brief Sets live offset [Sec]
-	 *
-	 *   @param[in] SetLiveOffset - Live Offset
-	 *   @return void
-	 */
-
-	void SetLiveOffset(int SetLiveOffset);
 
 	/**
 	 *   @brief Set stall error code

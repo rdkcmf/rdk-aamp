@@ -89,6 +89,13 @@ AampLogManager *mLogObj=NULL;
 		return val; \
 	}
 
+#define PLAYING_STATE_CHECK() \
+	PrivAAMPState state = GetState(); \
+	if( state != eSTATE_STOPPED && state != eSTATE_IDLE && state != eSTATE_COMPLETE && state != eSTATE_RELEASED){ \
+		AAMPLOG_WARN("Operation is not allowed when player in playing state !!");\
+		return; \
+	}
+
 static bool iarmInitialized = false;
 std::mutex PlayerInstanceAAMP::mPrvAampMtx;
 
@@ -1654,11 +1661,21 @@ void PlayerInstanceAAMP::SetLinearTrickplayFPS(int linearTrickplayFPS)
 /**
  *  @brief Set Live Offset
  */
-void PlayerInstanceAAMP::SetLiveOffset(int liveoffset)
+void PlayerInstanceAAMP::SetLiveOffset(double liveoffset)
 {
-	ERROR_STATE_CHECK_VOID();
+	PLAYING_STATE_CHECK();
 	aamp->SetLiveOffsetAppRequest(true);
-	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LiveOffset,(double)liveoffset);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LiveOffset, liveoffset);
+}
+
+/**
+ *  @brief Set Live Offset
+ */
+void PlayerInstanceAAMP::SetLiveOffset4K(double liveoffset)
+{
+	PLAYING_STATE_CHECK();
+	aamp->SetLiveOffsetAppRequest(true);
+	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_LiveOffset4K, liveoffset);
 }
 
 /**
@@ -2806,6 +2823,7 @@ void PlayerInstanceAAMP::StopInternal(bool sendStateChangeEvent)
 	mConfig.RestoreConfiguration(AAMP_CUSTOM_DEV_CFG_SETTING, mLogObj);
 	mConfig.RestoreConfiguration(AAMP_TUNE_SETTING, mLogObj);
 	mConfig.RestoreConfiguration(AAMP_STREAM_SETTING, mLogObj);
+	aamp->mIsStream4K = false;
 }
 
 /**
