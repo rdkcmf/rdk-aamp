@@ -465,7 +465,7 @@ TEST_F(PauseAtTests, PausePosition_Trickmode)
 
     EXPECT_TRUE(mPrivateInstanceAAMP->pipeline_paused);
     EXPECT_TRUE(mPrivateInstanceAAMP->mbDownloadsBlocked);
-    EXPECT_EQ(mPrivateInstanceAAMP->seek_pos_seconds, pauseAtMilliseconds / 1000);
+    EXPECT_EQ(mPrivateInstanceAAMP->seek_pos_seconds, currentPosition / 1000);
     EXPECT_EQ(mPrivateInstanceAAMP->trickStartUTCMS, -1);
 }
 
