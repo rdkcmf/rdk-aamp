@@ -313,7 +313,8 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 
     mkdir -p build
     
-    cd build && PKG_CONFIG_PATH=/usr/local/opt/ossp-uuid/lib/pkgconfig:/usr/local/opt/libffi/lib/pkgconfig:/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/pkgconfig:/usr/local/ssl/lib/pkgconfig:/usr/local/opt/curl/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_CUSTOM_QTDEMUX_PLUGIN_ENABLED -DCMAKE_OSX_SYSROOT="/" -DCMAKE_OSX_DEPLOYMENT_TARGET="" -DSMOKETEST_ENABLED=ON -G Xcode ../
+    cd build && PKG_CONFIG_PATH=/usr/local/opt/ossp-uuid/lib/pkgconfig:/usr/local/opt/libffi/lib/pkgconfig:/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/pkgconfig:/usr/local/ssl/lib/pkgconfig:/usr/local/opt/curl/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_CUSTOM_QTDEMUX_PLUGIN_ENABLED="" -DCMAKE_OSX_SYSROOT="/" -DCMAKE_OSX_DEPLOYMENT_TARGET="" -DSMOKETEST_ENABLED=ON -G Xcode ../
+    #-DCMAKE_CUSTOM_QTDEMUX_PLUGIN_ENABLED
 
     echo "Please Start XCode, open aamp/build/AAMP.xcodeproj project file"
 	
@@ -344,7 +345,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     mkdir xcschemes
     cd ../../
     cp ../OSX/aamp-cli.xcscheme AAMP.xcodeproj/xcshareddata/xcschemes
-    chsh -s /bin/bash
+    
+    if ./ps -o comm= $$ | grep -q '-bash'; then
+        echo "Already in bash"
+    else
+        chsh -s /bin/bash
+    fi
 
     (sleep 20 ; open AAMP.xcodeproj) &
     
