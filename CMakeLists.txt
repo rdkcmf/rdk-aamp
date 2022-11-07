@@ -14,8 +14,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-cmake_minimum_required (VERSION 2.6)
+if(APPLE)
+	set(CMAKE_C_COMPILER "/usr/bin/cc")
+	set(CMAKE_CXX_COMPILER "/usr/bin/c++")
+endif()
 project (AAMP)
+cmake_minimum_required (VERSION 2.6)
 #find_package(GStreamer 1.4 REQUIRED)
 #add_subdirectory(jsbindings)
 find_package(PkgConfig REQUIRED)
