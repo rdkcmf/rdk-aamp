@@ -1277,7 +1277,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	seek_pos_seconds(-1), rate(0), pipeline_paused(false), mMaxLanguageCount(0), zoom_mode(VIDEO_ZOOM_FULL),
 	video_muted(false), subtitles_muted(true), audio_volume(100), subscribedTags(), responseHeaders(), httpHeaderResponses(), timedMetadata(), timedMetadataNew(), IsTuneTypeNew(false), trickStartUTCMS(-1),mLogTimetoTopProfile(true),
 	durationSeconds(0.0), culledSeconds(0.0), culledOffset(0.0), maxRefreshPlaylistIntervalSecs(DEFAULT_INTERVAL_BETWEEN_PLAYLIST_UPDATES_MS/1000),
-	mEventListener(NULL), mNewSeekPos(0.0), mNewSeekPosTime(0), discardEnteringLiveEvt(false),
+	mEventListener(NULL), mNewSeekInfo(), discardEnteringLiveEvt(false),
 	mIsRetuneInProgress(false), mCondDiscontinuity(), mDiscontinuityTuneOperationId(0), mIsVSS(false),
 	m_fd(-1), mIsLive(false), mIsAudioContextSkipped(false), mLogTune(false), mTuneCompleted(false), mFirstTune(true), mfirstTuneFmt(-1), mTuneAttempts(0), mPlayerLoadTime(0),
 	mState(eSTATE_RELEASED), mMediaFormat(eMEDIAFORMAT_HLS), mPersistedProfileIndex(0), mAvailableBandwidth(0),
@@ -1314,7 +1314,9 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	,  mPreCachePlaylistThreadId(0), mPreCachePlaylistThreadFlag(false) , mPreCacheDnldList()
 	, mPreCacheDnldTimeWindow(0), mParallelPlaylistFetchLock(), mAppName()
 	, mProgressReportFromProcessDiscontinuity(false)
-	, prevPositionMiliseconds(-1)
+	, mPrevPositionMilliseconds()
+	, mGetPositionMillisecondsMutexHard()
+	, mGetPositionMillisecondsMutexSoft()
 	, mPausePositionMilliseconds(AAMP_PAUSE_POSITION_INVALID_POSITION)
 	, mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
 	, mCurrentDrm(), mDrmInitData(), mMinInitialCacheSeconds(DEFAULT_MINIMUM_INIT_CACHE_SECONDS)
@@ -1957,13 +1959,12 @@ void PrivateInstanceAAMP::ReportProgress(bool sync, bool beginningOfStream)
 			bProcessEvent = false;
 		}
 
-		/*LLAMA-7142
-		**These variables are:
+		/*LLAMA-7142 & LLAMA-7124
+		**mNewSeekInfo is:
 		**  -Used by PlayerInstanceAAMP::SetRateInternal() to calculate seek position.
-		**  -Included here for consistency with previous code but aren't directly related to reporting.
+		**  -Included for consistency with previous code but isn't directly related to reporting.
 		**  -A good candidate for future refactoring*/
-		mNewSeekPos = position;
-		mNewSeekPosTime = aamp_GetCurrentTimeMS();
+		mNewSeekInfo.Update(position, seek_pos_seconds);
 
 		double reportFormatPosition = position;
 		if(ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling) && mTSBEnabled)
@@ -5059,7 +5060,9 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	}
 	else
 	{
-		prevPositionMiliseconds = -1;
+		// LLAMA-7124 - explicitly invalidate previous position for consistency with previous code
+		mPrevPositionMilliseconds.Invalidate();
+
 		int volume = audio_volume;
 		double updatedSeekPosition = mpStreamAbstractionAAMP->GetStreamPosition();
 		seek_pos_seconds = updatedSeekPosition + culledSeconds;
@@ -6728,7 +6731,32 @@ long long PrivateInstanceAAMP::DurationFromStartOfPlaybackMs()
  */
 long long PrivateInstanceAAMP::GetPositionMs()
 {
-	return (prevPositionMiliseconds!=-1) ? prevPositionMiliseconds : GetPositionMilliseconds();
+	const auto prevPositionInfo = mPrevPositionMilliseconds.GetInfo();
+	return (prevPositionInfo.PositionIsValid(seek_pos_seconds)) ? prevPositionInfo.Position() : GetPositionMilliseconds();
+}
+
+bool PrivateInstanceAAMP::LockGetPositionMilliseconds()
+{
+	std::lock_guard<std::mutex> functionLock{mGetPositionMillisecondsMutexHard};
+	if(!mGetPositionMillisecondsMutexSoft.try_lock())
+	{
+		//In situations that could have deadlocked, continue & make a log entry instead.
+		AAMPLOG_ERR("Failed to acquire lock.");
+		return false;
+	}
+	return true;
+}
+
+void PrivateInstanceAAMP::UnlockGetPositionMilliseconds()
+{
+	std::lock_guard<std::mutex> functionLock{mGetPositionMillisecondsMutexHard};
+
+	//Avoid the posibility of unlocking an unlocked mutex (undefined behaviour).
+	if(mGetPositionMillisecondsMutexSoft.try_lock())
+	{
+		AAMPLOG_ERR("Acquire lock (unexpected condition unless a previous lock has failed or there is a missing call to LockGetPositionMilliseconds()).");
+	}
+	mGetPositionMillisecondsMutexSoft.unlock();
 }
 
 /**
@@ -6736,27 +6764,81 @@ long long PrivateInstanceAAMP::GetPositionMs()
  */
 long long PrivateInstanceAAMP::GetPositionMilliseconds()
 {
-	long long positionMiliseconds = seek_pos_seconds != -1 ? seek_pos_seconds * 1000.0 : 0.0;
-	if (trickStartUTCMS >= 0)
+	/* LLAMA-7124
+	 * Ideally between LockGetPositionMilliseconds() & UnlockGetPositionMilliseconds() this function would be blocked
+	 * (i.e. all mGetPositionMillisecondsMutexSoft.try_lock() replaced with lock()) this would
+	 * ensure mState & seek_pos_seconds are syncronised during this function.
+	 * however it is difficult to be certain that this would not result in a deadlock.
+	 * Instead raise an error and potentially return a spurious position in cases that could have deadlocked.
+	*/
+	std::lock_guard<std::mutex> functionLock{mGetPositionMillisecondsMutexHard};
+	bool locked = mGetPositionMillisecondsMutexSoft.try_lock();
+	if(!locked)
 	{
+		AAMPLOG_ERR("Failed to acquire lock. Spurious positions may be generated.");
+	}
+
+	//LLAMA-7124 - Local copy to avoid race. LLAMA-8500 will consider further improvements to the thread safety of this variable.
+	double seek_pos_seconds_copy = seek_pos_seconds;
+	long long positionMiliseconds = seek_pos_seconds_copy != -1 ? seek_pos_seconds_copy * 1000.0 : 0.0;
+
+	//LLAMA-7124 - Local copy to avoid race. LLAMA-8500 will consider further improvements to the thread safety of this variable.
+	auto trickStartUTCMS_copy = trickStartUTCMS;
+	AAMPLOG_TRACE("trickStartUTCMS=%lld", trickStartUTCMS_copy);
+	if (trickStartUTCMS_copy >= 0)
+	{
+		//LLAMA-7124 - Local copy to avoid race. LLAMA-8500 will consider further improvements to the thread safety of this variable.
+		auto rate_copy = rate;
+		AAMPLOG_TRACE("rate=%f", rate_copy);
+
 		//DELIA-39530 - Audio only playback is un-tested. Hence disabled for now
 		if (ISCONFIGSET_PRIV(eAAMPConfig_EnableGstPositionQuery) && !ISCONFIGSET_PRIV(eAAMPConfig_AudioOnlyPlayback) && !mAudioOnlyPb)
-                {
-			positionMiliseconds += mStreamSink->GetPositionMilliseconds();
+        {
+			auto gstPosition = mStreamSink->GetPositionMilliseconds();
+
+			/* LLAMA-7124 - Prevent spurious values being returned by this function during seek.
+			 * This fix is similar to LLAMA-8369 but applied at this lower level because 
+			 * PrivateInstanceAAMP::GetPositionMilliseconds() is called elsewhere e.g. setting seek_pos_seconds
+			 * note for this to work correctly mState and seek_pos_seconds must updated atomically othewise
+			 * spuriously low (mState = eSTATE_SEEKING before seek_pos_seconds updated) or 
+	 		 * spuriously high (seek_pos_seconds updated before mState = eSTATE_SEEKING) values could result.
+			 */
+			if(mState == eSTATE_SEEKING)
+			{
+				if(gstPosition!=0)
+				{
+					AAMPLOG_WARN("Ignoring gst position of %ldms and using seek_pos_seconds only until seek completes.", gstPosition);
+				}
+			}
+			else
+			{
+				positionMiliseconds += gstPosition;
+			}
 		}
 		else
 		{
-			long long elapsedTime = aamp_GetCurrentTimeMS() - trickStartUTCMS;
-			positionMiliseconds += (((elapsedTime > 1000) ? elapsedTime : 0) * rate);
+			long long elapsedTime = aamp_GetCurrentTimeMS() - trickStartUTCMS_copy;
+			positionMiliseconds += (((elapsedTime > 1000) ? elapsedTime : 0) * rate_copy);
 		}
-		if ((-1 != prevPositionMiliseconds) && (AAMP_NORMAL_PLAY_RATE == rate))
+		if(AAMP_NORMAL_PLAY_RATE == rate_copy)
 		{
-			long long diff = positionMiliseconds - prevPositionMiliseconds;
-
-			if ((diff > MAX_DIFF_BETWEEN_PTS_POS_MS) || (diff < 0))
+			/*LLAMA-7124 - Standardised & tightened validity checking of previous position to 
+			  avoid spurious 'restore prev-pos as current-pos!!' around seeks*/
+			const auto prevPositionInfo = mPrevPositionMilliseconds.GetInfo();
+			if(prevPositionInfo.PositionIsValid(seek_pos_seconds_copy))
 			{
-				AAMPLOG_WARN("diff %lld prev-pos-ms %lld current-pos-ms %lld, restore prev-pos as current-pos!!", diff, prevPositionMiliseconds, positionMiliseconds);
-				positionMiliseconds = prevPositionMiliseconds;
+				long long diff = positionMiliseconds - prevPositionInfo.Position();
+
+				if ((diff > MAX_DIFF_BETWEEN_PTS_POS_MS) || (diff < 0))
+				{
+					AAMPLOG_WARN("diff %lld prev-pos-ms %lld current-pos-ms %lld, restore prev-pos as current-pos!!", diff, prevPositionInfo.Position(), positionMiliseconds);
+					positionMiliseconds = prevPositionInfo.Position();
+				}
+			}
+			else if(prevPositionInfo.ContainsRealData())
+			{
+				//LLAMA-7124 - Create a log entry if a previously stored position is now invalid (typically because seek_pos_seconds has been changed due to seek).
+				AAMPLOG_WARN("prev-pos-ms (%lld) is invalid. seek_pos_seconds = %f, seek_pos_seconds when prev-pos-ms was stored = %f.",prevPositionInfo.Position(), seek_pos_seconds_copy, prevPositionInfo.SeekPosSeconds());
 			}
 		}
 
@@ -6787,7 +6869,15 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 			}
 		}
 	}
-	prevPositionMiliseconds = positionMiliseconds;
+
+	AAMPLOG_TRACE("Returning Position as %lld (seek_pos_seconds = %f) and updating previous position.", positionMiliseconds, seek_pos_seconds_copy);
+	mPrevPositionMilliseconds.Update(positionMiliseconds ,seek_pos_seconds_copy);
+
+	if(locked)
+	{
+		mGetPositionMillisecondsMutexSoft.unlock();
+	}
+
 	return positionMiliseconds;
 }
 
@@ -6931,8 +7021,11 @@ void PrivateInstanceAAMP::Stop()
 		timedMetadata.clear();
 	}
 	mFailureReason="";
+
+
+	// LLAMA-7124 - explicitly invalidate previous position for consistency with previous code
+	mPrevPositionMilliseconds.Invalidate();
 	seek_pos_seconds = -1;
-	prevPositionMiliseconds = -1;
 	culledSeconds = 0;
 	mIsLiveStream = false;
 	durationSeconds = 0;
