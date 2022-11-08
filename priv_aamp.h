@@ -882,7 +882,107 @@ public:
 	long mManifestTimeoutMs;
 	long mPlaylistTimeoutMs;
 	bool mAsyncTuneEnabled;
-	long long prevPositionMiliseconds;
+
+	/**
+	 * @brief A readonly, validatable position value.
+	 */
+	template<typename TPOSITION> class PositionInfo
+	{
+		private:
+		TPOSITION mPosition;
+		long long mUpdateTime;
+		double mSeekPosSeconds; //copy of seek_pos_seconds
+		bool mIsPopulated;  //true if data is real, false if default values
+
+		public:
+		PositionInfo():mPosition(-1.0), mUpdateTime(0), mSeekPosSeconds(-1), mIsPopulated(false){}
+		PositionInfo(TPOSITION Pos, double SeekPosSeconds):mPosition(Pos), mUpdateTime(aamp_GetCurrentTimeMS()), mSeekPosSeconds(SeekPosSeconds), mIsPopulated(true){}
+
+		/**
+		 * @brief The stored position value, may be invalid, check using isPositionValid()
+		 */
+		TPOSITION getPosition() const {return mPosition;}
+
+		/**
+		 * @brief The timestamp at which the position in this object was updated (0 by deault)
+		 */
+		long long getUpdateTime() const {return mUpdateTime;};
+
+		/**
+		 * @brief For objects containing real data (check using isPopulated()) this
+		 * returns the number of milliseconds since the object was created
+		 */
+		long long getTimeSinceUpdateMs() const
+		{
+			return (aamp_GetCurrentTimeMS() - getUpdateTime());
+		}
+
+		/**
+		 * @brief seek_pos_seconds value supplied when this object was created (-1 default)
+		 */
+		double getSeekPositionSec() const {return mSeekPosSeconds;}
+
+		/**
+		 * @brief false if the object contains default data
+		 */
+		bool isPopulated() const {return mIsPopulated;}
+
+		/**
+		 * @brief Returns true if the value returned by Position() is valid
+		 */
+		bool isPositionValid(const double LatestSeekPosSeconds) const
+		{
+			constexpr double SEEK_POS_SECONDS_TOLERANCE = 0.01;
+			return (
+				isPopulated() &&
+				((std::abs(getSeekPositionSec() - LatestSeekPosSeconds)<SEEK_POS_SECONDS_TOLERANCE)) &&
+				(0.0<=getPosition())
+			);
+		}
+	};
+
+	/**
+	 * @brief A standard way of storing positions with associated data for validation purposes
+	 */
+	template<typename TPOSITIONCACHE> class PositionCache
+	{
+		PositionInfo<TPOSITIONCACHE> mInfo;
+		std::mutex mMutex;
+
+		public:
+		PositionCache():mInfo(), mMutex(){}
+
+		/**
+		 * @brief Update the stored position information
+		 */
+		void Update(TPOSITIONCACHE Pos, double SeekPosSeconds)
+		{
+			std::lock_guard<std::mutex>lock(mMutex);
+			mInfo = PositionInfo<TPOSITIONCACHE>{Pos, SeekPosSeconds};
+		}
+
+		/**
+		 * @brief Retrieve the stored position information
+		 */
+		PositionInfo<TPOSITIONCACHE> GetInfo()
+		{
+			std::lock_guard<std::mutex>lock(mMutex);
+			return mInfo;
+		}
+
+		/**
+		 * @brief Explicitly set the cache to an invalid state
+		 */
+		void Invalidate()
+		{
+			std::lock_guard<std::mutex>lock(mMutex);
+			mInfo = PositionInfo<TPOSITIONCACHE>{};
+		}
+	};
+	PositionCache<long long> mPrevPositionMilliseconds;
+	std::mutex mGetPositionMillisecondsMutexHard;	//limit (with lock()) access to GetPositionMilliseconds(), & mGetPositionMillisecondsMutexSoft
+	std::mutex mGetPositionMillisecondsMutexSoft;   //detect (with trylock()) where mGetPositionMillisecondsMutexHard would have deadlocked if it was the sole mutex
+
 	MediaFormat mMediaFormat;
 	double seek_pos_seconds; 				/**< indicates the playback position at which most recent playback activity began */
 	float rate; 						/**< most recent (non-zero) play rate for non-paused content */
@@ -940,9 +1040,8 @@ public:
 	float maxRefreshPlaylistIntervalSecs;
 	EventListener* mEventListener;
 
-	//variables written by ReportProgress() and used by PlayerInstanceAAMP::SetRateInternal() to update seek_pos_seconds
-	double mNewSeekPos;
-	long long mNewSeekPosTime;	//the time mNewSeekPos was changed
+	//updated by ReportProgress() and used by PlayerInstanceAAMP::SetRateInternal() to update seek_pos_seconds
+	PositionCache<double> mNewSeekInfo;
 
 	long long mAdPrevProgressTime;
 	uint32_t mAdCurOffset;					/**< Start position in percentage */
@@ -1505,6 +1604,16 @@ public:
 	 *   @return Position in ms.
 	 */
 	long long GetPositionMs(void);
+
+	/**
+	 *   @brief Lock GetPositionMilliseconds() returns true if successfull
+	 */
+	bool LockGetPositionMilliseconds();
+
+	/**
+	 *   @brief Unlock GetPositionMilliseconds()
+	 */
+	void UnlockGetPositionMilliseconds();
 
 	/**
 	 *   @fn GetPositionMilliseconds
@@ -3928,7 +4037,7 @@ private:
 	int mfirstTuneFmt;			//First Tune Format HLS(0) or DASH(1)
 	int  mTuneAttempts;			//To distinguish between new tune & retries with redundant over urls.
 	long long mPlayerLoadTime;
-	PrivAAMPState mState;
+	std::atomic<PrivAAMPState> mState;  //LLAMA-7124 changed to atomic as there are cross thread accesses.
 	long long lastUnderFlowTimeMs[AAMP_TRACK_COUNT];
 	bool mbTrackDownloadsBlocked[AAMP_TRACK_COUNT];
 	std::shared_ptr<AampDrmHelper> mCurrentDrm;

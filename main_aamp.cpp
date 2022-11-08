@@ -645,8 +645,8 @@ void PlayerInstanceAAMP::SetRateInternal(float rate,int overshootcorrection)
 		//Logic adapted
 		// XRE gives fixed overshoot position , not suited for aamp . So ignoring overshoot correction value
 			// instead use last reported posn vs the time player get play command
-		// a. During trickplay , last XRE reported position is stored in aamp->mNewSeekPos
-					/// and last reported time is stored in aamp->mNewSeekPosTime
+		// a. During trickplay , last XRE reported position is aamp->mNewSeekInfo.getInfo().Position()
+					/// and last reported time is aamp->mNewSeekInfo.getInfo().UpdateTime()
 		// b. Calculate the time delta	from last reported time
 		// c. Using this diff , calculate the best/nearest match position (works out 70-80%)
 		// d. If time delta is < 100ms ,still last video fragment rendering is not removed ,but position updated very recently
@@ -656,49 +656,63 @@ void PlayerInstanceAAMP::SetRateInternal(float rate,int overshootcorrection)
 		// f. If none of above ,maintain the last displayed position .
 		//
 		// h. TODO (again trial n error) - for 3x/4x , within 1sec there might multiple frame displayed . Can use timedelta to calculate some more near,to be tried
+		const auto SeekInfo = aamp->mNewSeekInfo.GetInfo();
 
-		int  timeDeltaFromProgReport = (aamp_GetCurrentTimeMS() - aamp->mNewSeekPosTime);
+		const int  timeDeltaFromProgReport = SeekInfo.getTimeSinceUpdateMs();
 
 		//Skip this logic for either going to paused to coming out of paused scenarios with HLS
 		//What we would like to avoid here is the update of seek_pos_seconds because gstreamer position will report proper position
 		//Check for 1.0 -> 0.0 and 0.0 -> 1.0 usecase and avoid below logic
 		if (!((aamp->rate == AAMP_NORMAL_PLAY_RATE && rate == 0) || (aamp->pipeline_paused && rate == AAMP_NORMAL_PLAY_RATE)))
 		{
-			double newSeekPosInSec = -1;
 			// when switching from trick to play mode only
 			if(aamp->rate && ( AAMP_SLOWMOTION_RATE == rate || rate == AAMP_NORMAL_PLAY_RATE) && !aamp->pipeline_paused)
 			{
-				if (ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery))
+				const auto seek_pos_seconds_copy = aamp->seek_pos_seconds;	//ensure the same value of seek_pos_seconds used in the check is logged
+				if(!SeekInfo.isPositionValid(seek_pos_seconds_copy))
 				{
-					// Get the last frame position when resume from the trick play.
-					newSeekPosInSec = (aamp->mNewSeekPos/1000);
+					AAMPLOG_WARN("Cached seek position (%f) is invalid. seek_pos_seconds = %f, seek_pos_seconds @ last report = %f.",SeekInfo.getPosition(), seek_pos_seconds_copy, SeekInfo.getSeekPositionSec());
 				}
 				else
 				{
-					if(timeDeltaFromProgReport > 950) // diff > 950 mSec
+					double newSeekPosInSec = -1;
+					if (ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery))
 					{
-						// increment by 1x trickplay frame , next possible displayed frame
-						newSeekPosInSec = (aamp->mNewSeekPos+(aamp->rate*1000))/1000;
-					}
-					else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
-					{
-						// Get the last shown frame itself
-						newSeekPosInSec = aamp->mNewSeekPos/1000;
+						// Get the last frame position when resume from the trick play.
+						newSeekPosInSec = (SeekInfo.getPosition()/1000);
 					}
 					else
 					{
-						// Go little back to last shown frame
-						newSeekPosInSec = (aamp->mNewSeekPos-(aamp->rate*1000))/1000;
+						if(timeDeltaFromProgReport > 950) // diff > 950 mSec
+						{
+							// increment by 1x trickplay frame , next possible displayed frame
+							newSeekPosInSec = (SeekInfo.getPosition()+(aamp->rate*1000))/1000;
+						}
+						else if(timeDeltaFromProgReport > 100) // diff > 100 mSec
+						{
+							// Get the last shown frame itself
+							newSeekPosInSec = SeekInfo.getPosition()/1000;
+						}
+						else
+						{
+							// Go little back to last shown frame
+							newSeekPosInSec = (SeekInfo.getPosition()-(aamp->rate*1000))/1000;
+						}
 					}
-				}
 
-				if (newSeekPosInSec >= 0)
-				{
-					aamp->seek_pos_seconds = newSeekPosInSec;
-				}
-				else
-				{
-					AAMPLOG_WARN("new seek_pos_seconds calculated is invalid(%f), discarding it!", newSeekPosInSec);
+					if (newSeekPosInSec >= 0)
+					{
+						/* Note circular calculation:
+						 * newSeekPosInSec is based on aamp->mNewSeekInfo
+						 * aamp->mNewSeekInfo's position value is based on PrivateInstanceAAMP::GetPositionMilliseconds()
+						 * PrivateInstanceAAMP::GetPositionMilliseconds() uses seek_pos_seconds
+						*/
+						aamp->seek_pos_seconds = newSeekPosInSec;
+					}
+					else
+					{
+						AAMPLOG_WARN("new seek_pos_seconds calculated is invalid(%f), discarding it!", newSeekPosInSec);
+					}
 				}
 			}
 			else
@@ -869,11 +883,20 @@ static gboolean SeekAfterPrepared(gpointer ptr)
 	}
 	if (aamp->mpStreamAbstractionAAMP)
 	{ // for seek while streaming
+
+		/* LLAMA-7124
+		 * PositionMilisecondLock is intended to ensure both state and seek_pos_seconds (in TuneHelper)
+		 * are updated before GetPositionMilliseconds() can be used*/
+		auto PositionMilisecondLocked = aamp->LockGetPositionMilliseconds();
 		aamp->SetState(eSTATE_SEEKING);
 		/* Clear setting playerrate flag */
 		aamp->mSetPlayerRateAfterFirstframe=false;
 		aamp->AcquireStreamLock();
 		aamp->TuneHelper(tuneType);
+		if(PositionMilisecondLocked)
+		{
+			aamp->UnlockGetPositionMilliseconds();
+		}
 		aamp->ReleaseStreamLock();
 		if (sentSpeedChangedEv)
 		{
@@ -1010,6 +1033,11 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 			aamp->ResumeDownloads();
 		}
 
+		/* LLAMA-7124
+		 * PositionMilisecondLock is intended to ensure both state and seek_pos_seconds
+		 * are updated before GetPositionMilliseconds() can be used*/
+		auto PositionMilisecondLocked = aamp->LockGetPositionMilliseconds();
+
 		if (tuneType == eTUNETYPE_SEEK)
 		{
 			SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_PlaybackOffset,secondsRelativeToTuneTime);
@@ -1033,6 +1061,10 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 		if (aamp->mpStreamAbstractionAAMP)
 		{ // for seek while streaming
 			aamp->SetState(eSTATE_SEEKING);
+			if(PositionMilisecondLocked)
+			{
+				aamp->UnlockGetPositionMilliseconds();
+			}
 			/* Clear setting playerrate flag */
 			aamp->mSetPlayerRateAfterFirstframe=false;
 			aamp->AcquireStreamLock();
@@ -1042,6 +1074,10 @@ void PlayerInstanceAAMP::SeekInternal(double secondsRelativeToTuneTime, bool kee
 			{
 				aamp->NotifySpeedChanged(aamp->rate, false);
 			}
+		}
+		else if(PositionMilisecondLocked)
+		{
+			aamp->UnlockGetPositionMilliseconds();
 		}
 		if (aamp->mbPlayEnabled)
 		{
