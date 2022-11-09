@@ -57,13 +57,11 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
 {
     // FN_TRACE_F_MPD( __FUNCTION__ );
     bool ret = false;
-
     AAMPLOG_TRACE("Type[%d] fragmentUrl %s fragmentTime %f discontinuity %d pto %f  scale %lu duration %f", type, fragmentUrl.c_str(), position, discontinuity, pto, scale, duration);
 
     fragmentDurationSeconds = duration;
     ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(mediaType, initSegment);
     CachedFragment* cachedFragment = GetFetchBuffer(true);
-    long http_code = 0;
     long bitrate = 0;
     double downloadTime = 0;
     MediaType actualType = (MediaType)(initSegment?(eMEDIATYPE_INIT_VIDEO+mediaType):mediaType); //Need to revisit the logic
@@ -93,9 +91,8 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
         if(!bReadfromcache)
         {
             ret = aamp->LoadFragment(bucketType, fragmentUrl,effectiveUrl, &cachedFragment->fragment, curlInstance,
-                    range, actualType, &http_code, &downloadTime, &bitrate, &iFogError, fragmentDurationSeconds );
-
-            if ( initSegment && ret )
+                    range, actualType, &httpErrorCode, &downloadTime, &bitrate, &iFogError, fragmentDurationSeconds );
+			if ( initSegment && ret )
             aamp->getAampCacheHandler()->InsertToInitFragCache ( fragmentUrl, &cachedFragment->fragment, effectiveUrl, actualType);
         }
 
@@ -183,7 +180,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
             //update videoend info
             aamp->UpdateVideoEndMetrics( actualType,
                                     bitrate? bitrate : fragmentDescriptor.Bandwidth,
-                                    (iFogError > 0 ? iFogError : http_code),effectiveUrl,duration, downloadTime);
+                                    (iFogError > 0 ? iFogError : httpErrorCode),effectiveUrl,duration, downloadTime);
         }
     }
 
@@ -226,13 +223,13 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
                     if (!initSegment)
                     {
                         AAMPLOG_ERR("Not able to download fragments; reached failure threshold sending tune failed event");
-                        aamp->SendDownloadErrorEvent(AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, http_code);
+                        aamp->SendDownloadErrorEvent(AAMP_TUNE_FRAGMENT_DOWNLOAD_FAILURE, httpErrorCode);
                     }
                     else
                     {
                         // When rampdown limit is not specified, init segment will be ramped down, this wil
                         AAMPLOG_ERR("Not able to download init fragments; reached failure threshold sending tune failed event");
-                        aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
+                        aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, httpErrorCode);
                     }
                 }
             }
@@ -241,7 +238,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
             else if ((eTRACK_VIDEO == type) && !(context->CheckForRampDownLimitReached()))
             {
                 // Attempt rampdown
-                if (context->CheckForRampDownProfile(http_code))
+                if (context->CheckForRampDownProfile(httpErrorCode))
                 {
                     context->mCheckForRampdown = true;
                     if (!initSegment)
@@ -258,7 +255,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
                     {
                         // Already at lowest profile, send error event for init fragment.
                         AAMPLOG_ERR("Not able to download init fragments; reached failure threshold sending tune failed event");
-                        aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
+                        aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, httpErrorCode);
                     }
                     else
                     {
@@ -267,14 +264,14 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
                     }
                 }
             }
-            else if (AAMP_IS_LOG_WORTHY_ERROR(http_code))
+            else if (AAMP_IS_LOG_WORTHY_ERROR(httpErrorCode))
             {
                 AAMPLOG_WARN("StreamAbstractionAAMP_MPD::Error on fetching %s fragment. failedCount:%d",
                          name, segDLFailCount);
                 // For init fragment, rampdown limit is reached. Send error event.
                 if(!playingAd && initSegment)
                 {
-                    aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
+                    aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, httpErrorCode);
                 }
             }
         }

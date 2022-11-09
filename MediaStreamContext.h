@@ -53,7 +53,7 @@ public:
             downloadedDuration(0)
 	   , scaledPTO(0)
 	   , failAdjacentSegment(false)
-	   , mPlaylistUrl(""), mEffectiveUrl(""),freshManifest(false)
+	   , mPlaylistUrl(""), mEffectiveUrl(""),freshManifest(false),httpErrorCode(0)
     {
         mPlaylistUrl = aamp->GetManifestUrl();
         memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
@@ -228,6 +228,7 @@ public:
     std::string mPlaylistUrl;
     std::string mEffectiveUrl; 		/**< uri associated with downloaded playlist (takes into account 302 redirect) */
     bool freshManifest;
+    long httpErrorCode;
 }; // MediaStreamContext
 
 #endif /* MEDIASTREAMCONTEXT_H */
