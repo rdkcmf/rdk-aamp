@@ -21,11 +21,11 @@
  * @file aampcli.cpp
  * @brief Stand alone AAMP player with command line interface.
  */
- #include <bits/stdc++.h>
-#include "AampDefine.h"
+#define USE_MAF 1
 extern "C" {
 #include "libavutil/blowfish.h"
 }
+#include "AampDefine.h"
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 #ifdef __APPLE__
 #define GL_SILENCE_DEPRECATION
@@ -55,18 +55,23 @@ extern "C" {
 #include <gst/gst.h>
 #include <priv_aamp.h>
 #include <main_aamp.h>
+#include <bits/stdc++.h>
+#include <cjson/cJSON.h>
 #include "AampConfig.h"
 #include "../StreamAbstractionAAMP.h"
 #ifdef USE_MAF
 #include "resize_approximation.h"  //MAF - resize approximation and HardCut detector
 #include "hardcut_detector.h"
 #endif
+#include "json11.hpp"
+using namespace json11;
 #define MAX_BUFFER_LENGTH 		4096
 #define OAR_NoOfSymbols 		320
 #define BLOCK_SIZE 			8
 #define OAR_EncryptedWaterMarkData 	13
 #define FILEPATH_LEN 			256
 using namespace std;
+#include <queue>
 #define CC_OPTION_1 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"white\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"black\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}"
 #define CC_OPTION_2 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"yellow\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"yellow\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"cyan\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":true}"
 #define CC_OPTION_3 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"large\",\"windowFillColor\":\"blue\",\"fontStyle\":\"default\",\"textForegroundColor\":\"red\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"white\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}"
@@ -2903,7 +2908,6 @@ void glRender(void){
 		glBindTexture(GL_TEXTURE_2D, id_y);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, pixel_w, pixel_h, 0, GL_RED, GL_UNSIGNED_BYTE, yPlane);
 		glUniform1i(textureUniformY, 0);
-
 		pixelspersym = pixel_w/OAR_NoOfSymbols;
 		GetFrameslicelevel(yPlane,&slice_level,pixelspersym);
 		for( int row = 0; row < 1 /*2*/; row++ )
@@ -2931,7 +2935,7 @@ void glRender(void){
 						bit = 8;
 						if(bytecount == 1) {
 							int val = bset1.to_ulong();
-							if((val & 0xFC) == 0x30) { // check for the 1st byte matching to run-in 0011 reserved 00
+							if(((val & 0xFC) == 0x30)| ((val & 0xF0) == 0xC0)) { // check for the 1st byte matching to run-in 0011 reserved 00
 								matched = true;
 								sprintf( path, "LAR/y-%04d.txt", frame );
 								f = fopen( path, "wb" );
@@ -2942,7 +2946,7 @@ void glRender(void){
 						if(matched)
 						{
 							if(f) {
-								fprintf( f, "0x%02x,",bset1.to_ulong());
+								fprintf( f, "0x%02lx,",bset1.to_ulong());
 								if(ll >= 1 && ll < 14)
 								  ciphertext[ll-1] = bset1.to_ulong();
 								ll++;
@@ -2998,19 +3002,128 @@ void glRender(void){
 
 
 #ifdef USE_MAF
-void maf_event_callback( std::string s)
+static  int acrevents_size;
+json11::Json::object param;
+json11::Json::object payload;
+json11::Json::object  payload_context;
+json11::Json::array acrevents_arr;
+bool acrevent2siftthreadstarted = false;
+std::thread *acrevent2siftThread = NULL;
+bool gAcrevent_recv = true;
+queue<string> acreventq;
+
+void senddata2siftendpoint()
 {
-	std::cout << "Hardcut dectected :  " << s << std::endl;
+	while(gAcrevent_recv)
+	{
+		if(acreventq.empty()){
+			usleep(1000); // sleep 0.01 sec before trying again
+			continue;
+		}
+		std::string acrevent;
+		acrevent += '[';
+		acrevent += acreventq.front();
+		acrevent += ']';
+		acreventq.pop(); //remove the already read msg from the queue
+		printf("-------------------------------------------------------------------\n");
+		printf("(%s : %d) ACR Event being sent to sift : %s \n",__FUNCTION__,__LINE__,acrevent.c_str());
+		CURL *curlhandle= curl_easy_init();
+		if( curlhandle )
+		{
+			curl_easy_setopt( curlhandle, CURLOPT_URL, "https://collector.pabs.comcast.com/acr/dev" ); // local thunder
+			struct curl_slist *headers = NULL;
+			headers = curl_slist_append( headers, "Content-Type: application/json" );
+			curl_easy_setopt(curlhandle, CURLOPT_HTTPHEADER, headers);
+			curl_easy_setopt(curlhandle, CURLOPT_POSTFIELDS,acrevent.c_str());
+			CURLcode res = curl_easy_perform(curlhandle);
+			if( res == CURLE_OK )
+			{
+				long http_code = -1;
+				curl_easy_getinfo(curlhandle, CURLINFO_RESPONSE_CODE, &http_code);
+				AAMPLOG_WARN("HTTP %ld \n", http_code);
+			}
+			else
+			{
+				AAMPLOG_ERR("failed: %s", curl_easy_strerror(res));
+			}
+			curl_slist_free_all( headers );
+			curl_easy_cleanup(curlhandle);
+		}
+	}
+	printf("-------------------------------------------------------------------\n");
+        return;
 }
+void acrevent2sift()
+{
+        if(!acrevent2siftthreadstarted)
+        {
+                acrevent2siftThread = new std::thread(senddata2siftendpoint);
+                if(acrevent2siftThread)
+                {
+			acrevent2siftthreadstarted = true;
+                }
+                else
+                {
+                        std::cout << "Failed to start thread acrevent2siftThread "<< std::endl;
+                }
+        }
+}
+void maf_event_callback(json11::Json::object s)
+{
+	//std::cout << "Hardcut dectected :  " << s << std::endl;
+
+	uint64_t epochts = chrono::duration_cast<chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+	json11::Json::object acr_events;
+	s["timestamp"] = (double)epochts;
+	acrevents_arr.push_back(s);
+
+	if(acrevents_arr.size() == acrevents_size)
+        {
+		epochts = chrono::duration_cast<chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		payload["acr_signatures"] = acrevents_arr;
+		param["event_payload"] = payload;
+		param["timestamp"] = (double)epochts;
+		acreventq.push(Json(param).dump());
+		acrevents_arr.clear();
+	}
+}
+
 static HardCut *maf_hardcut_ = NULL;
 static void maf_init()
 {
 	assert( !maf_hardcut_);
+	param["account_id"] = "6920136952464352810";
+	param["device_id"] = "5438400813970639001";
+	param["device_model"] = "Hisense43A6GX";
+	param["device_language"] = "eng";
+	param["device_timezone"] = -14400000;
+	param["partner_id"] = "comcast";
+	param["app_name"] = "acr";
+	param["app_ver"] = "1.0";
+	param["platform"] = "flex";
+	param["os_ver"] = "os0.1";
+	param["session_id"] = "123e4567";
+	param["event_id"] ="2f2f386a-e5cb-11ec-8fea-0242ac120003";
+	param["event_schema"]= "acr/acr_event/2";
+	param["event_name"] ="acr_event";
+	payload_context["station_id"] = "WXIA-DT";
+	payload_context["tune_type"] = "ota";
+	payload_context["hdmi_input"] = "none";
+	payload_context["viewing_mode"] = "live";
+	payload["context"] = payload_context;
+	payload["ip_address"] = "192.168.0.2";
+	acrevent2sift();
 	maf_hardcut_ = new HardCut(maf_event_callback);
 }
 static void maf_end()
 {
 	assert( maf_hardcut_);
+	gAcrevent_recv = false;
+	acreventq.empty();
+	if(acrevent2siftThread)
+	{
+		acrevent2siftThread->join();
+	}
 	delete maf_hardcut_;
 	maf_hardcut_ = NULL;
 }
@@ -3253,6 +3366,7 @@ static FILE *GetConfigFile(const std::string& cfgFile)
 int main(int argc, char **argv)
 {
 	char driveName = (*argv)[0];
+	acrevents_size=4;
 	AampLogManager mLogManager;
 	AampLogManager::disableLogRedirection = true;
 	ABRManager mAbrManager;
@@ -3267,6 +3381,10 @@ int main(int argc, char **argv)
 	
 	InitPlayerLoop(0,NULL);
 #ifdef USE_MAF
+	if(argc==3)
+	{
+		acrevents_size=stoi(argv[2]);
+	}
 	maf_init();
 #endif
 	NewPlayerInstance();
