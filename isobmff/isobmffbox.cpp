@@ -31,7 +31,7 @@
 /**
  *  @brief Read a string from buffer and return it
  */
-uint32_t ReadCStringLen(const uint8_t* buffer, uint32_t bufferLen)
+int ReadCStringLen(const uint8_t* buffer, uint32_t bufferLen)
 {
 	int retLen = -1;
 	if(buffer && bufferLen > 0)
@@ -707,13 +707,13 @@ EmsgBox* EmsgBox::constructEmsgBox(uint32_t sz, uint8_t *ptr)
 		evtDur = READ_U32(ptr);
 		boxId = READ_U32(ptr);
 		remainingSize -=  ((sizeof(uint32_t)*3) + sizeof(uint64_t));
-		uint32_t schemeIdLen = ReadCStringLen(ptr, remainingSize);
+		int schemeIdLen = ReadCStringLen(ptr, remainingSize);
 		if(schemeIdLen > 0)
 		{
 			schemeId = (uint8_t*) malloc(sizeof(uint8_t)*schemeIdLen);
 			READ_U8(schemeId, ptr, schemeIdLen);
 			remainingSize -= (sizeof(uint8_t) * schemeIdLen);
-			uint32_t schemeIdValueLen = ReadCStringLen(ptr, remainingSize);
+			int schemeIdValueLen = ReadCStringLen(ptr, remainingSize);
 			if (schemeIdValueLen > 0)
 			{
 				schemeIdValue = (uint8_t*) malloc(sizeof(uint8_t)*schemeIdValueLen);
@@ -724,14 +724,14 @@ EmsgBox* EmsgBox::constructEmsgBox(uint32_t sz, uint8_t *ptr)
 	}
 	else if(0 == version)
 	{
-		uint32_t schemeIdLen = ReadCStringLen(ptr, remainingSize);
-		if(schemeIdLen)
+		int schemeIdLen = ReadCStringLen(ptr, remainingSize);
+		if(schemeIdLen > 0)
 		{
 			schemeId = (uint8_t*) malloc(sizeof(uint8_t)*schemeIdLen);
 			READ_U8(schemeId, ptr, schemeIdLen);
 			remainingSize -= (sizeof(uint8_t) * schemeIdLen);
-			uint32_t schemeIdValueLen = ReadCStringLen(ptr, remainingSize);
-			if (schemeIdValueLen)
+			int schemeIdValueLen = ReadCStringLen(ptr, remainingSize);
+			if (schemeIdValueLen > 0)
 			{
 				schemeIdValue = (uint8_t*) malloc(sizeof(uint8_t)*schemeIdValueLen);
 				READ_U8(schemeIdValue, ptr, schemeIdValueLen);

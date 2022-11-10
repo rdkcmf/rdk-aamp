@@ -264,7 +264,8 @@ void MediaTrack::UpdateTSAfterChunkInject()
 	memset(&parsedBufferChunk, 0x00, sizeof(GrowableBuffer));
 
 	//increment Inject Index
-	fragmentChunkIdxToInject = (++fragmentChunkIdxToInject) % maxCachedFragmentChunksPerTrack;
+	++fragmentChunkIdxToInject;
+	fragmentChunkIdxToInject = (fragmentChunkIdxToInject) % maxCachedFragmentChunksPerTrack;
 	if(numberOfFragmentChunksCached > 0) numberOfFragmentChunksCached--;
 
 	AAMPLOG_TRACE("[%s] updated fragmentChunkIdxToInject = %d numberOfFragmentChunksCached %d",

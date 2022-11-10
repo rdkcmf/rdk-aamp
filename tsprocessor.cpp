@@ -2334,7 +2334,7 @@ void TSProcessor::flush()
 
 	if (m_dsmccDemuxer)
 	{
-		AAMPLOG_WARN("TSProcessor[%p]%s:%d flush dsmcc demux %p", this, m_dsmccDemuxer);
+		AAMPLOG_WARN("TSProcessor[%p] flush dsmcc demux %p", this, m_dsmccDemuxer);
 		m_dsmccDemuxer->flush();
 	}
 	pthread_mutex_unlock(&m_mutex);

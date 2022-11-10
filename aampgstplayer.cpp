@@ -819,7 +819,7 @@ void AAMPGstPlayer::TimerAdd(GSourceFunc funcPtr, int repeatTimeout, guint& task
 	}
 	else
 	{
-		AAMPLOG_ERR("Bad pointer. funcPtr = %p, user_data=%p");
+		AAMPLOG_ERR("Bad pointer. funcPtr = %p, user_data=%p",funcPtr,user_data);
 	}
 }
 

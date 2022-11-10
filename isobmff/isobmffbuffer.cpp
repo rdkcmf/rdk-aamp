@@ -518,7 +518,11 @@ void IsoBmffBuffer::printPTSInternal(const std::vector<Box*> *boxes)
 
         if (IS_TYPE(box->getType(), Box::TFDT))
         {
-            AAMPLOG_WARN("****Base Media Decode Time: %lld", dynamic_cast<TfdtBox *>(box)->getBaseMDT());
+	    TfdtBox *tfdtBox = dynamic_cast<TfdtBox *>(box);
+            if(tfdtBox)
+	    {
+                AAMPLOG_WARN("****Base Media Decode Time: %lld", tfdtBox->getBaseMDT());
+	    }
         }
 
         if (box->hasChildren())

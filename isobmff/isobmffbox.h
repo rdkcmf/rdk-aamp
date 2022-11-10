@@ -71,7 +71,7 @@ void WriteUint64(uint8_t *dst, uint64_t val);
  * @param[in] buffer Buffer to read
  * @param[in] bufferLen String length
  */
-uint32_t ReadCStringLen(const uint8_t* buffer, uint32_t bufferLen);
+int ReadCStringLen(const uint8_t* buffer, uint32_t bufferLen);
 
 #define READ_BMDT64(buf) \
 		ReadUint64(buf); buf+=8;
