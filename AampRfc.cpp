@@ -52,6 +52,11 @@ namespace RFCSettings
             AAMPLOG_INFO("RFC Parameter for %s is %s type = %d", parameter.c_str(), param.value, param.type);
             strhost = std::string(param.value);
         }
+	else if (tr181ValueIsEmpty == status)
+	{
+		// NO RFC is set , which is success case
+		AAMPLOG_TRACE("RFC Parameter : %s is not set", parameter.c_str());
+	}
         else
         {
             AAMPLOG_ERR("get RFC Parameter for %s Failed : %s type = %d", parameter.c_str(), getTR181ErrorString(status), param.type);
