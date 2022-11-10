@@ -6741,7 +6741,20 @@ long long PrivateInstanceAAMP::DurationFromStartOfPlaybackMs()
 long long PrivateInstanceAAMP::GetPositionMs()
 {
 	const auto prevPositionInfo = mPrevPositionMilliseconds.GetInfo();
-	return (prevPositionInfo.PositionIsValid(seek_pos_seconds)) ? prevPositionInfo.Position() : GetPositionMilliseconds();
+	double seek_pos_seconds_copy = seek_pos_seconds;
+	if(prevPositionInfo.isPositionValid(seek_pos_seconds_copy))
+	{
+		return prevPositionInfo.getPosition();
+	}
+	else
+	{
+		if(prevPositionInfo.isPopulated())
+		{
+			//Since LLAMA-7124 previous position values calculated using different values of seek_pos_seconds are considered invalid.
+			AAMPLOG_WARN("prev-pos-ms (%lld) is invalid. seek_pos_seconds = %f, seek_pos_seconds when prev-pos-ms was stored = %f.",prevPositionInfo.getPosition(), seek_pos_seconds_copy, prevPositionInfo.getSeekPositionSec());
+		}
+		return GetPositionMilliseconds();
+	}
 }
 
 bool PrivateInstanceAAMP::LockGetPositionMilliseconds()
@@ -6763,7 +6776,7 @@ void PrivateInstanceAAMP::UnlockGetPositionMilliseconds()
 	//Avoid the posibility of unlocking an unlocked mutex (undefined behaviour).
 	if(mGetPositionMillisecondsMutexSoft.try_lock())
 	{
-		AAMPLOG_ERR("Acquire lock (unexpected condition unless a previous lock has failed or there is a missing call to LockGetPositionMilliseconds()).");
+		AAMPLOG_WARN("Acquire lock (unexpected condition unless a previous lock has failed or there is a missing call to LockGetPositionMilliseconds()).");
 	}
 	mGetPositionMillisecondsMutexSoft.unlock();
 }
@@ -6784,7 +6797,7 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 	bool locked = mGetPositionMillisecondsMutexSoft.try_lock();
 	if(!locked)
 	{
-		AAMPLOG_ERR("Failed to acquire lock. Spurious positions may be generated.");
+		AAMPLOG_ERR("Failed to acquire lock. A spurious position value may be calculated.");
 	}
 
 	//LLAMA-7124 - Local copy to avoid race. LLAMA-8500 will consider further improvements to the thread safety of this variable.
@@ -6834,20 +6847,20 @@ long long PrivateInstanceAAMP::GetPositionMilliseconds()
 			/*LLAMA-7124 - Standardised & tightened validity checking of previous position to 
 			  avoid spurious 'restore prev-pos as current-pos!!' around seeks*/
 			const auto prevPositionInfo = mPrevPositionMilliseconds.GetInfo();
-			if(prevPositionInfo.PositionIsValid(seek_pos_seconds_copy))
+			if(prevPositionInfo.isPositionValid(seek_pos_seconds_copy))
 			{
-				long long diff = positionMiliseconds - prevPositionInfo.Position();
+				long long diff = positionMiliseconds - prevPositionInfo.getPosition();
 
 				if ((diff > MAX_DIFF_BETWEEN_PTS_POS_MS) || (diff < 0))
 				{
-					AAMPLOG_WARN("diff %lld prev-pos-ms %lld current-pos-ms %lld, restore prev-pos as current-pos!!", diff, prevPositionInfo.Position(), positionMiliseconds);
-					positionMiliseconds = prevPositionInfo.Position();
+					AAMPLOG_WARN("diff %lld prev-pos-ms %lld current-pos-ms %lld, restore prev-pos as current-pos!!", diff, prevPositionInfo.getPosition(), positionMiliseconds);
+					positionMiliseconds = prevPositionInfo.getPosition();
 				}
 			}
-			else if(prevPositionInfo.ContainsRealData())
+			else if(prevPositionInfo.isPopulated())
 			{
-				//LLAMA-7124 - Create a log entry if a previously stored position is now invalid (typically because seek_pos_seconds has been changed due to seek).
-				AAMPLOG_WARN("prev-pos-ms (%lld) is invalid. seek_pos_seconds = %f, seek_pos_seconds when prev-pos-ms was stored = %f.",prevPositionInfo.Position(), seek_pos_seconds_copy, prevPositionInfo.SeekPosSeconds());
+				//Since LLAMA-7124 previous position values calculated using different values of seek_pos_seconds are considered invalid.
+				AAMPLOG_WARN("prev-pos-ms (%lld) is invalid. seek_pos_seconds = %f, seek_pos_seconds when prev-pos-ms was stored = %f.",prevPositionInfo.getPosition(), seek_pos_seconds_copy, prevPositionInfo.getSeekPositionSec());
 			}
 		}
 

@@ -891,52 +891,52 @@ public:
 		private:
 		TPOSITION mPosition;
 		long long mUpdateTime;
-		double mSeekPosSeconds; //a copy of seek_pos_seconds
-		bool mContainsRealData;  //true if data is real, false if default values
+		double mSeekPosSeconds; //copy of seek_pos_seconds
+		bool mIsPopulated;  //true if data is real, false if default values
 
 		public:
-		PositionInfo():mPosition(-1.0), mUpdateTime(0), mSeekPosSeconds(-1), mContainsRealData(false){}
-		PositionInfo(TPOSITION Pos, double SeekPosSeconds):mPosition(Pos), mUpdateTime(aamp_GetCurrentTimeMS()), mSeekPosSeconds(SeekPosSeconds), mContainsRealData(true){}
+		PositionInfo():mPosition(-1.0), mUpdateTime(0), mSeekPosSeconds(-1), mIsPopulated(false){}
+		PositionInfo(TPOSITION Pos, double SeekPosSeconds):mPosition(Pos), mUpdateTime(aamp_GetCurrentTimeMS()), mSeekPosSeconds(SeekPosSeconds), mIsPopulated(true){}
 
 		/**
-		 * @brief The stored position value, may be invalid, check using PositionIsValid()
+		 * @brief The stored position value, may be invalid, check using isPositionValid()
 		 */
-		TPOSITION Position() const {return mPosition;}
+		TPOSITION getPosition() const {return mPosition;}
 
 		/**
-		 * @brief The timestamp at which the position in this object was upated (0 by deault)
+		 * @brief The timestamp at which the position in this object was updated (0 by deault)
 		 */
-		long long UpdateTime() const {return mUpdateTime;};
+		long long getUpdateTime() const {return mUpdateTime;};
 
 		/**
-		 * @brief For objects containing real data (check using ContainsRealData()) this
+		 * @brief For objects containing real data (check using isPopulated()) this
 		 * returns the number of milliseconds since the object was created
 		 */
-		long long TimeSinceUpdateMilliseconds() const
+		long long getTimeSinceUpdateMs() const
 		{
-			return (aamp_GetCurrentTimeMS() - UpdateTime());
+			return (aamp_GetCurrentTimeMS() - getUpdateTime());
 		}
 
 		/**
 		 * @brief seek_pos_seconds value supplied when this object was created (-1 default)
 		 */
-		double SeekPosSeconds() const {return mSeekPosSeconds;}
+		double getSeekPositionSec() const {return mSeekPosSeconds;}
 
 		/**
 		 * @brief false if the object contains default data
 		 */
-		bool ContainsRealData() const {return mContainsRealData;}
+		bool isPopulated() const {return mIsPopulated;}
 
 		/**
 		 * @brief Returns true if the value returned by Position() is valid
 		 */
-		bool PositionIsValid(const double LatestSeekPosSeconds) const
+		bool isPositionValid(const double LatestSeekPosSeconds) const
 		{
 			constexpr double SEEK_POS_SECONDS_TOLERANCE = 0.01;
 			return (
-				ContainsRealData() &&
-				((std::abs(SeekPosSeconds() - LatestSeekPosSeconds)<SEEK_POS_SECONDS_TOLERANCE)) &&
-				(0.0<=Position())
+				isPopulated() &&
+				((std::abs(getSeekPositionSec() - LatestSeekPosSeconds)<SEEK_POS_SECONDS_TOLERANCE)) &&
+				(0.0<=getPosition())
 			);
 		}
 	};
