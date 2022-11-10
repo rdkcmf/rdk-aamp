@@ -2409,7 +2409,7 @@ void PrivateInstanceAAMP::NotifySpeedChanged(float rate, bool changeState)
 	//Hack For DELIA-51318 convert the incoming rates into acceptable rates
 	if(ISCONFIGSET_PRIV(eAAMPConfig_RepairIframes))
 	{
-		AAMPLOG_WARN("mRepairIframes is set, sending pseudo rate %d for the actual rate %d", getPseudoTrickplayRate(rate), rate);
+		AAMPLOG_WARN("mRepairIframes is set, sending pseudo rate %f for the actual rate %f", getPseudoTrickplayRate(rate), rate);
 		SendEvent(std::make_shared<SpeedChangedEvent>(getPseudoTrickplayRate(rate)),AAMP_EVENT_ASYNC_MODE);
 	}
 	else

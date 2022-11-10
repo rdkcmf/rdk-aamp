@@ -86,7 +86,7 @@
 #define MEDIATYPE_IMAGE "image"
 
 // weights used for autio/subtitle track-selection heuristic
-#define AAMP_LANGUAGE_SCORE 1000000000L  /**< Top priority:  matching language **/
+#define AAMP_LANGUAGE_SCORE 1000000000UL  /**< Top priority:  matching language **/
 #define AAMP_SCHEME_ID_SCORE 100000000L  /**< 2nd priority to scheme id matching **/
 #define AAMP_LABEL_SCORE 10000000L       /**< 3rd priority to  label matching **/
 #define AAMP_ROLE_SCORE 1000000L         /**< 4th priority to role/rendition matching **/
@@ -6614,7 +6614,7 @@ std::vector<AudioTrackInfo> &ac4Tracks, std::string &audioTrackIndex)
 				/**< No valid representation found in this Adaptation, discard this adaptation */
 				score = 0;
 			}
-			AAMPLOG_INFO( "track#%d::%d -  score = %d", iAdaptationSet, audioRepresentationIndex,  score );
+			AAMPLOG_INFO( "track#%d::%d -  score = %llu", iAdaptationSet, audioRepresentationIndex,  score );
 			if( score > bestScore )
 			{
 				bestScore = score;
@@ -6627,7 +6627,7 @@ std::vector<AudioTrackInfo> &ac4Tracks, std::string &audioTrackIndex)
 	if (CodecType == eAUDIO_DOLBYAC4)
 	{
 		/* TODO: Cuurently current Audio track is updating only for AC4 need mechanism to update for other tracks also */
-		AAMPLOG_INFO( "Audio Track selected index - %s - language : %s rendition : %s - codec - %s  score = %d", selectedAudioTrack.index.c_str(),
+		AAMPLOG_INFO( "Audio Track selected index - %s - language : %s rendition : %s - codec - %s  score = %llu", selectedAudioTrack.index.c_str(),
 		selectedAudioTrack.language.c_str(), selectedAudioTrack.rendition.c_str(), selectedAudioTrack.codec.c_str(),  bestScore );
 	}
 	return bestTrack;
@@ -12287,9 +12287,9 @@ AAMPStatusType  StreamAbstractionAAMP_MPD::EnableAndSetLiveOffsetForLLDashPlayba
 					stLLServiceData.targetLatency = TargetLatency*1000;
 				}
 			}
-			double latencyOffsetMin = stLLServiceData.minLatency/1000;
-			double latencyOffsetMax = stLLServiceData.maxLatency/1000;
-			double TargetLatencyWrtWallClockTime = stLLServiceData.targetLatency/1000;
+			double latencyOffsetMin = stLLServiceData.minLatency/(double)1000;
+			double latencyOffsetMax = stLLServiceData.maxLatency/(double)1000;
+			double TargetLatencyWrtWallClockTime = stLLServiceData.targetLatency/(double)1000;
 			AAMPLOG_WARN("StreamAbstractionAAMP_MPD:[LL-Dash] Min Latency: %ld Max Latency: %ld Target Latency: %ld",(long)latencyOffsetMin,(long)latencyOffsetMax,(long)TargetLatency);
 
 			//Ignore Low latency setting
@@ -12366,13 +12366,13 @@ bool StreamAbstractionAAMP_MPD::GetLowLatencyParams(const MPD* mpd,AampLLDashSer
 		for (unsigned iPeriod = 0; iPeriod < numPeriods; iPeriod++)
 		{
 			IPeriod *period = mpd->GetPeriods().at(iPeriod);
-			if(IsEmptyPeriod(period, mIsFogTSB))
-			{
-				// Empty Period . Ignore processing, continue to next.
-				continue;
-			}
 			if(NULL != period )
 			{
+				if(IsEmptyPeriod(period, mIsFogTSB))
+				{
+					// Empty Period . Ignore processing, continue to next.
+					continue;
+				}
 				const std::vector<IAdaptationSet *> adaptationSets = period->GetAdaptationSets();
 				if (adaptationSets.size() > 0)
 				{
