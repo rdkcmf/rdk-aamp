@@ -1546,24 +1546,6 @@ static gboolean bus_message(GstBus * bus, GstMessage * msg, AAMPGstPlayer * _thi
 			_this->aamp->ScheduleRetune(eGST_ERROR_OUTPUT_PROTECTION_ERROR,eMEDIATYPE_VIDEO);
 		}
 		break;
-	case GST_MESSAGE_NEED_CONTEXT:
-		AAMPLOG_WARN("Received GST_MESSAGE_NEED_CONTEXT (probably after a discontinuity between periods having different track_ids)");
-
-		const gchar* contextType;
-		gst_message_parse_context_type(msg, &contextType);
-		if (!g_strcmp0(contextType, "drm-preferred-decryption-system-id"))
-		{
-			AAMPLOG_WARN("Setting %s as preferred drm",GetDrmSystemName(_this->aamp->GetPreferredDRM()));
-			GstContext* context = gst_context_new("drm-preferred-decryption-system-id", FALSE); /* Creates a new context that is not persistent by supplying FALSE */
-			GstStructure* contextStructure = gst_context_writable_structure(context);	/* Gets a writeable structure of context, context still own the structure*/
-			gst_structure_set(contextStructure, "decryption-system-id", G_TYPE_STRING, GetDrmSystemID(_this->aamp->GetPreferredDRM()),  NULL);	/* Sets the decryption-system-id */
-			gst_element_set_context(GST_ELEMENT(GST_MESSAGE_SRC(msg)), context);
-		}
-		else
-		{
-			AAMPLOG_ERR("unknown context type - %s ", contextType);
-		}
-		break;
 
 	default:
 		AAMPLOG_WARN("msg type: %s", gst_message_type_get_name(msg->type));
