@@ -1,0 +1,70 @@
+<html>
+    <head>
+        <title>CI Test App</title>
+    </head>
+    <script>
+        var testComplete = false;
+
+        function onTuneComplete() { 
+            // Playback started
+            printTestResult("SUCCESS");
+        }
+
+        function onTuneError() {
+            // tune failed
+            printTestResult("FAIL");
+        }
+
+        function printTestResult(result) {
+            console.log( "AAMP CI TEST- END (" + result + ")" );
+            testComplete = true;
+        }
+            
+        window.onload = function() {
+            try {
+                // this MVP test app declares that tests expected to compete with 30s
+                console.log( "AAMP CI TEST - BEGIN (VERSION 0.1) TIMEOUT=30");
+                var player = new AAMPMediaPlayer();
+                player.addEventListener("playbackStarted", onTuneComplete);
+                player.addEventListener("playbackFailed", onTuneError);
+                
+                var url = "https://cpetestutility.stb.r53.xcal.tv/multilang/main.m3u8";
+                player.load(url);
+
+                // if neither SUCCESS/FAILURE is logged within this time,
+                // system running test should consider test run failed
+                setTimeout(function() {
+                    if(!testComplete) {
+                        printTestResult("FAIL");
+                    }   
+                }, 30000);
+            } catch {
+                var msg = window.navigator.userAgent.includes("WPE")? "AAMPMediaPlayer not available" : "This app is intended to be used on RDK devices";
+                document.getElementById('modal').style.display = "block";
+                document.getElementById("msg").innerHTML = "ERROR: " + msg;
+            }
+        }
+    </script>
+    <style>
+        #modal {
+            display: none;
+            position: absolute;
+            background-color: rgba(0,0,0,0.5);
+            margin: 100px 0 auto 35%;
+            color: #fff;
+            padding: 5px;
+            font: 16px arial, sans-serif;
+        }
+    </style>
+	<body>
+		<div id="videoContainer">
+			<video style="height:100%; width:100%; position:absolute; bottom:0; left:0">
+				<source src="dummy.mp4" type=”video/ave”> <!-- hole  punching -->
+			</video>
+		</div>
+        <div id="modal">
+            <p id="msg"></p>
+        </div>
+	</body>
+</html>
+
