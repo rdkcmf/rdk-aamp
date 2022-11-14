@@ -18,6 +18,23 @@ else
     echo "Achitecture $arch is unsupported"
     exit
 fi
+
+
+
+if  [[ $1 = "subtec" ]]; then
+
+    if [ ! -d "subtec-app/subttxrend-app/x86_builder/" ]; then
+        echo "Subtec-app not installed. Run 'bash install-aamp.sh' to install aamp and subtec-app"
+    else
+        cd subtec-app/subttxrend-app/x86_builder/
+        ./build.sh run
+    fi
+    exit 0
+else
+    echo "Installing aamp-cli and subtec-app..."
+fi
+
+
 ######################################################## 
 # Declare a status array to collect full summary to be printed by the end of execution
 declare -a  arr_install_status
@@ -205,6 +222,8 @@ echo "Code Branch: $codebranch"
 if [[ "$OSTYPE" == "darwin"* ]]; then
 
     echo $OSTYPE
+    
+    
 
 
     #Check if Xcode is installed
@@ -229,6 +248,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     fi
 
 
+    
 
 
     #cleanup old libs builds
@@ -300,11 +320,44 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     sudo make install
     cd ../..
 
+    cd ../
+    echo "Installing subtec-app..."
+    
+    echo "Installing packages..."
+    brew install coreutils
+    brew install websocketpp
+    brew install boost
+    brew install jansson
+    brew install libxkbcommon
+    brew install cppunit
+    brew install gnu-sed
+    
+    echo "Cloning subtec-app..."
+    git clone https://code.rdkcentral.com/r/components/generic/subtec-app
+    echo "Cloning websocket-ipplayer2-utils..."
+    git clone https://code.rdkcentral.com/r/components/generic/websocket-ipplayer2-utils subtec-app/websocket-ipplayer2-utils
+    echo "Installing glib..."
+    git clone https://gitlab.gnome.org/GNOME/glib.git
+    cd glib
+    meson build && cd build
+    meson compile
+    
+    cd ../../
+    
+    sed -i '' 's:COMMAND gdbus-codegen --interface-prefix com.libertyglobal.rdk --generate-c-code SubtitleDbusInterface ${CMAKE_CURRENT_SOURCE_DIR}/api/dbus/SubtitleDbusInterface.xml:COMMAND '"$PWD"'/glib/build/gio/gdbus-2.0/codegen/gdbus-codegen --interface-prefix com.libertyglobal.rdk --generate-c-code SubtitleDbusInterface ${CMAKE_CURRENT_SOURCE_DIR}/api/dbus/SubtitleDbusInterface.xml:g' subtec-app/subttxrend-dbus/CMakeLists.txt
+    
+    sed -i '' 's:COMMAND gdbus-codegen --interface-prefix com.libertyglobal.rdk --generate-c-code TeletextDbusInterface ${CMAKE_CURRENT_SOURCE_DIR}/api/dbus/TeletextDbusInterface.xml:COMMAND '"$PWD"'/glib/build/gio/gdbus-2.0/codegen/gdbus-codegen --interface-prefix com.libertyglobal.rdk --generate-c-code TeletextDbusInterface ${CMAKE_CURRENT_SOURCE_DIR}/api/dbus/TeletextDbusInterface.xml:g' subtec-app/subttxrend-dbus/CMakeLists.txt
+    
+    sed -i '' 's:/run/subttx/pes_data_main:/tmp/pes_data_main:g' subtec/libsubtec/PacketSender.hpp
+    
+    echo "************************"
+    echo "Subtec-App successfully installed!"
+    echo "Run by running './install-aamp.sh subtec'"
+    echo "************************"
 
     #Build aamp-cli
     echo "Build aamp-cli"
     pwd
-    cd ../
     
     #clean existing build folder if exists
     if [ -d "./build" ]; then
@@ -313,8 +366,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 
     mkdir -p build
     
-    cd build && PKG_CONFIG_PATH=/usr/local/opt/ossp-uuid/lib/pkgconfig:/usr/local/opt/libffi/lib/pkgconfig:/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/pkgconfig:/usr/local/ssl/lib/pkgconfig:/usr/local/opt/curl/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_CUSTOM_QTDEMUX_PLUGIN_ENABLED="" -DCMAKE_OSX_SYSROOT="/" -DCMAKE_OSX_DEPLOYMENT_TARGET="" -DSMOKETEST_ENABLED=ON -G Xcode ../
-    #-DCMAKE_CUSTOM_QTDEMUX_PLUGIN_ENABLED
+    cd build && PKG_CONFIG_PATH=/usr/local/opt/ossp-uuid/lib/pkgconfig:/usr/local/opt/libffi/lib/pkgconfig:/Library/Frameworks/GStreamer.framework/Versions/1.0/lib/pkgconfig:/usr/local/ssl/lib/pkgconfig:/usr/local/opt/curl/lib/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH cmake -DCMAKE_OSX_SYSROOT="/" -DCMAKE_OSX_DEPLOYMENT_TARGET="" -DSMOKETEST_ENABLED=ON -G Xcode ../
 
     echo "Please Start XCode, open aamp/build/AAMP.xcodeproj project file"
 	
@@ -338,19 +390,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     
     echo "Starting Xcode, open aamp/build/AAMP.xcodeproj project file OR Execute ./aamp-cli or /playbintest <url> binaries"
     echo "Opening AAMP project in Xcode..."
-    
-    cd AAMP.xcodeproj
-    mkdir xcshareddata
-    cd xcshareddata
-    mkdir xcschemes
-    cd ../../
-    cp ../OSX/aamp-cli.xcscheme AAMP.xcodeproj/xcshareddata/xcschemes
-    
-    if ./ps -o comm= $$ | grep -q '-bash'; then
-        echo "Already in bash"
-    else
-        chsh -s /bin/bash
-    fi
 
     (sleep 20 ; open AAMP.xcodeproj) &
     
@@ -360,10 +399,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     if [  -f "./Debug/aamp-cli" ]; then 
         echo "OSX AAMP Build PASSED"
         arr_install_status+=("OSX AAMP Build PASSED")
-        
-        #sed -i ".bak" 's/allowLocationSimulation = "YES"/allowLocationSimulation = "YES"\n      consoleMode = "1"/g' AAMP.xcodeproj/xcshareddata/xcschemes/aamp-cli.xcscheme
-        
-        
     else
         echo "OSX AAMP Build FAILED"
         arr_install_status+=("OSX AAMP Build FAILED")
