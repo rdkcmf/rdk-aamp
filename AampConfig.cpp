@@ -1802,9 +1802,8 @@ void AampConfig::ReadAllTR181Params()
 				}
 			}
 			else
-			{
-				AAMPLOG_ERR("ReadAllTR181Params: Got emptry value for param:%s",strParamName.c_str());
-
+			{ // normal case - no need to log by default
+				AAMPLOG_TRACE("ReadAllTR181Params: Got empty value for param:%s",strParamName.c_str());
 			}
 		}
 	}
