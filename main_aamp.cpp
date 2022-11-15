@@ -1317,7 +1317,7 @@ void PlayerInstanceAAMP::SetSubtitleMute(bool muted)
 void PlayerInstanceAAMP::SetAudioVolume(int volume)
 {
 	ERROR_STATE_CHECK_VOID();
-	AAMPLOG_WARN(" volume == %d");
+	AAMPLOG_WARN(" volume == %d", volume);
 	if(aamp){
 	if (volume < AAMP_MINIMUM_AUDIO_LEVEL || volume > AAMP_MAXIMUM_AUDIO_LEVEL)
 	{

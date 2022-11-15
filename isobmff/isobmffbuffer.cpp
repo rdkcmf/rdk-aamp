@@ -220,9 +220,13 @@ bool IsoBmffBuffer::getTrackIdInternal(const std::vector<Box*> *boxes, uint32_t 
 		if (IS_TYPE(box->getType(), Box::TRAK))
 		{
 			try {
-				track_id = dynamic_cast<TrakBox *>(box)->getTrack_Id();
-				ret = true;
-				break;
+				TrakBox *trakBox = dynamic_cast<TrakBox *>(box);
+				if(trakBox)
+				{
+					track_id = trakBox->getTrack_Id();
+					ret = true;
+					break;
+				}
 			} catch (std::bad_cast& bc){
 				//do nothing
 			}			

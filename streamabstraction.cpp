@@ -2505,9 +2505,9 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 {
 	MediaTrack *audio = GetMediaTrack(eTRACK_AUDIO);
 	MediaTrack *subtitle = GetMediaTrack(eTRACK_SUBTITLE);
-	if((subtitle == NULL)  && (audio == NULL))
-	{  //CID:88017 - forward null
-		AAMPLOG_WARN("subtitle and audio is null");  //CID:85996 - Null Returns
+	if(subtitle == NULL)
+	{
+		AAMPLOG_WARN("subtitle is null");
 		return;
 	}
 	//Check if its muxed a/v
@@ -2519,13 +2519,12 @@ void StreamAbstractionAAMP::WaitForAudioTrackCatchup()
 	struct timespec ts;
 	int ret = 0;
 
-	pthread_mutex_lock(&mLock);
 	if(audio == NULL)
 	{
 		AAMPLOG_WARN("audio  is null");
-		pthread_mutex_unlock(&mLock);
                 return;
 	}
+	pthread_mutex_lock(&mLock);
 	double audioDuration = audio->GetTotalInjectedDuration();
 	double subtitleDuration = subtitle->GetTotalInjectedDuration();
 	//Allow subtitles to be ahead by 5 seconds compared to audio

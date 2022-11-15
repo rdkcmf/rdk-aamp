@@ -204,7 +204,7 @@ bool AampPlayReadyHelper::parsePssh(const uint8_t* initData, uint32_t initDataLe
 
 			if (decodedDataLen != PLAYREADY_DECODED_KEY_ID_LEN)
 			{
-				AAMPLOG_ERR("Invalid key size found while extracting PR Decoded-KeyID-Length: %d (PR KeyID: %s  KeyID-Length: %d)", decodedDataLen, keyData, keyIdLen);
+				AAMPLOG_ERR("Invalid key size found while extracting PR Decoded-KeyID-Length: %d (PR KeyID: %s  KeyID-Length: %d)", decodedDataLen, keyData.c_str(), keyIdLen);
 			}
 			else
 			{
