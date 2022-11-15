@@ -463,7 +463,7 @@ void aamp_SetPageHttpHeaders(const char* headerJson)
 {
 	//headerJson is expected to be in the format "[{\"name\":\"X-PRIVACY-SETTINGS\",\"value\":\"lmt=1,us_privacy=1-Y-\"},    {\"name\":\"abc\",\"value\":\"xyz\"}]"
 	g_PageHttpHeaders.clear();
-	if(nullptr != headerJson || '\0' != headerJson[0])
+	if(nullptr != headerJson && '\0' != headerJson[0])
 	{
 		INFO("[AAMP_JSController] aamp_SetPageHttpHeaders headerJson=%s", headerJson);
 		cJSON *parentJsonObj = cJSON_Parse(headerJson);
