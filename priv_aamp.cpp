@@ -6802,9 +6802,9 @@ void PrivateInstanceAAMP::SendStreamCopy(MediaType mediaType, const void *ptr, s
 /**
  * @brief  API to send audio/video stream into the sink.
  */
-void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration, bool initFragment)
+void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration, bool initFragment,bool isLowLatencyMode)
 {
-	mStreamSink->SendTransfer(mediaType, buffer, fpts, fdts, fDuration, initFragment);
+	mStreamSink->SendTransfer(mediaType, buffer, fpts, fdts, fDuration, initFragment,isLowLatencyMode);
 }
 
 /**

@@ -2541,7 +2541,15 @@ void AAMPGstPlayer::SendGstEvents(MediaType mediaType, GstClockTime pts)
 #ifdef ENABLE_AAMP_QTDEMUX_OVERRIDE
 		if ( privateContext->rate == AAMP_NORMAL_PLAY_RATE )
 		{
-			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
+			guint64 basePTS =0;
+			if(aamp->GetLLDashServiceData()->lowLatencyMode)
+			{
+				basePTS = pts;
+			}
+			else
+			{
+				basePTS = aamp->GetFirstPTS() * GST_SECOND;
+			}
 			AAMPLOG_WARN("Set override event's basePTS [ %" G_GUINT64_FORMAT "]", basePTS);
 			gst_structure_set (eventStruct, "basePTS", G_TYPE_UINT64, basePTS, NULL);
 		}
@@ -2701,7 +2709,7 @@ void AAMPGstPlayer::SendNewSegmentEvent(MediaType mediaType, GstClockTime startP
 /**
  *  @brief Inject stream buffer to gstreamer pipeline
  */
-bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration, bool copy, bool initFragment)
+bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration, bool copy, bool initFragment,bool isLowLatencyMode)
 {
 	if(ISCONFIGSET(eAAMPConfig_SuppressDecode))
 	{
@@ -2753,7 +2761,27 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 			return false;
 		}
 	}
-	if (isFirstBuffer)
+	if(isLowLatencyMode)
+	{
+		if( mediaType != eMEDIATYPE_INIT_AUDIO && mediaType != eMEDIATYPE_INIT_VIDEO)
+		{
+			if (isFirstBuffer )
+			{
+				SendGstEvents(mediaType, pts);
+#if defined(AMLOGIC)
+		// AMLOGIC-3130: included to fix av sync / trickmode speed issues in LLAMA-4291
+		// LLAMA-6788 - Also add check for trick-play on 1st frame.
+		if(!aamp->mbNewSegmentEvtSent[mediaType] || (mediaType == eMEDIATYPE_VIDEO && aamp->rate != AAMP_NORMAL_PLAY_RATE))
+		{
+			SendNewSegmentEvent(mediaType, pts ,0);
+			aamp->mbNewSegmentEvtSent[mediaType]=true;
+		}
+#endif		
+			}
+			
+		}
+	}
+	if (isFirstBuffer && !aamp->GetLLDashServiceData()->lowLatencyMode)
 	{
 		//Send Gst Event when first buffer received after new tune, seek or period change
 		SendGstEvents(mediaType, pts);
@@ -2883,10 +2911,10 @@ void AAMPGstPlayer::SendCopy(MediaType mediaType, const void *ptr, size_t len0, 
 /**
  *  @brief inject mp4 segment to gstreamer pipeline
  */
-void AAMPGstPlayer::SendTransfer(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration, bool initFragment)
+void AAMPGstPlayer::SendTransfer(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration, bool initFragment,bool isLowLatencyMode)
 {
 	FN_TRACE( __FUNCTION__ );
-	if( !SendHelper( mediaType, pBuffer->ptr, pBuffer->len, fpts, fdts, fDuration, false /*transfer*/, initFragment) )
+	if( !SendHelper( mediaType, pBuffer->ptr, pBuffer->len, fpts, fdts, fDuration, false /*transfer*/, initFragment,isLowLatencyMode) )
 	{ // unable to transfer - free up the buffer we were passed.
 		aamp_Free(pBuffer);
 	}

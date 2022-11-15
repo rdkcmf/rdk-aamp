@@ -553,7 +553,7 @@ public:
          *   @param[in]  initFragment - flag for buffer type (init, data)
 	 *   @return void
 	 */
-	virtual void SendTransfer( MediaType mediaType, struct GrowableBuffer* buffer, double fpts, double fdts, double duration, bool initFragment = false)= 0;
+	virtual void SendTransfer( MediaType mediaType, struct GrowableBuffer* buffer, double fpts, double fdts, double duration, bool initFragment = false,bool isLowLatencyMode=0)= 0;
 
 	/**
 	 *   @brief  Notifies EOS to sink
