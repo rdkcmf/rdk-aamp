@@ -1623,10 +1623,10 @@ bool AampConfig::ReadAampCfgTxtFile()
 	const char *env_aamp_enable_opt = "true";
 #endif
 
-	if(env_aamp_enable_opt)
-	{
+	//if(env_aamp_enable_opt)
+	//{
 		cfgPath = AAMP_CFG_PATH;
-	}
+	//}
 #endif
 
 	if (!cfgPath.empty())
