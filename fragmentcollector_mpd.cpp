@@ -12031,7 +12031,7 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 			PrivAAMPState state = eSTATE_IDLE;
 			aamp->GetState(state);	
 			double playRate = aamp->GetLLDashCurrentPlayBackRate();
-			if( (aamp->GetPositionMs() > aamp->DurationFromStartOfPlaybackMs())  && state == eSTATE_PLAYING )
+			if( (aamp->GetPositionMs() > aamp->DurationFromStartOfPlaybackMs())  || state != eSTATE_PLAYING )
 			{
 				AAMPLOG_WARN("current position[%lld] must be less than Duration From Start Of Playback[%lld]!!!!:",aamp->GetPositionMs(), aamp->DurationFromStartOfPlaybackMs());
 			}

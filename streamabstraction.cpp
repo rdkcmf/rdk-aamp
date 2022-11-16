@@ -1903,6 +1903,13 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 {
 	MediaTrack *video = GetMediaTrack(eTRACK_VIDEO);
 	double bufferValue = video->GetBufferedDuration();
+	AampLLDashServiceData *pAampLLData = aamp->GetLLDashServiceData();
+	bool isLowLatencyMode = false;
+	if(pAampLLData != NULL)
+	{
+		isLowLatencyMode = pAampLLData->lowLatencyMode;
+		bufferValue += pAampLLData->availabilityTimeOffset;
+	}
 	if(bufferValue > 0 && currProfileIndex == newProfileIndex)
 	{
 		AAMPLOG_INFO("buffer:%f currProf:%d nwBW:%ld",bufferValue,currProfileIndex,nwBandwidth);
@@ -1923,8 +1930,10 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 		}
 		// steady state ,with no ABR cache available to determine actual bandwidth
 		// this state can happen due to timeouts
-		if(nwBandwidth == -1 && bufferValue < mABRMinBuffer && !video->IsInjectionAborted())
+		if( ( nwBandwidth == -1 && bufferValue < mABRMinBuffer && !video->IsInjectionAborted() ) || 
+			( isLowLatencyMode && bufferValue < mABRMinBuffer && !video->IsInjectionAborted() ) )
 		{
+			AAMPLOG_INFO("buffer=%f mABRMaxBuffer:%d mABRMinBuffer:%d",bufferValue,mABRMaxBuffer,mABRMinBuffer);
 			mABRLowBufferCounter++;
 			mABRHighBufferCounter = 0;
 			
@@ -1932,7 +1941,7 @@ void StreamAbstractionAAMP::GetDesiredProfileOnSteadyState(int currProfileIndex,
 				mhBitrateReason = (HybridABRManager::BitrateChangeReason) mBitrateReason;
 				aamp->mhAbrManager.CheckRampdownFromSteadyState(currProfileIndex,newProfileIndex,mhBitrateReason,mABRLowBufferCounter);
 				mBitrateReason = (BitrateChangeReason) mhBitrateReason;
-				mABRLowBufferCounter = 0 ;
+				mABRLowBufferCounter = (mABRLowBufferCounter > mABRCacheLength)? 0 : mABRLowBufferCounter ;
 		}
 	}
 	else
