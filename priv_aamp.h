@@ -104,6 +104,7 @@ static const char *mMediaFormatName[] =
 #define URN_UTC_HTTP_XSDATE "urn:mpeg:dash:utc:http-xsdate:2014"
 #define URN_UTC_HTTP_ISO "urn:mpeg:dash:utc:http-iso:2014"
 #define URN_UTC_HTTP_NTP "urn:mpeg:dash:utc:http-ntp:2014"
+#define URN_UTC_HTTP_HEAD "urn:mpeg:dash:utc:http-head:2014"
 #define MAX_LOW_LATENCY_DASH_CORRECTION_ALLOWED 100
 #define MAX_LOW_LATENCY_DASH_RETUNE_ALLOWED 2
 
