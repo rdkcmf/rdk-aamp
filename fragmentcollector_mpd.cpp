@@ -5733,12 +5733,17 @@ bool  StreamAbstractionAAMP_MPD::FindServerUTCTime(Node* root)
 						hasServerUtcTime = true;
 						break;
 					}
-					else if( SERVER_UTCTIME_HTTP == node->GetAttributeValue("schemeIdUri") && node->HasAttribute("value"))
+					else if(((SERVER_UTCTIME_HTTP == node->GetAttributeValue("schemeIdUri")) || (URN_UTC_HTTP_ISO == node->GetAttributeValue("schemeIdUri"))) && node->HasAttribute("value"))
 					{
 						double currentTime = (double)aamp_GetCurrentTimeMS() / 1000;
 						long http_error = -1;
 						GrowableBuffer data;
                                                 std::string value = node->GetAttributeValue("value");
+						if(!strcasestr(value.c_str(), "http"))
+						{
+							std::string valueCopy = value;
+							aamp_ResolveURL(value, aamp->GetManifestUrl(), valueCopy.c_str(), ISCONFIGSET(eAAMPConfig_PropogateURIParam));
+						}
 						if(aamp->ProcessCustomCurlRequest(value, &data, &http_error))
 						{
 							mServerUtcTime = ISO8601DateTimeToUTCSeconds(data.ptr);
