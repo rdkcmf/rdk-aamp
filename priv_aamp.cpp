@@ -354,6 +354,7 @@ static gboolean PrivateInstanceAAMP_ProcessDiscontinuity(gpointer ptr)
 			aamp->SyncEnd();
 		}
 		pthread_cond_signal(&aamp->mCondDiscontinuity);
+
 	}
 	return G_SOURCE_REMOVE;
 }
@@ -800,7 +801,7 @@ size_t PrivateInstanceAAMP::HandleSSLWriteCallback ( char *ptr, size_t size, siz
     CurlCallbackContext *context = (CurlCallbackContext *)userdata;
     if(!context) return ret;
     pthread_mutex_lock(&context->aamp->mLock);
-    if (context->aamp->mDownloadsEnabled && context->aamp->mMediaDownloadsEnabled[context->fileType])
+    if (context->aamp->mDownloadsEnabled)
     {
 		if ((NULL == context->buffer->ptr) && (context->contentLength > 0))
 		{
@@ -1197,7 +1198,7 @@ int PrivateInstanceAAMP::HandleSSLProgressCallback ( void *clientp, double dltot
 
 	int rc = 0;
 	context->aamp->SyncBegin();
-	if (!context->aamp->mDownloadsEnabled && context->aamp->mMediaDownloadsEnabled[context->fileType])
+	if (!context->aamp->mDownloadsEnabled)
 	{
 		rc = -1; // CURLE_ABORTED_BY_CALLBACK
 	}
@@ -1440,7 +1441,6 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mVideoOnlyPb(false)
 	, mCurrentAudioTrackIndex(-1)
 	, mCurrentTextTrackIndex(-1)
-	, mMediaDownloadsEnabled()
 	, playerrate(1.0)
 	, mSetPlayerRateAfterFirstframe(false)
 	, mEncryptedPeriodFound(false)
@@ -1567,7 +1567,6 @@ PrivateInstanceAAMP::~PrivateInstanceAAMP()
 	}
 	pthread_mutex_unlock(&gMutex);
 
-	mMediaDownloadsEnabled.clear();
 	pthread_mutex_lock(&mLock);
 
 #ifdef SESSION_STATS
@@ -3120,27 +3119,33 @@ void PrivateInstanceAAMP::CurlTerm(AampCurlInstance startIdx, unsigned int insta
  */
 AampCurlInstance PrivateInstanceAAMP::GetPlaylistCurlInstance(MediaType type, bool isInitialDownload)
 {
-	AampCurlInstance retType = eCURLINSTANCE_MANIFEST_MAIN;
+	AampCurlInstance retType = eCURLINSTANCE_MANIFEST_PLAYLIST;
 	bool indivCurlInstanceFlag = false;
 
-	// Removed condition check to get config value of parrallel playlist download, Now by default select parrallel playlist for non init downloads
-	indivCurlInstanceFlag = isInitialDownload ? false : true;
+	//DELIA-41646
+	// logic behind this function :
+	// a. This function gets called during Init and during Refresh of playlist .So need to decide who called
+	// b. Based on the decision flag is considerd . mParallelFetchPlaylist for Init and mParallelFetchPlaylistRefresh
+	//	  for refresh
+	// c. If respective configuration is enabled , then associate separate curl for each track type
+	// d. If parallel fetch is disabled , then single curl instance is used to fetch all playlist(eCURLINSTANCE_MANIFEST_PLAYLIST)
+
+	indivCurlInstanceFlag = isInitialDownload ? ISCONFIGSET_PRIV(eAAMPConfig_PlaylistParallelFetch) : ISCONFIGSET_PRIV(eAAMPConfig_PlaylistParallelRefresh);
 	if(indivCurlInstanceFlag)
 	{
 		switch(type)
 		{
 			case eMEDIATYPE_PLAYLIST_VIDEO:
-			case eMEDIATYPE_PLAYLIST_IFRAME:
-				retType = eCURLINSTANCE_MANIFEST_PLAYLIST_VIDEO;
+				retType = eCURLINSTANCE_VIDEO;
 				break;
 			case eMEDIATYPE_PLAYLIST_AUDIO:
-				retType = eCURLINSTANCE_MANIFEST_PLAYLIST_AUDIO;
+				retType = eCURLINSTANCE_AUDIO;
 				break;
 			case eMEDIATYPE_PLAYLIST_SUBTITLE:
-				retType = eCURLINSTANCE_MANIFEST_PLAYLIST_SUBTITLE;
+				retType = eCURLINSTANCE_SUBTITLE;
 				break;
 			case eMEDIATYPE_PLAYLIST_AUX_AUDIO:
-				retType = eCURLINSTANCE_MANIFEST_PLAYLIST_AUX_AUDIO;
+				retType = eCURLINSTANCE_AUX_AUDIO;
 				break;
 			default:
 				break;
@@ -4607,8 +4612,6 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		lastUnderFlowTimeMs[i] = 0;
 	}
 	pthread_mutex_lock(&mFragmentCachingLock);
-	EnableAllMediaDownloads();
-	//LazilyLoadConfigIfNeeded();
 	mFragmentCachingRequired = false;
 	mPauseOnFirstVideoFrameDisp = false;
 	mFirstVideoFrameDisplayedEnabled = false;
@@ -5605,11 +5608,11 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 		double downloadTime;
 		long bitrate;
 		int fogError;
-		
+
 		mOrigManifestUrl.hostname=aamp_getHostFromURL(url);
 		mOrigManifestUrl.isRemotehost = !(aamp_IsLocalHost(mOrigManifestUrl.hostname));
-		CurlInit(eCURLINSTANCE_MANIFEST_MAIN, 1, GetNetworkProxy());
-		EnableMediaDownloads(eMEDIATYPE_MANIFEST);
+		CurlInit(eCURLINSTANCE_MANIFEST_PLAYLIST, 1, GetNetworkProxy());
+
 		bool gotManifest = GetFile(url,
 							&sniffedBytes,
 							effectiveUrl,
@@ -5617,7 +5620,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 							&downloadTime,
 							"0-150", // download first few bytes only
 							// TODO: ideally could use "0-6" for range but write_callback sometimes not called before curl returns http 206
-							eCURLINSTANCE_MANIFEST_MAIN,
+							eCURLINSTANCE_MANIFEST_PLAYLIST,
 							false,
 							eMEDIATYPE_MANIFEST,
 							&bitrate,
@@ -5649,7 +5652,7 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 			}
 		}
 		aamp_Free(&sniffedBytes);
-		CurlTerm(eCURLINSTANCE_MANIFEST_MAIN);
+		CurlTerm(eCURLINSTANCE_MANIFEST_PLAYLIST);
 	}
 	return rc;
 }
@@ -6425,11 +6428,6 @@ void PrivateInstanceAAMP::DisableDownloads(void)
 	mDownloadsEnabled = false;
 	pthread_cond_broadcast(&mDownloadsDisabled);
 	pthread_mutex_unlock(&mLock);
-	// Notify playlist downloader threads
-	if(mpStreamAbstractionAAMP)
-	{
-		mpStreamAbstractionAAMP->DisablePlaylistDownloads();
-	}
 }
 
 /**
@@ -10923,39 +10921,6 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 	}
 }
 
-/**
- * @brief Enable download activity for individual mediaType
- *
- */
-void PrivateInstanceAAMP::EnableMediaDownloads(MediaType type)
-{
-	mMediaDownloadsEnabled[type] = true;
-}
-
-/**
- * @brief Disable download activity for individual mediaType
- */
-void PrivateInstanceAAMP::DisableMediaDownloads(MediaType type)
-{
-	mMediaDownloadsEnabled[type] = false;
-}
-
-/**
- * @brief Enable Download activity for all mediatypes
- */
-void PrivateInstanceAAMP::EnableAllMediaDownloads()
-{
-	for (int i = 0; i <= eMEDIATYPE_DEFAULT; i++)
-	{
-		// Enable downloads for all mediaTypes
-		EnableMediaDownloads((MediaType) i);
-	}
-}
-
-/*
- *   @brief get the WideVine KID Workaround from url
- *
- */
 #define WV_KID_WORKAROUND "SkyStoreDE="
 
 /**
