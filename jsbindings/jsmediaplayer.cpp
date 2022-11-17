@@ -2406,12 +2406,8 @@ static JSValueRef AAMPMediaPlayerJS_getAvailableTextTracks(JSContextRef ctx, JSO
 		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAvailableTextTracks() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
-	bool allTrack = false;
-	if (argumentCount == 1)
-	{
-		allTrack = JSValueToBoolean(ctx, arguments[0]);
-	}
-	std::string tracks = privObj->_aamp->GetAvailableTextTracks(allTrack);
+
+	std::string tracks = privObj->_aamp->GetAvailableTextTracks();
 	if (!tracks.empty())
 	{
 		TRACELOG("Exit %s()", __FUNCTION__);
