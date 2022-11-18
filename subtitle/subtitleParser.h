@@ -77,7 +77,7 @@ public:
 	virtual void pause(bool pause) {}
 	virtual void mute(bool mute) {}
 	virtual void isLinear(bool isLinear) {}
-
+	virtual void setTextStyle(const std::string &options){}
 protected:
 
 	SubtitleMimeType mType;

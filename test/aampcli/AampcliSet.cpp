@@ -1052,16 +1052,41 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 				case getHash("textTrack"):
 				case getHash("43"):
 					{
-						int track;
+						int track = 0;
+						char sidecar[128];
+
 						printf("[AAMPCLI] Matched Command TextTrack - %s\n", cmd);
-						if (sscanf(cmd, "set %s %d", command, &track) == 2)
+						if (sscanf(cmd, "set %s %127s", command, sidecar) == 2)
 						{
-							playerInstanceAamp->SetTextTrack(track);
+							std::ifstream inFile(sidecar);
+							if (inFile.good())
+							{
+								/* Sidecar text file. */
+								std::stringstream strStream;
+								strStream << inFile.rdbuf();
+								std::string str = strStream.str();
+								char* data = new char[str.size() + 1];
+								std::copy(str.begin(), str.end(), data);
+								data[str.size()] = '\0';
+
+								/* Ownership of data is passed to AAMP. */
+								playerInstanceAamp->SetTextTrack(0, data);
+							}
+							else if (sscanf(cmd, "set %s %d", command, &track) == 2)
+							{
+								/* Text track number. */
+								playerInstanceAamp->SetTextTrack(track);
+							}
+							else
+							{
+								printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
+								printf("[AAMPCLI] Expected: set %s <value> OR set %s <file>\n", command, command);
+							}
 						}
 						else
 						{
 							printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
-							printf("[AAMPCLI] Expected: set %s <value>\n", command);
+							printf("[AAMPCLI] set %s must be run with 1 argument\n", command);
 						}
 						break;
 					}
@@ -1086,11 +1111,14 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 				case getHash("ccStyle"):
 				case getHash("45"):
 					{
+						std::string options;
 						int value;
+						char jsonFile[128];
+						char tempChar;
+
 						printf("[AAMPCLI] Matched Command CCStyle - %s\n", cmd);
-						if (sscanf(cmd, "set %s %d", command, &value) == 2)
+						if (sscanf(cmd, "set %s %d %c", command, &value, &tempChar) == 2)
 						{
-							std::string options;
 							switch (value)
 							{
 								case 1:
@@ -1103,23 +1131,43 @@ bool Set::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 									options = std::string(CC_OPTION_3);
 									break;
 								default:
-									printf("[AAMPCLI] Invalid option passed. skipping!\n");
+									printf("[AAMPCLI] Invalid option passed %d. skipping!\n", value);
 									break;
-							}							
-							
-							if (!options.empty())
-							{
-								playerInstanceAamp->SetTextStyle(options);
 							}
+						}
+						else if (sscanf(cmd, "set %s %127s", command, jsonFile) == 2)
+						{
+							std::ifstream infile(jsonFile);
+							std::string line = "";
+							if(infile.good())
+							{
+								/**< If it is file get the data **/
+								while ( getline (infile,line) )
+								{
+									if (!options.empty())
+									{
+										options += "\n";
+									}
+									options += line;
+								}
+							}
+							else
+							{
+								printf("[AAMPCLI] Invalid filename passed %s. skipping!\n", jsonFile);
+							}
+						}
+
+						if (!options.empty())
+						{
+							playerInstanceAamp->SetTextStyle(options);
 						}
 						else
 						{
 							printf("[AAMPCLI] ERROR: Mismatch in arguments\n");
-							printf("[AAMPCLI] Expected: set %s <value 1,2 or 3>\n", command);
+							printf("[AAMPCLI] Expected: set %s <value 1,2 or 3> or json file\n", command);
 						}
 						break;
 					}
-
 				case getHash("propagateUriParam"):
 				case getHash("47"):
 					{
@@ -1271,9 +1319,9 @@ void Set::registerSetCommands()
 	addCommand("languageFormat <x> <y> ","Set Language Format (x = preferredFormat(0-3), y = useRole(0/1))");
 	addCommand("initialBufferDuration <x>","Set Initial Buffer Duration (int x = Duration in sec)");
 	addCommand("audioTrack <x>","Set Audio track ( x = track by index (number) OR track by language properties lan,rendition,type,codec )");
-	addCommand("textTrack <x>","Set Text track (int x = track index)");
+	addCommand("textTrack <x>","Set Text track (x = track index or path to file)");
 	addCommand("ccStatus <x>","Set CC status (x = 0/1)");
-	addCommand("ccStyle <x>","Set a predefined CC style commandion (x = 1/2/3)");
+	addCommand("ccStyle <x>","Set a CC style either predefined style, or json file (x = 1/2/3, or path json file)");
 	//addCommand("auxiliaryAudio <x>","Set auxiliary audio language (x = string lang)");
 	addCommand("propagateUriParam <x>","Set propagate uri parameters: (int x = 0 to disable)");
 	//addCommand("rateOnTune <x>","Set Pre-tune rate (x= PreTuneRate)");
@@ -1398,9 +1446,9 @@ void Set::registerSetNumCommands()
 	addNumCommand("40","Set Listen for ID3_METADATA events (x = 1 - add listener, x = 0 - remove)");
 	addNumCommand("41","Set Initial Buffer Duration (int x = Duration in sec)");
 	addNumCommand("42","Set Audio track ( x = track by index (number) OR track by language properties lan,rendition,type,codec )");
-	addNumCommand("43","Set Text track (int x = track index)");
+	addNumCommand("43","Set Text track (x = track index or path to file)");
 	addNumCommand("44","Set CC status (x = 0/1)");
-	addNumCommand("45","Set a predefined CC style commandion (x = 1/2/3)");
+	addNumCommand("45","Set a CC style either predefined style, or json file (x = 1/2/3, or path json file)");
 	addNumCommand("46","Set Language Format (x = preferredFormat(0-3), y = useRole(0/1))");
 	addNumCommand("47","Set propagate uri parameters: (int x = 0 to disable)");
 	addNumCommand("48","Set Thumbnail Track (int x = Thumbnail Index)");

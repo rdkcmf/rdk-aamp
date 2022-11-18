@@ -17,7 +17,10 @@
 * limitations under the License.
 */
 
+#include "MockAampJsonObject.h"
 #include "AampJsonObject.h"
+
+std::shared_ptr<MockAampJsonObject> g_mockAampJsonObject;
 
 AampJsonObject::AampJsonObject() : mParent(NULL), mJsonObj()
 {
@@ -37,86 +40,154 @@ AampJsonObject::~AampJsonObject()
 
 bool AampJsonObject::add(const std::string& name, const std::string& value, const ENCODING encoding)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->add(name, value, encoding);
+	}
 	return false;
 }
 
 bool AampJsonObject::add(const std::string& name, const char *value, const ENCODING encoding)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->add(name, value, encoding);
+	}
 	return false;
 }
 
 bool AampJsonObject::add(const std::string& name, const std::vector<std::string>& values)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->add(name, values);
+	}
 	return false;
 }
 
 bool AampJsonObject::add(const std::string& name, const std::vector<uint8_t>& values, const ENCODING encoding)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->add(name, values, encoding);
+	}
 	return false;
 }
 
 bool AampJsonObject::add(const std::string& name, AampJsonObject& value)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->add(name, value);
+	}
 	return false;
 }
 
 bool AampJsonObject::add(const std::string& name, std::vector<AampJsonObject*>& values)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->add(name, values);
+	}
 	return false;
 }
 
 bool AampJsonObject::add(const std::string& name, cJSON *value)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->add(name, value);
+	}
 	return false;
 }
 
 bool AampJsonObject::add(const std::string& name, bool value)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->add(name, value);
+	}
 	return false;
 }
 
 bool AampJsonObject::add(const std::string& name, int value)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->add(name, value);
+	}
 	return false;
 }
 
 bool AampJsonObject::add(const std::string& name, double value)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->add(name, value);
+	}
 	return false;
 }
 
 bool AampJsonObject::add(const std::string& name, long value)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->add(name, value);
+	}
 	return false;
 }
 
 bool AampJsonObject::set(AampJsonObject *parent, cJSON *object)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->set(parent, object);
+	}
 	return false;
 }
 
 bool AampJsonObject::get(const std::string& name, AampJsonObject &value)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->get(name, value);
+	}
 	return false;
 }
 
 bool AampJsonObject::get(const std::string& name, std::string& value)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->get(name, value);
+	}
 	return false;
 }
 
 bool AampJsonObject::get(const std::string& name, int& value)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->get(name, value);
+	}
 	return false;
 }
 
 bool AampJsonObject::get(const std::string& name, std::vector<std::string>& values)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->get(name, values);
+	}
 	return false;
 }
 
 bool AampJsonObject::get(const std::string& name, std::vector<uint8_t>& values, const ENCODING encoding)
 {
+	if (g_mockAampJsonObject != nullptr)
+	{
+		return g_mockAampJsonObject->get(name, values, encoding);
+	}
 	return false;
 }
 

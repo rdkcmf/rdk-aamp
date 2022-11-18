@@ -1427,6 +1427,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mPipelineIsClear(false)
 	, mLLActualOffset(-1)
 	, mIsStream4K(false)
+	, mTextStyle()
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{
@@ -5282,6 +5283,12 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 		{ // has sidecar data
 			if (mpStreamAbstractionAAMP)
 				mpStreamAbstractionAAMP->ResumeSubtitleAfterSeek(subtitles_muted, mData);
+		}
+
+		if ((mpStreamAbstractionAAMP) && (!mTextStyle.empty()))
+		{
+			// Restore the subtitle text style after a seek.
+			(void)mpStreamAbstractionAAMP->SetTextStyle(mTextStyle);
 		}
 	}
 
@@ -10299,7 +10306,11 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId, char *data)
 			SetCCStatus(true);
 
 			mpStreamAbstractionAAMP->InitSubtitleParser(data);
-
+			if (!mTextStyle.empty())
+			{
+				// Restore the subtitle text style after a track change.
+				(void)mpStreamAbstractionAAMP->SetTextStyle(mTextStyle);
+			}
 		}
 	}
 }
@@ -10401,11 +10412,22 @@ void PrivateInstanceAAMP::NotifyTextTracksChanged()
  */
 void PrivateInstanceAAMP::SetTextStyle(const std::string &options)
 {
-	//TODO: This can be later extended to subtitle rendering
-	// Right now, API is not available for subtitle
+	bool retVal = false;
+
+	mTextStyle = options;
+
+	if (mpStreamAbstractionAAMP)
+	{
+		AAMPLOG_WARN("Calling StreamAbstractionAAMP::SetTextStyle(%s)", options.c_str());
+		retVal = mpStreamAbstractionAAMP->SetTextStyle(options);
+	}
+	if (!retVal)
+	{
 #ifdef AAMP_CC_ENABLED
-	AampCCManager::GetInstance()->SetStyle(options);
+		AAMPLOG_WARN("Calling AampCCManager::SetTextStyle(%s)", options.c_str());
+		AampCCManager::GetInstance()->SetStyle(options);
 #endif
+	}
 }
 
 /**
@@ -10413,13 +10435,7 @@ void PrivateInstanceAAMP::SetTextStyle(const std::string &options)
  */
 std::string PrivateInstanceAAMP::GetTextStyle()
 {
-	//TODO: This can be later extended to subtitle rendering
-	// Right now, API is not available for subtitle
-#ifdef AAMP_CC_ENABLED
-	return AampCCManager::GetInstance()->GetStyle();
-#else
-	return std::string();
-#endif
+	return mTextStyle;
 }
 
 /**

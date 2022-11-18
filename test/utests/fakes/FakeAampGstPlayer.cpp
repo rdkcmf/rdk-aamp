@@ -44,7 +44,7 @@ void AAMPGstPlayer::SendCopy( MediaType mediaType, const void *ptr, size_t len, 
 {
 }
 
-void AAMPGstPlayer::SendTransfer( MediaType mediaType, struct GrowableBuffer* buffer, double fpts, double fdts, double duration, bool initFragment)
+void AAMPGstPlayer::SendTransfer(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration, bool initFragment, bool discontinuity)
 {
 }
 
@@ -186,3 +186,4 @@ void AAMPGstPlayer::StopBuffering(bool forceStop)
 void AAMPGstPlayer::InitializeAAMPGstreamerPlugins(AampLogManager *mLogObj)
 {
 }
+

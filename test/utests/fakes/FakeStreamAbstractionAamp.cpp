@@ -123,3 +123,7 @@ BufferHealthStatus MediaTrack::GetBufferStatus()
     return BUFFER_STATUS_GREEN;
 }
 
+bool StreamAbstractionAAMP::SetTextStyle(const std::string &options)
+{
+    return false;
+}

@@ -67,8 +67,8 @@ SecApi library support.
 
 CMAKE_USE_CC_MANAGER_MOCKS
 
-Use with CMAKE_RDK_CC_ENABLED for stubbed RDK CC Manager support. DirectFB is
-needed for this build.
+Use with CMAKE_RDK_CC_ENABLED or CMAKE_SUBTEC_CC_ENABLED for stubbed RDK CC
+Manager support. DirectFB is needed for this build.
 
 Building AAMP
 -------------
@@ -95,8 +95,8 @@ PKG_CONFIG_PATH=$PWD/Linux/lib/pkgconfig /usr/bin/cmake \
  -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/gcc \
  -DCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/g++ \
  -S$PWD \
- -B$PWD/build \
+ -B$PWD/build/mock \
  -G "Unix Makefiles"
-make -C build
+make -C build/mock
 
 Running mock library builds of AAMP is not supported.

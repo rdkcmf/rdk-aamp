@@ -521,13 +521,14 @@ if (CMAKE_RDK_CC_ENABLED)
 	endif()
 endif()
 
-set(AAMP_SUBTEC_CLASS_SOURCES subtec/subtecparser/WebVttSubtecParser.cpp subtec/subtecparser/TtmlSubtecParser.cpp subtec/subtecparser/WebvttSubtecDevParser.cpp)
+set(AAMP_SUBTEC_CLASS_SOURCES subtec/subtecparser/WebVttSubtecParser.cpp subtec/subtecparser/TtmlSubtecParser.cpp subtec/subtecparser/WebvttSubtecDevParser.cpp subtec/subtecparser/TextStyleAttributes.cpp)
 set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} ${AAMP_SUBTEC_CLASS_SOURCES})
 include_directories(subtec/subtecparser)
 
 message("CMAKE_GST_SUBTEC_ENABLED set")
 add_library(subtec SHARED subtec/libsubtec/PacketSender.cpp subtec/libsubtec/SubtecChannel.cpp)
-set_target_properties(subtec PROPERTIES PUBLIC_HEADER "subtec/libsubtec/SubtecChannel.hpp")
+set(AAMP_SUBTEC_PUBLIC_HEADERS subtec/libsubtec/SubtecChannel.hpp subtec/libsubtec/SubtecAttribute.hpp)
+set_target_properties(subtec PROPERTIES PUBLIC_HEADER "${AAMP_SUBTEC_PUBLIC_HEADERS}")
 set_target_properties(subtec PROPERTIES COMPILE_FLAGS "${CMAKE_CXX_FLAGS} -DSUBTEC_PACKET_DEBUG=1")
 include_directories(subtec/libsubtec)
 install (TARGETS subtec
@@ -546,7 +547,15 @@ if (CMAKE_SUBTEC_CC_ENABLED)
     set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAAMP_SUBTEC_CC_ENABLED")
 
     set(LIBSUBTECCONNECTOR_DEFINES "${LIBAAMP_DEFINES}")
-    set(LIBSUBTECCONNECTOR_DEPENDS pthread rdkCCReader subtec)
+
+    if (CMAKE_USE_CC_MANAGER_MOCKS)
+        find_path(STAGING_INCDIR closedcaption/ccDataReader.h)
+        include_directories(${STAGING_INCDIR}/closedcaption)
+        set(LIBAAMP_MOCK_SOURCES ${LIBAAMP_MOCK_SOURCES} test/fakes/ccManagerFakes.cpp)
+    else()
+        set(LIBSUBTECCONNECTOR_DEPENDS pthread rdkCCReader subtec)
+    endif()
+
     set(LIBSUBTECCONNECTOR_SOURCES  ${AAMP_SUBTEC_SOURCES}
         closedcaptions/subtec/SubtecConnector.cpp
         closedcaptions/subtec/CCDataController.cpp
@@ -559,7 +568,7 @@ if (CMAKE_SUBTEC_CC_ENABLED)
     link_directories("${CMAKE_BINARY_DIR}")
 
     set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} closedcaptions/subtec/AampSubtecCCManager.cpp)
-    set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lsubtec_connector")
+    set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS}" subtec_connector)
 endif()
 
 

@@ -3651,3 +3651,24 @@ int MediaTrack::WaitTimeBasedOnBufferAvailable()
 	}
 	return minDelayBetweenPlaylistUpdates;
 }
+
+
+/**
+ * @brief Set the text style of the subtitle to the options passed
+ *
+ * @param[in] - options - reference to the Json string that contains the information
+ * @return - true indicating successful operation in passing options to the parser
+ */
+bool StreamAbstractionAAMP::SetTextStyle(const std::string &options)
+{
+	bool retVal = false;
+	MediaTrack *subtitle = GetMediaTrack(eTRACK_SUBTITLE);
+	// If embedded subtitles enabled
+	if (subtitle && subtitle->enabled && subtitle->mSubtitleParser)
+	{
+		AAMPLOG_INFO("Calling SubtitleParser::SetTextStyle(%s)", options.c_str());
+		subtitle->mSubtitleParser->setTextStyle(options);
+		retVal = true;
+	}
+	return retVal;
+}
