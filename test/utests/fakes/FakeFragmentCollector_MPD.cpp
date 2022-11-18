@@ -158,3 +158,8 @@ bool StreamAbstractionAAMP_MPD::Is4KStream(int &height, long &bandwidth)
 {
     return false;
 }
+
+bool StreamAbstractionAAMP_MPD::SetTextStyle(const std::string &options)
+{
+    return false;
+}

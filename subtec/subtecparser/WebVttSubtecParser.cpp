@@ -18,7 +18,7 @@
 */
 
 #include "WebVttSubtecParser.hpp"
-#include "TtmlPacket.hpp"
+#include "TextStyleAttributes.h"
 
 WebVTTSubtecParser::WebVTTSubtecParser(AampLogManager *logObj, PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(logObj, aamp, type), m_channel(nullptr)
 {
@@ -52,7 +52,7 @@ bool WebVTTSubtecParser::init(double startPosSeconds, unsigned long long basePTS
 {
 	AAMPLOG_INFO("startPos %f basePTS %lld",  startPosSeconds, basePTS);
 
-	m_channel->SendTimestampPacket(static_cast<uint64_t>(basePTS));
+	m_channel->SendTimestampPacket(static_cast<uint64_t>(startPosSeconds*1000.0));
 
 	mAamp->ResumeTrackDownloads(eMEDIATYPE_SUBTITLE);
 
@@ -83,4 +83,22 @@ void WebVTTSubtecParser::pause(bool pause)
 		m_channel->SendPausePacket();
 	else
 		m_channel->SendResumePacket();
+}
+
+
+void WebVTTSubtecParser::setTextStyle(const std::string &options)
+{
+	TextStyleAttributes textStyleAttributes(mLogObj);
+	uint32_t attributesMask = 0;
+	attributesType attributesValues = {0};
+
+	int ccType = 0;			/* Value not used by WebVTT */
+
+	if (!textStyleAttributes.getAttributes(options, attributesValues, attributesMask))
+	{
+		if (attributesMask)
+		{
+			m_channel->SendCCSetAttributePacket(ccType, attributesMask, attributesValues);
+		}
+	}
 }

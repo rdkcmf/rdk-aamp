@@ -101,7 +101,8 @@ void SubtecChannel::SendMutePacket() {
 void SubtecChannel::SendUnmutePacket() {
     sendPacket<UnmutePacket>();
 }
-void SubtecChannel::SendCCSetAttributePacket(std::uint32_t ccType, std::uint32_t attribType, const std::array<uint32_t, 14>& attributesValues) {
+void SubtecChannel::SendCCSetAttributePacket(std::uint32_t ccType, std::uint32_t attribType, const attributesType &attributesValues) {
+    AAMPLOG_INFO("SendCCSetAttributePacket, the bit mask is 0x%X", attribType);
     sendPacket<CCSetAttributePacket>(ccType, attribType, attributesValues);
 }
 

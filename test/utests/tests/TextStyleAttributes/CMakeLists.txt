@@ -15,30 +15,42 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-file(GLOB fakes_SRC "*.cpp")
+set(AAMP_ROOT "../../../../")
+set(UTESTS_ROOT "../../")
+set(EXEC_NAME TextStyleAttributesTests)
 
-set(AAMP_ROOT "../../../")
-set(UTESTS_ROOT "..")
-
-
-include_directories(${AAMP_ROOT} ${AAMP_ROOT}/isobmff ${AAMP_ROOT}/drm ${AAMP_ROOT}/drm/helper ${AAMP_ROOT}/drm/ave ${AAMP_ROOT}/subtitle)
+include_directories(${AAMP_ROOT} ${AAMP_ROOT}/test/aampcli ${AAMP_ROOT}/drm ${AAMP_ROOT}/drm/helper)
+include_directories(${AAMP_ROOT}/subtitle)
 include_directories(${AAMP_ROOT}/subtec/libsubtec)
 include_directories(${AAMP_ROOT}/subtec/subtecparser)
-include_directories(${AAMP_ROOT}/test/aampcli)
-include_directories(${GLIB_INCLUDE_DIRS})
-include_directories(${GSTREAMER_INCLUDE_DIRS})
-include_directories(${LibXml2_INCLUDE_DIRS})
-include_directories(${LIBDASH_INCLUDE_DIRS})
 
 # Mac OS X
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
     include_directories(/usr/local/include)
     include_directories(/usr/local/include/libdash)
+    set(OS_LD_FLAGS -L/usr/local/lib)
+
 else()
     include_directories(${AAMP_ROOT}/Linux/include)
-    include_directories(${AAMP_ROOT}/Linux/include/libdash)
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
+include_directories(${GTEST_INCLUDE_DIRS})
+include_directories(${GMOCK_INCLUDE_DIRS})
+include_directories(${GLIB_INCLUDE_DIRS})
+include_directories(${GSTREAMER_INCLUDE_DIRS})
 include_directories(${UTESTS_ROOT}/mocks)
 
-add_library(fakes ${fakes_SRC})
+
+set(TEST_SOURCES    GetAttributesFontSizeTests.cpp
+                    TextStyleAttributesTests.cpp)
+
+
+set(AAMP_SOURCES ${AAMP_ROOT}/subtec/subtecparser/TextStyleAttributes.cpp)
+
+add_executable(${EXEC_NAME}
+               ${TEST_SOURCES}
+               ${AAMP_SOURCES})
+
+target_link_libraries(${EXEC_NAME} fakes ${GLIB_LDFLAGS} ${OS_LD_FLAGS} -lgmock -lgtest -lpthread)
+
+gtest_discover_tests(${EXEC_NAME} TEST_PREFIX ${EXEC_NAME}:)

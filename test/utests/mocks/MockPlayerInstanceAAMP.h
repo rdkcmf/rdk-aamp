@@ -16,38 +16,20 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-#include "WebVttSubtecParser.hpp"
 
-WebVTTSubtecParser::WebVTTSubtecParser(AampLogManager *logObj, PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(logObj, aamp, type), m_channel(nullptr)
-{
-}
+#ifndef AAMP_MOCK_PLAYER_INSTANCE_AAMP_H
+#define AAMP_MOCK_PLAYER_INSTANCE_AAMP_H
 
-void WebVTTSubtecParser::updateTimestamp(unsigned long long positionMs)
-{
-}
+#include <gmock/gmock.h>
+#include "main_aamp.h"
 
-void WebVTTSubtecParser::reset()
+class MockPlayerInstanceAAMP : public PlayerInstanceAAMP
 {
-}
+public:
 
-bool WebVTTSubtecParser::init(double startPosSeconds, unsigned long long basePTS)
-{
-	return true;
-}
+    MOCK_METHOD(void, SetTextStyle, (const std::string &options));
+};
 
-bool WebVTTSubtecParser::processData(char* buffer, size_t bufferLen, double position, double duration)
-{
-	return true;
-}
+extern MockPlayerInstanceAAMP *g_mockPlayerInstanceAAMP;
 
-void WebVTTSubtecParser::mute(bool mute)
-{
-}
-
-void WebVTTSubtecParser::pause(bool pause)
-{
-}
-
-void WebVTTSubtecParser::setTextStyle(const std::string &options)
-{
-}
+#endif /* AAMP_MOCK_PLAYER_INSTANCE_AAMP_H */

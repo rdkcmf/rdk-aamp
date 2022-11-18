@@ -22,6 +22,7 @@
 #include <memory>
 #include <vector>
 #include <mutex>
+#include "SubtecAttribute.hpp"
 
 class SubtecChannelManager
 {
@@ -67,7 +68,7 @@ public:
     void SendResumePacket();
     void SendMutePacket();
     void SendUnmutePacket();
-    void SendCCSetAttributePacket(std::uint32_t ccType, std::uint32_t attribType, const std::array<uint32_t, 14>& attributesValues);
+    void SendCCSetAttributePacket(std::uint32_t ccType, std::uint32_t attribType, const attributesType &attributesValues);
 
     virtual void SendSelectionPacket(uint32_t width, uint32_t height){};
     virtual void SendDataPacket(std::vector<uint8_t> &&data, std::int64_t time_offset_ms = 0){};

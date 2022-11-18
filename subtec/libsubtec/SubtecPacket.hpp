@@ -26,7 +26,7 @@
 #include <array>
 #include <limits>
 #include <mutex>
-
+#include "SubtecAttribute.hpp"
 
 class Packet
 {
@@ -335,7 +335,7 @@ public:
 field           size    value       description
 type            4       18          message type
 counter         4       0..n
-size            4       68          specifies size of transferred "data"
+size            4       68          specifies size of transferred "data" that includes channelId, ccType, attribType and attributes payload
 
 data:
 
@@ -343,6 +343,7 @@ channelId           4                   Specifies channel on which data for subt
 ccType              4       {0,1}       0 - analog, 1 - digital
 attribType          4                   bitmask specifying which attribs are set
 
+attributes payload: -
 1.  FONT_COLOR          4       0..n
 2.  BACKGROUND_COLOR    4       0..n
 3.  FONT_OPACITY        4       0..n
@@ -358,7 +359,7 @@ attribType          4                   bitmask specifying which attribs are set
 13. EDGE_TYPE           4       0..n
 14. EDGE_COLOR          4       0..n
 
-
+When adding/removing an attribute to the above list, update the definition in the file SubtecAttribute.hpp
 
 */
 
@@ -376,11 +377,11 @@ public:
                          std::uint32_t counter,
                          std::uint32_t ccType,
                          std::uint32_t attribType,
-                         const std::array<uint32_t, 14> &attributesValues) : Packet(counter)
+                         const attributesType &attributesValues) : Packet(counter)
     {
         appendType(PacketType::CC_SET_ATTRIBUTE);
         append32(counter);
-        append32(17*4);
+        append32((NUMBER_OF_ATTRIBUTES+3)*4);
         append32(channelId);
         append32(ccType);
         append32(attribType);

@@ -4089,6 +4089,7 @@ private:
 	videoRect mVideoRect;
 	char *mData;
 	bool mIsInbandCC;
+	std::string mTextStyle;
 };
 
 /**

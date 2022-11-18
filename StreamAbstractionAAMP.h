@@ -1379,6 +1379,14 @@ public:
          */
 	virtual void ResumeSubtitleAfterSeek(bool mute, char *data) { };
 
+	/**
+	 *   @fn SetTextStyle
+	 *   @brief Set the text style of the subtitle to the options passed
+	 *   @param[in] options - reference to the Json string that contains the information
+	 *   @return - true indicating successful operation in passing options to the parser
+	 */
+	virtual bool SetTextStyle(const std::string &options);
+
 protected:
 	/**
 	 *   @brief Get stream information of a profile from subclass.

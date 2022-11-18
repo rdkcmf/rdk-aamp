@@ -436,6 +436,13 @@ public:
          * @return void
          */
 	void ResumeSubtitleAfterSeek(bool mute, char *data) override;
+	/**
+	 *   @fn SetTextStyle
+	 *   @brief Set the text style of the subtitle to the options passed
+	 *   @param[in] options - reference to the Json string that contains the information
+	 *   @return - true indicating successful operation in passing options to the parser
+	 */
+	bool SetTextStyle(const std::string &options) override;
 private:
 	/**
 	 * @fn printSelectedTrack
