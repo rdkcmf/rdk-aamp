@@ -17,14 +17,26 @@
  * limitations under the License.
  */
 #include "gtest/gtest.h"
+#include "AampSmokeTestPlayer.h"
 #include "TuneSmokeTest.h"
 char gtestReportPath[] = "xml:/tmp/Gtest_Report/aamp_gtest_report.xml";
 
 GTEST_API_ int main(int argc, char* argv[])
 {
-  ::testing::GTEST_FLAG(output) = gtestReportPath;
-  ::testing::InitGoogleTest(&argc, argv);
-  SmokeTest lSmokeTest;
-  lSmokeTest.getTuneDetails();
-  return RUN_ALL_TESTS();
+	::testing::GTEST_FLAG(output) = gtestReportPath;
+	::testing::InitGoogleTest(&argc, argv);
+
+	AampPlayer lAampPlayer;
+	SmokeTest lSmokeTest;
+
+	lAampPlayer.initPlayerLoop(0,NULL);
+
+
+	if( (argv[1] == NULL) || ((argv[1] != NULL) && (strncmp(argv[1],"smokeTest",9) != 0)) )
+	{
+		lSmokeTest.aampTune();
+	}
+	lSmokeTest.getTuneDetails();
+
+	return RUN_ALL_TESTS();
 }

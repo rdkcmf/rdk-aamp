@@ -44,6 +44,12 @@ class SmokeTest
 		static std::vector<std::string> dashTuneData;
 		static std::vector<std::string> hlsTuneData;
 		static std::vector<std::string> liveTuneData;
+		static std::map<std::string, std::string> smokeTestUrls;
+		bool aampTune();
+		void vodTune(const char *stream);
+		void liveTune(const char *stream);
+		void loadSmokeTestUrls();
+		bool createTestFilePath(std::string &filePath);
 		bool readVodData(const char *stream);
 		bool readLiveData(const char *stream);
 		void getTuneDetails();
