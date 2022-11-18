@@ -776,6 +776,19 @@ int AampCCManagerBase::SetStatus(bool enable)
 }
 
 /**
+ * @brief To check whether Out of Band Closed caption/subtitle rendering supported or not. 
+ */
+bool AampCCManagerBase::IsOOBCCRenderingSupported()
+{
+	bool bRet = false;
+#if defined(AAMP_SUBTEC_CC_ENABLED)
+	bRet = true; // Subtec takes care of rendering CC hence return true
+#endif
+	AAMPLOG_TRACE("Subtec CC Mode Support: %d", bRet);
+	return bRet;
+}
+
+/**
  * @brief Singleton instance
  */
 AampCCManagerBase *AampCCManager::mInstance = NULL;

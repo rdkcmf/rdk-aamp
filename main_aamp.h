@@ -2054,6 +2054,13 @@ public:
 	 */
 	void SetRuntimeDRMConfigSupport(bool DynamicDRMSupported);
 
+	/**
+	 * @fn IsOOBCCRenderingSupported
+	 *
+	 * @return bool, True if Out of Band Closed caption/subtitle rendering supported
+	 */
+	bool IsOOBCCRenderingSupported();
+
 
 	class PrivateInstanceAAMP *aamp;  		  /**< AAMP player's private instance */
 	std::shared_ptr<PrivateInstanceAAMP> sp_aamp; 	  /**< shared pointer for aamp resource */

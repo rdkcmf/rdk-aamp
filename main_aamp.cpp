@@ -3184,6 +3184,20 @@ void PlayerInstanceAAMP::SetRuntimeDRMConfigSupport(bool DynamicDRMSupported)
 	SETCONFIGVALUE(AAMP_APPLICATION_SETTING,eAAMPConfig_RuntimeDRMConfig,DynamicDRMSupported);
 }
 
+/**
+ * @fn IsOOBCCRenderingSupported
+ *
+ * @return bool, True if Out of Band Closed caption/subtitle rendering supported
+ */
+bool PlayerInstanceAAMP::IsOOBCCRenderingSupported()
+{
+#ifdef AAMP_CC_ENABLED
+	return AampCCManager::GetInstance()->IsOOBCCRenderingSupported();
+#else
+	return false;
+#endif 
+}
+
 
 /**
  * @}
