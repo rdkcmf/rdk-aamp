@@ -76,12 +76,24 @@ private:
          * @param[in] initFragment flag for buffer type (init, data)
          */
 	bool SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration, bool copy, bool initFragment = 0);
+
 	/**
-         * @fn SendGstEvents
-         * @param[in] mediaType stream type
-         * @param[in] pts PTS of next buffer
-         */
-	void SendGstEvents(MediaType mediaType, GstClockTime pts);
+	 * @fn SendGstEvents
+	 * @param[in] mediaType stream type
+	 * @param[in] pts PTS of next buffer
+	 * @param[in] ptr buffer pointer
+	 * @param[in] len length of buffer 
+	 */
+	void SendGstEvents(MediaType mediaType, GstClockTime pts, const void *ptr, size_t len);
+
+	/**
+	 * @fn RecalculatePTS
+	 * @param[in] mediaType stream type
+	 * @param[in] ptr buffer pointer
+	 * @param[in] len length of buffer
+	 */
+	double RecalculatePTS(MediaType mediaType, const void *ptr, size_t len);
+
 	/**
          * @fn SendNewSegmentEvent
          * @param[in] mediaType stream type
