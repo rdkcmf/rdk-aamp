@@ -236,7 +236,6 @@ void AampCacheHandler::Init()
 	//Check if already initialized
 	if(true == mInitialized)
 		return;
-
 	if(0 != pthread_create(&mAsyncCleanUpTaskThreadId, NULL, &AampCacheThreadFunction, this))
 	{
 		AAMPLOG_ERR("Failed to create AampCacheHandler thread errno = %d, %s", errno, strerror(errno));
@@ -273,6 +272,7 @@ void AampCacheHandler::ClearCacheHandler()
 		{
 			AAMPLOG_ERR("***pthread_join AsyncCacheCleanUpTask returned %d(%s)", rc, strerror(rc));
 		}
+		mAsyncThreadStartedFlag = false;
 	}
 	ClearPlaylistCache();
 

@@ -70,7 +70,7 @@ void CDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std:
  * @brief PrivateCDAIObjectMPD constructor
  */
 PrivateCDAIObjectMPD::PrivateCDAIObjectMPD(AampLogManager* logObj, PrivateInstanceAAMP* aamp) : mLogObj(logObj),mAamp(aamp),mDaiMtx(), mIsFogTSB(false), mAdBreaks(), mPeriodMap(), mCurPlayingBreakId(), mAdObjThreadID(0), mAdFailed(false), mCurAds(nullptr),
-					mCurAdIdx(-1), mContentSeekOffset(0), mAdState(AdState::OUTSIDE_ADBREAK),mPlacementObj(), mAdFulfillObj(),mAdtoInsertInNextBreak()
+					mCurAdIdx(-1), mContentSeekOffset(0), mAdState(AdState::OUTSIDE_ADBREAK),mPlacementObj(), mAdFulfillObj(),mAdtoInsertInNextBreak(), mAdObjThreadStarted(false)
 {
 	mAamp->CurlInit(eCURLINSTANCE_DAI,1,mAamp->GetNetworkProxy());
 }
@@ -80,14 +80,14 @@ PrivateCDAIObjectMPD::PrivateCDAIObjectMPD(AampLogManager* logObj, PrivateInstan
  */
 PrivateCDAIObjectMPD::~PrivateCDAIObjectMPD()
 {
-	if(mAdObjThreadID)
+	if(mAdObjThreadStarted)
 	{
 		int rc = pthread_join(mAdObjThreadID, NULL);
 		if (rc != 0)
 		{
 			AAMPLOG_ERR("***pthread_join failed, returned %d", rc);
 		}
-		mAdObjThreadID = 0;
+		mAdObjThreadStarted = false;
 	}
 	mAamp->CurlTerm(eCURLINSTANCE_DAI);
 }
@@ -775,7 +775,7 @@ void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, con
 	}
 	else
 	{
-		if(mAdObjThreadID)
+		if(mAdObjThreadStarted)
 		{
 			//Clearing the previous thread
 			int rc = pthread_join(mAdObjThreadID, NULL);
@@ -783,7 +783,7 @@ void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, con
 			{
 				AAMPLOG_ERR("pthread_join(mAdObjThreadID) failed , errno = %d, %s , Rejecting promise.",errno,strerror(errno));
 			}
-			mAdObjThreadID = 0;
+			mAdObjThreadStarted = false;
 		}
 		if(isAdBreakObjectExist(periodId))
 		{
@@ -803,6 +803,10 @@ void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, con
 				if(ret != 0)
 				{
 					AAMPLOG_ERR(" pthread_create(FulFillAdObject) failed, errno = %d, %s. Rejecting promise.", errno, strerror(errno));
+				}
+				else
+				{
+					mAdObjThreadStarted = true;
 				}
 			}
 			if(ret != 0)

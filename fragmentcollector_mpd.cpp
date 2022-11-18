@@ -6749,8 +6749,11 @@ void StreamAbstractionAAMP_MPD::ProcessEAPLicenseRequest()
 	if(!deferredDRMRequestThreadStarted)
 	{
 		// wait for thread to complete and create a new thread
-		if ((deferredDRMRequestThread!= NULL) && (deferredDRMRequestThread->joinable()))
+		if ((deferredDRMRequestThread != NULL) && (deferredDRMRequestThread->joinable()))
 		{
+			//Need to check if we ever hit this code block, there is a possible delay
+			//since mAbortDeferredLicenseLoop is not updated. Add a log for now for monitoring
+			AAMPLOG_INFO("Trying to join deferred DRM request thread with possible time delay!");
 			deferredDRMRequestThread->join();
 			SAFE_DELETE(deferredDRMRequestThread);
 		}
@@ -6831,7 +6834,6 @@ void StreamAbstractionAAMP_MPD::StartDeferredDRMRequestThread(MediaType mediaTyp
 		}
 	}
 	while(!exitLoop);
-	deferredDRMRequestThreadStarted = false;
 }
 #endif
 
@@ -9692,7 +9694,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						playlistDownloaderThreadStarted = false;
 					}
 					bool bCacheFullState = true;
-					std::thread *parallelDownload[AAMP_TRACK_COUNT];
+					std::thread *parallelDownload[AAMP_TRACK_COUNT] = { nullptr };
 
 					for (int trackIdx = (mNumberOfTracks - 1); trackIdx >= 0; trackIdx--)
 					{
