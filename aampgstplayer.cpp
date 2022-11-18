@@ -2825,9 +2825,66 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 }
 
 /**
- *  @brief Send any pending/cached events to pipeline
+ * @fn RecalculatePTS
+ * @param[in] mediaType stream type
+ * @param[in] ptr buffer pointer
+ * @param[in] len length of buffer
  */
-void AAMPGstPlayer::SendGstEvents(MediaType mediaType, GstClockTime pts)
+double AAMPGstPlayer::RecalculatePTS(MediaType mediaType, const void *ptr, size_t len)
+{
+	double ret = 0;
+	uint32_t timeScale = 0;
+
+	if(mediaType == eMEDIATYPE_VIDEO)
+	{
+		timeScale = aamp->GetVidTimeScale();
+	}
+	else if(mediaType == eMEDIATYPE_AUDIO || mediaType == eMEDIATYPE_AUX_AUDIO)
+	{
+		timeScale = aamp->GetAudTimeScale();
+	}
+
+
+	IsoBmffBuffer isobuf(mLogObj);
+	isobuf.setBuffer((uint8_t *)ptr, len);
+	bool bParse = false;
+	try
+	{
+		bParse = isobuf.parseBuffer();
+	}
+	catch( std::bad_alloc& ba)
+	{
+		AAMPLOG_ERR("Bad allocation: %s", ba.what() );
+	}
+	catch( std::exception &e)
+	{
+		AAMPLOG_ERR("Unhandled exception: %s", e.what() );
+	}
+	catch( ... )
+	{
+		AAMPLOG_ERR("Unknown exception");
+	}
+	if(bParse && (0 != timeScale))
+	{
+		uint64_t fPts = 0;
+		bool bParse = isobuf.getFirstPTS(fPts);
+		if (bParse)
+		{
+			ret = fPts/(timeScale*1.0);
+			AAMPLOG_TRACE("restamped PTS : %lf", ret);
+		}
+	}
+	return ret;
+}
+
+/**
+ * @fn SendGstEvents
+ * @param[in] mediaType stream type
+ * @param[in] pts PTS of next buffer
+ * @param[in] ptr buffer pointer
+ * @param[in] len length of buffer
+ */
+void AAMPGstPlayer::SendGstEvents(MediaType mediaType, GstClockTime pts, const void *ptr, size_t len)
 {
 	media_stream* stream = &privateContext->stream[mediaType];
 	gboolean enableOverride = FALSE;
@@ -2860,6 +2917,10 @@ void AAMPGstPlayer::SendGstEvents(MediaType mediaType, GstClockTime pts)
 		if ( privateContext->rate == AAMP_NORMAL_PLAY_RATE )
 		{
 			guint64 basePTS = aamp->GetFirstPTS() * GST_SECOND;
+			if(0 == basePTS)
+			{
+				basePTS = RecalculatePTS(mediaType, ptr, len) * GST_SECOND;
+			}
 			AAMPLOG_WARN("Set override event's basePTS [ %" G_GUINT64_FORMAT "]", basePTS);
 			gst_structure_set (eventStruct, "basePTS", G_TYPE_UINT64, basePTS, NULL);
 		}
@@ -3056,7 +3117,8 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 
 	media_stream *stream = &privateContext->stream[mediaType];
 	bool isFirstBuffer = stream->resetPosition;
-	
+	// Flag to wait sending Gst events until receiving a valid buffer for PTS restamping. HLS mp4 already has PTS restamping.
+	bool waitForPtsRestamp = ((eMEDIAFORMAT_DASH == aamp->mMediaFormat) && (initFragment) && (0 == aamp->GetFirstPTS()));
 	// Make sure source element is present before data is injected
 	// If format is FORMAT_INVALID, we don't know what we are doing here
 	pthread_mutex_lock(&stream->sourceLock);
@@ -3071,14 +3133,14 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 			return false;
 		}
 	}
-	if (isFirstBuffer)
+	if (isFirstBuffer && !waitForPtsRestamp)
 	{
 		//Send Gst Event when first buffer received after new tune, seek or period change
-		SendGstEvents(mediaType, pts);
+		SendGstEvents(mediaType, pts, ptr, len);
 
 		if (mediaType == eMEDIATYPE_AUDIO && ForwardAudioBuffersToAux())
 		{
-			SendGstEvents(eMEDIATYPE_AUX_AUDIO, pts);
+			SendGstEvents(eMEDIATYPE_AUX_AUDIO, pts, ptr, len);
 		}
 
 #if defined(AMLOGIC)
