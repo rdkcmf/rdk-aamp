@@ -1916,7 +1916,6 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 			{
 				AAMPLOG_INFO("Type[%d] EOS. pMediaStreamContext->lastSegmentNumber %" PRIu64 " fragmentDescriptor.Time=%f mPeriodEndTime=%f mPeriodStartTime %f  currentTimeSeconds %f FTime=%f", pMediaStreamContext->type, pMediaStreamContext->lastSegmentNumber, pMediaStreamContext->fragmentDescriptor.Time, mPeriodEndTime, mPeriodStartTime, currentTimeSeconds, pMediaStreamContext->fragmentTime);
 				ReleasePlaylistLock();
-				pMediaStreamContext->lastSegmentNumber =0; // looks like change in period may happen now. hence reset lastSegmentNumber
 				pMediaStreamContext->eos = true;
 			}
 			else if( mIsLiveStream &&  mHasServerUtcTime &&  
@@ -9420,6 +9419,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						{
 							mMediaStreamContext[i]->lastSegmentTime = 0;
 							mMediaStreamContext[i]->lastSegmentDuration = 0;
+							mMediaStreamContext[i]->lastSegmentNumber =0; // looks like change in period may happen now. hence reset lastSegmentNumber
 						}
 					}
 					else if(mPrevAdaptationSetCount != adaptationSetCount)
