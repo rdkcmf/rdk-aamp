@@ -281,6 +281,7 @@ void StreamAbstractionAAMP_PROGRESSIVE::GetStreamFormat(StreamOutputFormat &prim
     primaryOutputFormat = FORMAT_ISO_BMFF;
     audioOutputFormat = FORMAT_INVALID;
     auxAudioOutputFormat = FORMAT_INVALID;
+    subtitleOutputFormat = FORMAT_INVALID;
 }
 
 /**
