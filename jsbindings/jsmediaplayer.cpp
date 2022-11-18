@@ -3294,6 +3294,35 @@ static JSValueRef AAMPMediaPlayerJS_setRuntimeDRMConfig(JSContextRef context, JS
        return JSValueMakeUndefined(context);
 }
 
+/**
+ * @brief Callback invoked from JS to check subtec CC mode is supported or not
+ *
+ * @param[in] context JS execution context
+ * @param[in] function JSObject that is the function being called
+ * @param[in] thisObject JSObject that is the 'this' variable in the function's scope
+ * @param[in] argumentCount number of args
+ * @param[in] arguments[] JSValue array of args
+ * @param[out] exception pointer to a JSValueRef in which to return an exception, if any
+ *
+ * @retval JSValue that is the function's return value
+ */
+JSValueRef AAMPMediaPlayerJS_isOOBCCRenderingSupported (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
+{
+	LOG_TRACE("Enter");
+	AAMPMediaPlayer_JS* privObj = (AAMPMediaPlayer_JS*)JSObjectGetPrivate(thisObject);
+	if(!privObj || !privObj->_aamp)
+	{
+		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call IsOOBCCRenderingSupported() on instances of AAMPPlayer");
+		return JSValueMakeUndefined(ctx);
+	}
+
+	bool bRet = privObj->_aamp->IsOOBCCRenderingSupported();
+	LOG_INFO(privObj,"<-- returns:%d",bRet);
+
+	LOG_TRACE("Exit");
+	return JSValueMakeBoolean(ctx, bRet);
+}
 
 /**
  * @brief Array containing the AAMPMediaPlayer's statically declared functions
@@ -3366,6 +3395,7 @@ static const JSStaticFunction AAMPMediaPlayer_JS_static_functions[] = {
 	{ "setContentProtectionDataConfig", AAMPMediaPlayerJS_setContentProtectionDataConfig, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "setContentProtectionDataUpdateTimeout", AAMPMediaPlayerJS_setContentProtectionDataUpdateTimeout, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ "configRuntimeDRM", AAMPMediaPlayerJS_setRuntimeDRMConfig, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
+	{ "isOOBCCRenderingSupported", AAMPMediaPlayerJS_isOOBCCRenderingSupported, kJSPropertyAttributeDontDelete | kJSPropertyAttributeReadOnly },
 	{ NULL, NULL, 0 },
 };
 
