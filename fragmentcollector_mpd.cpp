@@ -7067,7 +7067,7 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 		{
 			std::vector<AudioTrackInfo> ac4Tracks;
 			ParseAvailablePreselections(period, ac4Tracks);
-			aTracks.insert(ac4Tracks.end(), ac4Tracks.begin(), ac4Tracks.end());
+			aTracks.insert(aTracks.end(), ac4Tracks.begin(), ac4Tracks.end());
 		}
 		audioAdaptationSetIndex = GetBestAudioTrackByLanguage(desiredRepIdx,selectedCodecType, aTracks, aTrackIdx);
 		IAdaptationSet *audioAdaptationSet = NULL;
@@ -11453,7 +11453,7 @@ void StreamAbstractionAAMP_MPD::PopulateTrackInfo(MediaType media, bool reset)
 		{
 			std::vector<AudioTrackInfo> ac4Tracks;
 			ParseAvailablePreselections(period, ac4Tracks);
-			mAudioTracksAll.insert(ac4Tracks.end(), ac4Tracks.begin(), ac4Tracks.end());
+			mAudioTracksAll.insert(mAudioTracksAll.end(), ac4Tracks.begin(), ac4Tracks.end());
 		}
 	}//Period loop
 	if (media == eMEDIATYPE_AUDIO)

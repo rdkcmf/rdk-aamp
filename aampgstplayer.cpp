@@ -671,8 +671,7 @@ static void InitializeSource(AAMPGstPlayer *_this, GObject *source, MediaType me
  */
 static void found_source(GObject * object, GObject * orig, GParamSpec * pspec, AAMPGstPlayer * _this )
 {
-	MediaType mediaType;
-	media_stream *stream;
+	MediaType mediaType = eMEDIATYPE_DEFAULT;
 	if (object == G_OBJECT(_this->privateContext->stream[eMEDIATYPE_VIDEO].sinkbin))
 	{
 		AAMPLOG_WARN("Found source for video");
@@ -697,10 +696,13 @@ static void found_source(GObject * object, GObject * orig, GParamSpec * pspec, A
 	{
 		AAMPLOG_WARN("found_source didn't find a valid source");
 	}
-
-	stream = &_this->privateContext->stream[mediaType];
-	g_object_get(orig, pspec->name, &stream->source, NULL);
-	InitializeSource(_this, G_OBJECT(stream->source), mediaType);
+	if( mediaType != eMEDIATYPE_DEFAULT)
+	{
+		media_stream *stream;
+		stream = &_this->privateContext->stream[mediaType];
+		g_object_get(orig, pspec->name, &stream->source, NULL);
+		InitializeSource(_this, G_OBJECT(stream->source), mediaType);
+	}
 }
 
 /**

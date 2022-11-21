@@ -7878,15 +7878,17 @@ int StreamAbstractionAAMP_HLS::GetMediaIndexForLanguage(std::string lang, TrackT
 	const char* group = NULL;
 	HlsStreamInfo* streamInfo = (HlsStreamInfo*)GetStreamInfo(this->currentProfileIndex);
 
-	if (type == eTRACK_AUX_AUDIO)
+	if(streamInfo != nullptr)
 	{
-		group = streamInfo->audio;
+		if (type == eTRACK_AUX_AUDIO)
+		{
+			group = streamInfo->audio;
+		}
+		else if (type == eTRACK_SUBTITLE)
+		{
+			group = streamInfo->subtitles;
+		}
 	}
-	else if (type == eTRACK_SUBTITLE)
-	{
-		group = streamInfo->subtitles;
-	}
-
 	if (group)
 	{
 		AAMPLOG_WARN("StreamAbstractionAAMP_HLS:: track [%d] group [%s], language [%s]", type, group, lang.c_str());
@@ -7917,13 +7919,16 @@ StreamOutputFormat StreamAbstractionAAMP_HLS::GetStreamOutputFormatForTrack(Trac
 
 	HlsStreamInfo *streamInfo = (HlsStreamInfo *)GetStreamInfo(this->currentProfileIndex);
 	const FormatMap *map = NULL;
-	if (type == eTRACK_VIDEO)
+	if(streamInfo != nullptr)
 	{
-		map = GetVideoFormatForCodec(streamInfo->codecs);
-	}
-	else if ((type == eTRACK_AUDIO) || (type ==  eTRACK_AUX_AUDIO))
-	{
-		map = GetAudioFormatForCodec(streamInfo->codecs);
+		if (type == eTRACK_VIDEO)
+		{
+			map = GetVideoFormatForCodec(streamInfo->codecs);
+		}
+		else if ((type == eTRACK_AUDIO) || (type ==  eTRACK_AUX_AUDIO))
+		{
+			map = GetAudioFormatForCodec(streamInfo->codecs);
+		}
 	}
 	if (map)
 	{ // video profile specifies audio format
@@ -7962,13 +7967,18 @@ std::vector<StreamInfo*> StreamAbstractionAAMP_HLS::GetAvailableVideoTracks(void
 StreamInfo * StreamAbstractionAAMP_HLS::GetStreamInfo(int idx)
 {
 	int userData = 0;
+	StreamInfo *sInfo = nullptr;
 
 	if (mProfileCount) // avoid calling getUserDataOfProfile() for playlist only URL playback.
 	{
 		userData = aamp->mhAbrManager.getUserDataOfProfile(idx);
 	}
+	if(userData >= 0)
+	{
+		sInfo = &streamInfo[userData];
+	}
 
-	return &streamInfo[userData];
+	return sInfo;
 }
 
 
