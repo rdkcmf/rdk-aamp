@@ -70,7 +70,7 @@ void CDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std:
  * @brief PrivateCDAIObjectMPD constructor
  */
 PrivateCDAIObjectMPD::PrivateCDAIObjectMPD(AampLogManager* logObj, PrivateInstanceAAMP* aamp) : mLogObj(logObj),mAamp(aamp),mDaiMtx(), mIsFogTSB(false), mAdBreaks(), mPeriodMap(), mCurPlayingBreakId(), mAdObjThreadID(0), mAdFailed(false), mCurAds(nullptr),
-					mCurAdIdx(-1), mContentSeekOffset(0), mAdState(AdState::OUTSIDE_ADBREAK),mPlacementObj(), mAdFulfillObj()
+					mCurAdIdx(-1), mContentSeekOffset(0), mAdState(AdState::OUTSIDE_ADBREAK),mPlacementObj(), mAdFulfillObj(),mAdtoInsertInNextBreak()
 {
 	mAamp->CurlInit(eCURLINSTANCE_DAI,1,mAamp->GetNetworkProxy());
 }
@@ -396,13 +396,20 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 
 			}
 		}
-
 		if(-1 == mPlacementObj.curAdIdx)
 		{
-			mPlacementObj.pendingAdbrkId = "";
-			mPlacementObj.openPeriodId = "";
-			mPlacementObj.curEndNumber = 0;
-			mPlacementObj.adNextOffset = 0;
+			if(-1 == mAdtoInsertInNextBreak.curAdIdx)
+			{
+				mPlacementObj.pendingAdbrkId = "";
+				mPlacementObj.openPeriodId = "";
+				mPlacementObj.curEndNumber = 0;
+				mPlacementObj.adNextOffset = 0;
+			}
+			else
+			{
+				mPlacementObj = mAdtoInsertInNextBreak;
+				mAdtoInsertInNextBreak.curAdIdx = -1;
+			}
 		}
 	}
 }
@@ -704,14 +711,27 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 				{
 					mPeriodMap[periodId].offset2Ad[0] = AdOnPeriod{0,0};
 				}
+				//If current ad index is -1 (that is no ads are pushed into the map yet), current ad placement can take place from here itself.
+				//Otherwise, the Player need to wait until the current ad placement is done.
 
-				mPlacementObj.pendingAdbrkId = periodId;
-				mPlacementObj.openPeriodId = periodId;	//May not be available Now.
-				mPlacementObj.curEndNumber = 0;
-				mPlacementObj.curAdIdx = 0;
-				mPlacementObj.adNextOffset = 0;
-				bPeriodId = periodId;
-				bOffset = 0;
+				if(mPlacementObj.curAdIdx == -1 )
+				{
+					mPlacementObj.pendingAdbrkId = periodId;
+					mPlacementObj.openPeriodId = periodId;	//May not be available Now.
+					mPlacementObj.curEndNumber = 0;
+					mPlacementObj.curAdIdx = 0;
+					mPlacementObj.adNextOffset = 0;
+					bPeriodId = periodId;
+					bOffset = 0;
+				}
+				else
+				{
+					mAdtoInsertInNextBreak.pendingAdbrkId = periodId;
+					mAdtoInsertInNextBreak.openPeriodId = periodId;	//May not be available Now.
+					mAdtoInsertInNextBreak.curEndNumber = 0;
+					mAdtoInsertInNextBreak.curAdIdx = 0;
+					mAdtoInsertInNextBreak.adNextOffset = 0;
+				}
 			}
 			if(!finalManifest)
 			{
