@@ -1788,9 +1788,10 @@ public:
 	 *   @fn SetTextTrack
 	 *
 	 *   @param[in] trackId - index of text track in available track list
+	 *   @param[in] ccData - subtitle data from application.
 	 *   @return void
 	 */
-	void SetTextTrack(int trackId);
+	void SetTextTrack(int trackId, char *ccData=NULL);
 
 	/**
 	 *   @fn GetTextTrack
@@ -2075,9 +2076,10 @@ private:
 	/**
 	 *   @fn SetTextTrackInternal
 	 *   @param[in] trackId
+	 *   @param[in] data
 	 *   @return void
 	 */
-	void SetTextTrackInternal(int trackId);
+	void SetTextTrackInternal(int trackId, char *data);
 private:	
 
 	/**

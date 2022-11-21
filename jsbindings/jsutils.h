@@ -53,6 +53,11 @@
 
 #define EXCEPTION_ERR_MSG_MAX_LEN 1024
 
+#ifndef MUTE_SUBTITLES_TRACKID
+#define MUTE_SUBTITLES_TRACKID (-1)  /* match priv_aamp.h */
+#endif
+
+
 /**
  * @enum ErrorCode
  * @brief JavaScript error codes

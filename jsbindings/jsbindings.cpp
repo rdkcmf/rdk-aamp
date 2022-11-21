@@ -3133,20 +3133,20 @@ static JSValueRef AAMP_setTextTrack(JSContextRef context, JSObjectRef function, 
 
 	if (argumentCount != 1)
 	{
-		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1", __FUNCTION__, argumentCount);
-		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextTrack' - 1 argument required");
+		ERROR("[AAMP_JS] %s() InvalidArgument: argumentCount=%d, expected: 1 or 2", __FUNCTION__, argumentCount);
+		*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextTrack' - atleast 1 argument required");
 	}
 	else
 	{
 		int index = (int) JSValueToNumber(context, arguments[0], NULL);
-		if (index >= 0)
+		if (index >= MUTE_SUBTITLES_TRACKID) // -1 disable subtitles, >= 0 subtitle track index
 		{
-		        pAAMP->_aamp->SetTextTrack(index);
+			pAAMP->_aamp->SetTextTrack(index);
 		}
 		else
 		{
-			ERROR("[AAMP_JS] %s() InvalidArgument: Track index should be >= 0!", __FUNCTION__);
-			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Failed to execute 'AAMP.setTextTrack' - argument should be >= 0");
+			ERROR("%s(): InvalidArgument - track index should be >= 0!", __FUNCTION__);
+			*exception = aamp_GetException(context, AAMPJS_INVALID_ARGUMENT, "Text track index should be >= -1 !");
 		}
 	}
 	return JSValueMakeUndefined(context);
