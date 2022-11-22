@@ -257,7 +257,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"tsbInterruptHandling", eAAMPConfig_InterruptHandling,true, -1, -1},
 	{"enableLowLatencyDash",eAAMPConfig_EnableLowLatencyDash,true,-1,-1},
 	{"disableLowLatencyABR",eAAMPConfig_DisableLowLatencyABR,false,-1,-1},
-	{"enableLowLatencyCorrection",eAAMPConfig_EnableLowLatencyCorrection,false,-1,-1},
+	{"enableLowLatencyCorrection",eAAMPConfig_EnableLowLatencyCorrection,true,-1,-1},
 	{"latencyMonitorDelay",eAAMPConfig_LatencyMonitorDelay,false,-1,-1},
 	{"latencyMonitorInterval",eAAMPConfig_LatencyMonitorInterval,false,-1,-1},
 	{"downloadBufferChunks",eAAMPConfig_MaxFragmentChunkCached,false,-1,-1},
