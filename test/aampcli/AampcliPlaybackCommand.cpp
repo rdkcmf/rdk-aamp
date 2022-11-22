@@ -98,21 +98,25 @@ bool PlaybackCommand::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 	}
 	else if( sscanf(cmd, "select %d", &playerIndex ) == 1 )
 	{
-		int len = mAampcli.mPlayerInstances.size();
-		if( playerIndex>=0 && playerIndex<len )
-		{
+		try {
 			playerInstanceAamp = mAampcli.mPlayerInstances.at(playerIndex);
-		}
-		else
-		{
-			printf( "invalid index\n" );
-			if( len>0 )
+			if (playerInstanceAamp->aamp)
 			{
-				printf( "valid range = 0..%d\n", len-1 );
+				printf( "selected player %d (at %p)\n", playerInstanceAamp->aamp->mPlayerId, playerInstanceAamp);
+				mAampcli.mSingleton=playerInstanceAamp;
 			}
 			else
 			{
-				printf( "no player instances\n" );
+				printf( "error - player exists but is not valid/ready, playerInstanceAamp->aamp is not a valid ptr\n");
+			}
+		} catch (std::out_of_range const& exc) {
+			if (mAampcli.mPlayerInstances.size() == 0)
+			{
+				printf( "error - no player instances\n" );
+			}
+			else
+			{
+				printf( "valid range = 0..%d\n", mAampcli.mPlayerInstances.size()-1 );
 			}
 		}
 	}
