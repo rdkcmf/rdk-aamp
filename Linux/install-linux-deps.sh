@@ -16,6 +16,8 @@ install_package git
 install_package cmake
 install_package gcc
 install_package g++
+install_package libgtest-dev
+install_package libgmock-dev
 install_package libcurl4-openssl-dev
 install_package libgstreamer1.0-dev 
 install_package libgstreamer-plugins-bad1.0-dev 
