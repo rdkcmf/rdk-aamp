@@ -1574,12 +1574,13 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 		}
 		ptr = next;
 		//As a part of RDK-35897 to fetch the url of next next fragment
-		if(ISCONFIGSET(eAAMPConfig_EnableCMCD) && ptr )
+		if((!IsLive()) && (ISCONFIGSET(eAAMPConfig_EnableCMCD)) && (ptr))
 		{
 			const char *CMCDnext = strstr(ptr,"#EXTINF");
 			if( CMCDnext )
 			{
 				const char *nextNew = strstr(CMCDnext+7,"#EXT"); // skip ahead to NEXT fragment entry
+				if(nextNew){
 				const char *foundNew = strchr(nextNew+4,'\n'); // skip fragment duration
 				if( foundNew )
 				{
@@ -1591,7 +1592,7 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity)
 						aamp->mCMCDNextObjectRequest = mCMCDNextObjectRequest;
 						AAMPLOG_INFO("Next fragment url %s",mCMCDNextObjectRequest.c_str());
 					}
-				}
+				}}
 			}
 
 		}
