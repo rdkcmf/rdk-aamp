@@ -74,6 +74,8 @@ public:
     MOCK_METHOD(StreamInfo* , GetStreamInfo, (int idx));
 
     MOCK_METHOD(bool , Is4KStream, (int &height, long &bandwidth));
+
+    MOCK_METHOD(void, UpdateFailedDRMStatus, (LicensePreFetchObject *object), (override));
 };
 
 extern MockStreamAbstractionAAMP *g_mockStreamAbstractionAAMP;

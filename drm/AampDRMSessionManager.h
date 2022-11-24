@@ -240,12 +240,13 @@ public:
 	 */
 	DrmData * getLicense(AampLicenseRequest &licRequest, int32_t *httpError, MediaType streamType, PrivateInstanceAAMP* aamp, bool isContentMetadataAvailable = false, std::string licenseProxy="");
 	/**
-	 *  @fn		IsKeyIdUsable
+	 *  @fn		IsKeyIdProcessed
 	 *  @param[in]	keyIdArray - key Id extracted from pssh data
-	 *  @return		bool - true if key is not cached/cached with no failure,
-	 * 				false if keyId is already marked as failed.
+	 *  @param[out]	status - processed status of the key id success/fail
+	 *  @return		bool - true if keyId is already marked as failed or processed,
+	 * 				false if key is not cached
 	 */
-	bool IsKeyIdUsable(std::vector<uint8_t> keyIdArray);
+	bool IsKeyIdProcessed(std::vector<uint8_t> keyIdArray, bool &status);
 	/**
 	 *  @fn         clearSessionData
 	 *

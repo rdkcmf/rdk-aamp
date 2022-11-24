@@ -93,6 +93,10 @@ public:
 #define LOG_FN_TRACE_ISOBMFF 0
 #endif
 
+#ifndef LOG_FN_TRACE_F_LIC_PREFETCH
+#define LOG_FN_TRACE_F_LIC_PREFETCH 0
+#endif
+
 //===========================================
 
 #if LOG_FN_TRACE
@@ -166,6 +170,12 @@ public:
 #define FN_TRACE_ISOBMFF(x) FnLogger l_##x##_scope("[ISOBMFF]",x);
 #else
 #define FN_TRACE_ISOBMFF(x)
+#endif
+
+#if LOG_FN_TRACE_F_LIC_PREFETCH
+#define FN_TRACE_F_LIC_PREFETCH(x) FnLogger l_##x##_scope("[F-LIC-PREFETCH]",x);
+#else
+#define FN_TRACE_F_LIC_PREFETCH(x)
 #endif
 
 #endif // AAMPFNLOGGER_H

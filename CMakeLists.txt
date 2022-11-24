@@ -196,6 +196,7 @@ set(LIBAAMP_SOURCES iso639map.cpp
 					AampGstUtils.cpp
 					MediaStreamContext.cpp
 					AampCurlStore.cpp
+					AampDRMLicPreFetcher.cpp
 )
 
 if (CMAKE_WPEFRAMEWORK_REQUIRED)

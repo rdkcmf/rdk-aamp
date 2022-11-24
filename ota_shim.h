@@ -262,7 +262,14 @@ public:
      * @return true on success 
      */
     virtual bool Is4KStream(int &height, long &bandwidth) override {return false; };
-    
+
+	/**
+	 * @fn UpdateFailedDRMStatus
+	 * @brief Function to update the failed DRM status to mark the adaptation sets to be omitted
+	 * @param[in] object  - Prefetch object instance which failed
+	 */
+	void UpdateFailedDRMStatus(LicensePreFetchObject *object) override { }
+
 private:
 #ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
     ThunderAccessAAMP thunderAccessObj;

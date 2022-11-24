@@ -19,17 +19,9 @@
 
 #include "fragmentcollector_mpd.h"
 
-struct EarlyAvailablePeriodInfo
-{
-	EarlyAvailablePeriodInfo() : periodId(), isLicenseProcessed(false), isLicenseFailed(false), helper(nullptr){}
-	std::string periodId;
-	std::shared_ptr<AampDrmHelper> helper;
-	bool isLicenseProcessed;
-	bool isLicenseFailed;
-};
-
 StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seek_pos, float rate)
-    : StreamAbstractionAAMP(logObj, aamp)
+    : StreamAbstractionAAMP(logObj, aamp),
+      mLicensePrefetcher(logObj, aamp, this)
 {
 }
 

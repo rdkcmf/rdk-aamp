@@ -26,6 +26,7 @@
  */
 
 #include <vector>
+#include <string>
 #include <memory.h>
 
 #include "AampMediaType.h"

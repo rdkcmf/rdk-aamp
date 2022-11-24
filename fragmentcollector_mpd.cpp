@@ -268,19 +268,6 @@ public:
 	long long lastPlaylistUpdateMS;
 };
 
-/**
- * @struct EarlyAvailablePeriodInfo
- * @brief Period Information available at early
- */
-struct EarlyAvailablePeriodInfo
-{
-	EarlyAvailablePeriodInfo() : periodId(), isLicenseProcessed(false), isLicenseFailed(false), helper(nullptr){}
-	std::string periodId;
-	std::shared_ptr<AampDrmHelper> helper;
-	bool isLicenseProcessed;
-	bool isLicenseFailed;
-};
-
 static bool IsIframeTrack(IAdaptationSet *adaptationSet);
 
 
@@ -288,8 +275,8 @@ static bool IsIframeTrack(IAdaptationSet *adaptationSet);
  * @brief StreamAbstractionAAMP_MPD Constructor
  */
 StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(logObj, aamp),
-	fragmentCollectorThreadStarted(false), mLangList(), seekPosition(seek_pos), rate(rate), fragmentCollectorThreadID(), createDRMSessionThreadID(),
-	drmSessionThreadStarted(false), mpd(NULL), mNumberOfTracks(0), mCurrentPeriodIdx(0), mEndPosition(0), mIsLiveStream(true), mIsLiveManifest(true),
+	fragmentCollectorThreadStarted(false), mLangList(), seekPosition(seek_pos), rate(rate), fragmentCollectorThreadID(),
+	mpd(NULL), mNumberOfTracks(0), mCurrentPeriodIdx(0), mEndPosition(0), mIsLiveStream(true), mIsLiveManifest(true),
 	mStreamInfo(NULL), mPrevStartTimeSeconds(0), mPrevLastSegurlMedia(""), mPrevLastSegurlOffset(0),
 	mPeriodEndTime(0), mPeriodStartTime(0), mPeriodDuration(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
 	mLastPlaylistDownloadTimeMs(0), mFirstPTS(0), mStartTimeOfFirstPTS(0), mAudioType(eAUDIO_UNKNOWN),
@@ -303,9 +290,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	,mAvailabilityStartTime(-1)
 	,mFirstPeriodStartTime(0)
 	,mDrmPrefs({{CLEARKEY_UUID, 1}, {WIDEVINE_UUID, 2}, {PLAYREADY_UUID, 3}})// Default values, may get changed due to config file
-	,mLastDrmHelper()
-	,deferredDRMRequestThread(NULL), deferredDRMRequestThreadStarted(false), mCommonKeyDuration(0)
-	,mEarlyAvailableKeyIDMap(), mPendingKeyIDs(), mAbortDeferredLicenseLoop(false), mEarlyAvailablePeriodIds(), thumbnailtrack(), indexedTileInfo()
+	,mCommonKeyDuration(0), mEarlyAvailablePeriodIds(), thumbnailtrack(), indexedTileInfo()
 	,mMaxTracks(0)
 	,mServerUtcTime(0)
 	,mDeltaTime(0)
@@ -317,6 +302,8 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	,mUpperBoundaryPeriod(0), mLowerBoundaryPeriod(0), playlistDownloaderThreadStarted(false)
 	,mLiveTimeFragmentSync(false)
 	,mSubtitleParser()
+	,mLicensePrefetcher(logObj, aamp, this)
+	,mMultiVideoAdaptationPresent(false)
 {
         FN_TRACE_F_MPD( __FUNCTION__ );
 	this->aamp = aamp;
@@ -3299,7 +3286,7 @@ std::string StreamAbstractionAAMP_MPD::GetPreferredDrmUUID()
  * @brief Create DRM helper from ContentProtection
  * @retval shared_ptr of AampDrmHelper
  */
-std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdaptationSet * adaptationSet,MediaType mediaType)
+std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(const IAdaptationSet * adaptationSet,MediaType mediaType)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	const vector<IDescriptor*> contentProt = GetContentProtection(adaptationSet, mediaType); 
@@ -3491,100 +3478,6 @@ std::shared_ptr<AampDrmHelper> StreamAbstractionAAMP_MPD::CreateDrmHelper(IAdapt
 }
 
 /**
- * @brief Process content protection of vss EAP
- */
-void StreamAbstractionAAMP_MPD::ProcessVssContentProtection(std::shared_ptr<AampDrmHelper> drmHelper, MediaType mediaType)
-{
-	FN_TRACE_F_MPD( __FUNCTION__ );
-	if((drmHelper) && (!drmHelper->compare(mLastDrmHelper)))
-	{
-		hasDrm = true;
-		aamp->licenceFromManifest = true;
-        
-		{
-			if(drmSessionThreadStarted) //In the case of license rotation
-			{
-				createDRMSessionThreadID.join();
-				drmSessionThreadStarted = false;
-			}
-			/*
-			*
-			* Memory allocated for data via base64_Decode() and memory for sessionParams
-			* is released in CreateDRMSession.
-			*/
-			try
-			{
-				createDRMSessionThreadID = std::thread(&StreamAbstractionAAMP_MPD::CreateDRMSessionMPD, this, aamp, drmHelper, mediaType);
-				drmSessionThreadStarted = true;
-				mLastDrmHelper = drmHelper;
-				aamp->setCurrentDrm(drmHelper);
-				AAMPLOG_INFO("Thread created for CreateDRMSessionMPD [%lu]", GetPrintableThreadID(createDRMSessionThreadID));
-			}
-			catch(const std::exception& e)
-			{
-				AAMPLOG_ERR("(%s) std::thread failed for CreateDRMSession : %s", getMediaTypeName(mediaType), e.what());
-			}
-		}
-	}
-	else
-	{
-		AAMPLOG_WARN("(%s) Skipping creation of session for duplicate helper", getMediaTypeName(mediaType));
-	}
-}
-
-
-/**
- * @brief Process content protection of adaptation
- */
-void StreamAbstractionAAMP_MPD::ProcessContentProtection(IAdaptationSet * adaptationSet, MediaType mediaType, std::shared_ptr<AampDrmHelper> drmHelper)
-{
-	FN_TRACE_F_MPD( __FUNCTION__ );
-	if(nullptr == drmHelper)
-	{
-		drmHelper = CreateDrmHelper(adaptationSet, mediaType);
-	}
-
-	if((drmHelper) && (!drmHelper->compare(mLastDrmHelper)))
-	{
-		hasDrm = true;
-		aamp->licenceFromManifest = true;
-
-		if(drmSessionThreadStarted) //In the case of license rotation
-		{
-	    	createDRMSessionThreadID.join();
-			drmSessionThreadStarted = false;
-		}
-		/*
-		*
-		* Memory allocated for data via base64_Decode() and memory for sessionParams
-		* is released in CreateDRMSession.
-		*/
-		try
-		{
-			createDRMSessionThreadID = std::thread(&StreamAbstractionAAMP_MPD::CreateDRMSessionMPD, this, aamp, drmHelper, mediaType);
-			drmSessionThreadStarted = true;
-			AAMPLOG_INFO("Thread created for CreateDRMSessionMPD [%lu]", GetPrintableThreadID(createDRMSessionThreadID));
-			mLastDrmHelper = drmHelper;
-			aamp->setCurrentDrm(drmHelper);
-		}
-		catch (std::exception &e)
-		{
-			AAMPLOG_ERR("(%s) std::thread failed for CreateDRMSession : %s", getMediaTypeName(mediaType), e.what());
-		}
-
-		AAMPLOG_INFO("Current DRM Selected is %s", drmHelper->friendlyName().c_str());
-	}
-	else if (!drmHelper)
-	{
-		AAMPLOG_ERR("(%s) Failed to create DRM helper", getMediaTypeName(mediaType));
-	}
-	else
-	{
-		AAMPLOG_WARN("(%s) Skipping creation of session for duplicate helper", getMediaTypeName(mediaType));
-	}
-}
-
-/**
 * @brief Function to Process deferred VSS license requests
 */
 void StreamAbstractionAAMP_MPD::ProcessVssLicenseRequset()
@@ -3605,29 +3498,9 @@ void StreamAbstractionAAMP_MPD::ProcessVssLicenseRequset()
 
 			if (!keyIdArray.empty())
 			{
-				// Save individual VSS stream information
-				EarlyAvailablePeriodInfo vssKeyPeriodInfo;
-				vssKeyPeriodInfo.periodId = tempPeriod->GetId();
-				vssKeyPeriodInfo.helper = drmHelper;
 				std::string keyIdDebugStr = AampLogManager::getHexDebugStr(keyIdArray);
 				AAMPLOG_INFO("New VSS Period : %s Key ID: %s", tempPeriod->GetId().c_str(), keyIdDebugStr.c_str());
-				// Check whether key ID is already marked as failure.
-				if (!aamp->mDRMSessionManager->IsKeyIdUsable(keyIdArray))
-				{
-					vssKeyPeriodInfo.isLicenseFailed = true;
-				}
-				// Insert VSS period information into map if key is not processed
-				std::pair<std::map<std::string,EarlyAvailablePeriodInfo>::iterator,bool> retVal;
-				retVal = mEarlyAvailableKeyIDMap.insert(std::pair<std::string, EarlyAvailablePeriodInfo>(keyIdDebugStr, vssKeyPeriodInfo));
-				if ((retVal.second) && (!vssKeyPeriodInfo.isLicenseFailed))
-				{
-					// FIFO queue for processing license request
-					mPendingKeyIDs.push(keyIdDebugStr);
-				}
-				else
-				{
-					AAMPLOG_TRACE("Skipping license request for keyID : %s", keyIdDebugStr.c_str() );
-				}
+				QueueContentProtection(tempPeriod, tempPeriod->GetAdaptationSets().at(0), eMEDIATYPE_VIDEO);
 			}
 			else
 			{
@@ -3635,29 +3508,62 @@ void StreamAbstractionAAMP_MPD::ProcessVssLicenseRequset()
 			}
 		}
 	}
-	// Proces EAP License request if there is pending keyIDs
-	if(!mPendingKeyIDs.empty())
+}
+
+/**
+ * @fn QueueContentProtection
+ * @param[in] period - period
+ * @param[in] adaptationSet - adaptation set
+ * @param[in] mediaType - media type
+ * @param[in] qGstProtectEvent - Flag denotes if GST protection event should be queued in sink
+ * @brief queue content protection for the given adaptation set
+ * @retval true on success
+ */
+void StreamAbstractionAAMP_MPD::QueueContentProtection(IPeriod* period, const IAdaptationSet* adaptationSet, MediaType mediaType, bool qGstProtectEvent)
+{
+	if (period && adaptationSet)
 	{
-		// Check Deferred License thread status, and process license request
-		ProcessEAPLicenseRequest();
+		std::shared_ptr<AampDrmHelper> drmHelper = CreateDrmHelper(adaptationSet, mediaType);
+		if (drmHelper)
+		{
+			if (qGstProtectEvent)
+			{
+				std::vector<uint8_t> data;
+				const char* systemId = drmHelper->getUuid().c_str();
+				drmHelper->createInitData(data);
+				AAMPLOG_INFO("Queueing protection event in mStreamSink for period id:%s and adaptation id:%u", period->GetId().c_str(), adaptationSet->GetId());
+				aamp->mStreamSink->QueueProtectionEvent(systemId, data.data(), data.size(), mediaType);
+			}
+			mLicensePrefetcher.QueueContentProtection(drmHelper, period->GetId(), std::to_string(adaptationSet->GetId()), mediaType);
+			hasDrm = true;
+			aamp->licenceFromManifest = true;
+		}
+		else
+		{
+			AAMPLOG_ERR("Failed to create DRM helper for period id:%s and adaptation id:%u", period->GetId().c_str(), adaptationSet->GetId());
+		}
+	}
+	else
+	{
+		AAMPLOG_ERR("Got invalid value for period:%p and adaptationSet:%p", period, adaptationSet);
 	}
 }
 
 #else
 
 /**
- * @brief Process content protection of adaptation
- */
-void StreamAbstractionAAMP_MPD::ProcessContentProtection(IAdaptationSet * adaptationSet,MediaType mediaType, std::shared_ptr<AampDrmHelper> drmHelper)
+* @brief Function to Process deferred VSS license requests
+*/
+void StreamAbstractionAAMP_MPD::ProcessVssLicenseRequset()
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	AAMPLOG_WARN("MPD DRM not enabled");
 }
 
 /**
-* @brief Function to Process deferred VSS license requests
-*/
-void StreamAbstractionAAMP_MPD::ProcessVssLicenseRequset()
+ * @brief queue content protection for the given adaptation set
+ */
+void StreamAbstractionAAMP_MPD::QueueContentProtection(IPeriod* period, const IAdaptationSet* adaptationSet, MediaType mediaType, bool qGstProtectEvent)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	AAMPLOG_WARN("MPD DRM not enabled");
@@ -4372,6 +4278,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 	AAMPStatusType retval = eAAMPSTATUS_OK;
 	aamp->CurlInit(eCURLINSTANCE_VIDEO, DEFAULT_CURL_INSTANCE_COUNT, aamp->GetNetworkProxy());
 	mCdaiObject->ResetState();
+	mLicensePrefetcher.Init();
 
 	aamp->mStreamSink->ClearProtectionEvent();
   #ifdef AAMP_MPD_DRM
@@ -4387,11 +4294,8 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 
 	if(newTune)
 	{
-	//Clear previously stored vss early period ids
+		//Clear previously stored vss early period ids
 		mEarlyAvailablePeriodIds.clear();
-		mEarlyAvailableKeyIDMap.clear();
-		while(!mPendingKeyIDs.empty())
-			mPendingKeyIDs.pop();
 	}
 
 	aamp->IsTuneTypeNew = newTune;
@@ -6751,106 +6655,6 @@ void StreamAbstractionAAMP_MPD::UpdateLanguageList()
 	aamp->StoreLanguageList(mLangList);
 }
 
-#ifdef AAMP_MPD_DRM
-/**
- * @brief Process Early Available License Request
- */
-void StreamAbstractionAAMP_MPD::ProcessEAPLicenseRequest()
-{
-	FN_TRACE_F_MPD( __FUNCTION__ );
-	AAMPLOG_TRACE("Processing License request for pending KeyIDs: %d", mPendingKeyIDs.size());
-	if(!deferredDRMRequestThreadStarted)
-	{
-		// wait for thread to complete and create a new thread
-		if ((deferredDRMRequestThread != NULL) && (deferredDRMRequestThread->joinable()))
-		{
-			//Need to check if we ever hit this code block, there is a possible delay
-			//since mAbortDeferredLicenseLoop is not updated. Add a log for now for monitoring
-			AAMPLOG_INFO("Trying to join deferred DRM request thread with possible time delay!");
-			deferredDRMRequestThread->join();
-			SAFE_DELETE(deferredDRMRequestThread);
-		}
-
-		if(NULL == deferredDRMRequestThread)
-		{
-			AAMPLOG_INFO("New Deferred DRM License thread starting");
-			mAbortDeferredLicenseLoop = false;
-			deferredDRMRequestThread = new std::thread(&StreamAbstractionAAMP_MPD::StartDeferredDRMRequestThread, this, eMEDIATYPE_VIDEO);
-			deferredDRMRequestThreadStarted = true;
-			AAMPLOG_INFO("Thread created for Deferred DRM License [%lu]", GetPrintableThreadID(*deferredDRMRequestThread));
-		}
-	}
-	else
-	{
-		AAMPLOG_TRACE("Diferred License Request Thread already running");
-	}
-}
-
-
-/**
- * @brief Start Deferred License Request
- */
-void StreamAbstractionAAMP_MPD::StartDeferredDRMRequestThread(MediaType mediaType)
-{
-	FN_TRACE_F_MPD( __FUNCTION__ );
-	int deferTime;
-	bool exitLoop = false;
-	// Start tread
-	do
-	{
-		// Wait for KeyID entry in queue
-		if(mPendingKeyIDs.empty())
-		{
-			if(mAbortDeferredLicenseLoop)
-			{
-				AAMPLOG_ERR("aborted");
-				break;
-			}
-			else
-			{
-				continue;
-			}
-		}
-		else
-		{
-			deferTime = 0;
-		}
-
-		// Process all pending key ID requests
-		while(!mPendingKeyIDs.empty())
-		{
-			std::string keyID = mPendingKeyIDs.front();
-			if (mCommonKeyDuration > 0)
-			{
-				// TODO : Logic to share time for pending Key IDs
-				// (mCommonKeyDuration)/(mPendingKeyIds.size())
-				deferTime = aamp_GetDeferTimeMs(mCommonKeyDuration);
-				// Going to sleep for deferred key process
-				aamp->InterruptableMsSleep(deferTime);
-				AAMPLOG_TRACE("sleep over for deferred time:%d", deferTime);
-			}
-
-			if((aamp->DownloadsAreEnabled()) && (!mEarlyAvailableKeyIDMap[keyID].isLicenseFailed))
-			{
-				AAMPLOG_TRACE("Processing License request after sleep");
-				// Process content protection with early created helper
-				ProcessVssContentProtection(mEarlyAvailableKeyIDMap[keyID].helper, mediaType);
-				mEarlyAvailableKeyIDMap[keyID].isLicenseProcessed = true;
-			}
-			else
-			{
-				AAMPLOG_ERR("Aborted");
-				exitLoop = true;
-				break;
-			}
-			// Remove processed keyID from FIFO queue
-			mPendingKeyIDs.pop();
-		}
-	}
-	while(!exitLoop);
-}
-#endif
-
 /**
  * @brief Get the best Audio track by Language, role, and/or codec type
  * @return int selected representation index
@@ -7488,6 +7292,14 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 	std::string tTrackIdx;
 	mNumberOfTracks = 0;
 	IPeriod *period = mCurrentPeriod;
+	AudioType selectedCodecType = eAUDIO_UNKNOWN;
+	int audioRepresentationIndex = -1;
+	int desiredRepIdx = -1;
+	int audioAdaptationSetIndex = -1;
+	int textAdaptationSetIndex = -1;
+	int textRepresentationIndex = -1;
+	bool disableAC4 = ISCONFIGSET(eAAMPConfig_DisableAC4);
+
 	if(!period)
 	{
 		AAMPLOG_WARN("period is null");  //CID:84742 - Null Returns
@@ -7498,14 +7310,8 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 	{
 		mMediaStreamContext[i]->enabled = false;
 	}
-	AudioType selectedCodecType = eAUDIO_UNKNOWN;
-	int audioRepresentationIndex = -1;
-	int desiredRepIdx = -1;
-	int audioAdaptationSetIndex = -1;
-	int textAdaptationSetIndex = -1;
-	int textRepresentationIndex = -1;
 
-	bool disableAC4 = ISCONFIGSET(eAAMPConfig_DisableAC4); 
+	mMultiVideoAdaptationPresent = false;
 
 	if (rate == AAMP_NORMAL_PLAY_RATE)
 	{
@@ -7644,36 +7450,45 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 					}
 					else if (eMEDIATYPE_VIDEO == i && !ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 					{
-						if (!isIframeAdaptationAvailable || selAdaptationSetIndex == -1)
+						// Parse all the video adaptation sets except the iframe tracks
+						// If the content contains multiple video adaptation, we should employ ABR to select the adaptation set
+						if (!IsIframeTrack(adaptationSet))
 						{
-							if (!IsIframeTrack(adaptationSet))
+							// Got Video , confirmed its not iframe adaptation
+							videoRepresentationIdx = GetDesiredVideoCodecIndex(adaptationSet);
+							if (videoRepresentationIdx != -1)
 							{
-								// Got Video , confirmed its not iframe adaptation
-								videoRepresentationIdx = GetDesiredVideoCodecIndex(adaptationSet);
-								if (videoRepresentationIdx != -1)
+								if (selAdaptationSetIndex == -1)
 								{
 									selAdaptationSetIndex = iAdaptationSet;
+									if(!newTune)
+									{
+										if(GetProfileCount() == adaptationSet->GetRepresentation().size())
+										{
+											selRepresentationIndex = pMediaStreamContext->representationIndex;
+										}
+										else
+										{
+											selRepresentationIndex = -1; // this will be set based on profile selection
+										}
+									}
 								}
-								if(!newTune)
+								else
 								{
-									if(GetProfileCount() == adaptationSet->GetRepresentation().size())
+									// Multiple video adaptation identified
+									mMultiVideoAdaptationPresent = true;
+									if (isIframeAdaptationAvailable)
 									{
-										selRepresentationIndex = pMediaStreamContext->representationIndex;
-									}
-									else
-									{
-										selRepresentationIndex = -1; // this will be set based on profile selection
+										// We have confirmed that iframe track and multiple video adaptations are present
+										// Already video adaptation index is set. Break from the loop
+										break;
 									}
 								}
-							}
-							else
-							{
-								isIframeAdaptationAvailable = true;
 							}
 						}
 						else
 						{
-							break;
+							isIframeAdaptationAvailable = true;
 						}
 					}
 				}
@@ -7743,7 +7558,6 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 			mAudioType = eAUDIO_AAC; // assuming content is still playable
 		}
 
-		// end of adaptation loop
 		if ((AAMP_NORMAL_PLAY_RATE == rate) && (pMediaStreamContext->enabled == false) && selAdaptationSetIndex >= 0)
 		{
 			pMediaStreamContext->enabled = true;
@@ -7767,12 +7581,18 @@ void StreamAbstractionAAMP_MPD::StreamSelection( bool newTune, bool forceSpeedsC
 			AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Media[%s] Adaptation set[%d] RepIdx[%d] TrackCnt[%d]",
 				getMediaTypeName(MediaType(i)),selAdaptationSetIndex,selRepresentationIndex,(mNumberOfTracks+1) );
 
-			ProcessContentProtection(period->GetAdaptationSets().at(selAdaptationSetIndex),(MediaType)i);
+			// Skip processing content protection for multi video, since the right adaptation will be selected only after ABR
+			// This might cause an unwanted content prot to be queued and delay playback start
+			if (eMEDIATYPE_VIDEO != i || !mMultiVideoAdaptationPresent)
+			{
+				AAMPLOG_WARN("Queueing content protection from StreamSelection for type:%d", i);
+				QueueContentProtection(period, period->GetAdaptationSets().at(selAdaptationSetIndex), (MediaType)i);
+			}
 			mNumberOfTracks++;
 		}
 		else if (encryptedIframeTrackPresent) //Process content protection for encyrpted Iframe
 		{
-			ProcessContentProtection(period->GetAdaptationSets().at(pMediaStreamContext->adaptationSetIdx),(MediaType)i);
+			QueueContentProtection(period, period->GetAdaptationSets().at(pMediaStreamContext->adaptationSetIdx), (MediaType)i);
 		}
 
 		if(selAdaptationSetIndex < 0 && rate == 1)
@@ -8404,6 +8224,12 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 			}
 			pMediaStreamContext->representation = pMediaStreamContext->adaptationSet->GetRepresentation().at(pMediaStreamContext->representationIndex);
 
+			if (eMEDIATYPE_VIDEO == i && mMultiVideoAdaptationPresent)
+			{
+				// Process content protection for the selected video and queue remaining CPs
+				QueueContentProtection(period, pMediaStreamContext->adaptationSet, eMEDIATYPE_VIDEO);
+				ProcessAllContenProtForMediaType(eMEDIATYPE_VIDEO, pMediaStreamContext->adaptationSetIdx);
+			}
 			pMediaStreamContext->fragmentDescriptor.ClearMatchingBaseUrl();
 			pMediaStreamContext->fragmentDescriptor.AppendMatchingBaseUrl( &mpd->GetBaseUrls() );
 			pMediaStreamContext->fragmentDescriptor.AppendMatchingBaseUrl( &period->GetBaseURLs() );
@@ -9225,7 +9051,9 @@ bool StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 										FragmentDescriptor *fragmentDescriptor = new FragmentDescriptor();
 										fragmentDescriptor->bUseMatchingBaseUrl	=	ISCONFIGSET(eAAMPConfig_MatchBaseUrl);
 										fragmentDescriptor->manifestUrl = mMediaStreamContext[eMEDIATYPE_VIDEO]->fragmentDescriptor.manifestUrl;
-										ProcessContentProtection(adaptationSet, (MediaType)i);
+
+										QueueContentProtection(period, adaptationSet, (MediaType)i);
+
 										fragmentDescriptor->Bandwidth = representation->GetBandwidth();
 
 										fragmentDescriptor->ClearMatchingBaseUrl();
@@ -9978,6 +9806,7 @@ bool StreamAbstractionAAMP_MPD::CheckForVssTags()
 							std::string value = childNode->GetAttributeValue("value");
 							mCommonKeyDuration = std::stoi(value);
 							AAMPLOG_INFO("Recieved Common Key Duration : %d of VSS stream", mCommonKeyDuration);
+							mLicensePrefetcher.SetCommonKeyDuration(mCommonKeyDuration);
 							isVss = true;
 						}
 					}
@@ -10276,24 +10105,7 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 			}
 		}
 	}
-
-	if(drmSessionThreadStarted)
-	{
-		AAMPLOG_INFO("Waiting to join CreateDRMSession thread");
-		createDRMSessionThreadID.join();
-		AAMPLOG_INFO("Joined CreateDRMSession thread");
-		drmSessionThreadStarted = false;
-	}
-
-	if(deferredDRMRequestThreadStarted)
-	{
-		if((deferredDRMRequestThread) && (deferredDRMRequestThread->joinable()))
-		{
-			mAbortDeferredLicenseLoop = true;
-			deferredDRMRequestThread->join();
-			SAFE_DELETE(deferredDRMRequestThread);
-		}
-	}
+	mLicensePrefetcher.DeInit();
 
 	aamp->mStreamSink->ClearProtectionEvent();
 	if (clearChannelData)
@@ -12910,4 +12722,38 @@ bool StreamAbstractionAAMP_MPD::SetTextStyle(const std::string &options)
 		retVal = StreamAbstractionAAMP::SetTextStyle(options);
 	}
 	return retVal;
+}
+
+/**
+ * @fn ProcessAllContenProtForMediaType
+ * @param[in] type - media type
+ * @param[in] omitAdaptationIdx - selected adaption index, to be omitted from further processing
+ * @brief process content protection of all the adaptation for the given media type
+ * @retval true on success
+ */
+void StreamAbstractionAAMP_MPD::ProcessAllContenProtForMediaType(MediaType type, int omitAdaptationIdx)
+{
+	IPeriod *period = mCurrentPeriod;
+	if (period)
+	{
+		size_t numAdaptationSets = period->GetAdaptationSets().size();
+		for (unsigned iAdaptationSet = 0; iAdaptationSet < numAdaptationSets; iAdaptationSet++)
+		{
+			if (iAdaptationSet == omitAdaptationIdx)
+			{
+				// This is already queued
+				continue;
+			}
+			IAdaptationSet *adaptationSet = period->GetAdaptationSets().at(iAdaptationSet);
+			if (adaptationSet && IsContentType(adaptationSet, type))
+			{
+				// Only enabled for video streams
+				if (eMEDIATYPE_VIDEO == type && !IsIframeTrack(adaptationSet))
+				{
+					// No need to queue protection event in mStreamSink for remaining adaption sets
+					QueueContentProtection(period, adaptationSet, type, false);
+				}
+			}
+		}
+	}
 }

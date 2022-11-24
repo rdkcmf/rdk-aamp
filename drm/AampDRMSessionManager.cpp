@@ -477,11 +477,15 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, int &error_cod
 }
 
 /**
- *  @brief Get DRM license key from DRM server.
+ *  @fn		IsKeyIdProcessed
+ *  @param[in]	keyIdArray - key Id extracted from pssh data
+ *  @param[out]	status - processed status of the key id success/fail
+ *  @return		bool - true if keyId is already marked as failed or cached,
+ * 				false if key is not cached
  */
-bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
+bool AampDRMSessionManager::IsKeyIdProcessed(std::vector<uint8_t> keyIdArray, bool &status)
 {
-	bool ret = true;
+	bool ret = false;
 	pthread_mutex_lock(&cachedKeyMutex);
 	for (int sessionSlot = 0; sessionSlot < mMaxDRMSessions; sessionSlot++)
 	{
@@ -490,6 +494,8 @@ bool AampDRMSessionManager::IsKeyIdUsable(std::vector<uint8_t> keyIdArray)
 		{
 			std::string debugStr = AampLogManager::getHexDebugStr(keyIdArray);
 			AAMPLOG_INFO("Session created/inprogress with same keyID %s at slot %d", debugStr.c_str(), sessionSlot);
+			status = !cachedKeyIDs[sessionSlot].isFailedKeyId;
+			ret = true;
 			break;
 		}
 	}

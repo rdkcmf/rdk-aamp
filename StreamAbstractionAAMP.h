@@ -40,7 +40,7 @@
 #include <ManifestCMCDHeaders.h>
 #include <SubtitleCMCDHeaders.h>
 
-
+#include "AampDRMLicPreFetcherInterface.h"
 
 /**
  * @brief Media Track Types
@@ -717,7 +717,7 @@ private:
 /**
  * @brief StreamAbstraction class of AAMP
  */
-class StreamAbstractionAAMP
+class StreamAbstractionAAMP : public AampLicenseFetcher
 {
 public:
 	/**
