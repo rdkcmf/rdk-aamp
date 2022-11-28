@@ -153,3 +153,8 @@ void  StreamAbstractionAAMP_MPD::ResumeSubtitleAfterSeek(bool mute, char *data)
 void StreamAbstractionAAMP_MPD::MuteSidecarSubtitles(bool mute)
 {
 }
+
+bool StreamAbstractionAAMP_MPD::Is4KStream(int &height, long &bandwidth)
+{
+    return false;
+}

@@ -109,6 +109,11 @@ bool StreamAbstractionAAMP::IsEOSReached()
     return false;
 }
 
+bool StreamAbstractionAAMP::GetPreferredLiveOffsetFromConfig()
+{
+    return false;
+}
+
 void MediaTrack::OnSinkBufferFull()
 {
 }
