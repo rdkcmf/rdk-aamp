@@ -39,22 +39,6 @@ marker_general = [
 		"label":"%1 Underflow"
 	},
 	{
-		"pattern":"[SetVideoMute][%%] mute == true",
-		"label":"HideVideo",
-	},
-	{
-		"pattern":"[SetVideoMute][%%] mute == false",
-		"label":"ShowVideo",
-	},
-	{
-		"pattern":"[setVolumeOrMuteUnMute]%% volume == 1.000000 muted == %%",
-		"label":"SetVolume(1)",
-	},
-	{
-		"pattern":"[setVolumeOrMuteUnMute]%% volume == 0.000000 muted == %%",
-		"label":"SetVolume(0)",
-	},
-	{
 		"pattern":"aamp pos: [%%..%%..%%..]",
 		"label":"Pos(%1)",
 	},

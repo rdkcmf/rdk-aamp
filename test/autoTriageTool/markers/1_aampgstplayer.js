@@ -31,10 +31,6 @@ marker_aampgstplayer = [{
 	"label":"Flush-Stop-Error",
 },
 	{
-	"pattern":"pushing protection event! mediatype: %%",
-	"label":"Push-Protection-Evt(%0)",
-},
-	{
 	"pattern":"push protection event failed",
 	"label":"Push-Protection-Evt=Failed",
 },

@@ -1,9 +1,9 @@
 var months =
 [
-    "Jan","Feb","Mar",
-    "Apr","May","Jun",
-    "Jul","Aug","Sep",
-    "Oct","Nov","Dec"
+	"Jan","Feb","Mar",
+	"Apr","May","Jun",
+	"Jul","Aug","Sep",
+	"Oct","Nov","Dec"
 ];
 
 function ParseReceiverLogTimestamp( line )
@@ -241,11 +241,57 @@ var mediaTypes = [
 
 function ParseHttpRequestEnd( line )
 {
-    var rc = null;
-    var prefix = "HttpRequestEnd:";
-    var offs = line.indexOf(prefix);
+	var rc = null;
+	var prefix, offs;
+	
+	prefix = "HttpRequestEnd: Type: ";
+	offs = line.indexOf(prefix);
 	if( offs>=0 )
-	{
+	{ // handle older HttpRequestEnd logging as used by FOG
+	  // refer DELIA-57887 "[FOG] inconsistent HttpRequestEnd logging"
+		// preliminary review shared which introduces "br" (bitrate) field in log - it's present for abrs_fragment#t:VIDEO
+		// but not HttpRequestEnd
+		var httpRequestEnd = {};
+		line = "Type: "  + line.substr(offs+prefix.length);
+		line = line.split(", ");
+		for( var i=0; i<line.length; i++ )
+		{
+			var pat = line[i].split( ": " );
+			httpRequestEnd[pat[0]] = pat[1];
+		}
+		if( httpRequestEnd.Type == "DASH-MANIFEST" )
+		{
+			httpRequestEnd.type = eMEDIATYPE_MANIFEST;
+		}
+		else if( httpRequestEnd.Type=="IFRAME" )
+		{
+			httpRequestEnd.type = eMEDIATYPE_IFRAME;
+		}
+		else if( httpRequestEnd.Type=="VIDEO" )
+		{
+			httpRequestEnd.type = eMEDIATYPE_VIDEO;
+		}
+		else if( httpRequestEnd.Type=="AUDIO" )
+		{
+			httpRequestEnd.type = eMEDIATYPE_AUDIO;
+		}
+		else
+		{
+			console.log( "unk type! '" + httpRequestEnd.Type + "'" );
+		}
+		httpRequestEnd.ulSz = httpRequestEnd.RequestedSize;
+		httpRequestEnd.dlSz = httpRequestEnd.DownloadSize;
+		httpRequestEnd.curlTime = httpRequestEnd.TotalTime;
+		httpRequestEnd.responseCode = parseInt(httpRequestEnd.hcode)||parseInt(httpRequestEnd.cerr);
+		httpRequestEnd.url = httpRequestEnd.Url;
+		
+		return httpRequestEnd;
+	}
+	
+	prefix = "HttpRequestEnd:";
+	offs = line.indexOf(prefix);
+	if( offs>=0 )
+	{ // handle HttpRequestEnd as logged by aamp
 		var json = line.substr(offs+prefix.length);
 		try
 		{
@@ -253,11 +299,31 @@ function ParseHttpRequestEnd( line )
 		}
 		catch( err )
 		{
-			var fields = "mediaType,type,responseCode,curlTime,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSz,ulSz,br,url";
-			var param = json.split(",");
+
+			// Parse the logs having comma in url
+			var parseUrl = json.split(",http");
+
+			var param = parseUrl[0].split(",");
+
+			//insert url to param list
+			param.push("http" + parseUrl[1]);
+
+			var fields = "mediaType,type,responseCode,curlTime,total,connect,startTransfer,resolve,appConnect,preTransfer,redirect,dlSz,ulSz";
 			if( param[0] != parseInt(param[0]) )
 			{
-				fields = "appName,"+fields;
+				// Old log format
+				if( param.length == 16) {
+					// use downloadbps value as br
+					fields = "appName," + fields + ",br,url";
+				} else if( param.length == 17) {
+					fields = "appName," + fields + ",downloadbps,br,url";
+				}
+			} else {
+				if( param.length == 15) {
+					fields += ",br,url";
+				} else if( param.length == 16) {
+					fields += ",downloadbps,br,url";
+				}
 			}
 			fields = fields.split(",");
 			var httpRequestEnd = {};
@@ -288,7 +354,41 @@ function ParseHttpRequestEnd( line )
 			console.log( "ignoring corrupt JSON from receiver log<JSON>" + json + "</JSON>" );
 		}
 	}
-    return rc;
+	return rc;
+}
+
+function ParseFragmentChunk( line )
+{
+	prefix = "Injecting chunk for video br=";
+	offs = line.indexOf(prefix);
+	var isVideo = true;
+	if( offs<0 )
+	{
+		prefix = "Injecting chunk for audio br=";
+		offs = line.indexOf(prefix);
+		isVideo = false;
+	}
+	if( offs>=0 )
+	{
+		chunkData = line.substr(offs+prefix.length);
+		// sample format:: 2150000,chunksize=271272 fpts=109017.909000 fduration=0.016683
+		chunkData = chunkData.split(",");
+		var obj = {};
+		if( isVideo )
+		{
+			obj.bitrate = chunkData[0]; // first element is bitrate
+		}
+		else
+		{
+			obj.bitrate = "audio";
+		}
+		chunkData = chunkData[1].split(" ");
+		obj.chunksize = chunkData[0].slice(chunkData[0].indexOf('=')+1);
+		obj.fpts = chunkData[1].slice(chunkData[1].indexOf('=')+1);
+		obj.fduration = chunkData[2].slice(chunkData[2].indexOf('=')+1);
+		return obj;
+	}
+	return null;
 }
 
 function ParseABRProfileBandwidth( line )

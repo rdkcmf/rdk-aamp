@@ -1,72 +1,377 @@
 <html>
-	<!-- canvas based rendering for huge log files, as alternative to html -->
+	<!-- canvas based rendering for huge log files, as alternative to html
+
+	filter:
+		com.bskyb.epgui
+		com.sky.as.player
+		sky-jspp
+		WPEWebProcess
+		com.sky.as-analytics
+	
+	TODO: address weirdness with current visualiations:
+		drm before manifest?
+		poor handling of background video sessions
+	TODO: log fragment support (in progress)
+	TODO: annotations
+	TODO: marker/module filtering
+	-->
 	<head>
 		<title>Log Viewer</title>
 		<script src="dragger.js"></script>
+		<script src="parseutils.js"></script>
 		<script>
+			const _LOG_COLOR = 0;
+			const _LOG_TEXT = 1;
+			
+			var dragDidMove;
+			var dragContentStartY;
+			var dragContent = false;
+			var dragSelect = false;
+			var dragScroll = false;
+			var visibleRows = [];
+			var localRowEnd = [];
+			var charWidth;
+			var searchMatchRows = [];
+			var searchPattern = [];
+			var selectStart;
+			var selectEnd;
+			
 			const FONT_SIZE = "16px Courier";
 			const LINE_HEIGHT = 20;
 			const DESCENDER_ADJUST = 5;
 			var log = [];
 			
+			function LocalToRow( y )
+			{
+				var row = Math.floor(translateY);
+				for( var i=0; i<localRowEnd.length; i++ )
+				{
+					if( y >= localRowEnd[i] )
+					{
+						row++;
+					}
+				}
+				return row;
+			}
+			
 			function myclickhandler(e)
 			{
-				var row = Math.floor((e.offsetY+translateY)/LINE_HEIGHT);
+				var row = LocalToRow(e.offsetY);
 				console.log( "sending scrollTo " + row );
 				windowHandle.postMessage( { "command":"scrollTo", "line":row }, TARGET_ORIGIN );
 			}
 			
+			function match( text )
+			{
+				for( var j=0; j<searchPattern.length; j++ )
+				{
+					var offs = text.indexOf(searchPattern[j]);
+					if( offs>=0 )
+					{
+						return true;
+					}
+				}
+				return false;
+			}
+			
+			function wrapText( ctx, text, y, bgc, selected, searchPat )
+			{
+				var fgc;
+				if( selected )
+				{
+					fgc = "#ff0000";
+					bgc = "#ccccff";
+				}
+				else if( match(text) )
+				{
+					fgc = "#ffffff";
+					bgc = "#ff0000";
+				}
+				else if( bgc )
+				{
+					fgc = selectTextColor(bgc);
+				}
+				else
+				{
+					bgc = "white";
+					fgc = "black";
+				}
+				
+				
+				var charsRemaining = text.length;
+				var fitChars = Math.floor((canvas.width-20)/charWidth);
+				var startIdx = 0;
+				while( charsRemaining>0 )
+				{
+					var n = charsRemaining;
+					if( n>fitChars )
+					{
+						n = fitChars;
+					}
+					ctx.fillStyle = bgc;
+					ctx.fillRect( 0,y,canvas.width-20,LINE_HEIGHT);
+					var s = text.substr(startIdx,n);
+					ctx.fillStyle = fgc;
+					ctx.fillText(s, 0, y+LINE_HEIGHT-DESCENDER_ADJUST);
+					startIdx += n;
+					charsRemaining -= n;
+					y += LINE_HEIGHT;
+				}
+				return y;
+			}
+			
 			function paint()
 			{
-				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				visibleRows = [];
+				localRowEnd = [];
 				ctx.font = FONT_SIZE;
+				charWidth = ctx.measureText(" ").width;
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
 				ctx.textAlign = "left";
-				var y = LINE_HEIGHT-(translateY%LINE_HEIGHT);
-				var row = Math.floor(translateY/LINE_HEIGHT);
+				var y = 0;
+				var row = Math.floor(translateY);
 				while( row<log.length )
 				{
+					visibleRows.push( row );
 					var line = log[row];
-					var color = line[0];
-					if( color )
-					{
-						ctx.fillStyle = color;
-						ctx.fillRect( 0,y-LINE_HEIGHT,canvas.width,LINE_HEIGHT);
-                        if( color == "#ffffcc" )
-                        {
-                            ctx.fillStyle = "#000000";
-                        }
-                        else
-                        {
-                            ctx.fillStyle = "#ffffff";
-                        }
-
-						ctx.fillStyle = selectTextColor(color)
-					}
-                    else
-                    {
-                        ctx.fillStyle = "#000000";
-                    }
-					ctx.fillText( line[1], -translateX, y-DESCENDER_ADJUST );
+					var color = line[_LOG_COLOR];
+					var text = line[_LOG_TEXT];
 					
-					y += LINE_HEIGHT;
-					if( y>canvas.height+LINE_HEIGHT )
+					if( !timestampCheckbox.checked )
+					{
+						var offs = text.indexOf(":");
+						if( offs>=0 )
+						{
+							text = text.substr(28);
+							offs = text.indexOf(":  ");
+							if( offs>=0 )
+							{
+								text = text.substr(offs+3);
+							}
+						}
+					}
+					var sel = (row>=selectStart && row<=selectEnd) || (row>=selectEnd && row<=selectStart);
+					y = wrapText(ctx, text, y, color, sel );
+					localRowEnd.push(y);
+					if( y>canvas.height )
 					{ // reached bottom
 						break;
 					}
 					row++;
 				}
+				
+				// scrollbar
+				var x = canvas.width - 20;
+				ctx.fillStyle = "blue";
+				ctx.fillRect( x, 0, 1, canvas.height ); // divider
+
+				
+				ctx.fillStyle = "#ff0000";
+				for( var i=0; i<searchMatchRows.length; i++ )
+				{
+					var row = searchMatchRows[i];
+					var y = row*canvas.height/log.length;
+					ctx.fillRect( x-4, y, 20+4, 1 );
+				}
+				
+				//var h = visibleRows.length*canvas.height/log.length;
+				var h = 4;
+				var y = row*(canvas.height-h)/log.length;
+				ctx.strokeStyle = "blue";
+				ctx.strokeRect( x-4, y, 20+4, h );
+
+				for( var row=0; row<log.length; row++ )
+				{
+					var color = log[row][_LOG_COLOR];
+					if( color )
+					{
+						var y = row*canvas.height/log.length;
+						ctx.fillStyle = color;
+						ctx.fillRect( x, y, 20, 1 );
+					}
+				}
 			}
 			
 			function AdjustSizeAndRepaint()
 			{
-				canvas.width = window.innerWidth - 32;
-				canvas.height = window.innerHeight - 32;
+				canvas.width = window.innerWidth - 20;
+				canvas.height = window.innerHeight - 20 - 32;
 				paint();
 			}
 			
+			function DoSearch( row, dir )
+			{
+				row = Math.floor(row);
+				while( row>=0 && row < log.length )
+				{
+					var line = log[row][_LOG_TEXT];
+					if( match(line) )
+					{
+						translateY = row;
+						paint();
+						break;
+					}
+					row+=dir;
+				}
+			}
+			
+			function GetSelectedText()
+			{
+				var rc = [];
+				if( selectStart!=undefined && selectEnd!=undefined )
+				{
+					if( selectEnd>=selectStart )
+					{
+						for( var row=selectStart; row<=selectEnd; row++ )
+						{
+							rc.push( log[row] );
+						}
+					}
+					else
+					{
+						for( var row=selectEnd; row>=selectStart; row-- )
+						{
+							rc.push( log[row] );
+						}
+					}
+				}
+				return rc.join("\n");
+			}
+			
+			function scrollHandler( e )
+			{
+				dragDidMove = true;
+				const rect = canvas.getBoundingClientRect();
+				var y = e.clientY - rect.top;
+				if( dragContent )
+				{
+					var delta = (y-dragContentStartY)/LINE_HEIGHT;
+					translateY -= delta;
+					dragContentStartY = y;
+					if( translateY<0 )
+					{
+						translateY = 0;
+					}
+					else if( translateY>=log.length )
+					{
+						translateY = log.length-1;
+					}
+					paint();
+				}
+				else if( dragScroll )
+				{
+					var pct = y/canvas.height;
+					translateY = pct*log.length;
+					if( translateY<0 )
+					{
+						translateY = 0;
+					}
+					else if( translateY >= log.length )
+					{
+						translateY = log.length-1;
+					}
+					paint();
+				}
+				else if( dragSelect )
+				{
+					selectEnd = LocalToRow(y);
+					paint();
+				}
+			}
+			function scrollRelease(e) {
+				if( dragContent )
+				{
+					if( !dragDidMove )
+					{
+						myclickhandler(e);
+					}
+				}
+				dragSelect = false;
+				dragScroll = false;
+				dragContent = false;
+			}
+
 			window.onload = function() {
-				canvas = document.getElementById("myCanvas");
+				canvas = document.getElementById("logCanvas");
 				ctx = canvas.getContext("2d");
+				
+				timestampCheckbox.addEventListener('change', (event) => {
+					paint();
+				});
+
+				searchText.addEventListener('change', (event) => {
+					searchMatchRows = [];
+					var searchString = event.target.value;
+					if( searchString.length>0 )
+					{
+						searchPattern = searchString.split("|");
+						for( var row=0; row<log.length; row++ )
+						{
+							if( match(log[row][_LOG_TEXT]) )
+							{
+								searchMatchRows.push(row);
+							}
+						}
+					}
+					else
+					{
+						searchPattern = [];
+					}
+					paint();
+				});
+				
+				canvas.onmousedown = function(e){
+					dragDidMove = false;
+					const rect = canvas.getBoundingClientRect();
+					var x = e.clientX - rect.left;
+					var y = e.clientY - rect.top;
+					if( x >= canvas.width-20 )
+					{
+						dragScroll = true;
+						scrollHandler(e);
+					}
+					else if( e.shiftKey )
+					{
+						var row = LocalToRow(y);
+						if( selectStart==undefined || selectEnd==undefined )
+						{ // start new selection
+							selectStart = row;
+							selectEnd = row;
+						}
+						else
+						{ // normalize start/end selected rows
+							if( selectStart > selectEnd )
+							{
+								var temp = selectStart;
+								selectStart = selectEnd;
+								selectEnd = temp;
+							}
+							if( row < selectStart )
+							{
+								selectStart = selectEnd;
+							}
+							if( row>=selectStart && row<=selectEnd )
+							{ // remove selection
+								selectStart = undefined;
+								selectEnd = undefined;
+							}
+							else
+							{
+								dragSelect = true;
+								selectEnd = row;
+							}
+						}
+						paint();
+					} // dragSelect
+					else
+					{
+						dragContentStartY = y;
+						dragContent = true;
+					}
+				}
+				canvas.onmouseup = scrollRelease;
+				document.onmouseup = scrollRelease;
+				document.onmousemove = scrollHandler;
 				
 				window.addEventListener( "message", (event) => {
 					windowHandle = event.source;
@@ -74,8 +379,7 @@
 					{
 						var line = event.data.line;
 						console.log( "received scrollTo " + line );
-						dragTo(translateX,line*LINE_HEIGHT);
-						//translateY = line*LINE_HEIGHT;
+						dragTo(0,line);
 						paint();
 					}
 					else if( event.data.command == "initialize" )
@@ -89,16 +393,128 @@
 				
 				AdjustSizeAndRepaint();
 				
-				draggger_Init();
+//				draggger_Init(true);
+				draggger_Init(false);
+				
+				/*
+				window.addEventListener("keypress", function(e){
+					if( findDialogIsActive )
+					{
+						if( e.charCode>=32 && e.charCode<128 )
+						{
+							searchString += String.fromCharCode(e.charCode);
+							paint();
+						}
+					}
+				});
+				 */
 				
 				window.addEventListener("keydown", function(e){
-					 if(e.which == 70 && (e.ctrlKey || e.metaKey))
-					 { // override control+F find feature
-						 e.preventDefault();
+					if( document.activeElement == document.getElementById("searchText") )
+					{
+						return;
+					}
+					if( e.ctrlKey || e.metaKey )
+					{
+						switch( e.which )
+						{
+							case 70: // Control+F Find override
+							searchText.focus();
+							e.preventDefault();
+							break;
+							
+							case 71: // Control+G Find Next
+							e.preventDefault();
+							if( e.shiftKey )
+							{
+								DoSearch(translateY-1,-1);
+							}
+							else
+							{
+								DoSearch(translateY+1,1);
+							}
+							break;
+							
+							case 67: // Control+C Copy override
+							e.preventDefault();
+							var text = GetSelectedText();
+							text = "{code:java}\n" + text + "\n{code}";
+							navigator.clipboard.writeText(text);
+							//alert( "COPY" );
+							break;
+							
+							case 86: // Control+V Paste override
+							/*
+							e.preventDefault();
+							if( findDialogIsActive )
+							{
+								navigator.clipboard.readText()
+								.then(text => {
+									searchString += text;
+									paint();
+								})
+								.catch(err => {
+									alert('failed to read clipboard contents: ' + err);
+								});
+							}
+							 */
+							break;
+							default:
+							break;
 						}
-				  });
+					}
+					else
+					{
+						switch( event.which )
+						{
+							case 13: // enter
+							var dt = undefined;
+							if( selectStart!=undefined && selectEnd!=undefined )
+							{
+								var tStart = ParseReceiverLogTimestamp(log[selectStart][_LOG_TEXT]);
+								var tEnd = ParseReceiverLogTimestamp(log[selectEnd][_LOG_TEXT]);
+								if( selectEnd >= selectStart )
+								{
+									dt = tEnd - tStart;
+								}
+								else
+								{
+									dt = tStart - tEnd;
+								}
+							}
+							alert( dt + "ms" );
+							break;
+							
+							case 8: // delete
+							break;
+							case 37: // left
+							break;
+							case 38: // up
+							if( translateY>0 )
+							{
+								e.preventDefault();
+								translateY--;
+								paint();
+							}
+							break;
+							case 39: // right
+							break;
+							case 40: // down
+							if( translateY<log.length )
+							{
+								e.preventDefault();
+								translateY++;
+								paint();
+							}
+							break;
+							default:
+							//alert( event.which );
+							break;
+						}
+					}
+				});
 			}
-
+			
 			function selectTextColor(hexColor) {
 				// Remove # from hex code
 				bgColor = hexColor.slice(1);
@@ -118,8 +534,15 @@
 			}
 		</script>
 		<body>
-			<div style="width:100%;height:100%;overflow: scroll;">
-				<canvas id="myCanvas" style="border:1px solid #000000;overflow: scroll;"></canvas>
-	  		</div>
+			<div style="width: 100%; height:32px;">
+				<input type="text" id="searchText" name="searchText"/>
+				<input type="button" value="Next" onclick="DoSearch(translateY+1,1);"/>
+				<input type="button" value="Previous" onclick="DoSearch(translateY-1,-1);"/>
+
+				<input checked type="checkbox" id="timestampCheckbox" name="timestampCheckbox" value="timestampCheckbox"/>
+				<label for="timestampCheckbox">Show Time</label>
+
+			</div>
+			<canvas id="logCanvas" style="border:1px solid #000000"></canvas>
 		</body>
 </html>

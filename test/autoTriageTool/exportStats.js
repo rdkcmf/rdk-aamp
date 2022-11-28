@@ -192,10 +192,12 @@ function ExportFile( text, fileName )
 	a.click();
 }
 
+// input: gAllIpExTuneTimes (X1-only)
 // input: gAllIpAampTuneTimes
 // input: gAllLogLines
 function ExportHelper()
 {
+	ExportFile( gAllIpExTuneTimes.join("\r\n"), "IP_EX_TUNETIME.csv" );
 	ExportFile( gAllIpAampTuneTimes.join("\r\n"), "IP_AAMP_TUNETIME.csv" );
 	gOutput = [];
 	gStatistics = [];

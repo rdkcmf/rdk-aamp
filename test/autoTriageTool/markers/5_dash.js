@@ -179,10 +179,6 @@ marker_dash = [{
 		"label":"AudioType %0 -> %1",
 },
 	{
-		"pattern":"No valid adaptation set found for Media[%%]",
-		"label":"No valid adapt(%0)"
-},
-	{
 		"pattern":"Audio only period",
 		"label":"Audio only period"
 },
@@ -373,10 +369,6 @@ marker_dash = [{
 	{
 		"pattern":"No PSSH data available for Preffered DRM",
 		"label":"No PSSH in DRM"
-},
-	{
-		"pattern":"Failed to create DRM helper",
-		"label":"Fail DRM helper"
 },
 	{
 		"pattern":"not-yet-supported mpd format",

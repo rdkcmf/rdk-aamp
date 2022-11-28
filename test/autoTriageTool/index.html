@@ -20,12 +20,12 @@
 	</head>
 	<body>
 		<div id="navbar" class="triage-tool-bar">
-			<a id="triageTool"><b>AUTO TRIAGE TOOL</b></a>
+			<a id="triageTool"><b>AUTO TRIAGE TOOL <sup id="versionText"></sup></b></a>
 			<label id="logUpload" for="files">Upload Log</label>
 			<input type="file" name="files" multiple id="files" />
 			<label id="markerUpload" for="userdefmarkers">Upload Markers</label>
 			<input type="file" name="userdefmarkers" multiple id="userdefmarkers" />
-
+			
 			<button id="exportButton">Export Statistics</button>
 			
 			<nobr class="list-name">Session:</nobr> 
@@ -35,30 +35,21 @@
 			<nobr class="list-name">Marker: </nobr> 
 			<select name="session" id="markers" class="markers-drop-down">
 			</select>
-
-
-			<!--
-			<input type="checkbox" class="check-box" checked id="filter-player"/>
-			<label class="check-box-label" for="filter-player" checked>Include Non-AAMP Logs</label>
-			<br/>
-			<input type="checkbox" class="check-box" id="filter-markers"/>
-			<label class="check-box-label" for="filter-markers">Show All Markers</label>
-			<hr/>
-			-->
 		</div>
+
 		<div id="fileUploadResponse">
 			<strong id="fileMsg"></strong>
+			<span id="hideButton" onclick="fileUploadClick()">&times;</span> 
+		</div>
+
+		<div id="tuneResponse">
+			<strong id="tuneMsg"></strong>
 			<span id="hideButton" onclick="this.parentElement.style.display='none';">&times;</span> 
 		</div>
-		<div id="contentTypeDiv">
-			<label id="contentTypeLabel">ContentType : </label> 
-			<span id="contentTypeID"></span>
-		</div>
-		<div id="durationDiv">
-			<label id="durationLabel">Playback Duration: </label> 
-			<span id="durationID"></span>
-		</div>
-		<canvas id="myCanvas" style="border:none solid #000000; overflow: scroll;"></canvas>
+
+		<div id="loader" class="loader"></div>
+		
+		<canvas id="myCanvas" style="border:1px solid #000000; overflow: scroll;"></canvas>
 
 		<!-- fragment Details Modal -->
 		<div id="fragmentModal" class="fragmentModal">

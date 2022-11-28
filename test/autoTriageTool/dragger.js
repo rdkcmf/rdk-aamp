@@ -1,10 +1,9 @@
-
 const TARGET_ORIGIN = "*";
-//const TARGET_ORIGIN = "http://127.0.0.1:8080";
 const DRAG_SPEED = 24;
 const DRAG_FRICTION = 0.90;
 
-var canvas,ctx;
+var canvas;
+var ctx;
 var didMove = false;
 var isMouseDown = false;
 var translateX = 0;
@@ -26,7 +25,7 @@ function handleDragMomentum()
 		var dirty = false;
 		if( dragTargetX!=null )
 		{
-			translateX = translateX*0.8+dragTargetX*0.2;
+			translateX = translateX*0.5+dragTargetX*0.5;
 			if( Math.abs(translateX-dragTargetX)>1 )
 			{
 				dirty = true;
@@ -39,7 +38,7 @@ function handleDragMomentum()
 		}
 		if( dragTargetY!=null )
 		{
-			translateY = translateY*0.9+dragTargetY*0.1;
+			translateY = translateY*0.5+dragTargetY*0.5;
 			if( Math.abs(translateY-dragTargetY)>1 )
 			{
 				dirty = true;
@@ -77,37 +76,70 @@ function handleDragMomentum()
 
 function dragTo( x, y )
 {
+	//console.log( "dragTo " + x + "," + y );
 	dragTargetX = x;
 	dragTargetY = y;
 	dragTimer = setTimeout(handleDragMomentum, 33 );
 }
 
-function draggger_Init()
+function draggger_Init( ui )
 {
+	if( ui )
+	{
+		document.onmouseup = function(e) {
+			if( isMouseDown )
+			{
+				HandlePan(e);
+				isMouseDown = false;
+				if( didMove )
+				{
+					var dt = Date.now() - dragTime;
+					if( dt>0 )
+					{
+						dragVelocity = -DRAG_SPEED*(dragStartY - dragVelocityStart)/dt;
+						dragTimer = setTimeout(handleDragMomentum, 33 );
+					}
+				}
+				else
+				{ // interpret as click
+					myclickhandler(e);
+				}
+			}
+		};
+		
+		document.onmousemove = function(e)
+		{
+			if( isMouseDown )
+			{
+				HandlePan(e);
+				didMove = true;
+			}
+		}
+		
+		document.onmousedown = function(e)
+		{
+			if( dragTimer )
+			{
+				clearTimeout( dragTimer );
+				dragTimer = null;
+			}
+			isMouseDown = true;
+			didMove = false;
+			dragStartX = e.offsetX;
+			dragStartY = e.offsetY;
+			
+			dragVelocityStart = dragStartY;
+			dragTime = Date.now();
+		};
+	}
 	dragTargetX = null;
 	dragTargetY = null;
 	
 	window.addEventListener('resize', AdjustSizeAndRepaint, true);
 	
-	document.onmousedown = function(e) {
-		//console.log( "onmousedown " + isMouseDown );
-		
-		if( dragTimer )
-		{
-			clearTimeout( dragTimer );
-			dragTimer = null;
-		}
-		isMouseDown = true;
-		didMove = false;
-		dragStartX = e.offsetX;
-		dragStartY = e.offsetY;
-		
-		dragVelocityStart = dragStartY;
-		dragTime = Date.now();
-	};
-	
 	function HandlePan( e )
 	{
+		//console.log( "HandlePan " + e.offsetX + "," + e.offsetY );
 		translateX += dragStartX-e.offsetX;
 		translateY += dragStartY-e.offsetY;
 		translateX = Math.max(0,translateX);
@@ -115,40 +147,6 @@ function draggger_Init()
 		dragStartX = e.offsetX;
 		dragStartY = e.offsetY;
 		paint();
-	}
-	
-	document.onmouseup = function(e) {
-		//console.log( "onmouseup " + isMouseDown );
-		
-		if( isMouseDown )
-		{
-			HandlePan(e);
-			isMouseDown = false;
-			if( didMove )
-			{
-				var dt = Date.now() - dragTime;
-				if( dt>0 )
-				{
-					dragVelocity = -DRAG_SPEED*(dragStartY - dragVelocityStart)/dt;
-					dragTimer = setTimeout(handleDragMomentum, 33 );
-				}
-			}
-			else
-			{ // interpret as click
-				myclickhandler(e);
-			}
-		}
-	};
-	
-	document.onmousemove = function(e)
-	{
-		//console.log( "onmousemove " + isMouseDown );
-		
-		if( isMouseDown )
-		{
-			HandlePan(e);
-			didMove = true;
-		}
 	}
 }
 

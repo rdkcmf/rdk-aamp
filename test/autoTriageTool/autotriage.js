@@ -1,11 +1,12 @@
+const currentVersion = "2.1";
 const ROWHEIGHT = 24;
 const BITRATE_MARGIN = 112;
 const TOP_MARGIN = 64;
 const COLOR_TUNED = "#058840";
 const COLOR_TUNE_FAILED = "#FF0000";
 const COLOR_GOLD = "#FFD700";
-const COLOR_LIGHT_GOLD = "#ffffcc"
-const alllabels = ["MANIFEST","DRM","VIDEO","AUDIO","IFRAME","AUX_AUDIO","SUBTITLE"];
+const COLOR_LIGHT_GOLD = "#ffffcc";
+var alllabels = [];
 
 var markerPicker;
 var markerCfg = [];
@@ -15,8 +16,10 @@ var gFirstLine;
 var gPendingImport;
 var gAllLogLines;
 var gTuneStartLine;
+var gAllIpExTuneTimes;
 var gAllIpAampTuneTimes;
 var gBoxDownload;
+var gChunk;
 var gBoxMarker;
 var timestamp_min;
 var timestamp_max;
@@ -32,37 +35,23 @@ function myclickhandler(e)
 		var x = e.clientX - rect.left + translateX;
 		var y = e.clientY - rect.top;
 		for (var i = 0; i < gBoxDownload.length; i++) {
-			if (x >= gBoxDownload[i].x && x < gBoxDownload[i].x + gBoxDownload[i].w &&
-				y >= gBoxDownload[i].y && y < gBoxDownload[i].y + gBoxDownload[i].h)
+			const box = gBoxDownload[i];
+			if (x >= box.x && x < box.x + box.w &&
+				y >= box.y && y < box.y + box.h)
 			{
-				var msg =
-				"type:" + mediaTypes[gBoxDownload[i].type] + "; " +
-				"response: " + gBoxDownload[i].error + "; " +
-				"ulSz: " + gBoxDownload[i].ulSz + " bytes; " +
-				"download time:" + gBoxDownload[i].durationms + "ms; " +
-				"dlSz: " + gBoxDownload[i].bytes + " bytes; " +
-				"URL: " + gBoxDownload[i].url;
-
 				// populate fragment data table
-				document.getElementById("line").innerHTML = gBoxDownload[i].line;
-				document.getElementById("response").innerHTML = gBoxDownload[i].error;
-				document.getElementById("type").innerHTML = mediaTypes[gBoxDownload[i].type];
-				document.getElementById("ulSz").innerHTML = gBoxDownload[i].ulSz + " bytes";
-				document.getElementById("downloadTime").innerHTML = gBoxDownload[i].durationms + " ms";
-				document.getElementById("dlSz").innerHTML = gBoxDownload[i].bytes + " bytes";
-				document.getElementById("url").innerHTML = gBoxDownload[i].url;
+				document.getElementById("line").innerHTML = box.line;
+				document.getElementById("response").innerHTML = box.error;
+				document.getElementById("type").innerHTML = mediaTypes[box.type];
+				document.getElementById("ulSz").innerHTML = box.ulSz + " bytes";
+				document.getElementById("downloadTime").innerHTML = box.durationms + " ms";
+				document.getElementById("dlSz").innerHTML = box.bytes + " bytes";
+				document.getElementById("url").innerHTML = box.url;
 				// display the fragment table on click
 				document.getElementById("fragTable").style.display = "block";
                 
-				if( e.ctrlKey || e.metaKey )
-				{ // control/command click to pop up details for this download activity indicator
-					// note: with newlines included, alert text isn't selectable in chrome
-					alert( msg );
-				}
-				else
-				{ // pan within log view window
-					scrollTo( gBoxDownload[i].line );
-				}
+				// pan within log view window
+				scrollTo( box.line );
 				return;
 			}
 		}
@@ -97,7 +86,7 @@ function hoverDataVisualizer(event)
 				y >= gBoxDownload[i].y && y < gBoxDownload[i].y + gBoxDownload[i].h)
 			{
 				document.getElementById("fragmentContent").innerHTML =
-					"Type:" + mediaTypes[gBoxDownload[i].type] + "<br>" +
+					"Type: " + mediaTypes[gBoxDownload[i].type] + "<br>" +
 					"Response: " + gBoxDownload[i].error + "<br>" +
 					"Download time: " + gBoxDownload[i].durationms + "ms" + "<br>" +
 					"Download Size: " + gBoxDownload[i].bytes + " bytes " + "<br>" +
@@ -170,7 +159,26 @@ function time2x(t) {
 
 function track2y(track)
 {
-	return TOP_MARGIN+track*ROWHEIGHT;
+	for( var i=0; i<alllabels.length; i++ )
+	{
+		if( alllabels[i] == track ) return i*ROWHEIGHT + 64;
+	}
+	return 0;
+}
+
+function GetTrackBottomY()
+{
+	return alllabels.length*ROWHEIGHT+64;
+}
+
+function AddBitrate( newBitrate )
+{
+	for( var i=0; i<alllabels.length; i++ )
+	{
+		if( alllabels[i]==newBitrate ) return;
+	}
+	//alert( newBitrate );
+	alllabels.push( newBitrate );
 }
 
 function scrollTo( line )
@@ -178,24 +186,29 @@ function scrollTo( line )
 	if( windowHandle )
 	{
 		line -= gFirstLine; // global to local
-		console.log( "sending scrollTo " + line );
+		//console.log( "sending scrollTo " + line );
 		windowHandle.postMessage( { "command":"scrollTo", "line":line }, TARGET_ORIGIN );
 	}
+}
+
+function fileUploadClick() {
+	document.getElementById("fileUploadResponse").style.display='none';
+	document.getElementById("tuneResponse").style.paddingTop="3%";
 }
 
 function paint()
 {
 	dx = -translateX;
-	console.log( "paint " + dx );
+	//console.log( "paint " + dx );
 	
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	ctx.font = "12px Arial";
-	
+
 	// timeline backdrop
 	ctx.textAlign = "center";
 	
 	var shade = true;
-	
+
 	for (var t0 = timestamp_min; t0 < timestamp_max; t0 += 1000)
 	{
 		var x0 = dx+time2x(t0);
@@ -220,9 +233,7 @@ function paint()
 		for( var i=0; i<gBoxMarker.length; i++ )
 		{
 			var obj = gBoxMarker[i];
-
-			console.log(obj.label);
-			
+//			console.log(obj.label);
 			if( pass==0 )
 			{ // vertical lines
                 if( obj.style )
@@ -234,7 +245,7 @@ function paint()
 					ctx.strokeStyle = COLOR_GOLD;
                 }
                 ctx.beginPath();
-				ctx.moveTo(obj.x+dx, timeline_y0-20);
+				ctx.moveTo(obj.x+dx, timeline_y1 );
 				ctx.lineTo(obj.x+dx, obj.y);
 				ctx.stroke();
 			}
@@ -266,7 +277,7 @@ function paint()
 	ctx.strokeStyle = '#dddddd';
 	for (var i = 0; i < alllabels.length; i++) {
 		var label = alllabels[i];
-		var y = track2y(i);
+		var y = track2y(label);
 		ctx.strokeRect(BITRATE_MARGIN + 2, y, canvas.width, 1);
 	}
 	
@@ -283,15 +294,37 @@ function paint()
 					   gBoxDownload[i].w,
 					   gBoxDownload[i].h );
 	}
+
+	for (var i = 0; i < gChunk.length; i++) {
+		// draw vertical dotted lines to show chunk injection
+		ctx.beginPath();
+		ctx.lineWidth = "2";
+		ctx.strokeStyle = "#000000";
+		ctx.setLineDash([3, 2]); /*dashes are 3px and spaces are 2px*/
+
+		// find chunk position using bitrate
+		ypos = track2y(gChunk[i].bitrate);
+		var xpos = time2x(gChunk[i].injectTime);
+		ctx.moveTo(xpos + dx , ypos - (ROWHEIGHT/2)); // starting point of line
+		ctx.lineTo(xpos + dx , ypos + (ROWHEIGHT/2)); // end point of line
+		ctx.stroke();
+		ctx.closePath();
+	}
+
+	// Reset dotted line setting
+	if (ctx.setLineDash) {
+		ctx.setLineDash([]);
+	}
 	
 	// draw y-axis legend
 	ctx.textAlign = "right";
 	ctx.fillStyle = "#ffffff";
-	ctx.fillRect(0,0,BITRATE_MARGIN,track2y(alllabels.length) );
+	ctx.fillRect(0,0,BITRATE_MARGIN,GetTrackBottomY() );
 	ctx.fillStyle = '#000000';
+	
 	for (var i = 0; i < alllabels.length; i++) {
 		var label = alllabels[i];
-		var y = track2y(i);
+		var y = track2y(label);
 		ctx.fillText(label, BITRATE_MARGIN, y + ROWHEIGHT / 2 - 8);
 	}
 }
@@ -301,7 +334,7 @@ function isUserDefinedMarker(label) {
 	for (var markerIndex = 0; markerIndex < userDefinedMarkers.length; ++markerIndex)
 	{
 		if(label === userDefinedMarkers[markerIndex].label) {
-			console.log(userDefinedMarkers + "is present");
+			//console.log(userDefinedMarkers + "is present");
 			// user defined marker is present
 			return true;
 		}
@@ -311,17 +344,22 @@ function isUserDefinedMarker(label) {
 
 window.onload = function() {
 	gBoxDownload = [];
+	gChunk = [];
 	gBoxMarker = [];
 	
 	canvas = document.getElementById("myCanvas");
-	canvas.height = alllabels.length*ROWHEIGHT + 480 + 256;
+	canvas.height = 2048;
 	ctx = canvas.getContext("2d");
-    // Show fragment details on canvas hover
+	
+    // show fragment details on canvas hover
 	canvas.onmousemove = hoverDataVisualizer;
+
+	// Display current auto triage Tool version
+	document.getElementById("versionText").innerHTML = currentVersion;
 	
 	AdjustSize();
 	
-	draggger_Init();
+	draggger_Init(true);
 	
 	OpenLogWindow();
 	
@@ -359,7 +397,11 @@ window.onload = function() {
 		gPendingImport--;
 		if( gPendingImport==0 )
 		{
-			IndexRawData();
+			// start busy cursor animation
+			document.getElementById("loader").style.display = "block";
+			
+			// async, to allow busy cursor animation to begin
+			setTimeout( IndexRawData, 1 );
 		}
 	}
 
@@ -396,18 +438,23 @@ window.onload = function() {
 			sessionClickedID = 0;
 			sessionClicked = false;
 			
-			//var tStopBegin = null;
+			gAllIpExTuneTimes =
+			["contentType,totalTime,networkTime,loadBucketTime,prepareToPlayBucketTime,playBucketTime,drmReadyBucketTime,decodedStreamingBucketTime,playingbackToXREBucketTime,firstManifestTIme,firstProfileTime,firstFragmentTime,firstLicenseTime,maniCount,manifestTotal,profCount,profilesTotal,fragCount,fragmentTotal,isLive,streamType,abrSwitch,isFOGEnabled,isDDPlus,isDemuxed,assetDuration,success,failRetryBucketTime,playbackCount,tuneRetries,tuneCompleteTime"
+			 ];
+			var prefix2 = "IP_EX_TUNETIME:";
+			
 			gAllIpAampTuneTimes = ["version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune,Prebuffered,PreBufferedTime,durationSeconds,interfaceWifi,TuneAttempts,TuneSuccess,FailureReason,Appname,Numbers of TimedMetadata(Ads),StartTime to Report TimedEvent,Time taken to ReportTimedMetadata,TSBEnabled,TotalTime"];
 			var prefix = "IP_AAMP_TUNETIME:";
             var epgTuneTime = [];
 			for(var iLine=0; iLine<gAllLogLines.length; iLine++ )
 			{
 				var line = gAllLogLines[iLine];
-                if( line.indexOf("EPG Request to play VIPER stream")>=0 ) // SKY
-                {
+				
+				if( line.indexOf("EPG Request to play VIPER stream")>=0 ) // SKY
+				{
 					hasSkyTune = true;
-                    gTuneStartLine.push(iLine);
-                }
+					gTuneStartLine.push(iLine);
+				}
                 
                 var epgTuneTimePrefix = "EPG Total tune time (ms) :  ";
                 var epgTuneTimeDelim = line.indexOf(epgTuneTimePrefix);
@@ -449,7 +496,13 @@ window.onload = function() {
 					var idx = line.indexOf(prefix);
 					if( idx>=0 )
 					{
-                        gAllIpAampTuneTimes[gTuneStartLine.length] = line.substr(idx+prefix.length)+","+locator;
+						gAllIpAampTuneTimes[gTuneStartLine.length] = line.substr(idx+prefix.length)+","+locator;
+					}
+
+					idx = line.indexOf(prefix2);
+					if( idx>=0 )
+					{
+						gAllIpExTuneTimes.push( line.substr(idx+prefix2.length)+","+locator );
 					}
 				}
 			} // next line
@@ -460,6 +513,20 @@ window.onload = function() {
 				currentSession.removeChild(currentSession.firstChild);
 			}
 			// populate pulldown to pick tune session of interest
+
+			if( gTuneStartLine.length==0 )
+			 { // fragment
+				var iLine = 0;
+				var utc = ParseReceiverLogTimestamp( gAllLogLines[iLine] );
+				var date = new Date(utc);
+				var dateString = date.toLocaleTimeString();
+				var option = document.createElement("option");
+				option.text = dateString;
+				option.value = 1;
+				currentSession.add(option);
+				gTuneStartLine[0] = iLine;
+			}
+			else
 			for( var iter=0; iter<gTuneStartLine.length; iter++ )
 			{
 				var iLine = gTuneStartLine[iter];
@@ -473,16 +540,38 @@ window.onload = function() {
 					var temp = gAllIpAampTuneTimes[iter+1];
 					if( temp )
 					{
-                        option.text += "("+epgTuneTime[iter]+")"; // SKY
-//                        option.text += "(" + temp.split(",")[_gstFirstFrameTime]+"ms)"
+						tempData = temp.split(",");
+						var type = contentTypeString[parseInt(tempData[_contentType])];
+						if( hasSkyTune )
+						{
+							if(epgTuneTime[iter]) {
+								option.text += "("+epgTuneTime[iter]+")"; // SKY
+							} else {
+								option.text += "(fail)"; // Failed Tune
+								option.classList.add("failed-tune");
+							}
+						}
+						else
+						{
+							var tempSplit = temp.split(",");
+							var tuneTime = tempSplit[_gstFirstFrameTime];
+							if( tempSplit[_tuneSuccess] != 1 ) // _tuneSuccess = 44
+							{
+								tuneTime = "fail";
+								option.classList.add("failed-tune");
+							} 
+							option.text += "(" + tuneTime +")"
+						}
+
+						option.text += " " + type;
 					}
 					option.value = (iter+1);
 					currentSession.add(option);
 				}
 			}
-			
 			mySessionFilter();
 		}
+		document.getElementById("loader").style.display = "none";
 	} // IndexRawData
 	
 	function MarkerToOptionText( string, param )
@@ -510,7 +599,7 @@ window.onload = function() {
 				if( param )
 				{
 					gTimeStampUTC = ParseReceiverLogTimestamp(line);
-					console.log(MarkerToOptionText(entry.label,param));
+					//console.log(MarkerToOptionText(entry.label,param));
                     color = entry.style;
 					AddMarker( MarkerToOptionText(entry.label,param),color );
                     if( !color )
@@ -530,30 +619,52 @@ window.onload = function() {
 				obj.error = mapError(httpRequestEnd.responseCode);
 				obj.durationms = 1000*httpRequestEnd.curlTime;
 				obj.type = type;
-				obj.ulSz = httpRequestEnd.ulSz;//.times.ulSz;
-				obj.bytes = httpRequestEnd.dlSz;//.times.dlSz;
+				obj.ulSz = httpRequestEnd.ulSz;
+				obj.bytes = httpRequestEnd.dlSz;
 				obj.url = httpRequestEnd.url;
 				var doneUtc = ParseReceiverLogTimestamp(line);
 				obj.utcstart = doneUtc-obj.durationms;
 				AdjustTimeline(obj.utcstart);
 				AdjustTimeline(doneUtc);
 				
+				if( obj.type==eMEDIATYPE_PLAYLIST_VIDEO )
 				{
-					var label = mediaTypes[type];
-					var offs = label.indexOf("_");
-					if( offs>0 )
-					{
-						label = label.substr(offs+1);
-					}
-
-					// Map License request to DRM row
-					if(label == "LICENSE") {
-						obj.track = alllabels.indexOf("DRM");
-					} else {
-						obj.track = alllabels.indexOf(label);
-					}
+					obj.track = "vid-playlist";
 				}
-				
+				else if( obj.type==eMEDIATYPE_VIDEO || obj.type == eMEDIATYPE_INIT_VIDEO )
+				{
+					obj.track = httpRequestEnd.br;
+					if( !obj.track )
+					{
+						console.log( "unk video segment bitrate" );
+						obj.track = 0;
+					}
+					AddBitrate( parseInt(obj.track) );
+				}
+				else if( obj.type == eMEDIATYPE_IFRAME || obj.type == eMEDIATYPE_INIT_IFRAME )
+				{
+					obj.track = "iframe";
+				}
+				else if( obj.type == eMEDIATYPE_AUDIO || obj.type == eMEDIATYPE_INIT_AUDIO )
+				{
+					obj.track = "audio";
+				}
+				else if( obj.type == eMEDIATYPE_SUBTITLE || obj.type == eMEDIATYPE_INIT_SUBTITLE )
+				{
+					obj.track = "subtitle";
+				}
+				else if( obj.type == eMEDIATYPE_MANIFEST )
+				{
+					obj.track = "manifest";
+				}
+				else if( obj.type == eMEDIATYPE_PLAYLIST_AUDIO )
+				{
+					obj.track = "aud-playlist";
+				}
+				else
+				{
+					console.log( "UNK TYPE!" );
+				}
 				// map UI color based on download type and success/failure
 				if( obj.error != "HTTP200(OK)" && obj.error != "HTTP206" ) {
 					obj.fillStyle = MapMediaColor(-1);
@@ -564,6 +675,15 @@ window.onload = function() {
 				}
 				gBoxDownload.push(obj);
 				color = obj.fillStyle[0];
+			} // httpRequestEnd
+			else {
+				// parse chunk data
+				var chunkDetails = ParseFragmentChunk(line);
+				if( chunkDetails )
+				{
+					chunkDetails.injectTime = ParseReceiverLogTimestamp(line);
+					gChunk.push(chunkDetails);
+				}
 			}
 			
 			var param=line.indexOf("IP_AAMP_TUNETIME:");
@@ -589,7 +709,7 @@ window.onload = function() {
 						obj.bytes = 0;
 						obj.url = "LicenseAcqPreProcessingDuration";
 						obj.utcstart = startTime;
-						obj.track = 1;//"DRM";
+						obj.track = "drm";
 						obj.fillStyle = MapMediaColor(-eMEDIATYPE_LICENSE);
 						gBoxDownload.push(obj);
 						startTime += obj.durationms;
@@ -604,13 +724,12 @@ window.onload = function() {
 						obj.bytes = 0;
 						obj.url = "LicenseAcqNetworkDuration";
 						obj.utcstart = startTime;
-						obj.track = 1;//"DRM";
+						obj.track = "drm";
 						obj.fillStyle = MapMediaColor(eMEDIATYPE_LICENSE);
 						gBoxDownload.push(obj);
 						startTime += obj.durationms;
 						//color = obj.fillStyle[0];
 					}
-					
 					{
 						var obj = {};
 						obj.line = gLineNumber;
@@ -621,7 +740,7 @@ window.onload = function() {
 						obj.bytes = 0;
 						obj.url = "LicenseAcqPostProcDuration";
 						obj.utcstart = startTime;
-						obj.track = 1;//"DRM";
+						obj.track = "drm";
 						obj.fillStyle = MapMediaColor(-eMEDIATYPE_LICENSE);
 						gBoxDownload.push(obj);
 					}
@@ -629,22 +748,11 @@ window.onload = function() {
 					AddMarker( "Tune Failed", COLOR_TUNE_FAILED );
 					color = COLOR_TUNE_FAILED;
 				}
-				{
-					gContentType = parseInt(attrs[_contentType]);
-				}
+				gContentType = parseInt(attrs[_contentType]);
 			} // IP_AAMP_TUNETIME
 		}
 		return color;
 	} // ProcessLine
-	
-	/*
-	function isAampLog( line )
-	{
-		if( line.indexOf("[AAMP-PLAYER]")>=0 ) return true;
-		if( line.indexOf("[ABRManager]")>=0 ) return true;
-		return false;
-	}
-	 */
 	
 	function myMarkerFilter() {
 		if (markerPicker.selectedIndex>=0)
@@ -688,23 +796,22 @@ window.onload = function() {
 		
 		if( windowHandle )
 		{ // pass log subset to log window for display/browsing
+			alllabels = ["drm","iframe","audio","subtitle","manifest","aud-playlist","vid-playlist"];
 			var logGoo = [];
 			for( gLineNumber = gFirstLine; gLineNumber<iFin; gLineNumber++ )
 			{
 				var line = gAllLogLines[gLineNumber];
-				//if( includeNonAAMPLogs || isAampLog(line) )
-				{
-					var color = ProcessLine( line );
-					logGoo.push( [color,line] );
-				}
+				var color = ProcessLine( line );
+				logGoo.push( [color,line] );
 			}
+			alllabels.sort( function(a,b){return b-a;} );
 			windowHandle.postMessage( { "command":"initialize", "text":logGoo }, TARGET_ORIGIN );
 		}
 		
-		// update onscreen duration estimate for IP Video Session
-		document.getElementById("durationID").innerHTML = FormatTime(timestamp_max - timestamp_min) + " Seconds";
-		document.getElementById("contentTypeID").innerHTML = contentTypeString[gContentType];
-		
+		document.getElementById("tuneMsg").innerHTML =
+			contentTypeString[gContentType] + " (" + FormatTime(timestamp_max - timestamp_min) + "s)";
+		document.getElementById("tuneResponse").style.display = "block";
+
 		UpdateLayout();
 		
 		paint();
@@ -713,7 +820,7 @@ window.onload = function() {
 	function UpdateLayout()
 	{
 		timeline_y0 = TOP_MARGIN;
-		timeline_y1 = TOP_MARGIN+alllabels.length*ROWHEIGHT;
+		timeline_y1 = GetTrackBottomY();//TOP_MARGIN+alllabels.length*ROWHEIGHT;
 		
 		var extent = []; // right edge of markers so far for each row
 		for( var i=0; i<gBoxMarker.length; i++ )
@@ -758,6 +865,10 @@ window.onload = function() {
 		gPendingImport = 0;
 		gAllLogLines = [];
 		var files = evt.target.files;
+
+		// Reset tune response text to default height if closed before
+		document.getElementById("tuneResponse").style.paddingTop="1%";
+
 		try{
 			for (var fileIndex = 0; fileIndex < files.length; fileIndex++) {
 				var f = files[fileIndex];
@@ -772,14 +883,18 @@ window.onload = function() {
 				}
 			}
 			if(filename) {
+
 				document.getElementById("fileUploadResponse").style.backgroundColor = "#08814f";
 				document.getElementById("fileMsg").innerHTML = filename + " uploaded successfully.";
 				document.getElementById("fileUploadResponse").style.display = "block";
+
 			}
 		} catch(err) {
+
 			document.getElementById("fileUploadResponse").style.backgroundColor = "#e73e32";
 			document.getElementById("fileMsg").innerHTML = filename + " upload failed. " + err.message;
 			document.getElementById("fileUploadResponse").style.display = "block";
+
 		}
 	}
 
@@ -789,7 +904,6 @@ window.onload = function() {
 		try{
 			for (var fileIndex = 0; fileIndex < files.length; fileIndex++) {
 				var f = files[fileIndex];
-				alert(f.type);
 				if (f.type == "text/javascript")
 				{
 					var filename = f.name;
@@ -832,7 +946,7 @@ window.onload = function() {
             obj.style = myFileArray[fileIndex][markerIndex].style;
             if( obj.style )
             {
-                console.log( obj.label + "->" + obj.style );
+            //    console.log( obj.label + "->" + obj.style );
             }
 			markerCfg.push(obj);
 		}
@@ -852,7 +966,7 @@ window.onload = function() {
 		if( event.data.command == "scrollTo" )
 		{
 			var line = event.data.line;
-			console.log( "received scrollTo " + line );
+			//console.log( "received scrollTo " + line );
 			line += gFirstLine;
 			dragTo( (ParseReceiverLogTimestamp( gAllLogLines[line] )  - timestamp_min)*0.1, translateY );
 			paint();
