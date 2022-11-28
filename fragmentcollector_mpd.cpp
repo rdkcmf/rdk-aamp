@@ -7928,6 +7928,12 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 		if(pMediaStreamContext->enabled)
 		{
 			IPeriod *period = mCurrentPeriod;
+			/**< Safe check to avoid wrong access on adaptation due to update track 
+			info called before stream selection in fragment downloader thread on period switching */
+			if (pMediaStreamContext->adaptationSetIdx >= period->GetAdaptationSets().size())
+			{
+				pMediaStreamContext->adaptationSetIdx = 0;
+			}
 			pMediaStreamContext->adaptationSet = period->GetAdaptationSets().at(pMediaStreamContext->adaptationSetIdx);
 			pMediaStreamContext->adaptationSetId = pMediaStreamContext->adaptationSet->GetId();
 			std::string adapFrameRate = pMediaStreamContext->adaptationSet->GetFrameRate();
