@@ -1567,30 +1567,25 @@ char *TrackState::GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity, bool 
 			}
 		}
 		ptr = next;
-		//As a part of RDK-35897 to fetch the url of next next fragment
-		if((!IsLive()) && (ISCONFIGSET(eAAMPConfig_EnableCMCD)) && (ptr))
+
+	}
+	//As a part of RDK-37711 to fetch the url of next next fragment
+	if(rc && ISCONFIGSET(eAAMPConfig_EnableCMCD))
+	{
+		std::string url(rc);
+		long long seqNo = nextMediaSequenceNumber - 1;
+		if(!url.empty())
 		{
-			const char *CMCDnext = strstr(ptr,"#EXTINF");
-			if( CMCDnext )
+			size_t found = url.rfind(std::to_string(seqNo));
+			if (found != std::string::npos)
 			{
-				const char *nextNew = strstr(CMCDnext+7,"#EXT"); // skip ahead to NEXT fragment entry
-				if(nextNew){
-				const char *foundNew = strchr(nextNew+4,'\n'); // skip fragment duration
-				if( foundNew )
-				{
-					foundNew++; // skip leading newline
-					const char *fin = strchr(foundNew,'\n'); // find trailing newline
-					if( fin )
-					{
-						std::string mCMCDNextObjectRequest(foundNew,fin-foundNew);
-						aamp->mCMCDNextObjectRequest = mCMCDNextObjectRequest;
-						AAMPLOG_INFO("Next fragment url %s",mCMCDNextObjectRequest.c_str());
-					}
-				}}
+				seqNo++;
+				std::string sequenceNumberNew = std::to_string(seqNo);
+				url.replace(found,sequenceNumberNew.length(),sequenceNumberNew);
+				aamp->mCMCDNextObjectRequest = url;
+				AAMPLOG_INFO("Next fragment url %s",url.c_str());
 			}
-
 		}
-
 	}
 #ifdef TRACE
 	AAMPLOG_WARN("GetNextFragmentUriFromPlaylist %s:  pos %f returning %s", name,playlistPosition, rc);
