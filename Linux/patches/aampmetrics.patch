@@ -1,6 +1,6 @@
 From f6cc4ea70e98f2c062c3c1bb4c9f01375a90e6e8 Mon Sep 17 00:00:00 2001
 From: Joseph Brighter <joseph_brighter@comcast.com>
-Date: Fri, Jun 3, 2022 12:04pm
+Date: Tues, Nov 9, 2022 1:58pm
 Subject: [PATCH] Small change for updated installation on Linux - Updated for RDKAAMP-64
 [Development][Linux Simulator] Make a unified install-aamp.sh script for OSX and Linux
 
@@ -12,11 +12,11 @@ Notice: Code in patch files takes the license of the source which is being patch
 Signed-off-by: Joseph Brighter <joseph_brighter@comcast.com>
 ---
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index b8ab042..6d1773c 100644
+index eaeec84..3cfe3b7 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -52,3 +52,4 @@ target_link_libraries(metrics "-lcjson")
- set_target_properties(metrics PROPERTIES PUBLIC_HEADER "IPVideoStat.h")
+@@ -57,3 +57,4 @@ target_link_libraries(metrics "-lcjson")
+ set_target_properties(metrics PROPERTIES PUBLIC_HEADER "IPVideoStat.h;CMCDHeaders.h;VideoCMCDHeaders.h;AudioCMCDHeaders.h;SubtitleCMCDHeaders.h;ManifestCMCDHeaders.h")
  install(TARGETS metrics DESTINATION lib PUBLIC_HEADER DESTINATION include)
- install(FILES IPHTTPStatistics.h IPFragmentStatistics.h IPLicnsStatistics.h IPProfileInfo.h IPSessionSummary.h IPLatencyReport.h StatsDefine.h ManifestGenericStats.h DESTINATION include)
+ install(FILES IPHTTPStatistics.h IPFragmentStatistics.h IPLicnsStatistics.h IPProfileInfo.h IPSessionSummary.h IPLatencyReport.h StatsDefine.h ManifestGenericStats.h CMCDHeaders.h VideoCMCDHeaders.h AudioCMCDHeaders.h SubtitleCMCDHeaders.h ManifestCMCDHeaders.h DESTINATION include)
 +target_link_directories(metrics PUBLIC ${LIBCJSON_LIBRARY_DIRS})
