@@ -1,6 +1,6 @@
 From f6cc4ea70e98f2c062c3c1bb4c9f01375a90e6e8 Mon Sep 17 00:00:00 2001
 From: Joseph Brighter <joseph_brighter@comcast.com>
-Date: Tues, Nov 9, 2022 1:58pm
+Date: Thurs, Dec 1, 2022 2:11pm
 Subject: [PATCH] Small change for updated installation on Linux - Updated for RDKAAMP-64
 [Development][Linux Simulator] Make a unified install-aamp.sh script for OSX and Linux
 
@@ -20,3 +20,4 @@ index eaeec84..3cfe3b7 100644
  install(TARGETS metrics DESTINATION lib PUBLIC_HEADER DESTINATION include)
  install(FILES IPHTTPStatistics.h IPFragmentStatistics.h IPLicnsStatistics.h IPProfileInfo.h IPSessionSummary.h IPLatencyReport.h StatsDefine.h ManifestGenericStats.h CMCDHeaders.h VideoCMCDHeaders.h AudioCMCDHeaders.h SubtitleCMCDHeaders.h ManifestCMCDHeaders.h DESTINATION include)
 +target_link_directories(metrics PUBLIC ${LIBCJSON_LIBRARY_DIRS})
++
