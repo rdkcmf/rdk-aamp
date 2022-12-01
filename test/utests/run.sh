@@ -1,6 +1,8 @@
 #!/bin/bash
 # This script will build and run microtests
-mkdir build
+set -e
+
+mkdir -p build
 
 cd build
 
