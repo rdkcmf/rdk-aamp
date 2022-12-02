@@ -28,6 +28,7 @@
 #include <iostream>
 #include <memory>
 #include <unordered_map>
+#include <exception>
 #include "priv_aamp.h"
 
 #define PLAYLIST_CACHE_SIZE_UNLIMITED -1
@@ -122,7 +123,7 @@ private:
 	pthread_mutex_t mMutex;
 	pthread_mutex_t mCondVarMutex;
 	pthread_cond_t mCondVar ;
-	pthread_t mAsyncCleanUpTaskThreadId;
+	std::thread mAsyncCleanUpTaskThreadId;
 	AampLogManager *mLogObj;
 
 	typedef std::unordered_map <std::string, InitFragCacheStruct*> InitFragCache ;
@@ -153,12 +154,6 @@ private:
 	 *	 @return void
 	 */
 	void AsyncCacheCleanUpTask();
-	/**
-	 *	 @brief Thread entry function
-	 *
-	 *	 @return void
-	 */
-	static void * AampCacheThreadFunction(void * This) {((AampCacheHandler *)This)->AsyncCacheCleanUpTask(); return NULL;}
 	/**
 	 *	 @fn ClearPlaylistCache
 	 *	 @return void

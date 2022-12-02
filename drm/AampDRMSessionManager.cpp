@@ -65,7 +65,7 @@ KeyID::KeyID() : creationTime(0), isFailedKeyId(false), isPrimaryKeyId(false), d
 }
 
 
-void *CreateDRMSession(void *arg);
+void CreateDRMSession(void *arg);
 int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* drmData);
 void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp);
 
@@ -1749,13 +1749,7 @@ void ReleaseDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp){
 		
 	if(aamp->drmSessionThreadStarted) //In the case of license rotation
 	{
-		void *value_ptr = NULL;
-		int rc = pthread_join(aamp->createDRMSessionThreadID, &value_ptr);
-		if (rc != 0)
-		{
-			AAMPLOG_WARN("pthread_join returned %d for createDRMSession Thread", 
-			rc);
-		}
+		aamp->createDRMSessionThreadID.join();
 		aamp->drmSessionThreadStarted = false;
 		AAMPLOG_WARN("DRMSession Thread Released");
 	}
@@ -1782,18 +1776,18 @@ int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* 
 		ReleaseDRMLicenseAcquireThread(aamp);
 		AAMPLOG_INFO("Creating thread with sessionData = 0x%08x",
 					drmData->sessionData );
-		if(0 == pthread_create(&aamp->createDRMSessionThreadID, NULL,\
-		 CreateDRMSession, drmData->sessionData))
+		try
 		{
+			aamp->createDRMSessionThreadID = std::thread(CreateDRMSession, drmData->sessionData);
 			drmData->isProcessedLicenseAcquire = true;
 			aamp->drmSessionThreadStarted = true;
+			AAMPLOG_INFO("Thread created for CreateDRMSession [%u]", aamp->createDRMSessionThreadID.get_id());
 			aamp->setCurrentDrm(drmData->sessionData->drmHelper);
 			iState = DRM_API_SUCCESS;
 		}
-		else
+		catch(const std::exception& e)
 		{
-			AAMPLOG_ERR("pthread_create failed for CreateDRMSession : error code %d, %s", 
-			errno, strerror(errno));
+			AAMPLOG_ERR("thread creation failed for CreateDRMSession: %s", e.what());
 		}
 	}while(0);
 
@@ -1807,7 +1801,7 @@ int SpawnDRMLicenseAcquireThread(PrivateInstanceAAMP *aamp, DrmSessionDataInfo* 
  *  @param[out]	arg - DrmSessionParams structure with filled data
  *  @return		None.
  */
-void *CreateDRMSession(void *arg)
+void CreateDRMSession(void *arg)
 {
 	if(aamp_pthread_setname(pthread_self(), "aampfMP4DRM"))
 	{
@@ -1817,11 +1811,11 @@ void *CreateDRMSession(void *arg)
 
 	if(sessionParams == nullptr) {
 		AAMPLOG_ERR("sessionParams is null");
-                return nullptr;
+                return;
 	}
 	if(sessionParams->aamp == nullptr) {
 		AAMPLOG_ERR("no aamp in sessionParams");
-		return nullptr;
+		return;
 	}   //CID:144411 - Reverse_inull
 	AampDRMSessionManager* sessionManger = sessionParams->aamp->mDRMSessionManager;
 #if defined(USE_SECCLIENT) || defined(USE_SECMANAGER)
@@ -1839,12 +1833,12 @@ void *CreateDRMSession(void *arg)
 
 	if (sessionParams->aamp == nullptr) {
 		AAMPLOG_ERR("no aamp in sessionParams");
-		return nullptr;
+		return;
 	}
 
 	if (sessionParams->aamp->mDRMSessionManager == nullptr) {
 		AAMPLOG_ERR("no aamp->mDrmSessionManager in sessionParams");
-		return nullptr;
+		return;
 	}
 
 
@@ -1901,7 +1895,7 @@ void *CreateDRMSession(void *arg)
 		sessionParams->aamp->SetState(eSTATE_COMPLETE);
 		sessionParams->aamp->SendEvent(std::make_shared<AAMPEventObject>(AAMP_EVENT_EOS));
 	}
-	return NULL;
+	return;
 }
 
 

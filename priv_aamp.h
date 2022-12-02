@@ -1070,11 +1070,10 @@ public:
 	pthread_mutex_t drmParserMutex; 			/**< Mutex to lock DRM parsing logic */
 	bool fragmentCdmEncrypted; 				/**< Indicates CDM protection added in fragments **/
 #endif
-	pthread_t mPreCachePlaylistThreadId;
-	bool mPreCachePlaylistThreadFlag;
+	std::thread mPreCachePlaylistThreadId;
 	bool mbPlayEnabled;					/**< Send buffer to pipeline or just cache them */
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM) || defined(USE_OPENCDM)
-	pthread_t createDRMSessionThreadID; 			/**< thread ID for DRM session creation */
+	std::thread createDRMSessionThreadID; 			/**< thread ID for DRM session creation */
 	bool drmSessionThreadStarted; 				/**< flag to indicate the thread is running on not */
 	AampDRMSessionManager *mDRMSessionManager;
 #endif
@@ -4036,7 +4035,7 @@ private:
 
 	std::mutex mPausePositionMonitorMutex;				// Mutex lock for PausePosition condition variable
 	std::condition_variable mPausePositionMonitorCV;	// Condition Variable to signal to stop PausePosition monitoring
-	pthread_t mPausePositionMonitoringThreadID;			// Thread Id of the PausePositionMonitoring thread
+    std::thread mPausePositionMonitoringThreadID;			// Thread Id of the PausePositionMonitoring thread
 	bool mPausePositionMonitoringThreadStarted;			// Flag to indicate PausePositionMonitoring thread started
 	TuneType mTuneType;
 	int m_fd;

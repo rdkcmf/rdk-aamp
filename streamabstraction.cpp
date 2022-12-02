@@ -47,20 +47,6 @@
 using namespace std;
 
 /**
- * @brief Thread funtion for Buffer Health Monitoring
- */
-static void* BufferHealthMonitor(void* user_data)
-{
-	MediaTrack *track = (MediaTrack *)user_data;
-	if(aamp_pthread_setname(pthread_self(), "aampBuffHealth"))
-	{
-		AAMPLOG_WARN("aamp_pthread_setname failed");
-	}
-	track->MonitorBufferHealth();
-	return NULL;
-}
-
-/**
  * @brief Start playlist downloader loop
  */
 void MediaTrack::StartPlaylistDownloaderThread()
@@ -75,6 +61,7 @@ void MediaTrack::StartPlaylistDownloaderThread()
 			abortPlaylistDownloader = false;
 			playlistDownloaderThread = new std::thread(&MediaTrack::PlaylistDownloader, this);
 			playlistDownloaderThreadStarted = true;
+			AAMPLOG_INFO("Thread created for PlaylistDownloader [%u]", playlistDownloaderThread->get_id());
 		}
 		else
 		{
@@ -98,8 +85,7 @@ void MediaTrack::StopPlaylistDownloaderThread()
 		AbortWaitForPlaylistDownload();
 		AbortFragmentDownloaderWait();
 		playlistDownloaderThread->join();
-		delete playlistDownloaderThread;
-		playlistDownloaderThread = NULL;
+		SAFE_DELETE(playlistDownloaderThread);
 		playlistDownloaderThreadStarted = false;
 		AAMPLOG_WARN("[%s] Aborted", name);
 	}
@@ -1130,50 +1116,6 @@ bool MediaTrack::InjectFragment()
 	return ret;
 } // InjectFragment
 
-
-
-/**
- * @brief Fragment injector thread
- * @param arg Pointer to MediaTrack
- * @retval NULL
- */
-static void *FragmentInjector(void *arg)
-{
-	MediaTrack *track = (MediaTrack *)arg;
-	if(aamp_pthread_setname(pthread_self(), "aampInjector"))
-	{
-		AAMPLOG_WARN("aamp_pthread_setname failed");
-	}
-	track->RunInjectLoop();
-	return NULL;
-}
-
-/**
- * @brief Fragment Chunk injector thread
- * @param arg Pointer to MediaTrack
- * @retval NULL
- */
-static void *FragmentChunkInjector(void *arg)
-{
-	MediaTrack *track = (MediaTrack *)arg;
-	bool bFlag = false;
-	if(track->type == eTRACK_VIDEO)
-	{
-		bFlag = aamp_pthread_setname(pthread_self(), "VideoChunkInjector");
-	}
-	else if(track->type == eTRACK_AUDIO)
-	{
-		bFlag = aamp_pthread_setname(pthread_self(), "AudioChunkInjector");
-	}
-	if(!bFlag)
-	{
-		AAMPLOG_WARN("aamp_pthread_setname failed");
-	}
-	track->RunInjectChunkLoop();
-	return NULL;
-}
-
-
 /**
  *  @brief Start fragment injector loop
  */
@@ -1183,13 +1125,15 @@ void MediaTrack::StartInjectLoop()
 	abortInject = false;
 	discontinuityProcessed = false;
 	assert(!fragmentInjectorThreadStarted);
-	if (0 == pthread_create(&fragmentInjectorThreadID, NULL, &FragmentInjector, this))
+	try
 	{
+		fragmentInjectorThreadID = std::thread(&MediaTrack::RunInjectLoop, this);
 		fragmentInjectorThreadStarted = true;
+		AAMPLOG_INFO("Thread created for RunInjectLoop [%u]", fragmentInjectorThreadID.get_id());
 	}
-	else
+	catch(const std::exception& e)
 	{
-		AAMPLOG_WARN("Failed to create FragmentInjector thread");
+		AAMPLOG_WARN("Failed to create FragmentInjector thread ; %s", e.what());
 	}
 }
 
@@ -1202,13 +1146,15 @@ void MediaTrack::StartInjectChunkLoop()
 	abortInjectChunk = false;
 	discontinuityProcessed = false;
 	assert(!fragmentChunkInjectorThreadStarted);
-	if (0 == pthread_create(&fragmentChunkInjectorThreadID, NULL, &FragmentChunkInjector, this))
+	try
 	{
+		fragmentChunkInjectorThreadID = std::thread(&MediaTrack::RunInjectChunkLoop, this);
 		fragmentChunkInjectorThreadStarted = true;
+		AAMPLOG_INFO("Thread created for RunInjectChunkLoop [%u]", fragmentChunkInjectorThreadID.get_id());
 	}
-	else
+	catch(const std::exception& e)
 	{
-        AAMPLOG_WARN("Failed to create FragmentChunkInjector thread");
+		AAMPLOG_WARN("Failed to create FragmentChunkInjector thread : %s", e.what());
 	}
 }
 
@@ -1223,14 +1169,17 @@ void MediaTrack::RunInjectLoop()
     if ((AAMP_NORMAL_PLAY_RATE == aamp->rate) && !bufferMonitorThreadStarted )
 
     {
-        if (0 == pthread_create(&bufferMonitorThreadID, NULL, &BufferHealthMonitor, this))
-        {
-            bufferMonitorThreadStarted = true;
-        }
-        else
-        {
-            AAMPLOG_WARN("Failed to create BufferHealthMonitor thread errno = %d, %s", errno, strerror(errno));
-        }
+		try
+		{
+			bufferMonitorThreadID = std::thread(&MediaTrack::MonitorBufferHealth, this);
+			bufferMonitorThreadStarted = true;
+			AAMPLOG_INFO("Thread created for MonitorBufferHealth [%u]", bufferMonitorThreadID.get_id());
+
+		}
+		catch(const std::exception& e)
+		{
+			AAMPLOG_WARN("Failed to create BufferHealthMonitor thread: %s", e.what());
+		}
     }
     totalInjectedDuration = 0;
     while (aamp->DownloadsAreEnabled() && keepInjecting)
@@ -1308,14 +1257,9 @@ void MediaTrack::StopInjectLoop()
 {
 	if (fragmentInjectorThreadStarted)
 	{
-		int rc = pthread_join(fragmentInjectorThreadID, NULL);
-		if (rc != 0)
-		{
-			AAMPLOG_WARN("***pthread_join fragmentInjectorThread returned %d(%s)", rc, strerror(rc));
-		}
+		fragmentInjectorThreadID.join();
 #ifdef TRACE
-		else
-		{
+	        {
 			AAMPLOG_WARN("joined fragmentInjectorThread");
 		}
 #endif
@@ -1330,13 +1274,8 @@ void MediaTrack::StopInjectChunkLoop()
 {
 	if (fragmentChunkInjectorThreadStarted)
 	{
-		int rc = pthread_join(fragmentChunkInjectorThreadID, NULL);
-		if (rc != 0)
-		{
-			AAMPLOG_WARN("***pthread_join fragmentInjectorChunkThread returned %d(%s)", rc, strerror(rc));
-		}
+		fragmentChunkInjectorThreadID.join();
 #ifdef TRACE
-		else
 		{
 			AAMPLOG_WARN("joined fragmentInjectorChunkThread");
 		}
@@ -1475,7 +1414,7 @@ void MediaTrack::FlushFragmentChunks()
  */
 MediaTrack::MediaTrack(AampLogManager *logObj, TrackType type, PrivateInstanceAAMP* aamp, const char* name) :
 		eosReached(false), enabled(false), numberOfFragmentsCached(0), numberOfFragmentChunksCached(0), fragmentIdxToInject(0), fragmentChunkIdxToInject(0),
-fragmentIdxToFetch(0), fragmentChunkIdxToFetch(0), abort(false), fragmentInjectorThreadID(0), fragmentChunkInjectorThreadID(0),bufferMonitorThreadID(0), totalFragmentsDownloaded(0), totalFragmentChunksDownloaded(0),
+fragmentIdxToFetch(0), fragmentChunkIdxToFetch(0), abort(false), fragmentInjectorThreadID(), fragmentChunkInjectorThreadID(),bufferMonitorThreadID(), totalFragmentsDownloaded(0), totalFragmentChunksDownloaded(0),
 		fragmentInjectorThreadStarted(false), fragmentChunkInjectorThreadStarted(false),bufferMonitorThreadStarted(false), totalInjectedDuration(0), totalInjectedChunksDuration(0), currentInitialCacheDurationSeconds(0),
 		sinkBufferIsFull(false), cachingCompleted(false), fragmentDurationSeconds(0),  segDLFailCount(0),segDrmDecryptFailCount(0),mSegInjectFailCount(0),
 		bufferStatus(BUFFER_STATUS_GREEN), prevBufferStatus(BUFFER_STATUS_GREEN),
@@ -1518,13 +1457,8 @@ MediaTrack::~MediaTrack()
 {
 	if (bufferMonitorThreadStarted)
 	{
-		int rc = pthread_join(bufferMonitorThreadID, NULL);
-		if (rc != 0)
-		{
-			AAMPLOG_WARN("***pthread_join bufferMonitorThreadID returned %d(%s)", rc, strerror(rc));
-		}
+		bufferMonitorThreadID.join();
 #ifdef TRACE
-		else
 		{
 			AAMPLOG_WARN("joined bufferMonitorThreadID");
 		}

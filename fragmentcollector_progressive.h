@@ -156,6 +156,11 @@ public:
      */
     void FetcherLoop();
     /**
+     * @fn FragmentCollector
+     * @retval void
+     */
+    void FragmentCollector();
+    /**
      * @fn GetAvailableVideoTracks
      * @return available video tracks.
      */
@@ -197,7 +202,7 @@ protected:
 private:
     void StreamFile( const char *uri, long *http_error );
     bool fragmentCollectorThreadStarted;
-    pthread_t fragmentCollectorThreadID;
+    std::thread fragmentCollectorThreadID;
 };
 
 #endif //FRAGMENTCOLLECTOR_PROGRESSIVE_H_

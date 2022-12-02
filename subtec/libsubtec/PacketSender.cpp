@@ -71,7 +71,7 @@ bool PacketSender::Init()
 static struct SubtecSimulatorState
 {
 	bool started;
-	pthread_t threadId;
+	std::thread threadId;
 	int sockfd;
 } mSubtecSimulatorState;
 
@@ -140,7 +140,7 @@ static void DumpPacket(const unsigned char *ptr, size_t len)
     }
 }
 
-static void *SubtecSimulatorThread( void *param )
+static void SubtecSimulatorThread( void *param )
 {
 	struct SubtecSimulatorState *state = (SubtecSimulatorState *)param;
 	struct sockaddr cliaddr;
@@ -159,7 +159,7 @@ static void *SubtecSimulatorThread( void *param )
 		free( buffer );
 	}
 	close( state->sockfd );
-	return 0;
+	return;
 }
 
 static bool PrepareSubtecSimulator( const char *name )
@@ -179,7 +179,15 @@ static bool PrepareSubtecSimulator( const char *name )
 			if( bind( state->sockfd, (struct sockaddr*)&serverAddr, len ) == 0 )
 			{
 				state->started = true;
-				pthread_create(&state->threadId, NULL, &SubtecSimulatorThread, (void *)state);
+                try
+                {
+                    state->threadId = std::thread(&SubtecSimulatorThread, (void *)state);
+                    AAMPLOG_INFO("Thread created for SubtecSimulatorThread [%u]", state->threadId.get_id());
+                }
+                catch(std::exception &e)
+                {
+                    AAMPLOG_ERR( "Failed to create thread SubtecSimulatorThread : %s", e.what());
+                }
 			}
 			else
 			{
@@ -284,6 +292,7 @@ bool PacketSender::initSenderTask()
 {
     try {
         mSendThread = std::thread(runWorkerTask, this);
+        AAMPLOG_INFO("Thread created for runWorkerTask [%u]", mSendThread.get_id());
     }
     catch (const std::exception& e) {
         AAMPLOG_WARN("PacketSender: Error in initSenderTask: %s", e.what());

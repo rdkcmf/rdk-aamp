@@ -278,6 +278,11 @@ public :
 	 * @fn zeroDrmGetPlaybackKeyAsync
 	 */
 	bool zeroDrmGetPlaybackKeyAsync(const uint32_t contextId , const char *sTagLine);
+	/**
+	 * @brief Thread entry function for Async mode processing 
+	 *
+	 */
+	void ThreadEntryFunction() {zeroDRMWorkerThreadTask(); return;}
 #endif
 	/**
 	 * @brief Function to set the caching flag - This can be called to disable key caching in adapter
@@ -294,7 +299,7 @@ private :
 	pthread_mutex_t mMutexJSCondVar ;
 	pthread_mutex_t mMutexJPCondVar ;	
 	pthread_mutex_t mMutexVar ;		
-	pthread_t mWorkerThreadId;
+	std::thread mWorkerThreadId;
 	bool mWorkerThreadStarted;
 	bool mWorkerThreadEndFlag;
 	typedef std::queue<ZeroDrmWorkerData *> ZWorkerDataQ;
@@ -365,13 +370,6 @@ private:
 	 *
 	 */
 	bool zeroDrmIsContextIdValid(const uint32_t contextId );
-#ifdef PLAYBACK_ASYNC_SUPPORT
-	/**
-	 * @brief Thread entry function for Async mode processing 
-	 *
-	 */
-	static void * ThreadEntryFunction(void * This) {((ZeroDRMAccessAdapter *)This)->zeroDRMWorkerThreadTask(); return NULL;}
-#endif
 	inline uint8_t getHexFromChar(char c)
         {
                 if (c >= '0' && c <= '9')

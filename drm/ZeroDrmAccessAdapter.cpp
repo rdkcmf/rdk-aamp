@@ -69,10 +69,9 @@ void ZeroDRMAccessAdapter::deleteInstance()
 /**
  * @brief Constructor
  */
-ZeroDRMAccessAdapter::ZeroDRMAccessAdapter () 
+ZeroDRMAccessAdapter::ZeroDRMAccessAdapter () : mWorkerThreadId()
 {
 	mCacheReUseFlag	=	true;
-	mWorkerThreadId 	= 0;
 	mWorkerThreadStarted = false;
 	mWorkerThreadEndFlag	= false;
 	mJobStatusCondVar 	= PTHREAD_COND_INITIALIZER;
@@ -83,13 +82,14 @@ ZeroDRMAccessAdapter::ZeroDRMAccessAdapter ()
 
 #ifdef  PLAYBACK_ASYNC_SUPPORT
 	// start the thread 
-	if (0 == pthread_create(&mWorkerThreadId, NULL, &ThreadEntryFunction, this))
+	try
 	{
-		logprintf("[%s]->Created workerThread",__FUNCTION__);
+		mWorkerThreadId = std::thread(&ZeroDRMAccessAdapter::ThreadEntryFunction, this);
+        logprintf("[%s]->Created workerThread[%u]",__FUNCTION__, mWorkerThreadId.get_id());
 	}
-	else
+	catch(const std::exception& e)
 	{
-		logprintf("[%s]->Failed to create workerThread",__FUNCTION__);
+		logprintf("[%s]->Failed to create workerThread : %s",__FUNCTION__, e.what());
 	}
 #endif
 }
@@ -106,16 +106,8 @@ ZeroDRMAccessAdapter::~ZeroDRMAccessAdapter ()
 		pthread_mutex_lock(&mMutexJPCondVar);
 		pthread_cond_signal(&mJobPostingCondVar);
 		pthread_mutex_unlock(&mMutexJPCondVar );
-		void *ptr = NULL;
-		int ret = pthread_join(mWorkerThreadId, &ptr);
-		if (ret != 0)
-		{
-			logprintf("[%s]***pthread_join workerThreadId returned [%d][%s]",__FUNCTION__, ret, strerror(ret));
-		}
-		else
-		{
-			logprintf("[%s] Joined workerThreadId",__FUNCTION__);
-		}
+		mWorkerThreadId.join();
+		logprintf("[%s] Joined workerThreadId",__FUNCTION__);
 	}
 
 

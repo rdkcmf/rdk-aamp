@@ -4199,9 +4199,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			aux->streamOutputFormat = FORMAT_INVALID;
 		}
 		aamp->profiler.SetBandwidthBitsPerSecondAudio(audio->GetCurrentBandWidth());
-
-		pthread_t trackPLDownloadThreadID;
-		bool trackPLDownloadThreadStarted = false;
 		if (audio->enabled)
 		{
 			if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(audio->mPlaylistUrl, &audio->playlist, audio->mEffectiveUrl))
@@ -4307,11 +4304,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				aux->enabled = false;
 				aux->streamOutputFormat = FORMAT_INVALID;
 			}
-		}
-
-		if (trackPLDownloadThreadStarted)
-		{
-			pthread_join(trackPLDownloadThreadID, NULL);
 		}
 		if (video->enabled && !video->playlist.len)
 		{
@@ -5197,12 +5189,12 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 * @param This[in] PrivateAampInstance Context
 * @return none
 ***************************************************************************/
-static void * CachePlaylistThreadFunction(void * This) 
+void StreamAbstractionAAMP_HLS::CachePlaylistThreadFunction(void) 
 {
 	// DELIA-41566 [PEACOCK] temporary hack required to work around Adobe SSAI session lifecycle problem
 	// Temporary workaround code to address Peacock/Adobe Server issue 
-	((PrivateInstanceAAMP*)This)->PreCachePlaylistDownloadTask(); 
-	return NULL;
+	aamp->PreCachePlaylistDownloadTask(); 
+	return;
 }
 
 /**
@@ -5241,14 +5233,15 @@ void StreamAbstractionAAMP_HLS::PreCachePlaylist()
 	
 	// Set the download list to PrivateInstance to download it 
 	aamp->SetPreCacheDownloadList(dnldList);
-	int ret = pthread_create(&aamp->mPreCachePlaylistThreadId, NULL, CachePlaylistThreadFunction,(void *)aamp );
-	if(ret != 0)
+	
+	try
 	{
-		AAMPLOG_ERR("pthread_create failed for PreCachePlaylist with errno = %d, %s", errno, strerror(errno));
+		aamp->mPreCachePlaylistThreadId = std::thread(&StreamAbstractionAAMP_HLS::CachePlaylistThreadFunction, this);
+		AAMPLOG_INFO("Thread created for CachePlaylistThreadFunction [%u]", aamp->mPreCachePlaylistThreadId.get_id());
 	}
-	else
+	catch(const std::exception& e)
 	{
-		aamp->mPreCachePlaylistThreadFlag = true;
+		AAMPLOG_ERR("Thread creation failed for PreCachePlaylist : %s", e.what());
 	}
 }
 
@@ -5494,19 +5487,17 @@ void TrackState::RunFetchLoop()
 /***************************************************************************
 * @fn FragmentCollector
 * @brief Fragment collector thread function
-*
-* @param arg[in] TrackState pointer
+
 * @return void
 ***************************************************************************/
-static void *FragmentCollector(void *arg)
+void TrackState::FragmentCollector(void)
 {
-	TrackState *track = (TrackState *)arg;
 	if(aamp_pthread_setname(pthread_self(), "aampHLSFetcher"))
 	{
 		AAMPLOG_WARN("aamp_pthread_setname failed");
 	}
-	track->RunFetchLoop();
-	return NULL;
+	RunFetchLoop();
+	return;
 }
 
 /**
@@ -5558,7 +5549,7 @@ TrackState::TrackState(AampLogManager *logObj, TrackType type, StreamAbstraction
 		streamOutputFormat(FORMAT_INVALID), playContext(NULL),
 		playTargetOffset(0),
 		discontinuity(false),
-		refreshPlaylist(false), fragmentCollectorThreadID(0),
+		refreshPlaylist(false), fragmentCollectorThreadID(),
 		fragmentCollectorThreadStarted(false),
 		manifestDLFailCount(0),
 		mCMSha1Hash(NULL), mDrmTimeStamp(0), mDrmMetaDataIndexCount(0),firstIndexDone(false), mDrm(NULL), mDrmLicenseRequestPending(false),
@@ -5656,12 +5647,7 @@ void TrackState::Stop(bool clearDRM)
 	}
 	if (fragmentCollectorThreadStarted)
 	{
-		void *value_ptr = NULL;
-		int rc = pthread_join(fragmentCollectorThreadID, &value_ptr);
-		if (rc != 0)
-		{
-			AAMPLOG_WARN("***pthread_join fragmentCollectorThread returned %d(%s)", rc, strerror(rc));
-		}
+		fragmentCollectorThreadID.join();
 #ifdef TRACE
 		else
 		{
@@ -5725,14 +5711,18 @@ void TrackState::Start(void)
 	{
 		StartPlaylistDownloaderThread();
 	}
-	if (0 == pthread_create(&fragmentCollectorThreadID, NULL, &FragmentCollector, this))
+
+	try
 	{
+		fragmentCollectorThreadID =  std::thread(&TrackState::FragmentCollector, this);
 		fragmentCollectorThreadStarted = true;
+		AAMPLOG_INFO("Thread created for FragmentCollector [%u]", fragmentCollectorThreadID.get_id());
 	}
-	else
+	catch(const std::exception& e)
 	{
-		AAMPLOG_WARN("Failed to create FragmentCollector thread");
+		AAMPLOG_WARN("Failed to create FragmentCollector thread : %s", e.what());
 	}
+
 	if(aamp->IsPlayEnabled())
 	{
 		StartInjectLoop();

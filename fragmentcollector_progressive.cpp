@@ -180,15 +180,14 @@ void StreamAbstractionAAMP_PROGRESSIVE::FetcherLoop()
  * @param arg Pointer to StreamAbstractionAAMP_PROGRESSIVE object
  * @retval void
  */
-static void * FragmentCollector(void *arg)
+void StreamAbstractionAAMP_PROGRESSIVE::FragmentCollector(void)
 {
     if(aamp_pthread_setname(pthread_self(), "aampPSFetcher"))
     {
         AAMPLOG_WARN("aamp_pthread_setname failed\n");
     }
-    StreamAbstractionAAMP_PROGRESSIVE *context = (StreamAbstractionAAMP_PROGRESSIVE *)arg;
-    context->FetcherLoop();
-    return NULL;
+    FetcherLoop();
+    return;
 }
 
 
@@ -225,7 +224,7 @@ AAMPStatusType StreamAbstractionAAMP_PROGRESSIVE::Init(TuneType tuneType)
  * @brief StreamAbstractionAAMP_PROGRESSIVE Constructor
  */
 StreamAbstractionAAMP_PROGRESSIVE::StreamAbstractionAAMP_PROGRESSIVE(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(logObj, aamp),
-fragmentCollectorThreadStarted(false), fragmentCollectorThreadID(0), seekPosition(seek_pos)
+fragmentCollectorThreadStarted(false), fragmentCollectorThreadID(), seekPosition(seek_pos)
 {
     trickplayMode = (rate != AAMP_NORMAL_PLAY_RATE);
 }
@@ -242,8 +241,17 @@ StreamAbstractionAAMP_PROGRESSIVE::~StreamAbstractionAAMP_PROGRESSIVE()
  */
 void StreamAbstractionAAMP_PROGRESSIVE::Start(void)
 {
-    pthread_create(&fragmentCollectorThreadID, NULL, &FragmentCollector, this);
-    fragmentCollectorThreadStarted = true;
+    try
+    {
+        fragmentCollectorThreadID = std::thread(&StreamAbstractionAAMP_PROGRESSIVE::FragmentCollector, this);
+        fragmentCollectorThreadStarted = true;
+        AAMPLOG_INFO("Thread created for FragmentCollector [%u]", fragmentCollectorThreadID.get_id());
+    }
+    catch(const std::exception& e)
+    {
+        AAMPLOG_ERR("Failed to create FragmentCollector thread : %s", e.what());
+    }
+    
 }
 
 /**
@@ -254,14 +262,8 @@ void StreamAbstractionAAMP_PROGRESSIVE::Stop(bool clearChannelData)
     if(fragmentCollectorThreadStarted)
     {
         aamp->DisableDownloads();
-
-        int rc = pthread_join(fragmentCollectorThreadID, NULL);
-        if (rc != 0)
-        {
-            AAMPLOG_WARN("***pthread_join failed, returned %d\n", rc);
-        }
+        fragmentCollectorThreadID.join();
         fragmentCollectorThreadStarted = false;
-
         aamp->EnableDownloads();
     }
  }

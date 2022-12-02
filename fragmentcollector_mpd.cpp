@@ -290,7 +290,7 @@ static bool IsIframeTrack(IAdaptationSet *adaptationSet);
  * @brief StreamAbstractionAAMP_MPD Constructor
  */
 StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, class PrivateInstanceAAMP *aamp,double seek_pos, float rate): StreamAbstractionAAMP(logObj, aamp),
-	fragmentCollectorThreadStarted(false), mLangList(), seekPosition(seek_pos), rate(rate), fragmentCollectorThreadID(0), createDRMSessionThreadID(0),
+	fragmentCollectorThreadStarted(false), mLangList(), seekPosition(seek_pos), rate(rate), fragmentCollectorThreadID(), createDRMSessionThreadID(),
 	drmSessionThreadStarted(false), mpd(NULL), mNumberOfTracks(0), mCurrentPeriodIdx(0), mEndPosition(0), mIsLiveStream(true), mIsLiveManifest(true),
 	mStreamInfo(NULL), mPrevStartTimeSeconds(0), mPrevLastSegurlMedia(""), mPrevLastSegurlOffset(0),
 	mPeriodEndTime(0), mPeriodStartTime(0), mPeriodDuration(0), mMinUpdateDurationMs(DEFAULT_INTERVAL_BETWEEN_MPD_UPDATES_MS),
@@ -312,7 +312,7 @@ StreamAbstractionAAMP_MPD::StreamAbstractionAAMP_MPD(AampLogManager *logObj, cla
 	,mServerUtcTime(0)
 	,mDeltaTime(0)
 	,mHasServerUtcTime(0)
-	,latencyMonitorThreadStarted(false),prevLatencyStatus(LATENCY_STATUS_UNKNOWN),latencyStatus(LATENCY_STATUS_UNKNOWN),latencyMonitorThreadID(0)
+	,latencyMonitorThreadStarted(false),prevLatencyStatus(LATENCY_STATUS_UNKNOWN),latencyStatus(LATENCY_STATUS_UNKNOWN),latencyMonitorThreadID()
 	,mStreamLock()
 	,mProfileCount(0)
 	,playlistMutex(), mIterPeriodIndex(0), mNumberOfPeriods(0)
@@ -3205,7 +3205,18 @@ static void ParseXmlNS(const std::string& fullName, std::string& ns, std::string
 
 #ifdef AAMP_MPD_DRM
 
-extern void *CreateDRMSession(void *arg);
+extern void CreateDRMSession(void *arg);
+
+/** @brief Create DRMSession thread
+ */
+void StreamAbstractionAAMP_MPD::CreateDRMSessionMPD(PrivateInstanceAAMP *aamp, std::shared_ptr<AampDrmHelper> drmHelper, MediaType mediaType)
+{
+	DrmSessionParams* sessionParams = new DrmSessionParams;
+    	sessionParams->aamp = aamp;
+    	sessionParams->drmHelper = drmHelper;
+    	sessionParams->stream_type = mediaType;
+    	CreateDRMSession(sessionParams);
+}
 
 
 /**
@@ -3450,21 +3461,11 @@ void StreamAbstractionAAMP_MPD::ProcessVssContentProtection(std::shared_ptr<Aamp
 	{
 		hasDrm = true;
 		aamp->licenceFromManifest = true;
-		DrmSessionParams* sessionParams = new DrmSessionParams;
-		if(sessionParams != NULL)
+        
 		{
-			sessionParams->aamp = aamp;
-			sessionParams->drmHelper = drmHelper;
-			sessionParams->stream_type = mediaType;
-
 			if(drmSessionThreadStarted) //In the case of license rotation
 			{
-				void *value_ptr = NULL;
-				int rc = pthread_join(createDRMSessionThreadID, &value_ptr);
-				if (rc != 0)
-				{
-					AAMPLOG_ERR("(%s) pthread_join returned %d for createDRMSession Thread", getMediaTypeName(mediaType), rc);
-				}
+				createDRMSessionThreadID.join();
 				drmSessionThreadStarted = false;
 			}
 			/*
@@ -3472,21 +3473,18 @@ void StreamAbstractionAAMP_MPD::ProcessVssContentProtection(std::shared_ptr<Aamp
 			* Memory allocated for data via base64_Decode() and memory for sessionParams
 			* is released in CreateDRMSession.
 			*/
-			if(0 == pthread_create(&createDRMSessionThreadID,NULL,CreateDRMSession,sessionParams))
+			try
 			{
-				AAMPLOG_INFO("Thread created");
+				createDRMSessionThreadID = std::thread(&StreamAbstractionAAMP_MPD::CreateDRMSessionMPD, this, aamp, drmHelper, mediaType);
 				drmSessionThreadStarted = true;
 				mLastDrmHelper = drmHelper;
 				aamp->setCurrentDrm(drmHelper);
+				AAMPLOG_INFO("Thread created for CreateDRMSessionMPD [%u]", createDRMSessionThreadID.get_id());
 			}
-			else
+			catch(const std::exception& e)
 			{
-				AAMPLOG_ERR("(%s) pthread_create failed for CreateDRMSession : error code %d, %s", getMediaTypeName(mediaType), errno, strerror(errno));
+				AAMPLOG_ERR("(%s) std::thread failed for CreateDRMSession : %s", getMediaTypeName(mediaType), e.what());
 			}
-		}
-		else
-		{
-			AAMPLOG_WARN("sessionParams  is null");  //CID:85612 - Null Returns
 		}
 	}
 	else
@@ -3511,19 +3509,10 @@ void StreamAbstractionAAMP_MPD::ProcessContentProtection(IAdaptationSet * adapta
 	{
 		hasDrm = true;
 		aamp->licenceFromManifest = true;
-		DrmSessionParams* sessionParams = new DrmSessionParams;
-		sessionParams->aamp = aamp;
-		sessionParams->drmHelper = drmHelper;
-		sessionParams->stream_type = mediaType;
 
 		if(drmSessionThreadStarted) //In the case of license rotation
 		{
-			void *value_ptr = NULL;
-			int rc = pthread_join(createDRMSessionThreadID, &value_ptr);
-			if (rc != 0)
-			{
-				AAMPLOG_ERR("(%s) pthread_join returned %d for createDRMSession Thread", getMediaTypeName(mediaType), rc);
-			}
+	    	createDRMSessionThreadID.join();
 			drmSessionThreadStarted = false;
 		}
 		/*
@@ -3531,16 +3520,19 @@ void StreamAbstractionAAMP_MPD::ProcessContentProtection(IAdaptationSet * adapta
 		* Memory allocated for data via base64_Decode() and memory for sessionParams
 		* is released in CreateDRMSession.
 		*/
-		if(0 == pthread_create(&createDRMSessionThreadID,NULL,CreateDRMSession,sessionParams))
+		try
 		{
+			createDRMSessionThreadID = std::thread(&StreamAbstractionAAMP_MPD::CreateDRMSessionMPD, this, aamp, drmHelper, mediaType);
 			drmSessionThreadStarted = true;
+			AAMPLOG_INFO("Thread created for CreateDRMSessionMPD [%u]", createDRMSessionThreadID.get_id());
 			mLastDrmHelper = drmHelper;
 			aamp->setCurrentDrm(drmHelper);
 		}
-		else
+		catch (std::exception &e)
 		{
-			AAMPLOG_ERR("(%s) pthread_create failed for CreateDRMSession : error code %d, %s", getMediaTypeName(mediaType), errno, strerror(errno));
+			AAMPLOG_ERR("(%s) std::thread failed for CreateDRMSession : %s", getMediaTypeName(mediaType), e.what());
 		}
+
 		AAMPLOG_INFO("Current DRM Selected is %s", drmHelper->friendlyName().c_str());
 	}
 	else if (!drmHelper)
@@ -6533,27 +6525,22 @@ void StreamAbstractionAAMP_MPD::ProcessTrickModeRestriction(Node* node, const st
  * @brief Fragment downloader thread
  * @param arg HeaderFetchParams pointer
  */
-static void * TrackDownloader(void *arg)
+void StreamAbstractionAAMP_MPD::TrackDownloader(int trackIdx, std::string initialization)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
-	class HeaderFetchParams* fetchParms = (class HeaderFetchParams*)arg;
-	if(aamp_pthread_setname(pthread_self(), "aampMPDTrackDL"))
-	{
-		AAMPLOG_WARN("aamp_pthread_setname failed");
-	}
+	double fragmentDuration = 0.0;
+	class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[trackIdx];
+
+
 	//Calling WaitForFreeFragmentAvailable timeout as 0 since waiting for one tracks
 	//init header fetch can slow down fragment downloads for other track
-	if(fetchParms->pMediaStreamContext->WaitForFreeFragmentAvailable(0))
+	if(pMediaStreamContext->WaitForFreeFragmentAvailable(0))
 	{
-		fetchParms->pMediaStreamContext->profileChanged = false;
-		fetchParms->context->FetchFragment(fetchParms->pMediaStreamContext,
-				fetchParms->initialization,
-				fetchParms->fragmentduration,
-				fetchParms->isinitialization, getCurlInstanceByMediaType(fetchParms->pMediaStreamContext->mediaType), //CurlContext 0=Video, 1=Audio)
-				fetchParms->discontinuity);
-		fetchParms->pMediaStreamContext->discontinuity = false;
+		pMediaStreamContext->profileChanged = false;
+		FetchFragment(pMediaStreamContext, initialization, fragmentDuration, true, getCurlInstanceByMediaType(pMediaStreamContext->mediaType), //CurlContext 0=Video, 1=Audio)
+			pMediaStreamContext->discontinuity);
+		pMediaStreamContext->discontinuity = false;
 	}
-	return NULL;
 }
 
 
@@ -6771,6 +6758,7 @@ void StreamAbstractionAAMP_MPD::ProcessEAPLicenseRequest()
 			mAbortDeferredLicenseLoop = false;
 			deferredDRMRequestThread = new std::thread(&StreamAbstractionAAMP_MPD::StartDeferredDRMRequestThread, this, eMEDIATYPE_VIDEO);
 			deferredDRMRequestThreadStarted = true;
+			AAMPLOG_INFO("Thread created for Deferred DRM License [%u]", deferredDRMRequestThread->get_id());
 		}
 	}
 	else
@@ -8825,8 +8813,7 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitFragments(bool discontinuity)
 void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(int trackIdx, bool discontinuity)
 {
 		FN_TRACE_F_MPD( __FUNCTION__ );
-		pthread_t trackDownloadThreadID;
-		HeaderFetchParams *fetchParams = NULL;
+		std::thread trackDownloadThreadID;
 		bool dlThreadCreated = false;
 		class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[trackIdx];
 
@@ -8855,22 +8842,15 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(int trackIdx, bool 
 						 */
 						if(!dlThreadCreated)
 						{
-							fetchParams = new HeaderFetchParams();
-							fetchParams->context = this;
-							fetchParams->fragmentduration = fragmentDuration;
-							fetchParams->initialization = initialization;
-							fetchParams->isinitialization = true;
-							fetchParams->pMediaStreamContext = pMediaStreamContext;
-							fetchParams->discontinuity = pMediaStreamContext->discontinuity;
-							int ret = pthread_create(&trackDownloadThreadID, NULL, TrackDownloader, fetchParams);
-							if(ret != 0)
+							try
 							{
-								AAMPLOG_WARN("StreamAbstractionAAMP_MPD: pthread_create failed for TrackDownloader with errno = %d, %s", errno, strerror(errno));
-								SAFE_DELETE(fetchParams);
-							}
-							else
-							{
+								trackDownloadThreadID = std::thread(&StreamAbstractionAAMP_MPD::TrackDownloader, this, trackIdx, initialization);
 								dlThreadCreated = true;
+								AAMPLOG_INFO("Thread created for TrackDownloader [%u]", trackDownloadThreadID.get_id());
+							}
+							catch(std::exception &e)
+							{
+								AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Thread create failed for TrackDownloader : %s", e.what());
 							}
 						}
 						else
@@ -8965,21 +8945,15 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(int trackIdx, bool 
 								 */
 								if(!dlThreadCreated)
 								{
-									fetchParams = new HeaderFetchParams();
-									fetchParams->context = this;
-									fetchParams->fragmentduration = fragmentDuration;
-									fetchParams->initialization = initialization;
-									fetchParams->isinitialization = true;
-									fetchParams->pMediaStreamContext = pMediaStreamContext;
-									int ret = pthread_create(&trackDownloadThreadID, NULL, TrackDownloader, fetchParams);
-									if(ret != 0)
+									try
 									{
-										AAMPLOG_WARN("StreamAbstractionAAMP_MPD: pthread_create failed for TrackDownloader with errno = %d, %s", errno, strerror(errno));
-										SAFE_DELETE(fetchParams);
-									}
-									else
-									{
+										trackDownloadThreadID = std::thread(&StreamAbstractionAAMP_MPD::TrackDownloader, this, trackIdx, initialization);
 										dlThreadCreated = true;
+										AAMPLOG_INFO("Thread created for TrackDownloader [%u]", trackDownloadThreadID.get_id());
+									}
+									catch(const std::exception& e)
+									{
+										AAMPLOG_WARN("StreamAbstractionAAMP_MPD: std::thread failed for TrackDownloader : %s", e.what());
 									}
 								}
 								else
@@ -9082,10 +9056,9 @@ void StreamAbstractionAAMP_MPD::FetchAndInjectInitialization(int trackIdx, bool 
 
 	if(dlThreadCreated)
 	{
-		AAMPLOG_TRACE("Waiting for pthread_join trackDownloadThread");
-		pthread_join(trackDownloadThreadID, NULL);
+		AAMPLOG_TRACE("Waiting for join trackDownloadThread");
+		trackDownloadThreadID.join();
 		AAMPLOG_TRACE("Joined trackDownloadThread");
-		SAFE_DELETE(fetchParams);
 	}
 }
 
@@ -9713,6 +9686,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 												delta,
 												&waitForFreeFrag,
 												&bCacheFullState);
+							        AAMPLOG_TRACE("Thread created for parallelDownload:AdvanceTrack [%d][%u]", trackIdx, parallelDownload[trackIdx]->get_id());
 							}
 							else
 							{
@@ -10135,8 +10109,17 @@ void StreamAbstractionAAMP_MPD::Start(void)
 #ifdef AAMP_MPD_DRM
 	aamp->mDRMSessionManager->setSessionMgrState(SessionMgrState::eSESSIONMGR_ACTIVE);
 #endif
-	fragmentCollectorThreadID = new std::thread(&StreamAbstractionAAMP_MPD::FetcherLoop, this);
-	fragmentCollectorThreadStarted = true;
+	try{
+		fragmentCollectorThreadID = std::thread(&StreamAbstractionAAMP_MPD::FetcherLoop, this);
+		fragmentCollectorThreadStarted = true;
+		AAMPLOG_INFO("Thread created for FetcherLoop [%u]", fragmentCollectorThreadID.get_id());
+		
+	}
+	catch (std::exception &e)
+	{
+		AAMPLOG_ERR("Thread alloaction failed for FetcherLoop : %s ", e.what());
+	}
+
 	for (int i = 0; i < mNumberOfTracks; i++)
 	{
 		if(aamp->IsPlayEnabled())
@@ -10188,12 +10171,8 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 
 	if(latencyMonitorThreadStarted)
 	{
-		AAMPLOG_INFO("Waiting to join StartLatencyMonitorThread");
-		int rc = pthread_join(latencyMonitorThreadID, NULL);
-		if (rc != 0)
-		{
-			AAMPLOG_WARN("pthread_join returned %d for StartLatencyMonitorThread", rc);
-		}
+		AAMPLOG_TRACE("Waiting to join StartLatencyMonitorThread");
+	 	latencyMonitorThreadID.join();
 		AAMPLOG_INFO("Joined StartLatencyMonitorThread");
 		latencyMonitorThreadStarted = false;
 	}
@@ -10206,7 +10185,7 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 
 	if(fragmentCollectorThreadStarted)
 	{
-		fragmentCollectorThreadID->join();
+		fragmentCollectorThreadID.join();
 		fragmentCollectorThreadStarted = false;
 	}
 
@@ -10234,11 +10213,7 @@ void StreamAbstractionAAMP_MPD::Stop(bool clearChannelData)
 	if(drmSessionThreadStarted)
 	{
 		AAMPLOG_INFO("Waiting to join CreateDRMSession thread");
-		int rc = pthread_join(createDRMSessionThreadID, NULL);
-		if (rc != 0)
-		{
-			AAMPLOG_WARN("pthread_join returned %d for createDRMSession Thread", rc);
-		}
+		createDRMSessionThreadID.join();
 		AAMPLOG_INFO("Joined CreateDRMSession thread");
 		drmSessionThreadStarted = false;
 	}
@@ -12053,39 +12028,22 @@ double StreamAbstractionAAMP_MPD::GetEncoderDisplayLatency()
 }
 
 /**
- * @brief Latency monitor thread
- * @param arg Pointer to FragmentCollector
- * @retval NULL
- */
-static void *LatencyMonitor(void *arg)
-{
-    FN_TRACE_F_MPD( __FUNCTION__ );
-    StreamAbstractionAAMP_MPD *stAbsAAMP_MPD = (StreamAbstractionAAMP_MPD *)arg;
-    if(aamp_pthread_setname(pthread_self(), "aampLatencyMonitor"))
-    {
-        AAMPLOG_WARN("aamp_pthread_setname failed");
-    }
-    AAMPLOG_WARN("LatencyMonitor -> Invoke MonitorLatency() ");
-    stAbsAAMP_MPD->MonitorLatency();
-    return NULL;
-}
-
-/**
  * @brief Starts Latency monitor loop
  */
 void StreamAbstractionAAMP_MPD::StartLatencyMonitorThread()
 {
     FN_TRACE_F_MPD( __FUNCTION__ );
     assert(!latencyMonitorThreadStarted);
-    if (0 == pthread_create(&latencyMonitorThreadID, NULL, &LatencyMonitor, this))
-    {
+    try
+	{
+		latencyMonitorThreadID = std::thread(&StreamAbstractionAAMP_MPD::MonitorLatency, this);
         latencyMonitorThreadStarted = true;
-        AAMPLOG_WARN("Latency monitor thread started");
-    }
-    else
-    {
-        AAMPLOG_WARN("Failed to create LatencyMonitor thread");
-    }
+		AAMPLOG_INFO("Thread created Latency monitor [%u]", latencyMonitorThreadID.get_id());
+	}
+	catch(const std::exception& e)
+	{
+		AAMPLOG_WARN("Failed to create LatencyMonitor thread : %s", e.what());
+	}
 }
 
 /**

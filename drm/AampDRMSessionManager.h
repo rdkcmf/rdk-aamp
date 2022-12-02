@@ -42,15 +42,6 @@
 #define AUDIO_SESSION 1
 
 /**
- *  @struct	DrmSessionCacheInfo
- *  @brief	Drm Session Cache Information for keeping single DRM session always.
- */
-typedef struct DrmSessionCacheInfo{
-	pthread_t createDRMSessionThreadID; /**< Thread Id for DrM Session thread */
-	bool drmSessionThreadStarted; 	    /**< DRM Session start flag to identify the DRM Session thread running */
-}DrmSessionCacheInfo;
-
-/**
  *  @struct	DrmSessionDataInfo
  *  @brief	Drm Session Data Information 
  * for storing in a pool from parser.
