@@ -679,10 +679,10 @@ protected:
 private:
 	pthread_cond_t fragmentFetched;     	/**< Signaled after a fragment is fetched*/
 	pthread_cond_t fragmentInjected;    	/**< Signaled after a fragment is injected*/
-	pthread_t fragmentInjectorThreadID;  	/**< Fragment injector thread id*/
+	std::thread fragmentInjectorThreadID;  	/**< Fragment injector thread id*/
 	pthread_cond_t fragmentChunkInjected;	/**< Signaled after a fragment is injected*/
-	pthread_t fragmentChunkInjectorThreadID;/**< Fragment injector thread id*/
-	pthread_t bufferMonitorThreadID;    	/**< Buffer Monitor thread id */
+	std::thread fragmentChunkInjectorThreadID;/**< Fragment injector thread id*/
+    std::thread bufferMonitorThreadID;    	/**< Buffer Monitor thread id */
 	int totalFragmentsDownloaded;       	/**< Total fragments downloaded since start by track*/
 	int totalFragmentChunksDownloaded;      /**< Total fragments downloaded since start by track*/
 	bool fragmentInjectorThreadStarted; 	/**< Fragment injector's thread started or not*/

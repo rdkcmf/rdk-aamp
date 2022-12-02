@@ -1094,6 +1094,12 @@ const FormatMap * GetVideoFormatForCodec( const char *codecs )
 	return NULL;
 }
 
+std::size_t GetPrintableThreadID( const std::thread &t )
+{
+	static std::hash<std::thread::id> hasher;
+	return hasher( t.get_id() );
+}
+
 /**
  * EOF
  */

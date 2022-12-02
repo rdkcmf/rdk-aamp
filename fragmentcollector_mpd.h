@@ -587,6 +587,12 @@ private:
 	 * @param reportBulkMeta true if bulk metadata is enabled
 	 */
 	void ProcessTrickModeRestriction(Node* node, const std::string& AdID, uint64_t startMS, bool isInit, bool reportBulkMeta);
+    	/**
+	 * @fn Fragment downloader thread
+	 * @param trackIdx track index
+	 * @param initialization Initialization string
+	 */
+    	void TrackDownloader(int trackIdx, std::string initialization);
 	/**
 	 * @fn FetchAndInjectInitFragments
 	 * @param discontinuity number of tracks and discontinuity true if discontinuous fragment
@@ -706,6 +712,13 @@ private:
 	 */
 	AAMPStatusType GetMpdFromManifest(const GrowableBuffer &manifest, MPD * &mpd, std::string manifestUrl, bool init);
 	/**
+	* @fn CreateDRMSessionMPD
+	* @param aamp Priv instance pointer
+	* @param drmHelper drmHelper pointer
+	* @param mediaType DRM type
+	*/
+	void CreateDRMSessionMPD(PrivateInstanceAAMP *aamp, std::shared_ptr<AampDrmHelper> drmHelper, MediaType mediaType);
+	/**
 	 * @fn GetDrmPrefs
 	 * @param The UUID for the DRM type
 	 */
@@ -802,8 +815,8 @@ private:
 	std::set<std::string> mLangList;
 	double seekPosition;
 	float rate;
-	std::thread *fragmentCollectorThreadID;
-	pthread_t createDRMSessionThreadID;
+	std::thread fragmentCollectorThreadID;
+	std::thread createDRMSessionThreadID;
 	std::thread *deferredDRMRequestThread;
 	bool deferredDRMRequestThreadStarted;
 	bool mAbortDeferredLicenseLoop;
@@ -975,7 +988,7 @@ private:
 	LatencyStatus latencyStatus; 		 /**< Latency status of the playback*/
 	LatencyStatus prevLatencyStatus;	 /**< Previous latency status of the playback*/
 	bool latencyMonitorThreadStarted;	 /**< Monitor latency thread  status*/
-	pthread_t latencyMonitorThreadID;	 /**< Fragment injector thread id*/
+	std::thread latencyMonitorThreadID;	 /**< Fragment injector thread id*/
 	int mProfileCount;			 /**< Total video profile count*/
 	std::unique_ptr<SubtitleParser> mSubtitleParser;	/**< Parser for subtitle data*/
 };

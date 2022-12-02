@@ -267,4 +267,6 @@ void stream2hex(const std::string str, std::string& hexstr, bool capital = false
  */
 void mssleep(int milliseconds);
 
+std::size_t GetPrintableThreadID( const std::thread &t );
+
 #endif  /* __AAMP_UTILS_H__ */

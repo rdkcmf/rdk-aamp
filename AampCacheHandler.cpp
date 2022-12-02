@@ -263,16 +263,19 @@ void AampCacheHandler::Init()
 	//Check if already initialized
 	if(true == mInitialized)
 		return;
-	if(0 != pthread_create(&mAsyncCleanUpTaskThreadId, NULL, &AampCacheThreadFunction, this))
+
+	try 
 	{
-		AAMPLOG_ERR("Failed to create AampCacheHandler thread errno = %d, %s", errno, strerror(errno));
-	}
-	else
-	{
+		mAsyncCleanUpTaskThreadId = std::thread(&AampCacheHandler::AsyncCacheCleanUpTask, this);
 		pthread_mutex_lock(&mCondVarMutex);
 		mAsyncThreadStartedFlag = true;
 		mAsyncCacheCleanUpThread = true;
 		pthread_mutex_unlock(&mCondVarMutex);  //CID:168111 - Missing lock
+		AAMPLOG_INFO("Thread created AsyncCacheCleanUpTask[%lu]", GetPrintableThreadID(mAsyncCleanUpTaskThreadId));
+	}
+	catch(std::exception &e)
+	{
+		AAMPLOG_ERR("Failed to create AampCacheHandler thread : %s", e.what());
 	}
 	mInitialized = true;
 }
@@ -293,12 +296,7 @@ void AampCacheHandler::ClearCacheHandler()
 	pthread_mutex_unlock(&mCondVarMutex);
 	if(mAsyncThreadStartedFlag)
 	{
-		void *ptr = NULL;
-		int rc = pthread_join(mAsyncCleanUpTaskThreadId, &ptr);
-		if (rc != 0)
-		{
-			AAMPLOG_ERR("***pthread_join AsyncCacheCleanUpTask returned %d(%s)", rc, strerror(rc));
-		}
+		mAsyncCleanUpTaskThreadId.join();
 		mAsyncThreadStartedFlag = false;
 	}
 	ClearPlaylistCache();
@@ -312,7 +310,7 @@ void AampCacheHandler::ClearCacheHandler()
  *  @brief Default Constructor
  */
 AampCacheHandler::AampCacheHandler(AampLogManager *logObj):
-	mCacheStoredSize(0),mAsyncThreadStartedFlag(false),mAsyncCleanUpTaskThreadId(0),mCacheActive(false),
+	mCacheStoredSize(0),mAsyncThreadStartedFlag(false),mAsyncCleanUpTaskThreadId(),mCacheActive(false),
 	mAsyncCacheCleanUpThread(false),mMutex(),mCondVarMutex(),mCondVar(),mPlaylistCache()
 	,mMaxPlaylistCacheSize(MAX_PLAYLIST_CACHE_SIZE*1024),mInitialized(false)
 	,mLogObj(logObj)

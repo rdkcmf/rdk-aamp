@@ -29,17 +29,6 @@
 
 #include <algorithm>
 
-static void *AdFulfillThreadEntry(void *arg)
-{
-    PrivateCDAIObjectMPD *_this = (PrivateCDAIObjectMPD *)arg;
-    if(aamp_pthread_setname(pthread_self(), "aampADFulfill"))
-    {
-        AAMPLOG_ERR("aamp_pthread_setname failed");
-    }
-    _this->FulFillAdObject();
-    return NULL;
-}
-
 /**
  * @brief CDAIObjectMPD Constructor
  */
@@ -69,7 +58,7 @@ void CDAIObjectMPD::SetAlternateContents(const std::string &periodId, const std:
 /**
  * @brief PrivateCDAIObjectMPD constructor
  */
-PrivateCDAIObjectMPD::PrivateCDAIObjectMPD(AampLogManager* logObj, PrivateInstanceAAMP* aamp) : mLogObj(logObj),mAamp(aamp),mDaiMtx(), mIsFogTSB(false), mAdBreaks(), mPeriodMap(), mCurPlayingBreakId(), mAdObjThreadID(0), mAdFailed(false), mCurAds(nullptr),
+PrivateCDAIObjectMPD::PrivateCDAIObjectMPD(AampLogManager* logObj, PrivateInstanceAAMP* aamp) : mLogObj(logObj),mAamp(aamp),mDaiMtx(), mIsFogTSB(false), mAdBreaks(), mPeriodMap(), mCurPlayingBreakId(), mAdObjThreadID(), mAdFailed(false), mCurAds(nullptr),
 					mCurAdIdx(-1), mContentSeekOffset(0), mAdState(AdState::OUTSIDE_ADBREAK),mPlacementObj(), mAdFulfillObj(),mAdtoInsertInNextBreak(), mAdObjThreadStarted(false)
 {
 	mAamp->CurlInit(eCURLINSTANCE_DAI,1,mAamp->GetNetworkProxy());
@@ -82,11 +71,7 @@ PrivateCDAIObjectMPD::~PrivateCDAIObjectMPD()
 {
 	if(mAdObjThreadStarted)
 	{
-		int rc = pthread_join(mAdObjThreadID, NULL);
-		if (rc != 0)
-		{
-			AAMPLOG_ERR("***pthread_join failed, returned %d", rc);
-		}
+		mAdObjThreadID.join();
 		mAdObjThreadStarted = false;
 	}
 	mAamp->CurlTerm(eCURLINSTANCE_DAI);
@@ -778,11 +763,7 @@ void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, con
 		if(mAdObjThreadStarted)
 		{
 			//Clearing the previous thread
-			int rc = pthread_join(mAdObjThreadID, NULL);
-			if(rc != 0)  //CID:101068 - Resolving the local variable rc initialized but not used
-			{
-				AAMPLOG_ERR("pthread_join(mAdObjThreadID) failed , errno = %d, %s , Rejecting promise.",errno,strerror(errno));
-			}
+			mAdObjThreadID.join();
 			mAdObjThreadStarted = false;
 		}
 		if(isAdBreakObjectExist(periodId))
@@ -799,14 +780,16 @@ void PrivateCDAIObjectMPD::SetAlternateContents(const std::string &periodId, con
 				mAdFulfillObj.periodId = periodId;
 				mAdFulfillObj.adId = adId;
 				mAdFulfillObj.url = url;
-				int ret = pthread_create(&mAdObjThreadID, NULL, &AdFulfillThreadEntry, this);
-				if(ret != 0)
+				try
 				{
-					AAMPLOG_ERR(" pthread_create(FulFillAdObject) failed, errno = %d, %s. Rejecting promise.", errno, strerror(errno));
+						mAdObjThreadID = std::thread(&PrivateCDAIObjectMPD::FulFillAdObject, this);
+		    			AAMPLOG_INFO("Thread created (FulFillAdObject) [%lu]", GetPrintableThreadID(mAdObjThreadID));
+						mAdObjThreadStarted = true;
 				}
-				else
+				catch(std::exception &e)
 				{
-					mAdObjThreadStarted = true;
+		    			AAMPLOG_ERR(" thread create(FulFillAdObject) failed. Rejecting promise. : %s", e.what());
+		    			ret = -1;
 				}
 			}
 			if(ret != 0)

@@ -1343,12 +1343,12 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	,mMutexPlaystart()
 #ifdef AAMP_HLS_DRM
     , fragmentCdmEncrypted(false) ,drmParserMutex(), aesCtrAttrDataList()
-	, drmSessionThreadStarted(false), createDRMSessionThreadID(0)
+	, drmSessionThreadStarted(false), createDRMSessionThreadID()
 #endif
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	, mDRMSessionManager(NULL)
 #endif
-	,  mPreCachePlaylistThreadId(0), mPreCachePlaylistThreadFlag(false) , mPreCacheDnldList()
+	,  mPreCachePlaylistThreadId(), mPreCacheDnldList()
 	, mPreCacheDnldTimeWindow(0), mParallelPlaylistFetchLock(), mAppName()
 	, mProgressReportFromProcessDiscontinuity(false)
 	, mPlaylistFetchFailError(0L),mAudioDecoderStreamSync(true)
@@ -1827,22 +1827,6 @@ void PrivateInstanceAAMP::RunPausePositionMonitoring(void)
 }
 
 /**
- * @brief call the PausePositionMonitoring thread loop
- */
-static void *PausePositionMonitor(void *arg)
-{
-	PrivateInstanceAAMP *aamp = (PrivateInstanceAAMP *)arg;
-
-	// Thread name restricted to 16 characters, including null
-	if(aamp_pthread_setname(pthread_self(), "aampPauseMon"))
-	{
-		AAMPLOG_WARN("aamp_pthread_setname failed");
-	}
-	aamp->RunPausePositionMonitoring();
-	return nullptr;
-}
-
-/**
  * @brief start the PausePositionMonitoring thread used for PauseAt functionality
  */
 void PrivateInstanceAAMP::StartPausePositionMonitoring(long long pausePositionMilliseconds)
@@ -1859,13 +1843,15 @@ void PrivateInstanceAAMP::StartPausePositionMonitoring(long long pausePositionMi
 
 		AAMPLOG_INFO("Start PausePositionMonitoring at position %lld", pausePositionMilliseconds);
 
-		if (0 == pthread_create(&mPausePositionMonitoringThreadID, nullptr, &PausePositionMonitor, this))
+		try
 		{
+			mPausePositionMonitoringThreadID = std::thread(&PrivateInstanceAAMP ::RunPausePositionMonitoring, this);
 			mPausePositionMonitoringThreadStarted = true;
+			AAMPLOG_INFO("Thread created for RunPausePositionMonitoring [%lu]", GetPrintableThreadID(mPausePositionMonitoringThreadID));
 		}
-		else
+		catch(const std::exception& e)
 		{
-			AAMPLOG_ERR("Failed to create PausePositionMonitor thread");
+			AAMPLOG_ERR("Failed to create PausePositionMonitor thread: %s", e.what());
 		}
 	}
 }
@@ -1888,16 +1874,8 @@ void PrivateInstanceAAMP::StopPausePositionMonitoring(std::string reason)
 			mPausePositionMonitorCV.notify_one();
 		}
 		lock.unlock();
-
-		int rc = pthread_join(mPausePositionMonitoringThreadID, NULL);
-		if (rc != 0)
-		{
-			AAMPLOG_ERR("***pthread_join PausePositionMonitor returned %d(%s)", rc, strerror(rc));
-		}
-		else
-		{
-			AAMPLOG_INFO("Joined PausePositionMonitor");
-		}
+        mPausePositionMonitoringThreadID.join();
+		AAMPLOG_TRACE("joined PositionMonitor");
 		mPausePositionMonitoringThreadStarted = false;
 	}
 }
@@ -7183,11 +7161,9 @@ void PrivateInstanceAAMP::Stop()
 	pthread_mutex_lock(&mMutexPlaystart);
 	pthread_cond_broadcast(&waitforplaystart);
 	pthread_mutex_unlock(&mMutexPlaystart);
-	if(mPreCachePlaylistThreadFlag)
+	if(mPreCachePlaylistThreadId.joinable())
 	{
-		pthread_join(mPreCachePlaylistThreadId,NULL);
-		mPreCachePlaylistThreadFlag=false;
-		mPreCachePlaylistThreadId = 0;
+		mPreCachePlaylistThreadId.join();
 	}
 	getAampCacheHandler()->StopPlaylistCache();
 

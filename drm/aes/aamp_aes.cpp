@@ -43,14 +43,12 @@ static pthread_mutex_t instanceLock = PTHREAD_MUTEX_INITIALIZER;
 
 /**
  * @brief key acquistion thread
- * @param arg AesDec pointer
  * @retval NULL
  */
-static void * acquire_key(void* arg)
+void AesDec::acquire_key()
 {
-	AesDec *aesDec = (AesDec *)arg;
-	aesDec->AcquireKey();
-	return NULL;
+	AcquireKey();
+	return;
 }
 
 /**
@@ -226,25 +224,22 @@ DrmReturn AesDec::SetDecryptInfo( PrivateInstanceAAMP *aamp, const struct DrmInf
 
 	if (licenseAcquisitionThreadStarted)
 	{
-		int ret = pthread_join(licenseAcquisitionThreadId, NULL);
-		if (ret != 0)
-		{
-			AAMPLOG_ERR("AesDec:: pthread_join failed for license acquisition thread: %d",  licenseAcquisitionThreadId);
-		}
+		licenseAcquisitionThreadId.join();
 		licenseAcquisitionThreadStarted = false;
 	}
 
-	int ret = pthread_create(&licenseAcquisitionThreadId, NULL, acquire_key, this);
-	if(ret != 0)
+	try
 	{
-		AAMPLOG_ERR("AesDec:: pthread_create failed for acquire_key with errno = %d, %s",  errno, strerror(errno));
-		mDrmState = eDRM_KEY_FAILED;
-		licenseAcquisitionThreadStarted = false;
-	}
-	else
-	{
+		licenseAcquisitionThreadId = std::thread(&AesDec::acquire_key, this);
 		err = eDRM_SUCCESS;
 		licenseAcquisitionThreadStarted = true;
+		AAMPLOG_INFO("Thread created for acquire_key [%lu]", GetPrintableThreadID(licenseAcquisitionThreadId));
+	}
+	catch(const std::exception& e)
+	{
+		AAMPLOG_ERR("AesDec:: thread create failed for acquire_key : %s", e.what());
+		mDrmState = eDRM_KEY_FAILED;
+		licenseAcquisitionThreadStarted = false;
 	}
 	pthread_mutex_unlock(&mMutex);
 	AAMPLOG_INFO("AesDec: drmState:%d ", mDrmState);
@@ -347,11 +342,7 @@ void AesDec::Release()
 	}
 	if (licenseAcquisitionThreadStarted)
 	{
-		int ret = pthread_join(licenseAcquisitionThreadId, NULL);
-		if (ret != 0)
-		{
-			AAMPLOG_ERR("AesDec:: pthread_join failed for license acquisition thread: %d",licenseAcquisitionThreadId);
-		}
+		licenseAcquisitionThreadId.join();
 		licenseAcquisitionThreadStarted = false;
 	}
 	pthread_cond_broadcast(&mCond);
@@ -425,7 +416,7 @@ AesDec::AesDec() : mpAamp(nullptr), mDrmState(eDRM_INITIALIZED),
 		mPrevDrmState(eDRM_INITIALIZED), mDrmUrl(""),
 		mCond(), mMutex(), mOpensslCtx(),
 		mDrmInfo(), mAesKeyBuf(), mCurlInstance(-1),
-		licenseAcquisitionThreadId(0),
+		licenseAcquisitionThreadId(),
 		licenseAcquisitionThreadStarted(false),
 		mAcquireKeyWaitTime(MAX_LICENSE_ACQ_WAIT_TIME)
 {

@@ -285,7 +285,7 @@ public:
 	std::unordered_map<std::string, AdBreakObject> mAdBreaks;           /**< Periodid to adbreakobject map*/
 	std::unordered_map<std::string, Period2AdData> mPeriodMap;          /**< periodId to Ad map */
 	std::string                                    mCurPlayingBreakId;  /**< Currently playing Ad */
-	pthread_t                                      mAdObjThreadID;      /**< ThreadId of Ad fulfillment */
+	std::thread                                    mAdObjThreadID;      /**< ThreadId of Ad fulfillment */
 	bool                                           mAdObjThreadStarted; /**< Flag denotes if ad object thread is started */
 	bool                                           mAdFailed;           /**< Current Ad playback failed flag */
 	std::shared_ptr<std::vector<AdNode>>           mCurAds;             /**< Vector of ads from the current Adbreak */
