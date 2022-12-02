@@ -4116,7 +4116,6 @@ private:
 	bool mApplyVideoRect; 			/**< Status to apply stored video rectagle */
 	videoRect mVideoRect;
 	char *mData;
-	bool mIsInbandCC;
 };
 
 /**
