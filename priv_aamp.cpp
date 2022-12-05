@@ -1623,11 +1623,11 @@ static gboolean PrivateInstanceAAMP_PausePosition(gpointer ptr)
 
 	if  (pausePositionMilliseconds != AAMP_PAUSE_POSITION_INVALID_POSITION)
 	{
-		if(aamp->mStreamSink->Pause(true, false))
+		if (!aamp->mStreamSink->Pause(true, false))
 		{
-			aamp->pipeline_paused = true;
-			aamp->NotifySpeedChanged(0, true);
+			AAMPLOG_ERR("Pause failed");
 		}
+		aamp->pipeline_paused = true;
 
 		aamp->StopDownloads();
 
@@ -1637,9 +1637,10 @@ static gboolean PrivateInstanceAAMP_PausePosition(gpointer ptr)
 		}
 
 		bool updateSeekPosition = false;
-		if ((aamp->rate > AAMP_NORMAL_PLAY_RATE) || (aamp->rate < AAMP_RATE_PAUSE))
+		if ((aamp->rate > AAMP_NORMAL_PLAY_RATE) || (aamp->rate < AAMP_RATE_PAUSE) ||
+			(!ISCONFIGSET(eAAMPConfig_EnableGstPositionQuery) && !aamp->mbDetached))
 		{
-			aamp->seek_pos_seconds = pausePositionMilliseconds / 1000.0;
+			aamp->seek_pos_seconds = aamp->GetPositionSeconds();
 			aamp->trickStartUTCMS = -1;
 			AAMPLOG_INFO("Updated seek pos %fs", aamp->seek_pos_seconds);
 			updateSeekPosition = true;
@@ -1656,6 +1657,7 @@ static gboolean PrivateInstanceAAMP_PausePosition(gpointer ptr)
 			}
 		}
 
+
 		long long positionMs = aamp->GetPositionMilliseconds();
 		if (updateSeekPosition)
 		{
@@ -1667,6 +1669,9 @@ static gboolean PrivateInstanceAAMP_PausePosition(gpointer ptr)
 			AAMPLOG_WARN("PLAYER[%d] Paused at position %lldms, requested position %lldms, rate %f",
 						aamp->mPlayerId, positionMs, pausePositionMilliseconds, aamp->rate);
 		}
+
+		// Notify the client that play has paused
+		aamp->NotifySpeedChanged(0, true);
 	}
 	return G_SOURCE_REMOVE;
 }
