@@ -1403,6 +1403,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mApplyVideoRect(false)
 	, mVideoRect{}
 	, mData(NULL)
+	, mIsInbandCC(true)
 	, bitrateList()
 	, userProfileStatus(false)
 	, mApplyCachedVideoMute(false)
@@ -5231,7 +5232,8 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			mCCId = AampCCManager::GetInstance()->GetId();
 		}
 		//restore CC if it was enabled for previous content.
-		AampCCManager::GetInstance()->RestoreCC();
+		if(mIsInbandCC)
+			AampCCManager::GetInstance()->RestoreCC();
 	}
 #endif
 
@@ -10182,6 +10184,7 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId, char *data)
 				// Check if CC / Subtitle track
 				if (track.isCC)
 				{
+					mIsInbandCC = true;
 #ifdef AAMP_CC_ENABLED
 					if (!track.instreamId.empty())
 					{
@@ -10218,6 +10221,7 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId, char *data)
 				}
 				else
 				{
+					mIsInbandCC = false;
 					//Unmute subtitles
 					SetCCStatus(true);
 
