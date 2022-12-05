@@ -184,7 +184,7 @@ TEST_F(PauseAtTests, StartPausePositionMonitoring_PipelinePaused)
     ASSERT_FALSE(WaitForScheduleTask(1000));
     EXPECT_EQ(mPrivateInstanceAAMP->mPausePositionMilliseconds, -1);
 
-    mPrivateInstanceAAMP->StopPausePositionMonitoring();
+    mPrivateInstanceAAMP->StopPausePositionMonitoring("stopped by test");
 }
 
 // Testing calling StartPausePositionMonitoring when rate is pause
@@ -218,7 +218,7 @@ TEST_F(PauseAtTests, StartPausePositionMonitoring_RatePaused)
     ASSERT_FALSE(WaitForScheduleTask(1000));
     EXPECT_EQ(mPrivateInstanceAAMP->mPausePositionMilliseconds, -1);
 
-    mPrivateInstanceAAMP->StopPausePositionMonitoring();
+    mPrivateInstanceAAMP->StopPausePositionMonitoring("stopped by test");
 }
 
 // Testing calling StartPausePositionMonitoring when already monitoring
@@ -250,7 +250,7 @@ TEST_F(PauseAtTests, StartPausePositionMonitoring_AlreadyStarted)
     mPrivateInstanceAAMP->StartPausePositionMonitoring(pauseAtMilliseconds02);
     EXPECT_EQ(mPrivateInstanceAAMP->mPausePositionMilliseconds, pauseAtMilliseconds02);
 
-    mPrivateInstanceAAMP->StopPausePositionMonitoring();
+    mPrivateInstanceAAMP->StopPausePositionMonitoring("stopped by test");
 }
 
 // Testing calling StartPausePositionMonitoring with an invalid position (i.e. negative)
@@ -306,7 +306,7 @@ TEST_F(PauseAtTests, StopPausePositionMonitoring_WhenMonitoring)
     mPrivateInstanceAAMP->StartPausePositionMonitoring(pauseAtMilliseconds);
     ASSERT_EQ(mPrivateInstanceAAMP->mPausePositionMilliseconds, pauseAtMilliseconds);
 
-    mPrivateInstanceAAMP->StopPausePositionMonitoring();
+    mPrivateInstanceAAMP->StopPausePositionMonitoring("stopped by test");
     EXPECT_EQ(mPrivateInstanceAAMP->mPausePositionMilliseconds, AAMP_PAUSE_POSITION_INVALID_POSITION);
 }
 
@@ -322,7 +322,7 @@ TEST_F(PauseAtTests, StopPausePositionMonitoring_WhenNotMonitoring)
 
     ASSERT_EQ(mPrivateInstanceAAMP->mPausePositionMilliseconds, AAMP_PAUSE_POSITION_INVALID_POSITION);
 
-    mPrivateInstanceAAMP->StopPausePositionMonitoring();
+    mPrivateInstanceAAMP->StopPausePositionMonitoring("stopped by test");
     EXPECT_EQ(mPrivateInstanceAAMP->mPausePositionMilliseconds, AAMP_PAUSE_POSITION_INVALID_POSITION);
 }
 

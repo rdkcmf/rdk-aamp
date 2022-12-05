@@ -37,7 +37,7 @@
 #include <signal.h>
 #include <semaphore.h>
 #include <curl/curl.h>
-#include <string.h> // for memset
+#include <string.h>
 #include <vector>
 #include <unordered_map>
 #include <map>
@@ -3830,15 +3830,15 @@ public:
 
 	/**
 	 * @fn Start monitoring for requested pause position
-	 *     @param[in] pausePositionMilliseconds - The position to pause at, must not be negative
-	 *     @return void
+	 * @param[in] pausePositionMilliseconds - The position to pause at, must not be negative
 	 */
 	void StartPausePositionMonitoring(long long pausePositionMilliseconds);
 
 	/**
 	 * @fn Stop monitoring for requested pause position
+	 * @param[in] reason - Reason why the pause position monitoring is stopped
 	 */
-	void StopPausePositionMonitoring(void);
+	void StopPausePositionMonitoring(std::string reason);
 
 	/**
 	 * @fn WaitForDiscontinuityProcessToComplete
