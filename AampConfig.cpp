@@ -290,7 +290,6 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	,{"enableCMCD", eAAMPConfig_EnableCMCD, true, -1, -1}
 	,{"SlowMotion", eAAMPConfig_EnableSlowMotion, true, -1, -1}
 	,{"enableSCTE35PresentationTime", eAAMPConfig_EnableSCTE35PresentationTime, false, -1, -1}
-	,{"ignoreAppLiveOffset", eAAMPConfig_IgnoreAppLiveOffset, false, -1, -1}
 	,{"enableDisconnectSignals", eAAMPConfig_enableDisconnectSignals, false, -1, -1}
 	,{"enableEOSInjectionDuringStop", eAAMPConfig_enableEOSInjectionDuringStop, false, -1, -1}
 	,{"jsinfo",eAAMPConfig_JsInfoLogging,false, -1, -1}
@@ -503,7 +502,6 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableCMCD].value				=	true;
 	bAampCfgValue[eAAMPConfig_EnableSlowMotion].value			=	true;
 	bAampCfgValue[eAAMPConfig_EnableSCTE35PresentationTime].value			=	false;
-	bAampCfgValue[eAAMPConfig_IgnoreAppLiveOffset].value 			=	false;
 	bAampCfgValue[eAAMPConfig_enableDisconnectSignals].value = true;
 	bAampCfgValue[eAAMPConfig_enableEOSInjectionDuringStop].value = true;
 	bAampCfgValue[eAAMPConfig_JsInfoLogging].value                          = 	false;
@@ -2081,11 +2079,6 @@ void AampConfig::DoCustomSetting(ConfigPriority owner)
 		sAampCfgValue[eAAMPConfig_AuthToken-eAAMPConfig_StringStartValue].lastowner = tempowner;
 		sAampCfgValue[eAAMPConfig_AuthToken-eAAMPConfig_StringStartValue].lastvalue = tempvalue;
 
-	}
-	if(IsConfigSet(eAAMPConfig_IgnoreAppLiveOffset) && (GetConfigOwner(eAAMPConfig_LiveOffset) == AAMP_APPLICATION_SETTING))
-	{
-		dAampCfgValue[eAAMPConfig_LiveOffset].owner = dAampCfgValue[eAAMPConfig_LiveOffset].lastowner;
-		dAampCfgValue[eAAMPConfig_LiveOffset].value = dAampCfgValue[eAAMPConfig_LiveOffset].lastvalue;
 	}
 
 	ConfigureLogSettings();
