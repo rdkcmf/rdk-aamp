@@ -73,6 +73,7 @@ public:
 
     MOCK_METHOD(StreamInfo* , GetStreamInfo, (int idx));
 
+    MOCK_METHOD(bool , Is4KStream, (int &height, long &bandwidth));
 };
 
 extern MockStreamAbstractionAAMP *g_mockStreamAbstractionAAMP;

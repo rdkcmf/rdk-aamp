@@ -72,3 +72,5 @@ void StreamAbstractionAAMP_HLS::NotifyFirstVideoPTS(unsigned long long pts, unsi
 void StreamAbstractionAAMP_HLS::SeekPosUpdate(double secondsRelativeToTuneTime) { }
 
 void StreamAbstractionAAMP_HLS::ChangeMuxedAudioTrackIndex(std::string& index) { }
+
+bool StreamAbstractionAAMP_HLS::Is4KStream(int &height, long &bandwidth) { return false; }
