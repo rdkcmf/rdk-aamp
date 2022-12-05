@@ -4253,10 +4253,19 @@ double aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t mp
 									periodStart = ParseISO8601Duration( periodStartStr.c_str() );
 									availablilityStart = ISO8601DateTimeToUTCSeconds(availabilityStartStr.c_str()) * 1000;
 									minUpdatePeriod = ParseISO8601Duration( minimumUpdatePeriodStr.c_str() );
-									AAMPLOG_INFO("periodStart %lf availabilityStartTime %lf minUpdatePeriod %lf mpdDownloadTime %lf", periodStart, availablilityStart, minUpdatePeriod, mpdDownloadTime);
+									AAMPLOG_INFO("periodStart %lf availabilityStartTime %lf minUpdatePeriod %lf mpdDownloadTime %lf", periodStart, availablilityStart, minUpdatePeriod, (double)mpdDownloadTime);
 									double periodEndTime = mpdDownloadTime + minUpdatePeriod;
 									double periodStartTime = availablilityStart + periodStart;
 									durationMs = periodEndTime - periodStartTime;
+									if(durationMs == 0)
+									{
+										std::string durationStr = mpd->GetTimeShiftBufferDepth();
+										if(!durationStr.empty())
+										{
+											durationMs = ParseISO8601Duration(durationStr.c_str());
+										}
+									}
+
 									if(durationMs <= 0)
 									{
 										AAMPLOG_WARN("Invalid period duration periodStartTime %lf periodEndTime %lf durationMs %lf", periodStartTime, periodEndTime, durationMs);
@@ -4588,7 +4597,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			if (!mpdDurationAvailable)
 			{
 				durationMs += periodDurationMs;
-				AAMPLOG_INFO("Updated duration %lf seconds", (durationMs/1000));
+				AAMPLOG_INFO("Updated duration %lf seconds", ((double) durationMs/1000));
 			}
 
 			if(offsetFromStart >= 0 && seekPeriods)
@@ -4829,6 +4838,11 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 				if (offsetFromStart < 0)
 				{
 					offsetFromStart = 0;
+				}
+				if(mCurrentPeriodIdx < 0)
+				{
+					AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Invalid currentPeriodIdx[%d], resetting to 0",mCurrentPeriodIdx);
+					mCurrentPeriodIdx = 0;
 				}
 				mIsAtLivePoint = true;
 				AAMPLOG_WARN( "StreamAbstractionAAMP_MPD: liveAdjust - Updated offSetFromStart[%f] duration [%f] currentPeriodStart[%f] MaxPeriodIdx[%d]",
