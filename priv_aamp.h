@@ -1665,7 +1665,7 @@ public:
      	 *   @param[in]  initFragment - flag for buffer type (init, data)
 	 *   @return void
 	 */
-	void SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration, bool initFragment = 0);
+	void SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration, bool initFragment = 0, bool discontinuity = false);
 
 	/**
 	 * @fn SetStreamSink

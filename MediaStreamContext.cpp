@@ -39,7 +39,7 @@ void MediaStreamContext::InjectFragmentInternal(CachedFragment* cachedFragment, 
 	aamp->ProcessID3Metadata(cachedFragment->fragment.ptr, cachedFragment->fragment.len, (MediaType) type);
 	AAMPLOG_TRACE("Type[%d] cachedFragment->position: %f cachedFragment->duration: %f cachedFragment->initFragment: %d", type, cachedFragment->position,cachedFragment->duration,cachedFragment->initFragment);
         aamp->SendStreamTransfer((MediaType)type, &cachedFragment->fragment,
-        cachedFragment->position, cachedFragment->position, cachedFragment->duration, cachedFragment->initFragment);
+        cachedFragment->position, cachedFragment->position, cachedFragment->duration, cachedFragment->initFragment, cachedFragment->discontinuity);
     }
     else
     {
