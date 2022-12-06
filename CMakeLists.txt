@@ -134,6 +134,7 @@ set(LIBAAMP_SOURCES iso639map.cpp
 					hdmiin_shim.cpp
 					videoin_shim.cpp
 					compositein_shim.cpp
+					rmf_shim.cpp
 					fragmentcollector_progressive.cpp
 					fragmentcollector_hls.cpp
 					fragmentcollector_mpd.cpp

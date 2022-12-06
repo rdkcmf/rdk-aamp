@@ -38,6 +38,9 @@
 #include "hdmiin_shim.h"
 #include "compositein_shim.h"
 #include "ota_shim.h"
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+#include "rmf_shim.h"
+#endif
 #include "_base64.h"
 #include "base16.h"
 #include "aampgstplayer.h"
@@ -5024,6 +5027,16 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 			mCdaiObject = new CDAIObject(mLogObj, this);    //Placeholder to reject the SetAlternateContents()
 		}
 	}
+#ifdef USE_CPP_THUNDER_PLUGIN_ACCESS
+	else if (mMediaFormat == eMEDIAFORMAT_RMF)
+	{
+		mpStreamAbstractionAAMP = new StreamAbstractionAAMP_RMF(mLogObj,this, playlistSeekPos, rate);
+		if (NULL == mCdaiObject)
+		{
+			mCdaiObject = new CDAIObject(mLogObj, this);    //Placeholder to reject the SetAlternateContents()
+		}
+	}
+#endif //USE_CPP_THUNDER_PLUGIN_ACCESS
         else if (mMediaFormat == eMEDIAFORMAT_COMPOSITE)
         {
                 mpStreamAbstractionAAMP = new StreamAbstractionAAMP_COMPOSITEIN(mLogObj,this, playlistSeekPos, rate);
@@ -5295,9 +5308,9 @@ void PrivateInstanceAAMP::TuneHelper(TuneType tuneType, bool seekWhilePaused)
 	{
 		PrivAAMPState state;
 		GetState(state);
-		if((state != eSTATE_ERROR) && (mMediaFormat != eMEDIAFORMAT_OTA))
+		if((state != eSTATE_ERROR) && ((mMediaFormat != eMEDIAFORMAT_OTA) || (mMediaFormat != eMEDIAFORMAT_RMF)))
 		{
-			/*For OTA this event will be generated from StreamAbstractionAAMP_OTA*/
+			/*For OTA/RMF this event will be generated from StreamAbstractionAAMP_OTA*/
 			SetState(eSTATE_PREPARED);
 			SendMediaMetadataEvent();
 		}
@@ -5476,7 +5489,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 
 	mMediaFormat = GetMediaFormatType(mainManifestUrl);
 
-	mbUsingExternalPlayer = (mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat== eMEDIAFORMAT_HDMI) || (mMediaFormat==eMEDIAFORMAT_COMPOSITE);
+	mbUsingExternalPlayer = (mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat== eMEDIAFORMAT_HDMI) || (mMediaFormat==eMEDIAFORMAT_COMPOSITE) || \
+		(mMediaFormat == eMEDIAFORMAT_RMF);
 
 	if (NULL == mStreamSink)
 	{
@@ -5742,7 +5756,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	// To check and apply stored video rectangle properties
 	if (mApplyVideoRect)
 	{
-		if ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE))
+		if ((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE) || \
+			(mMediaFormat == eMEDIAFORMAT_RMF))
 		{
 			mpStreamAbstractionAAMP->SetVideoRectangle(mVideoRect.horizontalPos, mVideoRect.verticalPos, mVideoRect.width, mVideoRect.height);
 		}
@@ -5810,6 +5825,10 @@ MediaFormat PrivateInstanceAAMP::GetMediaFormatType(const char *url)
 	{
 		rc = eMEDIAFORMAT_OTA;
 	}
+	else if(urlStr.rfind("ocap:",0)==0)
+	{
+		rc = eMEDIAFORMAT_RMF;
+	}	
 	else if(urlStr.rfind("http://127.0.0.1", 0) == 0) // starts with localhost
 	{ // where local host is used; inspect further to determine if this locator involves FOG
 
@@ -6655,7 +6674,7 @@ void PrivateInstanceAAMP::SetVideoRectangle(int x, int y, int w, int h)
 	GetState(state);
 
 	//Differenciate IP vs non IP playback
-	bool isNonIPPlayback = (mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE);
+	bool isNonIPPlayback = (mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE) || (mMediaFormat == eMEDIAFORMAT_RMF);
 
 	// for ATSC eSTATE_PREPARED is sent when tune is successful, as Closed caption data wont be available till tune and stream check for CC is done,
 	// for IP eSTATE_PREPARED is done after manifest parsing,
@@ -11078,7 +11097,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				clearPreference = true;
 			}
 
-			if(mMediaFormat == eMEDIAFORMAT_OTA)
+			if((mMediaFormat == eMEDIAFORMAT_OTA) || (mMediaFormat == eMEDIAFORMAT_RMF))
 			{
 				mpStreamAbstractionAAMP->SetPreferredAudioLanguages();
 			}
@@ -11347,7 +11366,8 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 				trackNotEnabled = true;
 			}
 
-			if((mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE) || (mMediaFormat == eMEDIAFORMAT_OTA))
+			if((mMediaFormat == eMEDIAFORMAT_HDMI) || (mMediaFormat == eMEDIAFORMAT_COMPOSITE) || (mMediaFormat == eMEDIAFORMAT_OTA) || \
+				(mMediaFormat == eMEDIAFORMAT_RMF))
 			{
 				/**< Avoid retuning in case of HEMIIN and COMPOSITE IN*/
 			}

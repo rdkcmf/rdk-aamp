@@ -39,6 +39,7 @@ typedef enum
 	eMEDIAFORMAT_HDMI,		   /**< HDMI Format */
 	eMEDIAFORMAT_COMPOSITE,		   /**< Composite Media */
 	eMEDIAFORMAT_SMOOTHSTREAMINGMEDIA, /**< Smooth streaming Media */
+	eMEDIAFORMAT_RMF,		   /**< RMF media */
 	eMEDIAFORMAT_UNKNOWN		   /**< Unknown media format */
 } MediaFormat;
 
