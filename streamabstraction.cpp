@@ -964,14 +964,20 @@ bool MediaTrack::InjectFragment()
 				}
 			}
 #endif
-			if ((cachedFragment->discontinuity || ptsError) && (AAMP_NORMAL_PLAY_RATE == context->aamp->rate))
+			if (type == eTRACK_SUBTITLE && cachedFragment->discontinuity)
+			{
+				AAMPLOG_WARN("[%s] notifying discontinuity to parser!", name);
+				if (mSubtitleParser) mSubtitleParser->reset();
+				stopInjection = true;
+				discontinuityProcessed = true;
+				ret = false;
+				cachedFragment->discontinuity = false;
+			}
+			else if ((cachedFragment->discontinuity || ptsError) && (AAMP_NORMAL_PLAY_RATE == context->aamp->rate))
 			{
 				bool isDiscoIgnoredForOtherTrack = aamp->IsDiscontinuityIgnoredForOtherTrack((MediaType)!type);
 				AAMPLOG_WARN("track %s - encountered aamp discontinuity @position - %f, isDiscoIgnoredForOtherTrack - %d", name, cachedFragment->position, isDiscoIgnoredForOtherTrack);
-				if (eTRACK_SUBTITLE != type)
-				{
-					cachedFragment->discontinuity = false;
-				}
+				cachedFragment->discontinuity = false;
 				ptsError = false;
 
 				/* GetESChangeStatus() check is specifically added to fix an audio loss issue (DELIA-55078) due to no reconfigure pipeline when there was an audio codec change for a very short period with no fragments.

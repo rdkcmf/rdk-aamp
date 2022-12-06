@@ -79,7 +79,8 @@ private:
          * @param[in] copy to map or transfer the buffer
          * @param[in] initFragment flag for buffer type (init, data)
          */
-	bool SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration, bool copy, bool initFragment = 0, bool discontinuity = false);
+	bool SendHelper(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration, bool copy, bool initFragment = 0);
+
 	/**
 	 * @fn SendGstEvents
 	 * @param[in] mediaType stream type
@@ -137,7 +138,7 @@ public:
          * @param[in] duration duration of buffer (in sec)
          * @param[in] initFragment flag for buffer type (init, data)
          */
-	void SendTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double duration, bool initFragment, bool discontinuity = false);
+	void SendTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double duration, bool initFragment);
 	/**
          * @fn EndOfStreamReached
          * @param[in] type stream type
