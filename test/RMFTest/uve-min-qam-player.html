@@ -1,0 +1,47 @@
+<html>
+	<head>
+		<title> MINIMAL UVE PLAYER </title>
+	</head>
+
+	<script>
+		window.onload = function () {
+			var player = new AAMPMediaPlayer();
+			player.addEventListener("playbackStarted", mediaPlaybackStarted);
+
+			let isTuned = false;
+			const locators = ['ocap://0x3f0d', 'ocap://0x4774', 'ocap://0x3fcc', 'ocap://0x4174', 'ocap://0x3faa'];
+			let locator_index = 0;
+			Tune();
+
+			function Tune() {
+				if (true === isTuned) {
+					stopPlayback();
+				}
+				if (locator_index >= locators.length) {
+					console.log('Completed channel change test.');
+				} else {
+					let locator = locators[locator_index++];
+					console.log('Tuning to locator ' + locator);
+					player.load(locator);
+					isTuned = true;
+					const tHandle = setTimeout(Tune, 10000);
+				}
+			}
+
+			function mediaPlaybackStarted() {
+				console.log('AAMP Playback started.');
+			}
+
+			function stopPlayback() {
+				console.log('Stopping AAMP playback');
+				player.stop();
+				isTuned = false;
+			}
+		};
+	</script>
+	<body>
+		<video style="height:100%; width:100%; position:absolute; bottom:0; left:0">
+			<source src="dummy.mp4" type="video/ave"> <!-- hole punching -->
+		</video>
+	</body>
+</html>
