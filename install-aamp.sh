@@ -1,5 +1,3 @@
-<<<<<<< HEAD   (436882 DELIA-57699: [FOG] lack of support for IS639 mappings (as im)
-=======
 #!/bin/bash
 # This script will setup basic environment and fetch aamp code
 # for a vanilla Big Sur/Monterey system to be ready for development
@@ -425,4 +423,3 @@ else
         echo $OSTYPE
         exit 1
 fi
->>>>>>> CHANGE (b00d9b RDKAAMP-209 misc build/runtime issues observed with AAMP ARM)
