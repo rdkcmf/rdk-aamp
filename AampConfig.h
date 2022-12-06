@@ -205,6 +205,7 @@ typedef enum
 	eAAMPConfig_EnableSlowMotion,					/**< Enable/Disable Slowmotion playback */
 	eAAMPConfig_EnableSCTE35PresentationTime,			/**< Enable/Disable use of SCTE PTS presentation time */
 	eAAMPConfig_JsInfoLogging,						/**< Enable/disable jsinfo logging       */
+	eAAMPConfig_IgnoreAppLiveOffset,				/** <Config to ignore the liveOffset from App for LLD */
 	eAAMPConfig_BoolMaxValue,
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
