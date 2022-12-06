@@ -293,6 +293,7 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	,{"enableDisconnectSignals", eAAMPConfig_enableDisconnectSignals, false, -1, -1}
 	,{"enableEOSInjectionDuringStop", eAAMPConfig_enableEOSInjectionDuringStop, false, -1, -1}
 	,{"jsinfo",eAAMPConfig_JsInfoLogging,false, -1, -1}
+	,{"ignoreAppLiveOffset", eAAMPConfig_IgnoreAppLiveOffset, false, -1, -1}
 };
 /////////////////// Public Functions /////////////////////////////////////
 /**
@@ -2078,6 +2079,19 @@ void AampConfig::DoCustomSetting(ConfigPriority owner)
 
 		sAampCfgValue[eAAMPConfig_AuthToken-eAAMPConfig_StringStartValue].lastowner = tempowner;
 		sAampCfgValue[eAAMPConfig_AuthToken-eAAMPConfig_StringStartValue].lastvalue = tempvalue;
+
+	}
+	if(IsConfigSet(eAAMPConfig_IgnoreAppLiveOffset) && (GetConfigOwner(eAAMPConfig_LiveOffset) == AAMP_APPLICATION_SETTING))
+	{
+		ConfigPriority tempowner;
+		double tempvalue,Appoffset;
+		GetConfigValue(eAAMPConfig_LiveOffset,Appoffset);
+		tempowner = dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].lastowner;
+		tempvalue = dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].lastvalue;
+		dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].owner = tempowner;
+		dAampCfgValue[eAAMPConfig_LiveOffset-eAAMPConfig_DoubleStartValue].value = tempvalue;
+		AAMPLOG_INFO("\n IgnoreAppLiveOffset Enabled,LiveOffset changed from %lf to %lf ",Appoffset,tempvalue);
+
 
 	}
 
