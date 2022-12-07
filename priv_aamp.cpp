@@ -5414,6 +5414,12 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mEventManager->SetFakeTuneFlag(mIsFakeTune);
 
 	mTSBEnabled = strcasestr(mainManifestUrl, "tsb?") && ISCONFIGSET_PRIV(eAAMPConfig_Fog);
+	SETCONFIGVALUE_PRIV(AAMP_STREAM_SETTING, eAAMPConfig_InterruptHandling, (mTSBEnabled && strcasestr(mainManifestUrl, "networkInterruption=true")));
+	if(!ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling))
+	{
+		AAMPLOG_INFO("Absolute timeline reporting enabled for interrupt enabled TSB stream");
+		SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING, eAAMPConfig_UseAbsoluteTimeline, true);
+	}
 	if (bFirstAttempt)
 	{
 		// To post player configurations to fog on 1st time tune
@@ -5587,12 +5593,6 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mCurrentAudioTrackId = -1;
 	mCurrentVideoTrackId = -1;
 	mCurrentDrm = nullptr;
-	SETCONFIGVALUE_PRIV(AAMP_STREAM_SETTING, eAAMPConfig_InterruptHandling, (mTSBEnabled && strcasestr(mainManifestUrl, "networkInterruption=true")));
-	if(!ISCONFIGSET_PRIV(eAAMPConfig_UseAbsoluteTimeline) && ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling))
-	{
-		AAMPLOG_INFO("Absolute timeline reporting enabled for interrupt enabled TSB stream");
-		SETCONFIGVALUE_PRIV(AAMP_TUNE_SETTING, eAAMPConfig_UseAbsoluteTimeline, true);
-	}
 
 	// DELIA-47965: Calling SetContentType without checking contentType != NULL, so that
 	// mContentType will be reset to ContentType_UNKNOWN at the start of tune by default
@@ -11864,6 +11864,9 @@ long PrivateInstanceAAMP::LoadFogConfig()
 
 	//info
 	jsondata.add("info", ISCONFIGSET_PRIV(eAAMPConfig_InfoLogging));
+
+	//tsbInterruptHandling
+	jsondata.add("tsbInterruptHandling", ISCONFIGSET_PRIV(eAAMPConfig_InterruptHandling));
 
 	/*
 	 * Audio and subtitle preference
