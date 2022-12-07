@@ -77,7 +77,10 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 		prevBlockedReason.clear();
 		AAMPLOG_WARN( "[OTA_SHIM] State changed from %s to %s ",  prevState.c_str(), currState.c_str());
 		prevState = currState;
-		if((0 == currState.compare("BLOCKED")) && (0 != reason.compare("NOT_BLOCKED")))
+		if(0 == currState.compare("PENDING"))
+		{
+			state = eSTATE_PREPARING;
+		}else if((0 == currState.compare("BLOCKED")) && (0 != reason.compare("NOT_BLOCKED")))
 		{
 			std::string ratingString;
 			JsonObject ratingObj = playerData["rating"].Object();
@@ -92,6 +95,9 @@ void StreamAbstractionAAMP_OTA::onPlayerStatusHandler(const JsonObject& paramete
 		{
 			if(!tuned){
 				aamp->SendTunedEvent(false);
+				/* For consistency, during first tune, first move to
+				 PREPARED state to match normal IPTV flow sequence */
+				aamp->SetState(eSTATE_PREPARED);
 				tuned = true;
 				aamp->LogFirstFrame();
 				aamp->LogTuneComplete();
@@ -345,8 +351,6 @@ StreamAbstractionAAMP_OTA::StreamAbstractionAAMP_OTA(AampLogManager *logObj, cla
                             miVideoWidth(0),miVideoHeight(0),miPrevmiVideoWidth(0),miPrevmiVideoHeight(0)
 #endif
 { // STUB
-	//To follow same state sequence as IP Video
-	aamp->SetState(eSTATE_PREPARING);
 }
 
 /**
@@ -464,9 +468,6 @@ void StreamAbstractionAAMP_OTA::Start(void)
 	loadParam["url"] = url;
 	loadParam["autoplay"] = true;
 	thunderAccessObj.InvokeJSONRPC("load", loadParam, result);
-	
-	//Once load is complete, the player state can be set as eSTATE_PREPARED to mimic ipvideo playback
-	aamp->SetState(eSTATE_PREPARED);
 
 	// below play request harmless, but not needed, given use of autoplay above
 	//JsonObject playParam;
