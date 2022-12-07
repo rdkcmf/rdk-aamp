@@ -39,6 +39,7 @@ public:
 	void updateTimestamp(unsigned long long positionMs);
 	void pause(bool pause) override;
 	void mute(bool mute) override;
+	void setTextStyle(const std::string &options) override;
 protected:
 	std::unique_ptr<SubtecChannel> m_channel;
 private:

@@ -16,38 +16,11 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
-#include "WebVttSubtecParser.hpp"
 
-WebVTTSubtecParser::WebVTTSubtecParser(AampLogManager *logObj, PrivateInstanceAAMP *aamp, SubtitleMimeType type) : SubtitleParser(logObj, aamp, type), m_channel(nullptr)
-{
-}
+#include <gtest/gtest.h>
 
-void WebVTTSubtecParser::updateTimestamp(unsigned long long positionMs)
+int main(int argc, char** argv)
 {
-}
-
-void WebVTTSubtecParser::reset()
-{
-}
-
-bool WebVTTSubtecParser::init(double startPosSeconds, unsigned long long basePTS)
-{
-	return true;
-}
-
-bool WebVTTSubtecParser::processData(char* buffer, size_t bufferLen, double position, double duration)
-{
-	return true;
-}
-
-void WebVTTSubtecParser::mute(bool mute)
-{
-}
-
-void WebVTTSubtecParser::pause(bool pause)
-{
-}
-
-void WebVTTSubtecParser::setTextStyle(const std::string &options)
-{
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

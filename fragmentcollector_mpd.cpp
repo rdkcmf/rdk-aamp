@@ -10014,8 +10014,9 @@ void StreamAbstractionAAMP_MPD::InitSubtitleParser(char *data)
 	mSubtitleParser = SubtecFactory::createSubtitleParser(mLogObj, aamp, eSUB_TYPE_WEBVTT);
 	if (mSubtitleParser)
 	{
-		AAMPLOG_WARN("sending init to webvtt parser %.3f", seekPosition);
-		mSubtitleParser->init(seekPosition,0);
+		double position = aamp->GetPositionSeconds();
+		AAMPLOG_WARN("sending init to webvtt parser %.3f", position);
+		mSubtitleParser->init(position,0);
 		mSubtitleParser->mute(false);
 		AAMPLOG_INFO("sending data");
 		if (data != NULL)
@@ -12871,4 +12872,22 @@ std::vector<StreamInfo*> StreamAbstractionAAMP_MPD::GetAvailableVideoTracks(void
 		videoTracks.push_back(streamInfo);
 	}
 	return videoTracks;
+}
+
+
+bool StreamAbstractionAAMP_MPD::SetTextStyle(const std::string &options)
+{
+	bool retVal;
+	// If sidecar subtitles
+	if (mSubtitleParser)
+	{
+		AAMPLOG_INFO("Calling SubtitleParser::SetTextStyle(%s)", options.c_str());
+		mSubtitleParser->setTextStyle(options);
+		retVal = true;
+	}
+	else
+	{
+		retVal = StreamAbstractionAAMP::SetTextStyle(options);
+	}
+	return retVal;
 }

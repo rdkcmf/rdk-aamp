@@ -1,4 +1,6 @@
 include(GoogleTest)
 
+add_subdirectory(AampCliSet)
 add_subdirectory(PlayerInstanceAAMP)
 add_subdirectory(PrivateInstanceAAMP)
+add_subdirectory(TextStyleAttributes)

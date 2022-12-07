@@ -15,22 +15,16 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+*/
+/**
+ * @file  SubtecAttribute.hpp
+ *
+ * @brief This file has been created to provide common definition related to Attribute.
+ *
  */
 
-#define FAKE_FUNCTION(x) \
-void x(); \
-void x() {}
+#pragma once
 
-extern "C" {
-FAKE_FUNCTION(ccGetAttributes)
-FAKE_FUNCTION(ccGetCapability)
-FAKE_FUNCTION(ccSetAttributes)
-FAKE_FUNCTION(ccSetCCState)
-FAKE_FUNCTION(ccSetAnalogChannel)
-FAKE_FUNCTION(ccSetDigitalChannel)
-FAKE_FUNCTION(media_closeCaptionStart)
-FAKE_FUNCTION(media_closeCaptionStop)
-FAKE_FUNCTION(vlGfxInit)
-FAKE_FUNCTION(vlhal_cc_Register)
-FAKE_FUNCTION(vlMpeosCCManagerInit)
-}
+#define NUMBER_OF_ATTRIBUTES 14
+
+using attributesType = std::array<uint32_t, NUMBER_OF_ATTRIBUTES>;  /**< attributesType is alias for an array of NUMBER_OF_ATTRIBUTES uint32_t */

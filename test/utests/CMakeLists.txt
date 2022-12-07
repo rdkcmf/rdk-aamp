@@ -19,6 +19,8 @@ cmake_minimum_required(VERSION 2.6)
 
 project(UnitTests)
 
+include(CTest)
+
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GTEST REQUIRED gtest)
