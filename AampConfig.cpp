@@ -621,7 +621,7 @@ void AampConfig::Initialize()
 
 void AampConfig::ReadDeviceCapability()
 {
-#if defined(BRCM) || defined(RPI) || defined(AAMP_SIMULATOR_BUILD)
+#if defined(RPI) || defined(AAMP_SIMULATOR_BUILD)
         bAampCfgValue[eAAMPConfig_DisableAC4].value			=	true;
 #else
 	if(!AAMPGstPlayer::IsCodecSupported("ac-4"))
@@ -633,7 +633,7 @@ void AampConfig::ReadDeviceCapability()
 	{
 		bAampCfgValue[eAAMPConfig_DisableAC4].value		=	false;
 	}
-#endif  
+#endif 
 
 	if(!AAMPGstPlayer::IsCodecSupported("ac-3"))
 	{

@@ -152,8 +152,8 @@ typedef enum {
  */
 static std::map <std::string, std::vector<std::string>> gmapDecoderLoookUptable = 
 {
-	{"ac-3", {"omxac3dec", "avdec_ac3", "avdec_ac3_fixed"}},
-	{"ac-4", {"omxac4dec"}}
+	{"ac-3", {"omxac3dec", "avdec_ac3", "avdec_ac3_fixed", "rtpac3pay"}},
+	{"ac-4", {"omxac4dec", "brcmaudiosink"}}
 };
 
 /**
@@ -2033,7 +2033,14 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "brcmaudiosink") == true)
 				{
 					_this->privateContext->audio_sink = (GstElement *) msg->src;
-
+#if defined(BRCM) /** AC4 support added for Broadcom platforms in audiosink */
+					int trackId = _this->privateContext->stream[eMEDIATYPE_AUDIO].trackId;
+					if (trackId >= 0) /** AC4 track selected **/
+					{
+						AAMPLOG_INFO("Selecting AC4 Track Id : %d", trackId);
+						g_object_set(msg->src, "ac4-presentation-group-index", trackId, NULL);
+					}
+#endif
 					_this->setVolumeOrMuteUnMute();
 				}
 				else if (aamp_StartsWith(GST_OBJECT_NAME(msg->src), "amlhalasink") == true)
@@ -2093,17 +2100,16 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #if !defined(REALTEKCE)
 					_this->SignalConnect(msg->src, "first-audio-frame-callback",
 									G_CALLBACK(AAMPGstPlayer_OnAudioFirstFrameAudDecoder), _this);
-#endif				
+#endif	
+
+#if !defined(BRCM) /** AC4 support added for non Broadcom platforms in audio decoder*/
 					int trackId = _this->privateContext->stream[eMEDIATYPE_AUDIO].trackId;
 					if (trackId >= 0) /** AC4 track selected **/
 					{
-#if !defined(BRCM) /** AC4 support added for non Broadcom platforms */				
 						AAMPLOG_INFO("Selecting AC4 Track Id : %d", trackId);
 						g_object_set(msg->src, "ac4-presentation-group-index", trackId, NULL);
-#else
-						AAMPLOG_WARN("AC4 support has not done for this platform - track Id: %d", trackId);
-#endif
 					}
+#endif
 				}
 			}
 			if ((NULL != msg->src) && AAMPGstPlayer_isVideoSink(GST_OBJECT_NAME(msg->src), _this))
