@@ -3752,7 +3752,7 @@ std::unordered_map<std::string, XREReceiver_onEventHandler::Handler_t>  XRERecei
 JSValueRef XREReceiverJS_onevent (JSContextRef ctx, JSObjectRef function, JSObjectRef thisObject, size_t argumentCount, const JSValueRef arguments[], JSValueRef* exception)
 {
 
-        LOG_WARN_EX("[XREReceiver]:%s arg count - %d", argumentCount);
+        LOG_WARN_EX("[XREReceiver]: arg count - %d", argumentCount);
 
 	if (argumentCount > 0)
 	{
