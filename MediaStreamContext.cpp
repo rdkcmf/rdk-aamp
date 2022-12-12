@@ -180,7 +180,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
             //update videoend info
             aamp->UpdateVideoEndMetrics( actualType,
                                     bitrate? bitrate : fragmentDescriptor.Bandwidth,
-                                    (iFogError > 0 ? iFogError : httpErrorCode),effectiveUrl,duration, downloadTime);
+                                    (iFogError > 0 ? iFogError : (int)httpErrorCode),effectiveUrl,duration, downloadTime);
         }
     }
 
@@ -188,7 +188,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
     if(bitrate > 0 && bitrate != fragmentDescriptor.Bandwidth)
     {
         AAMPLOG_INFO("Bitrate changed from %u to %ld",fragmentDescriptor.Bandwidth, bitrate);
-        fragmentDescriptor.Bandwidth = bitrate;
+        fragmentDescriptor.Bandwidth = (uint32_t)bitrate;
         context->SetTsbBandwidth(bitrate);
         mDownloadedFragment.ptr = cachedFragment->fragment.ptr;
         mDownloadedFragment.avail = cachedFragment->fragment.avail;
@@ -264,7 +264,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
                     }
                 }
             }
-            else if (AAMP_IS_LOG_WORTHY_ERROR(httpErrorCode))
+            else if (AAMP_IS_LOG_WORTHY_ERROR((int)httpErrorCode))
             {
                 AAMPLOG_WARN("StreamAbstractionAAMP_MPD::Error on fetching %s fragment. failedCount:%d",
                          name, segDLFailCount);

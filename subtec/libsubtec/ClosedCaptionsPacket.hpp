@@ -32,7 +32,7 @@ public:
     {
         appendType(Packet::PacketType::CC_DATA);
         append32(counter);
-        append32(CC_DATA_HEADER_LEN+dataLen);
+        append32((std::uint32_t)(CC_DATA_HEADER_LEN+dataLen));
         append32(channelId);
         append32(CC_CHANNEL_TYPE);
         append32(1); // pts presence
@@ -45,7 +45,7 @@ public:
     {
         appendType(Packet::PacketType::CC_DATA);
         append32(counter);
-        append32(CC_DATA_HEADER_LEN+dataLen);
+        append32((std::uint32_t)(CC_DATA_HEADER_LEN+dataLen));
         append32(channelId);
         append32(CC_CHANNEL_TYPE);
         append32(0); // pts presence

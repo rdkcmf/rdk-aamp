@@ -1192,7 +1192,7 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 		auto it = std::find_if( vCustom.begin(), vCustom.end(),[](const customJson & item) { return item.config == "url"; });
 		if (it != vCustom.end())
 		{
-			int distance = std::distance(vCustom.begin(),it);
+			int distance = (int)std::distance(vCustom.begin(),it);
 			foundurl = url_custom.find(vCustom[distance].configValue);
 			if( foundurl != std::string::npos)
 			{
@@ -1205,7 +1205,7 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 		auto it1 = std::find_if( vCustom.begin(), vCustom.end(),[](const customJson & item) { return item.config == "playerId"; });
 		if (it1 != vCustom.end())
 		{
-			int distance = std::distance(vCustom.begin(),it1);
+			int distance = (int)std::distance(vCustom.begin(),it1);
 			foundurl = playerId_custom.find(vCustom[distance].configValue);
 			if( foundurl != std::string::npos)
 			{
@@ -1218,7 +1218,7 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 		auto it2 = std::find_if( vCustom.begin(), vCustom.end(),[](const customJson & item) { return item.config == "appName"; });
 		if (it2 != vCustom.end())
 		{
-			int distance = std::distance(vCustom.begin(),it2);
+			int distance = (int)std::distance(vCustom.begin(),it2);
 			foundurl = appName_custom.find(vCustom[distance].configValue);
 			if( foundurl != std::string::npos)
 			{
@@ -1446,7 +1446,7 @@ bool AampConfig::ProcessConfigText(std::string &cfg, ConfigPriority owner )
 				key = cfg.substr(0, delimiterPos);
 				key.erase(std::remove_if(key.begin(), key.end(), ::isspace), key.end());
 				value = cfg.substr(delimiterPos + 1);
-				position = value.find_first_not_of(' ');
+				position = (int)value.find_first_not_of(' ');
 				value = value.substr(position);
 			}
 			else

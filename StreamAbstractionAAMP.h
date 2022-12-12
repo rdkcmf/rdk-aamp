@@ -1114,7 +1114,7 @@ public:
        * @retval profile index of the current bandwidth
        */
        virtual int GetProfileIndexForBandwidth(long mTsbBandwidth) {
-	       return aamp->mhAbrManager.getBestMatchedProfileIndexByBandWidth(mTsbBandwidth);
+	       return aamp->mhAbrManager.getBestMatchedProfileIndexByBandWidth((int)mTsbBandwidth);
        }
 
 	long GetCurProfIdxBW(){

@@ -436,7 +436,7 @@ void logprintf(const char *format, ...)
 	va_start(args, format);
 
 	char gDebugPrintBuffer[MAX_DEBUG_LOG_BUFF_SIZE];
-	len = sprintf(gDebugPrintBuffer, "[AAMP-PLAYER]");
+	len = snprintf(gDebugPrintBuffer, sizeof(gDebugPrintBuffer), "[AAMP-PLAYER]");
 	vsnprintf(gDebugPrintBuffer+len, MAX_DEBUG_LOG_BUFF_SIZE-len, format, args);
 	gDebugPrintBuffer[(MAX_DEBUG_LOG_BUFF_SIZE-1)] = 0;
 
@@ -486,7 +486,7 @@ void logprintf_new(int playerId,const char* levelstr,const char* file, int line,
 	va_start(args, format);
 
 	char gDebugPrintBuffer[MAX_DEBUG_LOG_BUFF_SIZE];
-	len = sprintf(gDebugPrintBuffer, "[AAMP-PLAYER][%d][%s][%s][%d]",playerId,levelstr,file,line);
+	len = snprintf(gDebugPrintBuffer, sizeof(gDebugPrintBuffer), "[AAMP-PLAYER][%d][%s][%s][%d]",playerId,levelstr,file,line);
 	vsnprintf(gDebugPrintBuffer+len, MAX_DEBUG_LOG_BUFF_SIZE-len, format, args);
 	gDebugPrintBuffer[(MAX_DEBUG_LOG_BUFF_SIZE-1)] = 0;
 

@@ -265,7 +265,7 @@ void PacketSender::sendPacket(PacketPtr && pkt)
     size_t size =  static_cast<ssize_t>(buffer.size());
     if (size > mSockBufSize && size < MAX_SNDBUF_SIZE)
     {
-	int newSize = buffer.size();
+	int newSize = (int)buffer.size();
 	if (::setsockopt(mSubtecSocketHandle, SOL_SOCKET, SO_SNDBUF, &newSize, sizeof(newSize)) == -1)
 	{
             AAMPLOG_WARN("::setsockopt() SO_SNDBUF failed\n");

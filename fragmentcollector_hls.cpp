@@ -1143,7 +1143,7 @@ char *TrackState::GetFragmentUriFromIndex(bool &bSegmentRepeated)
 			{
 				urlEnd--;
 			}
-			int urlLen = urlEnd - fragmentInfo;
+			int urlLen = (int)(urlEnd - fragmentInfo);
 			mFragmentURIFromIndex.assign(fragmentInfo, urlLen);
 			if(!mFragmentURIFromIndex.empty()){
 				uri = (char *)mFragmentURIFromIndex.c_str();
@@ -1750,7 +1750,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			if (byteRangeLength)
 			{
 				size_t next = byteRangeOffset + byteRangeLength;
-				sprintf(rangeStr, "%zu-%zu", byteRangeOffset, next - 1);
+				snprintf(rangeStr,sizeof(rangeStr), "%zu-%zu", byteRangeOffset, next - 1);
 				AAMPLOG_WARN("FetchFragmentHelper rangeStr %s ", rangeStr);
 
 				range = rangeStr;
@@ -1779,7 +1779,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 			{
 				//cleanup is done in aamp_GetFile itself
 
-				aamp->profiler.ProfileError(mediaTrackBucketTypes[type], http_error);
+				aamp->profiler.ProfileError(mediaTrackBucketTypes[type], (int)http_error);
 				aamp->profiler.ProfileEnd(mediaTrackBucketTypes[type]);
 				if (mSkipSegmentOnError)
 				{
@@ -1792,7 +1792,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 					// Skip segment if there is no profile to rampdown.
 					mSkipSegmentOnError = true;
 				}
-				if (AAMP_IS_LOG_WORTHY_ERROR(http_error))
+				if (AAMP_IS_LOG_WORTHY_ERROR((int)http_error))
 				{
 					AAMPLOG_WARN("FetchFragmentHelper aamp_GetFile failed");
 				}
@@ -1856,7 +1856,7 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 					 */
 					if ( eMETHOD_AES_128 == mDrmInfo.method && true == mDrmInfo.bUseMediaSequenceIV )
 					{
-						if ( true == CreateInitVectorByMediaSeqNo(nextMediaSequenceNumber-1) )
+						if ( true == CreateInitVectorByMediaSeqNo((unsigned int)(nextMediaSequenceNumber-1)) )
 						{
 							// Set this flag to seed the newly created IV to corresponding DRM instance
 							mKeyTagChanged = true;
@@ -2006,7 +2006,7 @@ void TrackState::FetchFragment()
 				{
 					AAMPLOG_WARN("%s Error while decrypting fragments. failedCount:%d", name, segDLFailCount);
 				}
-				else if (AAMP_IS_LOG_WORTHY_ERROR(http_error))
+				else if (AAMP_IS_LOG_WORTHY_ERROR((int)http_error))
 				{
 					AAMPLOG_WARN("Error on fetching %s fragment. failedCount:%d", name, segDLFailCount);
 				}
@@ -2025,7 +2025,7 @@ void TrackState::FetchFragment()
 			//update videoend info
 			aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
 									lbwd,
-									((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->mEffectiveUrl,fragmentDurationSeconds,downloadTime, bKeyChanged,fragmentEncrypted);
+									((iFogErrorCode > 0 ) ? iFogErrorCode : (int)http_error),this->mEffectiveUrl,fragmentDurationSeconds,downloadTime, bKeyChanged,fragmentEncrypted);
 
 			return;
 		}
@@ -2076,7 +2076,7 @@ void TrackState::FetchFragment()
 			//update videoend info
 			aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,type)? eMEDIATYPE_IFRAME:(MediaType)(type) ),
 									lbwd,
-									((iFogErrorCode > 0 ) ? iFogErrorCode : http_error),this->mEffectiveUrl,cachedFragment->duration,downloadTime,bKeyChanged,fragmentEncrypted);
+									((iFogErrorCode > 0 ) ? iFogErrorCode : (int)http_error),this->mEffectiveUrl,cachedFragment->duration,downloadTime,bKeyChanged,fragmentEncrypted);
 		}
 		else
 		{
@@ -3122,7 +3122,7 @@ int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 					auto iter = std::find(aamp->preferredLanguagesList.begin(), aamp->preferredLanguagesList.end(), trackLanguage);
 					if(iter != aamp->preferredLanguagesList.end())
 					{ // track is in preferred language list
-						int distance = std::distance(aamp->preferredLanguagesList.begin(),iter);
+						int distance = (int)std::distance(aamp->preferredLanguagesList.begin(),iter);
 						score += (aamp->preferredLanguagesList.size()-distance)*100000; // big bonus for language match
 					}
 				}
@@ -3136,7 +3136,7 @@ int StreamAbstractionAAMP_HLS::GetBestAudioTrackByLanguage( void )
 					auto iter = std::find(aamp->preferredCodecList.begin(), aamp->preferredCodecList.end(), GetAudioFormatStringForCodec(this->mediaInfo[i].audioFormat) );
 					if(iter != aamp->preferredCodecList.end())
 					{ // track is in preferred codec list
-						int distance = std::distance(aamp->preferredCodecList.begin(),iter);
+						int distance = (int)std::distance(aamp->preferredCodecList.begin(),iter);
 						score += (aamp->preferredCodecList.size()-distance)*100; //  bonus for codec match
 					}
 				}
@@ -3949,7 +3949,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 			aamp->SetCurlTimeout(aamp->mPlaylistTimeoutMs, (AampCurlInstance) i);
 		}
 		//update videoend info
-		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl(), downloadTime);
+		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,(int)http_error,aamp->GetManifestUrl(), downloadTime);
 		if (this->mainManifest.len)
 		{
 			aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
@@ -3965,7 +3965,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	}
 	if (!this->mainManifest.len && aamp->DownloadsAreEnabled()) //!aamp->GetFile(aamp->GetManifestUrl(), &this->mainManifest, aamp->GetManifestUrl()))
 	{
-		aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST, http_error);
+		aamp->profiler.ProfileError(PROFILE_BUCKET_MANIFEST, (int)http_error);
 		aamp->profiler.ProfileEnd(PROFILE_BUCKET_MANIFEST);
 		aamp->SendDownloadErrorEvent(AAMP_TUNE_MANIFEST_REQ_FAILED, http_error);
 	}
@@ -3988,7 +3988,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		// Parse the Main manifest ( As Parse function modifies the original data,InsertCache had to be called before it . 
 		long long tStartTime = NOW_STEADY_TS_MS;
 		AAMPStatusType mainManifestResult = ParseMainManifest();
-		parseTimeMs = NOW_STEADY_TS_MS - tStartTime;
+		parseTimeMs = (int)(NOW_STEADY_TS_MS - tStartTime);
 		// Check if Main manifest is good or not 
 		if(mainManifestResult != eAAMPSTATUS_OK)
 		{
@@ -4174,7 +4174,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		//Store Bitrate info to Video Track
 		if(video) 
 		{
-		    video->SetCurrentBandWidth(GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond);
+		    video->SetCurrentBandWidth((int)GetStreamInfo(currentProfileIndex)->bandwidthBitsPerSecond);
                 }
 		if(ISCONFIGSET(eAAMPConfig_AudioOnlyPlayback))
 		{
@@ -5150,7 +5150,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					bFiledownloaded = aamp->GetFile(defaultIframePlaylistUrl, &defaultIframePlaylist, defaultIframePlaylistEffectiveUrl, &http_error, &downloadTime, NULL,eCURLINSTANCE_MANIFEST_MAIN);
 					//update videoend info
 					ManifestData manifestData(downloadTime * 1000, defaultIframePlaylist.len);
-					aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,streamInfo->bandwidthBitsPerSecond,http_error,defaultIframePlaylistEffectiveUrl, downloadTime, &manifestData);
+					aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,streamInfo->bandwidthBitsPerSecond,(int)http_error,defaultIframePlaylistEffectiveUrl, downloadTime, &manifestData);
 				}
 				if (defaultIframePlaylist.len && bFiledownloaded)
 				{
@@ -5184,7 +5184,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	{
 		//update videoend info
 		ManifestData manifestData(mainManifestdownloadTime * 1000, this->mainManifest.len, parseTimeMs);
-		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,http_error,aamp->GetManifestUrl(), mainManifestdownloadTime, &manifestData);
+		aamp->UpdateVideoEndMetrics( eMEDIATYPE_MANIFEST,0,(int)http_error,aamp->GetManifestUrl(), mainManifestdownloadTime, &manifestData);
 	}
 	return retval;
 }
@@ -6443,7 +6443,7 @@ void TrackState::FetchPlaylist()
 	
 		ManifestData manifestData(downloadTime * 1000, playlist.len);
 		aamp->UpdateVideoEndMetrics( (IS_FOR_IFRAME(iCurrentRate,this->type) ? eMEDIATYPE_PLAYLIST_IFRAME :mType),this->GetCurrentBandWidth(),
-									main_error,mEffectiveUrl, downloadTime, &manifestData);
+									(int)main_error,mEffectiveUrl, downloadTime, &manifestData);
 		if(playlist.len)
 			aamp->profiler.ProfileEnd(bucketId);
 
@@ -6452,7 +6452,7 @@ void TrackState::FetchPlaylist()
 	{
 		AAMPLOG_WARN("Playlist download failed : %s  http response : %d", mPlaylistUrl.c_str(), (int)http_error);
 		aamp->mPlaylistFetchFailError = http_error;
-		aamp->profiler.ProfileError(bucketId, main_error);
+		aamp->profiler.ProfileError(bucketId, (int)main_error);
 		aamp->profiler.ProfileEnd(bucketId);
 	}
 
@@ -6811,8 +6811,8 @@ void TrackState::FetchInitFragment()
 				if (aamp->DownloadsAreEnabled())
 				{
 					AAMPLOG_ERR("TrackState::Init fragment fetch failed");
-					aamp->profiler.ProfileError(bucketType, http_code);
-					aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
+					aamp->profiler.ProfileError(bucketType, (int)http_code);
+					aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, (int)http_code);
 				}
 				context->mRampDownCount = 0;
 			}
@@ -6822,7 +6822,7 @@ void TrackState::FetchInitFragment()
 		{
 			long http_error = context->getOriginalCurlError(http_code);
 			AAMPLOG_ERR("TrackState::Init fragment fetch failed");
-			aamp->profiler.ProfileError(bucketType, http_error);
+			aamp->profiler.ProfileError(bucketType, (int)http_error);
 			aamp->SendDownloadErrorEvent(AAMP_TUNE_INIT_FRAGMENT_DOWNLOAD_FAILURE, http_code);
 		}
 	}
@@ -6904,7 +6904,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 						int offsetVal = stoi(byteRange.substr(offsetIdx + 1));
 						int rangeVal = stoi(byteRange.substr(0, offsetIdx));
 						int next = offsetVal + rangeVal;
-						sprintf(rangeStr, "%d-%d", offsetVal, next - 1);
+						snprintf(rangeStr,sizeof(rangeStr), "%d-%d", offsetVal, next - 1);
 						AAMPLOG_INFO("TrackState::rangeStr %s", rangeStr);
 						range = rangeStr;
 					}
@@ -6967,7 +6967,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 #endif /* CHECK_PERFORMANCE */
 	
 				long main_error = context->getOriginalCurlError(http_code);
-				aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), main_error, mEffectiveUrl, downloadTime);
+				aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), (int)main_error, mEffectiveUrl, downloadTime);
 
 				if ( fetched )
 				aamp->getAampCacheHandler()->InsertToInitFragCache ( fragmentUrl, &cachedFragment->fragment, tempEffectiveUrl, actualType);

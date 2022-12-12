@@ -331,7 +331,7 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 
 					// Are we too close to current period end?
 					//--> Inserted Ads finishes < 2 seconds behind new period : Channel play-back starts from new period.
-					int diff = currPeriodDuration - abObj.endPeriodOffset;
+					int diff = (int)(currPeriodDuration - abObj.endPeriodOffset);
 					// if diff is negative or < OFFSET_ALIGN_FACTOR we have to wait for it to catch up
 					// and either period will end with diff < OFFSET_ALIGN_FACTOR then adjust to next period start
 					// or diff will be more than OFFSET_ALIGN_FACTOR then don't do any adjustment
@@ -691,10 +691,10 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 		{
 			auto &adbreakObj = mAdBreaks[periodId];
 			std::shared_ptr<std::vector<AdNode>> adBreakAssets = adbreakObj.ads;
-			durationMs = aamp_GetDurationFromRepresentation(ad);
+			durationMs = (uint32_t)aamp_GetDurationFromRepresentation(ad);
 
 			startMS = adbreakObj.adsDuration;
-			uint32_t availSpace = adbreakObj.brkDuration - startMS;
+			uint32_t availSpace = (uint32_t)(adbreakObj.brkDuration - startMS);
 			if(availSpace < durationMs)
 			{
 				AAMPLOG_WARN("Adbreak's available space[%lu] < Ad's Duration[%lu]. Trimming the Ad.",  availSpace, durationMs);
