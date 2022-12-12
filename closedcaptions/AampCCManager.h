@@ -160,6 +160,13 @@ public:
 
 	void SetLogger(AampLogManager *logObj) { mLogObj = logObj;}
 
+	/**
+	 * @brief To check whether Out of Band Closed caption/Subtile rendering supported or not. 
+	 *
+	 * @return bool, True if Out of Band Closed caption/subtitle rendering supported
+	 */
+	bool IsOOBCCRenderingSupported();
+
 protected:
 	/**
 	 * @brief To start CC rendering

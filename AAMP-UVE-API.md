@@ -1078,6 +1078,12 @@ playerInstance.setPreferredTextLanguage( trackPreferenceObject );
 | Status | Boolean | To turn on/off ClosedCaption rendering |
 
 ---
+### isOOBCCRenderingSupported ( )
+- Supported UVE version 4.12 and above.
+- Returns true if out of band caption rendering (WebVTT, TTML) is supported.  This has dependencies outside Video Engine, and so UVE version alone cannot be relied on to infer support.
+
+
+---
 
 ### getTextStyleOptions ( )
 - Supported UVE version 2.6 and above.
@@ -1092,6 +1098,44 @@ playerInstance.setPreferredTextLanguage( trackPreferenceObject );
 |Name|Type|Description|
 |----|----|-----------|
 | options | String | JSON formatted string of different rendering style options and its values |
+
+
+##### Example: options
+    {
+        "penItalicized": false,
+        "textEdgeStyle": "none",
+        "textEdgeColor": "black",
+        "penSize": "large",
+        "windowFillColor": "black",
+        "fontStyle": "default",
+        "textForegroundColor": "black",
+        "windowFillOpacity": "transparent",
+        "textForegroundOpacity": "solid",
+        "textBackgroundColor": "white",
+        "textBackgroundOpacity": "solid",
+        "windowBorderEdgeStyle": "none",
+        "windowBorderEdgeColor": "black",
+        "penUnderline": false
+    }
+
+##### Example: options 
+
+    {
+        "penItalicized": false,
+        "textEdgeStyle": "none",
+        "textEdgeColor": "black",
+        "penSize": "small",
+        "windowFillColor": "black",
+        "fontStyle": "default",
+        "textForegroundColor": "black",
+        "windowFillOpacity": "transparent",
+        "textForegroundOpacity": "solid",
+        "textBackgroundColor": "white",
+        "textBackgroundOpacity": "solid",
+        "windowBorderEdgeStyle": "none",
+        "windowBorderEdgeColor": "black",
+        "penUnderline": false
+    }
 
 ---
 
@@ -1465,6 +1509,8 @@ playerInstance.setPreferredTextLanguage( trackPreferenceObject );
 
 **Description:** 
 - This event is fired for VTT cue parsed from the WebVTT playlist
+- Some platforms doesnt support rendering of WebVTT, in that case Application should render the WebVTT. 
+- Refer "isOOBCCRenderingSupported" API. 
 
 ---
 
