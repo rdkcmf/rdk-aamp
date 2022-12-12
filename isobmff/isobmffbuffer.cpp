@@ -379,16 +379,20 @@ bool IsoBmffBuffer::getEMSGInfoInternal(const std::vector<Box*> *boxes, uint8_t*
 		Box *box = boxes->at(i);
 		if (IS_TYPE(box->getType(), Box::EMSG))
 		{
-			message = dynamic_cast<EmsgBox *>(box)->getMessage();
-			messageLen = dynamic_cast<EmsgBox *>(box)->getMessageLen();
-			presTime = dynamic_cast<EmsgBox *>(box)->getPresentationTime();
-			timeScale = dynamic_cast<EmsgBox *>(box)->getTimeScale();
-			eventDuration = dynamic_cast<EmsgBox *>(box)->getEventDuration();
-			id = dynamic_cast<EmsgBox *>(box)->getId();
-			schemeIdUri = dynamic_cast<EmsgBox *>(box)->getSchemeIdUri();
-			value = dynamic_cast<EmsgBox *>(box)->getValue();
-			ret = true;
-			foundEmsg = true;
+			EmsgBox *emsgBox = dynamic_cast<EmsgBox *>(box);
+			if(emsgBox)
+			{
+				message = emsgBox->getMessage();
+				messageLen = emsgBox->getMessageLen();
+				presTime = emsgBox->getPresentationTime();
+				timeScale = emsgBox->getTimeScale();
+				eventDuration = emsgBox->getEventDuration();
+				id = emsgBox->getId();
+				schemeIdUri = emsgBox->getSchemeIdUri();
+				value = emsgBox->getValue();
+				ret = true;
+				foundEmsg = true;
+			}
 		}
 	}
 	return ret;

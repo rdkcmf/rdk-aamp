@@ -685,8 +685,9 @@ public:
 	void Event(const AAMPEventPtr &e)
 	{
 		AAMPEventType evtType = e->getType();
-		if(evtType != AAMP_EVENT_PROGRESS && evtType != AAMP_EVENT_AD_PLACEMENT_PROGRESS)//log all events except progress which spams
+		if(evtType != AAMP_EVENT_PROGRESS && evtType != AAMP_EVENT_AD_PLACEMENT_PROGRESS) {//log all events except progress which spams
                         LOG_WARN( _aamp,"ctx=%p, type=%d, jsCallback=%p", _aamp->_ctx,evtType, _jsCallback);
+		}
 
 		JSObjectRef eventObj = JSObjectMake(_aamp->_ctx, Event_class_ref(), NULL);
 		if (eventObj) {

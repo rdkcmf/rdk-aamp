@@ -561,7 +561,12 @@ static void ParseMediaAttributeCallback(char *attrName, char *delimEqual, char *
 static char *mystrpbrk(char *ptr)
 { // lines are terminated by either a single LF character or a CR character followed by an LF character
 	char *next = NULL;
-	char *fin = strchr(ptr, CHAR_LF);
+	char *fin = NULL;
+	if(ptr != NULL)
+	{
+		fin = strchr(ptr, CHAR_LF);
+	}
+
 	if (fin)
 	{
 		next = fin + 1;
@@ -4226,7 +4231,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				audio->FetchPlaylist();
 			}
 		}
-		if (video->enabled)
+		if (video && video->enabled)
 		{
 			if (aamp->getAampCacheHandler()->RetrieveFromPlaylistCache(video->mPlaylistUrl, &video->playlist, video->mEffectiveUrl))
 			{

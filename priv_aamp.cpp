@@ -2891,7 +2891,7 @@ void PrivateInstanceAAMP::NotifyEOSReached()
 				// Resetting trickStartUTCMS if it's default due to no first frame on high speed rewind. This enables ReportProgress to 
 				// send BOS event to JSPP
 				ResetTrickStartUTCTime();
-				AAMPLOG_INFO("Resetting trickStartUTCMS to %lld since no first frame on trick play rate %d", trickStartUTCMS, rate);
+				AAMPLOG_INFO("Resetting trickStartUTCMS to %lld since no first frame on trick play rate %f", trickStartUTCMS, rate);
 			}
 			// A new report progress event to be emitted with position 0 when rewind reaches BOS
 			ReportProgress(true, true);

@@ -1223,7 +1223,7 @@ void PlayerInstanceAAMP::SetRateAndSeek(int rate, double secondsRelativeToTuneTi
 	//Hack For DELIA-51318 convert the incoming rates into acceptable rates
 	if(ISCONFIGSET(eAAMPConfig_RepairIframes))
 	{
-		AAMPLOG_WARN("mRepairIframes is true, setting actual rate %d for the received rate %d", getWorkingTrickplayRate(rate), rate);
+		AAMPLOG_WARN("mRepairIframes is true, setting actual rate %f for the received rate %d", getWorkingTrickplayRate(rate), rate);
 		rate = getWorkingTrickplayRate(rate);
 	}
 

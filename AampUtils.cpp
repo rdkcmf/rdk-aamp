@@ -789,7 +789,11 @@ static inline void createdir(const char *dirpath)
 	DIR *d = opendir(dirpath);
 	if (!d)
 	{
-		mkdir(dirpath, 0777);
+		if(mkdir(dirpath, 0777) == -1)
+		{
+			
+			AAMPLOG_ERR("Error :  %s",strerror(errno));
+		}
 	}
 	else
 	{
