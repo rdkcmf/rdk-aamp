@@ -112,7 +112,7 @@ if(!iarmInitialized)
 {
         char processName[20] = {0};
         IARM_Result_t result;
-        sprintf (processName, sizeof(processName), "AAMP-PLAYER-%u", getpid());
+        snprintf (processName, sizeof(processName), "AAMP-PLAYER-%u", getpid());
         if (IARM_RESULT_SUCCESS == (result = IARM_Bus_Init((const char*) &processName))) {
                 logprintf("IARM Interface Inited in AAMP");
         }
