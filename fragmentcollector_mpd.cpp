@@ -5473,6 +5473,7 @@ void StreamAbstractionAAMP_MPD::IndexNewMPDDocument(bool updateTrackInfo)
 			auto periods = mpd->GetPeriods();
 			std::vector<PeriodInfo> currMPDPeriodDetails;
 			uint64_t durMs = 0;
+			aamp->mIsEventStreamFound = false;
 			for (int iter = 0; iter < periods.size(); iter++)
 			{
 				auto period = periods.at(iter);
@@ -5485,6 +5486,12 @@ void StreamAbstractionAAMP_MPD::IndexNewMPDDocument(bool updateTrackInfo)
 				if(!IsEmptyPeriod(mpd->GetPeriods().at(iter), mIsFogTSB))
 				{
 					durMs += periodInfo.duration;
+				}
+				//DELIA-48836 refresh T6 Linear CDAI more frequently to avoid race condition, signaling moved from fetcher thread to playlist thread
+				auto eventStream = period->GetEventStreams();
+				if(!(eventStream.empty()))
+				{
+					aamp->mIsEventStreamFound = true;
 				}
 			}
 
@@ -9232,7 +9239,7 @@ bool StreamAbstractionAAMP_MPD::PushEncryptedHeaders()
 /**
  * @brief Fetches and caches audio fragment parallelly for video fragment.
  */
-void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *exitFetchLoop, bool *bCacheFullState)
+void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, double delta, bool *waitForFreeFrag, bool *bCacheFullState)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
 	class MediaStreamContext *pMediaStreamContext = mMediaStreamContext[trackIdx];
@@ -9339,11 +9346,6 @@ void StreamAbstractionAAMP_MPD::AdvanceTrack(int trackIdx, bool trickPlay, doubl
 
 		}
 	}
-	if (!aamp->DownloadsAreEnabled() && exitFetchLoop && bCacheFullState)
-	{
-		*exitFetchLoop = true;
-		*bCacheFullState = false;
-	}
 }
 
 /**
@@ -9389,7 +9391,6 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 	 */
 	do
 	{
-		bool liveMPDRefresh = false;
 		bool waitForAdBreakCatchup= false;
 		if(mpd)
 		{
@@ -9684,7 +9685,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 				double lastPrdOffset = mBasePeriodOffset;
 				bool parallelDnld = ISCONFIGSET(eAAMPConfig_DashParallelFragDownload) ;
 				// playback
-				while (!exitFetchLoop && !liveMPDRefresh)
+				while (!exitFetchLoop)
 				{
 
 					if(mIsLiveStream && !mIsLiveManifest && playlistDownloaderThreadStarted)
@@ -9698,23 +9699,26 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 
 					for (int trackIdx = (mNumberOfTracks - 1); trackIdx >= 0; trackIdx--)
 					{
-						if (parallelDnld && trackIdx > 0) // (trackIdx > 0) indicates video/iframe/audio-only has to be downloaded in sync mode from this FetcherLoop().
+						parallelDownload[trackIdx] = NULL;
+						if (!mMediaStreamContext[trackIdx]->eos)
 						{
-							// Download the audio & subtitle fragments in a separate parallel thread.
-							parallelDownload[trackIdx] = new std::thread(
+							if (parallelDnld && trackIdx > 0) // (trackIdx > 0) indicates video/iframe/audio-only has to be downloaded in sync mode from this FetcherLoop().
+							{
+								// Download the audio & subtitle fragments in a separate parallel thread.
+								parallelDownload[trackIdx] = new std::thread(
 												&StreamAbstractionAAMP_MPD::AdvanceTrack,
 												this,
 												trackIdx,
 												trickPlay,
 												delta,
 												&waitForFreeFrag,
-												&exitFetchLoop,
 												&bCacheFullState);
-						}
-						else
-						{
-							AdvanceTrack(trackIdx, trickPlay, delta, &waitForFreeFrag, &exitFetchLoop, &bCacheFullState);
-							parallelDownload[trackIdx] = NULL;
+							}
+							else
+							{
+								AdvanceTrack(trackIdx, trickPlay, delta, &waitForFreeFrag, &bCacheFullState);
+								parallelDownload[trackIdx] = NULL;
+							}
 						}
 					}
 
@@ -9726,6 +9730,13 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 							parallelDownload[trackIdx]->join();
 							SAFE_DELETE(parallelDownload[trackIdx]);
 						}
+					}
+
+					// If download status is disabled then need to exit from fetcher loop
+					if (!aamp->DownloadsAreEnabled())
+					{
+						exitFetchLoop = true;
+						bCacheFullState = false;
 					}
 
 					// BCOM-2959  -- Exit from fetch loop for period to be done only after audio and video fetch
@@ -9819,28 +9830,7 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						lastPrdOffset = mBasePeriodOffset;
 					}
 
-					double refreshInterval = MAX_DELAY_BETWEEN_MPD_UPDATE_MS;
-					AcquirePlaylistLock();
-					std::vector<IPeriod*> availablePeriods = mpd->GetPeriods();
-					for(auto temp : availablePeriods)
-					{
-						//DELIA-38846 refresh T6 Linear CDAI more frequently to avoid race condition
-						auto eventStream = temp->GetEventStreams();
-						if( !(eventStream.empty()) )
-						{
-							hasEventStream = true;
-							refreshInterval = mMinUpdateDurationMs;
-							break;
-						}
-					}
-					ReleasePlaylistLock();
-					int timeoutMs = refreshInterval - (int)(aamp_GetCurrentTimeMS() - mLastPlaylistDownloadTimeMs);
-					if(timeoutMs <= 0 && mIsLiveManifest && rate > 0 && !bCacheFullState)
-					{
-						liveMPDRefresh = true;
-						break;
-					}
-					else if(bCacheFullState)
+					if(bCacheFullState)
 					{
 						// play cache is full , wait until cache is available to inject next, max wait of 1sec
 						int timeoutMs = MAX_WAIT_TIMEOUT_MS;
@@ -9857,10 +9847,6 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 						aamp->InterruptableMsSleep(50);
 					}
 				} // Loop 3: end of while loop (!exitFetchLoop)
-				if(liveMPDRefresh)
-				{
-					break;
-				}
 
 				if(AdState::IN_ADBREAK_WAIT2CATCHUP == mCdaiObject->mAdState)
 				{
@@ -9883,14 +9869,6 @@ void StreamAbstractionAAMP_MPD::FetcherLoop()
 		else
 		{
 			AAMPLOG_WARN("StreamAbstractionAAMP_MPD: null mpd");
-		}
-
-		// Requirement of liveMPDRefresh calculated by fragment downloader thread
-		// Special cases : EventStream update, CDAI period processing, etc..
-		// Abort playlist downloader wait, download manifest immediately.
-		if(liveMPDRefresh)
-		{
-			playlistDownloaderContext->AbortWaitForPlaylistDownload();
 		}
 
 		AcquirePlaylistLock();

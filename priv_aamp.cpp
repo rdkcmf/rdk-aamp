@@ -1431,6 +1431,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mLLActualOffset(-1)
 	, mIsStream4K(false)
 	, mTextStyle()
+	, mIsEventStreamFound(false)
 {
 	for(int i=0; i<eMEDIATYPE_DEFAULT; i++)
 	{

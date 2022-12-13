@@ -3611,6 +3611,12 @@ int MediaTrack::WaitTimeBasedOnBufferAvailable()
 			minDelayBetweenPlaylistUpdates = MAX_DELAY_BETWEEN_PLAYLIST_UPDATE_MS;
 		}
 
+		// If any CDAI entries present in playlist, then refresh with update duration specified in playlist
+		if (aamp->mIsEventStreamFound)
+		{
+			minDelayBetweenPlaylistUpdates = minUpdateDuration;
+		}
+
 		// adjust with last refreshed time interval
 		minDelayBetweenPlaylistUpdates -= timeSinceLastPlaylistDownload;
 
