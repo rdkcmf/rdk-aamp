@@ -555,8 +555,8 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 			GrowableBuffer fogManifest;
 			memset(&fogManifest, 0, sizeof(manifest));
 			http_error = 0;
-
-			if((mAamp->GetFile(effectiveUrl, &fogManifest, effectiveUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_DAI)))
+			mAamp->GetFile(effectiveUrl, &fogManifest, effectiveUrl, &http_error, &downloadTime, NULL, eCURLINSTANCE_DAI);
+			if(200 == http_error || 204 == http_error)
 			{
 				manifestUrl = effectiveUrl;
 				if(200 == http_error)

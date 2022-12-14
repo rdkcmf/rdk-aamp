@@ -3682,13 +3682,13 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 							effectiveUrlPtr =  const_cast<char *>(httpRespHeaders[curlInstance].data.c_str());
 						}
 					}
-					//When Fog is having tsb write error , then it will respond back with 302 with direct CDN url,In this case alone TSB should be disabled
-					if(http_code == 302)
-					{
-						mTSBEnabled = false;
-					}
 					else
 					{
+						//When Fog is having tsb write error , then it will respond back with 302 with direct CDN url,In this case alone TSB should be disabled
+						if(mTSBEnabled && http_code == 302)
+						{
+							mTSBEnabled = false;
+						}
 						res = curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrlPtr);
 
 						if(GetLLDashServiceData()->lowLatencyMode &&
