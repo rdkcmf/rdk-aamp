@@ -1471,9 +1471,11 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioRendition,preferredRenditionString);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioCodec,preferredCodecString);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioLabel,preferredLabelsString);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioType,preferredTypeString);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredTextRendition,preferredTextRenditionString);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredTextLanguage,preferredTextLanguagesString);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredTextLabel,preferredTextLabelString);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredTextType,preferredTextTypeString);
 #if defined(AAMP_MPD_DRM) || defined(AAMP_HLS_DRM)
 	mDRMSessionManager = new AampDRMSessionManager(mLogObj, maxDrmSession);
 #endif
@@ -5107,9 +5109,11 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioCodec,preferredCodecString);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioLanguage,preferredLanguagesString);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioLabel,preferredLabelsString);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredAudioType,preferredTypeString);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredTextRendition,preferredTextRenditionString);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredTextLanguage,preferredTextLanguagesString);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredTextLabel,preferredTextLabelString);
+	GETCONFIGVALUE_PRIV(eAAMPConfig_PreferredTextType,preferredTextTypeString);
 	UpdatePreferredAudioList();
 	GETCONFIGVALUE_PRIV(eAAMPConfig_DRMDecryptThreshold,mDrmDecryptFailCount);
 	GETCONFIGVALUE_PRIV(eAAMPConfig_PreCachePlaylistTime,mPreCacheDnldTimeWindow);
@@ -9411,6 +9415,7 @@ std::string PrivateInstanceAAMP::GetAvailableAudioTracks(bool allTrack)
 					{
 						cJSON_AddStringToObject(item, "Type", iter->mType.c_str());
 					}
+					cJSON_AddBoolToObject(item, "availability", iter->isAvailable);
 					if (!iter->accessibilityItem.getSchemeId().empty())
 					{
 						cJSON *accessibility = cJSON_AddObjectToObject(item, "accessibility");
@@ -9515,6 +9520,7 @@ std::string PrivateInstanceAAMP::GetAvailableTextTracks(bool allTrack)
 					{
 						cJSON_AddStringToObject(item, "codec", iter->codec.c_str());
 					}
+					cJSON_AddBoolToObject(item, "availability", iter->isAvailable);
 					if (!iter->accessibilityItem.getSchemeId().empty())
 					{
 						cJSON *accessibility = cJSON_AddObjectToObject(item, "accessibility");
@@ -9947,6 +9953,65 @@ std::string PrivateInstanceAAMP::GetTextTrackInfo()
 	return track;
 }
 
+
+/**
+ * @brief Create json data from track Info
+ */
+static char* createJsonData(TextTrackInfo& track)
+{
+	char *jsonStr = NULL;
+	cJSON *item = cJSON_CreateObject();
+	if (!track.name.empty())
+	{
+		cJSON_AddStringToObject(item, "name", track.name.c_str());
+	}
+	if (!track.language.empty())
+	{
+		cJSON_AddStringToObject(item, "languages", track.language.c_str());
+	}
+	if (!track.codec.empty())
+	{
+		cJSON_AddStringToObject(item, "codec", track.codec.c_str());
+	}
+	if (!track.rendition.empty())
+	{
+		cJSON_AddStringToObject(item, "rendition", track.rendition.c_str());
+	}
+	if (!track.label.empty())
+	{
+		cJSON_AddStringToObject(item, "label", track.label.c_str());
+	}
+	if (!track.accessibilityType.empty())
+	{
+		cJSON_AddStringToObject(item, "accessibilityType", track.accessibilityType.c_str());
+	}
+	if (!track.characteristics.empty())
+	{
+		cJSON_AddStringToObject(item, "characteristics", track.characteristics.c_str());
+	}
+	if (!track.mType.empty())
+	{
+		cJSON_AddStringToObject(item, "type", track.mType.c_str());
+	}
+	if (!track.accessibilityItem.getSchemeId().empty())
+	{
+		cJSON *accessibility = cJSON_AddObjectToObject(item, "accessibility");
+		cJSON_AddStringToObject(accessibility, "scheme", track.accessibilityItem.getSchemeId().c_str());
+		if (track.accessibilityItem.getTypeName() == "int_value")
+		{
+			cJSON_AddNumberToObject(accessibility, track.accessibilityItem.getTypeName().c_str(), track.accessibilityItem.getIntValue());
+		}
+		else
+		{
+			cJSON_AddStringToObject(accessibility, track.accessibilityItem.getTypeName().c_str(), track.accessibilityItem.getStrValue().c_str());
+		}
+	}
+	
+	jsonStr = cJSON_Print(item);
+	cJSON_Delete(item);
+	return jsonStr;
+}
+
 /**
  * @brief Set text track
  */
@@ -10015,16 +10080,27 @@ void PrivateInstanceAAMP::SetTextTrack(int trackId, char *data)
 					AAMPLOG_WARN("GetPreferredTextTrack %d trackId %d", textTrack, trackId);
 					if (trackId != textTrack)
 					{
-						SetPreferredTextTrack(track);
-						discardEnteringLiveEvt = true;
-						seek_pos_seconds = GetPositionSeconds();
-						AcquireStreamLock();
-						TeardownStream(false);
-						TuneHelper(eTUNETYPE_SEEK);
-						ReleaseStreamLock();
-						discardEnteringLiveEvt = false;
+						if(mMediaFormat == eMEDIAFORMAT_DASH)
+						{
+							const char* jsonData = createJsonData(track);
+							if(NULL != jsonData)
+							{ 
+								SetPreferredTextLanguages(jsonData);
+							}
+						}
+						else
+						{
+							SetPreferredTextTrack(track);
+							discardEnteringLiveEvt = true;
+							seek_pos_seconds = GetPositionSeconds();
+							AcquireStreamLock();
+							TeardownStream(false);
+							TuneHelper(eTUNETYPE_SEEK);
+							ReleaseStreamLock();
+							discardEnteringLiveEvt = false;
+						}
 					}
-				}	
+				}
 			}
 		}
 		else
@@ -10636,7 +10712,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 					preferredTypeString =  preferredTypeString.substr(pos+1, end);
 				}
 				AAMPLOG_INFO("Setting accessibility type %s", preferredTypeString.c_str());
-
+				SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING, eAAMPConfig_PreferredAudioType, preferredTypeString);
 			}
 			else
 			{
@@ -10778,6 +10854,15 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				}
 			}
 
+			bool clearPreference = false;
+			if(isRetuneNeeded && preferredCodecList.size() == 0 && preferredTypeString.empty() && preferredRenditionString.empty() \
+				&& preferredLabelsString.empty() && preferredLanguagesList.size() == 0)
+			{
+				/** Previouse preference set and API called to clear all preferences; so retune to make effect **/
+				AAMPLOG_INFO("API to clear all preferences; retune to make it affect");
+				clearPreference = true;
+			}
+
 			if(mMediaFormat == eMEDIAFORMAT_OTA)
 			{
 				mpStreamAbstractionAAMP->SetPreferredAudioLanguages();
@@ -10786,7 +10871,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			{
 				/*Avoid retuning in case of HEMIIN and COMPOSITE IN*/
 			}
-			else if (languagePresent || renditionPresent || accessibilityTypePresent || codecPresent || labelPresent || accessibilityPresent) // call the tune only if there is a change in the language, rendition or accessibility.
+			else if (languagePresent || renditionPresent || accessibilityTypePresent || codecPresent || labelPresent || accessibilityPresent || clearPreference) // call the tune only if there is a change in the language, rendition or accessibility.
 			{
 				if(!ISCONFIGSET_PRIV(eAAMPConfig_ChangeTrackWithoutRetune))
 				{
@@ -10888,6 +10973,26 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 			}
 		}
 
+		std::string inputTextLabelString;
+		/** Get label Properties*/
+		if (jsObject->isString("label"))
+		{
+			if (jsObject->get("label", inputTextLabelString))
+			{
+				AAMPLOG_INFO("Preferred text label string: %s", inputTextLabelString.c_str());	
+			}
+		}
+
+		std::string inputTextTypeString;
+		/** Get accessibility type Properties*/
+		if (jsObject->isString("accessibilityType"))
+		{
+			if (jsObject->get("accessibilityType", inputTextTypeString))
+			{
+				AAMPLOG_INFO("Preferred text type string: %s", inputTextTypeString.c_str());	
+			}
+		}
+
 		Accessibility  inputTextAccessibilityNode;
 		/** Get accessibility Properties*/
 		if (jsObject->isObject("accessibility"))
@@ -10931,14 +11036,19 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 		preferredTextLanguagesString.clear();
 		preferredTextRenditionString.clear();
 		preferredTextAccessibilityNode.clear();
+		preferredTextLabelString.clear();
 
 		preferredTextLanguagesList = inputTextLanguagesList;
 		preferredTextLanguagesString = inputTextLanguagesString;
 		preferredTextRenditionString = inputTextRenditionString;
 		preferredTextAccessibilityNode = inputTextAccessibilityNode;
+		preferredTextLabelString = inputTextLabelString;
+		preferredTextTypeString = inputTextTypeString;
 		
 		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredTextLanguage,preferredTextLanguagesString);
 		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredTextRendition,preferredTextRenditionString);
+		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredTextLabel,preferredTextLabelString);
+		SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredTextType,preferredTextTypeString);
 	}
 	else if( param )
 	{
@@ -11522,15 +11632,15 @@ long PrivateInstanceAAMP::LoadFogConfig()
 		if((preferredLanguagesList.size() > 0) || !preferredRenditionString.empty() || !preferredLabelsString.empty() || !preferredAudioAccessibilityNode.getSchemeId().empty())
 		{
 			aPrefAvail = true;
-			if (preferredLanguagesList.size() > 0)
+			if ((preferredLanguagesList.size() > 0) && (GETCONFIGOWNER_PRIV(eAAMPConfig_PreferredAudioLanguage) > AAMP_DEFAULT_SETTING ))
 			{
 				audioPreference.add("languages", preferredLanguagesList);
 			}
-			if(!preferredRenditionString.empty())
+			if(!preferredRenditionString.empty() && (GETCONFIGOWNER_PRIV(eAAMPConfig_PreferredAudioRendition) > AAMP_DEFAULT_SETTING ))
 			{
 				audioPreference.add("rendition", preferredRenditionString);
 			}
-			if(!preferredLabelsString.empty())
+			if(!preferredLabelsString.empty() && (GETCONFIGOWNER_PRIV(eAAMPConfig_PreferredAudioLabel) > AAMP_DEFAULT_SETTING ))
 			{
 				audioPreference.add("label", preferredLabelsString);
 			}
@@ -11558,15 +11668,15 @@ long PrivateInstanceAAMP::LoadFogConfig()
 		if((preferredTextLanguagesList.size() > 0) || !preferredTextRenditionString.empty() || !preferredTextLabelString.empty() || !preferredTextAccessibilityNode.getSchemeId().empty())
 		{
 			tPrefAvail = true;
-			if (preferredTextLanguagesList.size() > 0)
+			if ((preferredTextLanguagesList.size() > 0) && (GETCONFIGOWNER_PRIV(eAAMPConfig_PreferredTextLanguage) > AAMP_DEFAULT_SETTING ))
 			{
 				subtitlePreference.add("languages", preferredTextLanguagesList);
 			}
-			if(!preferredTextRenditionString.empty())
+			if(!preferredTextRenditionString.empty() && (GETCONFIGOWNER_PRIV(eAAMPConfig_PreferredTextRendition) > AAMP_DEFAULT_SETTING ))
 			{
 				subtitlePreference.add("rendition", preferredTextRenditionString);
 			}
-			if(!preferredTextLabelString.empty())
+			if(!preferredTextLabelString.empty() && (GETCONFIGOWNER_PRIV(eAAMPConfig_PreferredTextLabel) > AAMP_DEFAULT_SETTING ))
 			{
 				subtitlePreference.add("label", preferredTextLabelString);
 			}
