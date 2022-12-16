@@ -4052,6 +4052,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 					SETCONFIGVALUE(AAMP_TUNE_SETTING,eAAMPConfig_EnableABR,false);
 					mainManifestResult = eAAMPSTATUS_OK;
 					AAMPLOG_INFO("StreamAbstractionAAMP_HLS::Playlist only playback.");
+					aamp->getAampCacheHandler()->RemoveFromPlaylistCache(aamp->GetManifestUrl());
 				}
 				else
 				{

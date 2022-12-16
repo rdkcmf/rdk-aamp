@@ -238,6 +238,12 @@ public:
 	bool RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, std::string& effectiveUrl);
 
 	/**
+	 *  @brief Remove specific playlist cache
+	 *   @param[in] url - URL
+	 */
+	void RemoveFromPlaylistCache(const std::string url);
+
+	/**
 	 *   @fn SetMaxPlaylistCacheSize
 	 *
 	 *   @param[in] maxPlaylistCacheSz - CacheSize

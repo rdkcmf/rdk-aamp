@@ -111,7 +111,7 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 bool AampCacheHandler::RetrieveFromPlaylistCache(const std::string url, GrowableBuffer* buffer, std::string& effectiveUrl)
 {
 	GrowableBuffer* buf = NULL;
-	bool ret;
+	bool ret; 
 	std::string eUrl;
 	pthread_mutex_lock(&mMutex);
 	PlaylistCacheIter it = mPlaylistCache.find(url);
@@ -133,6 +133,33 @@ bool AampCacheHandler::RetrieveFromPlaylistCache(const std::string url, Growable
 	}
 	pthread_mutex_unlock(&mMutex);
 	return ret;
+}
+
+/**
+ *  @brief Remove specific playlist cache
+ */
+void AampCacheHandler::RemoveFromPlaylistCache(const std::string url)
+{
+	pthread_mutex_lock(&mMutex);
+	PlaylistCacheIter it = mPlaylistCache.find(url);
+	if (it != mPlaylistCache.end())
+	{
+		PlayListCachedData *tmpData = it->second;
+		if(!tmpData->mDuplicateEntry)
+		{
+			aamp_Free(tmpData->mCachedBuffer);
+			SAFE_DELETE(tmpData->mCachedBuffer);
+		}
+		SAFE_DELETE(tmpData);
+
+		AAMPLOG_INFO("Removing Playlist URL %s from Cache", it->first.c_str());
+		mPlaylistCache.erase(it);
+	}
+	else
+	{
+		AAMPLOG_WARN("Playlist URL %s not found in cache", url.c_str());
+	}
+	pthread_mutex_unlock(&mMutex);
 }
 
 /**
