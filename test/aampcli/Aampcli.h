@@ -72,7 +72,7 @@ class Aampcli
 		GThread *mAampMainLoopThread;
 		std::vector<PlayerInstanceAAMP*> mPlayerInstances;
 
-		static void * runCommand( void* args );
+		static void runCommand( void* args );
 		static void * aampGstPlayerStreamThread(void *arg);
 		void doAutomation(const int startChannel=500, const int stopChannel=1000);
 		FILE * getConfigFile(const std::string& cfgFile);

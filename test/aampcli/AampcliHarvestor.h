@@ -62,22 +62,22 @@ class Harvestor : public Command
 		static const int mHarvestSlaveThreadCount = 50;
 		static char exePathName[PATH_MAX];
 		static std::string mHarvestPath;
-		static std::map<pthread_t, harvestProfileDetails> mHarvestInfo;
-		static std::vector<pthread_t> mHarvestThreadId;
+		static std::map<std::thread::id, harvestProfileDetails> mHarvestInfo;
+		static std::vector<std::thread::id> mHarvestThreadId;
 		static PlayerInstanceAAMP *mPlayerInstanceAamp;
 
-		pthread_t mMasterHarvestorThreadID;
-		pthread_t mSlaveHarvestorThreadID;
-		pthread_t mReportThread;
-		pthread_t mSlaveIFrameThread;
-		pthread_t mSlaveVideoThreads[mHarvestSlaveThreadCount];
-		pthread_t mSlaveAudioThreads[mHarvestSlaveThreadCount];
+		std::thread mMasterHarvestorThreadID;
+		std::thread mSlaveHarvestorThreadID;
+		std::thread mReportThread;
+		std::thread mSlaveIFrameThread;
+		std::thread mSlaveVideoThreads[mHarvestSlaveThreadCount];
+		std::thread mSlaveAudioThreads[mHarvestSlaveThreadCount];
 
-		static void* masterHarvestor(void * arg);
-		static void* slaveHarvestor(void * arg);
-		static void* slaveDataOutput(void * arg);
+		static void masterHarvestor(void * arg);
+		static void slaveHarvestor(void * arg);
+		static void slaveDataOutput(void * arg);
 		long getNumberFromString(std::string buffer);
-		static void* startHarvestReport(void * arg);
+		void startHarvestReport(char * arg);
 		bool getHarvestReportDetails(char *buffer);
 		void writeHarvestErrorReport(HarvestProfileDetails, char *buffer);
 		void writeHarvestEndReport(HarvestProfileDetails, char *buffer);

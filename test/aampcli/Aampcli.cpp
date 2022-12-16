@@ -144,7 +144,7 @@ void Aampcli::doAutomation(const int startChannel, const int stopChannel)
 	}
 }
 
-void * Aampcli::runCommand( void* args )
+void Aampcli::runCommand( void* args )
 {
 	char cmd[mMaxBufferLength] = {'\0'};
 	std::vector<std::string> *arguments;
@@ -229,7 +229,7 @@ void * Aampcli::runCommand( void* args )
 		}
 	}
 
-	return NULL;
+	return;
 }
 
 FILE * Aampcli::getConfigFile(const std::string& cfgFile)
@@ -356,11 +356,14 @@ int main(int argc, char **argv)
 		arguments.push_back(std::string(argv[i]));
 	}
 
-	pthread_t cmdThreadId;
-	if(pthread_create(&cmdThreadId,NULL,mAampcli.runCommand, (void *) &arguments) != 0)
+	std::thread cmdThreadId;
+	try {
+		cmdThreadId = std::thread(&mAampcli.runCommand, (void *) &arguments);
+	}catch (std::exception& e)
 	{
-		printf("[AAMPCLI] Failed at create pthread errno = %d\n", errno);  //CID:83593 - checked return
+		printf("[AAMPCLI] Failed at create thread error %s\n",e.what());  //CID:83593 - checked return
 	}
+
 #ifdef RENDER_FRAMES_IN_APP_CONTEXT
 	// Render frames in graphics plane using opengl
 	glutInit(&argc, argv);
@@ -384,8 +387,10 @@ int main(int argc, char **argv)
 	createAndRunCocoaWindow();
 #endif
 #endif
-	void *value_ptr = NULL;
-	pthread_join(cmdThreadId, &value_ptr);
+	if(cmdThreadId.joinable())
+	{
+		cmdThreadId.join();
+	}
 }
 
 const char *MyAAMPEventListener::stringifyPrivAAMPState(PrivAAMPState state)
