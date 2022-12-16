@@ -23,18 +23,19 @@
  */
 
 #include <unistd.h>
+#include <exception>
 #include "AampcliHarvestor.h"
 
-Harvestor::Harvestor() : mMasterHarvestorThreadID(0),
-			 mSlaveHarvestorThreadID(0),
-			 mReportThread(0),
-			 mSlaveVideoThreads{0},
-			 mSlaveAudioThreads{0},
-			 mSlaveIFrameThread(0)
+Harvestor::Harvestor() : mMasterHarvestorThreadID(),
+			 mSlaveHarvestorThreadID(),
+			 mReportThread(),
+			 mSlaveVideoThreads{},
+			 mSlaveAudioThreads{},
+			 mSlaveIFrameThread()
 {}
 
-std::map<pthread_t, HarvestProfileDetails> Harvestor::mHarvestInfo = std::map<pthread_t, HarvestProfileDetails>();
-std::vector<pthread_t> Harvestor::mHarvestThreadId(0);
+std::map<std::thread::id, HarvestProfileDetails> Harvestor::mHarvestInfo = std::map<std::thread::id, HarvestProfileDetails>();
+std::vector<std::thread::id> Harvestor::mHarvestThreadId(0);
 PlayerInstanceAAMP * Harvestor::mPlayerInstanceAamp = NULL;
 bool Harvestor::mHarvestReportFlag = false;
 std::string Harvestor::mHarvestPath = "";
@@ -53,20 +54,23 @@ bool Harvestor::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 	
 	if(memcmp(harvestCmd,"harvestMode=Master",18) == 0)
 	{
-		printf("%s:%d: pthread_create:MasterHarvestor thread\n", __FUNCTION__, __LINE__);
-
-		if(0 != pthread_create(&mMasterHarvestorThreadID, NULL, &masterHarvestor, harvestCmd))
+		printf("%s:%d: thread create:MasterHarvestor thread\n", __FUNCTION__, __LINE__);
+		try {
+			mMasterHarvestorThreadID = std::thread (&Harvestor::masterHarvestor, harvestCmd);
+		}
+		catch (std::exception& e)
 		{
-			printf("%s:%d: Error at pthread_create:MasterHarvestor thread\n", __FUNCTION__, __LINE__);
+			printf("%s:%d: Error at thread create:MasterHarvestor thread : %s\n", __FUNCTION__, __LINE__, e.what());
 		}
 	}
 	else if(memcmp(harvestCmd,"harvestMode=Slave",17) == 0)
 	{
-		printf("%s:%d: pthread_create:SlaveHarvestor thread\n", __FUNCTION__, __LINE__);
-
-		if(0 != pthread_create(&mSlaveHarvestorThreadID, NULL, &slaveHarvestor, harvestCmd))
+		printf("%s:%d: thread create:SlaveHarvestor thread\n", __FUNCTION__, __LINE__);
+		try {
+			mSlaveHarvestorThreadID =  std::thread (&Harvestor::slaveHarvestor, harvestCmd);
+		}catch (std::exception& e)
 		{
-			printf("%s:%d: Error at  pthread_create:SlaveHarvestor thread\n", __FUNCTION__, __LINE__);
+			printf("%s:%d: Error at  thread create:SlaveHarvestor thread : %s\n", __FUNCTION__, __LINE__, e.what());
 		}
 	}
 	else
@@ -74,10 +78,20 @@ bool Harvestor::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 		printf("[AAMPCLI] Invalid harvest command %s\n", cmd);
 	}
 
+	if (mMasterHarvestorThreadID.joinable())
+	{
+		mMasterHarvestorThreadID.join();
+	}
+
+	if (mSlaveHarvestorThreadID.joinable())
+	{
+		mSlaveHarvestorThreadID.join();
+	}
+
 	return true;
 }
 
-void* Harvestor::masterHarvestor(void * arg)
+void Harvestor::masterHarvestor(void * arg)
 {
 	char * cmd = (char *)arg;
 	std::map<std::string, std::string> cmdlineParams;
@@ -125,10 +139,11 @@ void* Harvestor::masterHarvestor(void * arg)
 		mHarvestor.mPlayerInstanceAamp->Tune(cmdlineParams["harvestUrl"].c_str());
 
 		Harvestor::mHarvestPath = cmdlineParams["harvestPath"];
-
-		if(0 != pthread_create(&mHarvestor.mReportThread, NULL, &mHarvestor.startHarvestReport, (char *) cmdlineParams["harvestUrl"].c_str()))
+		try{
+			mHarvestor.mReportThread = std::thread(&Harvestor::startHarvestReport, &mHarvestor, (char *) cmdlineParams["harvestUrl"].c_str());
+		}catch(std::exception& e)
 		{
-			printf("%s:%d: Error at  pthread_create: startHarvestReport thread\n",__FUNCTION__,__LINE__);
+			printf("%s:%d: Error at  thread create: startHarvestReport thread : %s\n",__FUNCTION__,__LINE__, e.what());
 		}
 
 		std::string iFrameCommand;
@@ -154,11 +169,16 @@ void* Harvestor::masterHarvestor(void * arg)
 		}
 		else
 		{
-			if(0 != pthread_create(&mHarvestor.mSlaveIFrameThread, NULL, &slaveDataOutput, pIframe))
+			bool failed = false;
+			try {
+				mHarvestor.mSlaveIFrameThread = std::thread(&Harvestor::slaveDataOutput, pIframe);
+			}catch (std::exception& e)
 			{
-				printf("%s:%d: Error at  pthread_create: slaveDataOutput thread\n",__FUNCTION__,__LINE__);
+				printf("%s:%d: Error at  thread create: slaveDataOutput thread : %s\n",__FUNCTION__,__LINE__, e.what());
+				failed = true;
 			}
-			else
+
+			if (!failed)
 			{
 				printf("%s:%d: Sucessfully launched harvest for IFrame\n",__FUNCTION__,__LINE__);
 			}
@@ -260,11 +280,16 @@ void* Harvestor::masterHarvestor(void * arg)
 					}
 					else
 					{
-						if(0 != pthread_create(&mHarvestor.mSlaveVideoThreads[videoThreadId], NULL, &slaveDataOutput, p))
+						bool failed = false ;
+						try{
+							mHarvestor.mSlaveVideoThreads[videoThreadId] = std::thread(&Harvestor::slaveDataOutput, p);
+						}catch (std::exception& e)
 						{
-							printf("%s:%d: Error at  pthread_create: slaveDataOutput thread\n",__FUNCTION__,__LINE__);
+							printf("%s:%d: Error at  thread create: slaveDataOutput thread : %s\n",__FUNCTION__,__LINE__, e.what());
+							failed = true;
 						}
-						else
+						
+						if (!failed)
 						{
 							printf("%s:%d: Sucessfully launched harvest for video bitrate = %ld\n",__FUNCTION__,__LINE__,bitrate );
 							videoThreadId++;
@@ -305,11 +330,16 @@ void* Harvestor::masterHarvestor(void * arg)
 					}
 					else
 					{
-						if(0 != pthread_create(&mHarvestor.mSlaveAudioThreads[audioThreadId], NULL, &slaveDataOutput, p))
+						bool failed = false;
+						try {
+							mHarvestor.mSlaveAudioThreads[audioThreadId] = std::thread (&Harvestor::slaveDataOutput, p);
+						}catch (std::exception& e)
 						{
-							printf("%s:%d: Error at  pthread_create: slaveDataOutput thread\n",__FUNCTION__,__LINE__);
+							printf("%s:%d: Error at  thread create: slaveDataOutput thread : %s\n",__FUNCTION__,__LINE__, e.what());
+							failed = true;
 						}
-						else
+						
+						if (!failed)
 						{
 							printf("%s:%d: Sucessfully launched harvest for audio bitrate = %ld\n ",__FUNCTION__,__LINE__,bitrate );
 							audioThreadId++;
@@ -320,16 +350,31 @@ void* Harvestor::masterHarvestor(void * arg)
 				cacheAudioBitrates = tempAudioBitrates;
 			}
 		}
-		
-		pthread_join(mHarvestor.mSlaveIFrameThread, NULL);
+
+		if (mHarvestor.mReportThread.joinable())
+		{
+			mHarvestor.mReportThread.join();
+		}
+
+		if (mHarvestor.mSlaveIFrameThread.joinable())
+		{
+			mHarvestor.mSlaveIFrameThread.join();
+		}
+
 		for(int i = 0; i < videoThreadId; i++)
 		{
-			pthread_join(mHarvestor.mSlaveVideoThreads[i], NULL);
+			if (mHarvestor.mSlaveVideoThreads[i].joinable())
+			{
+				mHarvestor.mSlaveVideoThreads[i].join();
+			}
 		}
 
 		for(int i =0; i < audioThreadId; i++)
 		{
-			pthread_join(mHarvestor.mSlaveAudioThreads[i], NULL);
+			if(mHarvestor.mSlaveAudioThreads[i].joinable())
+			{
+				mHarvestor.mSlaveAudioThreads[i].join();
+			}
 		}
 	}
 	else
@@ -337,10 +382,10 @@ void* Harvestor::masterHarvestor(void * arg)
 		printf("%s:%d: harvestUrl not found\n",__FUNCTION__,__LINE__);
 	}
 
-	return NULL;
+	return;
 }
 
-void* Harvestor::slaveHarvestor(void * arg)
+void Harvestor::slaveHarvestor(void * arg)
 {
 	char * cmd = (char *)arg;
 	std::map<std::string, std::string> cmdlineParams;
@@ -409,10 +454,10 @@ void* Harvestor::slaveHarvestor(void * arg)
 		}
 	}
 	
-	return NULL;
+	return;
 }
 
-void *Harvestor::slaveDataOutput(void * arg)
+void Harvestor::slaveDataOutput(void * arg)
 {
 	FILE * pipe;
 	pipe = (FILE *) arg;
@@ -431,7 +476,7 @@ void *Harvestor::slaveDataOutput(void * arg)
 		}
 	}
 
-	return NULL;
+	return;
 }
 
 long Harvestor::getNumberFromString(std::string buffer) 
@@ -453,9 +498,8 @@ long Harvestor::getNumberFromString(std::string buffer)
 	return value;
 }
 
-void * Harvestor::startHarvestReport(void * arg)
+void Harvestor::startHarvestReport(char * harvesturl)
 {
-	char * harvesturl = (char *)arg;
 	FILE *fp;
 	FILE *errorfp;
 	std::string filename;
@@ -469,7 +513,7 @@ void * Harvestor::startHarvestReport(void * arg)
 	if (fp == NULL)
 	{
 		printf("Error opening the file %s\n", filename.c_str());
-		return NULL;
+		return;
 	}
 
 	fprintf(fp, "Harvest Profile Details\n\n");
@@ -484,25 +528,25 @@ void * Harvestor::startHarvestReport(void * arg)
 	if (errorfp == NULL)
 	{
 		printf("Error opening the file %s\n", errorFilename.c_str());
-		return NULL;
+		return;
 	}
 
 	fprintf(errorfp, "Harvest Error Report\n\n");
 	fprintf(errorfp, "Harvest url : %s\n",harvesturl);
 	fclose(errorfp);
-	return NULL;
+	return;
 }
 
 bool Harvestor::getHarvestReportDetails(char *buffer)
 {
 	char *harvestPath = NULL;
 	char *token = NULL;
-	pthread_t threadId = 0;
+	std::thread::id threadId;
 	HarvestProfileDetails l_harvestProfileDetails;
-	std::map<pthread_t, HarvestProfileDetails>::iterator itr;
+	std::map<std::thread::id, HarvestProfileDetails>::iterator itr;
 
 	memset(&l_harvestProfileDetails,'\0',sizeof(l_harvestProfileDetails));
-	threadId = pthread_self();
+	threadId = std::this_thread::get_id();
 
 	if(mHarvestInfo.find(threadId) == mHarvestInfo.end())
 	{

@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <cctype>
 #include <algorithm>
+#include <string>
 #include "TextStyleAttributes.h"
 #include "AampJsonObject.h"                     // For JSON parsing
 
