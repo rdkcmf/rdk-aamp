@@ -605,7 +605,7 @@ public:
 						size = 0;
 						break;
 					case PES_STATE_GETTING_HEADER:
-						bytes_to_read = (int)(PES_MIN_DATA - pes_header.len);
+						bytes_to_read = PES_MIN_DATA - pes_header.len;
 						if (size < bytes_to_read)
 						{
 							bytes_to_read = size;
@@ -718,7 +718,7 @@ static uint32_t get_crc32(unsigned char *data, int size, uint32_t initial = 0xff
 	init_crc32();
 	for (i = 0; i < size; i++)
 	{
-		result = (uint32_t)((result << 8) ^ crc32_table[(result >> 24) ^ data[i]]);
+		result = (result << 8) ^ crc32_table[(result >> 24) ^ data[i]];
 	}
 	return result;
 }
@@ -1997,7 +1997,7 @@ bool TSProcessor::processBuffer(unsigned char *buffer, int size, bool &insPatPmt
 								if (validPTS)
 								{
 
-									m_packetStartAfterFirstPTS = (int)(packet - buffer) + PACKET_SIZE;
+									m_packetStartAfterFirstPTS = (packet - buffer) + PACKET_SIZE;
 									uint33_t diffPTS {0};
 
 									constexpr auto tenSecAsPTS = uint33_t{10ULL * 90000ULL};
@@ -2412,7 +2412,7 @@ bool TSProcessor::sendSegment(char *segment, size_t& size, double position, doub
 {
 	bool insPatPmt = false;  //CID:84507 - Initialization
 	unsigned char * packetStart;
-	int len = (int)size;
+	int len = size;
 	bool ret = false;
 	ptsError = false;
 	pthread_mutex_lock(&m_mutex);
@@ -2923,14 +2923,14 @@ void TSProcessor::checkIfInterlaced(unsigned char *packet, int length)
 						int copyLen;
 						int srcCapacity;
 
-						srcCapacity = (int)(packetEnd - (packet + payload));
+						srcCapacity = packetEnd - (packet + payload);
 						if (srcCapacity > 0)
 						{
 							copyLen = m_scanRemainderLimit + (m_scanRemainderLimit - m_scanRemainderSize);
 							if (copyLen > packetEnd - (packet + payload))
 							{
 								INFO("scan copyLen adjusted from %d to %d", copyLen, (int)(packetEnd - (packet + payload)));
-								copyLen = (int)(packetEnd - (packet + payload));
+								copyLen = packetEnd - (packet + payload);
 							}
 							rmf_osal_memcpy(remainder + m_scanRemainderSize, packet + payload, copyLen, m_scanRemainderLimit * 3 - m_scanRemainderSize, packetEnd - (packet + payload));
 							m_scanRemainderSize += copyLen;
@@ -2987,7 +2987,7 @@ void TSProcessor::checkIfInterlaced(unsigned char *packet, int length)
 						if (m_scanForFrameSize)
 						{
 							unsigned char* packetScanPosition = packet + m_packetSize - m_scanRemainderLimit - m_ttsSize;
-							m_scanRemainderSize = m_scanRemainderLimit < packetEnd - packetScanPosition ? m_scanRemainderLimit : (int)(packetEnd - packetScanPosition);
+							m_scanRemainderSize = m_scanRemainderLimit < packetEnd - packetScanPosition ? m_scanRemainderLimit : packetEnd - packetScanPosition;
 							rmf_osal_memcpy(m_scanRemainder, packetScanPosition, m_scanRemainderSize, m_scanRemainderLimit * 3, packetEnd - packetScanPosition);
 						}
 					}
@@ -3267,14 +3267,14 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 					  int srcCapacity;
 					  int copyLen;
 
-					  srcCapacity = (int)(packetEnd - (packet + payload));
+					  srcCapacity = packetEnd - (packet + payload);
 					  if (srcCapacity > 0)
 					  {
 						  copyLen = 2 * m_scanRemainderLimit + (m_scanRemainderLimit - m_scanRemainderSize);
 						  if (copyLen > packetEnd - (packet + payload))
 						  {
 							  INFO("scan copyLen adjusted from %d to %d", copyLen, (int)(packetEnd - (packet + payload)));
-							  copyLen = (int)(packetEnd - (packet + payload));
+							  copyLen = packetEnd - (packet + payload);
 						  }
 						  rmf_osal_memcpy(remainder + m_scanRemainderSize, packet + payload, copyLen, m_scanRemainderLimit * 3 - m_scanRemainderSize, packetEnd - (packet + payload));
 						  m_scanRemainderSize += copyLen;
@@ -3335,7 +3335,7 @@ void TSProcessor::reTimestamp(unsigned char *&packet, int length)
 						  unsigned char* packetScanPosition = packet + m_packetSize - m_scanRemainderLimit - m_ttsSize;
 						  if (packetScanPosition < packetEnd)
 						  {
-							  m_scanRemainderSize = m_scanRemainderLimit < packetEnd - packetScanPosition ? m_scanRemainderLimit : (int)(packetEnd - packetScanPosition);
+							  m_scanRemainderSize = m_scanRemainderLimit < packetEnd - packetScanPosition ? m_scanRemainderLimit : packetEnd - packetScanPosition;
 						  }
 						  else
 						  {
@@ -3589,7 +3589,7 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 			for (i = 0; i < audioComponentCount; ++i)
 			{
 				pmtSize += 5;
-				int nameLen = audioComponents[i].associatedLanguage ? (int)strlen(audioComponents[i].associatedLanguage) : 0;
+				int nameLen = audioComponents[i].associatedLanguage ? strlen(audioComponents[i].associatedLanguage) : 0;
 				if (nameLen)
 				{
 					pmtSize += (3 + nameLen);
@@ -3737,7 +3737,7 @@ bool TSProcessor::generatePATandPMT(bool trick, unsigned char **buff, int *bufle
 				for (j = 0; j < audioComponentCount; ++j)
 				{
 					int audioPid = audioComponents[j].pid;
-					int nameLen = audioComponents[j].associatedLanguage ? (int)strlen(audioComponents[j].associatedLanguage) : 0;
+					int nameLen = audioComponents[j].associatedLanguage ? strlen(audioComponents[j].associatedLanguage) : 0;
 					putPmtByte(pmtPacket, pi, audioComponents[j].elemStreamType, pmtPid);
 					byte = (0xE0 | (unsigned char)((audioPid >> 8) & 0x1F));
 					putPmtByte(pmtPacket, pi, byte, pmtPid);
@@ -4586,7 +4586,7 @@ int TSProcessor::SelectAudioIndexToPlay()
 				auto iter = std::find(aamp->preferredLanguagesList.begin(), aamp->preferredLanguagesList.end(), trackLanguage);
 				if(iter != aamp->preferredLanguagesList.end())
 				{ // track is in preferred language list
-					int distance = (int)std::distance(aamp->preferredLanguagesList.begin(),iter);
+					int distance = std::distance(aamp->preferredLanguagesList.begin(),iter);
 					score += (aamp->preferredLanguagesList.size()-distance)*100000; // big bonus for language match
 				}
 			}
@@ -4596,7 +4596,7 @@ int TSProcessor::SelectAudioIndexToPlay()
 				auto iter = std::find(aamp->preferredCodecList.begin(), aamp->preferredCodecList.end(), GetAudioFormatStringForCodec(audioFormat) );
 				if(iter != aamp->preferredCodecList.end())
 				{ // track is in preferred codec list
-					int distance = (int)std::distance(aamp->preferredCodecList.begin(),iter);
+					int distance = std::distance(aamp->preferredCodecList.begin(),iter);
 					score += (aamp->preferredCodecList.size()-distance)*100; //  bonus for codec match
 				}
 			}

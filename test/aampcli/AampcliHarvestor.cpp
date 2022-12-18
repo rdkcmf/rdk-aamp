@@ -49,7 +49,7 @@ bool Harvestor::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 
 	Harvestor::mPlayerInstanceAamp = playerInstanceAamp;
 
-	size_t len = strlen(cmd) - 8;
+	int len = strlen(cmd) - 8;
 	strncpy(harvestCmd, cmd+8, len);
 	
 	if(memcmp(harvestCmd,"harvestMode=Master",18) == 0)
@@ -647,7 +647,7 @@ void Harvestor::writeHarvestEndReport(HarvestProfileDetails harvestProfileDetail
 	mHarvestor.mPlayerInstanceAamp->mConfig.GetConfigValue(eAAMPConfig_HarvestCountLimit,harvestCountLimit);
 	harvestProfileDetails.harvestFragmentsCount = harvestCountLimit - harvestProfileDetails.harvestFragmentsCount; 
 
-	fprintf(fp, "\nMedia : %s\nBitrate : %lu\nTotal fragments count : %ld\nError fragments count : %d\nFailure fragments count : %d\n",harvestProfileDetails.media,harvestProfileDetails.bitrate,harvestProfileDetails.harvestFragmentsCount,harvestProfileDetails.harvesterrorCount,harvestProfileDetails.harvestFailureCount);
+	fprintf(fp, "\nMedia : %s\nBitrate : %lu\nTotal fragments count : %d\nError fragments count : %d\nFailure fragments count : %d\n",harvestProfileDetails.media,harvestProfileDetails.bitrate,harvestProfileDetails.harvestFragmentsCount,harvestProfileDetails.harvesterrorCount,harvestProfileDetails.harvestFailureCount);
 
 	fclose(fp);
 
@@ -680,7 +680,7 @@ void Harvestor::harvestTerminateHandler(int signal)
 				mHarvestor.mPlayerInstanceAamp->mConfig.GetConfigValue(eAAMPConfig_HarvestCountLimit,harvestCountLimit);
 				itr->second.harvestFragmentsCount = harvestCountLimit - itr->second.harvestFragmentsCount; 
 
-				fprintf(fp, "\nMedia : %s\nBitrate : %lu\nTotal fragments count : %ld\nError fragments count : %d\nFailure fragments count : %d\n",itr->second.media,itr->second.bitrate,itr->second.harvestFragmentsCount,itr->second.harvesterrorCount,itr->second.harvestFailureCount);
+				fprintf(fp, "\nMedia : %s\nBitrate : %lu\nTotal fragments count : %d\nError fragments count : %d\nFailure fragments count : %d\n",itr->second.media,itr->second.bitrate,itr->second.harvestFragmentsCount,itr->second.harvesterrorCount,itr->second.harvestFailureCount);
 
 				itr->second.harvestEndFlag = true;
 			}

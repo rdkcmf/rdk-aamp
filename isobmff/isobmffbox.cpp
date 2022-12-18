@@ -264,7 +264,7 @@ GenericContainerBox::GenericContainerBox(uint32_t sz, const char btype[4]) : Box
  */
 GenericContainerBox::~GenericContainerBox()
 {
-	for (unsigned int i = (unsigned)children.size(); i>0;)
+	for (unsigned int i = children.size(); i>0;)
 	{
 		--i;
 		SAFE_DELETE(children.at(i));
@@ -382,7 +382,7 @@ MvhdBox* MvhdBox::constructMvhdBox(uint32_t sz, uint8_t *ptr)
 	tScale = READ_U32(ptr);
 
 	FullBox fbox(sz, Box::MVHD, version, flags);
-	return new MvhdBox(fbox, (uint32_t)tScale);
+	return new MvhdBox(fbox, tScale);
 }
 
 /**
@@ -437,7 +437,7 @@ MdhdBox* MdhdBox::constructMdhdBox(uint32_t sz, uint8_t *ptr)
 	tScale = READ_U32(ptr);
 
 	FullBox fbox(sz, Box::MDHD, version, flags);
-	return new MdhdBox(fbox, (uint32_t)tScale);
+	return new MdhdBox(fbox, tScale);
 }
 
 /**
@@ -941,7 +941,7 @@ TfhdBox* TfhdBox::constructTfhdBox(uint32_t sz, uint8_t *ptr)
 
     TrackId = READ_U32(ptr);
     if (flags & TFHD_FLAG_BASE_DATA_OFFSET_PRESENT) {
-        BaseDataOffset = (uint32_t)READ_64(ptr);
+        BaseDataOffset = READ_64(ptr);
     } else {
         BaseDataOffset = 0;
     }

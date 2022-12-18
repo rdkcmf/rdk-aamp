@@ -448,7 +448,7 @@ static void SimulateLinearWindow( struct GrowableBuffer *buffer, const char *ptr
 				// Write a simple linear HLS header, without the type:VOD, and with dynamic media sequence number
 				wroteHeader = true;
 				char header[1024];
-				snprintf( header, sizeof(header),
+				sprintf( header,
 					"#EXTM3U\n"
 					"#EXT-X-VERSION:3\n"
 					"#EXT-X-TARGETDURATION:2\n"
@@ -850,7 +850,7 @@ static void print_headerResponse(std::vector<std::string> &allResponseHeadersFor
 {
 	if (gpGlobalConfig->logging.curlHeader && (eMEDIATYPE_VIDEO == fileType || eMEDIATYPE_PLAYLIST_VIDEO == fileType))
 	{
-		int size = (int)allResponseHeadersForErrorLogging.size();
+		int size = allResponseHeadersForErrorLogging.size();
 		AAMPLOG_WARN("################ Start :: Print Header response ################");
 		for (int i=0; i < size; i++)
 		{
@@ -3006,13 +3006,13 @@ void PrivateInstanceAAMP::TuneFail(bool fail)
 	PrivAAMPState state;
 	GetState(state);
 	TuneEndMetrics mTuneMetrics = {0, 0, 0,0,0,0,0,0,0,(ContentType)0};	
-	mTuneMetrics.mTotalTime                 = (int)NOW_STEADY_TS_MS ;
+	mTuneMetrics.mTotalTime                 = NOW_STEADY_TS_MS ;
 	mTuneMetrics.success         	 	= ((state != eSTATE_ERROR) ? -1 : !fail);
 	int streamType 				= getStreamType();
 	mTuneMetrics.mFirstTune			= mFirstTune;
-	mTuneMetrics.mTimedMetadata 	 	= (int)timedMetadata.size();
+	mTuneMetrics.mTimedMetadata 	 	= timedMetadata.size();
 	mTuneMetrics.mTimedMetadataStartTime 	= mTimedMetadataStartTime;
-	mTuneMetrics.mTimedMetadataDuration  	= (int)mTimedMetadataDuration;
+	mTuneMetrics.mTimedMetadataDuration  	= mTimedMetadataDuration;
 	mTuneMetrics.mTuneAttempts 		= mTuneAttempts;
 	mTuneMetrics.contentType 		= mContentType;
 	mTuneMetrics.streamType 		= streamType;
@@ -3035,9 +3035,9 @@ void PrivateInstanceAAMP::LogTuneComplete(void)
 	mTuneMetrics.success 		 	 = true; 
 	int streamType 				 = getStreamType();
 	mTuneMetrics.contentType 		 = mContentType;
-	mTuneMetrics.mTimedMetadata 	 	 = (int)timedMetadata.size();
+	mTuneMetrics.mTimedMetadata 	 	 = timedMetadata.size();
 	mTuneMetrics.mTimedMetadataStartTime 	 = mTimedMetadataStartTime;
-	mTuneMetrics.mTimedMetadataDuration      = (int)mTimedMetadataDuration;
+	mTuneMetrics.mTimedMetadataDuration      = mTimedMetadataDuration;
 	mTuneMetrics.mTuneAttempts 		 = mTuneAttempts;
 	mTuneMetrics.streamType 		 = streamType;
 	mTuneMetrics.mTSBEnabled                 = mTSBEnabled;
@@ -3251,7 +3251,7 @@ void PrivateInstanceAAMP::CurlInit(AampCurlInstance startIdx, unsigned int insta
 void PrivateInstanceAAMP::StoreLanguageList(const std::set<std::string> &langlist)
 {
 	// store the language list
-	int langCount = (int)langlist.size();
+	int langCount = langlist.size();
 	if (langCount > MAX_LANGUAGE_COUNT)
 	{
 		langCount = MAX_LANGUAGE_COUNT; //boundary check
@@ -4206,7 +4206,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
                                         ( GetLLDashServiceData()->lowLatencyMode  && ISCONFIGSET_PRIV(eAAMPConfig_DisableLowLatencyABR))))
 				{
 					long currentProfilebps  = mpStreamAbstractionAAMP->GetVideoBitrate();
-					long downloadbps = mhAbrManager.CheckAbrThresholdSize((int)buffer->len,downloadTimeMS,currentProfilebps,fragmentDurationMs,hybridabortReason);
+					long downloadbps = mhAbrManager.CheckAbrThresholdSize(buffer->len,downloadTimeMS,currentProfilebps,fragmentDurationMs,hybridabortReason);
 						pthread_mutex_lock(&mLock);
 						mhAbrManager.UpdateABRBitrateDataBasedOnCacheLength(mAbrBitrateData,downloadbps,false);
 						pthread_mutex_unlock(&mLock);
@@ -4809,7 +4809,7 @@ void PrivateInstanceAAMP::SendMessageOverPipe(const char *str,int nToWrite)
 	if(m_fd != -1)
 	{
 		// Write the packet data to the pipe
-		int nWritten =  (int)write(m_fd, str, nToWrite);
+		int nWritten =  write(m_fd, str, nToWrite);
 		if(nWritten != nToWrite)
 		{
 			// Error
@@ -6338,7 +6338,7 @@ char *PrivateInstanceAAMP::LoadFragment(ProfilerBucketType bucketType, std::stri
 	struct GrowableBuffer fragment = { 0, 0, 0 }; // TODO: leaks if thread killed
 	if (!GetFile(fragmentUrl, &fragment, effectiveUrl, http_code, downloadTime, range, curlInstance, true, fileType,NULL,fogError))
 	{
-		profiler.ProfileError(bucketType, (int)*http_code);
+		profiler.ProfileError(bucketType, *http_code);
 		profiler.ProfileEnd(bucketType);
 	}
 	else
@@ -6360,7 +6360,7 @@ bool PrivateInstanceAAMP::LoadFragment(CMCDHeaders *pCMCDMetrics,ProfilerBucketT
 	if (!GetFile(fragmentUrl, fragment, effectiveUrl, http_code, downloadTime, range, curlInstance, false,fileType, bitrate, NULL, fragmentDurationSeconds,pCMCDMetrics))
 	{
 		ret = false;
-		profiler.ProfileError(bucketType, (int)*http_code);
+		profiler.ProfileError(bucketType, *http_code);
 		profiler.ProfileEnd(bucketType);
 	}
 	else
@@ -6461,7 +6461,7 @@ std::string PrivateInstanceAAMP::GetThumbnailTracks()
 					if(data[i]->bandwidthBitsPerSecond >= 0)
 					{
 						char buf[32];
-						snprintf(buf,sizeof(buf),"%dx%d",data[i]->resolution.width,data[i]->resolution.height);
+						sprintf(buf,"%dx%d",data[i]->resolution.width,data[i]->resolution.height);
 						cJSON_AddStringToObject(item,"RESOLUTION",buf);
 						cJSON_AddNumberToObject(item,"BANDWIDTH",data[i]->bandwidthBitsPerSecond);
 					}
@@ -7222,7 +7222,7 @@ void PrivateInstanceAAMP::ReportTimedMetadata(bool init)
 		mTimedMetadataStartTime = NOW_STEADY_TS_MS ;
 		for (iter = timedMetadataNew.begin(); iter != timedMetadataNew.end(); iter++)
 		{
-			ReportTimedMetadata(iter->_timeMS, iter->_name.c_str(), iter->_content.c_str(), (int)iter->_content.size(), init, iter->_id.c_str(), iter->_durationMS);
+			ReportTimedMetadata(iter->_timeMS, iter->_name.c_str(), iter->_content.c_str(), iter->_content.size(), init, iter->_id.c_str(), iter->_durationMS);
 		}
 		timedMetadataNew.clear();
 		mTimedMetadataDuration = (NOW_STEADY_TS_MS - mTimedMetadataStartTime);
@@ -8255,7 +8255,7 @@ void PrivateInstanceAAMP::CollectCMCDCustomHeaders(MediaType fileType,class CMCD
 				}
 			}
 			pCMCDMetrics->SetBitrate(videoBitrate);
-			pCMCDMetrics->SetTopBitrate((int)(temp/1000));
+			pCMCDMetrics->SetTopBitrate(temp/1000);
 			pCMCDMetrics->SetNextUrl(mCMCDNextObjectRequest);
 			pCMCDMetrics->SetBufferLength(videoBufferLength);
 			AAMPLOG_INFO("video bufferlength %d video bitrate %d",videoBufferLength,videoBitrate);
@@ -8283,7 +8283,7 @@ void PrivateInstanceAAMP::CollectCMCDCustomHeaders(MediaType fileType,class CMCD
 		}
 		int audioBufferLength = ((int)audio->GetBufferedDuration())*1000;
 		pCMCDMetrics->SetBitrate(((int)mCMCDBandwidth)/1000);
-		pCMCDMetrics->SetTopBitrate((int)(temp/1000));
+		pCMCDMetrics->SetTopBitrate(temp/1000);
 		pCMCDMetrics->SetNextUrl(mCMCDNextObjectRequest);
 		pCMCDMetrics->SetBufferLength(audioBufferLength);
 		AAMPLOG_INFO("audio bufferlength %daudio bitrate %d",audioBufferLength,((int)mCMCDBandwidth)/1000);
@@ -8308,7 +8308,7 @@ void PrivateInstanceAAMP::CollectCMCDCustomHeaders(MediaType fileType,class CMCD
 			}
 		}
 		pCMCDMetrics->SetBitrate(initVideoBitrate);
-		pCMCDMetrics->SetTopBitrate((int)temp);
+		pCMCDMetrics->SetTopBitrate(temp);
 
 	}
 	if(simType == eMEDIATYPE_INIT_AUDIO)
@@ -8323,7 +8323,7 @@ void PrivateInstanceAAMP::CollectCMCDCustomHeaders(MediaType fileType,class CMCD
 			}
 		}
 		pCMCDMetrics->SetBitrate(((int)mCMCDBandwidth)/1000);
-		pCMCDMetrics->SetTopBitrate((int)temp);
+		pCMCDMetrics->SetTopBitrate(temp);
 	}
 	//For muxed streams sessionid,object type,bitrate,maximum bitrate,bufferlength are send as a part of CMCD Headers
 	if(mpStreamAbstractionAAMP->IsMuxedStream())
@@ -8348,7 +8348,7 @@ void PrivateInstanceAAMP::CollectCMCDCustomHeaders(MediaType fileType,class CMCD
 		}
 		int muxedBufferLength = ((int)mpStreamAbstractionAAMP->GetBufferedDuration())*1000;		
 		pCMCDMetrics->SetBitrate(muxedBitrate);
-		pCMCDMetrics->SetTopBitrate((int)(temp/1000));
+		pCMCDMetrics->SetTopBitrate(temp/1000);
 		pCMCDMetrics->SetNextUrl(mCMCDNextObjectRequest);
 		pCMCDMetrics->SetBufferLength(muxedBufferLength);
 		AAMPLOG_INFO("muxed bufferlength %dmuxed bitrate %d",muxedBufferLength,muxedBitrate);
@@ -8836,7 +8836,7 @@ void PrivateInstanceAAMP::FoundEventBreak(const std::string &adBreakId, uint64_t
 		std::string adId("");
 		std::string url("");
 		mCdaiObject->SetAlternateContents(adBreakId, adId, url, startMS, brInfo.duration);	//A placeholder to avoid multiple scte35 event firing for the same adbreak
-		SaveNewTimedMetadata((long long) startMS, brInfo.name.c_str(), brInfo.payload.c_str(), (int)brInfo.payload.size(), adBreakId.c_str(), brInfo.duration);
+		SaveNewTimedMetadata((long long) startMS, brInfo.name.c_str(), brInfo.payload.c_str(), brInfo.payload.size(), adBreakId.c_str(), brInfo.duration);
 	}
 }
 
@@ -9273,7 +9273,7 @@ void PrivateInstanceAAMP::PreCachePlaylistDownloadTask()
 	// This is the thread function to download all the HLS Playlist in a 
 	// differed manner
 	int maxWindowforDownload = mPreCacheDnldTimeWindow * 60; // convert to seconds  
-	int szPlaylistCount = (int)mPreCacheDnldList.size();
+	int szPlaylistCount = mPreCacheDnldList.size();
 	if(szPlaylistCount)
 	{
 		PrivAAMPState state;
@@ -9523,7 +9523,7 @@ std::string PrivateInstanceAAMP::GetAvailableVideoTracks()
  */
 void PrivateInstanceAAMP::SetVideoTracks(std::vector<long> bitrateList)
 {
-	int bitrateSize = (int)bitrateList.size();
+	int bitrateSize = bitrateList.size();
 	//clear cached bitrate list
 	this->bitrateList.clear();
 	// user profile stats enabled only for valid bitrate list, otherwise disabled for empty bitrates
@@ -10352,7 +10352,7 @@ int PrivateInstanceAAMP::GetTextTrack()
 			{
 				if (it->instreamId == trackId)
 				{
-					idx = (int)std::distance(tracks.begin(), it);
+					idx = std::distance(tracks.begin(), it);
 				}
 			}
 		}
@@ -11414,7 +11414,7 @@ void PrivateInstanceAAMP::EnableAllMediaDownloads()
 bool PrivateInstanceAAMP::IsWideVineKIDWorkaround(std::string url)
 {
 	bool enable = false;
-	int pos = (int)url.find(WV_KID_WORKAROUND);
+	int pos = url.find(WV_KID_WORKAROUND);
 	if (pos != string::npos){
 		pos = pos + strlen(WV_KID_WORKAROUND);
 		AAMPLOG_INFO("URL found WideVine KID Workaround at %d key = %c",

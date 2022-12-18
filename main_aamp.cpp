@@ -112,7 +112,7 @@ if(!iarmInitialized)
 {
         char processName[20] = {0};
         IARM_Result_t result;
-        snprintf (processName, sizeof(processName), "AAMP-PLAYER-%u", getpid());
+        sprintf (processName, "AAMP-PLAYER-%u", getpid());
         if (IARM_RESULT_SUCCESS == (result = IARM_Bus_Init((const char*) &processName))) {
                 logprintf("IARM Interface Inited in AAMP");
         }
@@ -670,7 +670,7 @@ void PlayerInstanceAAMP::SetRateInternal(float rate,int overshootcorrection)
 		// h. TODO (again trial n error) - for 3x/4x , within 1sec there might multiple frame displayed . Can use timedelta to calculate some more near,to be tried
 		const auto SeekInfo = aamp->mNewSeekInfo.GetInfo();
 
-		const int  timeDeltaFromProgReport = (int)SeekInfo.getTimeSinceUpdateMs();
+		const int  timeDeltaFromProgReport = SeekInfo.getTimeSinceUpdateMs();
 
 		//Skip this logic for either going to paused to coming out of paused scenarios with HLS
 		//What we would like to avoid here is the update of seek_pos_seconds because gstreamer position will report proper position

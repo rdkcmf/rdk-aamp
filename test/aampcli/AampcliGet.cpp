@@ -358,7 +358,7 @@ void Get::ShowHelpGet(){
 char * Get::getCommandRecommender(const char *text, int state)
 {
     char *name;
-    static size_t len;
+    static int len;
     static std::vector<std::string>::iterator itr;
 
     if (!state) 

@@ -116,7 +116,7 @@ bool PlaybackCommand::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 			}
 			else
 			{
-				printf( "valid range = 0..%lu\n", mAampcli.mPlayerInstances.size()-1 );
+				printf( "valid range = 0..%d\n", mAampcli.mPlayerInstances.size()-1 );
 			}
 		}
 	}
@@ -504,7 +504,7 @@ void PlaybackCommand::showHelp(void)
 char * PlaybackCommand::commandRecommender(const char *text, int state)
 {
 	char *name;
-	static size_t len;
+	static int len;
 	static std::vector<std::string>::iterator itr;
 
 	if (!state) 

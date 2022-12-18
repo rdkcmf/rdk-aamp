@@ -32,7 +32,7 @@
  */
 IsoBmffBuffer::~IsoBmffBuffer()
 {
-	for (unsigned int i=(unsigned)boxes.size(); i>0;)
+	for (unsigned int i=boxes.size(); i>0;)
 	{
 		--i;
 		SAFE_DELETE(boxes[i]);
@@ -61,12 +61,12 @@ bool IsoBmffBuffer::parseBuffer(bool correctBoxSize, int newTrackId)
 	size_t curOffset = 0;
 	while (curOffset < bufSize)
 	{
-		Box *box = Box::constructBox(buffer+curOffset, (uint32_t)(bufSize - curOffset), mLogObj, correctBoxSize, newTrackId);
+		Box *box = Box::constructBox(buffer+curOffset, bufSize - curOffset, mLogObj, correctBoxSize, newTrackId);
 		if( ((bufSize - curOffset) < 4) || ( (bufSize - curOffset) < box->getSize()) )
 		{
 			chunkedBox = box;
 		}
-		box->setOffset((uint32_t)curOffset);
+		box->setOffset(curOffset);
 		boxes.push_back(box);
 		curOffset += box->getSize();
 	}
@@ -176,7 +176,7 @@ void IsoBmffBuffer::restampPTS(uint64_t offset, uint64_t basePts, uint8_t *segme
  */
 void IsoBmffBuffer::destroyBoxes()
 {
-	for (unsigned int i=(unsigned)boxes.size(); i>0;)
+	for (unsigned int i=boxes.size(); i>0;)
 	{
 		--i;
 		SAFE_DELETE(boxes[i]);
@@ -539,7 +539,7 @@ uint64_t IsoBmffBuffer::getSampleDurationInernal(const std::vector<Box*> *boxes)
 {
     if(!boxes) return 0;
 
-    for (int i = (int)boxes->size()-1; i >= 0; i--)
+    for (int i = boxes->size()-1; i >= 0; i--)
     {
         Box *box = boxes->at(i);
         uint64_t duration = 0;

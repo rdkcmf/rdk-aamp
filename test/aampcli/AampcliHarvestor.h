@@ -46,8 +46,8 @@ typedef struct harvestProfileDetails
 {
 	bool harvestEndFlag;
 	char media[7];
-	long harvestConfig;
-	long harvestFragmentsCount;
+	int harvestConfig;
+	int harvestFragmentsCount;
 	int harvesterrorCount;
 	int harvestFailureCount;
 	long bitrate;

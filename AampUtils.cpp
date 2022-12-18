@@ -368,7 +368,7 @@ char *aamp_Base64_URL_Encode(const unsigned char *src, size_t len)
 unsigned char *aamp_Base64_URL_Decode(const char *src, size_t *len, size_t srcLen)
 {
 	//Calculate the size for corresponding Base64 Encoded string with padding
-	int b64Len = (int)((((srcLen / 4) + 1) * 4) + 1);
+	int b64Len = (((srcLen / 4) + 1) * 4) + 1;
 	char *b64Src = (char *) malloc(sizeof(char)* b64Len);
 	b64Src[b64Len - 1] = '\0';
 	b64Src[b64Len - 2] = '=';
@@ -398,7 +398,7 @@ void aamp_DecodeUrlParameter( std::string &uriParam )
 	if (curl != NULL)
 	{
 		int unescapedLen;
-		const char* unescapedData = curl_easy_unescape(curl, uriParam.c_str(), (int)uriParam.size(), &unescapedLen);
+		const char* unescapedData = curl_easy_unescape(curl, uriParam.c_str(), uriParam.size(), &unescapedLen);
 		if (unescapedData != NULL)
 		{
 			uriParam = std::string(unescapedData, unescapedLen);
@@ -592,7 +592,7 @@ int aamp_GetDeferTimeMs(long maxTimeSeconds)
 					AAMPLOG_ERR("ERROR - reading /dev/urandom  failed");
 					break;
 				}
-				snprintf(uRandString + i * 2, 3, "%02x", temp);
+				sprintf(uRandString + i * 2, "%02x", temp);
 			}
 			close(randFD);
 			randString[RAND_STRING_LEN] = '\0';

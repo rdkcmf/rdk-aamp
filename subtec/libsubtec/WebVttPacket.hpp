@@ -73,7 +73,7 @@ public:
                    std::vector<std::uint8_t> &&dataBuffer) : Packet(counter)
     {
         auto& buffer = getBuffer();
-        uint32_t size = (uint32_t)(8 + 4 + dataBuffer.size());
+        uint32_t size = 8 + 4 + dataBuffer.size();
 
         appendType(PacketType::WEBVTT_DATA);
         append32(counter);

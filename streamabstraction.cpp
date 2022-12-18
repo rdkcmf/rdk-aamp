@@ -769,7 +769,7 @@ bool MediaTrack::ProcessFragmentChunk()
 	{
 		int lastMDatIndex = -1;
 		//Get Last MDAT box
-		for(int i=(int)parsedBoxCount-1;i>=0;i--)
+		for(int i=parsedBoxCount-1;i>=0;i--)
 		{
 			Box *box = pBoxes->at(i);
 			if (IS_TYPE(box->getType(), Box::MDAT))
@@ -1679,7 +1679,7 @@ int StreamAbstractionAAMP::GetDesiredProfile(bool getMidProfile)
 			StreamInfo* streamInfo = GetStreamInfo(profileIdxForBandwidthNotification);
 			if(streamInfo != NULL)
 			{
-				video->SetCurrentBandWidth((int)streamInfo->bandwidthBitsPerSecond);
+				video->SetCurrentBandWidth(streamInfo->bandwidthBitsPerSecond);
 			}
 			else
 			{
@@ -1739,7 +1739,7 @@ void StreamAbstractionAAMP::NotifyBitRateUpdate(int profileIndex, const StreamIn
 			/* END: Added As Part of DELIA-28363 and DELIA-28247 */
 
 			// Send bitrate notification
-			aamp->NotifyBitRateChangeEvent((int)cacheFragStreamInfo.bandwidthBitsPerSecond,
+			aamp->NotifyBitRateChangeEvent(cacheFragStreamInfo.bandwidthBitsPerSecond,
 					cacheFragStreamInfo.reason, cacheFragStreamInfo.resolution.width,
 					cacheFragStreamInfo.resolution.height, cacheFragStreamInfo.resolution.framerate, position, lGetBWIndex);
 			// Store the profile , compare it before sending it . This avoids sending of event after trickplay if same bitrate
@@ -1800,7 +1800,7 @@ void StreamAbstractionAAMP::UpdateProfileBasedOnFragmentDownloaded(void)
 			if(streamInfo != NULL)
 			{
 				profileIdxForBandwidthNotification = desiredProfileIndex;
-				GetMediaTrack(eTRACK_VIDEO)->SetCurrentBandWidth((int)streamInfo->bandwidthBitsPerSecond);
+				GetMediaTrack(eTRACK_VIDEO)->SetCurrentBandWidth(streamInfo->bandwidthBitsPerSecond);
 				mBitrateReason = eAAMP_BITRATE_CHANGE_BY_FOG_ABR;
 			}
 			else
@@ -2054,7 +2054,7 @@ bool StreamAbstractionAAMP::RampDownProfile(long http_error)
 			AAMPLOG_TRACE(" profileIdxForBandwidthNotification updated to %d ",  profileIdxForBandwidthNotification);
 			ret = true;
 			long newBW = GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond;
-			video->SetCurrentBandWidth((int)newBW);
+			video->SetCurrentBandWidth(newBW);
 			aamp->ResetCurrentlyAvailableBandwidth(newBW,false,profileIdxForBandwidthNotification);
 			mBitrateReason = eAAMP_BITRATE_CHANGE_BY_RAMPDOWN;
 
@@ -2305,7 +2305,7 @@ bool StreamAbstractionAAMP::UpdateProfileBasedOnFragmentCache()
 		AAMPLOG_TRACE(" profileIdxForBandwidthNotification updated to %d ",  profileIdxForBandwidthNotification);
 		video->ABRProfileChanged();
 		long newBW = GetStreamInfo(profileIdxForBandwidthNotification)->bandwidthBitsPerSecond;
-		video->SetCurrentBandWidth((int)newBW);
+		video->SetCurrentBandWidth(newBW);
 		aamp->ResetCurrentlyAvailableBandwidth(newBW,false,profileIdxForBandwidthNotification);
 		mABRLowBufferCounter = 0 ;
 		mABRHighBufferCounter = 0;
@@ -3004,7 +3004,7 @@ int StreamAbstractionAAMP::GetAudioTrack()
 		{
 			if (it->index == mAudioTrackIndex)
 			{
-				index = (int)std::distance(mAudioTracks.begin(), it);
+				index = std::distance(mAudioTracks.begin(), it);
 			}
 		}
 	}
@@ -3023,7 +3023,7 @@ int StreamAbstractionAAMP::GetTextTrack()
 		{
 			if (it->index == mTextTrackIndex)
 			{
-				index = (int)std::distance(mTextTracks.begin(), it);
+				index = std::distance(mTextTracks.begin(), it);
 			}
 		}
 	}
@@ -3349,7 +3349,7 @@ void MediaTrack::PlaylistDownloader()
 						}
 						else if(maxSegDuration > 0 && maxSegDuration > availTimeOffMs)
 						{
-							liveRefreshTimeOutInMs = (int)(maxSegDuration - availTimeOffMs);
+							liveRefreshTimeOutInMs = (int)maxSegDuration - availTimeOffMs;
 						}
 						else
 						{
@@ -3421,7 +3421,7 @@ void MediaTrack::PlaylistDownloader()
 				gotManifest = aamp->GetFile(manifestUrl, &manifest, effectiveUrl, &http_error, &downloadTime, NULL, curlInstance, true, mediaType);
 
 				//update videoend info
-				aamp->UpdateVideoEndMetrics(mediaType,0,(int)http_error,effectiveUrl,downloadTime);
+				aamp->UpdateVideoEndMetrics(mediaType,0,http_error,effectiveUrl,downloadTime);
 			}
 
 			if(gotManifest)
@@ -3566,11 +3566,11 @@ int MediaTrack::WaitTimeBasedOnBufferAvailable()
 				}
 				else if(minUpdateDuration > 0 && minUpdateDuration > availTimeOffMs)
 				{
-					minDelayBetweenPlaylistUpdates = (int)(minUpdateDuration-availTimeOffMs);
+					minDelayBetweenPlaylistUpdates = (int)minUpdateDuration-availTimeOffMs;
 				}
 				else if (maxSegDuration > 0 && maxSegDuration > availTimeOffMs)
 				{
-						minDelayBetweenPlaylistUpdates = (int)(maxSegDuration-availTimeOffMs);
+						minDelayBetweenPlaylistUpdates = (int)maxSegDuration-availTimeOffMs;
 				}
 				else
 				{

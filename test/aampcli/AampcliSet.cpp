@@ -1375,12 +1375,12 @@ void Set::ShowHelpSet()
 char * Set::setCommandRecommender(const char *text, int state)
 {
     char *name;
-    static size_t len;
+    static int len;
     static std::vector<std::string>::iterator itr;
 
     if (!state) 
     {
-		itr = commands.begin();
+	itr = commands.begin();
         len = strlen(text);
     }
 

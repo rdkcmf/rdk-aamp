@@ -597,7 +597,7 @@ int StreamAbstractionAAMP_OTA::GetAudioTrack()
         {
             if (it->index == mAudioTrackIndex)
             {
-                index = (int)std::distance(mAudioTracks.begin(), it);
+                index = std::distance(mAudioTracks.begin(), it);
             }
         }
     }
@@ -708,7 +708,7 @@ void StreamAbstractionAAMP_OTA::SetAudioTrackByLanguage(const char* lang)
        {
            if(0 == strcmp(lang, itr->language.c_str()))
            {
-               index = (int)std::distance(mAudioTracks.begin(), itr);
+               index = std::distance(mAudioTracks.begin(), itr);
                break;
            }
        }

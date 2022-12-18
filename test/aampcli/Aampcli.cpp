@@ -106,7 +106,7 @@ void Aampcli::doAutomation(const int startChannel, const int stopChannel)
 					info->channelNumber, info->name.c_str(), info->uri.c_str(), "TUNING...");
 
 			char cmd[32];
-			snprintf( cmd, sizeof(cmd), "%d", chan );
+			sprintf( cmd, "%d", chan );
 			mTuneFailureDescription.clear();
 			lCommandHandler.dispatchAampcliCommands(cmd,mSingleton);
 			PrivAAMPState state = eSTATE_IDLE;
@@ -297,7 +297,7 @@ void Aampcli::newPlayerInstance( void )
 		mEventListener = new MyAAMPEventListener();
 	}
 	player->RegisterEvents(mEventListener);
-	int playerIndex = (int)mPlayerInstances.size();
+	int playerIndex = mPlayerInstances.size();
 	printf( "new playerInstance; index=%d\n", playerIndex );
 	mPlayerInstances.push_back(player);
 	mSingleton = player; // select

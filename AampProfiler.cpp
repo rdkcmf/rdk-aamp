@@ -48,8 +48,8 @@ ProfileEventAAMP::ProfileEventAAMP():
 void ProfileEventAAMP::getTuneEventsJSON(std::string &outStr, const std::string &streamType, const char *url, bool success)
 {
 	bool siblingEvent = false;
-	unsigned int tEndTime = (unsigned int)NOW_STEADY_TS_MS;
-	unsigned int td = (unsigned int)(tEndTime - tuneStartMonotonicBase);
+	unsigned int tEndTime = NOW_STEADY_TS_MS;
+	unsigned int td = tEndTime - tuneStartMonotonicBase;
 	size_t end = 0;
 
 	std::string temlUrl = url;
@@ -253,11 +253,11 @@ void ProfileEventAAMP::GetClassicTuneTimeInfo(bool success, int tuneRetries, int
 	xreTimeBuckets[TuneTimeStartStream]             =       MAX(xreTimeBuckets[TuneTimeDrmReady], (tuneStartMonotonicBase +  buckets[PROFILE_BUCKET_FRAGMENT_VIDEO].tFinish));
 	xreTimeBuckets[TuneTimeStreaming]               =       tuneStartMonotonicBase + buckets[PROFILE_BUCKET_FIRST_FRAME].tStart;
 
-	unsigned int failRetryBucketTime                =       (unsigned int)(tuneStartMonotonicBase - playerLoadTime);
+	unsigned int failRetryBucketTime                =       tuneStartMonotonicBase - playerLoadTime;
 	unsigned int prepareToPlayBucketTime            =       (unsigned int)(xreTimeBuckets[TuneTimePrepareToPlay] - xreTimeBuckets[TuneTimeBeginLoad]);
 	unsigned int playBucketTime                     =       (unsigned int)(xreTimeBuckets[TuneTimePlay]- xreTimeBuckets[TuneTimePrepareToPlay]);
 	unsigned int fragmentBucketTime                 =       (unsigned int)(fragmentReadyTime - xreTimeBuckets[TuneTimePlay]) ;
-	unsigned int decoderStreamingBucketTime         =       (unsigned int)(xreTimeBuckets[TuneTimeStreaming] - xreTimeBuckets[TuneTimeStartStream]);
+	unsigned int decoderStreamingBucketTime         =       xreTimeBuckets[TuneTimeStreaming] - xreTimeBuckets[TuneTimeStartStream];
 	/*Note: 'Drm Ready' to 'decrypt start' gap is not covered in any of the buckets.*/
 
 	unsigned int manifestTotal      =       bucketDuration(PROFILE_BUCKET_MANIFEST);
@@ -301,7 +301,7 @@ void ProfileEventAAMP::ProfileBegin(ProfilerBucketType type)
 	struct ProfilerBucket *bucket = &buckets[type];
 	if (!bucket->complete && (0==bucket->tStart))	//No other Begin should record before the End
 	{
-		bucket->tStart 		= (unsigned int)(NOW_STEADY_TS_MS - tuneStartMonotonicBase);
+		bucket->tStart 		= NOW_STEADY_TS_MS - tuneStartMonotonicBase;
 		bucket->tFinish 	= bucket->tStart;
 		bucket ->profileStarted = true;
 	}
@@ -329,7 +329,7 @@ void ProfileEventAAMP::ProfileEnd(ProfilerBucketType type)
 	struct ProfilerBucket *bucket = &buckets[type];
 	if (!bucket->complete && bucket->profileStarted)
 	{
-		bucket->tFinish = (unsigned int)(NOW_STEADY_TS_MS - tuneStartMonotonicBase);
+		bucket->tFinish = NOW_STEADY_TS_MS - tuneStartMonotonicBase;
 		/*
 		static const char *bucketName[PROFILE_BUCKET_TYPE_COUNT] =
 		{

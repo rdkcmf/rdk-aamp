@@ -3105,7 +3105,7 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 	GstClockTime duration = (GstClockTime)(fDuration * 1000000000LL);
 
 	if (aamp->IsEventListenerAvailable(AAMP_EVENT_ID3_METADATA) &&
-		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), (int32_t)len))
+		hasId3Header(mediaType, static_cast<const uint8_t*>(ptr), len))
 	{
 		uint32_t len = getId3TagSize(static_cast<const uint8_t*>(ptr));
 		if (len && (len != aamp->lastId3DataLen[mediaType] ||
@@ -4553,7 +4553,7 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 	}
 
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_VIDEO];
-	snprintf(privateContext->videoRectangle, sizeof(privateContext->videoRectangle), "%d,%d,%d,%d", x,y,w,h);
+	sprintf(privateContext->videoRectangle, "%d,%d,%d,%d", x,y,w,h);
 	AAMPLOG_WARN("Rect %s, using_playersinkbin = %d, video_sink =%p",
 			privateContext->videoRectangle, stream->using_playersinkbin, privateContext->video_sink);
 	if (ISCONFIGSET(eAAMPConfig_EnableRectPropertyCfg)) //As part of DELIA-37804
@@ -5577,7 +5577,7 @@ bool AAMPGstPlayer::SetPlayBackRate ( double rate )
 		case GST_STATE_CHANGE_SUCCESS:
 		case GST_STATE_CHANGE_NO_PREROLL:
 		{
-			if( gst_current == GST_STATE_PLAYING )
+			if ( (gst_current == GST_STATE_PLAYING) )
 			{
 				// Using below flag only for AMLOGIC as of now.
 				bSetPlayerRate = true;
