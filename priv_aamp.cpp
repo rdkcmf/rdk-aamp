@@ -271,6 +271,12 @@ static constexpr const char *ADEVENT_STR[] =
 
 #define ADEVENT2STRING(id) ADEVENT_STR[id - AAMP_EVENT_AD_RESERVATION_START]
 
+static constexpr const char *mMediaFormatName[] =
+{
+    "HLS","DASH","PROGRESSIVE","HLS_MP4","OTA","HDMI_IN","COMPOSITE_IN","SMOOTH_STREAMING", "RMF", "UNKNOWN"
+};
+
+static_assert("UNKNOWN" == mMediaFormatName[eMEDIAFORMAT_UNKNOWN], "mMediaFormatName and MediaFormat are out of sync");
 /**
  * @brief Get the idle task's source ID
  * @retval source ID
