@@ -424,7 +424,7 @@ MdhdBox* MdhdBox::constructMdhdBox(uint32_t sz, uint8_t *ptr)
 {
 	uint8_t version = READ_VERSION(ptr);
 	uint32_t flags  = READ_FLAGS(ptr);
-	uint64_t tScale;
+	uint32_t tScale;
 
 	uint32_t skip = sizeof(uint32_t)*2;
 	if (1 == version)

@@ -1403,7 +1403,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 								{
 									pMediaStreamContext->fragmentDescriptor.Number += offsetNumber;
 									pMediaStreamContext->timeLineIndex = index;
-									AAMPLOG_INFO("Type[%d] skipping fragments[%d] to Index:%d FNum=%d Repeat:%d", pMediaStreamContext->type,offsetNumber,index,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentRepeatCount);
+									AAMPLOG_INFO("Type[%d] skipping fragments[%d] to Index:%d FNum=%llu Repeat:%d", pMediaStreamContext->type,offsetNumber,index,pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentRepeatCount);
 								}
 							}
 						}
@@ -10683,7 +10683,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 											ITimeline *timeline = timelines.at(timeLineIndex);
 											if(timeScale != 0)
 											{
-												double startTime = double(timeline->GetStartTime() / timeScale);  //CID:170361 - Unintended integer division
+												double startTime = (timeline->GetStartTime() /(double)timeScale);  //CID:170361 - Unintended integer division
 												int repeatCount = timeline->GetRepeatCount();
 												uint32_t timelineDurationMs = ComputeFragmentDuration(timeline->GetDuration(),timeScale);
 												while( repeatCount-- >= 0 )
