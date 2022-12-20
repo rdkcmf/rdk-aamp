@@ -82,7 +82,7 @@ private:
 	 * @param[in] mediaType stream type
 	 * @param[in] pts PTS of next buffer
 	 * @param[in] ptr buffer pointer
-	 * @param[in] len length of buffer 
+	 * @param[in] len length of buffer
 	 */
 	void SendGstEvents(MediaType mediaType, GstClockTime pts, const void *ptr, size_t len);
 
@@ -144,6 +144,7 @@ public:
          * @fn Stream
          */
 	void Stream(void);
+
 	/**
          * @fn Stop
          * @param[in] keepLastFrame denotes if last video frame should be kept
@@ -251,7 +252,7 @@ public:
          * @fn NotifyFragmentCachingComplete
          */
 	void NotifyFragmentCachingComplete();
-	/**^M
+	/**
          * @fn NotifyFragmentCachingOngoing
          */
 	void NotifyFragmentCachingOngoing();
@@ -261,7 +262,7 @@ public:
          * @param[out] h height video height
          */
 	void GetVideoSize(int &w, int &h);
-	/**^M
+	/**
          * @fn QueueProtectionEvent
          * @param[in] protSystemId keysystem to be used
          * @param[in] ptr initData DRM initialization data
@@ -402,6 +403,7 @@ public:
     	 *
      	 */
 	std::string GetVideoRectangle();
+
 private:
 	/**
      	 * @fn PauseAndFlush 
@@ -450,9 +452,11 @@ private:
      	 * @return bool - true if audio to be forwarded
      	 */
 	bool ForwardAudioBuffersToAux();
+
 	pthread_mutex_t mBufferingLock;
 	pthread_mutex_t mProtectionLock;
 	AampLogManager *mLogObj;
 };
 
 #endif // AAMPGSTPLAYER_H
+
