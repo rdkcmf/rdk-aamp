@@ -272,7 +272,7 @@ public:
          * @fn NotifyFragmentCachingComplete
          */
 	void NotifyFragmentCachingComplete();
-	/**^M
+	/**
          * @fn NotifyFragmentCachingOngoing
          */
 	void NotifyFragmentCachingOngoing();
@@ -282,7 +282,7 @@ public:
          * @param[out] h height video height
          */
 	void GetVideoSize(int &w, int &h);
-	/**^M
+	/**
          * @fn QueueProtectionEvent
          * @param[in] protSystemId keysystem to be used
          * @param[in] ptr initData DRM initialization data
