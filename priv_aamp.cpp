@@ -276,7 +276,7 @@ static constexpr const char *mMediaFormatName[] =
     "HLS","DASH","PROGRESSIVE","HLS_MP4","OTA","HDMI_IN","COMPOSITE_IN","SMOOTH_STREAMING", "RMF", "UNKNOWN"
 };
 
-static_assert("UNKNOWN" == mMediaFormatName[eMEDIAFORMAT_UNKNOWN], "mMediaFormatName and MediaFormat are out of sync");
+static_assert(sizeof(mMediaFormatName)/sizeof(mMediaFormatName[0]) == (eMEDIAFORMAT_UNKNOWN + 1), "Ensure 1:1 mapping between mMediaFormatName[] and enum MediaFormat");
 /**
  * @brief Get the idle task's source ID
  * @retval source ID
