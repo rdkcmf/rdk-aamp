@@ -932,13 +932,31 @@ static int replace(std::string& str, const std::string& from, uint64_t toNumber 
 					char buf[256];
 					if (formatLen > 0)
 					{
-						std::string format = str.substr(pos + tokenLength + 1, formatLen);
-						sprintf(buf, format.c_str(), toNumber);
+						std::string format = str.substr(pos + tokenLength + 1, formatLen-1);
+						char type = str[pos+tokenLength+formatLen];
+						switch( type )
+						{ // don't use the number-formatting string from dash manifest as-is; map to uint64_t equivalent
+							case 'd':
+								format += PRIu64;
+								break;
+							case 'x':
+								format += PRIx64;
+								break;
+							case 'X':
+								format += PRIX64;
+								break;
+							default:
+								AAMPLOG_WARN( "unsupported template format: %s%c", format.c_str(), type );
+								format += type;
+								break;
+						}
+						
+						snprintf(buf, sizeof(buf), format.c_str(), toNumber);
 						tokenLength += formatLen;
 					}
 					else
 					{
-						sprintf(buf, "%" PRIu64 "", toNumber);
+						snprintf(buf, sizeof(buf), "%" PRIu64 "", toNumber);
 					}
 					str.replace(pos, tokenLength + 2, buf);
 					done = false;
