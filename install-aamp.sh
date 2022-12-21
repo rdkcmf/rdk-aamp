@@ -342,6 +342,10 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     brew install cppunit
     brew install gnu-sed
     
+    brew install fontconfig
+    brew install doxygen
+    brew install graphviz
+    
     echo "Cloning subtec-app..."
     git clone https://code.rdkcentral.com/r/components/generic/subtec-app
     echo "Cloning websocket-ipplayer2-utils..."
