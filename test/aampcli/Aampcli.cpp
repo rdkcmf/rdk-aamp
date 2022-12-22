@@ -73,7 +73,7 @@ Aampcli :: ~Aampcli()
 
 void Aampcli::doAutomation(const int startChannel, const int stopChannel)
 {
-#ifdef __APPLE__
+#if defined (__APPLE__) || defined(UBUNTU)
 	std::string outPath(getenv("HOME"));
 #else
 	std::string outPath("/opt");
