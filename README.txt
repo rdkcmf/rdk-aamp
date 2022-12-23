@@ -110,7 +110,6 @@ cdnAdsOnly			Enable/Disable picking Ads from Fog or CDN . Default false
 appSrcForProgressivePlayback 	Enables appsrc for playing progressive AV type.Default false
 seekMidFragment			Enable/Disable Mid-Fragment seek .Default false
 wifiCurlHeader			Enable/Disable wifi custom curl header inclusion.Default true
-removeAVEDRMPersistent		Enable/Disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs.Default false.
 reportBufferEvent		Enables Buffer event reporting.Default is true.
 info            		Enable/Disable logging of requested urls.Default is false
 gst             		Enable/Disable gstreamer logging including pipeline dump.Default is false

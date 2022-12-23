@@ -103,7 +103,7 @@ endif()
 
 find_package (Threads REQUIRED)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} drm drm/ave drm/aes drm/helper subtitle isobmff)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} drm drm/aes drm/helper subtitle isobmff)
 include_directories(${GSTREAMER_INCLUDE_DIRS})
 include_directories(${CURL_INCLUDE_DIRS})
 include_directories(${GSTREAMERBASE_INCLUDE_DIRS})
@@ -135,7 +135,6 @@ set(LIBAAMP_SOURCES iso639map.cpp
 					fragmentcollector_mpd.cpp
 					admanager_mpd.cpp
 					streamabstraction.cpp
-					drm/ave/drm.cpp
 					priv_aamp.cpp
 					main_aamp.cpp
 					aampgstplayer.cpp
@@ -280,19 +279,6 @@ set(AAMP_CLI_SOURCES test/aampcli/Aampcli.cpp
 # Session based stats for latency histogram
 set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lmetrics")
 
-if(CMAKE_AVE_DRM)
-	message("CMAKE_AVE_DRM set, adding stubs")
-	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -laveadapter -lAVEPlayer -lmetrics")
-	set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DAVE_DRM")
-	set(AAMP_CLI_SOURCES ${AAMP_CLI_HEADERS} ${AAMP_CLI_SOURCES} drm/ave/StubsForAVEPlayer.cpp)
-	#Linking QT libraries to libaamp will make local stubs obsolete for aamp-cli
-	if(NOT CMAKE_QT5WEBKIT_JSBINDINGS AND CMAKE_WPEWEBKIT_JSBINDINGS)
-		set(AAMP_CLI_EXTRA_DEFINES "${AAMP_CLI_EXTRA_DEFINES} -DAAMP_STUBS_FOR_JS")
-	endif()
-else()
-    message("CMAKE_AVE_DRM not set, not adding stubs?")
-endif()
-
 if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER OR CMAKE_CDM_DRM)
     # Sources common to all forms of OpenCDM and CDM
     message("Using some form of OpenCDM or CDM")
@@ -375,10 +361,6 @@ if(CMAKE_USE_OPENCDM OR CMAKE_USE_OPENCDM_ADAPTER)
 else()
     message("No OpenCDM support enabled")
 endif()
-
-# Always include Adobe Access Helper
-set(LIBAAMP_HELP_SOURCES "${LIBAAMP_HELP_SOURCES}" drm/helper/AampAveDrmHelper.cpp)
-
 
 if(CMAKE_USE_CLEARKEY)
     set(LIBAAMP_DRM_SOURCES "${LIBAAMP_DRM_SOURCES}" drm/ClearKeyDrmSession.cpp)

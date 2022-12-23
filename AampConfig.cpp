@@ -195,7 +195,6 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"reportBufferEvent",eAAMPConfig_ReportBufferEvent,false,-1,-1},
 	{"gstPositionQueryEnable",eAAMPConfig_EnableGstPositionQuery,false,-1,-1},
 	{"useMatchingBaseUrl",eAAMPConfig_MatchBaseUrl,false,-1,-1},
-	{"removeAVEDRMPersistent",eAAMPConfig_RemovePersistent,false,-1,-1},
 	{"useAverageBandwidth",eAAMPConfig_AvgBWForABR,false,-1,-1},
 	{"preCachePlaylistTime",eAAMPConfig_PreCachePlaylistTime,false,{.iMinValue=-1},{.iMaxValue=-1}},
 	{"fragmentRetryLimit",eAAMPConfig_RampDownLimit,false,{.iMinValue=-1},{.iMaxValue=-1}},
@@ -434,7 +433,6 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_PlaylistParallelFetch].value			=	false;
 	bAampCfgValue[eAAMPConfig_PlaylistParallelRefresh].value		=	true;
 	bAampCfgValue[eAAMPConfig_BulkTimedMetaReport].value			=	false;
-	bAampCfgValue[eAAMPConfig_RemovePersistent].value			=	false;
 	bAampCfgValue[eAAMPConfig_AvgBWForABR].value				=	false;
 	bAampCfgValue[eAAMPConfig_NativeCCRendering].value			=	false;
 	bAampCfgValue[eAAMPConfig_Subtec_subtitle].value			=	true;

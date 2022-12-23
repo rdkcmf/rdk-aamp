@@ -67,13 +67,31 @@
 #ifdef AAMP_HLS_DRM
 #include "AampDRMSessionManager.h"
 #endif
-#include "AampAveDrmHelper.h"
+
 #include "AampVanillaDrmHelper.h"
 
 #ifdef AAMP_CC_ENABLED
 #include "AampCCManager.h"
 #endif
 //#define TRACE // compile-time optional noisy debug output
+
+/**
+ * @struct DrmMetadata
+ * @brief AVE drm metadata extracted from EXT-X-FAXS-CM
+ */
+struct DrmMetadata
+{ // from EXT-X-FAXS-CM
+	unsigned char * metadataPtr;
+	size_t metadataSize;
+};
+struct DrmMetadataNode
+{
+	DrmMetadata metaData;
+	int deferredInterval ;
+	long long drmKeyReqTime;
+	char* sha1Hash;
+}; 
+#define DRM_SHA1_HASH_LEN 40
 
 static const int DEFAULT_STREAM_WIDTH = 720;
 static const int DEFAULT_STREAM_HEIGHT = 576;
@@ -97,13 +115,6 @@ static const ProfilerBucketType mediaTrackBucketTypes[AAMP_TRACK_COUNT] =
 static const ProfilerBucketType mediaTrackDecryptBucketTypes[AAMP_DRM_CURL_COUNT] =
 	{ PROFILE_BUCKET_DECRYPT_VIDEO, PROFILE_BUCKET_DECRYPT_AUDIO, PROFILE_BUCKET_DECRYPT_SUBTITLE, PROFILE_BUCKET_DECRYPT_AUXILIARY};
 
-#ifdef AVE_DRM
-extern "C"
-{
-//setCustomLicensePayload is new extension to AVE's DRM library, required to be populated with Virtual Stream Stitcher (VSS) content
-extern void setCustomLicensePayLoad(const char* customData);
-}
-#endif
 static size_t FindLineLength(const char* ptr);
 
 /***************************************************************************
@@ -760,10 +771,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 	vProfileCount = iFrameCount = lineNum = 0;
 	aamp->mhAbrManager.clearProfiles();
 	bool useavgbw = ISCONFIGSET(eAAMPConfig_AvgBWForABR);
-#ifdef AVE_DRM
-	//clear previouse data
-	setCustomLicensePayLoad(NULL);
-#endif
 	while (ptr)
 	{
 		char *next = mystrpbrk(ptr);
@@ -863,9 +870,8 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 					// followed by integer
 				}
 				else if (startswith(&ptr, "-X-FAXS-CM"))
-				{ // not needed - present in playlist
-					hasDrm = true;
-					AveDrmManager::ApplySessionToken();
+				{ 
+					// AVE DRM - specific . Not supported 
 				}
 				else if (startswith(&ptr, "M3U"))
 				{
@@ -879,33 +885,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::ParseMainManifest()
 				}
 				else if (startswith(&ptr, "-X-CONTENT-IDENTIFIER:"))
 				{
-#ifdef AVE_DRM
-					std::string vssServiceZone = aamp->GetServiceZone();
-
-					if(!vssServiceZone.empty())
-					{
-						char * ptrContentID = ptr;
-
-						if(startswith(&ptr, VSS_VIRTUAL_STREAM_ID_PREFIX))
-						{
-							std::string vssData = " \"client:accessAttributes\": [\"";
-							vssData.append(VSS_VIRTUAL_STREAM_ID_KEY_STR);
-							vssData.append("\",\"");
-							vssData.append(ptr);
-							vssData.append("\",\"");
-							vssData.append(VSS_SERVICE_ZONE_KEY_STR);
-							vssData.append("\",\"");
-							vssData.append(vssServiceZone);
-							vssData.append("\"]");
-							setCustomLicensePayLoad(vssData.c_str());
-							AAMPLOG_INFO("custom vss data:%s",vssData.c_str());
-						}
-						else
-						{
-							AAMPLOG_WARN("Invalid VirtualStreamID:%s", ptrContentID);
-						}
-					}
-#endif
 				}
 				else if (startswith(&ptr, "-X-FOG"))
 				{
@@ -2249,156 +2228,6 @@ void TrackState::FlushIndex()
 	mInitFragmentInfo = NULL;
 }
 
-
-/**
- *  @brief Function to compute Deferred key request time for VSS Stream Meta data
- */
-void TrackState::ComputeDeferredKeyRequestTime()
-{
-	// This function will be called only if special tag -X-X1-LIN is present to differ the Key acquisition
-	//  on random value based on the Max refresh time interval
-	// From gathered information , Meta data gets added to playlist and then Key tag follows after certain time interval
-	// defined in X-X1-LIN tag . So if a new Meta appears , before the KeyTag comes up , Key need to be acquired on a random
-	// timeout.
-	// Assumption 1:There is no deferring required between 2 or more meta present in the playlist if there is equivalent KeyTag
-	// 				with Sha is present .For all the Metas with KeyTags , key request will happen immediately
-	// Assumption 2 not considered : Not sure if new Meta gets added always at the end or can get it added in any index ,
-	//			 either by Fog or Source server. So going worst case, if it can added any position , need to run the loop completely
-
-	bool foundFlag = false;
-	if(mDrmMetaDataIndexCount > 1)
-	{
-		DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-		int foundMetaCounter = 0;
-		for (int idx = 0; idx < mDrmMetaDataIndexCount; idx++)
-		{
-			// Check if the Meta is already present with AveDrmManager. If there its already configured for deferred time,no need to add again
-			// If not present , check if Key Tag is present or not .
-			// a)if Key tag present , then no deferring . Key requested immediately.
-			// b)if Key tag not present , then calculate deferred time
-			if(AveDrmManager::IsMetadataAvailable(drmMetadataNode[idx].sha1Hash) == -1)
-			{
-				foundFlag = false;
-				// checking Hash availability in KeyTags
-				KeyHashTableIter iter = mKeyHashTable.begin();
-				for(;iter != mKeyHashTable.end();iter++)
-				{
-					if(iter->mShaID.size() && (0 == memcmp(iter->mShaID.c_str(), drmMetadataNode[idx].sha1Hash , DRM_SHA1_HASH_LEN)))
-					{
-						// Key tag present , not to defer
-						foundFlag = true;
-						foundMetaCounter++;
-						break;
-					}
-				}
-
-				if(!foundFlag)
-				{
-					// Found new Meta with no key Mapping. Need to defer key request for this Meta
-					int deferredTimeMs = aamp_GetDeferTimeMs(drmMetadataNode[idx].deferredInterval);
-					drmMetadataNode[idx].drmKeyReqTime = aamp_GetCurrentTimeMS() + deferredTimeMs;
-
-					AAMPLOG_WARN("[%s] Found New Meta[%d] without KeyTag mapping.Defer license request[%d]",
-						name,idx,deferredTimeMs);
-				}
-				else
-				{
-					// This is preventive measure to avoid overloading of DRM and cpu.
-					// For any reason process crashes and comes back ,fog may give complete TSB with so many
-					// Metadata with KeyTag available. This will cause sudden rush of Meta add and key requset
-					// Differ the key in staggered manner. If particular Meta-Key is needed for decrypt, then it will
-					// be requested on Emergency mode
-					if(foundMetaCounter > 2)
-					{
-						int deferredTimeMs = aamp_GetDeferTimeMs(30);
-						drmMetadataNode[idx].drmKeyReqTime = aamp_GetCurrentTimeMS() + deferredTimeMs;
-						AAMPLOG_WARN("[%s] Found New Meta[%d] with KeyTag mapping.Deferring license request due to load[%d]",name,idx,deferredTimeMs);
-					}
-				}
-			}
-		}
-	}
-}
-
-
-/**
- * @brief Process Drm Metadata after indexing
- */
-void TrackState::ProcessDrmMetadata()
-{
-
-	// This function after indexplaylist to be called , this will store the metadata into AveDrmManager
-	// Storing will not invoke key request . If meta already present , no update happens
-	DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-	if(mDrmMetaDataIndexCount)
-	{
-		// WARNING ::: Dont put condition here for optimizaion , if Metaavailable !!!!
-		// Meta may be added for other track . Also this is the method by which DrmManger knows Meta
-		// is still available after refresh . Else it will flush out the Meta from DrmManager thinking
-		// Source removed the source
-		for (int idx = 0; idx < mDrmMetaDataIndexCount; idx++)
-		{
-			AAMPLOG_TRACE("[%s] Setting  metadata for index %d/%d",name, idx,mDrmMetaDataIndexCount);
-			AveDrmManager::SetMetadata(context->aamp, &drmMetadataNode[idx],(int)type, mLogObj);
-		}
-	}
-}
-
-/**
- * @brief Function to initiate key request for all Meta data
- */
-void TrackState::InitiateDRMKeyAcquisition(int indexPosn)
-{
-	// WARNING :: Dont put optimization condition here to check if MetaAvailable or KeyAvailable.
-	// This is the call by which DrmManager runs the loops to initiate key request for deferred
-
-	// Initiate Key Request will happen after every refresh for all the Meta as there is no pre-refresh data stored to compare
-	// Inside AveDrmManager, check is done if Key is already acquired or not . Also if any deferred request is needed or not
-	// Second caller of this function is SetDrmContext,if Key is not acquired then for specific meta index key request is made
-	//AAMPLOG_WARN("[%s] mDrmMetaDataIndexCount %d ",name, mDrmMetaDataIndexCount);
-	DrmMetadataNode* drmMetadataNode = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
-	bool retStatus = true;  //CID:101604 - currentTime is initialized but not used
-	// Function to initiate key request with DRM
-	// if indexPosn == -1 , its required to check for all the Metadata stored in the list
-	// 		this call will be made after playlist update .
-	// if indexPosn != -1 , its required to initiate key request immediately for particular Meta
-	if(mDrmMetaDataIndexCount > 0)
-	{
-		// if it is for Adobe DRM only , upfront Key request is done ,
-		// If Clear , nothing to do
-		if(indexPosn == -1)
-		{
-			for (int idx = 0; idx < mDrmMetaDataIndexCount; idx++)
-			{
-				// Request key for all Meta's received in playlist refresh .
-				// Deferring logic is with DRM Manager ..lets make it little more intelligent instead of FragCollector
-				// doing all checks n calculcation .
-				// Every refresh of playlist , DRM Meta will calculate new refresh time and request. DRM Manager knows the
-				// first request with deferred time , so it will request key when time comes.
-				AAMPLOG_TRACE("[%s]Request DRM Key for indexPosn[%d]",name,idx);
-				retStatus = AveDrmManager::AcquireKey(context->aamp, &drmMetadataNode[idx],(int)type,mLogObj);
-				if(retStatus == false)
-					break;
-			}
-		}
-		else
-		{
-			// on an emergency may have to request Key for certain index only
-			AAMPLOG_WARN("[%s]Request DRM Key immediately for indexPosn[%d]",name,indexPosn);
-			retStatus = AveDrmManager::AcquireKey(context->aamp, &drmMetadataNode[indexPosn],(int)type,mLogObj,true);
-		}
-
-		if(retStatus == false)
-		{
-			// Something wrong , why should AveDrmManager return false when Key is requested,
-			// May be Meta is not stored before requesting Key or Meta may not be available for ShaId looking for
-			AAMPLOG_ERR("[%s] Failure to Get Key ",name);
-			aamp->SendErrorEvent(AAMP_TUNE_INVALID_MANIFEST_FAILURE, NULL, true);
-		}
-	}
-}
-
-
 /**
  * @brief Function to set DRM Context when KeyTag changes
  */
@@ -2412,25 +2241,8 @@ void TrackState::SetDrmContext()
 	//CID:93939 - Removed the drmContextUpdated variable which is initialized but not used
 	DrmMetadataNode* drmMetadataIdx = (DrmMetadataNode*)mDrmMetaDataIndex.ptr;
 	mDrmInfo.bPropagateUriParams = ISCONFIGSET(eAAMPConfig_PropogateURIParam);
-	if(drmMetadataIdx)
-	{
-		AAMPLOG_WARN("TrackState:[%s] Enter mCMSha1Hash [%p] mDrmMetaDataIndexPosition %d",name, mCMSha1Hash,
-			mDrmMetaDataIndexPosition);
-		// Get the DRM Instance based on current Sha1
-		// a) If Multi Key involved mCMSha1Hash will have value ,based on which DRM Instance is picked
-		// b) If Single Key invloved (no mCMSha1Hash), but with diff Meta for audio and video , based on track type appropriate DRM instance picked
-		// c) If Single Key involved (no mCMSha1Hash) , audio/video having same meta, AveDrmManager will get the the only on Drm Instance
-		aamp->setCurrentDrm(std::make_shared<AampAveDrmHelper>(mLogObj));
-		mDrm = AveDrmManager::GetAveDrm(mCMSha1Hash,type,mLogObj);		
-		if(mDrm && mDrm->GetState() != DRMState::eDRM_KEY_ACQUIRED)
-			{
-				// Need of the hour ,initiate the key before the decrypt function is called
-				AAMPLOG_WARN("[%s] Initiating Key Request as Key is not available for index [%d]",name,mDrmMetaDataIndexPosition);
-				InitiateDRMKeyAcquisition(mDrmMetaDataIndexPosition);
-			}
-	}
 #ifdef USE_OPENCDM
-	else if (AampHlsDrmSessionManager::getInstance().isDrmSupported(mDrmInfo))
+	if (AampHlsDrmSessionManager::getInstance().isDrmSupported(mDrmInfo))
 	{
 		// OCDM-based DRM decryption is available via the HLS OCDM bridge
 		AAMPLOG_INFO("Drm support available");		
@@ -2440,8 +2252,8 @@ void TrackState::SetDrmContext()
 			AAMPLOG_WARN("Failed to create Drm Session");
 		}
 	}
-#endif
 	else
+#endif
 	{
 		// No DRM helper located, assuming standard AES encryption
 #ifdef AAMP_VANILLA_AES_SUPPORT
@@ -2637,26 +2449,7 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 				}
 				else if(startswith(&ptr,"-X-FAXS-CM:"))
 				{
-					size_t srcLen;
-					AAMPLOG_TRACE("aamp: #EXT-X-FAXS-CM:");
-					srcLen = FindLineLength(ptr);
-					unsigned char hash[SHA_DIGEST_LENGTH] = {0};
-					drmMetadataNode.deferredInterval = mDeferredDrmKeyMaxTime;
-					drmMetadataNode.drmKeyReqTime = 0;
-					drmMetadataNode.metaData.metadataPtr =  base64_Decode(ptr, &drmMetadataNode.metaData.metadataSize, srcLen);
-					SHA1(drmMetadataNode.metaData.metadataPtr, drmMetadataNode.metaData.metadataSize, hash);
-					drmMetadataNode.sha1Hash = base16_Encode(hash, SHA_DIGEST_LENGTH);
-	#ifdef TRACE
-					AAMPLOG_WARN("[%s] drmMetadataNode[%d].sha1Hash -- ", name, mDrmMetaDataIndexCount);
-					for (int i = 0; i < DRM_SHA1_HASH_LEN; i++)
-					{
-						printf("%c", drmMetadataNode.sha1Hash[i]);
-					}
-					printf("\n");
-	#endif
-					aamp_AppendBytes(&mDrmMetaDataIndex, &drmMetadataNode, sizeof(drmMetadataNode));
-					AAMPLOG_TRACE("mDrmMetaDataIndex.ptr %p", mDrmMetaDataIndex.ptr);
-					mDrmMetaDataIndexCount++;
+					// AVE DRM Not supported 
 				}
 				else if(startswith(&ptr,"-X-DISCONTINUITY-SEQUENCE"))
 				{
@@ -2824,24 +2617,6 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 			ptr=GetNextLineStart(ptr);
 		}
 
-		if (mDrmMetaDataIndexCount > 1)
-		{
-			AAMPLOG_WARN("[%d] Indexed %d drm metadata",type, mDrmMetaDataIndexCount);
-			AveDrmManager::ApplySessionToken();	
-		}
-
-		// DELIA-33434
-		// Update DRM Manager for stored indexes so that it can be removed after playlist update
-		// Update is required only for multi key stream, where Sha1 is set ,for single key stream,
-		// SetMetadata is not called across playlist update , hence Update is not needed
-		// Have to check for normal playback only. SAP Audio in VSS sometimes having total different
-		// Meta set from video.So when iframe manifest is parsed, audio Meta shouldnt be cleared.
-		// Trickplay is for short duration , when back to normal rate,it will flush iframe specific Metas
-		if(mCMSha1Hash && context->rate == AAMP_NORMAL_PLAY_RATE)
-		{
-			AveDrmManager::UpdateBeforeIndexList(name,(int)type);
-		}
-
 		if(mediaSequence==false)
 		{ // for Sling content
 			AAMPLOG_INFO("warning: no EXT-X-MEDIA-SEQUENCE tag");
@@ -2863,12 +2638,6 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 #ifdef TRACE
 	DumpIndex(this);
 #endif
-
-	if(mDeferredDrmKeyMaxTime != 0)
-	{
-		// Special stream with Deferred DRM Key Acquisition required
-		ComputeDeferredKeyRequestTime();
-	}
 	// No condition checks for call . All checks n balances inside the module
 	// which is been called.
 	// Store the all the Metadata received from playlist indexing .
@@ -2877,9 +2646,9 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 	if(mDrmMethod != eDRM_KEY_METHOD_SAMPLE_AES_CTR)
 	{
 		aamp->profiler.ProfileBegin(PROFILE_BUCKET_LA_TOTAL);
-		ProcessDrmMetadata();
+		//ProcessDrmMetadata();
 		// Initiating key request for Meta present.If already key received ,call will be ignored.
-		InitiateDRMKeyAcquisition();
+		//InitiateDRMKeyAcquisition();
 		// default MetaIndex is 0 , for single Meta . If Multi Meta is there ,then Hash is the criteria
 		// for selection
 		mDrmMetaDataIndexPosition = 0;
@@ -2888,13 +2657,6 @@ void TrackState::IndexPlaylist(bool IsRefresh, double &culledSec)
 	mIndexingInProgress = false;
 	AAMPLOG_TRACE("Exit indexCount %d mDrmMetaDataIndexCount %d", indexCount, mDrmMetaDataIndexCount);
 	mDuration = totalDuration;
-	// DELIA-33434
-	// Update is required only for multi key stream, where Sha1 is set ,for single key stream,
-	// SetMetadata is not called across playlist update hence flush is not needed
-	if(mCMSha1Hash && context->rate == AAMP_NORMAL_PLAY_RATE)
-	{
-		AveDrmManager::FlushAfterIndexList(name,(int)type);
-	}
 
 	if(IsRefresh)
 	{
@@ -3937,10 +3699,6 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 	TSProcessor* audioQueuedPC = NULL;
 	long http_error = 0;   //CID:81873 - Initialization
 	memset(&mainManifest, 0, sizeof(mainManifest));
-	if (newTune)
-	{
-		AveDrmManager::ResetAll();
-	}
 
 	for (int i = 0; i < AAMP_TRACK_COUNT; i++)
 	{
@@ -4384,15 +4142,11 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						SeekPosUpdate((seekPosition - culled));
 					}
 				}
-
-
-#ifndef AVE_DRM
 				if(ts->mDrmMetaDataIndexCount > 0)
 				{
 					AAMPLOG_ERR("TrackState: Sending Error event DRM unsupported");
 					return eAAMPSTATUS_UNSUPPORTED_DRM_ERROR;
 				}
-#endif
 				if (ts->mDuration == 0.0f)
 				{
 					//TODO: Confirm if aux audio playlist has issues, it should be deemed as a playback failure
@@ -5539,9 +5293,6 @@ StreamAbstractionAAMP_HLS::StreamAbstractionAAMP_HLS(AampLogManager *logObj, cla
 	mLangList(),mIframeAvailable(false), thumbnailManifest(), indexedTileInfo(),pCMCDMetrics(NULL),
 	mFirstPTS(0)
 {
-#ifndef AVE_DRM
-       AAMPLOG_WARN("PlayerInstanceAAMP() : AVE DRM disabled");
-#endif
 	trickplayMode = false;
 	enableThrottle = ISCONFIGSET(eAAMPConfig_Throttle);
 	AAMPLOG_WARN("hls fragment collector seekpos = %f", seekpos);

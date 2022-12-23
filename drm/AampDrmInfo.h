@@ -25,11 +25,6 @@
 #ifndef AAMPDRMINFO_H
 #define AAMPDRMINFO_H
 
-
-#ifdef AVE_DRM
-#include "ave-adapter/MyFlashAccessAdapter.h"
-#else
-
 #include <string>
 #include "AampDrmMediaFormat.h"
 
@@ -95,7 +90,4 @@ struct DrmInfo
 	std::string initData;			/**< Base64 init data string from the main manifest URI */
 };
 
-
-#endif /* AVE_DRM */
 #endif /* AAMPDRMINFO_H */
-

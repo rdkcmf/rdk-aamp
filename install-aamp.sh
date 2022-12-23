@@ -310,7 +310,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     sudo make install
     cd ../..
 
-
     #Build aamp-cli
     echo "Build aamp-cli"
     pwd

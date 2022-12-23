@@ -166,7 +166,6 @@ typedef enum
 	eAAMPConfig_PlaylistParallelFetch,					/**< Enabled parallel fetching of audio & video playlists*/
 	eAAMPConfig_PlaylistParallelRefresh,					/**< Enabled parallel fetching for refresh of audio & video playlists*/
  	eAAMPConfig_BulkTimedMetaReport, 					/**< Enabled Bulk event reporting for TimedMetadata*/
-	eAAMPConfig_RemovePersistent,						/**< Flag to enable/disable code in ave drm to avoid crash when majorerror 3321, 3328 occurs*/
 	eAAMPConfig_AvgBWForABR,						/**< Enables usage of AverageBandwidth if available for ABR */
 	eAAMPConfig_NativeCCRendering,						/**< If native CC rendering to be supported */
 	eAAMPConfig_Subtec_subtitle,						/**< Enable subtec-based subtitles */
