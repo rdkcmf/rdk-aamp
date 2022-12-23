@@ -2754,7 +2754,8 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 			if (ret != GST_FLOW_OK)
 			{
 				AAMPLOG_WARN("gst_app_src_push_buffer error: %d[%s] mediaType %d", ret, gst_flow_get_name (ret), (int)mediaType);
-				assert(false);
+				if (ret != GST_FLOW_EOS && ret !=  GST_FLOW_FLUSHING)
+					assert(false);
 			}
 			else if (stream->bufferUnderrun)
 			{
