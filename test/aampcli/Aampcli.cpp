@@ -106,7 +106,7 @@ void Aampcli::doAutomation(const int startChannel, const int stopChannel)
 					info->channelNumber, info->name.c_str(), info->uri.c_str(), "TUNING...");
 
 			char cmd[32];
-			sprintf( cmd, "%d", chan );
+			snprintf( cmd, sizeof(cmd), "%d", chan );
 			mTuneFailureDescription.clear();
 			lCommandHandler.dispatchAampcliCommands(cmd,mSingleton);
 			PrivAAMPState state = eSTATE_IDLE;

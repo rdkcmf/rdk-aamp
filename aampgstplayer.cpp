@@ -34,7 +34,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-#include <stdio.h> // for sprintf
+#include <stdio.h>
 #include "priv_aamp.h"
 #include <pthread.h>
 #include <atomic>
@@ -3754,7 +3754,7 @@ void AAMPGstPlayer::SetVideoRectangle(int x, int y, int w, int h)
 	}
 
 	media_stream *stream = &privateContext->stream[eMEDIATYPE_VIDEO];
-	sprintf(privateContext->videoRectangle, "%d,%d,%d,%d", x,y,w,h);
+	snprintf(privateContext->videoRectangle, sizeof(privateContext->videoRectangle), "%d,%d,%d,%d", x,y,w,h);
 	AAMPLOG_WARN("Rect %s, using_playersinkbin = %d, video_sink =%p",
 			privateContext->videoRectangle, stream->using_playersinkbin, privateContext->video_sink);
 	if (ISCONFIGSET(eAAMPConfig_EnableRectPropertyCfg)) //As part of DELIA-37804

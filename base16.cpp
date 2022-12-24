@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-
+#include "AampUtils.h"
 
 /**
  * @brief convert binary data to hascii-encoded equivalent
@@ -38,8 +38,6 @@
  */
 char *base16_Encode(const unsigned char *src, size_t len)
 {
-	// this implementation uses lowercase a..f
-	static const char *mBase16IndexToChar = "0123456789abcdef";
 	size_t outLen = len*2;
 	char *outData = (char *)malloc(1 + outLen);
 	if( outData )
@@ -49,8 +47,7 @@ char *base16_Encode(const unsigned char *src, size_t len)
 		while (src < finish)
 		{
 			unsigned char c = *src++;
-			*dst++ = mBase16IndexToChar[c>>4];
-			*dst++ = mBase16IndexToChar[c&0xf];
+			WRITE_HASCII( dst, c );
 		}
 		*dst = 0x00;
 	}

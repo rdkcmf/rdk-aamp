@@ -1767,11 +1767,11 @@ bool TrackState::FetchFragmentHelper(long &http_error, bool &decryption_error, b
 
 			aamp->profiler.ProfileBegin(mediaTrackBucketTypes[type]);
 			const char *range;
-			char rangeStr[128];
+			char rangeStr[MAX_RANGE_STRING_CHARS];
 			if (byteRangeLength)
 			{
 				size_t next = byteRangeOffset + byteRangeLength;
-				sprintf(rangeStr, "%zu-%zu", byteRangeOffset, next - 1);
+				snprintf(rangeStr, sizeof(rangeStr), "%zu-%zu", byteRangeOffset, next - 1);
 				AAMPLOG_WARN("FetchFragmentHelper rangeStr %s ", rangeStr);
 
 				range = rangeStr;
@@ -6883,7 +6883,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 	if (!line.empty())
 	{
 		const char *range = NULL;
-		char rangeStr[128];
+		char rangeStr[MAX_RANGE_STRING_CHARS];
 		std::string uri;
 		AAMPLOG_TRACE(" line %s", line.c_str());
 		size_t uriTagStart = line.find("URI=");
@@ -6924,7 +6924,7 @@ bool TrackState::FetchInitFragmentHelper(long &http_code, bool forcePushEncrypte
 						int offsetVal = stoi(byteRange.substr(offsetIdx + 1));
 						int rangeVal = stoi(byteRange.substr(0, offsetIdx));
 						int next = offsetVal + rangeVal;
-						sprintf(rangeStr, "%d-%d", offsetVal, next - 1);
+						snprintf(rangeStr, sizeof(rangeStr), "%d-%d", offsetVal, next - 1);
 						AAMPLOG_INFO("TrackState::rangeStr %s", rangeStr);
 						range = rangeStr;
 					}

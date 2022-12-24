@@ -269,4 +269,12 @@ void mssleep(int milliseconds);
 
 std::size_t GetPrintableThreadID( const std::thread &t );
 
+#define MAX_RANGE_STRING_CHARS 128
+
+#define WRITE_HASCII( DST, BYTE ) \
+{ \
+	*DST++ = "0123456789abcdef"[BYTE>>4]; \
+	*DST++ = "0123456789abcdef"[BYTE&0xf]; \
+}
+
 #endif  /* __AAMP_UTILS_H__ */

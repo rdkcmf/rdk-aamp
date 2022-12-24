@@ -436,7 +436,7 @@ void logprintf(const char *format, ...)
 	va_start(args, format);
 
 	char gDebugPrintBuffer[MAX_DEBUG_LOG_BUFF_SIZE];
-	len = sprintf(gDebugPrintBuffer, "[AAMP-PLAYER]");
+	len = snprintf(gDebugPrintBuffer, sizeof(gDebugPrintBuffer), "[AAMP-PLAYER]");
 	vsnprintf(gDebugPrintBuffer+len, MAX_DEBUG_LOG_BUFF_SIZE-len, format, args);
 	gDebugPrintBuffer[(MAX_DEBUG_LOG_BUFF_SIZE-1)] = 0;
 
@@ -486,7 +486,7 @@ void logprintf_new(int playerId,const char* levelstr,const char* file, int line,
 	va_start(args, format);
 
 	char gDebugPrintBuffer[MAX_DEBUG_LOG_BUFF_SIZE];
-	len = sprintf(gDebugPrintBuffer, "[AAMP-PLAYER][%d][%s][%s][%d]",playerId,levelstr,file,line);
+	len = snprintf(gDebugPrintBuffer, sizeof(gDebugPrintBuffer), "[AAMP-PLAYER][%d][%s][%s][%d]",playerId,levelstr,file,line);
 	vsnprintf(gDebugPrintBuffer+len, MAX_DEBUG_LOG_BUFF_SIZE-len, format, args);
 	gDebugPrintBuffer[(MAX_DEBUG_LOG_BUFF_SIZE-1)] = 0;
 
@@ -537,7 +537,6 @@ void DumpBlob(const unsigned char *ptr, size_t len)
 	char *dst = buf;
 	const unsigned char *fin = ptr+len;
 	int fit = FIT_CHARS;
-	const char *str_hex ="0123456789abcdef";
 	while (ptr < fin)
 	{
 		unsigned char c = *ptr++;
@@ -549,8 +548,7 @@ void DumpBlob(const unsigned char *ptr, size_t len)
 		else if( fit>=4 )
 		{
 			*dst++ = '[';
-			*dst++ = str_hex[c >> 4];
-			*dst++ = str_hex[c &0xf ];
+			WRITE_HASCII( dst, c );
 			*dst++ = ']';
 			fit -= 4;
 		}
