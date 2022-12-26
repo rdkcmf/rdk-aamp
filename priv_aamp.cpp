@@ -775,7 +775,7 @@ size_t PrivateInstanceAAMP::HandleSSLWriteCallback ( char *ptr, size_t size, siz
 				len = DEFAULT_ENCODED_CONTENT_BUFFER_SIZE;
 			}
 			assert(!context->buffer->ptr);
-			context->buffer->ptr = (char *)g_malloc( len );
+			context->buffer->ptr = (char *)aamp_Malloc( len );
 			context->buffer->avail = len;
 		}
         size_t numBytesForBlock = size*nmemb;
@@ -6351,7 +6351,15 @@ void PrivateInstanceAAMP::PushFragment(MediaType mediaType, GrowableBuffer* buff
 {
 	BlockUntilGstreamerWantsData(NULL, 0, 0);
 	SyncBegin();
-	mStreamSink->SendTransfer(mediaType, buffer, fragmentTime, fragmentTime, fragmentDuration);
+	if( mStreamSink->SendTransfer(mediaType, buffer->ptr, buffer->len, fragmentTime, fragmentTime, fragmentDuration) )
+	{
+		aamp_TransferMemory(buffer->ptr);
+	}
+	else
+	{ // unable to transfer - free up the buffer we were passed.
+		aamp_Free(buffer);
+	}
+	memset(buffer, 0x00, sizeof(GrowableBuffer));
 	SyncEnd();
 }
 
@@ -6967,7 +6975,15 @@ void PrivateInstanceAAMP::SendStreamCopy(MediaType mediaType, const void *ptr, s
  */
 void PrivateInstanceAAMP::SendStreamTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double fDuration, bool initFragment, bool discontinuity)
 {
-	mStreamSink->SendTransfer(mediaType, buffer, fpts, fdts, fDuration, initFragment, discontinuity);
+	if( mStreamSink->SendTransfer(mediaType, buffer->ptr, buffer->len, fpts, fdts, fDuration, initFragment, discontinuity) )
+	{
+		aamp_TransferMemory(buffer->ptr);
+	}
+	else
+	{ // unable to transfer - free up the buffer we were passed.
+		aamp_Free(buffer);
+	}
+	memset(buffer, 0x00, sizeof(GrowableBuffer));
 }
 
 /**
@@ -11514,7 +11530,7 @@ void PrivateInstanceAAMP::ReportID3Metadata(MediaType mediaType, const uint8_t* 
 {
 	FlushLastId3Data(mediaType);
 	Id3CallbackData* id3Metadata = new Id3CallbackData(this, static_cast<const uint8_t*>(ptr), len, static_cast<const char*>(schemeIdURI), static_cast<const char*>(id3Value), presTime, id3ID, eventDur, tScale, tStampOffset);
-	lastId3Data[mediaType] = (uint8_t*)g_malloc(len);
+	lastId3Data[mediaType] = (uint8_t*)aamp_Malloc(len);
 	if (lastId3Data[mediaType])
 	{
 		lastId3DataLen[mediaType] = len;
@@ -11533,7 +11549,7 @@ void PrivateInstanceAAMP::FlushLastId3Data(MediaType mediaType)
 	if(lastId3Data[mediaType])
 	{
 		lastId3DataLen[mediaType] = 0;
-		g_free(lastId3Data[mediaType]);
+		aamp_Free((void *)lastId3Data[mediaType]);
 		lastId3Data[mediaType] = NULL;
 	}
 }

@@ -28,20 +28,82 @@
 #include <glib.h>
 #include <errno.h>
 
+static int gNetMemoryCount;
+static int gNetMemoryHighWatermark;
+
+static void NETMEMORY_PLUS( void )
+{
+	gNetMemoryCount++;
+	if( gNetMemoryCount>gNetMemoryHighWatermark )
+	{
+		gNetMemoryHighWatermark = gNetMemoryCount;
+		AAMPLOG_WARN( "***gNetMemoryHighWatermark=%d", gNetMemoryHighWatermark );
+	}
+}
+
+static void NETMEMORY_MINUS( void )
+{
+	gNetMemoryCount--;
+	if( gNetMemoryCount==0 )
+	{
+		AAMPLOG_WARN( "***gNetMemoryCount=0" );
+	}
+}
+
 /**
- * @brief Free memory allocated by aamp_Malloc
+ * @brief wrapper for g_free, used for segment allocation
+ */
+void aamp_Free( void *ptr )
+{
+	if( ptr )
+	{
+		NETMEMORY_MINUS();
+		g_free( ptr );
+	}
+}
+
+/**
+ * @brief wrapper for g_malloc, used for segment allocation
+ */
+void *aamp_Malloc( size_t numBytes )
+{
+	void *ptr = g_malloc(numBytes);
+	if( ptr )
+	{
+		NETMEMORY_PLUS();
+	}
+	return ptr;
+}
+
+/**
+ * @brief called when ownership of memory of injected fragments passed to gstreamer
+ */
+void aamp_TransferMemory( void *ptr )
+{
+	if( ptr )
+	{
+		NETMEMORY_MINUS();
+	}
+}
+
+/**
+ * @brief free "GrowableBuffer" memopry allocated by aamp_Malloc
  */
 void aamp_Free(struct GrowableBuffer *buffer)
 {
-	if (buffer && buffer->ptr)
+	if( buffer )
 	{
-		g_free(buffer->ptr);
+		if( buffer->ptr )
+		{
+			NETMEMORY_MINUS();
+		}
+		g_free( buffer->ptr );
 		buffer->ptr = NULL;
 	}
 }
 
 /**
- * @brief Append data to buffer
+ * @brief append data to GrowableBuffer ADT
  */
 void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len)
 {
@@ -51,15 +113,11 @@ void aamp_AppendBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len
 		// For encoded contents, step by step increment 512KB => 1MB => 2MB => ..
 		// In other cases, double the buffer based on availability and requirement.
 		buffer->avail = ((buffer->avail * 2) > required) ? (buffer->avail * 2) : (required * 2);
-		char *ptr = (char *)g_realloc(buffer->ptr, buffer->avail);
-		assert(ptr);
-		if (ptr)
-		{
-			if (buffer->ptr == NULL)
-			{ // first alloc (not a realloc)
-			}
-			buffer->ptr = ptr;
+		if( buffer->avail && !buffer->ptr )
+		{ // first allocation
+			NETMEMORY_PLUS();
 		}
+		buffer->ptr = (char *)g_realloc(buffer->ptr, buffer->avail);
 	}
 	if (buffer->ptr)
 	{
@@ -83,12 +141,12 @@ void aamp_MoveBytes(struct GrowableBuffer *buffer, const void *ptr, size_t len)
         }
         else
         {
-            AAMPLOG_WARN("WARNING - Something is wrong!! Trying to move more than available!!!");
+            AAMPLOG_ERR("bad arg(len=%zu > available)", len );
         }
 	}
 	else
 	{
-		AAMPLOG_WARN("WARNING - NULL pointer input!!!");
+		AAMPLOG_ERR("bad arg(NULL)");
 	}
 }
 
