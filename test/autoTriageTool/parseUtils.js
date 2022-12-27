@@ -61,19 +61,23 @@ function sscanf( string, format )
     {
         var nextParam = format.indexOf("%%");
         if( nextParam<0 )
-		{ // no more parameters
+		{ // no more parameters in format string
 			if( first )
 			{
 				if( string.indexOf(format)<0 )
-				{
+				{ // must contain simple format
 					rc = null;
 				}
+			}
+			else if( !string.startsWith(format) )
+			{ // must match trailing characters from format
+				rc = null;
 			}
 			return rc;
 		}
 		var delim = format.substr(0,nextParam);
 		if( first )
-		{
+		{ // fuzzy match any leading characters
 			nextParam = string.indexOf(delim);
 			if( nextParam<0 )
 			{
@@ -85,10 +89,11 @@ function sscanf( string, format )
 		}
         else if( string.substr(0,nextParam)!=delim )
         {
-            return null;
+			return null;
         }
         string = string.substr(nextParam); // strip leading characters
         format = format.substr(nextParam+2); // skip past %% in format string
+		
         var charAfterParam = format.substr(0,1);
         var idx = string.indexOf(charAfterParam);
         if( idx<0 || format=="" )
