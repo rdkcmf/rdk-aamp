@@ -85,6 +85,7 @@ class TestServer(BaseHTTPRequestHandler):
         # Get a modified version of the playlist
         with open(path, "r") as f:
             self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
 
             for line in f:
@@ -187,6 +188,7 @@ class TestServer(BaseHTTPRequestHandler):
         # Get a modified version of the playlist
         with open(path, "r") as f:
             self.send_response(200)
+            end_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
 
             for line in f:
@@ -273,6 +275,7 @@ class TestServer(BaseHTTPRequestHandler):
         with open(path, "rb") as f:
             contents = f.read()
             self.send_response(200)
+            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             self.wfile.write(contents)
 
