@@ -483,6 +483,7 @@ void MyAAMPEventListener::Event(const AAMPEventPtr& e)
 			}
 		case AAMP_EVENT_EOS:
 			printf("[AAMPCLI] AAMP_EVENT_EOS\n");
+			mAampcli.mPlayerInstances[mLogObj->getPlayerId()]->aamp->PausePipeline(true, false);
 			break;
 		case AAMP_EVENT_PLAYLIST_INDEXED:
 			printf("[AAMPCLI] AAMP_EVENT_PLAYLIST_INDEXED\n");
