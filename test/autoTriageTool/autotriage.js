@@ -627,7 +627,11 @@ window.onload = function() {
 				AdjustTimeline(obj.utcstart);
 				AdjustTimeline(doneUtc);
 				
-				if( obj.type==eMEDIATYPE_PLAYLIST_VIDEO )
+				if( obj.type==eMEDIATYPE_LICENSE )
+				{
+					obj.track = "drm"; // AES-128
+				}
+				else if( obj.type==eMEDIATYPE_PLAYLIST_VIDEO )
 				{
 					obj.track = "vid-playlist";
 				}
@@ -697,8 +701,8 @@ window.onload = function() {
 
 					var baseUTC = gTimeStampUTC - parseInt(attrs[_gstFirstFrameTime]);
 					var startTime = baseUTC + parseInt(attrs[_drmLicenseAcqStartTime]);
-					
 					// use IP_AAMP_TUNETIME log to define license and pre/post drm overhead in timeline
+					if( true )
 					{
 						var obj = {};
 						obj.line = gLineNumber;
@@ -711,9 +715,13 @@ window.onload = function() {
 						obj.utcstart = startTime;
 						obj.track = "drm";
 						obj.fillStyle = MapMediaColor(-eMEDIATYPE_LICENSE);
-						gBoxDownload.push(obj);
-						startTime += obj.durationms;
+						if( obj.durationms>0 )
+						{
+							gBoxDownload.push(obj);
+							startTime += obj.durationms;
+						}
 					}
+					if( true )
 					{
 						var obj = {};
 						obj.line = gLineNumber;
@@ -726,10 +734,13 @@ window.onload = function() {
 						obj.utcstart = startTime;
 						obj.track = "drm";
 						obj.fillStyle = MapMediaColor(eMEDIATYPE_LICENSE);
-						gBoxDownload.push(obj);
-						startTime += obj.durationms;
-						//color = obj.fillStyle[0];
+						if( obj.durationms>0 )
+						{
+							gBoxDownload.push(obj);
+							startTime += obj.durationms;
+						}
 					}
+					if( true )
 					{
 						var obj = {};
 						obj.line = gLineNumber;
@@ -742,7 +753,10 @@ window.onload = function() {
 						obj.utcstart = startTime;
 						obj.track = "drm";
 						obj.fillStyle = MapMediaColor(-eMEDIATYPE_LICENSE);
-						gBoxDownload.push(obj);
+						if( obj.durationms>0 )
+						{
+							gBoxDownload.push(obj);
+						}
 					}
 				} else {
 					AddMarker( "Tune Failed", COLOR_TUNE_FAILED );
