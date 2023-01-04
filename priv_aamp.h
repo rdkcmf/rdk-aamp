@@ -57,6 +57,10 @@
 #include "AampRfc.h"
 #include "AampEventManager.h"
 #include <HybridABRManager.h>
+static const char *mMediaFormatName[] =
+{
+    "HLS","DASH","PROGRESSIVE","HLS_MP4","OTA","HDMI_IN","COMPOSITE_IN","SMOOTH_STREAMING","UNKNOWN"
+};
 
 #ifdef __APPLE__
 #define aamp_pthread_setname(tid,name) pthread_setname_np(name)
