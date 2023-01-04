@@ -40,7 +40,7 @@
 #include "mediaprocessor.h"
 #include "drm.h"
 #include <sys/time.h>
-
+#include <atomic>
 
 #define MAX_PROFILE 128 // TODO: remove limitation
 #define FOG_FRAG_BW_IDENTIFIER "bandwidth-"
@@ -238,9 +238,10 @@ public:
 	/***************************************************************************
      	 * @fn GetNextFragmentUriFromPlaylist
      	 * @param ignoreDiscontinuity Ignore discontinuity
+	 * @param init flag to identify called from Init call
      	 * @return string fragment URI pointer
      	 ***************************************************************************/
-	char *GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity=false);
+	char *GetNextFragmentUriFromPlaylist(bool ignoreDiscontinuity=false, bool init=false);
 	/***************************************************************************
      	 * @fn UpdateDrmIV
      	 *
@@ -366,11 +367,11 @@ public:
      	 * @return void
      	 ***************************************************************************/
 	void FindTimedMetadata(bool reportbulk=false, bool bInitCall = false);
-    	/***************************************************************************
-     	 * @fn SetXStartTimeOffset
+	/***************************************************************************
+	 * @fn SetXStartTimeOffset
      	 * @brief Function to set XStart Time Offset Value 
      	 *
-     	 * @return void
+         * @return void
      	 ***************************************************************************/
 	void SetXStartTimeOffset(double offset) { mXStartTimeOFfset = offset; }
     	/***************************************************************************
@@ -386,6 +387,56 @@ public:
      	 * @return Buffer Duration
      	 ***************************************************************************/
 	double GetBufferedDuration();
+
+	/***************************************************************************
+	 * @fn GetPlaylistUrl
+	 *
+	 * @return string - playlist URL
+	 ***************************************************************************/
+	std::string& GetPlaylistUrl() { return mPlaylistUrl; }
+	/***************************************************************************
+	 * @fn GetEffectivePlaylistUrl
+	 *
+	 * @return string - original playlist URL(redirected)
+	 ***************************************************************************/
+	std::string& GetEffectivePlaylistUrl() { return mEffectiveUrl; }
+	/***************************************************************************
+	 * @fn SetEffectivePlaylistUrl
+	 *
+	 * @return none
+	 ***************************************************************************/
+	void SetEffectivePlaylistUrl(std::string url) { mEffectiveUrl = url; }
+	/***************************************************************************
+	 * @fn GetLastPlaylistDownloadTime
+	 *
+	 * @return lastPlaylistDownloadTime
+	 ****************************************************************************/
+	long long GetLastPlaylistDownloadTime() { return lastPlaylistDownloadTimeMS; }
+	/****************************************************************************
+	 * @fn SetLastPlaylistDownloadTime
+	 *
+	 * @return void
+	 ****************************************************************************/
+	void SetLastPlaylistDownloadTime(long long time) { lastPlaylistDownloadTimeMS = time; }
+	/****************************************************************************
+	 * @fn GetMinUpdateDuration
+	 *
+	 * @return minimumUpdateDuration
+	 ****************************************************************************/
+	long GetMinUpdateDuration();
+	/****************************************************************************
+	 * fn GetDefaultDurationBetweenPlaylistUpdates
+	 *
+	 * @return maxIntervalBtwPlaylistUpdateMs
+	 ****************************************************************************/
+	int GetDefaultDurationBetweenPlaylistUpdates();
+
+	/****************************************************************************
+	 * @fn ProcessPlaylist
+	 *
+	 * @return none
+	 ****************************************************************************/
+	void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error);
 private:
 	/***************************************************************************
      	 * @fn GetFragmentUriFromIndex
@@ -516,7 +567,7 @@ public:
 	bool mIndexingInProgress;                /**< indicates if indexing is in progress*/
 	GrowableBuffer mDiscontinuityIndex;      /**< discontinuity start position mapping of associated playlist */
 	int mDiscontinuityIndexCount;            /**< number of records in discontinuity position index */
-	bool mDiscontinuityCheckingOn;
+	std::atomic<bool> mDiscontinuityCheckingOn;
 	double mDuration;                        /** Duration of the track*/
 	typedef std::vector<KeyTagStruct> KeyHashTable;
 	typedef std::vector<KeyTagStruct>::iterator KeyHashTableIter;
@@ -553,6 +604,7 @@ private:
 	double mXStartTimeOFfset;		/**< Holds value of time offset from X-Start tag */
 	double mCulledSecondsAtStart;		/**< Total culled duration with this asset prior to streamer instantiation*/
 	bool mSkipSegmentOnError;		/**< Flag used to enable segment skip on fetch error */
+	MediaType playlistMediaType;		/**< Media type of playlist of this track */
 };
 
 class StreamAbstractionAAMP_HLS;

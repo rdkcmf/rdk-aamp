@@ -213,8 +213,142 @@ public:
 	void StopInjectChunkLoop();
 
 	/**
+	 * @fn StopPlaylistDownloaderThread
+	 *
+	 * @return void
+	 */
+	void StopPlaylistDownloaderThread();
+
+	/**
+	 * @fn StartPlaylistDownloaderThread
+	 *
+	 * @return void
+	 */
+	void StartPlaylistDownloaderThread();
+
+	/**
+	 * @fn AbortWaitForPlaylistDownload
+	 *
+	 * @return void
+	 */
+	void AbortWaitForPlaylistDownload();
+
+	/**
+	 * @fn AbortFragmentDownloaderWait
+	 *
+	 * @return void
+	 */
+	void AbortFragmentDownloaderWait();
+
+	/**
+	 * @fn WaitForManifestUpdate
+	 *
+	 * @return void
+	 */
+	void WaitForManifestUpdate();
+
+	/**
+	 * @fn PlaylistDownloader
+	 *
+	 * @return void
+	 */
+	void PlaylistDownloader();
+
+	/**
+	 * @fn WaitTimeBasedOnBufferAvailable
+	 *
+	 * @return minDelayBetweenPlaylistUpdates - wait time for playlist refresh
+	 */
+	int WaitTimeBasedOnBufferAvailable();
+
+	/**
+	 * @fn ProcessPlaylist
+	 *
+	 * @param[in] newPlaylist - newly downloaded playlist buffer
+	 * @param[in] http_error - Download response code
+	 *
+	 * @return void
+	 */
+	virtual void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error) = 0;
+
+	/**
+	 * @fn GetPlaylistUrl
+	 *
+	 * @return URL string
+	 */
+	virtual std::string& GetPlaylistUrl() = 0;
+
+	/**
+	 * @fn GetEffectivePlaylistUrl
+	 *
+	 * @return string - original playlist URL(redirected)
+	 */
+	virtual std::string& GetEffectivePlaylistUrl() = 0;
+
+	/**
+         * @fn SetEffectivePlaylistUrl
+         *
+         * @param string - original playlist URL
+         */
+        virtual void SetEffectivePlaylistUrl(std::string url) = 0;
+
+	/**
+	 * @fn GetLastPlaylistDownloadTime
+	 *
+	 * @return lastPlaylistDownloadTime
+	 */
+	virtual long long GetLastPlaylistDownloadTime() = 0;
+
+	/**
+	 * @fn GetMinUpdateDuration
+	 *
+	 * @return minimumUpdateDuration
+	 */
+	virtual long GetMinUpdateDuration() = 0;
+
+	/**
+	 * @fn GetDefaultDurationBetweenPlaylistUpdates
+	 *
+	 * @return maxIntervalBtwPlaylistUpdateMs
+	 */
+	virtual int GetDefaultDurationBetweenPlaylistUpdates() = 0;
+
+	/**
+	 * @fn SetLastPlaylistDownloadTime
+	 *
+	 * @param[in] time last playlist download time
+	 * @return void
+	 */
+	virtual void SetLastPlaylistDownloadTime(long long time) = 0;
+
+	/**
+	 * @fn GetPlaylistMediaTypeFromTrack
+	 *
+	 * @param[in] type - track type
+	 * @param[in] isIframe - Flag to indiacte whether the track is iframe or not
+	 *
+	 * @return Mediatype
+	 */
+	MediaType GetPlaylistMediaTypeFromTrack(TrackType type, bool isIframe);
+
+	/**
+	 * @fn NotifyFragmentCollectorWait
+	 *
+	 * @return void
+	 */
+	void NotifyFragmentCollectorWait() {fragmentCollectorWaitingForPlaylistUpdate = true;}
+
+	/**
+	 * @fn EnterTimedWaitForPlaylistRefresh
+	 *
+	 * @param[in] timeInMs timeout in milliseconds
+	 * @return void
+	 */
+	void EnterTimedWaitForPlaylistRefresh(int timeInMs);
+
+	/**
 	 * @fn Enabled
-	 * @retval true if enabled, false if disabled
+         * @retval true if enabled, false if disabled
 	 */
 	bool Enabled();
 
@@ -569,6 +703,15 @@ private:
 	BufferHealthStatus bufferStatus;     /**< Buffer status of the track*/
 	BufferHealthStatus prevBufferStatus; /**< Previous buffer status of the track*/
 	long long prevDownloadStartTime;		/**< Previous file download Start time*/
+
+	std::thread *playlistDownloaderThread;	/**< PlaylistDownloadThread of track*/
+	bool playlistDownloaderThreadStarted;	/**< `Playlist downloader thread started or not*/
+	bool abortPlaylistDownloader;			/**< Flag used to abort playlist downloader*/
+	std::condition_variable plDownloadWait;	/**< Conditional variable for signalling timed wait*/
+	std::mutex plDwnldMutex;				/**< Playlist download mutex for conditional timed wait*/
+	bool fragmentCollectorWaitingForPlaylistUpdate;	/**< Flag to indicate that the fragment collecor is waiting for ongoing playlist download, used for profile changes*/
+	std::condition_variable frDownloadWait;	/**< Conditional variable for signalling timed wait*/
+	std::mutex frDwnldMutex;
 };
 
 /**
@@ -1304,6 +1447,13 @@ public:
 	 *   @return void
 	 */
 	void SetAudioFwdToAuxStatus(bool status) { mFwdAudioToAux = status; }
+
+	/**
+	 * @brief Notify playlist downloader threads of tracks
+	 *
+	 * @return void
+	 */
+	void DisablePlaylistDownloads();
 
 	/**
 	 *   @brief Set AudioTrack info from Muxed stream
