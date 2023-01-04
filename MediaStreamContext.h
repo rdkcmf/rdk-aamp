@@ -53,7 +53,9 @@ public:
             downloadedDuration(0)//,mCMCDNetworkMetrics{-1,-1,-1}
 	   , scaledPTO(0),pCMCDMetrics(NULL)
 	   , failAdjacentSegment(false),httpErrorCode(0)
+           , mPlaylistUrl(""), mEffectiveUrl(""),freshManifest(false)
     {
+        mPlaylistUrl = aamp->GetManifestUrl();
         memset(&mDownloadedFragment, 0, sizeof(GrowableBuffer));
         fragmentDescriptor.bUseMatchingBaseUrl = ISCONFIGSET(eAAMPConfig_MatchBaseUrl);
 	if(ISCONFIGSET(eAAMPConfig_EnableCMCD))
@@ -152,6 +154,57 @@ public:
      */
     bool IsAtEndOfTrack();
 
+    /**
+     * @fn GetPlaylistUrl
+     * @return string - playlist URL
+     */
+    std::string& GetPlaylistUrl();
+
+    /**
+     * @fn GetEffectivePlaylistUrl
+     * @return string - original playlist URL(redirected)
+     */
+    std::string& GetEffectivePlaylistUrl();
+
+    /**
+     * @fn SetEffectivePlaylistUrl
+     * @param string - original playlist URL
+     */
+    void SetEffectivePlaylistUrl(std::string url);
+
+    /**
+     * @fn GetLastPlaylistDownloadTime
+     * @return lastPlaylistDownloadTime
+     */
+    long long GetLastPlaylistDownloadTime();
+
+    /**
+     * @fn SetLastPlaylistDownloadTime
+     * @param[in] time last playlist download time
+     * @return void
+     */
+    void SetLastPlaylistDownloadTime(long long time);
+
+    /**
+     * @fn GetMinUpdateDuration
+     * @return minimumUpdateDuration
+     */
+    long GetMinUpdateDuration();
+
+    /**
+     * @fn GetDefaultDurationBetweenPlaylistUpdates
+     * @return maxIntervalBtwPlaylistUpdateMs
+     */
+    int GetDefaultDurationBetweenPlaylistUpdates();
+
+    /**
+     * @fn ProcessPlaylist
+     * @param[in] newPlaylist buffer
+     * @param[in] http error code
+     * @return void
+     */
+    void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error);
+
     MediaType mediaType;
     CMCDHeaders *pCMCDMetrics;/**<pointer object to class CMCDHeaders*/
     struct FragmentDescriptor fragmentDescriptor;
@@ -184,6 +237,9 @@ public:
     double scaledPTO;
     bool failAdjacentSegment;
     long httpErrorCode;
+    std::string mPlaylistUrl;
+    std::string mEffectiveUrl; 		/**< uri associated with downloaded playlist (takes into account 302 redirect) */
+    bool freshManifest;
 }; // MediaStreamContext
 
 #endif /* MEDIASTREAMCONTEXT_H */
