@@ -47,15 +47,21 @@
  * if mConfig or gpGlobalConfig is not initialized, skip logging
  * if mconfig or gpGlobalConfig is initialized,  check the LogLevel
  */
-#define AAMPLOG(MYLOGOBJ,LEVEL,LEVELSTR,FORMAT, ...) \
-				do { \
-					if (MYLOGOBJ) { \
-					       	if(MYLOGOBJ->isLogLevelAllowed(LEVEL)) { \
-							logprintf_new(MYLOGOBJ->getPlayerId(),LEVELSTR, __FUNCTION__, __LINE__,FORMAT, ##__VA_ARGS__); }\
-						} \
-					else if (gpGlobalConfig && gpGlobalConfig->logging.isLogLevelAllowed(LEVEL)) { \
-						logprintf_new(-1,LEVELSTR, __FUNCTION__, __LINE__,FORMAT, ##__VA_ARGS__); }\
-				 } while (0)
+#define AAMPLOG( MYLOGOBJ, LEVEL, LEVELSTR, FORMAT, ... ) \
+do { \
+	int PLAYERID; \
+	if( MYLOGOBJ ) \
+	{ \
+		if( !MYLOGOBJ->isLogLevelAllowed(LEVEL) ) break; \
+		PLAYERID = MYLOGOBJ->getPlayerId(); \
+	} \
+	else \
+	{ \
+		if( !gpGlobalConfig->logging.isLogLevelAllowed(LEVEL) ) break; \
+		PLAYERID = -1; \
+	} \
+	logprintf_new( PLAYERID, LEVELSTR, __FUNCTION__, __LINE__, FORMAT, ##__VA_ARGS__); \
+} while(0)
 
 /**
  * @brief Macro for Triage Level Logging Support
@@ -74,7 +80,6 @@
 /**
  * @brief AAMP logging defines, this can be enabled through setLogLevel() as per the need
  */
-
 #define AAMPLOG_TRACE(FORMAT, ...) AAMPLOG(mLogObj,eLOGLEVEL_TRACE, "TRACE", FORMAT, ##__VA_ARGS__)
 #define AAMPLOG_INFO(FORMAT, ...) AAMPLOG(mLogObj,eLOGLEVEL_INFO, "INFO", FORMAT, ##__VA_ARGS__)
 #define AAMPLOG_WARN(FORMAT, ...) AAMPLOG(mLogObj,eLOGLEVEL_WARN, "WARN", FORMAT, ##__VA_ARGS__)
@@ -290,13 +295,13 @@ extern AampLogManager *mLogObj;
  * @param[in] format - printf style string
  * @return void
  */
-extern void logprintf(const char *format, ...);
+extern void logprintf(const char *format, ...)  __attribute__ ((format (printf, 1, 2)));;
 /**
  * @fn logprintf_new
  * @param[in] format - printf style string
  * @return void
  */
-extern void logprintf_new(int playerId,const char* levelstr,const char* file, int line,const char *format, ...);
+extern void logprintf_new(int playerId,const char* levelstr,const char* file, int line,const char *format, ...)  __attribute__ ((format (printf, 5, 6)));;
 
 /**
  * @fn DumpBlob
