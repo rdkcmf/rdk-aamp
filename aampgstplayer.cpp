@@ -2253,7 +2253,25 @@ static int AAMPGstPlayer_SetupStream(AAMPGstPlayer *_this, MediaType streamId)
 		{
 			AAMPLOG_INFO("AAMPGstPlayer_SetupStream - using playbin");						/* Media is not subtitle, use the generic playbin */
 			stream->sinkbin = gst_element_factory_make("playbin", NULL);					/* Creates a new element of "playbin" type and returns a new GstElement */
-			if (_this->privateContext->using_westerossink && eMEDIATYPE_VIDEO == streamId)
+
+			if (_this->aamp->mConfig->IsConfigSet(eAAMPConfig_useTCPServerSink) )
+			{
+				AAMPLOG_INFO("using tcpserversink");
+				GstElement* sink = gst_element_factory_make("tcpserversink", NULL);
+				int tcp_port = 0;
+				_this->aamp->mConfig->GetConfigValue(eAAMPConfig_TCPServerSinkPort,tcp_port);
+				if (eMEDIATYPE_VIDEO == streamId)
+				{
+					g_object_set (G_OBJECT (sink), "port", tcp_port,"host","127.0.0.1",NULL);
+					g_object_set(stream->sinkbin, "video-sink", sink, NULL);
+				}
+				else if (eMEDIATYPE_AUDIO == streamId)
+				{
+					g_object_set (G_OBJECT (sink), "port", tcp_port+1,"host","127.0.0.1",NULL);
+					g_object_set(stream->sinkbin, "audio-sink", sink, NULL);
+				}
+			}
+			else if (_this->privateContext->using_westerossink && eMEDIATYPE_VIDEO == streamId)
 			{
 				AAMPLOG_INFO("AAMPGstPlayer_SetupStream - using westerossink");
 				GstElement* vidsink = gst_element_factory_make("westerossink", NULL);

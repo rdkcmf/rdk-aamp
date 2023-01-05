@@ -146,6 +146,7 @@ enableFogConfig			Enable/Disable setting player configurations to Fog. Default i
 suppressDecode			Enable/Disable setting to suppress decode of content for playback , only Downloader test. Default is false
 persistProfileAcrossTune        Enable/Disable persist bandwidth across tunes .Default is false
 gstSubtecEnabled		Enable/Disable subtec via gstreamer plugins (plugins in gst-plugins-rdk-aamp repo)
+useTCPServerSink		Enable "tcpserverSink" inconjunction with playbin. For use in automated testing when there is no window for video output
 
 // Integer inputs
 ptsErrorThreshold		aamp maximum number of back-to-back pts errors to be considered for triggering a retune
@@ -209,6 +210,7 @@ latencyMonitorInterval		Low Latency Monitor Interval.Default is 2(DEFAULT_LATENC
 downloadBufferChunks		Low Latency Fragment chunk cache length (defaults 20 chunks)
 fragmentDownloadFailThreshold	Max retry attempts for non-init fragment curl timeout failures, range 1-10, default is 10.
 fogMaxConcurrentDownloads	Max concurrent download configured to Fog, default is 5
+TCPServerSinkPort   		See useTCPServerSink. Port number for video, audio will be video+1
 
 // String inputs
 licenseServerUrl		URL to be used for license requests for encrypted(PR/WV) assets

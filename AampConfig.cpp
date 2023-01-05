@@ -293,7 +293,9 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"SchemeIdUriDaiStream",eAAMPConfig_SchemeIdUriDaiStream,true,-1,-1},
 	{"SchemeIdUriVssStream",eAAMPConfig_SchemeIdUriVssStream,true,-1,-1},
 	{"LRHAcceptValue",eAAMPConfig_LRHAcceptValue,true,-1,-1},
-	{"LRHContentType",eAAMPConfig_LRHContentType,true,-1,-1}
+	{"LRHContentType",eAAMPConfig_LRHContentType,true,-1,-1},
+	{"useTCPServerSink",eAAMPConfig_useTCPServerSink,false, -1, -1},
+	{"TCPServerSinkPort",eAAMPConfig_TCPServerSinkPort,false, -1, -1},
 };
 
 /////////////////// Public Functions /////////////////////////////////////
@@ -493,6 +495,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableSlowMotion].value			=	true;
 	bAampCfgValue[eAAMPConfig_EnableSCTE35PresentationTime].value			=	false;
 	bAampCfgValue[eAAMPConfig_JsInfoLogging].value                          = 	false;
+	bAampCfgValue[eAAMPConfig_useTCPServerSink].value           = 	false;
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
@@ -550,6 +553,7 @@ void AampConfig::Initialize()
 	iAampCfgValue[eAAMPConfig_FogMaxConcurrentDownloads-eAAMPConfig_IntStartValue].value	=	FOG_MAX_CONCURRENT_DOWNLOADS;
 	iAampCfgValue[eAAMPConfig_ContentProtectionDataUpdateTimeout-eAAMPConfig_IntStartValue].value	=	DEFAULT_CONTENT_PROTECTION_DATA_UPDATE_TIMEOUT;
 	iAampCfgValue[eAAMPConfig_MaxCurlSockStore-eAAMPConfig_IntStartValue].value		=	MAX_CURL_SOCK_STORE;
+	iAampCfgValue[eAAMPConfig_TCPServerSinkPort-eAAMPConfig_IntStartValue].value			=	6123;
 
 	///////////////// Following for long data types /////////////////////////////
 	lAampCfgValue[eAAMPConfig_DiscontinuityTimeout-eAAMPConfig_LongStartValue].value	=	DEFAULT_DISCONTINUITY_TIMEOUT;

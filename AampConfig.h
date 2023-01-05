@@ -205,7 +205,8 @@ typedef enum
 	eAAMPConfig_EnableSCTE35PresentationTime,			/**< Enable/Disable use of SCTE PTS presentation time */
 	eAAMPConfig_JsInfoLogging,						/**< Enable/disable jsinfo logging       */
 	eAAMPConfig_IgnoreAppLiveOffset,				/** <Config to ignore the liveOffset from App for LLD */
-	eAAMPConfig_BoolMaxValue,
+	eAAMPConfig_useTCPServerSink,					/** <Config to enable tcpserversink */
+	eAAMPConfig_BoolMaxValue,						
 	/////////////////////////////////
 	eAAMPConfig_IntStartValue,
 	eAAMPConfig_HarvestCountLimit,						/**< Number of files to be harvested */
@@ -262,6 +263,7 @@ typedef enum
 	eAAMPConfig_FogMaxConcurrentDownloads,                                  /**< Concurrent download posted to fog from player*/
 	eAAMPConfig_ContentProtectionDataUpdateTimeout,				/**< Default Timeout For ContentProtectionData Update */
 	eAAMPConfig_MaxCurlSockStore,						/**< Max no of curl socket to be stored */
+	eAAMPConfig_TCPServerSinkPort,						/**< TCP port number */
 	eAAMPConfig_IntMaxValue,
 	///////////////////////////////////
 	eAAMPConfig_LongStartValue,
