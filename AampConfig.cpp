@@ -481,7 +481,13 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_EnableCMCD].value				=	false;
 	bAampCfgValue[eAAMPConfig_EnableSlowMotion].value			=	true;
 	bAampCfgValue[eAAMPConfig_EnableSCTE35PresentationTime].value			=	false;
+<<<<<<< HEAD
+=======
+	bAampCfgValue[eAAMPConfig_IgnoreAppLiveOffset].value 			=	false;
+	bAampCfgValue[eAAMPConfig_enableDisconnectSignals].value = true;
+	bAampCfgValue[eAAMPConfig_enableEOSInjectionDuringStop].value = true;
 	bAampCfgValue[eAAMPConfig_JsInfoLogging].value                          = 	false;
+>>>>>>> 7f39e55e (RDKAAMP-410 : Delayed logs and insufficient logs)
 
 	///////////////// Following for Integer Data type configs ////////////////////////////
 	iAampCfgValue[eAAMPConfig_HarvestCountLimit-eAAMPConfig_IntStartValue].value		=	0;
