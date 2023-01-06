@@ -1420,15 +1420,6 @@ bool PlayerInstanceAAMP::IsLive()
 	if(aamp) isLive = aamp->IsLive();
 	return isLive;
 }
-/**
- *  @brief Get jsinfo config value (default false) 
- */
-
-bool PlayerInstanceAAMP::IsJsInfoLoggingEnabled(void)
-
- {
-	 return  ISCONFIGSET(eAAMPConfig_JsInfoLogging);
- }
 
 /**
  *  @brief Get current audio language.
@@ -1643,24 +1634,6 @@ double PlayerInstanceAAMP::GetPlaybackDuration()
 	ERROR_OR_IDLE_STATE_CHECK_VAL(0.00);
 	return (aamp->GetDurationMs() / 1000.00);
 }
-
-
-/**
- *  @fn GetId
- *
- *  @return returns unique id of player,
- */
- int PlayerInstanceAAMP::GetId(void)
- {
-	 int iPlayerId = -1;
-
-	 if(NULL != aamp)
-	 {
-		 iPlayerId = aamp->mPlayerId;
-	 }
-
-	 return iPlayerId;
- }
 
 /**
  *  @brief To get the current AAMP state.
