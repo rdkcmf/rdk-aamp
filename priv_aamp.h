@@ -863,7 +863,7 @@ public:
 	std::string  mManifestUrl;
 	std::string mTunedManifestUrl;
 	std::string mTsbSessionRequestUrl;
-	std::string schemeIdUriDai;
+	std::string mSchemeIdUriDai;
 	AampURLInfoStruct mOrigManifestUrl;					/**< Original Manifest URl */
 
 	bool isPreferredDRMConfigured;

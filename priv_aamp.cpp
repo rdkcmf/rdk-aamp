@@ -568,52 +568,8 @@ static bool replace(std::string &str, const char *existingSubStringToReplace, co
 	return rc;
 }
 
-// Helper functions for loading configuration (from file/TR181)
-
 #ifdef IARM_MGR
-/**
- * @brief
- * @param paramName
- * @param iConfigLen
- * @retval
- */
-char * GetTR181AAMPConfig(const char * paramName, size_t & iConfigLen)
-{
-	char *  strConfig = NULL;
-	IARM_Result_t result; 
-	HOSTIF_MsgData_t param;
-	memset(&param,0,sizeof(param));
-	snprintf(param.paramName,TR69HOSTIFMGR_MAX_PARAM_LEN,"%s",paramName);
-	param.reqType = HOSTIF_GET;
 
-	result = IARM_Bus_Call(IARM_BUS_TR69HOSTIFMGR_NAME,IARM_BUS_TR69HOSTIFMGR_API_GetParams,
-                    (void *)&param,	sizeof(param));
-	if(result  == IARM_RESULT_SUCCESS)
-	{
-		if(fcNoFault == param.faultCode)
-		{
-			if(param.paramtype == hostIf_StringType && param.paramLen > 0 )
-			{
-				std::string strforLog(param.paramValue,param.paramLen);
-
-				iConfigLen = param.paramLen;
-				const char *src = (const char*)(param.paramValue);
-				strConfig = (char * ) base64_Decode(src,&iConfigLen);
-
-				AAMPLOG_WARN("GetTR181AAMPConfig: Got:%s En-Len:%d Dec-len:%d",strforLog.c_str(),param.paramLen,iConfigLen);
-			}
-			else
-			{
-				AAMPLOG_WARN("GetTR181AAMPConfig: Not a string param type=%d or Invalid len:%d ",param.paramtype, param.paramLen);
-			}
-		}
-	}
-	else
-	{
-		AAMPLOG_WARN("GetTR181AAMPConfig: Failed to retrieve value result=%d",result);
-	}
-	return strConfig;
-}
 /**
  * @brief Active interface state change from netsrvmgr
  * @param owner reference to net_srv_mgr
@@ -1370,7 +1326,7 @@ PrivateInstanceAAMP::PrivateInstanceAAMP(AampConfig *config) : mReportProgressPo
 	, mManifestRefreshCount (0)
 	, mJumpToLiveFromPause(false), mPausedBehavior(ePAUSED_BEHAVIOR_AUTOPLAY_IMMEDIATE), mSeekFromPausedState(false)
 	, mProgramDateTime (0), mMPDPeriodsInfo()
-	, mProfileCappedStatus(false),schemeIdUriDai("")
+	, mProfileCappedStatus(false),mSchemeIdUriDai("")
 	, mDisplayWidth(0)
 	, mDisplayHeight(0)
 	, preferredRenditionString("")
@@ -5411,9 +5367,8 @@ void PrivateInstanceAAMP::Tune(const char *mainManifestUrl, bool autoPlay, const
 	mCurrentAudioTrackIndex = -1;
 	mCurrentTextTrackIndex = -1;
 
-#ifdef AAMP_RFC_ENABLED
-	schemeIdUriDai = RFCSettings::getSchemeIdUriDaiStream();
-#endif
+	GETCONFIGVALUE_PRIV(eAAMPConfig_SchemeIdUriDaiStream,mSchemeIdUriDai);
+
 	// Set the EventManager config
 	// TODO When faketune code is added later , push the faketune status here 
 	mEventManager->SetAsyncTuneState(mAsyncTuneEnabled);

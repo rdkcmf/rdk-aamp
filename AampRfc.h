@@ -27,30 +27,6 @@
 #ifdef AAMP_RFC_ENABLED
 namespace RFCSettings{ 
     /**
-     * @fn getLHRAcceptValue
-     * @retval  std::string host value
-     */
-    std::string getLHRAcceptValue();
-
-    /**
-     * @fn getLRHContentType   
-     * @retval  std::string host value
-     */
-    std::string getLRHContentType();
-
-    /**
-     * @fn getSchemeIdUriDaiStream
-     * @retval  std::string scheme id uri
-     */
-    std::string getSchemeIdUriDaiStream();
-
-    /**
-     * @fn getSchemeIdUriVssStream
-     * @retval  std::string scheme id uri
-     */
-    std::string getSchemeIdUriVssStream();
-
-    /**
      * @fn getRFCValue
      * @brief   Fetch data from RFC
      * @param   Parameter to be fetched

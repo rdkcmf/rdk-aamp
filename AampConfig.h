@@ -317,7 +317,11 @@ typedef enum
 	eAAMPConfig_PreferredTextLanguage,					/**<  New Configuration to save preferred Text languages; support comma separated multiple string values*/
 	eAAMPConfig_PreferredTextLabel,						/**< New Configuration to save preferred Text label field; Label is a textual description of the content. Support only single string value*/
 	eAAMPConfig_PreferredTextType,						/**< New Configuration to save preferred Text Type field; type indicate the accessibility type of text track*/
-	eAAMPConfig_CustomLicenseData,                          		/**< Custom Data for License Request */
+	eAAMPConfig_CustomLicenseData,                      /**< Custom Data for License Request */
+	eAAMPConfig_SchemeIdUriDaiStream,					/**< Scheme Id URI String for DAI Stream */
+	eAAMPConfig_SchemeIdUriVssStream,					/**< Scheme Id URI String for VSS Stream */
+	eAAMPConfig_LRHAcceptValue,							/**< Custom License Request Header Data */
+	eAAMPConfig_LRHContentType,							/**< Custom License Request ContentType Data */
 	eAAMPConfig_StringMaxValue,
 	eAAMPConfig_MaxValue
 }AAMPConfigSettings;

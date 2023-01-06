@@ -1597,7 +1597,8 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 		}
 	}
 
-	if(!isContentMetadataAvailable)
+	// 1. Add any custom License Headers for with and without ContentMetadata license request
+	// 2. In addition for ContentMetadata license, add additional headers if present
 	{
 		std::unordered_map<std::string, std::vector<std::string>> customHeaders;
 		aampInstance->GetCustomLicenseHeaders(customHeaders);
@@ -1610,19 +1611,27 @@ bool AampDRMSessionManager::configureLicenseServerParameters(std::shared_ptr<Aam
 
 		if (isContentMetadataAvailable)
 		{
-#ifdef AAMP_RFC_ENABLED
-			std:string lhrAcceptValue = RFCSettings::getLHRAcceptValue();
-			std::string lhrContentType = RFCSettings::getLRHContentType();
-			// Content metadata is available, Add corresponding headers 
+			std::string customData;			
 			if (customHeaders.empty())
 			{
 				// Not using custom headers, These headers will also override any headers from the helper
 				licenseRequest.headers.clear();
 			}
-			licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_ACCEPT, {lhrAcceptValue.c_str()}});
-			licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_CONTENT_TYPE, {lhrContentType.c_str()}});
-#endif
+			// read License request Headers 
+			aampInstance->mConfig->GetConfigValue(eAAMPConfig_LRHAcceptValue,customData);
+			if (!customData.empty())
+			{
+				licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_ACCEPT, {customData.c_str()}});
+			}
+
+			// read license request content type
+			aampInstance->mConfig->GetConfigValue(eAAMPConfig_LRHContentType,customData);
+			if (!customData.empty())
+			{
+				licenseRequest.headers.insert({LICENCE_REQUEST_HEADER_CONTENT_TYPE, {customData.c_str()}});
+			}
 		}
+		// license Server Proxy need to be applied for both request , with and without contentMetadata
 		licenseServerProxy = aampInstance->GetLicenseReqProxy(); 
 	}
 

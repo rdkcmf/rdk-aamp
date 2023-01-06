@@ -280,17 +280,22 @@ static AampConfigLookupEntry ConfigLookUpTable[] =
 	{"persistLowNetworkBandwidth",eAAMPConfig_PersistLowNetworkBandwidth,false,-1,-1},
 	{"gstSubtecEnabled",eAAMPConfig_GstSubtecEnabled,false,-1,-1},
 	{"changeTrackWithoutRetune", eAAMPConfig_ChangeTrackWithoutRetune, false,-1,-1},
-	{"contentProtectionDataUpdateTimeout",eAAMPConfig_ContentProtectionDataUpdateTimeout,false,{.iMinValue = 0},{.iMaxValue=-1}}
-	,{"curlStore", eAAMPConfig_EnableCurlStore, true, -1, -1}
-	,{"maxCurlStore", eAAMPConfig_MaxCurlSockStore,false, {.iMinValue=1},{.iMaxValue=10}}
-	,{"configRuntimeDRM", eAAMPConfig_RuntimeDRMConfig,false,-1,-1}
-	,{"enablePublishingMuxedAudio",eAAMPConfig_EnablePublishingMuxedAudio,false,-1,-1}
-	,{"enableCMCD", eAAMPConfig_EnableCMCD, true, -1, -1}
-	,{"SlowMotion", eAAMPConfig_EnableSlowMotion, true, -1, -1}
-	,{"enableSCTE35PresentationTime", eAAMPConfig_EnableSCTE35PresentationTime, false, -1, -1}
-	,{"jsinfo",eAAMPConfig_JsInfoLogging,false, -1, -1}
-	,{"ignoreAppLiveOffset", eAAMPConfig_IgnoreAppLiveOffset, false, -1, -1}
+	{"contentProtectionDataUpdateTimeout",eAAMPConfig_ContentProtectionDataUpdateTimeout,false,{.iMinValue = 0},{.iMaxValue=-1}},
+	{"curlStore", eAAMPConfig_EnableCurlStore, true, -1, -1},
+	{"maxCurlStore", eAAMPConfig_MaxCurlSockStore,false, {.iMinValue=1},{.iMaxValue=10}},
+	{"configRuntimeDRM", eAAMPConfig_RuntimeDRMConfig,false,-1,-1},
+	{"enablePublishingMuxedAudio",eAAMPConfig_EnablePublishingMuxedAudio,false,-1,-1},
+	{"enableCMCD", eAAMPConfig_EnableCMCD, true, -1, -1},
+	{"SlowMotion", eAAMPConfig_EnableSlowMotion, true, -1, -1},
+	{"enableSCTE35PresentationTime", eAAMPConfig_EnableSCTE35PresentationTime, false, -1, -1},
+	{"jsinfo",eAAMPConfig_JsInfoLogging,false, -1, -1},
+	{"ignoreAppLiveOffset", eAAMPConfig_IgnoreAppLiveOffset, false, -1, -1},
+	{"SchemeIdUriDaiStream",eAAMPConfig_SchemeIdUriDaiStream,true,-1,-1},
+	{"SchemeIdUriVssStream",eAAMPConfig_SchemeIdUriVssStream,true,-1,-1},
+	{"LRHAcceptValue",eAAMPConfig_LRHAcceptValue,true,-1,-1},
+	{"LRHContentType",eAAMPConfig_LRHContentType,true,-1,-1}
 };
+
 /////////////////// Public Functions /////////////////////////////////////
 /**
  * @brief AampConfig Constructor function . Default values defined
@@ -595,6 +600,10 @@ void AampConfig::Initialize()
 	sAampCfgValue[eAAMPConfig_PreferredTextLabel-eAAMPConfig_StringStartValue].value    =       "";
 	sAampCfgValue[eAAMPConfig_PreferredTextType-eAAMPConfig_StringStartValue].value    =       "";
 	sAampCfgValue[eAAMPConfig_CustomLicenseData-eAAMPConfig_StringStartValue].value        =       "";
+	sAampCfgValue[eAAMPConfig_SchemeIdUriDaiStream-eAAMPConfig_StringStartValue].value		=	"urn:comcast:dai:2018";
+	sAampCfgValue[eAAMPConfig_SchemeIdUriVssStream-eAAMPConfig_StringStartValue].value		=	"urn:comcast:x1:lin:ck";
+	sAampCfgValue[eAAMPConfig_LRHAcceptValue-eAAMPConfig_StringStartValue].value			=	"";
+	sAampCfgValue[eAAMPConfig_LRHContentType-eAAMPConfig_StringStartValue].value			=	"";
 }
 
 void AampConfig::ReadDeviceCapability()

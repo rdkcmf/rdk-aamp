@@ -6060,7 +6060,7 @@ void StreamAbstractionAAMP_MPD::FindTimedMetadata(MPD* mpd, Node* root, bool ini
 			}
 			if (name == "SupplementalProperty" && node->HasAttribute("schemeIdUri")) {
 				const std::string& schemeIdUri = node->GetAttributeValue("schemeIdUri");
-				if (schemeIdUri == aamp->schemeIdUriDai && node->HasAttribute("id")) {
+				if (schemeIdUri == aamp->mSchemeIdUriDai && node->HasAttribute("id")) {
 					const std::string& ID = node->GetAttributeValue("id");
 					if (ID == "identityADS" && node->HasAttribute("value")) {
 						const std::string& content = node->GetAttributeValue("value");
@@ -6131,7 +6131,7 @@ void StreamAbstractionAAMP_MPD::ProcessPeriodSupplementalProperty(Node* node, st
 		
 		if(!schemeIdUri.empty())
 		{
-			if ((schemeIdUri == aamp->schemeIdUriDai) && node->HasAttribute("id")) {
+			if ((schemeIdUri == aamp->mSchemeIdUriDai) && node->HasAttribute("id")) {
 				const std::string& ID = node->GetAttributeValue("id");
 				if ((ID == "Tracking") && node->HasAttribute("value")) {
 					const std::string& value = node->GetAttributeValue("value");
@@ -9901,16 +9901,18 @@ bool StreamAbstractionAAMP_MPD::CheckForVssTags()
 	}
 	else
 	{
+		// get the VSS URI for comparison
+		std::string schemeIdUriVss = "";
+		GETCONFIGVALUE(eAAMPConfig_SchemeIdUriVssStream,schemeIdUriVss); 
 		for (INode* childNode : nodePtr->GetAdditionalSubNodes())
 		{
 			const std::string& name = childNode->GetName();
 			if (name == SUPPLEMENTAL_PROPERTY_TAG)
 			{
 				if (childNode->HasAttribute("schemeIdUri"))
-				{
-#ifdef AAMP_RFC_ENABLED
-					const std::string& schemeIdUri = childNode->GetAttributeValue("schemeIdUri");
-					const std::string& schemeIdUriVss = RFCSettings::getSchemeIdUriVssStream();
+				{	
+					// VSS stream should read config independent of RFC availability and compare for URI
+					const std::string& schemeIdUri = childNode->GetAttributeValue("schemeIdUri");										
 					if (schemeIdUri == schemeIdUriVss)
 					{
 						if (childNode->HasAttribute("value"))
@@ -9921,7 +9923,6 @@ bool StreamAbstractionAAMP_MPD::CheckForVssTags()
 							isVss = true;
 						}
 					}
-#endif
 				}
 			}
 		}
