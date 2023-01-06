@@ -867,7 +867,6 @@ private:
 	double mServerUtcTime;
 	double mDeltaTime;
 	double mHasServerUtcTime;
-	bool mLiveTimeFragmentSync;
  	/**
 	 * @fn GetPeriodStartTime
 	 * @param mpd : pointer manifest
