@@ -29,21 +29,23 @@
 #include <priv_aamp.h>
 #include "AampcliCommandHandler.h"
 
+typedef struct GetCommandInfo{
+	GetCommandInfo() : value(0), description("") {}
+	int value;
+	std::string description;
+}getCommandInfo;
+
 class Get : public Command {
 
 	public:
 		static std::vector<std::string> commands;
-		static std::vector<std::string> numCommands;
-		static std::map<string,string> getCommands;
+		static std::map<string,getCommandInfo> getCommands;
 		static std::map<string,string> getNumCommands;
-		void addCommand(string command,string description);
+		void addCommand(int value,string command,string description);
 		void registerGetCommands();
 		static char *getCommandRecommender(const char *text, int state);
 		void ShowHelpGet();
 		bool execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
-		void registerGetNumCommands();
-		void addNumCommand(string command,string description);
-		void ShowHelpGetNum();
 };
 
 #endif // AAMPCLIGET_H

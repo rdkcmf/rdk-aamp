@@ -32,21 +32,24 @@
 #define CC_OPTION_2 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"yellow\",\"penSize\":\"small\",\"windowFillColor\":\"black\",\"fontStyle\":\"default\",\"textForegroundColor\":\"yellow\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"cyan\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":true}"
 #define CC_OPTION_3 "{\"penItalicized\":false,\"textEdgeStyle\":\"none\",\"textEdgeColor\":\"black\",\"penSize\":\"large\",\"windowFillColor\":\"blue\",\"fontStyle\":\"default\",\"textForegroundColor\":\"red\",\"windowFillOpacity\":\"transparent\",\"textForegroundOpacity\":\"solid\",\"textBackgroundColor\":\"white\",\"textBackgroundOpacity\":\"solid\",\"windowBorderEdgeStyle\":\"none\",\"windowBorderEdgeColor\":\"black\",\"penUnderline\":false}"
 
+typedef struct SetCommandInfo{
+	SetCommandInfo() : value(0), param(""), description("") {}
+	int value;
+	std::string param;
+	std::string description;
+}setCommandInfo;
+
 class Set : public Command {
 
 	public:
 		static std::vector<std::string> commands;
-		static std::vector<std::string> numCommands;
-		static std::map<string,string> setCommands;
+		static std::map<string,setCommandInfo> setCommands;
 		static std::map<string,string> setNumCommands;
-		void addCommand(string command,string description);
+		void addCommand(int value, string command,string param,string description);
 		void registerSetCommands();
 		static char *setCommandRecommender(const char *text, int state);
 		void ShowHelpSet();
 		bool execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp);
-		void registerSetNumCommands();
-		void addNumCommand(string command,string description);
-		void ShowHelpSetNum();
 };
 
 #endif // AAMPCLISET_H

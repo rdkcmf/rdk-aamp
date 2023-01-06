@@ -25,205 +25,176 @@
 #include <iomanip>
 #include"AampcliGet.h"
 
-std::map<string,string> Get::getCommands = std::map<string,string>();
-std::map<string,string> Get::getNumCommands = std::map<string,string>();
+std::map<string,getCommandInfo> Get::getCommands = std::map<string,getCommandInfo>();
 std::vector<std::string> Get::commands(0);
-std::vector<std::string> Get::numCommands(0);
-
-uint64_t constexpr mix(char m, uint64_t s)
-{ 
-	return ((s<<7) + ~(s>>3)) + ~m; 
-}
-
-uint64_t constexpr getHash(const char * m)
-{
-	return (*m) ? mix(*m,getHash(m+1)) : 0;
-}
 
 bool Get::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 {
 	char help[8];
 	int opt, value1, value2;
 	char command[100];
+	int getCmd;
 
 
 	if (sscanf(cmd, "get %s", command) == 1)
 	{
+		if(isdigit(command[0]))
+		{
+			getCmd = atoi(command);
+		}
+		else
+		{
+			std::map<string,getCommandInfo>::iterator getCmdItr;
+			getCmdItr = getCommands.find(command);
+
+			if(getCmdItr != getCommands.end())
+			{
+				getCmd = getCmdItr->second.value;
+			}
+		}
 
 		if(0 == strncmp("help", command, 4))
 		{
 			ShowHelpGet();
-			ShowHelpGetNum();
 		}
 		else
 		{
-			switch(getHash(command)){ // 1 based to zero based
-				case getHash("thumbnailConfig"):
-				case getHash("32"):
+			switch(getCmd){ 
+				case 32:
 					printf("[AAMPCLI] GETTING AVAILABLE THUMBNAIL TRACKS: %s\n", playerInstanceAamp->GetAvailableThumbnailTracks().c_str() );
 					break;
 
-				case getHash("currentState"):
-				case getHash("1"):
+				case 1:
 					printf("[AAMPCLI] GETTING CURRENT STATE: %d\n", (int) playerInstanceAamp->GetState());
 					break;
 
-				case getHash("thumbnailData"): 
-				case getHash("33"):
+				case 33:
 					sscanf(cmd, "get %d %d %d",&opt, &value1, &value2);
 					printf("[AAMPCLI] GETTING THUMBNAIL TIME RANGE DATA for duration(%d,%d): %s\n",value1,value2,playerInstanceAamp->GetThumbnails(value1, value2).c_str());
 					break;
 
-				case getHash("audioTrack"): 
-				case getHash("24"):
+				case 24:
 					printf("[AAMPCLI] CURRENT AUDIO TRACK NUMBER: %d\n", playerInstanceAamp->GetAudioTrack() );
 					break;
 
-				case getHash("initialBufferDuration"): 
-				case getHash("25"):
+				case 25:
 					printf("[AAMPCLI] INITIAL BUFFER DURATION: %d\n", playerInstanceAamp->GetInitialBufferDuration() );
 					break;
 
-				case getHash("audioTrackInfo"):
-				case getHash("26"):
+				case 26:
 					printf("[AAMPCLI] CURRENT AUDIO TRACK INFO: %s\n", playerInstanceAamp->GetAudioTrackInfo().c_str() );
 					break;
 
-				case getHash("textTrackInfo"):
-				case getHash("27"):
+				case 27:
 					printf("[AAMPCLI] CURRENT TEXT TRACK INFO: %s\n", playerInstanceAamp->GetTextTrackInfo().c_str() );
 					break;
 
-				case getHash("preferredAudioProperties"):
-				case getHash("28"):
+				case 28:
 					printf("[AAMPCLI] CURRENT PREPRRED AUDIO PROPERTIES: %s\n", playerInstanceAamp->GetPreferredAudioProperties().c_str() );
 					break;
 
-				case getHash("preferredTextProperties"):
-				case getHash("29"):
+				case 29:
 					printf("[AAMPCLI] CURRENT PREPRRED TEXT PROPERTIES: %s\n", playerInstanceAamp->GetPreferredTextProperties().c_str() );
 					break;
 
-				case getHash("ccStatus"):
-				case getHash("30"):
+				case 30:
 					printf("[AAMPCLI] CC VISIBILITY STATUS: %s\n",playerInstanceAamp->GetCCStatus()?"ENABLED":"DISABLED");
 					break;
 
-				case getHash("textTrack"):
-				case getHash("31"):
+				case 31:
 					printf("[AAMPCLI] CURRENT TEXT TRACK: %d\n", playerInstanceAamp->GetTextTrack() );
 					break;
 
-				case getHash("availableAudioTracks"):
-				case getHash("20"):
+				case 20:
 					printf("[AAMPCLI] AVAILABLE AUDIO TRACKS: %s\n", playerInstanceAamp->GetAvailableAudioTracks(false).c_str() );
 					break;
-				case getHash("availableVideoTracks"):
-				case getHash("34"):
+				case 34:
 					printf("[AAMPCLI] AVAILABLE VIDEO TRACKS: %s\n", playerInstanceAamp->GetAvailableVideoTracks().c_str() );
 					break;
 
-				case getHash("allAvailableAudioTracks"):
-				case getHash("21"):
+				case 21:
 					printf("[AAMPCLI] ALL AUDIO TRACKS: %s\n", playerInstanceAamp->GetAvailableAudioTracks(true).c_str() );
 					break;
 
-				case getHash("allAvailableTextTracks"):
-				case getHash("23"):
+				case 23:
 					printf("[AAMPCLI] ALL TEXT TRACKS: %s\n", playerInstanceAamp->GetAvailableTextTracks(true).c_str() );
 					break;
 
-				case getHash("availableTextTracks"):
-				case getHash("22"):
+				case 22:
 					printf("[AAMPCLI] AVAILABLE TEXT TRACKS: %s\n", playerInstanceAamp->GetAvailableTextTracks(false).c_str() );
 					break;
 
-				case getHash("currentAudioLan"):
-				case getHash("2"):
+				case 2:
 					printf("[AAMPCLI] CURRRENT AUDIO LANGUAGE = %s\n",
 							playerInstanceAamp->GetCurrentAudioLanguage());
 					break;
 
-				case getHash("currentDrm"):
-				case getHash("3"):
+				case 3:
 					printf("[AAMPCLI] CURRRENT DRM  = %s\n",
 							playerInstanceAamp->GetCurrentDRM());
 					break;
 
-				case getHash("playbackPosition"):
-				case getHash("4"):
+				case 4:
 					printf("[AAMPCLI] PLAYBACK POSITION = %lf\n",
 							playerInstanceAamp->GetPlaybackPosition());
 					break;
 
-				case getHash("playbackDuration"):
-				case getHash("5"):
+				case 5:
 					printf("[AAMPCLI] PLAYBACK DURATION = %lf\n",
 							playerInstanceAamp->GetPlaybackDuration());
 					break;
 
-				case getHash("videoBitrate"):
-				case getHash("6"):
+				case 6:
 					printf("[AAMPCLI] CURRENT VIDEO PROFILE BITRATE = %ld\n",
 							playerInstanceAamp->GetVideoBitrate());
 					break;
 
-				case getHash("initialBitrate"):
-				case getHash("7"):
+				case 7:
 					printf("[AAMPCLI] INITIAL BITRATE = %ld \n",
 							playerInstanceAamp->GetInitialBitrate());
 					break;
 
-				case getHash("initialBitrate4k"):
-				case getHash("8"):
+				case 8:
 					printf("[AAMPCLI] INITIAL BITRATE 4K = %ld \n",
 							playerInstanceAamp->GetInitialBitrate4k());
 					break;
 
-				case getHash("minimumBitrate"):
-				case getHash("9"):
+				case 9:
 					printf("[AAMPCLI] MINIMUM BITRATE = %ld \n",
 							playerInstanceAamp->GetMinimumBitrate());
 					break;
 
-				case getHash("maximumBitrate"):
-				case getHash("10"):
+				case 10:
 					printf("[AAMPCLI] MAXIMUM BITRATE = %ld \n",
 							playerInstanceAamp->GetMaximumBitrate());
 					break;
 
-				case getHash("audioBitrate"):
-				case getHash("11"):
+				case 11:
 					printf("[AAMPCLI] AUDIO BITRATE = %ld\n",
 							playerInstanceAamp->GetAudioBitrate());
 					break;
 
-				case getHash("videoZoom"):
-				case getHash("12"):
+				case 12:
 					printf("[AAMPCLI] Video Zoom mode: %s\n",
 							(playerInstanceAamp->GetVideoZoom())?"None(Normal)":"Full(Enabled)");
 					break;
 
-				case getHash("videoMute"):
-				case getHash("13"):
+				case 13:
 					printf("[AAMPCLI] Video Mute status:%s\n",
 							(playerInstanceAamp->GetVideoMute())?"ON":"OFF");
 					break;
 
-				case getHash("audioVolume"):
-				case getHash("14"):
+				case 14:
 					printf("[AAMPCLI] AUDIO VOLUME = %d\n",
 							playerInstanceAamp->GetAudioVolume());
 					break;
 
-				case getHash("playbackRate"):
-				case getHash("15"):
+				case 15:
 					printf("[AAMPCLI] PLAYBACK RATE = %d\n",
 							playerInstanceAamp->GetPlaybackRate());
 					break;
 
-				case getHash("videoBitrates"):
-				case getHash("16"):
+				case 16:
 					{
 						std::vector<long int> videoBitrates;
 						printf("[AAMPCLI] VIDEO BITRATES = [ ");
@@ -235,8 +206,7 @@ bool Get::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						break;
 					}
 
-				case getHash("audioBitrates"):
-				case getHash("17"):
+				case 17:
 					{
 						std::vector<long int> audioBitrates;
 						printf("[AAMPCLI] AUDIO BITRATES = [ ");
@@ -247,16 +217,14 @@ bool Get::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 						printf(" ]\n");
 						break;
 					}
-				case getHash("currentPreferredLanguages"):
-				case getHash("18"):
+				case 18:
 					{
 						const char *prefferedLanguages = playerInstanceAamp->GetPreferredLanguages();
 						printf("[AAMPCLI] PREFERRED LANGUAGES = \"%s\"\n", prefferedLanguages? prefferedLanguages : "<NULL>");
 						break;
 					}
 
-				case getHash("rampDownLimit"):
-				case getHash("19"):
+				case 19:
 					{
 						printf("[AAMPCLI] RAMP DOWN LIMIT= %d\n", playerInstanceAamp->GetRampDownLimit());
 						break;
@@ -282,47 +250,50 @@ bool Get::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
  */
 void Get::registerGetCommands()
 {
-	addCommand("currentState","Get current player state");
-	addCommand("currentAudioLan","Get Current audio language");
-	addCommand("currentDrm","Get Current DRM");
-	addCommand("playbackPosition","Get Current Playback position");
-	addCommand("playbackDuration","Get Playback Duration");
-	addCommand("videoBitrate","Get current video bitrate");
-	addCommand("initialBitrate","Get Initial Bitrate");
-	addCommand("initialBitrate4k","Get Initial Bitrate 4K");
-	addCommand("minimumBitrate","Get Minimum Bitrate");
-	addCommand("maximumBitrate","Get Maximum Bitrate");
-	addCommand("audioBitrate","Get current Audio bitrate");
-	addCommand("videoZoom","Get Video Zoom mode");
-	addCommand("videoMute","Get Video Mute status");
-	addCommand("audioVolume","Get current Audio volume");
-	addCommand("playbackRate","Get Current Playback rate");
-	addCommand("videoBitrates","Get Video bitrates supported");
-	addCommand("audioBitrates","Get Audio bitrates supported");
-	addCommand("currentPreferredLanguages","Get Current preferred languages");
-	addCommand("rampDownLimit","Get number of  Ramp down limit during playback");
-	addCommand("availableAudioTracks","Get Available Audio Tracks");
-	addCommand("availableVideoTracks","Get All Available Video Tracks information from manifest");
-	addCommand("allAvailableAudioTracks","Get All Available Audio Tracks information from manifest");
-	addCommand("allAvailableTextTracks","Get All Available Text Tracks information from manifest");
-	addCommand("availableTextTracks","Get Available Text Tracks");
-	addCommand("audioTrack","Get Audio Track");
-	addCommand("initialBufferDuration","Get Initial Buffer Duration( in sec)");
-	addCommand("audioTrackInfo","Get current Audio Track information in json format");
-	addCommand("textTrackInfo","Get current Text Track information in json format");
-	addCommand("preferredAudioProperties","Get current Preferred Audio properties in json format");
-	addCommand("preferredTextProperties","Get current Preferred Text properties in json format");
-	addCommand("ccStatus","Get CC Status");
-	addCommand("textTrack","Get Text Track");
-	addCommand("thumbnailConfig","Get Available ThumbnailTracks");
-	addCommand("thumbnailData","Get Thumbnail timerange data(int startpos, int endpos)");
+	addCommand(1,"currentState","Get current player state");
+	addCommand(2,"currentAudioLan","Get Current audio language");
+	addCommand(3,"currentDrm","Get Current DRM");
+	addCommand(4,"playbackPosition","Get Current Playback position");
+	addCommand(5,"playbackDuration","Get Playback Duration");
+	addCommand(6,"videoBitrate","Get current video bitrate");
+	addCommand(7,"initialBitrate","Get Initial Bitrate");
+	addCommand(8,"initialBitrate4k","Get Initial Bitrate 4K");
+	addCommand(9,"minimumBitrate","Get Minimum Bitrate");
+	addCommand(10,"maximumBitrate","Get Maximum Bitrate");
+	addCommand(11,"audioBitrate","Get current Audio bitrate");
+	addCommand(12,"videoZoom","Get Video Zoom mode");
+	addCommand(13,"videoMute","Get Video Mute status");
+	addCommand(14,"audioVolume","Get current Audio volume");
+	addCommand(15,"playbackRate","Get Current Playback rate");
+	addCommand(16,"videoBitrates","Get Video bitrates supported");
+	addCommand(17,"audioBitrates","Get Audio bitrates supported");
+	addCommand(18,"currentPreferredLanguages","Get Current preferred languages");
+	addCommand(19,"rampDownLimit","Get number of  Ramp down limit during playback");
+	addCommand(20,"availableAudioTracks","Get Available Audio Tracks");
+	addCommand(21,"allAvailableAudioTracks","Get All Available Audio Tracks information from manifest");
+	addCommand(22,"availableTextTracks","Get Available Text Tracks");
+	addCommand(23,"allAvailableTextTracks","Get All Available Text Tracks information from manifest");
+	addCommand(24,"audioTrack","Get Audio Track");
+	addCommand(25,"initialBufferDuration","Get Initial Buffer Duration( in sec)");
+	addCommand(26,"audioTrackInfo","Get current Audio Track information in json format");
+	addCommand(27,"textTrackInfo","Get current Text Track information in json format");
+	addCommand(28,"preferredAudioProperties","Get current Preferred Audio properties in json format");
+	addCommand(29,"preferredTextProperties","Get current Preferred Text properties in json format");
+	addCommand(30,"ccStatus","Get CC Status");
+	addCommand(31,"textTrack","Get Text Track");
+	addCommand(32,"thumbnailConfig","Get Available ThumbnailTracks");
+	addCommand(33,"thumbnailData","Get Thumbnail timerange data(int startpos, int endpos)");
+	addCommand(34,"availableVideoTracks","Get All Available Video Tracks information from manifest");
 	commands.push_back("help");
-	registerGetNumCommands();
 }
 
-void Get::addCommand(string command,string description)
+void Get::addCommand(int value,string command,string description)
 {
-	getCommands.insert(make_pair(command,description));
+	getCommandInfo lCmdInfo;
+	lCmdInfo.value = value;
+	lCmdInfo.description = description;
+
+	getCommands.insert(std::make_pair(command,lCmdInfo));
 	commands.push_back(command);
 }
 
@@ -332,7 +303,7 @@ void Get::addCommand(string command,string description)
  */
 void Get::ShowHelpGet(){
 
-	std::map<string,string>::iterator getCmdItr;
+	std::map<string,getCommandInfo>::iterator getCmdItr;
 
 	printf("******************************************************************************************\n");
 	printf("*   get <command> [<arguments>]\n");
@@ -344,10 +315,9 @@ void Get::ShowHelpGet(){
 		for(auto itr:commands)
 		{
 			getCmdItr = getCommands.find(itr);
-
 			if(getCmdItr != getCommands.end())
 			{
-				std::cout << "get " << std::setw(35) << std::left << (getCmdItr->first).c_str() << "// "<< (getCmdItr->second).c_str() << "\n";
+				std::cout << "get " << std::right << std::setw(2) << (getCmdItr->second).value << " / " << std::setw(35) << std::left << (getCmdItr->first).c_str() << "// "<< (getCmdItr->second.description).c_str() << "\n";
 			}
 		}
 	}
@@ -378,81 +348,5 @@ char * Get::getCommandRecommender(const char *text, int state)
     }
 
     return NULL;
-}
-
-/**
- * @brief register get number commands
- */
-void Get::registerGetNumCommands()
-{
-	addNumCommand("1","Get current player state");
-	addNumCommand("2","Get Current audio language");
-	addNumCommand("3","Get Current DRM");
-	addNumCommand("4","Get Current Playback position");
-	addNumCommand("5","Get Playback Duration");
-	addNumCommand("6","Get current video bitrate");
-	addNumCommand("7","Get Initial Bitrate");
-	addNumCommand("8","Get Initial Bitrate 4K");
-	addNumCommand("9","Get Minimum Bitrate");
-	addNumCommand("10","Get Maximum Bitrate");
-	addNumCommand("11","Get current Audio bitrate");
-	addNumCommand("12","Get Video Zoom mode");
-	addNumCommand("13","Get Video Mute status");
-	addNumCommand("14","Get current Audio volume");
-	addNumCommand("15","Get Current Playback rate");
-	addNumCommand("16","Get Video bitrates supported");
-	addNumCommand("17","Get Audio bitrates supported");
-	addNumCommand("18","Get Current preferred languages");
-	addNumCommand("19","Get number of  Ramp down limit during playback");
-	addNumCommand("20","Get Available Audio Tracks");
-	addNumCommand("21","Get All Available Audio Tracks information from manifest");
-	addNumCommand("22","Get Available Text Tracks");
-	addNumCommand("23","Get All Available Text Tracks information from manifest");
-	addNumCommand("24","Get Audio Track");
-	addNumCommand("25","Get Initial Buffer Duration( in sec)");
-	addNumCommand("26","Get current Audio Track information in json format");
-	addNumCommand("27","Get current Text Track information in json format");
-	addNumCommand("28","Get current Preferred Audio properties in json format");
-	addNumCommand("29","Get current Preferred Text properties in json format");
-	addNumCommand("30","Get CC Status");
-	addNumCommand("31","Get Text Track");
-	addNumCommand("32","Get Available ThumbnailTracks");
-	addNumCommand("33","Get Thumbnail timerange data(int startpos, int endpos)");
-	addNumCommand("34","Get All Available Video Tracks information from manifest");
-}
-
-void Get::addNumCommand(string command,string description)
-{
-	getNumCommands.insert(make_pair(command,description));
-	numCommands.push_back(command);
-}
-
-/**
- * @brief Display Help menu for get num commands
- * @param none
- */
-void Get::ShowHelpGetNum(){
-
-	std::map<string,string>::iterator getCmdItr;
-
-	printf("******************************************************************************************\n");
-	printf("*   get <command> [<arguments>]\n");
-	printf("*   Usage of Commands, and arguments expected\n");
-	printf("******************************************************************************************\n");
-
-	if(!numCommands.empty())
-	{
-		for(auto itr:numCommands)
-		{
-			getCmdItr = getNumCommands.find(itr);
-
-			if(getCmdItr != getNumCommands.end())
-			{
-				std::cout << "get " << std::setw(35) << std::left << (getCmdItr->first).c_str() << "// "<< (getCmdItr->second).c_str() << "\n";
-			}
-		}
-	}
-
-	printf("****************************************************************************\n");
 }
 
