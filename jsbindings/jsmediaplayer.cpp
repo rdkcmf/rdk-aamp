@@ -2394,7 +2394,7 @@ static JSValueRef AAMPMediaPlayerJS_getAvailableVideoTracks(JSContextRef ctx, JS
 	if(!privObj || !privObj->_aamp)
 	{
 		LOG_ERROR_EX("JSObjectGetPrivate returned NULL!");
-		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAvailableAudioTracks() on instances of AAMPPlayer");
+		*exception = aamp_GetException(ctx, AAMPJS_MISSING_OBJECT, "Can only call getAvailableVideoTracks() on instances of AAMPPlayer");
 		return JSValueMakeUndefined(ctx);
 	}
 	std::string tracks = privObj->_aamp->GetAvailableVideoTracks();

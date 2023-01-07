@@ -1,19 +1,22 @@
-Advanced Adaptive Micro Player (AAMP)
-=================================================================================================================
+# ![](images/logo.png) <br/> AAMP / Universal Video Engine (UVE)
+
+
+### Advanced Adaptive Media Player (AAMP)
+AAMP is an open source native video engine that is built on top of GStreamer and optimized for performance, memory use, and code size.  
+
 
 Index 
-----------------------------
-1. AAMP Source Overview
-2. AAMP Configuration
-3. Channel Override Settings
-4. Westeros Settings
-5. AAMP Tunetime 
-6. VideoEnd (Session Statistics) Event 
-----------------------------
+---
+1. [AAMP Source Overview](#aamp-source-overview)
+2. [AAMP Configuration](#aamp-configuration)
+3. [Channel Override Settings](#channel-override-settings)
+4. [Westeros Settings](#westeros-settings)
+5. [AAMP Tunetime](#aamp-tunetime) 
+6. [VideoEnd (Session Statistics) Event](#videoend-session-statistics-event) 
+7. [UVE Reference Document](AAMP-UVE-API.md)
+---
 
-
----------------------------------------------------------------------------------------
-1. AAMP Source Overview:
+# AAMP Source Overview:
 
 aampcli.cpp
 - entry point for command line test app
@@ -36,8 +39,8 @@ fragmentcollector_progressive
 drm
 - digital rights management support and plugins
 
-=================================================================================================================
-2. AAMP Configuration
+---
+# AAMP Configuration
 
 AAMP Configuration can be set with different method . Below is the list (from 
 lowest priority to highest priority override ownership).
@@ -48,10 +51,11 @@ lowest priority to highest priority override ownership).
 	e) AAMP Settings from Dev configuration ( /opt/aamp.cfg - text format  , /opt/aampcfg.json - JSON format input)
 
 Configuration Field						Description	
-===============================================================================
+---
 On / OFF Switches : All Enable/Disable configuration needs true/false input .
 Example : abr=false -> to disable ABR 
-===============================================================================
+
+```
 abr				Enable/Disable adaptive bitrate logic.Default true
 fog				Enable/Disable Fog .Default true
 parallelPlaylistDownload	Enable parallel fetching of audio & video playlists for HLS during Tune.Default false
@@ -260,26 +264,29 @@ playlistTimeout			Playlist download time out in sec.Default is 10 seconds.
 	0x00010000 (65536)  - Enable Harvest IFRAME init fragment - set 17th bit  
 	example :- if you want harvest only manifest and video fragments , set value like 0x00000001 + 0x00000010 = 0x00000011 = 17
 	harvest-config=17
-=================================================================================================================
-3. Channel Override Settings
+```
+---
+
+# Channel Override Settings
 
 Overriding channels in aamp.cfg
 aamp.cfg allows to map channels to custom urls as follows
-
+```
 *<Token> <Custom url>
+```
 This will make aamp tune to the <Custom url> when ever aamp gets tune request to any url with <Token> in it.
 
 Example adding the following in aamp.cfg will make tune to the given url (Spring_4Ktest) on tuning to url with USAHD in it
 This can be done for n number of channels.
-
+```
 *USAHD https://dash.akamaized.net/akamai/streamroot/050714/Spring_4Ktest.mpd
 *FXHD http://demo.unified-streaming.com/video/tears-of-steel/tears-of-steel-dash-playready.ism/.mpd
-
-=================================================================================================================
-4. Westeros Settings
+```
+---
+# Westeros Settings
 
 To enable Westeros
--------------------
+
 
 Currently, use of Westeros is default-disabled, and can be enabled via RFC.  To apply, Developers can add below
 flag in SetEnv.sh under /opt, then restart the receiver process:
@@ -296,10 +303,12 @@ again visible at expense of zoom smoothness:
 
 	export DISABLE_NONCOMPOSITED_WEBGL_FOR_IPVIDEO=1
 
-=================================================================================================================
-4. AAMP-CLI Commands
+---
+
+# AAMP-CLI Commands
 
 CLI-specific commands:
+```
 <enter>		dump currently available profiles
 help		show usage notes
 http://...	tune to specified URL
@@ -325,29 +334,35 @@ bps <val>   Set video bitrate in bps
 harvest <harvestConfiguration> Initiate harvesting for space separated harvest configuration such as 
 	harvestMode=Master harvestUrl=<url> harvestPath=<path> for Master mode(To download all available profiles)
 	harvestMode=Slave harvestUrl=<url> harvestConfig=65535 defaultBitrate=400000 defaultBitrate4K=400000 disableDecode=true harvestPath=<path> for Slave mode(To download selective profile)
+```
 
 To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.cfg
-*<Channel Number> <Channel Name> <Channel URL>
+
+    *<Channel Number> <Channel Name> <Channel URL>
 
 or
 
 To add channelmap for CLI, enter channel entries in below format in /opt/aampcli.csv
-<Channel Number>,<Channel Name>,<Channel URL>
-=================================================================================================================
-5. AAMP Tunetime 
+    
+    <Channel Number>,<Channel Name>,<Channel URL>
+    
+---
+
+# AAMP Tunetime 
 
 Following line can be added as a header while making CSV with profiler data.
 
 version#4
+```
 version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune,Prebuffered,PreBufferedTime
-
+```
 version#5
+```
 version,build,tuneStartBaseUTCMS,ManifestDLStartTime,ManifestDLTotalTime,ManifestDLFailCount,VideoPlaylistDLStartTime,VideoPlaylistDLTotalTime,VideoPlaylistDLFailCount,AudioPlaylistDLStartTime,AudioPlaylistDLTotalTime,AudioPlaylistDLFailCount,VideoInitDLStartTime,VideoInitDLTotalTime,VideoInitDLFailCount,AudioInitDLStartTime,AudioInitDLTotalTime,AudioInitDLFailCount,VideoFragmentDLStartTime,VideoFragmentDLTotalTime,VideoFragmentDLFailCount,VideoBitRate,AudioFragmentDLStartTime,AudioFragmentDLTotalTime,AudioFragmentDLFailCount,AudioBitRate,drmLicenseAcqStartTime,drmLicenseAcqTotalTime,drmFailErrorCode,LicenseAcqPreProcessingDuration,LicenseAcqNetworkDuration,LicenseAcqPostProcDuration,VideoFragmentDecryptDuration,AudioFragmentDecryptDuration,gstPlayStartTime,gstFirstFrameTime,contentType,streamType,firstTune,playerPreBuffered,playerPreBufferedTime,durationSeconds,interfaceWifi,TuneAttempts,TuneSuccess,FailureReason,Appname,Numbers of TimedMetadata(Ads),StartTime to Report TimedEvent,Time taken to ReportTimedMetadata,TSBEnabled,Total Time
-=================================================================================================================
-
-=================================================================================================================
-7. VideoEnd (Session Statistics) Event 
-==========================
+```
+---
+# VideoEnd (Session Statistics) Event 
+```
 vr = version of video end event (currently "2.0")
 tt = time to reach top profile first time after tune. Provided initial tune bandwidth is not a top bandwidth
 ta = time at top profile. This includes all the fragments which are downloaded/injected at top profile for total duration of playback. 
@@ -409,6 +424,6 @@ n = normal fragment statistics
 i = "init" fragment statistics (used in case of DASH and fragmented mp4)
 pc = Video profile capped status due to resolution constraints or bitrate filtering
 st = subtitle track
-
-=================================================================================================================
+```
+---
 
