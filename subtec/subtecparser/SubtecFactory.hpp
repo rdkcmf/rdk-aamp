@@ -27,7 +27,7 @@
 namespace
 {
     template<typename T, typename ...Args>
-    std::unique_ptr<T> make_unique(Args&& ...args)
+    std::unique_ptr<T> subtec_make_unique(Args&& ...args)
     {
         return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
     }
@@ -64,13 +64,13 @@ public:
                     // otherwise use subtec
                     if (!aamp->WebVTTCueListenersRegistered())
 			            if (ISCONFIGSET(eAAMPConfig_WebVTTNative))
-                            return make_unique<WebVTTSubtecParser>(mLogObj, aamp, mimeType);
+                            return subtec_make_unique<WebVTTSubtecParser>(mLogObj, aamp, mimeType);
                         else
-                            return make_unique<WebVTTSubtecDevParser>(mLogObj, aamp, mimeType);
+                            return subtec_make_unique<WebVTTSubtecDevParser>(mLogObj, aamp, mimeType);
                     else
-                        return make_unique<WebVTTParser>(mLogObj, aamp, mimeType);
+                        return subtec_make_unique<WebVTTParser>(mLogObj, aamp, mimeType);
                 case eSUB_TYPE_TTML:
-                    return make_unique<TtmlSubtecParser>(mLogObj, aamp, mimeType);
+                    return subtec_make_unique<TtmlSubtecParser>(mLogObj, aamp, mimeType);
                 default:
                     AAMPLOG_WARN("Unknown subtitle parser type %d, returning empty", mimeType);
                     break;

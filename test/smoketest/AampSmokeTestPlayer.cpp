@@ -213,11 +213,6 @@ void SmokeTestEventListener::Event(const AAMPEventPtr& e)
 		case AAMP_EVENT_PROGRESS:
 			{
 				ProgressEventPtr ev = std::dynamic_pointer_cast<ProgressEvent>(e);
-#ifdef __APPLE__
-				char string[128];
-				snprintf( string, sizeof(string), "%f", ev->getPosition()/1000.0 );
-				setSimulatorWindowTitle(string);
-#endif
 				if(mAampPlayer.mEnableProgressLog)
 				{
 					printf("AAMP_EVENT_PROGRESS\n\tDuration=%lf\n\tposition=%lf\n\tstart=%lf\n\tend=%lf\n\tcurrRate=%f\n\tBufferedDuration=%lf\n\tPTS=%lld\n\ttimecode=%s\n",ev->getDuration(),ev->getPosition(),ev->getStart(),ev->getEnd(),ev->getSpeed(),ev->getBufferedDuration(),ev->getPTS(),ev->getSEITimeCode());

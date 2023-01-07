@@ -4276,7 +4276,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 						{
 							AAMPLOG_WARN("GST subtec");
 							if (aamp->WebVTTCueListenersRegistered())
-								ts->mSubtitleParser = make_unique<WebVTTParser>(mLogObj, aamp, type);
+								ts->mSubtitleParser = subtec_make_unique<WebVTTParser>(mLogObj, aamp, type);
 						}
 						if (!ts->mSubtitleParser) 
 						{
