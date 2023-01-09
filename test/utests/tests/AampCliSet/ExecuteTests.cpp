@@ -38,6 +38,8 @@ protected:
         mSet = new Set();
 
         g_mockPlayerInstanceAAMP = new MockPlayerInstanceAAMP();
+
+        mSet->registerSetCommands();
     }
     
     void TearDown() override 

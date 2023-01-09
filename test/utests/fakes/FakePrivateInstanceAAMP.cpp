@@ -236,7 +236,7 @@ void PrivateInstanceAAMP::SetAlternateContents(const std::string &adBreakId, con
 {
 }
 
-void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const char *preferredRendition, const char *preferredType, const char *codecList, const char *labelList )
+void SetPreferredLanguages(const char *languageList, const char *preferredRendition, const char *preferredType, const char *codecList, const char *labelList )
 {
 }
 
@@ -380,5 +380,9 @@ bool PrivateInstanceAAMP::LockGetPositionMilliseconds()
 }
 
 void PrivateInstanceAAMP::UnlockGetPositionMilliseconds()
+{
+}
+
+void PrivateInstanceAAMP::SetPreferredLanguages(char const*, char const*, char const*, char const*, char const*)
 {
 }

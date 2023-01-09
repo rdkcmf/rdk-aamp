@@ -34,6 +34,9 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_GST1 -ggdb")
 
+# AAMP drm + helper header files
+include_directories(../../../../drm ../../../../drm/helper)
+
 add_definitions(-DENABLE_LOGGING)
 
 add_subdirectory(fakes)

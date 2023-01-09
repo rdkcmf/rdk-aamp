@@ -72,3 +72,8 @@ bool aamp_WriteFile(std::string fileName, const char* data, size_t len, MediaTyp
 {
     return false;
 }
+
+std::size_t GetPrintableThreadID( const std::thread &t )
+{
+    return 0;
+}
