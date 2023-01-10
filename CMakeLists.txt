@@ -114,6 +114,51 @@ include_directories(${OPENGL_INCLUDE_DIRS})
 include_directories(${GLEW_INCLUDE_DIRS})
 include_directories(${LIBCJSON_INCLUDE_DIRS})
 
+set(LIBAAMP_HEADERS AampCacheHandler.h
+					AampConfig.h
+					AampConstants.h
+					AampCurlStore.h
+					AampDefine.h
+					AampDrmCallbacks.h
+					AampDrmSystems.h
+					AampEvent.h
+					AampEventListener.h
+					AampEventManager.h
+					AampFnLogger.h
+					AampGstUtils.h
+					AampJsonObject.h
+					AampLogManager.h
+					AampMediaType.h
+					AampMemoryUtils.h
+					AampMutex.h
+					AampProfiler.h
+					AampRfc.h
+					AampScheduler.h
+					AampUtils.h
+					AdManagerBase.h
+					MediaStreamContext.h
+					Module.h
+					StreamAbstractionAAMP.h
+					ThunderAccess.h
+					_base64.h
+					aampgstplayer.h
+					admanager_mpd.h
+					base16.h
+					cocoa_window.h
+					compositein_shim.h
+					fragmentcollector_hls.h
+					fragmentcollector_mpd.h
+					fragmentcollector_progressive.h
+					hdmiin_shim.h
+					iso639map.h
+					main_aamp.h
+					mediaprocessor.h
+					ota_shim.h
+					priv_aamp.h
+					tsprocessor.h
+					uint33_t.h
+					videoin_shim.h
+)
 
 set(LIBAAMP_SOURCES iso639map.cpp
 					base16.cpp
@@ -550,7 +595,7 @@ set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} ${SEC_CONTENT_METADATA_ENABLED}")
 
 set(LIBAAMP_SOURCES "${LIBAAMP_SOURCES}" "${LIBAAMP_DRM_SOURCES}" "${LIBAAMP_MOCK_SOURCES}")
 
-add_library(aamp SHARED ${LIBAAMP_SOURCES} ${LIBAAMP_HELP_SOURCES})
+add_library(aamp SHARED ${LIBAAMP_HEADERS} ${LIBAAMP_SOURCES} ${LIBAAMP_HELP_SOURCES})
 add_executable(aamp-cli ${AAMP_CLI_HEADERS} ${AAMP_CLI_SOURCES})
 target_link_libraries(aamp-cli "-lreadline")
 add_executable(playbintest test/playbintest.cpp)
