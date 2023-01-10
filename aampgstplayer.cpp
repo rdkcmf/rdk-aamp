@@ -4811,18 +4811,25 @@ bool AAMPGstPlayer::SetPlayBackRate ( double rate )
 {
 	int ret=0;
 
+#if defined (REALTEKCE)
+	GstStructure* s = gst_structure_new("custom-instant-rate-change", "rate", G_TYPE_DOUBLE, rate, NULL);
+						/* The above statement creates a new GstStructure with the name 'custom-instant-rate-change' that has a member variable
+						'rate' of G_TYPE_DOUBLE and a value of rate i.e. second last parameter */
+
+	ret = gst_element_send_event( privateContext->pipeline, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, s) );
+	if(!ret)
+	{
+		AAMPLOG_WARN("AAMPGstPlayer: Set custom rate change failed");
+		return false;
+	}
+	AAMPLOG_WARN ("Current rate: %g", rate);
+#elif defined (AMLOGIC)
 	GstState gst_current = GST_STATE_NULL;
 	GstState gst_pending = GST_STATE_NULL;
 	GstStateChangeReturn retStatus = GST_STATE_CHANGE_FAILURE;
 	bool bSetPlayerRate = false;
 
-#if defined (REALTEKCE) || defined (BRCM)
-	retStatus = gst_element_get_state(privateContext->pipeline, &gst_current, &gst_pending, 0);
-#elif defined (AMLOGIC)
 	retStatus = gst_element_get_state(privateContext->video_dec, &gst_current, &gst_pending, 0);
-#else
-	retStatus = GST_STATE_CHANGE_FAILURE;
-#endif
 
 	switch (retStatus)
 	{
@@ -4831,7 +4838,6 @@ bool AAMPGstPlayer::SetPlayBackRate ( double rate )
 		{
 			if ( (gst_current == GST_STATE_PLAYING) )
 			{
-				// Using below flag only for AMLOGIC as of now.
 				bSetPlayerRate = true;
 				AAMPLOG_INFO("GetState Success, Current state = %.80s, pending state=%.80s",
 					gst_element_state_get_name(gst_current),gst_element_state_get_name(gst_pending));
@@ -4861,19 +4867,6 @@ bool AAMPGstPlayer::SetPlayBackRate ( double rate )
 		}
 	}
 
-#if defined (REALTEKCE)
-	GstStructure* s = gst_structure_new("custom-instant-rate-change", "rate", G_TYPE_DOUBLE, rate, NULL);
-						/* The above statement creates a new GstStructure with the name 'custom-instant-rate-change' that has a member variable
-						'rate' of G_TYPE_DOUBLE and a value of rate i.e. second last parameter */
-
-	ret = gst_element_send_event( privateContext->pipeline, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, s) );
-	if(!ret)
-	{
-		AAMPLOG_WARN("AAMPGstPlayer: Set custom rate change failed");
-		return false;
-	}
-	AAMPLOG_WARN ("Current rate: %g", rate);
-#elif defined (AMLOGIC)
 	if( true == bSetPlayerRate )
 	{
 		AAMPLOG_WARN("Setting new segment with rate as:%f to audiosink", rate);
@@ -4971,50 +4964,4 @@ bool AAMPGstPlayer::SetPlayBackRate ( double rate )
 	return true;
 }
 
-/**
- * @brief  adjust playback rate
- */
-bool AAMPGstPlayer::AdjustPlayBackRate(double position, double rate)
-{
-	FN_TRACE( __FUNCTION__ );
-	bool ErrSuccess = false;
-	if (privateContext->pipeline == NULL)
-	{
-		AAMPLOG_WARN("AAMPGstPlayer: Pipeline is NULL");
-	}
-	else
-	{
-        PrivAAMPState state = eSTATE_IDLE;
-        aamp->GetState(state);
-        if( ( rate != privateContext->playbackrate ) && ( state == eSTATE_PLAYING ) )
-		{
-			gint64 position1=0;
-			/* Obtain the current position, needed for the seek event */
-			if (!gst_element_query_position (privateContext->pipeline, GST_FORMAT_TIME, &position1))
-			{
-				AAMPLOG_WARN("AAMPGstPlayer: Unable to query gst element position");
-			}
-			else
-			{
-				if (!gst_element_seek(privateContext->pipeline, rate, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH,
-					GST_SEEK_TYPE_SET, position1, GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE))
-				{
-					AAMPLOG_WARN("AAMPGstPlayer: playrate adjustment  failed");
-				}
-				else
-				{
-					AAMPLOG_INFO("AAMPGstPlayer: playrate adjustment  success");
-					privateContext->playbackrate = rate;
-					ErrSuccess = true;
-				}
-			}
-		}
-		else
-		{
-			AAMPLOG_TRACE("AAMPGstPlayer: rate is already in %lf rate",rate);
-			ErrSuccess = true;
-		}
-	}
-	return ErrSuccess;
-}
 

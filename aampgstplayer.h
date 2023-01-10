@@ -320,14 +320,6 @@ public:
          */
 	void StopBuffering(bool forceStop);
 	/**
-         * @fn AdjustPlayBackRate
-         * @param[in] position playback seek position
-         * @param[in] rate playback rate
-         * @return true if playrate adjusted
-         */
-	bool AdjustPlayBackRate(double position, double rate);
-
-	/**
 	 * @fn SetPlayBackRate
 	 * @param[in] rate playback rate
 	 * @return true if playrate adjusted
