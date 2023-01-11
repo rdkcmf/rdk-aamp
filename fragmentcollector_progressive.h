@@ -200,7 +200,7 @@ protected:
      */
     StreamInfo* GetStreamInfo(int idx) override;
 private:
-    void StreamFile( const char *uri, long *http_error );
+    void StreamFile( const char *uri, int *http_error );
     bool fragmentCollectorThreadStarted;
     std::thread fragmentCollectorThreadID;
 };

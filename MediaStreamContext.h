@@ -203,7 +203,7 @@ public:
      * @param[in] http error code
      * @return void
      */
-    void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error);
+    void ProcessPlaylist(GrowableBuffer& newPlaylist, int http_error);
 
     MediaType mediaType;
     CMCDHeaders *pCMCDMetrics;/**<pointer object to class CMCDHeaders*/
@@ -236,7 +236,7 @@ public:
     bool mSkipSegmentOnError;
     double scaledPTO;
     bool failAdjacentSegment;
-    long httpErrorCode;
+    int httpErrorCode;
     std::string mPlaylistUrl;
     std::string mEffectiveUrl; 		/**< uri associated with downloaded playlist (takes into account 302 redirect) */
     bool freshManifest;

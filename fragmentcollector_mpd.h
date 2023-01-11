@@ -398,7 +398,7 @@ public:
 	 * @param newPlaylist buffer
 	 * @param[out] http_error code
 	 */
-	void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error);
+	void ProcessPlaylist(GrowableBuffer& newPlaylist, int http_error);
 
 	//Apis for sidecar caption support
 

@@ -29,6 +29,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <assert.h>
+#include "AampCurlStore.h"
 
 /**
  * @struct StreamWriteCallbackContext
@@ -120,11 +121,11 @@ static size_t StreamWriteCallback( void *ptr, size_t size, size_t nmemb, void *u
 }
 
 
-void StreamAbstractionAAMP_PROGRESSIVE::StreamFile( const char *uri, long *http_error )
+void StreamAbstractionAAMP_PROGRESSIVE::StreamFile( const char *uri, int *http_error )
 { // TODO: move to main_aamp
 
 
-    long http_code = -1;
+    int http_code = -1;
     AAMPLOG_INFO("StreamFile: %s\n", uri );
     CURL *curl = curl_easy_init();
     if (curl)
@@ -140,7 +141,7 @@ void StreamAbstractionAAMP_PROGRESSIVE::StreamFile( const char *uri, long *http_
         CURLcode res = curl_easy_perform(curl); // synchronous; callbacks allow interruption
         if( res == CURLE_OK)
         { // all data collected
-            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+			http_code = GetCurlResponseCode(curl);
         }
         if (http_error)
         {
@@ -157,7 +158,7 @@ void StreamAbstractionAAMP_PROGRESSIVE::FetcherLoop()
 {
     std::string contentUrl = aamp->GetManifestUrl();
     std::string effectiveUrl;
-    long http_error;
+    int http_error;
     
     if(ISCONFIGSET(eAAMPConfig_UseAppSrcForProgressivePlayback))
     {

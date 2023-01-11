@@ -890,3 +890,11 @@ void CurlStore::ShowCurlStoreData ( bool trace )
 		}
 	}
 }
+
+int GetCurlResponseCode( CURL *curlhandle )
+{
+	long lHttpCode = -1;
+	curl_easy_getinfo(curlhandle, CURLINFO_RESPONSE_CODE, &lHttpCode);
+	return (int)lHttpCode;
+}
+

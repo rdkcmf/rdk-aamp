@@ -286,4 +286,6 @@ struct CurlProgressCbContext
 	std::string remoteUrl;
 };
 
+int GetCurlResponseCode( CURL *curlhandle );
+
 #endif //AAMPCURLSTORE_H

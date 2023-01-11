@@ -505,7 +505,7 @@ MPD* PrivateCDAIObjectMPD::GetAdMPD(std::string &manifestUrl, bool &finalManifes
 	MPD* adMpd = NULL;
 	GrowableBuffer manifest;
 	bool gotManifest = false;
-	long http_error = 0;
+	int http_error = 0;
 	double downloadTime = 0;
 	std::string effectiveUrl;
 	memset(&manifest, 0, sizeof(manifest));

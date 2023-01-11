@@ -394,7 +394,7 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 		callbackData->data = tokenReply;
 		callbackData->mDRMSessionManager = this;
 		CURLcode res;
-		long httpCode = -1;
+		int httpCode = -1;
 
 		CURL *curl = curl_easy_init();;
 		CURL_EASY_SETOPT(curl, CURLOPT_NOSIGNAL, 1L);

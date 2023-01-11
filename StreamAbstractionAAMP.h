@@ -269,7 +269,7 @@ public:
 	 *
 	 * @return void
 	 */
-	virtual void ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error) = 0;
+	virtual void ProcessPlaylist(GrowableBuffer& newPlaylist, int http_error) = 0;
 
 	/**
 	 * @fn GetPlaylistUrl
@@ -876,7 +876,7 @@ public:
 	 *   @param[in] http_error - Http error code
 	 *   @return True, if ramp down successful. Else false
 	 */ 
-	bool RampDownProfile(long http_error);
+	bool RampDownProfile(int http_error);
 	/**
 	 *   @fn GetDesiredProfileOnBuffer
 	 *
@@ -921,7 +921,7 @@ public:
 	 *   @param[in] http_error - Error code
 	 *   @return error code
 	 */
-	long getOriginalCurlError(long http_error);
+	long getOriginalCurlError(int http_error);
 
     	/**
 	 *   @fn CheckForRampDownProfile
@@ -929,7 +929,7 @@ public:
 	 *   @param http_error - Http error code
 	 *   @return true if rampdown needed in the case of fragment not available in higher profile.
 	 */
-	bool CheckForRampDownProfile(long http_error);
+	bool CheckForRampDownProfile(int http_error);
 
 	/**
 	 *   @fn CheckForProfileChange

@@ -1605,7 +1605,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 						}
 						if(FCS_content)
 						{
-							long http_code = 404;
+							int http_code = 404;
 							retval = false;
 							if (pMediaStreamContext->mediaType == eMEDIATYPE_VIDEO)
 							{
@@ -2085,7 +2085,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 				ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(pMediaStreamContext->mediaType, true);
 				MediaType actualType = (MediaType)(eMEDIATYPE_INIT_VIDEO+pMediaStreamContext->mediaType);
 				std::string effectiveUrl;
-				long http_code;
+				int http_code;
 				double downloadTime;
 				int iFogError = -1;
 				int iCurrentRate = aamp->rate; //  Store it as back up, As sometimes by the time File is downloaded, rate might have changed due to user initiated Trick-Play
@@ -2743,7 +2743,7 @@ double StreamAbstractionAAMP_MPD::SkipFragments( MediaStreamContext *pMediaStrea
 				ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(pMediaStreamContext->mediaType, true);
 				MediaType actualType = (MediaType)(eMEDIATYPE_INIT_VIDEO+pMediaStreamContext->mediaType);
 				std::string effectiveUrl;
-				long http_code;
+				int http_code;
 				double downloadTime;
 				int iFogError = -1;
 				pMediaStreamContext->index_ptr = aamp->LoadFragment(bucketType, fragmentUrl, effectiveUrl,&pMediaStreamContext->index_len, pMediaStreamContext->mediaType, range.c_str(),&http_code, &downloadTime, actualType,&iFogError);
@@ -5204,7 +5204,7 @@ uint64_t aamp_GetDurationFromRepresentation(dash::mpd::IMPD *mpd)
 * @brief Function to Parse/Index playlist after being downloaded.
 * @return none
 */
-void StreamAbstractionAAMP_MPD::ProcessPlaylist(GrowableBuffer& newPlaylist, long http_error)
+void StreamAbstractionAAMP_MPD::ProcessPlaylist(GrowableBuffer& newPlaylist, int http_error)
 {
 	AAMPLOG_TRACE("Enter");
 	if (newPlaylist.len)
@@ -5561,7 +5561,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::FetchDashManifest()
 	}
 	double downloadTime;
 	bool updateVideoEndMetrics = false;
-	long http_error = 0;
+	int http_error = 0;
 	if (!retrievedPlaylistFromCache)
 	{
 		memset(&manifest, 0, sizeof(manifest));
@@ -5849,7 +5849,7 @@ bool  StreamAbstractionAAMP_MPD::FindServerUTCTime(Node* root)
 					else if((SERVER_UTCTIME_HTTP == schemeIdUri || (URN_UTC_HTTP_ISO == schemeIdUri) || (URN_UTC_HTTP_HEAD == schemeIdUri)) && node->HasAttribute("value"))
 					{
 						double currentTime = (double)aamp_GetCurrentTimeMS() / 1000;
-						long http_error = -1;
+						int http_error = -1;
 						GrowableBuffer data;
                                                 std::string value = node->GetAttributeValue("value");
 						if(!strcasestr(value.c_str(), "http"))
@@ -12799,7 +12799,7 @@ bool StreamAbstractionAAMP_MPD::ParseMPDLLData(MPD* mpd, AampLLDashServiceData &
 			stAampLLDashServiceData.utcTiming == eUTC_HTTP_ISO ||
 			stAampLLDashServiceData.utcTiming == eUTC_HTTP_NTP)
 			{
-				long http_error = -1;
+				int http_error = -1;
 				AAMPLOG_TRACE("UTCTiming(%d) Value: %s",stAampLLDashServiceData.utcTiming, utcTiming->GetValue().c_str());
 				bool bFlag = aamp->GetNetworkTime(stAampLLDashServiceData.utcTiming, utcTiming->GetValue(), &http_error, eCURL_GET);
 			}

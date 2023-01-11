@@ -26,6 +26,7 @@
 #include "_base64.h"
 #include "AampConfig.h"
 #include "AampConstants.h"
+#include "AampCurlStore.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -442,9 +443,8 @@ std::string aamp_PostJsonRPC( std::string id, std::string method, std::string pa
 		CURLcode res = curl_easy_perform(curlhandle);
 		if( res == CURLE_OK )
 		{
-			long http_code = -1;
-			curl_easy_getinfo(curlhandle, CURLINFO_RESPONSE_CODE, &http_code);
-			AAMPLOG_WARN("HTTP %ld \n", http_code);
+			int http_code = GetCurlResponseCode(curlhandle);
+			AAMPLOG_WARN("HTTP %d \n", http_code);
 			rc = true;
 		}
 		else
