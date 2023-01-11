@@ -333,7 +333,7 @@ public:
 	 * @fn StopInjection
 	 * @return void
 	 */
-	void StopInjection();
+	void StopInjection( void );
 
 	/***************************************************************************
      	 * @fn StopWaitForPlaylistRefresh
@@ -663,26 +663,26 @@ public:
          *
          * @return void
          ***************************************************************************/
-	void DumpProfiles(void);
+	void DumpProfiles(void) override;
 	/***************************************************************************
          * @fn Start
          *
          * @return void
          ***************************************************************************/
-	void Start();
+	void Start() override;
 	/***************************************************************************
          * @fn Stop
          * @param[in] clearChannelData flag indicating to full stop or temporary stop
          * @return void
          ***************************************************************************/
-	void Stop(bool clearChannelData);
+	void Stop(bool clearChannelData) override;
 	/***************************************************************************
          * @fn Init
          *
          * @param[in] tuneType Tune type
          * @return bool true on success
          ***************************************************************************/
-	AAMPStatusType Init(TuneType tuneType);
+	AAMPStatusType Init(TuneType tuneType) override;
 	/***************************************************************************
          * @fn GetStreamFormat
          *
@@ -699,53 +699,53 @@ public:
          *
          * @return seek position
          ***************************************************************************/
-	double GetStreamPosition() { return seekPosition; }
+	double GetStreamPosition() override { return seekPosition; }
 	/***************************************************************************
          * @fn GetFirstPTS
          *
          * @return double PTS value
          ***************************************************************************/
-	double GetFirstPTS();
+	double GetFirstPTS() override;
 	/***************************************************************************
          * @fn GetStartTimeOfFirstPTS
          * @brief Function to return start time of first PTS
          *
          * @return double start time of first PTS value
          ***************************************************************************/
-	double GetStartTimeOfFirstPTS() { return 0.0; }
+	double GetStartTimeOfFirstPTS() override { return 0.0; }
 	/***************************************************************************
          * @fn GetMediaTrack
          *
          * @param[in] type TrackType input
          * @return MediaTrack structure pointer
          ***************************************************************************/
-	MediaTrack* GetMediaTrack(TrackType type);
+	MediaTrack* GetMediaTrack(TrackType type) override;
 	/***************************************************************************
          * @fn GetBWIndex
          *
          * @param bitrate Bitrate in bits per second
          * @return bandwidth index
          ***************************************************************************/
-	int GetBWIndex(long bitrate);
+	int GetBWIndex(long bitrate) override;
 	/***************************************************************************
          * @fn GetVideoBitrates
          *
          * @return available video bitrates
          ***************************************************************************/
-	std::vector<long> GetVideoBitrates(void);
+	std::vector<long> GetVideoBitrates(void) override;
 	/***************************************************************************
          * @fn GetAudioBitrates
          *
          * @return available audio bitrates
          ***************************************************************************/
-	std::vector<long> GetAudioBitrates(void);
+	std::vector<long> GetAudioBitrates(void) override;
 	/***************************************************************************
          * @fn GetMediaCount
          * @brief Function to get the Media count
          *
          * @return Number of media count
         ***************************************************************************/
-	int GetMediaCount(void) { return mMediaCount;}	
+	int GetMediaCount(void) { return mMediaCount;}
 	/***************************************************************************
          * @fn FilterAudioCodecBasedOnConfig
          *
@@ -758,19 +758,19 @@ public:
          *
          * @param[in] secondsRelativeToTuneTime seek position time
          ***************************************************************************/
-	void SeekPosUpdate(double secondsRelativeToTuneTime);
+	void SeekPosUpdate(double secondsRelativeToTuneTime) override;
 	/***************************************************************************
          * @fn PreCachePlaylist
          *
          * @return none
          ***************************************************************************/
-	void PreCachePlaylist();	
+	void PreCachePlaylist();
 	/***************************************************************************
          *   @fn GetBufferedDuration
          *
          *   @return buffer value
          **************************************************************************/
-	double GetBufferedDuration();
+	double GetBufferedDuration() override;
 	/***************************************************************************
          * @fn GetLanguageCode
          *
@@ -788,14 +788,14 @@ public:
          *
          * @return vector of available thumbnail tracks.
          ***************************************************************************/
-	std::vector<StreamInfo*> GetAvailableThumbnailTracks(void);
+	std::vector<StreamInfo*> GetAvailableThumbnailTracks(void) override;
 	/***************************************************************************
          * @fn SetThumbnailTrack
          *
          * @param thumbIndex thumbnail index value indicating the track to select
          * @return bool true on success.
         ***************************************************************************/
-	bool SetThumbnailTrack(int);
+	bool SetThumbnailTrack(int) override;
 	/***************************************************************************
          * @fn GetThumbnailRangeData
          *
@@ -808,7 +808,7 @@ public:
          * @param height height of each thumbnail tile.
          * @return Updated vector of available thumbnail data.
          ***************************************************************************/
-	std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*);
+	std::vector<ThumbnailData> GetThumbnailRangeData(double,double, std::string*, int*, int*, int*, int*) override;
 	/***************************************************************************
          * @brief Function to parse the Thumbnail Manifest and extract Tile information
          *
@@ -826,7 +826,7 @@ public:
          * @return list of available video tracks
          *
          **************************************************************************/
-	std::vector<StreamInfo*> GetAvailableVideoTracks(void);
+	std::vector<StreamInfo*> GetAvailableVideoTracks(void) override;
 
 	/**
 	 * @fn Is4KStream
@@ -876,13 +876,13 @@ public:
          *
          * @return void
          ***************************************************************************/
-	void StopInjection(void);
+	void StopInjection(void) override;
 	/***************************************************************************
          * @fn StartInjection
          *
          * @return void
          ***************************************************************************/
-	void StartInjection(void);
+	void StartInjection(void) override;
 	/***************************************************************************
          * @fn IsLive
          * @return True if both or any track in live mode
@@ -894,7 +894,7 @@ public:
          * @param[in] timeScale time scale
          * @return void
          ***************************************************************************/
-	void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale);
+	void NotifyFirstVideoPTS(unsigned long long pts, unsigned long timeScale) override;
 	/**
          * @fn StartSubtitleParser
          * @return void 
@@ -931,7 +931,7 @@ public:
 	 *   @param[in] string index
 	 *   @return void
 	 ****************************************************************************/
-	void ChangeMuxedAudioTrackIndex(std::string& index);
+	void ChangeMuxedAudioTrackIndex(std::string& index) override;
 
 protected:
 	/***************************************************************************
@@ -940,7 +940,7 @@ protected:
          * @param[in] idx profileIndex
          * @return StreamInfo for the index
          ***************************************************************************/
-	StreamInfo* GetStreamInfo(int idx);
+	StreamInfo* GetStreamInfo(int idx) override;
 private:
 	/***************************************************************************
          * @fn SyncTracks

@@ -178,7 +178,3 @@ bool AampConfig::CustomSearch( std::string url, int playerId , std::string appna
 {
     return false;
 }
-
-void AampConfig::GetsubstrUrlOverride(std::string &remoteUrl)
-{
-}

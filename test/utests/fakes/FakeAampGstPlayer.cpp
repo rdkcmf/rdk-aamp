@@ -32,10 +32,6 @@ AAMPGstPlayer::~AAMPGstPlayer()
 {
 }
 
-void AAMPGstPlayer::Detach(void)
-{
-}
-
 void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audioFormat, StreamOutputFormat auxFormat, StreamOutputFormat subFormat, bool bESChangeStatus, bool forwardAudioToAux, bool setReadyAfterPipelineCreation)
 {
 }

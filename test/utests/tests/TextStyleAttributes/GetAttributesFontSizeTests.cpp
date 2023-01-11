@@ -29,6 +29,7 @@ using ::testing::Return;
 using ::testing::SetArgReferee;
 using ::testing::StrictMock;
 using ::testing::An;
+using ::testing::DoAll;
 
 AampConfig *gpGlobalConfig = NULL;
 AampLogManager *mLogObj = NULL;
