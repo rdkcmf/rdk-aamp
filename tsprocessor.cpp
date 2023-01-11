@@ -429,7 +429,7 @@ public:
 	 * @param[out] basePtsUpdated true if base PTS is updated
 	 * @param[in] ptsError true if encountered PTS error.
 	 */
-	void processPacket(unsigned char * packetStart, bool &basePtsUpdated, bool &ptsError, bool &isPacketIgnored)
+	void processPacket(unsigned char * packetStart, bool &basePtsUpdated, bool &ptsError, bool &isPacketIgnored, bool applyOffset)
 	{
 		int adaptation_fieldlen = 0;
 		basePtsUpdated = false;
@@ -473,8 +473,17 @@ public:
 								{
 									if (-1 == base_pts)
 									{
-										base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
-										WARNING("Type[%d] base_pts not initialized, updated to %llu", type, base_pts);
+										/*Few sling HLS streams are not muxed TS content , instead video is in TS and audio is in AAC format.
+										So  need to avoid  pts modification with offset value for video to avoid av sync issues.*/
+										if(applyOffset)
+										{
+											base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
+											WARNING("Type[%d] base_pts not initialized, updated to %llu", type, base_pts);
+										}
+										else
+										{
+											base_pts = current_pts;
+										}
 									}
 									else
 									{
@@ -483,7 +492,14 @@ public:
 											auto orig_base_pts = base_pts;
 											if (current_pts > MAX_FIRST_PTS_OFFSET)
 											{
-												base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
+												if(applyOffset)
+												{
+													base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
+												}
+												else
+												{
+													base_pts = current_pts;
+												}
 											}
 											else
 											{
@@ -497,8 +513,16 @@ public:
 											auto delta = current_pts - base_pts;
 											if (MAX_FIRST_PTS_OFFSET < delta)
 											{
+												
 												auto orig_base_pts = base_pts;
-												base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
+												if(applyOffset)
+												{
+													base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
+												}
+												else
+												{
+													base_pts = current_pts;
+												}
 												NOTICE("Type[%d] delta[%lld] > MAX_FIRST_PTS_OFFSET, current_pts[%llu] base_pts[%llu]->[%llu]",
 													type, delta.value, current_pts.value, orig_base_pts.value, base_pts.value);
 											}
@@ -863,6 +887,7 @@ TSProcessor::TSProcessor(AampLogManager *logObj, class PrivateInstanceAAMP *aamp
 	, m_auxiliaryAudio(false)
 	, mLogObj(logObj)
 	,m_audioGroupId()
+	,m_applyOffset(true)
 {
 	INFO("constructor - %p", this);
 
@@ -2208,7 +2233,7 @@ bool TSProcessor::demuxAndSend(const void *ptr, size_t len, double position, dou
 			bool ptsError = false;  //CID:87386 , 86687 - Initialization
 			bool  basePTSUpdated = false;
 			bool isPacketIgnored = false;
-			demuxer->processPacket(packetStart, basePTSUpdated, ptsError, isPacketIgnored);
+			demuxer->processPacket(packetStart, basePTSUpdated, ptsError, isPacketIgnored,m_applyOffset);
 
 			/* DELIA 47453 Audio is not playing in particular hls file.
 			 * We always choose the first audio pid to play the audio data, even if we
@@ -3963,6 +3988,14 @@ void TSProcessor::writePCR(unsigned char *p, long long PCR, bool clearExtension)
 	}
 }
 
+/**
+ * @brief Function to set offsetflag. if the value is fasle, no need to apply offset while doing pts restamping 
+ */
+void TSProcessor::setApplyOffsetFlag(bool enable)
+{
+	AAMPLOG_INFO("m_applyOffset=%s",enable?"TRUE":"FALSE");
+	m_applyOffset = enable;
+}
 /**
  * @struct MBAddrIncCode
  * @brief holds macro block address increment codes

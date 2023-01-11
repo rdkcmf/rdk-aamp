@@ -129,5 +129,11 @@ public:
 	* @param[in] string - id
 	*/
 	virtual void SetAudioGroupId(std::string& id){};
+
+	/**
+        * @brief Function to set a offsetflag. if the value is fasle, no need to apply offset while doing pts restamping
+        * @param[in] bool - true/false
+        */
+	virtual void setApplyOffsetFlag(bool enable){};
 };
 #endif /* __MEDIA_PROCESSOR_H__ */

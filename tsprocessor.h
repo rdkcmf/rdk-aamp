@@ -192,6 +192,11 @@ class TSProcessor : public MediaProcessor
        * @param[in] string - id
        */
       void SetAudioGroupId(std::string& id);
+	/**
+	* @brief Function to set a flag to identify both the av tracks are in TS format or not
+	* @param[in] bool  - true/false
+	*/
+      void setApplyOffsetFlag(bool enable);
 
    protected:
       /**
@@ -437,6 +442,7 @@ class TSProcessor : public MediaProcessor
       int m_emulationPreventionOffset;
       unsigned char * m_emulationPrevention;
       bool m_scanSkipPacketsEnabled;
+      bool m_applyOffset;  /*If false, no need to apply offset when doing pts restamping since audio track is not in mpegts format */
 
       /**
        * @struct _H264SPS
