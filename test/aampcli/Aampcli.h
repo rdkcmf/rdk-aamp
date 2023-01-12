@@ -74,7 +74,7 @@ class Aampcli
 
 		static void * runCommand( void* args );
 		static void * aampGstPlayerStreamThread(void *arg);
-		void doAutomation(const int startChannel=500, const int stopChannel=1000);
+		void doAutomation( int startChannel, int stopChannel, int maxTuneTimeS, int playTimeS, int betweenTimeS );
 		FILE * getConfigFile(const std::string& cfgFile);
 		void initPlayerLoop(int argc, char **argv);
 		void newPlayerInstance( void );

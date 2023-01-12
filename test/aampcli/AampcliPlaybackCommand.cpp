@@ -467,6 +467,8 @@ void PlaybackCommand::registerPlaybackCommands()
 	addCommand("exit","Exit from application");
 	addCommand("help","Show this list again");
 	addCommand("progress","Enable/disable Progress event logging");
+	addCommand("auto <opt params>",
+			   "startChan=500 endChan=1000 maxTuneTime=6 playTime=15 betweenTime=15" );
 }
 
 void PlaybackCommand::addCommand(string command,string description)

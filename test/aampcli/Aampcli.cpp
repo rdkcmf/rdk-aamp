@@ -71,7 +71,7 @@ Aampcli :: ~Aampcli()
 	}
 };	
 
-void Aampcli::doAutomation(const int startChannel, const int stopChannel)
+void Aampcli::doAutomation( int startChannel, int stopChannel, int maxTuneTimeS, int playTimeS, int betweenTimeS )
 {
 #if defined (__APPLE__) || defined(UBUNTU)
 	std::string outPath(getenv("HOME"));
@@ -110,7 +110,7 @@ void Aampcli::doAutomation(const int startChannel, const int stopChannel)
 			mTuneFailureDescription.clear();
 			lCommandHandler.dispatchAampcliCommands(cmd,mSingleton);
 			PrivAAMPState state = eSTATE_IDLE;
-			for(int i=0; i<5; i++ )
+			for(int i=0; i<maxTuneTimeS; i++ )
 			{
 				sleep(1);
 				state = mSingleton->GetState();
@@ -123,8 +123,12 @@ void Aampcli::doAutomation(const int startChannel, const int stopChannel)
 			switch( state )
 			{
 				case eSTATE_PLAYING:
-					sleep(4); // let play for a bit longer, as visibility sanity check
+					sleep(playTimeS); // let play for a bit longer, as visibility sanity check
 					stateName = "OK";
+					printf( "***STOP***\n" );
+					mSingleton->Stop();
+					sleep( betweenTimeS );
+					printf( "***NEXT***\n" );
 					break;
 				case eSTATE_ERROR:
 					stateName = "FAIL";
@@ -198,22 +202,15 @@ void * Aampcli::runCommand( void* args )
 				}
 			}
 
-			if( memcmp(cmd,"autoplay",8)!=0 && memcmp(cmd,"auto",4)==0 )
+			if( memcmp(cmd,"autoplay",8)!=0 && // avoid false match
+			   memcmp(cmd,"auto",4)==0 )
 			{
-				int start=0, end=0;
-				int matched = sscanf(cmd, "auto %d %d", &start, &end);
-				switch (matched)
-				{
-					case 1:
-						mAampcli.doAutomation(start);
-						break;
-					case 2:
-						mAampcli.doAutomation(start, end);
-						break;
-					default:
-						mAampcli.doAutomation();
-						break;
-				}
+				int start=500, end=1000;
+				int maxTuneTimeS = 6;
+				int playTimeS = 15;
+				int betweenTimeS = 15;
+				int matched = sscanf(cmd, "auto %d %d %d %d %d", &start, &end, &maxTuneTimeS, &playTimeS, &betweenTimeS );
+				mAampcli.doAutomation( start, end, maxTuneTimeS, playTimeS, betweenTimeS );
 			}
 			else
 			{
