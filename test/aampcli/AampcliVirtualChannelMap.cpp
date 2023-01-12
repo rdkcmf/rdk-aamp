@@ -224,13 +224,13 @@ void VirtualChannelMap::showList(void)
 	print();
 }
 
-void VirtualChannelMap::tuneToChannel( VirtualChannelInfo &channel, PlayerInstanceAAMP *playerInstanceAamp)
+void VirtualChannelMap::tuneToChannel( VirtualChannelInfo &channel, PlayerInstanceAAMP *playerInstanceAamp, bool bAutoPlay)
 {
 	setCurrentlyTunedChannel(channel.channelNumber);
 	const char *name = channel.name.c_str();
 	const char *locator = channel.uri.c_str();
 	printf( "TUNING to '%s' %s\n", name, locator );
-	playerInstanceAamp->Tune(locator);
+	playerInstanceAamp->Tune(locator,bAutoPlay);
 }
 
 std::string VirtualChannelMap::getNextFieldFromCSV( const char **pptr )

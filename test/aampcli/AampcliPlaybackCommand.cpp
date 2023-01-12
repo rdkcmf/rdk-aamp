@@ -157,7 +157,7 @@ bool PlaybackCommand::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 		if (pNextChannel)
 		{
 			printf("[AAMPCLI] next %d: %s\n", pNextChannel->channelNumber, pNextChannel->name.c_str());
-			mVirtualChannelMap.tuneToChannel( *pNextChannel, playerInstanceAamp);
+			mVirtualChannelMap.tuneToChannel( *pNextChannel, playerInstanceAamp, mAampcli.mbAutoPlay );
 		}
 		else
 		{
@@ -170,7 +170,7 @@ bool PlaybackCommand::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 		if (pPrevChannel)
 		{
 			printf("[AAMPCLI] next %d: %s\n", pPrevChannel->channelNumber, pPrevChannel->name.c_str());
-			mVirtualChannelMap.tuneToChannel( *pPrevChannel, playerInstanceAamp);
+			mVirtualChannelMap.tuneToChannel( *pPrevChannel, playerInstanceAamp, mAampcli.mbAutoPlay );
 		}
 		else
 		{
@@ -185,7 +185,7 @@ bool PlaybackCommand::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 		if (pChannelInfo != NULL)
 		{
 			printf("[AAMPCLI] channel number: %d\n", channelNumber);
-			mVirtualChannelMap.tuneToChannel( *pChannelInfo, playerInstanceAamp);
+			mVirtualChannelMap.tuneToChannel( *pChannelInfo, playerInstanceAamp, mAampcli.mbAutoPlay );
 		}
 		else
 		{
