@@ -1797,7 +1797,11 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 			gCbgetWindowContentView && gst_is_video_overlay_prepare_window_handle_message(msg))
 		{
 			AAMPLOG_WARN("Received prepare-window-handle. Attaching video to window handle=%llu",(*gCbgetWindowContentView)());
-			gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY (GST_MESSAGE_SRC (msg)), (*gCbgetWindowContentView)());
+			/*
+			DELIA-58839 [OSX] [AAMP Simulator] Mac OS Ventura Update - gst_gl_window_cocoa_queue_resize crash when playing streams
+			Commented out line below, gst_video_overlay_set_window_handle, to temporarily avoid crash on MacOS 13 or higher. Expect line to be reinstated or permanent fix to be found in the future.
+			*/
+			//gst_video_overlay_set_window_handle (GST_VIDEO_OVERLAY (GST_MESSAGE_SRC (msg)), (*gCbgetWindowContentView)());
 		}
 		break;
 #endif
