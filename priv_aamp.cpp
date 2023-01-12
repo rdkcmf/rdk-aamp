@@ -3685,7 +3685,6 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 			{
 				// For Manifest file : Set starttimeout to 0 ( no wait for first byte). Playlist/Manifest with DAI
 				// contents take more time , hence to avoid frequent timeout, its set as 0
-				AAMPLOG_WARN("stall download check");
 				progressCtx.startTimeout = 0;
 			}
 			else
@@ -3701,7 +3700,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 
 			if ((httpRespHeaders[curlInstance].type == eHTTPHEADERTYPE_COOKIE) && (httpRespHeaders[curlInstance].data.length() > 0))
 			{
-				AAMPLOG_WARN("Appending cookie headers to HTTP request");
+				AAMPLOG_TRACE("Appending cookie headers to HTTP request");
 				//curl_easy_setopt(curl, CURLOPT_COOKIE, cookieHeaders[curlInstance].c_str());
 				CURL_EASY_SETOPT(curl, CURLOPT_COOKIE, httpRespHeaders[curlInstance].data.c_str());
 			}
@@ -3868,7 +3867,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 				CURL_EASY_SETOPT(curl, CURLOPT_PROGRESSDATA, &progressCtx);
 				if(buffer->ptr != NULL)
 				{
-					AAMPLOG_WARN("reset length. buffer %p avail %d",  buffer, (int)buffer->avail);
+					AAMPLOG_TRACE("reset length. buffer %p avail %d",  buffer, (int)buffer->avail);
 					buffer->len = 0;
 				}
 
