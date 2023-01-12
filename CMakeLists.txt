@@ -216,6 +216,11 @@ if (CMAKE_AMLOGIC_SOC)
 	set(LIBAAMP_DEPENDS "${LIBAAMP_DEPENDS} -lgstvideo-1.0")
 endif()
 
+if(CMAKE_FLEX2_RDK)
+    message("CMAKE_FLEX2_RDK set")
+    set(LIBAAMP_DEFINES "${LIBAAMP_DEFINES} -DFLEX2_RDK")
+endif()
+
 if(CMAKE_QT5WEBKIT_JSBINDINGS)
 	message("CMAKE_QT5WEBKIT_JSBINDINGS set, adding sources to libaamp")
 	set(LIBAAMP_SOURCES ${LIBAAMP_SOURCES} jsbindings/jsbindings.cpp jsbindings/jsutils.cpp jsbindings/jsmediaplayer.cpp jsbindings/jseventlistener.cpp jsbindings/jsevent.cpp)
