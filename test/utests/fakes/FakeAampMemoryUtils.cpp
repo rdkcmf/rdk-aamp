@@ -27,6 +27,23 @@ void aamp_Free(struct GrowableBuffer *buffer)
 {
 }
 
+void aamp_Free(void *buffer)
+{
+}
+
 void aamp_AppendNulTerminator(struct GrowableBuffer *buffer)
 {
 }
+
+void aamp_TransferMemory( void *ptr )
+{
+}
+
+void *aamp_Malloc( size_t numBytes )
+{
+}
+
+void aamp_Malloc(struct GrowableBuffer *buffer, size_t len)
+{
+}
+

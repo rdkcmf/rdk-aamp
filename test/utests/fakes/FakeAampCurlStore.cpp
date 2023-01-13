@@ -31,3 +31,8 @@ CurlStore *CurlStore::GetCurlStoreInstance ( void *pContext )
 {
     return nullptr;
 }
+
+int GetCurlResponseCode( CURL *curlhandle )
+{
+	return 0;
+}
