@@ -124,7 +124,7 @@ public:
          * @param[in] fdts DTS of buffer (in sec)
          * @param[in] duration duration of buffer (in sec)
          */
-	void SendCopy(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration);
+	bool SendCopy(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration);
 	/**
          * @fn SendTransfer
          * @param[in] mediaType stream type
@@ -134,7 +134,7 @@ public:
          * @param[in] duration duration of buffer (in sec)
          * @param[in] initFragment flag for buffer type (init, data)
          */
-	void SendTransfer(MediaType mediaType, GrowableBuffer* buffer, double fpts, double fdts, double duration, bool initFragment, bool discontinuity = false);
+	bool SendTransfer(MediaType mediaType, void *ptr, size_t len, double fpts, double fdts, double duration, bool initFragment, bool discontinuity = false);
 	/**
          * @fn EndOfStreamReached
          * @param[in] type stream type

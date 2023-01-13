@@ -22,7 +22,7 @@
  * @brief Gstreamer based player impl for AAMP
  */
 
-
+#include "AampMemoryUtils.h"
 #include "aampgstplayer.h"
 #include "AampFnLogger.h"
 #include "isobmffbuffer.h"
@@ -2852,23 +2852,19 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 /**
  *  @brief inject HLS/ts elementary stream buffer to gstreamer pipeline
  */
-void AAMPGstPlayer::SendCopy(MediaType mediaType, const void *ptr, size_t len0, double fpts, double fdts, double fDuration)
+bool AAMPGstPlayer::SendCopy(MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double fDuration)
 {
 	FN_TRACE( __FUNCTION__ );
-	SendHelper( mediaType, ptr, len0, fpts, fdts, fDuration, true /*copy*/ );
+	return SendHelper( mediaType, ptr, len, fpts, fdts, fDuration, true /*copy*/ );
 }
 
 /**
  *  @brief inject mp4 segment to gstreamer pipeline
  */
-void AAMPGstPlayer::SendTransfer(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration, bool initFragment, bool discontinuity)
+bool AAMPGstPlayer::SendTransfer(MediaType mediaType, void *ptr, size_t len, double fpts, double fdts, double fDuration, bool initFragment, bool discontinuity)
 {
 	FN_TRACE( __FUNCTION__ );
-	if( !SendHelper( mediaType, pBuffer->ptr, pBuffer->len, fpts, fdts, fDuration, false /*transfer*/, initFragment, discontinuity) )
-	{ // unable to transfer - free up the buffer we were passed.
-		aamp_Free(pBuffer);
-	}
-	memset(pBuffer, 0x00, sizeof(GrowableBuffer));
+	return SendHelper( mediaType, ptr, len, fpts, fdts, fDuration, false /*transfer*/, initFragment, discontinuity );
 }
 
 /**
@@ -3255,7 +3251,7 @@ static std::string SafeName(GstElement *element)
 	if(elementName)
 	{
 		name = elementName;
-		g_free(elementName);
+		g_free((void *)elementName);
 	}
 	else
 	{
