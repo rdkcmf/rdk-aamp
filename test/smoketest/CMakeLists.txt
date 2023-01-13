@@ -1,6 +1,11 @@
+
 cmake_minimum_required (VERSION 2.6)
 find_package(GTest 1.12.1 REQUIRED)
-pkg_check_modules(GOOGLETEST REQUIRED GTest)
+if (CMAKE_SYSTEM_NAME STREQUAL Darwin)
+	pkg_check_modules(GOOGLETEST REQUIRED GTest)
+else()
+	pkg_check_modules(GOOGLETEST REQUIRED gtest)
+endif()
 include_directories(${GOOGLETEST_INCLUDE_DIRS})
 
 if (CMAKE_PLATFORM_UBUNTU OR CMAKE_SYSTEM_NAME STREQUAL Darwin )
