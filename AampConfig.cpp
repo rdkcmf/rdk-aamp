@@ -471,7 +471,7 @@ void AampConfig::Initialize()
 	bAampCfgValue[eAAMPConfig_InterruptHandling].value			=	false;
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyDash].value			=	true;
 	bAampCfgValue[eAAMPConfig_DisableLowLatencyABR].value		    	=	true;
-#if (defined(REALTEKCE) || defined(AMLOGIC))
+#if (defined(REALTEKCE) || defined(AMLOGIC) || defined(BRCM))
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyCorrection].value		=	true;
 #else
 	bAampCfgValue[eAAMPConfig_EnableLowLatencyCorrection].value		=	false;
