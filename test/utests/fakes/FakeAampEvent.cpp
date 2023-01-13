@@ -100,7 +100,7 @@ void MediaMetadataEvent::addLanguage(const std::string &lang)
 {
 }
 
-DrmMetaDataEvent::DrmMetaDataEvent(AAMPTuneFailure failure, const std::string &accessStatus, int statusValue, long responseCode, bool secclientErr):
+DrmMetaDataEvent::DrmMetaDataEvent(AAMPTuneFailure failure, const std::string &accessStatus, int statusValue, int responseCode, bool secclientErr):
     AAMPEventObject(AAMP_EVENT_DRM_METADATA)
 {
 }
@@ -110,7 +110,7 @@ AAMPTuneFailure DrmMetaDataEvent::getFailure() const
 	return AAMP_TUNE_INIT_FAILED;
 }
 
-long DrmMetaDataEvent::getResponseCode() const
+int DrmMetaDataEvent::getResponseCode() const
 {
     return 0;
 }

@@ -2037,7 +2037,7 @@ bool StreamAbstractionAAMP::RampDownProfile(int http_error)
 			stAbrInfo.desiredBandwidth = streamInfodesired->bandwidthBitsPerSecond;
 			stAbrInfo.networkBandwidth = aamp->GetCurrentlyAvailableBandwidth();
 			stAbrInfo.errorType = AAMPNetworkErrorHttp;
-			stAbrInfo.errorCode = (int)http_error;
+			stAbrInfo.errorCode = http_error;
 
 			AAMP_LOG_ABR_INFO(&stAbrInfo);
 
@@ -2097,9 +2097,9 @@ bool StreamAbstractionAAMP::IsLowestProfile(int currentProfileIndex)
 /**
  *  @brief Convert custom curl errors to original
  */
-long StreamAbstractionAAMP::getOriginalCurlError(int http_error)
+int StreamAbstractionAAMP::getOriginalCurlError(int http_error)
 {
-	long ret = http_error;
+	int ret = http_error;
 
 	if (http_error >= PARTIAL_FILE_CONNECTIVITY_AAMP && http_error <= PARTIAL_FILE_START_STALL_TIMEOUT_AAMP)
 	{

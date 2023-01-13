@@ -921,7 +921,7 @@ public:
 	 *   @param[in] http_error - Error code
 	 *   @return error code
 	 */
-	long getOriginalCurlError(int http_error);
+	int getOriginalCurlError(int http_error);
 
     	/**
 	 *   @fn CheckForRampDownProfile

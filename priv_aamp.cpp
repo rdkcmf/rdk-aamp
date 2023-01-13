@@ -2242,9 +2242,9 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRe
 	if (event)
 	{
 		AAMPTuneFailure tuneFailure = event->getFailure();
-		long error_code = event->getResponseCode();
+		int error_code = event->getResponseCode();
 		bool isSecClientError = event->getSecclientError();
-		long secManagerReasonCode = event->getSecManagerReasonCode();
+		int secManagerReasonCode = event->getSecManagerReasonCode();
 		 
 		if(AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure || AAMP_TUNE_LICENCE_REQUEST_FAILED == tuneFailure)
 		{
@@ -2257,16 +2257,16 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRe
 				{
 					if(ISCONFIGSET_PRIV(eAAMPConfig_UseSecManager))
 					{
-						snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : SecManager Error Code %ld:%ld", tuneFailureMap[tuneFailure].description,error_code, secManagerReasonCode);
+						snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : SecManager Error Code %d:%d", tuneFailureMap[tuneFailure].description,error_code, secManagerReasonCode);
 					}
 					else
 					{
-						snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Secclient Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+						snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Secclient Error Code %d", tuneFailureMap[tuneFailure].description, error_code);
 					}
 				}
 				else
 				{
-					snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Curl Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+					snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Curl Error Code %d", tuneFailureMap[tuneFailure].description, error_code);
 				}
 			}
 			else if (AAMP_TUNE_FAILED_TO_GET_ACCESS_TOKEN == tuneFailure && eAUTHTOKEN_TOKEN_PARSE_ERROR == (AuthTokenErrors)error_code)
@@ -2279,7 +2279,7 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRe
 			}
 			else
 			{
-				snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Http Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+				snprintf(description, MAX_ERROR_DESCRIPTION_LENGTH - 1, "%s : Http Error Code %d", tuneFailureMap[tuneFailure].description, error_code);
 			}
 			SendErrorEvent(tuneFailure, description, isRetryEnabled, event->getSecManagerClassCode(),event->getSecManagerReasonCode(), event->getBusinessStatus());
 		}
@@ -2298,7 +2298,7 @@ void PrivateInstanceAAMP::SendDrmErrorEvent(DrmMetaDataEventPtr event, bool isRe
 /**
  * @brief Handles download errors and sends events to application if required.
  */
-void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure, long error_code)
+void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure, int error_code)
 {
 	AAMPTuneFailure actualFailure = tuneFailure;
 	bool retryStatus = true;
@@ -2313,7 +2313,7 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure, lo
 				case PARTIAL_FILE_DOWNLOAD_TIME_EXPIRED_AAMP:
 						error_code = CURLE_PARTIAL_FILE;
 				case CURLE_OPERATION_TIMEDOUT:
-						snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %ld, Download time expired", tuneFailureMap[tuneFailure].description, error_code);
+						snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %d, Download time expired", tuneFailureMap[tuneFailure].description, error_code);
 						break;
 				case PARTIAL_FILE_START_STALL_TIMEOUT_AAMP:
 						snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %d, Start/Stall timeout", tuneFailureMap[tuneFailure].description, CURLE_PARTIAL_FILE);
@@ -2328,11 +2328,11 @@ void PrivateInstanceAAMP::SendDownloadErrorEvent(AAMPTuneFailure tuneFailure, lo
 		}
 		else if(error_code < 100)
 		{
-			snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);  //CID:86441 - DC>STRING_BUFFER
+			snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Curl Error Code %d", tuneFailureMap[tuneFailure].description, error_code);  //CID:86441 - DC>STRING_BUFFER
 		}
 		else
 		{
-			snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Http Error Code %ld", tuneFailureMap[tuneFailure].description, error_code);
+			snprintf(description,MAX_DESCRIPTION_SIZE, "%s : Http Error Code %d", tuneFailureMap[tuneFailure].description, error_code);
 			if (error_code == 404)
 			{
 				actualFailure = AAMP_TUNE_CONTENT_NOT_FOUND;

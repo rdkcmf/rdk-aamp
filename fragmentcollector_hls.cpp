@@ -3742,7 +3742,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 		else
 		{
 			aamp->UpdateDuration(0);
-			AAMPLOG_ERR("Manifest download failed : http response : %d", (int) http_error);
+			AAMPLOG_ERR("Manifest download failed : http response : %d", http_error);
 			retval = eAAMPSTATUS_MANIFEST_DOWNLOAD_ERROR;
 		}
 	}
@@ -6195,7 +6195,7 @@ void TrackState::FetchPlaylist()
 
 	int http_error = 0;   //CID:81884 - Initialization
 	double downloadTime;
-	long  main_error = 0;
+	int  main_error = 0;
 
 	ProfilerBucketType bucketId = PROFILE_BUCKET_PLAYLIST_VIDEO; //type == eTRACK_VIDEO, eTRACK_AUDIO,...
 	MediaType mType = eMEDIATYPE_PLAYLIST_VIDEO;
@@ -6234,7 +6234,7 @@ void TrackState::FetchPlaylist()
 	aamp->SetCurlTimeout(aamp->mNetworkTimeoutMs,dnldCurlInstance);
 	if (!playlist.len)
 	{
-		AAMPLOG_WARN("Playlist download failed : %s  http response : %d", mPlaylistUrl.c_str(), (int)http_error);
+		AAMPLOG_WARN("Playlist download failed : %s  http response : %d", mPlaylistUrl.c_str(), http_error);
 		aamp->mPlaylistFetchFailError = http_error;
 		aamp->profiler.ProfileError(bucketId, main_error);
 		aamp->profiler.ProfileEnd(bucketId);
@@ -6750,7 +6750,7 @@ bool TrackState::FetchInitFragmentHelper(int &http_code, bool forcePushEncrypted
 				AAMPLOG_TRACE("---------------CurlReq Time diff:%llu---------------" , downloadTime);
 #endif /* CHECK_PERFORMANCE */
 	
-				long main_error = context->getOriginalCurlError(http_code);
+				int main_error = context->getOriginalCurlError(http_code);
 				aamp->UpdateVideoEndMetrics(actualType, this->GetCurrentBandWidth(), main_error, mEffectiveUrl, downloadTime);
 
 				if ( fetched )

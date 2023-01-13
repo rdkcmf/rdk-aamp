@@ -1445,7 +1445,7 @@ public:
 	 * @param[in] error_code - HTTP error code/ CURLcode
 	 * @return void
 	 */
-	void SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,long error_code);
+	void SendDownloadErrorEvent(AAMPTuneFailure tuneFailure,int error_code);
 
 	/**
 	 * @fn SendAnomalyEvent

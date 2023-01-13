@@ -385,7 +385,7 @@ string _extractSubstring(string parentStr, string startStr, string endStr)
 /**
  *  @brief Get the accessToken from authService.
  */
-const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_code , bool bSslPeerVerify)
+const char * AampDRMSessionManager::getAccessToken(int &tokenLen, int &error_code , bool bSslPeerVerify)
 {
 	if(accessToken == NULL)
 	{
@@ -415,7 +415,7 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 
 		if (res == CURLE_OK)
 		{
-			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+			httpCode = GetCurlResponseCode(curl);
 			if (httpCode == 200 || httpCode == 206)
 			{
 				string tokenReplyStr = tokenReply->getData();
@@ -447,13 +447,13 @@ const char * AampDRMSessionManager::getAccessToken(int &tokenLen, long &error_co
 					else
 					{
 						AAMPLOG_WARN(" Could not get access token from session token reply");
-						error_code = (long)eAUTHTOKEN_TOKEN_PARSE_ERROR;
+						error_code = eAUTHTOKEN_TOKEN_PARSE_ERROR;
 					}
 				}
 				else
 				{
 					AAMPLOG_ERR(" Missing or invalid status code in session token reply");
-					error_code = (long)eAUTHTOKEN_INVALID_STATUS_CODE;
+					error_code = eAUTHTOKEN_INVALID_STATUS_CODE;
 				}
 			}
 			else
@@ -782,7 +782,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 		}
 		else
 		{
-			curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, httpCode);
+			*httpCode = GetCurlResponseCode(curl);
 			curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME, &totalTime);
 			if (*httpCode != 200 && *httpCode != 206)
 			{
@@ -837,7 +837,7 @@ DrmData * AampDRMSessionManager::getLicense(AampLicenseRequest &licenseRequest,
 			// example 18(0) if connection failure with PARTIAL_FILE code
 			timeoutClass = "(" + to_string(reqSize > 0) + ")";
 		}
-		AAMPLOG_WARN("HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%.500s",
+		AAMPLOG_WARN("HttpRequestEnd: %s%d,%d,%d%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%.500s",
 						appName.c_str(), mediaType, streamType, *httpCode, timeoutClass.c_str(), totalPerformRequest, totalTime, connect, startTransfer, resolve, appConnect, 
 						preTransfer, redirect, dlSize, reqSize, licenseRequest.url.c_str());
 
@@ -1312,7 +1312,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 				AampMutexHold accessTokenMutexHold(accessTokenMutex);
 
 				int tokenLen = 0;
-				long tokenError = 0;
+				int tokenError = 0;
 				char *sessionToken = NULL;
 				if(!usingAppDefinedAuthToken)
 				{ /* authToken not set externally by app */
@@ -1394,7 +1394,7 @@ KeyState AampDRMSessionManager::acquireLicense(std::shared_ptr<AampDrmHelper> dr
 							accessTokenLen = 0;
 						}
 						int tokenLen = 0;
-						long tokenError = 0;
+						int tokenError = 0;
 						const char *sessionToken = getAccessToken(tokenLen, tokenError,aampInstance->mConfig->IsConfigSet(eAAMPConfig_SslVerifyPeer));
 						if (NULL != sessionToken)
 						{
@@ -1857,7 +1857,7 @@ void CreateDRMSession(void *arg)
 		{
 			AAMPLOG_ERR("Failed DRM Session Creation for systemId = %s", systemId);
 			AAMPTuneFailure failure = e->getFailure();
-			long responseCode = e->getResponseCode();
+			int responseCode = e->getResponseCode();
 			bool selfAbort = (failure == AAMP_TUNE_DRM_SELF_ABORT);
 			if (!selfAbort)
 			{
