@@ -36,12 +36,14 @@ void AAMPGstPlayer::Configure(StreamOutputFormat format, StreamOutputFormat audi
 {
 }
 
-void AAMPGstPlayer::SendCopy( MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration) 
+bool AAMPGstPlayer::SendCopy( MediaType mediaType, const void *ptr, size_t len, double fpts, double fdts, double duration)
 {
+	return true;
 }
 
-void AAMPGstPlayer::SendTransfer(MediaType mediaType, GrowableBuffer* pBuffer, double fpts, double fdts, double fDuration, bool initFragment, bool discontinuity)
+bool AAMPGstPlayer::SendTransfer(MediaType mediaType, void *ptr, size_t len, double fpts, double fdts, double fDuration, bool initFragment, bool discontinuity)
 {
+	return true;
 }
 
 void AAMPGstPlayer::EndOfStreamReached(MediaType mediaType)
