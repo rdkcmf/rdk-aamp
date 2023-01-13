@@ -8116,8 +8116,7 @@ void PrivateInstanceAAMP::UpdateVideoEndMetrics(AAMPAbrInfo & info)
 			}
 			pthread_mutex_unlock(&mLock);
 		}
-		else if (info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed
-				 || info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed)
+		else if (info.abrCalledFor == AAMPAbrType::AAMPAbrFragmentDownloadFailed)
 		{
 			pthread_mutex_lock(&mLock);
 			if(mVideoEnd)

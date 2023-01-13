@@ -1106,7 +1106,7 @@ void AampConfig::CustomArrayRead( cJSON *customArray,ConfigPriority owner )
 				keyname = "appName";
 			}
 			customValues.config = keyname;
-			if(searchVal->valuestring != NULL)
+			if(searchVal && searchVal->valuestring != NULL)
 			{
 				customValues.configValue = searchVal->valuestring;
 				vCustom.push_back(customValues);

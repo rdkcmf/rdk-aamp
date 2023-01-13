@@ -3636,7 +3636,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::SyncTracks(void)
 							else
 							{
 								AAMPLOG_WARN("invalid diff(%f) greater than duration, ts->playTarget %f trackDuration %f, %s may start early",
-										track->name, diff, track->playTarget, track->mDuration);
+										diff, track->playTarget, track->mDuration, track->name);
 							}
 						}
 						else

@@ -196,9 +196,13 @@ bool IsoBmffBuffer::getFirstPTSInternal(const std::vector<Box*> *boxes, uint64_t
 		Box *box = boxes->at(i);
 		if (IS_TYPE(box->getType(), Box::TFDT))
 		{
-			pts = dynamic_cast<TfdtBox *>(box)->getBaseMDT();
-			ret = true;
-			break;
+			TfdtBox *tfdtBox = dynamic_cast<TfdtBox *>(box);
+			if(tfdtBox)
+			{
+				pts = tfdtBox->getBaseMDT();
+				ret = true;
+				break;
+			}
 		}
 		if (box->hasChildren())
 		{
@@ -545,15 +549,23 @@ uint64_t IsoBmffBuffer::getSampleDurationInernal(const std::vector<Box*> *boxes)
         uint64_t duration = 0;
         if (IS_TYPE(box->getType(), Box::TRUN))
         {
-            //AAMPLOG_WARN("****TRUN BOX SIZE: %d \n", box->getSize());
-            duration = dynamic_cast<TrunBox *>(box)->getSampleDuration();
+	    TrunBox *trunBox = dynamic_cast<TrunBox *>(box);
+	    if(trunBox)
+	    {
+           	 //AAMPLOG_WARN("****TRUN BOX SIZE: %d \n", box->getSize());
+            	duration = trunBox->getSampleDuration();
+	    }
             //AAMPLOG_WARN("****DURATION: %lld \n", duration);
             if(duration) return duration;
         }
         else if (IS_TYPE(box->getType(), Box::TFHD))
         {
-            //AAMPLOG_WARN("****TFHD BOX SIZE: %d \n", box->getSize());
-            duration = dynamic_cast<TfhdBox *>(box)->getSampleDuration();
+	    TfhdBox *tfhdBox = dynamic_cast<TfhdBox *>(box);
+	    if(tfhdBox)
+	    {
+            	//AAMPLOG_WARN("****TFHD BOX SIZE: %d \n", box->getSize());
+            	duration = tfhdBox->getSampleDuration();
+	    }
             //AAMPLOG_WARN("****DURATION: %lld \n", duration);
             if(duration) return duration;
         }
@@ -589,8 +601,12 @@ uint64_t IsoBmffBuffer::getPtsInternal(const std::vector<Box*> *boxes)
 
         if (IS_TYPE(box->getType(), Box::TFDT))
         {
-            AAMPLOG_WARN("****Base Media Decode Time: %lld", dynamic_cast<TfdtBox *>(box)->getBaseMDT());
-            retValue = dynamic_cast<TfdtBox *>(box)->getBaseMDT();
+	    TfdtBox *tfdtBox =  dynamic_cast<TfdtBox *>(box);
+	    if(tfdtBox)
+	    {
+            	AAMPLOG_WARN("****Base Media Decode Time: %lld", tfdtBox->getBaseMDT());
+            	retValue = tfdtBox->getBaseMDT();
+	    }
             break;
         }
 

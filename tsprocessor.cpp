@@ -3881,7 +3881,6 @@ void TSProcessor::putPmtByte(unsigned char* &pmt, int& index, unsigned char byte
 			i += m_ttsSize;
 		}
 		pmt[i + 0] = 0x47;
-		pmt[i + 1] = 0x20;
 		pmt[i + 1] = (unsigned char)((pmtPid >> 8) & 0x1F);
 		pmt[i + 2] = (unsigned char)(0xFF & pmtPid);
 		pmt[i + 3] = 0x10;  // 2 bits Scrambling = no; 2 bits adaptation field = no adaptation; 4 bits continuity counter
