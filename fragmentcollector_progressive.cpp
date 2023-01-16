@@ -95,7 +95,7 @@ static size_t StreamWriteCallback( void *ptr, size_t size, size_t nmemb, void *u
     if( context->aamp->mDownloadsEnabled)
     {
        // TODO: info logging is normally only done up until first frame rendered, but even so is too noisy for below, since CURL write callback yields many small chunks
-        AAMPLOG_INFO("StreamWriteCallback(%d bytes)\n", nmemb);
+		AAMPLOG_INFO("StreamWriteCallback(%zu bytes)\n", nmemb);
         // throttle download speed if gstreamer isn't hungry
         aamp->BlockUntilGstreamerWantsData( NULL/*CB*/, 0.0/*periodMs*/, eMEDIATYPE_VIDEO );
         double fpts = 0.0;

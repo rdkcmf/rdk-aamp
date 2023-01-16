@@ -468,7 +468,7 @@ void AAMPGstPlayer::TimerAdd(GSourceFunc funcPtr, int repeatTimeout, guint& task
 	}
 	else
 	{
-		AAMPLOG_ERR("Bad pointer. funcPtr = %p, user_data=%p");
+		AAMPLOG_ERR("Bad pointer.");
 	}
 }
 
@@ -1796,7 +1796,7 @@ static GstBusSyncReply bus_sync_handler(GstBus * bus, GstMessage * msg, AAMPGstP
 #endif
 			gCbgetWindowContentView && gst_is_video_overlay_prepare_window_handle_message(msg))
 		{
-			AAMPLOG_WARN("Received prepare-window-handle. Attaching video to window handle=%llu",(*gCbgetWindowContentView)());
+			AAMPLOG_WARN("Received prepare-window-handle. Attaching video to window handle=%lu",(*gCbgetWindowContentView)());
 			/*
 			DELIA-58839 [OSX] [AAMP Simulator] Mac OS Ventura Update - gst_gl_window_cocoa_queue_resize crash when playing streams
 			Commented out line below, gst_video_overlay_set_window_handle, to temporarily avoid crash on MacOS 13 or higher. Expect line to be reinstated or permanent fix to be found in the future.
@@ -2690,7 +2690,8 @@ bool AAMPGstPlayer::SendHelper(MediaType mediaType, const void *ptr, size_t len,
 
 	if (eMEDIATYPE_SUBTITLE == mediaType && discontinuity)
 	{
-		AAMPLOG_WARN("[%d] Discontinuity detected - setting subtitle clock to pts %.2f/% " GST_TIME_FORMAT " firstPTS %.2f", mediaType, GST_TIME_ARGS(pts));
+		AAMPLOG_WARN( "[%d] Discontinuity detected - setting subtitle clock to %" GST_TIME_FORMAT,
+					 mediaType, GST_TIME_ARGS(pts) );
 		gst_element_seek_simple(GST_ELEMENT(stream->source), GST_FORMAT_TIME, GST_SEEK_FLAG_NONE, pts);
 	}
 
@@ -4344,7 +4345,7 @@ bool AAMPGstPlayer::IsCacheEmpty(MediaType mediaType)
 				if(!ptsChanged)
 				{
 					//PTS hasn't changed for the timeout value
-					AAMPLOG_WARN("AAMPGstPlayer: Appsrc cache is empty and PTS hasn't been updated for more than %lldms and ret(%d)",
+					AAMPLOG_WARN("AAMPGstPlayer: Appsrc cache is empty and PTS hasn't been updated for more than %dms and ret(%d)",
 									AAMP_MIN_PTS_UPDATE_INTERVAL, ret);
 				}
 				else

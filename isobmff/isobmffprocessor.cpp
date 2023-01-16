@@ -141,7 +141,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 			if (buffer.getTimeScale(tScale))
 			{
 				timeScale = tScale;
-				AAMPLOG_INFO("IsoBmffProcessor:: [%s] TimeScale (%ld) set", IsoBmffProcessorTypeName[type], timeScale);
+				AAMPLOG_INFO("IsoBmffProcessor:: [%s] TimeScale (%u) set", IsoBmffProcessorTypeName[type], timeScale);
 			}
 
 			cacheInitSegment(segment, size);
@@ -186,7 +186,7 @@ bool IsoBmffProcessor::sendSegment(char *segment, size_t& size, double position,
 						if (buffer.getTimeScale(tScale))
 						{
 							timeScale = tScale;
-							AAMPLOG_INFO("IsoBmffProcessor:: [%s] TimeScale (%ld) set",  IsoBmffProcessorTypeName[type], timeScale);
+							AAMPLOG_INFO("IsoBmffProcessor:: [%s] TimeScale (%u) set",  IsoBmffProcessorTypeName[type], timeScale);
 						}
 						if (timeScale == 0)
 						{
@@ -275,7 +275,7 @@ void IsoBmffProcessor::setRate(double rate, PlayMode mode)
  */
 void IsoBmffProcessor::setBasePTS(uint64_t pts, uint32_t tScale)
 {
-	AAMPLOG_WARN("[%s] Base PTS (%lld) and TimeScale (%ld) set",  IsoBmffProcessorTypeName[type], pts, tScale);
+	AAMPLOG_WARN("[%s] Base PTS (%lld) and TimeScale (%u) set",  IsoBmffProcessorTypeName[type], pts, tScale);
 	pthread_mutex_lock(&m_mutex);
 	basePTS = pts;
 	timeScale = tScale;

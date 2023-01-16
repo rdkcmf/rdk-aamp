@@ -343,7 +343,7 @@ void  PrivateCDAIObjectMPD::PlaceAds(dash::mpd::IMPD *mpd)
 					// OR //--> Inserted Ads finishes in >= 4 seconds of new period (inside the adbreak) : Channel playback starts from that position in the period.
 					else
 					{
-						AAMPLOG_INFO("[CDAI] [%d] NOT close to period end [%lld] Done", diff);
+						AAMPLOG_INFO("[CDAI] [%d] NOT close to period end", diff);
 						abObj.adjustEndPeriodOffset = false; // done with Adjustment
 					}
 				}
@@ -682,7 +682,7 @@ void PrivateCDAIObjectMPD::FulFillAdObject()
 			uint32_t availSpace = adbreakObj.brkDuration - startMS;
 			if(availSpace < durationMs)
 			{
-				AAMPLOG_WARN("Adbreak's available space[%lu] < Ad's Duration[%lu]. Trimming the Ad.",  availSpace, durationMs);
+				AAMPLOG_WARN("Adbreak's available space[%u] < Ad's Duration[%u]. Trimming the Ad.",  availSpace, durationMs);
 				durationMs = availSpace;
 			}
 			adbreakObj.adsDuration += durationMs;

@@ -62,7 +62,7 @@ void AampCacheHandler::InsertToPlaylistCache(const std::string url, const Growab
 				bool cacheStoreReady = true;
 				if(mMaxPlaylistCacheSize != PLAYLIST_CACHE_SIZE_UNLIMITED  && ((mCacheStoredSize + buffer->len) > mMaxPlaylistCacheSize))
 				{
-					AAMPLOG_WARN("Count[%d]Avail[%d]Needed[%d] Reached max cache size ",mPlaylistCache.size(),mCacheStoredSize,buffer->len);
+					AAMPLOG_WARN("Count[%lu]Avail[%d]Needed[%zu] Reached max cache size", mPlaylistCache.size(),mCacheStoredSize,buffer->len);
 					cacheStoreReady = AllocatePlaylistCacheSlot(fileType,buffer->len);
 				}
 				if(cacheStoreReady)
@@ -490,7 +490,7 @@ void AampCacheHandler::InsertToInitFragCache(const std::string url, const Growab
 			AAMPLOG_INFO("Inserted effective init url %s", url.c_str());
 		}
 
-		AAMPLOG_INFO("Size [CacheTable:%d,TrackQ:%d,CurrentTrack:%d,MaxLimit:%d]\n", umInitFragCache.size(),umCacheTrackQ.size(),
+		AAMPLOG_INFO("Size [CacheTable:%lu,TrackQ:%lu,CurrentTrack:%lu,MaxLimit:%d]\n", umInitFragCache.size(),umCacheTrackQ.size(),
 						NewTrackQueueCache->Trackqueue.size(),
 						MaxInitCacheSlot );
 	}

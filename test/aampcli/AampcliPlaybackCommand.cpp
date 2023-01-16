@@ -116,7 +116,7 @@ bool PlaybackCommand::execute(char *cmd, PlayerInstanceAAMP *playerInstanceAamp)
 			}
 			else
 			{
-				printf( "valid range = 0..%d\n", mAampcli.mPlayerInstances.size()-1 );
+				printf( "valid range = 0..%lu\n", mAampcli.mPlayerInstances.size()-1 );
 			}
 		}
 	}

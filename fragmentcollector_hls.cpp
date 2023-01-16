@@ -4948,7 +4948,7 @@ AAMPStatusType StreamAbstractionAAMP_HLS::Init(TuneType tuneType)
 				}
 				else
 				{
-					AAMPLOG_WARN("StreamAbstractionAAMP_HLS: Error Download iframe playlist. http_error %ld",
+					AAMPLOG_WARN("StreamAbstractionAAMP_HLS: Error Download iframe playlist. http_error %d",
 					       http_error);
 				}
 			}

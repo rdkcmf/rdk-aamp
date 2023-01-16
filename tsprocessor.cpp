@@ -478,7 +478,7 @@ public:
 										if(applyOffset)
 										{
 											base_pts = current_pts - MAX_FIRST_PTS_OFFSET;
-											WARNING("Type[%d] base_pts not initialized, updated to %llu", type, base_pts);
+											WARNING("Type[%d] base_pts not initialized, updated to %llu", type, base_pts.value );
 										}
 										else
 										{
@@ -537,11 +537,11 @@ public:
 								if (-1 == base_pts)
 								{
 									base_pts = timeStamp;
-									WARNING("base_pts not available, updated to pts %llu", timeStamp);
+									WARNING("base_pts not available, updated to pts %llu", timeStamp.value );
 								}
 								else if (base_pts > timeStamp)
 								{
-									WARNING("base_pts update from %llu to %llu", base_pts, timeStamp);
+									WARNING("base_pts update from %llu to %llu", base_pts.value, timeStamp.value );
 									base_pts = timeStamp;
 								}
 								basePtsUpdated = true;
@@ -2359,7 +2359,7 @@ void TSProcessor::flush()
 
 	if (m_dsmccDemuxer)
 	{
-		AAMPLOG_WARN("TSProcessor[%p]%s:%d flush dsmcc demux %p", this, m_dsmccDemuxer);
+		AAMPLOG_WARN("TSProcessor[%p] flush dsmcc demux %p", this, m_dsmccDemuxer);
 		m_dsmccDemuxer->flush();
 	}
 	pthread_mutex_unlock(&m_mutex);

@@ -93,7 +93,7 @@ void AampEventManager::FlushPendingEvents()
 
 	if (mPendingAsyncEvents.size() > 0)
 	{
-		AAMPLOG_WARN("mPendingAsyncEvents.size - %d", mPendingAsyncEvents.size());
+		AAMPLOG_WARN("mPendingAsyncEvents.size - %lu", mPendingAsyncEvents.size());
 		for (AsyncEventListIter it = mPendingAsyncEvents.begin(); it != mPendingAsyncEvents.end(); it++)
 		{
 			if ((it->first != 0) && (it->second))

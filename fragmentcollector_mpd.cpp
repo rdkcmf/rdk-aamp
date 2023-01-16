@@ -1122,7 +1122,7 @@ static AampCurlInstance getCurlInstanceByMediaType(MediaType type)
 static void deIndexTileInfo(std::vector<TileInfo> &indexedTileInfo)
 {
 	FN_TRACE_F_MPD( __FUNCTION__ );
-	AAMPLOG_WARN("indexedTileInfo size=%d",indexedTileInfo.size());
+	AAMPLOG_WARN("indexedTileInfo size=%lu",indexedTileInfo.size());
 	for(int i=0;i<indexedTileInfo.size();i++)
 	{
 		if( indexedTileInfo[i].url )
@@ -1612,7 +1612,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 								// Attempt rampdown
 								if (CheckForRampDownProfile(http_code))
 								{
-									AAMPLOG_WARN("RampDownProfile Due to failover Content %lf Number %lf FDT",pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentDescriptor.Time);
+									AAMPLOG_WARN("RampDownProfile Due to failover Content %llu Number %lf FDT",pMediaStreamContext->fragmentDescriptor.Number,pMediaStreamContext->fragmentDescriptor.Time);
 									mCheckForRampdown = true;
 									// Rampdown attempt success, download same segment from lower profile.
 									pMediaStreamContext->mSkipSegmentOnError = false;
@@ -2281,7 +2281,7 @@ bool StreamAbstractionAAMP_MPD::PushNextFragment( class MediaStreamContext *pMed
 									index++;
 								}
 								pMediaStreamContext->fragmentIndex = index - 1;
-								AAMPLOG_TRACE("PushNextFragment Exit : startTime %lld lastSegmentTime %lu index = %d", startTime, pMediaStreamContext->lastSegmentTime, pMediaStreamContext->fragmentIndex);
+								AAMPLOG_TRACE("PushNextFragment Exit : startTime %lld lastSegmentTime %llu index = %d", startTime, pMediaStreamContext->lastSegmentTime, pMediaStreamContext->fragmentIndex);
 								ReleasePlaylistLock();
 							}
 						}
@@ -4284,7 +4284,7 @@ double aamp_GetPeriodDuration(dash::mpd::IMPD *mpd, int periodIndex, uint64_t mp
 									periodStart = ParseISO8601Duration( periodStartStr.c_str() );
 									availablilityStart = ISO8601DateTimeToUTCSeconds(availabilityStartStr.c_str()) * 1000;
 									minUpdatePeriod = ParseISO8601Duration( minimumUpdatePeriodStr.c_str() );
-									AAMPLOG_INFO("periodStart %lf availabilityStartTime %lf minUpdatePeriod %lf mpdDownloadTime %lf", periodStart, availablilityStart, minUpdatePeriod, mpdDownloadTime);
+									AAMPLOG_INFO("periodStart %lf availabilityStartTime %lf minUpdatePeriod %lf mpdDownloadTime %llu", periodStart, availablilityStart, minUpdatePeriod, mpdDownloadTime);
 									double periodEndTime = mpdDownloadTime + minUpdatePeriod;
 									double periodStartTime = availablilityStart + periodStart;
 									durationMs = periodEndTime - periodStartTime;
@@ -4619,7 +4619,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::Init(TuneType tuneType)
 			if (!mpdDurationAvailable)
 			{
 				durationMs += periodDurationMs;
-				AAMPLOG_INFO("Updated duration %lf seconds", (durationMs/1000));
+				AAMPLOG_INFO("Updated duration %llu seconds", (durationMs/1000));
 			}
 
 			if(offsetFromStart >= 0 && seekPeriods)
@@ -7415,7 +7415,7 @@ void StreamAbstractionAAMP_MPD::ParseTrackInformation(IAdaptationSet *adaptation
 					}
 					else
 					{
-						AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Audio Track - lang:%s, group:%s, name:%s, codec:%s, bandwidth:%d, AccessibilityType:%s label:%s type:%s availability:%d",
+						AAMPLOG_WARN("StreamAbstractionAAMP_MPD: Audio Track - lang:%s, group:%s, name:%s, codec:%s, bandwidth:%ld, AccessibilityType:%s label:%s type:%s availability:%d",
 						lang.c_str(), group.c_str(), name.c_str(), codec.c_str(), bandwidth, accessibilityType.c_str(), label.c_str(), type.c_str(), isAvailable);
 						aTracks.push_back(AudioTrackInfo(index, lang, group, name, codec, bandwidth, accessibilityType, false, label, type, accessibilityNode, isAvailable));
 					}
@@ -8480,7 +8480,7 @@ AAMPStatusType StreamAbstractionAAMP_MPD::UpdateTrackInfo(bool modifyDefaultBW, 
 								AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: Track %d Set mNextPeriodScaledPtoStartTime:%lf",i,aamp->mNextPeriodScaledPtoStartTime);
 							}
 							AAMPLOG_TRACE("StreamAbstractionAAMP_MPD: Track %d Set mFirstPTS:%lf",i,mFirstPTS);
-							AAMPLOG_TRACE("PTO= %lld tScale= %ld", segmentTemplates.GetPresentationTimeOffset(), timeScale );
+							AAMPLOG_TRACE("PTO= %lld tScale= %u", segmentTemplates.GetPresentationTimeOffset(), timeScale );
 						}
 					}
 				}
@@ -10698,7 +10698,7 @@ static void indexThumbnails(dash::mpd::IMPD *mpd, int thumbIndexValue, std::vect
 								tmp->resolution.width = rep->GetWidth()/w;
 								tmp->resolution.height = rep->GetHeight()/h;
 								thumbnailtrack.push_back(tmp);
-								AAMPLOG_TRACE("thumbnailtrack bandwidth=%d width=%d height=%d", tmp->bandwidthBitsPerSecond, tmp->resolution.width, tmp->resolution.height);
+								AAMPLOG_TRACE("thumbnailtrack bandwidth=%ld width=%d height=%d", tmp->bandwidthBitsPerSecond, tmp->resolution.width, tmp->resolution.height);
 							}
 							if((thumbnailtrack.size() > thumbIndexValue) && thumbnailtrack[thumbIndexValue]->bandwidthBitsPerSecond == (long)bandwidth)
 							{
@@ -11918,7 +11918,7 @@ double StreamAbstractionAAMP_MPD::GetEncoderDisplayLatency()
 	double presentationOffset = 0;
 	uint32_t timeScale = 0;
 
-	AAMPLOG_INFO("Current Index: %d Total Period: %d",mCurrentPeriodIdx, mpd->GetPeriods().size());
+	AAMPLOG_INFO("Current Index: %d Total Period: %lu",mCurrentPeriodIdx, mpd->GetPeriods().size());
 
 	if( mpd->GetPeriods().size())
 	{
@@ -11981,7 +11981,7 @@ double StreamAbstractionAAMP_MPD::GetEncoderDisplayLatency()
 							duration = timeline->GetDuration();
 							repeatCount = timeline->GetRepeatCount();
 
-							AAMPLOG_TRACE("startTime: %" PRIu64 " duration: %" PRIu32 " repeatCount: %" PRIu32 "", timeScale,duration,repeatCount);
+							AAMPLOG_TRACE("startTime: %" PRIu32 " duration: %" PRIu32 " repeatCount: %" PRIu32, timeScale,duration,repeatCount);
 
 							if(timeScale)
 								PT = (double)(startTime+((uint64_t)repeatCount*duration))/timeScale ;
@@ -12087,7 +12087,7 @@ double StreamAbstractionAAMP_MPD::GetEncoderDisplayLatency()
 				AAMPLOG_INFO("tt_utc [%lf] WCA [%lf] PT [%lf] PTA [%lf] tt_utc-WCA [%lf] PT-PTA [%lf] encoderDisplayLatency [%lf]", (double)tt_utc, WCA, PT, PTA, wc_diff, pt_diff, encoderDisplayLatency);
 			}
 		} catch (const std::out_of_range& oor) {
-			AAMPLOG_WARN("mCurrentPeriodIdx: %d mpd->GetPeriods().size(): %d Out of Range error: %s", mCurrentPeriodIdx, mpd->GetPeriods().size(), oor.what() );
+			AAMPLOG_WARN("mCurrentPeriodIdx: %d mpd->GetPeriods().size(): %lu Out of Range error: %s", mCurrentPeriodIdx, mpd->GetPeriods().size(), oor.what() );
 		}
 	}
 
@@ -12174,7 +12174,7 @@ void StreamAbstractionAAMP_MPD::MonitorLatency()
 					long TimeOffsetSeekLatency = (long)(((pAampLLDashServiceData->fragmentDuration - pAampLLDashServiceData->availabilityTimeOffset))*1000);
 					long currentLatency = ((InitialLatencyOffset+PlayBackLatency)-TimeOffsetSeekLatency);
 
-					AAMPLOG_INFO("currentDur = %lld actualOffset=%ld DurationFromStart=%lld Position=%lld,seekLLValue=%ld",aamp->GetDurationMs(),
+					AAMPLOG_INFO("currentDur = %lld actualOffset=%lld DurationFromStart=%lld Position=%lld,seekLLValue=%ld",aamp->GetDurationMs(),
 									(long long) (aamp->mLLActualOffset*1000), aamp->DurationFromStartOfPlaybackMs(),aamp->GetPositionMs(), TimeOffsetSeekLatency);
 					AAMPLOG_INFO("LiveLatency=%ld currentPlayRate=%lf",currentLatency, playRate);
 

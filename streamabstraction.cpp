@@ -680,7 +680,7 @@ bool MediaTrack::ProcessFragmentChunk()
 	CachedFragmentChunk* cachedFragmentChunk = &this->cachedFragmentChunks[fragmentChunkIdxToInject];
 	if(cachedFragmentChunk != NULL && NULL == cachedFragmentChunk->fragmentChunk.ptr)
 	{
-		AAMPLOG_TRACE("[%s] Ignore NULL Chunk - cachedFragmentChunk->fragmentChunk.len %d", name, cachedFragmentChunk->fragmentChunk.len);
+		AAMPLOG_TRACE("[%s] Ignore NULL Chunk - cachedFragmentChunk->fragmentChunk.len %zu", name, cachedFragmentChunk->fragmentChunk.len);
 		return false;
 	}
 	if((cachedFragmentChunk->downloadStartTime != prevDownloadStartTime) && (unparsedBufferChunk.ptr != NULL))
@@ -691,7 +691,7 @@ bool MediaTrack::ProcessFragmentChunk()
 
 	}
 	size_t requiredLength = cachedFragmentChunk->fragmentChunk.len + unparsedBufferChunk.len;
-	AAMPLOG_TRACE("[%s] cachedFragmentChunk->fragmentChunk.len [%d] to unparsedBufferChunk.len [%d] Required Len [%d]", name, cachedFragmentChunk->fragmentChunk.len, unparsedBufferChunk.len, requiredLength);
+	AAMPLOG_TRACE("[%s] cachedFragmentChunk->fragmentChunk.len [%zu] to unparsedBufferChunk.len [%zu] Required Len [%zu]", name, cachedFragmentChunk->fragmentChunk.len, unparsedBufferChunk.len, requiredLength);
 
 	//Append Cache buffer to unparsed buffer for processing
 	aamp_AppendBytes(&unparsedBufferChunk, cachedFragmentChunk->fragmentChunk.ptr, cachedFragmentChunk->fragmentChunk.len);
@@ -717,7 +717,7 @@ bool MediaTrack::ProcessFragmentChunk()
 
 	isobuf.setBuffer(reinterpret_cast<uint8_t *>(unparsedBufferChunk.ptr), unparsedBufferChunk.len);
 
-	AAMPLOG_TRACE("[%s] Unparsed Buffer Size: %d", name,unparsedBufferChunk.len);
+	AAMPLOG_TRACE("[%s] Unparsed Buffer Size: %zu", name,unparsedBufferChunk.len);
 
 	bool bParse = false;
 	try
@@ -749,7 +749,7 @@ bool MediaTrack::ProcessFragmentChunk()
 	{
 		 if( noMDATCount > MAX_MDAT_NOT_FOUND_COUNT )
 		 {
-			 AAMPLOG_INFO("[%s] noMDATCount=%d ChunkIndex=%d totchunklen=%d", name,noMDATCount, fragmentChunkIdxToInject,unParsedBufferSize);
+			 AAMPLOG_INFO("[%s] noMDATCount=%d ChunkIndex=%d totchunklen=%zu", name,noMDATCount, fragmentChunkIdxToInject,unParsedBufferSize);
 			 noMDATCount=0;
 		 }
 		 noMDATCount++;
@@ -757,7 +757,7 @@ bool MediaTrack::ProcessFragmentChunk()
 	}
 	noMDATCount = 0;
 	totalMdatCount += mdatCount;
-	AAMPLOG_TRACE("[%s] MDAT count found: %d, Total Found: %d", name,  mdatCount, totalMdatCount );
+	AAMPLOG_TRACE("[%s] MDAT count found: %zu, Total Found: %d", name,  mdatCount, totalMdatCount );
 
 	pBoxes = isobuf.getParsedBoxes();
 	parsedBoxCount = pBoxes->size();
@@ -768,7 +768,7 @@ bool MediaTrack::ProcessFragmentChunk()
 		
 		parsedBoxCount--;
 
-		AAMPLOG_TRACE("[%s] MDAT Chunk Found - Actual Parsed Box Count: %d", name,parsedBoxCount);
+		AAMPLOG_TRACE("[%s] MDAT Chunk Found - Actual Parsed Box Count: %zu", name,parsedBoxCount);
 		AAMPLOG_TRACE("[%s] Chunk Offset[%u] Chunk Type[%s] Chunk Size[%u]\n", name, pBox->getOffset(), pBox->getBoxType(), pBox->getSize());
 	}
 	if(mdatCount)
@@ -790,7 +790,7 @@ bool MediaTrack::ProcessFragmentChunk()
 
 				parsedBufferSize -= unParsedBufferSize; //get parsed buf size
 
-				AAMPLOG_TRACE("[%s] parsedBufferSize : %d updated unParsedBufferSize: %d Total Buf Size processed: %d", name,parsedBufferSize,unParsedBufferSize,parsedBufferSize+unParsedBufferSize);
+				AAMPLOG_TRACE("[%s] parsedBufferSize : %zu updated unParsedBufferSize: %zu Total Buf Size processed: %lu", name,parsedBufferSize,unParsedBufferSize,parsedBufferSize+unParsedBufferSize);
 
 				break;
 			}
@@ -880,7 +880,7 @@ bool MediaTrack::ProcessFragmentChunk()
 	//This buffer should be released on Track cleanup
 	if(unParsedBufferSize)
 	{
-		AAMPLOG_TRACE("[%s] unparsed[%p] unparsed_size[%u]", name,unParsedBuffer,unParsedBufferSize);
+		AAMPLOG_TRACE("[%s] unparsed[%p] unparsed_size[%zu]", name,unParsedBuffer,unParsedBufferSize);
 
 		GrowableBuffer tempBuffer;
 		memset(&tempBuffer,0x00,sizeof(GrowableBuffer));
@@ -1331,7 +1331,7 @@ CachedFragmentChunk* MediaTrack::GetFetchChunkBuffer(bool initialize)
 	{
 		if (cachedFragmentChunk->fragmentChunk.ptr)
 		{
-			AAMPLOG_WARN("[%s] fragmentChunk.ptr[%p] already set - possible memory leak (len=[%d],avail=[%d])",name, cachedFragmentChunk->fragmentChunk.ptr, cachedFragmentChunk->fragmentChunk.len,cachedFragmentChunk->fragmentChunk.avail);
+			AAMPLOG_WARN("[%s] fragmentChunk.ptr[%p] already set - possible memory leak (len=[%zu],avail=[%zu])",name, cachedFragmentChunk->fragmentChunk.ptr, cachedFragmentChunk->fragmentChunk.len, cachedFragmentChunk->fragmentChunk.avail);
 		}
 		memset(&cachedFragmentChunk->fragmentChunk, 0x00, sizeof(GrowableBuffer));
 	}
@@ -3287,7 +3287,7 @@ void MediaTrack::WaitForManifestUpdate()
 	if(aamp->DownloadsAreEnabled() && fragmentCollectorWaitingForPlaylistUpdate)
 	{
 		std::unique_lock<std::mutex> lock(plDwnldMutex);
-		AAMPLOG_INFO("Waiting for manifest update", name);
+		AAMPLOG_INFO("Waiting for manifest update");
 		frDownloadWait.wait(lock);
 	}
 	fragmentCollectorWaitingForPlaylistUpdate = false;

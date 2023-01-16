@@ -445,7 +445,7 @@ static void SimulateLinearWindow( struct GrowableBuffer *buffer, const char *ptr
 				// Write a simple linear HLS header, without the type:VOD, and with dynamic media sequence number
 				wroteHeader = true;
 				char header[1024];
-				sprintf( header,
+				snprintf( header, sizeof(header),
 					"#EXTM3U\n"
 					"#EXT-X-VERSION:3\n"
 					"#EXT-X-TARGETDURATION:2\n"
@@ -802,7 +802,7 @@ size_t PrivateInstanceAAMP::HandleSSLWriteCallback ( char *ptr, size_t size, siz
 		}
 		else
 		{
-			AAMPLOG_WARN("CurlTrace write_callback - interrupted, ret:%d", ret);
+			AAMPLOG_WARN("CurlTrace write_callback - interrupted, ret:%zu", ret);
 		}
     }
     pthread_mutex_unlock(&context->aamp->mLock);
@@ -1212,7 +1212,7 @@ int PrivateInstanceAAMP::HandleSSLProgressCallback ( void *clientp, double dltot
 				double predictedTotalDownloadTimeMs = elapsedTimeMs*dltotal/dlnow;
 				if( predictedTotalDownloadTimeMs > aamp->mNetworkTimeoutMs )
 				{
-					AAMPLOG_WARN("lowBWTimeout=%ds; predictedTotalDownloadTime=%fs>%fs (network timeout)",
+					AAMPLOG_WARN("lowBWTimeout=%lds; predictedTotalDownloadTime=%fs>%fs (network timeout)",
 								 context->lowBWTimeout,
 								 predictedTotalDownloadTimeMs/1000.0,
 								 aamp->mNetworkTimeoutMs/1000.0 );
@@ -2929,7 +2929,7 @@ void PrivateInstanceAAMP::AdditionalTuneFailLogEntries()
 			}
 			downloadsBlockedMessage += " blocked, ";
 		}
-		AAMPLOG_WARN(downloadsBlockedMessage.c_str());
+		AAMPLOG_WARN("%s", downloadsBlockedMessage.c_str());
 	}
 
 	{
@@ -2943,7 +2943,7 @@ void PrivateInstanceAAMP::AdditionalTuneFailLogEntries()
 			}
 			injectionBlockedMessage += " blocked, ";
 		}
-		AAMPLOG_WARN(injectionBlockedMessage.c_str());
+		AAMPLOG_WARN("%s", injectionBlockedMessage.c_str());
 	}
 	
 	if(mpStreamAbstractionAAMP)
@@ -2979,7 +2979,7 @@ void PrivateInstanceAAMP::AdditionalTuneFailLogEntries()
 			}
 			trackBufferStatusMessage += ", ";
 		}
-		AAMPLOG_WARN(trackBufferStatusMessage.c_str());
+		AAMPLOG_WARN( "%s", trackBufferStatusMessage.c_str());
 	}
 }
 
@@ -3965,7 +3965,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 							}
 							else
 							{
-								AAMPLOG_INFO("[%d] Buffer Length: %d", simType, context.buffer->len);
+								AAMPLOG_INFO("[%d] Buffer Length: %zu", simType, context.buffer->len);
 
 								//Print box details
 								//isobuf.printBoxes();
@@ -4156,7 +4156,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 						// example 18(0) if connection failure with PARTIAL_FILE code
 						timeoutClass = "(" + to_string(reqSize > 0) + ")";
 					}
-					AAMPLOG(mLogObj, reqEndLogLevel, "WARN", "HttpRequestEnd: %s%d,%d,%ld%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%ld,%ld,%.500s",
+					AAMPLOG(mLogObj, reqEndLogLevel, "WARN", "HttpRequestEnd: %s%d,%d,%d%s,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%2.4f,%g,%ld,%ld,%ld,%.500s",
 						appName.c_str(), mediaType, simType, http_code, timeoutClass.c_str(), totalPerformRequest, total, connect, startTransfer, resolve, appConnect, preTransfer, redirect, dlSize, reqSize,downloadbps,
 						(((simType == eMEDIATYPE_VIDEO) || (simType == eMEDIATYPE_INIT_VIDEO) || (simType == eMEDIATYPE_PLAYLIST_VIDEO)) ? mpStreamAbstractionAAMP->GetVideoBitrate() : 0), // Video fragment current bitrate
 						((res == CURLE_OK) ? effectiveUrl.c_str() : remoteUrl.c_str())); // Effective URL could be different than remoteURL and it is updated only for CURLE_OK case
@@ -4177,7 +4177,7 @@ bool PrivateInstanceAAMP::GetFile(std::string remoteUrl,struct GrowableBuffer *b
 		{
 			if (http_code == CURLE_OPERATION_TIMEDOUT && buffer->len > 0)
 			{
-				AAMPLOG_WARN("Download timedout and obtained a partial buffer of size %d for a downloadTime=%d and isDownloadStalled:%d", buffer->len, downloadTimeMS, isDownloadStalled);
+				AAMPLOG_WARN("Download timedout and obtained a partial buffer of size %zu for a downloadTime=%d and isDownloadStalled:%d", buffer->len, downloadTimeMS, isDownloadStalled);
 			}
 
 			if (downloadTimeMS > 0 && fileType == eMEDIATYPE_VIDEO && CheckABREnabled())
@@ -6430,7 +6430,7 @@ std::string PrivateInstanceAAMP::GetThumbnailTracks()
 					if(data[i]->bandwidthBitsPerSecond >= 0)
 					{
 						char buf[32];
-						sprintf(buf,"%dx%d",data[i]->resolution.width,data[i]->resolution.height);
+						snprintf(buf, sizeof(buf), "%dx%d",data[i]->resolution.width,data[i]->resolution.height);
 						cJSON_AddStringToObject(item,"RESOLUTION",buf);
 						cJSON_AddNumberToObject(item,"BANDWIDTH",data[i]->bandwidthBitsPerSecond);
 					}
@@ -6529,7 +6529,7 @@ void PrivateInstanceAAMP::UpdatePreferredAudioList()
 			preferredRenditionList.push_back(rendition);
 			AAMPLOG_INFO("Parsed preferred rendition: %s",rendition.c_str());
 		}
-		AAMPLOG_INFO("Number of preferred Renditions: %d",
+		AAMPLOG_INFO("Number of preferred Renditions: %lu",
                         preferredRenditionList.size());
 	}
 
@@ -6543,7 +6543,7 @@ void PrivateInstanceAAMP::UpdatePreferredAudioList()
                 	preferredCodecList.push_back(codec);
                 	AAMPLOG_INFO("Parsed preferred codec: %s",codec.c_str());
         	}
-		AAMPLOG_INFO("Number of preferred codec: %d",
+		AAMPLOG_INFO("Number of preferred codec: %lu",
                         preferredCodecList.size());
 	}
 
@@ -6557,7 +6557,7 @@ void PrivateInstanceAAMP::UpdatePreferredAudioList()
         	        preferredLanguagesList.push_back(lng);
         	        AAMPLOG_INFO("Parsed preferred lang: %s",lng.c_str());
         	}
-		AAMPLOG_INFO("Number of preferred languages: %d",
+		AAMPLOG_INFO("Number of preferred languages: %lu",
                         preferredLanguagesList.size());
 	}
 	if(!preferredLabelsString.empty())
@@ -6570,7 +6570,7 @@ void PrivateInstanceAAMP::UpdatePreferredAudioList()
 				preferredLabelList.push_back(lng);
 				AAMPLOG_INFO("Parsed preferred Label: %s",lng.c_str());
 		}
-		AAMPLOG_INFO("Number of preferred Labels: %d", preferredLabelList.size());
+		AAMPLOG_INFO("Number of preferred Labels: %lu", preferredLabelList.size());
 	}
 	
 
@@ -7082,7 +7082,7 @@ void PrivateInstanceAAMP::Stop()
 	pthread_mutex_lock(&mEventLock);
 	if (mPendingAsyncEvents.size() > 0)
 	{
-		AAMPLOG_WARN("PrivateInstanceAAMP: mPendingAsyncEvents.size - %d", mPendingAsyncEvents.size());
+		AAMPLOG_WARN("PrivateInstanceAAMP: mPendingAsyncEvents.size - %lu", mPendingAsyncEvents.size());
 		for (std::map<guint, bool>::iterator it = mPendingAsyncEvents.begin(); it != mPendingAsyncEvents.end(); it++)
 		{
 			if (it->first != 0)
@@ -8168,7 +8168,7 @@ void PrivateInstanceAAMP::SetCallbackAsDispatched(guint id)
 	}
 	else
 	{
-		AAMPLOG_WARN("id not in mPendingAsyncEvents, insert and mark as not pending", id);
+		AAMPLOG_WARN("id %d not in mPendingAsyncEvents, insert and mark as not pending", id);
 		mPendingAsyncEvents[id] = false;
 	}
 	pthread_mutex_unlock(&mEventLock);
@@ -8184,7 +8184,7 @@ void PrivateInstanceAAMP::SetCallbackAsPending(guint id)
 	if(itr != mPendingAsyncEvents.end())
 	{
 		assert (!itr->second);
-		AAMPLOG_WARN("id already in mPendingAsyncEvents and completed, erase it", id);
+		AAMPLOG_WARN("id %d already in mPendingAsyncEvents and completed, erase it", id);
 		mPendingAsyncEvents.erase(itr);
 	}
 	else
@@ -9325,7 +9325,7 @@ void PrivateInstanceAAMP::SetPreCacheDownloadList(PreCacheUrlList &dnldListInput
 	mPreCacheDnldList = dnldListInput;
 	if(mPreCacheDnldList.size())
 	{
-		AAMPLOG_WARN("Got Playlist PreCache list of Size : %d", mPreCacheDnldList.size());
+		AAMPLOG_WARN("Got Playlist PreCache list of Size : %lu", mPreCacheDnldList.size());
 	}
 	
 }
@@ -10749,7 +10749,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 			AAMPLOG_ERR("Preferred Audio Language Field Only support String or String Array");
 		}
 
-		AAMPLOG_INFO("Number of preferred languages received: %d", inputLanguagesList.size());
+		AAMPLOG_INFO("Number of preferred languages received: %lu", inputLanguagesList.size());
 		AAMPLOG_INFO("Preferred language string received: %s", inputLanguagesString.c_str());
 
 		std::string inputLabelsString;
@@ -10857,7 +10857,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioLanguage,preferredLanguagesString);
 			}
 
-			AAMPLOG_INFO("Number of preferred languages: %d", preferredLanguagesList.size());
+			AAMPLOG_INFO("Number of preferred languages: %lu", preferredLanguagesList.size());
 			
 			if(labelList != NULL)
 			{
@@ -10874,7 +10874,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 
 				preferredLabelsString = std::string(labelList);
 				SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioLabel,preferredLabelsString);
-				AAMPLOG_INFO("Number of preferred labels: %d", preferredLabelList.size());
+				AAMPLOG_INFO("Number of preferred labels: %lu", preferredLabelList.size());
 			}
 
 			if( preferredRendition )
@@ -10921,7 +10921,7 @@ void PrivateInstanceAAMP::SetPreferredLanguages(const char *languageList, const 
 				preferredCodecString = std::string(codecList);
 				SETCONFIGVALUE_PRIV(AAMP_APPLICATION_SETTING,eAAMPConfig_PreferredAudioCodec,preferredCodecString);
 			}
-			AAMPLOG_INFO("Number of preferred codecs: %d", preferredCodecList.size());
+			AAMPLOG_INFO("Number of preferred codecs: %lu", preferredCodecList.size());
 		}
 		else
 		{
@@ -11147,7 +11147,7 @@ void PrivateInstanceAAMP::SetPreferredTextLanguages(const char *param )
 			AAMPLOG_ERR("Preferred Text Language Field Only support String or String Array");
 		}
 
-		AAMPLOG_INFO("Number of preferred Text languages: %d", inputTextLanguagesList.size());
+		AAMPLOG_INFO("Number of preferred Text languages: %lu", inputTextLanguagesList.size());
 		AAMPLOG_INFO("Preferred Text languages string: %s", inputTextLanguagesString.c_str());
 
 		std::string inputTextRenditionString;
@@ -11424,7 +11424,7 @@ unsigned char* PrivateInstanceAAMP::ReplaceKeyIDPsshData(const unsigned char *In
 		0x22, 0x06, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x37
 	};
 	if (InputData){
-		AAMPLOG_INFO("Converting system UUID of PSSH data size (%d)", InputDataLength);
+		AAMPLOG_INFO("Converting system UUID of PSSH data size (%zu)", InputDataLength);
 #ifdef ENABLE_DUMP
 		AAMPLOG_INFO("PSSH Data (%d) Before Modification : ", InputDataLength);
 		DumpBlob(InputData, InputDataLength);

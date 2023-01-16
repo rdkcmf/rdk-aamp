@@ -57,7 +57,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
 {
     // FN_TRACE_F_MPD( __FUNCTION__ );
     bool ret = false;
-    AAMPLOG_TRACE("Type[%d] fragmentUrl %s fragmentTime %f discontinuity %d pto %f  scale %lu duration %f", type, fragmentUrl.c_str(), position, discontinuity, pto, scale, duration);
+	AAMPLOG_TRACE("Type[%d] fragmentUrl %s fragmentTime %f discontinuity %d pto %f  scale %u duration %f", type, fragmentUrl.c_str(), position, discontinuity, pto, scale, duration);
 
     fragmentDurationSeconds = duration;
     ProfilerBucketType bucketType = aamp->GetProfilerBucketForMedia(mediaType, initSegment);
@@ -308,7 +308,7 @@ bool MediaStreamContext::CacheFragment(std::string fragmentUrl, unsigned int cur
  */
 bool MediaStreamContext::CacheFragmentChunk(MediaType actualType, char *ptr, size_t size, std::string remoteUrl,long long dnldStartTime)
 {
-    AAMPLOG_TRACE("[%s] Chunk Buffer Length %d Remote URL %s", name, size, remoteUrl.c_str());
+	AAMPLOG_TRACE("[%s] Chunk Buffer Length %zu Remote URL %s", name, size, remoteUrl.c_str());
 
     bool ret = true;
     if (WaitForCachedFragmentChunkInjected())
