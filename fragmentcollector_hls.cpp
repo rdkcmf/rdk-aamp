@@ -5449,6 +5449,8 @@ void TrackState::Stop(bool clearDRM)
 #endif
 		fragmentCollectorThreadStarted = false;
 	}
+
+	aamp->StopTrackInjection((MediaType) type);
 	StopInjectLoop();
 
 	//To be called after StopInjectLoop to avoid cues to be injected after cleanup
@@ -5518,6 +5520,7 @@ void TrackState::Start(void)
 
 	if(aamp->IsPlayEnabled())
 	{
+		aamp->ResumeTrackInjection((MediaType) type);
 		StartInjectLoop();
 	}
 }
