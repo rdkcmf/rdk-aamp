@@ -1310,7 +1310,7 @@ public:
 	 * @param[in] fileType - Type of Media
 	 * @param[out] pointer to Media Type string
 	 */
-	const char* MediaTypeString(MediaType fileType);
+	static const char* MediaTypeString(MediaType fileType);
 
 	/**
 	 * @fn LoadFragment
