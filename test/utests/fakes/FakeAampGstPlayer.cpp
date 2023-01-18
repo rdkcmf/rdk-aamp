@@ -71,11 +71,6 @@ bool AAMPGstPlayer::SetPlayBackRate ( double rate )
 	return true;
 }
 
-bool AAMPGstPlayer::AdjustPlayBackRate(double position, double rate)
-{ 
-	return true; 
-}
-
 bool AAMPGstPlayer::Pause(bool pause, bool forceStopGstreamerPreBuffering)
 { 
 	return true;
