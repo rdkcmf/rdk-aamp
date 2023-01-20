@@ -52,6 +52,8 @@ add_executable(${EXEC_NAME}
                ${TEST_SOURCES}
                ${AAMP_SOURCES})
 
+set_target_properties(${EXEC_NAME} PROPERTIES FOLDER "utests")
+
 # Can be removed once SESSION_STATS build issues resolved
 set_target_properties(${EXEC_NAME} PROPERTIES COMPILE_FLAGS "-DSESSION_STATS")
 

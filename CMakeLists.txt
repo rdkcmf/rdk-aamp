@@ -24,6 +24,8 @@ cmake_minimum_required (VERSION 2.6)
 #add_subdirectory(jsbindings)
 find_package(PkgConfig REQUIRED)
 
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 if( CMAKE_USE_GST_0.10 )
 	message( FATAL_ERROR "gstreamer-0.10 not supported" )
 else()
@@ -704,6 +706,9 @@ endif()
 
 if (SMOKETEST_ENABLED)
 	add_subdirectory(test/smoketest)
+endif()
+if (UTEST_ENABLED)
+	add_subdirectory(test/utests)
 endif()
 
 message("LIBAAMP_DEFINES is ${LIBAAMP_DEFINES}")

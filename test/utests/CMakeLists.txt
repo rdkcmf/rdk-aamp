@@ -19,6 +19,8 @@ cmake_minimum_required(VERSION 2.6)
 
 project(UnitTests)
 
+# Don't include CTestDashboardTargets in GUI projects
+set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
 include(CTest)
 
 find_package(PkgConfig REQUIRED)

@@ -45,6 +45,7 @@ set(AAMP_SOURCES ${AAMP_ROOT}/main_aamp.cpp)
 add_executable(${EXEC_NAME}
                ${TEST_SOURCES}
                ${AAMP_SOURCES})
+set_target_properties(${EXEC_NAME} PROPERTIES FOLDER "utests")
 
 target_link_libraries(${EXEC_NAME} fakes -lpthread ${GLIB_LDFLAGS} ${OS_LD_FLAGS} -lgmock -lgtest)
 
