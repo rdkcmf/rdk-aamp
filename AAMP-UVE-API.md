@@ -1,6 +1,6 @@
 
 # ![](images/logo.png) <br/> AAMP / Universal Video Engine (UVE)
-# V4.12
+# V5.1
  
 ## Overview
 
@@ -16,13 +16,13 @@ AAMP is an open source native video engine that is built on top of GStreamer and
 This document is targeted to application developers  who are interested in evaluating/adopting AAMP for their media player applications on settops running RDKV based firmware.  UVE implementations also exist which can be used in non-RDK browsers.
 
 ## Features
-- Formats: HLS, DASH, Fragmented MP4 HLS , Progressive MP4
+- Formats: HLS, DASH, Fragmented MP4 HLS,  Progressive MP4
 - DRM Systems: Clear Key, Vanilla AES-128, PlayReady, Widevine
-- Captions: CEA-608/708 Captions , WebVTT
+- Captions: CEA-608/708 Captions, WebVTT
 - Client DAI / Server Side Ad Insertion
 - Thumbnail / Watermarking
 - Intra Asset Encryption / DRM License Rotation
-- DD+ , Dolby ATMOS , AC4 Support
+- DD+, Dolby ATMOS, AC4 Support
 - Low Latency DASH
 
 ## Roadmap
@@ -280,6 +280,15 @@ Dec  2022 Release update
     - persistLowNetworkBandwidth
     - customHeaderLicense
 
+**Version:** 5.1
+**Release Notes:** 
+Jan  2023 Release update
+- API
+    - setContentProtectionDataConfig
+    - setContentProtectionDataUpdateTimeout
+- Configuration
+    - configRuntimeDRM
+
 <div style="page-break-after: always;"></div>
 
 ## Abbreviation Summary 
@@ -334,71 +343,71 @@ Configuration options are passed to AAMP using the UVE initConfig method. This a
 
 | Property | Type | Default Value | Description |
 | ----- | ----- | ----- | ----- |
-| initialBitrate | Number | 2500000 | max initial bitrate (bps) |
-| initialBitrate4K | Number | 13000000 | max initial bitrate for 4k video playback (bps) |
-| Offset | Number | 0 | start position offset in seconds(same as seek() method) |
-| networkTimeout | Number | 10 | network request timeout for fragment/playlist/manifest downloads (in seconds) |
-| manifestTimeout | Number | 10 | Manifest download timeout; overrides networkTimeout if both present; available starting with version 0.8 . Applied to Main manifest in HLS and DASH manifest download. (in seconds) |
-| playlistTimeout | Number | 10 | HLS playlist download timeout; overrides networkTimeout if both present; available starting with version 1.0 (in seconds) |
-| downloadBuffer | Number | 4 | max amount of time to download ahead of playhead (fragments). Example: With a downloadBuffer of 4 (default) there will be 4 fragments (typically 2 second each) of video or audio harvested and buffered in advance, in additional to internal playback buffering |
-| minBitrate | Number | - | Optional profile clamping (in bps) |
-| maxBitrate | Number | - | Optional profile clamping (in bps) |
-| preferredAudioLanguage | String | en | ISO-639 audio language preference; for more than one language, provide comma delimited list from highest to lowest priority: ‘<HIGHEST>,<...>,<LOWEST>’.Preferred language can be set using APIs setAudioTrack/setAudioLanguage/setPreferredAudioLanguage |
-| timeShiftBufferLength | Number | - | (not  supported, for future) |
-| stereoOnly | Boolean | False | Optional forcing of playback to only select stereo audio track  available starting with version 0.8 |
+| initialBitrate | Number | 2500000 | Initial bitrate (bps) for playback |
+| initialBitrate4K | Number | 13000000 | Initial bitrate (bps) for 4k video playback |
+| minBitrate | Number | - | Input for minimum profile clamping (in bps).Default is lowest bitrate profile in the manifest |
+| maxBitrate | Number | - | Input for maximum profile clamping (in bps) .Default is highest bitrate profile in the manifest|
+| disable4K | Boolean | False | Configuration to disable 4K profile playback and restrict only to non-4K video profiles |
+| limitResolution | Boolean | False | Configuration to enable setting maximum playback video profile resolution based on TV display resolution setting . Default disabled, player selects every profile irrespective of TV resolution. |
+| persistBitrateOverSeek | Boolean | False | To enable player persist video profile bitrate during Seek/Trickplay/Audio switching operation .By default player picks initialBitrate configured |
+| useAverageBandwidth | Boolean | False | Configuration to enable using AVERAGE-BANDWIDTH instead of BANDWIDTH in HLS Stream variants for ABR switching |
+| Offset | Number | 0 | Play position offset in seconds to start playback(same as seek() method to resume at a position) |
 | liveOffset | Number | 15 | Allows override the default/stream-defined distance from a live point for live stream playback (in seconds) |
 | liveOffset4K | Number | 15 | Allows override the default/stream-defined distance from a live point for 4K live stream playback (in seconds) |
-| bulkTimedMetadata | Boolean | False | Send timed metadata using single JSON array string instead of individual events  available starting with version 0.8 |
-| networkProxy | String | - | Network proxy to use (Format <SCHEME>://<PROXY IP:PROXY PORT>) |
-| licenseProxy | String | - | Network proxy to use for license requests (Format same as network proxy) |
+| networkTimeout | Number | 10 | Network request timeout for fragment/playlist/manifest downloads (in seconds) |
+| manifestTimeout | Number | 10 | Manifest download timeout; overrides networkTimeout if both present; Applied to Main manifest in HLS and DASH manifest download. (in seconds) |
+| playlistTimeout | Number | 10 | HLS playlist download timeout; overrides networkTimeout if both present; available starting with version 1.0 (in seconds) |
 | downloadStallTimeout | Number | - | Optional optimization - Allow fast-failure for class of curl-detectable mid-download stalls (in seconds) |
 | downloadStartTimeout | Number | - | Optional optimization  - Allow fast-failure for class of curl-detectable stall at start of download (in seconds) |
-| preferredSubtitleLanguage | String | en | ISO-639 language code used with VTT OOB captions |
+| persistHighNetworkBandwidth | Boolean | False | Optional field to enable persist High Network bitrate from previous tune for profile selection in next tune ( if attempted within 10 sec) . This will override initialBitrate settings  |
+| persistLowNetworkBandwidth | Boolean | True | Optional field to disable persisting low Network bitrate from previous tune for profile selection in next tune ( if attempted within 10 sec) . This will override initialBitrate settings  |
+| supportTLS | Number | 6 | Default set to CURL_SSLVERSION_TLSv1_2 (value of 6, uses CURLOPT_SSLVERSION values)  |
+| sharedSSL | Boolean | True | Optional field to disable sharing SSL context for all download sessions, across manifest, playlist and segments .  |
+| sslVerifyPeer | Boolean | True | Optional field to enable/disable SSL peer verification .Default enabled |
+| networkProxy | String | - | Network proxy to use for all downloads (Format <http/https>://<IP:PORT>). Use licenseProxy for license request routing |
+| licenseProxy | String | - | Network proxy to use for license requests (Format same as network proxy) |
+| initialBuffer | Number | 0 | Optional setting. Pre-tune buffering (in seconds) before playback start. With default of 0,player starts playback with 1st segment downloaded|
+| downloadBuffer | Number | 4 | Max number of segments which can be cached ahead of play head(including initialization header segment).This applies to every track type(Video/Audio/Text). This is player buffer in addition to streamer playback buffer which varies with platform |
+| bulkTimedMetadata | Boolean | False | Send timed metadata using single JSON array string instead of individual events  available starting with version 0.8 |
 | parallelPlaylistDownload | Boolean | True | Optional optimization – download audio and video playlists in parallel for HLS; available starting with version 0.8 |
 | parallelPlaylistRefresh | Boolean | True | Optionally disable audio video playlist parallel download for linear (only for HLS) |
-| useAverageBandwidth | Boolean | False | Optional Average bandwidth for ABR switching ( version 1.0) |
 | preCachePlaylistTime | Number | - | Optionally enable PreCaching of Playlist and TimeWindow for Cache(minutes) ( version 1.0) |
+| maxPlaylistCacheSize | Number | 0 | Optional field to configure maximum cache size in Kbytes to store different profile HLS VOD playlist |
+| maxInitFragCachePerTrack | Number | 5 | Number of initialization header file cached per player instance per track type. Use cached data instead of network re-download  |
 | progressReportingInterval | Number | 1 | Optionally change Progress Report Interval (in seconds) |
 | useRetuneForUnpairedDiscontinuity | Boolean | True | Optional unpaired discontinuity retune config ( version 1.0) |
-| drmDecryptFailThreshold | Number | 10 | Maximum number of fragment decrypt failures before reporting playback error (version 1.0) |
-| initialBuffer | Number | - | Optional pre-tune buffering (in seconds) before playback start (version 2.4) |
 | useMatchingBaseUrl | Boolean | False | use DASH main manifest hostname to select from multiple base urls in DASH (when present).  By default, will always choose first (version 2.4) |
 | initFragmentRetryCount | Number | 1 | Maximum number of retries for MP4 header fragment download failures (version 2.4)  |
-| nativeCCRendering | Boolean | False | Use native ClosedCaption support in AAMP (version 2.6) |
-| langCodePreference | Number | 0 | Set the preferred format for language codes in other events/APIs (version 2.6) NO_LANGCODE_PREFERENCE = 0, 3_CHAR_BIBLIOGRAPHIC_LANGCODE = 1, 3_CHAR_TERMINOLOGY_LANGCODE = 2, 2_CHAR_LANGCODE = 3 |
-| descriptiveTrackName | Boolean | False | Use descriptive audio track naming format which is a combination of <lang>-<role> (version 2.6) |
-| authToken | String | - | Optional field to set AuthService token for license acquisition(version 2.7) |
 | useRetuneForGstInternalError | Boolean | True | Optional Gstreamer error retune config ( version 2.7) |
 | reportVideoPTS | Boolean | False | Optional field to enable Video PTS reporting along with progressReport (version 3.0) |
 | propagateUriParameters | Boolean | True | Optional field to disable propagating URI parameters from Main manifest to segment downloads |
 | enableSeekableRange | Boolean | False | Optional field to enable reporting of seekable range for linear scrubbing  |
-| maxPlaylistCacheSize | Number | 0 | Optional field to configure maximum cache size in Kbytes to store different profile HLS VOD playlist |
-| setLicenseCaching | Boolean | True | Optional field to disable License Caching in player . By default 3 DRM Sessions are Cached . |
-| persistBitrateOverSeek | Boolean | False | To enable AAMP persisting video profile during Seek/Trickplay/Audio switching operation |
-| sslVerifyPeer | Boolean | True | Optional field to enable/disable SSL peer verification .Default enabled |
-| livePauseBehavior | Number | 0 | Optional field to configure player live pause behavior on linear streams when live window touches eldest position. Options: 0 – Autoplay immediate; 1 – Live immediate; 2 – Autoplay defer; 3 – Live defer; Default – Autoplay immediate |
-| limitResolution | Boolean | False | Optional field to set maximum video profile resolution based on TV display resolution setting . Default Off. |
+| livePauseBehavior | Number | 0 | Optional field to configure player live pause behavior on linear streams when live window touches eldest position. Options: 0 – Autoplay immediate; 1 – Live immediate; 2 – Autoplay defer; 3 – Live defer; Default – Autoplay immediate . Refer [Appendix](#live-pause-configuration)|
 | asyncTune | Boolean | True | Optional field to enable asynchronous player API processing. Application / UI caller threads returned immediately without any processing delays. |
 | useAbsoluteTimeline | Boolean | False | Optional field to enable progress reporting based on Availability Start Time of stream (DASH Only) |
-| sharedSSL | Boolean | True | Optional field to disable sharing SSL context for all download sessions, across manifest, playlist and segments .  |
-| disable4K | Boolean | False | Optional field to disable 4K profile playback and restrict only to non-4K video profiles |
-| preferredAudioRendition | String |  | Optional field to set preferred Audio rendition setting DASH : caption,subtitle, main; HLS : GROUP-ID  |
-| preferredAudioCodec | String |  | Optional field to set preferred Audio codec. Comma-delimited list of formats, where each format specifies a media sample type that is present in one or more Renditions specified by the Variant Stream. Example: mp4a.40.2, avc1.4d401e |
 | tsbInterruptHandling | Boolean | False | Optional field to enable support for Network interruption handling with TSB.  Network failures will be ignored and TSB will continue building |
-| supportTLS | Number | 6 | Default set to CURL_SSLVERSION_TLSv1_2 (value of 6 , uses CURLOPT_SSLVERSION values)  |
-| maxInitFragCachePerTrack | Number | 5 | Number of initialization header file cached per player instance per track type. Use cached data instead of network re-download  |
 | fragmentDownloadFailThreshold | Number | 10 | Maximum number of fragment download failures before reporting playback error |
 | useSecManager | Boolean | True | Optional field to enable /disable usage of SecManager for Watermarking functionality (for Comcast streams only)|
+| drmDecryptFailThreshold | Number | 10 | Maximum number of fragment decrypt failures before reporting playback error (version 1.0) |
+| customHeaderLicense | String |  | Optional field to provide custom header data to add in license request during tune. This can be set with addCustomHTTPHeader API during playback for license rotation if required|
+| setLicenseCaching | Boolean | True | Optional field to disable License Caching in player . By default 3 DRM Sessions are Cached . |
+| authToken | String | - | Optional field to set AuthService token for license acquisition(version 2.7) |
+| configRuntimeDRM | Boolean | False | Optional field to  enable DRM notification and get Application configuration for every license request. Also refer [API](#configruntimedrmenableconfiguration)|
+| preferredAudioLanguage | String | en | ISO-639 audio language preference; for more than one language, provide comma delimited list from highest to lowest priority: ‘<HIGHEST>,<...>,<LOWEST>’.Preferred language can be set using APIs [setAudioTrack](#setaudiotrackindex-)/[setAudioLanguage](#setaudiolanguage-language-)/[setPreferredAudioLanguage](#setpreferredaudiolanguage-languages-rendition-accessibility)[](#setaudiolanguage-language-) |
+| stereoOnly | Boolean | False | Optional forcing of playback to only select stereo audio track  available starting with version 0.8 |
 | disableEC3 | Boolean | False | Optional field to disable selection of EC3/AC3 audio track |
 | disableATMOS | Boolean | False | Optional field to disable selection of ATMOS audio track |
 | disableAC4 | Boolean | False | Optional field to disable selection of AC4 audio track |
-| persistHighNetworkBandwidth | Boolean | False | Optional field to enable persist High Network bitrate from previous tune for profile selection in next tune ( if attempted within 10 sec) . This will override initialBitrate settings  |
-| persistLowNetworkBandwidth | Boolean | True | Optional field to disable persisting low Network bitrate from previous tune for profile selection in next tune ( if attempted within 10 sec) . This will override initialBitrate settings  |
-| customHeaderLicense | String |  | Optional field to provide custom header data to add in license request during tune. This can be set with addCustomHTTPHeader API during playback for license rotation if required|
-| preferredAudioRendition | String |  | Optional field to set rendition of desired audio track in the available audio tracks list. Same can be done with setAudioTrack API also|
-| preferredAudioCodec | String |  | Optional field to set preferred codec of the audio track. Same can be done with setAudioTrack API also|
+| preferredAudioRendition | String |  | Optional field to set preferred Audio rendition setting DASH : caption,subtitle, main; HLS : GROUP-ID  |
+| preferredAudioCodec | String |  | Optional field to set preferred Audio codec. Comma-delimited list of formats, where each format specifies a media sample type that is present in one or more Renditions specified by the Variant Stream. Example: mp4a.40.2, avc1.4d401e |
 | preferredAudioLabel | String |  | Optional field to set label of desired audio track in the available audio tracks list. Same can be done with setAudioTrack API also|
 | preferredAudioType | String |  | Optional preferred accessibility type for descriptive audio in the available audio tracks list. Same can be done with setAudioTrack API also|
+| langCodePreference | Number | 0 | Set the preferred format for language codes in other events/APIs (version 2.6) NO_LANGCODE_PREFERENCE = 0, 3_CHAR_BIBLIOGRAPHIC_LANGCODE = 1, 3_CHAR_TERMINOLOGY_LANGCODE = 2, 2_CHAR_LANGCODE = 3 |
+| descriptiveTrackName | Boolean | False | Use descriptive audio track naming format which is a combination of <lang>-<role> (version 2.6) |
+| preferredSubtitleLanguage | String | en | ISO-639 language code used with VTT OOB captions |
+| nativeCCRendering | Boolean | False | Use native ClosedCaption support in AAMP (version 2.6) |
+
+
 
 Example:
 ```js
@@ -601,7 +610,7 @@ Usage example:
 | Name | Type | Description |
 | ---- | ---- | ---------- |
 | offset | Number | Offset from beginning of VOD asset. For live playback, offset is relative to eldest portion of initial window. Offset value should be in seconds. <br/>**Note:** that ability to seek is currently limited to fragment granularity. |
-| keepPause | Boolean | Optional input . Default value is false, playback starts automatically after seek.<br/> If True , player will maintain paused state after seek execution if the state was in paused before seek call.  <br/>Available with version 2.6 |
+| keepPause | Boolean | Optional input . Default value is false, playback starts automatically after seek.<br/> If True, player will maintain paused state after seek execution if the state was in paused before seek call.  <br/>Available with version 2.6 |
 
 Example:
 ```js
@@ -704,12 +713,15 @@ Example:
 
 ---
 
+### getManifest()
+- Return currently presenting manifest as plain text - supported only for DASH/VOD.
+
+---
 ### getVideoBitrates()
 - Supported UVE version 0.7 and above.
 - Return array of available video bitrates across profiles.
 
 ---
-
 ### getCurrentVideoBitrate()
 - Supported UVE version 0.7 and above.
 - Return current video playback bitrate, as bits per second.
@@ -718,11 +730,16 @@ Example:
 
 ### setVideoBitrate( bitrate )
 - Supported UVE version 0.7 and above.
-- Note : This will disable ABR functionality and lock the player to a single profile for the bitrate passed. To enable the ABR , call the API with 0.
+- Note : This will disable ABR functionality and lock the player to a single profile for the bitrate passed. To enable the ABR, call the API with 0.
 
 |Name|Type|Description|
 |----|----|-----------|
 |bitrate|Number|To disable ABR and lock playback to single profile bitrate. |
+
+---
+
+### getAudioBitrates()
+- Return array of all audio bitrates advertised in manifest.  Note that this is read-only informative list.  We do not yet expose method to force selection of specific audio tracks that differ only by bitrate.
 
 ---
 
@@ -985,7 +1002,7 @@ hls/360p.m3u8
 
 ### getPreferredAudioProperties ()
 - Supported UVE version 4.2 and above.
-- Returns the list of preferred language, codecs , rendition and audio type configured by application , in JSON format.
+- Returns the list of preferred language, codecs,  rendition and audio type configured by application, in JSON format.
 
 ---
 
@@ -1022,9 +1039,9 @@ playerInstance.setAudioTrack( trackDescriptorObject );
 
 ---
 
-### setPreferredAudioLanguage( languages, rendition, accessibility)
+### setPreferredAudioLanguage( languages, rendition, accessibility, codecList, label)
 - Supported UVE version 3.2 and above.
-- Set the audio track  preference by languages, rendition and accessibility
+- Set the audio track  preference by languages, rendition, accessibility, codecList and label
 - This is functionally equivalent to passing a trackDescriptorObject to setAudioTrack above.
 - May be called pre-tune or post tune.
 - Behaviour is similar to setPreferredAudioLanguage ( JSON String)
@@ -1035,8 +1052,8 @@ playerInstance.setAudioTrack( trackDescriptorObject );
 |||for more than one language, provide comma delimited list from highest to lowest priority:  ‘<HIGHEST>,<...>,<LOWEST>’ |
 | rendition | String | Optional preferred rendition for automatic audio selection |
 | accessibilityType | String | Optional preferred accessibility type for descriptive audio |
-| codecList | String |	Codec preferences, for more than one codecs, provide comma delimited list from highest to lowest priority: ‘<HIGHEST>,<...>,<LOWEST>’ |
-| label | String | Preferred Label for automatic audio selection |
+| codecList | String |	Optional Codec preferences, for more than one codecs, provide comma delimited list from highest to lowest priority: ‘<HIGHEST>,<...>,<LOWEST>’ |
+| label | String | Optional Preferred Label for automatic audio selection |
 
 - ###### Example :
 ```js
@@ -1057,7 +1074,7 @@ playerInstance.setPreferredAudioLanguage( "en,de,mul","alternate","description",
     - If PreferredAudioLanguage is set pretune:
         - Player will pick best quality track from the language matching list.
         - For Live (with TSB support), time shift buffer downloads only preferred language tracks but publishes all available languages to application with availability field as false. 
-        - If preferred audio language is not available in the manifest, first available track will be selected. For Live (with TSB support) , buffer downloads first available track and  publishes the other audio tracks with availability field as false.
+        - If preferred audio language is not available in the manifest, first available track will be selected. For Live (with TSB support), buffer downloads first available track and  publishes the other audio tracks with availability field as false.
     - If setPreferredAudioLanguage (or setAudioTrack) is called  post tune:
         - Player will pick best quality track from the language matching list.
         - For Live (with TSB support), If the new preferred language track is already available in time shift buffer, then player changes to new track without losing TSB buffer.
@@ -1070,8 +1087,8 @@ playerInstance.setPreferredAudioLanguage( "en,de,mul","alternate","description",
 | rendition | String | Optional preferred rendition for automatic audio selection |
 | label	| String | Preferred Label for automatic audio selection |
 | accessibility | Object | Optional preferred accessibility object for audio |
-| accessibility.scheme | String | Preferred Accessibility scheme Id  |
-|  accessibility.string_value | String | Preferred Accessibility scheme Id value |
+| accessibility.scheme | String | Optional Preferred Accessibility scheme Id  |
+|  accessibility.string_value | String | Optional Preferred Accessibility scheme Id value |
 
 - ###### Example :
 ```js
@@ -1229,7 +1246,7 @@ playerInstance.setPreferredAudioLanguage( trackPreferenceObject );
 - If PreferredTextLanguage is set pretune:
     - Player will text track from the language matching list.
     - For Live (with TSB support), time shift buffer downloads only preferred language tracks but publishes all available languages to application with availability field as false. 
-    - If preferred text language is not available in the manifest, first available track will be selected. For Live (with TSB support) , buffer downloads first available track and  publishes the other audio tracks with availability field as false.
+    - If preferred text language is not available in the manifest, first available track will be selected. For Live (with TSB support), buffer downloads first available track and  publishes the other audio tracks with availability field as false.
 - If setPreferredTextLanguage (or setTextTrack) is called  post tune:
     - Player will pick the language matching list.
     - For Live (with TSB support), If the new preferred language track is already available in time shift buffer, then player changes to new track without losing TSB buffer.
@@ -1291,7 +1308,7 @@ playerInstance.setPreferredTextLanguage( trackPreferenceObject );
 
 ### getPreferredTextProperties
 - Supported UVE version 4.4 and above.
-- Returns Text track information set by application for preferred Text track selection , in JSON format 
+- Returns Text track information set by application for preferred Text track selection, in JSON format 
 
 - ###### Example : 
 ```js
@@ -1466,6 +1483,53 @@ playerInstance.setPreferredTextLanguage( trackPreferenceObject );
 |Name|Type|Description|
 |----|----|-----------|
 | headerNames | String Array | List of tag names of interest. Examples: C-XServerSignature, X-Powered-By, X-MoneyTrace |
+
+---
+
+### configRuntimeDRM(enableConfiguration)
+- Supported UVE version 5.1 and above.
+- API to enable DRM Protection event to application for setting Key ID specific setting ( for key rotation)
+- Need to register for [contentProtectionDataUpdate](#contentprotectiondataupdate) event with event registration. 
+
+|Name|Type|Description|
+|----|----|-----------|
+| enableConfiguration | Boolean | If True, enable runtime DRM notification for getting Application configuration.   |
+
+
+--- 
+
+### setContentProtectionDataConfig(json string)
+- Supported UVE version 5.1 and above.
+- Configure the DRM Data for license request for every KeyID reported to application
+- This API needs to be called before the ProtectionData Update timeout expires in the player . To set the timeout interval refer setContentProtectionDataUpdateTimeout.
+
+|Name|Type|Description|
+|----|----|-----------|
+| keyID | vector<uint8_t> | KeyID reference for DRM license config |
+| com.microsoft.playready | String | License server endpoint to use with PlayReady DRM |
+| com.widevine.alpha | String | License server endpoint to use with Widevine DRM |
+| customData | String | CustomData for license 
+acquisition |
+| authToken | String | Token to be applied for license acquisition |
+
+```
+ {
+    "keyID" : [57, 49, 49, 100, 98, 54, 99, 99, 45],
+    "com.widevine.alpha" : “mds.ccp.xcal.tv”,
+    "customData" : “data”,
+    "authToken"  : “token string”,
+ }
+```
+---
+
+### setContentProtectionDataUpdateTimeout(timeout)
+- Supported UVE version 5.1 and above.
+- Configure the ProtectionData Update timeout, in seconds. Default of 5 sec 
+- Player waits for setContentProtectionDataConfig API update within the timeout interval .On timeout use last configured values . 
+
+|Name|Type|Description|
+|----|----|-----------|
+| timeout | Number | Timeout value in seconds |
 
 ---
 
@@ -1706,7 +1770,7 @@ Example:
 ### playbackStateChanged
 
 **Event Payload:** 
-- state: number
+- state: [number](#getcurrentstate)
 
 **Description:** 
 - Supported UVE version 0.7 and above.
@@ -2009,6 +2073,24 @@ Example:
 - Watermarking session information
 
 ---
+
+### contentProtectionDataUpdate
+
+**Event Payload:** 
+- keyID : vector<uint8_t>
+- streamType : string 
+
+**Description:** 
+- Player notifies the application for new KeyId in the manifest, to get new config(if needed) for license fetch.
+- Refer setContentProtectionDataConfig for setting license fetch parameters.
+```
+Example:
+{"keyID":
+[102,101,97,53,53,48,48,54,45,51,102,48,102,45,99,101,97,99,45,55,54,99,48,45,5
+1,55,50,98,99,50,54,100,48,55,100,50,0],"streamType":"VIDEO"}
+```
+---
+
 <div style="page-break-after: always;"></div>
 
 ## Client DAI Feature Support
@@ -2341,7 +2423,7 @@ A subset of UVE APIs and Events are available when using UVE JS APIs for ATSC pl
 ##### playbackStarted
 
 **Value:** 1
-**Description:** Tune Success [OTA , HDMIIN,COMPOSITE IN]
+**Description:** Tune Success [OTA, HDMIIN, COMPOSITE IN]
 
 ##### playbackStateChanged
 
@@ -2403,6 +2485,18 @@ A subset of UVE APIs and Events are available when using UVE JS APIs for ATSC pl
 <div style="page-break-after: always;"></div>
 
 ## Appendix
+
+### Live Pause Configuration 
+Player supports multiple pause exit behavior on live content based on the configuration set in "livePauseBehavior". Default value is 0 - Autoplay Immediately
+
+    0 – Autoplay immediate (default) - Playback resumes when start of TSB/live reaches the paused position
+    1 – Live immediate - Playback resumes immediately from the live point when start of TSB/live 
+    reaches the paused position
+    2 – Autoplay defer - Player remains in Paused state when start of TSB/live reaches the paused position. 
+    When resumed, playback starts from start of the TSB.
+    3 – Live defer - Player remains in Paused state when start of TSB/live reaches the paused position. 
+    When resumed, playback starts from live point 
+
 
 ### Setup Reference Player 
 Procedure to setup the AAMP Reference Player in RDK devices(Comcast):
