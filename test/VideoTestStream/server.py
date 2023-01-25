@@ -308,6 +308,9 @@ class TestServer(BaseHTTPRequestHandler):
             elif extension == ".m4s":
                 # fMP4 segment
                 self.getFile(path)
+            elif extension == ".mp4":
+                # MP4 segment
+                self.getFile(path)
             elif extension == ".ts":
                 # MPEG TS segment
                 self.getFile(path)
