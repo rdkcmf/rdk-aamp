@@ -14,6 +14,7 @@ Index
 5. [AAMP Tunetime](#aamp-tunetime) 
 6. [VideoEnd (Session Statistics) Event](#videoend-session-statistics-event) 
 7. [UVE Reference Document](AAMP-UVE-API.md)
+8. [AAMP Simulator Installation](#aamp-simulator-installation)
 ---
 
 # AAMP Source Overview:
@@ -431,3 +432,48 @@ st = subtitle track
 ```
 ---
 
+# AAMP Simulator Installation
+
+## Setting up AAMP Simulator (Mac/OSX)
+Prerequisities: xcode, git
+
+Open terminal app
+```
+git clone -b dev_sprint_23_1 https://code.rdkcentral.com/r/rdk/components/generic/aamp
+```
+note: the branch changes over time - dev_sprint_YY_Q
+
+currently dev_sprint_23_1
+```
+cd aamp
+bash install-aamp.sh
+```
+select aamp-cli as default project
+
+Apple configuration in xcode under "Scheme: Edit Scheme..." if not already set:
+- Diagnostics: Runtime Sanitization: Address Sanitizer (strong memory checks at runtime)
+- Options: Console: Use Terminal (avoid doubled keypress bug)os
+    
+## Setting Up AAMP Simulator (Linux/Ubuntu)
+- Install Visual Studio Code on your Linux Machine https://code.visualstudio.com/download
+- Installing AAMP .Run the following 4 commands
+```
+apt-get install git
+git clone -b dev_sprint_23_1 https://code.rdkcentral.com/r/rdk/components/generic/aamp
+cd aamp
+bash install-aamp.sh
+```
+Choose "Y" when asked
+
+Enter system password when prompted
+
+Upon completion, Visual Studio Code should have opened.
+
+## Setting Up Ubuntu Virtual Machine if Needed
+Setting up VM on Windows 10
+- Install Virtual Box from Oracle, version 6.1.26. It is possible that it will work with later versions, but this one has been tested.
+- Download Ubuntu 22.04 from https://ubuntu.com/download/desktop/thank-you?version=22.04.1&architecture=amd64 .
+- Follow the tutorial at https://ubuntu.com/tutorials/how-to-run-ubuntu-desktop-on-a-virtual-machine-using-virtualbox#1-overview to install an Ubuntu desktop on a virtual machine.
+
+
+---
